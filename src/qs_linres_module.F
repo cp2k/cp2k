@@ -35,7 +35,8 @@ MODULE qs_linres_module
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_linres_current_utils,         ONLY: current_do_current,&
+  USE qs_linres_current_utils,         ONLY: current_do_chi,&
+                                             current_do_current,&
                                              current_env_cleanup,&
                                              current_env_init
   USE qs_linres_epr_nablavks,          ONLY: epr_nablavks
@@ -180,13 +181,14 @@ CONTAINS
           CALL current_env_init(current_env,qs_env,error=error)
           CALL current_operators(current_env,qs_env,error=error)
           CALL current_do_current(current_env,p_env,qs_env,error=error)
+          CALL current_do_chi(current_env,qs_env,error=error)
           !
           ! Compute NMR shift
           IF(nmr_present) THEN
              nmr_env%ref_count=0
              CALL nmr_env_init(nmr_env,qs_env,error=error)
              CALL nmr_shift(nmr_env,current_env,qs_env,error=error)
-             CALL nmr_shift_print(nmr_env,qs_env,error=error)
+             CALL nmr_shift_print(nmr_env,current_env,qs_env,error=error)
              CALL nmr_env_cleanup(nmr_env,error=error)
           ENDIF
           !
@@ -198,7 +200,7 @@ CONTAINS
              CALL epr_g_zke(epr_env,qs_env,error=error)
              CALL epr_nablavks(epr_env,qs_env,error=error)
              CALL epr_g_so(epr_env,current_env,qs_env,error=error)
-             CALL epr_g_soo(epr_env,qs_env,error=error)
+             CALL epr_g_soo(epr_env,current_env,qs_env,error=error)
              CALL epr_g_print(epr_env,qs_env,error=error)
              CALL epr_env_cleanup(epr_env,error=error)
           ENDIF

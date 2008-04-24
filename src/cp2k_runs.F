@@ -327,9 +327,9 @@ CONTAINS
           CASE (mon_car_run)
              CALL do_mon_car ( force_env, globenv, input_file_name, error=suberror )
           CASE (electronic_spectra_run)
-             IF(method_name_id /= do_qs.AND.method_name_id /= do_qmmm) &
+             IF(method_name_id /= do_qs) &
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Electron spectra available only with Quickstep or QMMM program. "//&
+                  "Electron spectra available only with Quickstep. "//&
                   CPSourceFileRef,&
                   suberror,failure)
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
@@ -338,14 +338,15 @@ CONTAINS
           CASE (bsse_run)
              CALL do_bsse_calculation(force_env, globenv, error=suberror)
           CASE (linear_response_run)
-             IF(method_name_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
-                  cp_assertion_failed,routineP,&
-                  "Property calculations by Linear Response only within the QS program "//&
+             IF(method_name_id /= do_qs .AND. &
+                method_name_id /= do_qmmm) &
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                     "Property calculations by Linear Response only within the QS or QMMM program "//&
 CPSourceFileRef,&
-                  suberror,failure)
+                     suberror,failure)
              ! The Ground State is needed, it can be read from Restart
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-                  error=suberror)
+                                              error=suberror)
              CALL linres_calculation(force_env, error=suberror)
           CASE (qs_debug_run)
              SELECT CASE(method_name_id)

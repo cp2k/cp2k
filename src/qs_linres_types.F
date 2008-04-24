@@ -105,6 +105,7 @@ MODULE qs_linres_types
      INTEGER, DIMENSION(:    ), POINTER          :: list_cubes
      INTEGER, DIMENSION(:,:,:), POINTER          :: statetrueindex
      CHARACTER(LEN=30)                           :: gauge_name,orb_center_name
+     REAL(dp)                                    :: chi_tensor(3,3,2),chi_tensor_loc(3,3,2)
      REAL(dp), DIMENSION(:,:), POINTER           :: basisfun_center
      TYPE(cp_2d_i_p_type),    DIMENSION(:  ), POINTER :: center_list
      TYPE(cp_2d_r_p_type),    DIMENSION(:  ), POINTER :: centers_set
@@ -122,8 +123,7 @@ MODULE qs_linres_types
      INTEGER, DIMENSION(:), POINTER      :: do_calc_cs_atom
      LOGICAL                             :: do_nics
      REAL(dp)                            :: shift_factor, shift_factor_gapw, chi_factor, &
-          &                                 chi_SI2shiftppm, chi_SI2ppmcgs, &
-          &                                 chi_tensor(3,3), chi_tensor_loc(3,3)
+          &                                 chi_SI2shiftppm, chi_SI2ppmcgs
      REAL(dp), DIMENSION(:,:  ), POINTER :: r_nics
      REAL(dp), DIMENSION(:,:,:), POINTER :: chemical_shift, chemical_shift_loc, &
           &                                 chemical_shift_nics_loc, chemical_shift_nics
@@ -134,7 +134,7 @@ MODULE qs_linres_types
      INTEGER                                     :: ref_count
      REAL(dp)                                    :: g_free_factor, g_soo_chicorr_factor, g_soo_factor,&
           &                                         g_so_factor, g_so_factor_gapw, g_zke_factor, g_zke
-     REAL(dp), DIMENSION(:,:), POINTER           :: g_total, g_so, g_soo, bind0
+     REAL(dp), DIMENSION(:,:), POINTER           :: g_total, g_so, g_soo
      TYPE(qs_rho_p_type),      DIMENSION(:,:), POINTER :: nablavks_set
      TYPE(nablavks_atom_type), DIMENSION(:  ), POINTER :: nablavks_atom_set
      TYPE(qs_rho_p_type),      DIMENSION(:,:), POINTER :: bind_set
@@ -369,7 +369,6 @@ CONTAINS
        NULLIFY(epr_env%g_total)
        NULLIFY(epr_env%g_so)
        NULLIFY(epr_env%g_soo)
-       NULLIFY(epr_env%bind0)
        NULLIFY(epr_env%vks_atom_set)
      END IF 
 
@@ -379,7 +378,7 @@ CONTAINS
        &                 nstates,gauge,list_cubes,statetrueindex,gauge_name,basisfun_center,&
        &                 nbr_center,center_list,centers_set,ao_mo_fm_pools,psi1_p,psi1_rxp,psi1_D,&
        &                 p_psi0,rxp_psi0,jrho1_atom_set,jrho1_set,op_p_ao,op_rmd_ao,jp2_ao,&
-       &                 jp0_ao,jp1_ao,error)
+       &                 jp0_ao,jp1_ao,chi_tensor,chi_tensor_loc,error)
     
     TYPE(current_env_type), OPTIONAL         :: current_env
     LOGICAL, OPTIONAL                        :: simple_done(6), &
@@ -414,6 +413,8 @@ CONTAINS
       DIMENSION(:, :), OPTIONAL, POINTER     :: jp2_ao
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: jp0_ao, jp1_ao
+    REAL(dp), INTENT(OUT), OPTIONAL          :: chi_tensor(3,3,2), &
+                                                chi_tensor_loc(3,3,2)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_current_env', &
@@ -444,6 +445,8 @@ CONTAINS
        IF(PRESENT(center_list     )) center_list           => current_env%center_list
        IF(PRESENT(centers_set     )) centers_set           => current_env%centers_set
        IF(PRESENT(ao_mo_fm_pools  )) ao_mo_fm_pools        => current_env%ao_mo_fm_pools
+       IF(PRESENT(chi_tensor      )) chi_tensor(:,:,:)     =  current_env%chi_tensor(:,:,:)
+       IF(PRESENT(chi_tensor_loc  )) chi_tensor_loc(:,:,:) =  current_env%chi_tensor_loc(:,:,:)
        IF(PRESENT(psi1_p          )) psi1_p                => current_env%psi1_p
        IF(PRESENT(psi1_rxp        )) psi1_rxp              => current_env%psi1_rxp
        IF(PRESENT(psi1_D          )) psi1_D                => current_env%psi1_D
@@ -461,16 +464,14 @@ CONTAINS
   END SUBROUTINE get_current_env
 
 ! *****************************************************************************
-  SUBROUTINE get_nmr_env(nmr_env, n_nics, chi_tensor, cs_atom_list, do_calc_cs_atom, &
-             chi_tensor_loc, r_nics, chemical_shift,&
-             chemical_shift_loc, chemical_shift_nics_loc, chemical_shift_nics,&
-             error)
+  SUBROUTINE get_nmr_env(nmr_env, n_nics, cs_atom_list, do_calc_cs_atom, &
+                         r_nics, chemical_shift,chemical_shift_loc,&
+                         chemical_shift_nics_loc, chemical_shift_nics,&
+                         error)
 
     TYPE(nmr_env_type)                       :: nmr_env
     INTEGER, INTENT(OUT), OPTIONAL           :: n_nics
-    REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor(3,3)
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: cs_atom_list, do_calc_cs_atom
-    REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor_loc(3,3)
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: r_nics
     REAL(dp), DIMENSION(:, :, :), OPTIONAL, &
@@ -492,8 +493,6 @@ CONTAINS
     IF(PRESENT(n_nics             )) n_nics              =  nmr_env%n_nics
     IF(PRESENT(cs_atom_list       )) cs_atom_list        => nmr_env%cs_atom_list
     IF(PRESENT(do_calc_cs_atom    )) do_calc_cs_atom     => nmr_env%do_calc_cs_atom
-    IF(PRESENT(chi_tensor         )) chi_tensor          =  nmr_env%chi_tensor
-    IF(PRESENT(chi_tensor_loc     )) chi_tensor_loc      =  nmr_env%chi_tensor_loc
     IF(PRESENT(chemical_shift     )) chemical_shift      => nmr_env%chemical_shift
     IF(PRESENT(chemical_shift_loc )) chemical_shift_loc  => nmr_env%chemical_shift_loc
     IF(PRESENT(chemical_shift_nics)) chemical_shift_nics => nmr_env%chemical_shift_nics
@@ -546,17 +545,16 @@ CONTAINS
   END SUBROUTINE set_current_env
 ! *****************************************************************************
   SUBROUTINE set_nmr_env(nmr_env,shift_factor,chi_factor,chi_SI2shiftppm,chi_SI2ppmcgs,&
-             chi_tensor,chi_tensor_loc,error)
+                         error)
 
     TYPE(nmr_env_type)                       :: nmr_env
-    REAL(dp), INTENT(IN), OPTIONAL :: shift_factor, chi_factor, &
-      chi_SI2shiftppm, chi_SI2ppmcgs, chi_tensor(3,3), chi_tensor_loc(3,3)
+    REAL(dp), INTENT(IN), OPTIONAL           :: shift_factor, chi_factor, &
+                                                chi_SI2shiftppm, chi_SI2ppmcgs
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_nmr_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iB, idir
     LOGICAL                                  :: failure
 
     failure =.FALSE.
@@ -567,33 +565,19 @@ CONTAINS
     IF(PRESENT(shift_factor   )) nmr_env%chi_factor      = chi_factor
     IF(PRESENT(chi_SI2shiftppm)) nmr_env%chi_SI2shiftppm = chi_SI2shiftppm
     IF(PRESENT(chi_SI2ppmcgs  )) nmr_env%chi_SI2ppmcgs   = chi_SI2ppmcgs
-    IF(PRESENT(chi_tensor)) THEN
-       DO iB=1,3
-          DO idir=1,3
-             nmr_env%chi_tensor(idir,iB) = chi_tensor(idir,iB)
-          END DO
-       END DO
-     END IF
-     IF(PRESENT(chi_tensor_loc))   THEN
-        DO iB=1,3
-           DO idir=1,3
-              nmr_env%chi_tensor_loc(idir,iB) = chi_tensor_loc(idir,iB)
-           END DO
-        END DO
-     END IF
 
   END SUBROUTINE set_nmr_env
 
 ! *****************************************************************************
   SUBROUTINE get_epr_env(epr_env, &
-             g_total, g_so, g_soo, bind0, &
+             g_total, g_so, g_soo, &
              nablavks_set, nablavks_atom_set, &
              bind_set, bind_atom_set, &
              vks_atom_set, error)
 
     TYPE(epr_env_type)                       :: epr_env
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: g_total, g_so, g_soo, bind0
+      POINTER                                :: g_total, g_so, g_soo
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: nablavks_set
     TYPE(nablavks_atom_type), DIMENSION(:), &
@@ -619,7 +603,6 @@ CONTAINS
     IF(PRESENT(g_total)) g_total => epr_env%g_total
     IF(PRESENT(g_so)) g_so => epr_env%g_so
     IF(PRESENT(g_soo)) g_soo => epr_env%g_soo
-    IF(PRESENT(bind0)) bind0 => epr_env%bind0
     IF(PRESENT(nablavks_set)) nablavks_set => epr_env%nablavks_set
     IF(PRESENT(nablavks_atom_set)) nablavks_atom_set => epr_env%nablavks_atom_set
     IF(PRESENT(bind_set)) bind_set => epr_env%bind_set
@@ -1087,18 +1070,20 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(jrho1_atom_set), cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom_set),cp_failure_level,routineP,error,failure)
 
-    IF(PRESENT(cjc_h         )) cjc_h          => jrho1_atom_set(iatom)%cjc_h
-    IF(PRESENT(cjc_s         )) cjc_s          => jrho1_atom_set(iatom)%cjc_s
-    IF(PRESENT(cjc_ii_h      )) cjc_ii_h       => jrho1_atom_set(iatom)%cjc_ii_h
-    IF(PRESENT(cjc_ii_s      )) cjc_ii_s       => jrho1_atom_set(iatom)%cjc_ii_s
-    IF(PRESENT(cjc_iii_h     )) cjc_iii_h      => jrho1_atom_set(iatom)%cjc_iii_h
-    IF(PRESENT(cjc_iii_s     )) cjc_iii_s      => jrho1_atom_set(iatom)%cjc_iii_s
-    IF(PRESENT(jrho_rad_h    )) jrho_rad_h     => jrho1_atom_set(iatom)%jrho_rad_h
-    IF(PRESENT(jrho_rad_s    )) jrho_rad_s     => jrho1_atom_set(iatom)%jrho_rad_s
-    IF(PRESENT(jrho_vec_rad_h)) jrho_vec_rad_h => jrho1_atom_set(iatom)%jrho_vec_rad_h
-    IF(PRESENT(jrho_vec_rad_s)) jrho_vec_rad_s => jrho1_atom_set(iatom)%jrho_vec_rad_s
+    IF(.NOT.failure) THEN
+       IF(PRESENT(cjc_h         )) cjc_h          => jrho1_atom_set(iatom)%cjc_h
+       IF(PRESENT(cjc_s         )) cjc_s          => jrho1_atom_set(iatom)%cjc_s
+       IF(PRESENT(cjc_ii_h      )) cjc_ii_h       => jrho1_atom_set(iatom)%cjc_ii_h
+       IF(PRESENT(cjc_ii_s      )) cjc_ii_s       => jrho1_atom_set(iatom)%cjc_ii_s
+       IF(PRESENT(cjc_iii_h     )) cjc_iii_h      => jrho1_atom_set(iatom)%cjc_iii_h
+       IF(PRESENT(cjc_iii_s     )) cjc_iii_s      => jrho1_atom_set(iatom)%cjc_iii_s
+       IF(PRESENT(jrho_rad_h    )) jrho_rad_h     => jrho1_atom_set(iatom)%jrho_rad_h
+       IF(PRESENT(jrho_rad_s    )) jrho_rad_s     => jrho1_atom_set(iatom)%jrho_rad_s
+       IF(PRESENT(jrho_vec_rad_h)) jrho_vec_rad_h => jrho1_atom_set(iatom)%jrho_vec_rad_h
+       IF(PRESENT(jrho_vec_rad_s)) jrho_vec_rad_s => jrho1_atom_set(iatom)%jrho_vec_rad_s
+    ENDIF
 
   END SUBROUTINE get_jrho_atom
 

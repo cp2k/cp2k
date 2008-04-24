@@ -74,7 +74,8 @@ MODULE qs_linres_current_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_atom_current,          ONLY: list_3c_jrho_atom
-  USE qs_linres_current,               ONLY: current_response_current
+  USE qs_linres_current,               ONLY: chi_analytic,&
+                                             current_response_current
   USE qs_linres_methods,               ONLY: linres_scf
   USE qs_linres_op,                    ONLY: set_vecp
   USE qs_linres_types,                 ONLY: current_env_create,&
@@ -109,7 +110,7 @@ MODULE qs_linres_current_utils
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: current_do_current, current_env_cleanup, current_env_init
+  PUBLIC :: current_do_current, current_do_chi, current_env_cleanup, current_env_init
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current_utils'
 
@@ -530,6 +531,38 @@ CONTAINS
     !
   END SUBROUTINE current_do_current
 
+  SUBROUTINE current_do_chi(current_env,qs_env,error)
+    TYPE(current_env_type)                   :: current_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'current_do_chi', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iB, iiB, iiiB, ispin, &
+                                                nspins
+    LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+    failure = .FALSE.
+    NULLIFY(dft_control)
+    !
+    CALL timeset(routineN,"I"," ",handle)
+    !
+    CALL get_qs_env(qs_env=qs_env,&
+         &          dft_control=dft_control,&
+         &          error=error)
+    nspins = dft_control%nspins
+    DO iB = 1,3
+       CALL set_vecp(iB,iiB,iiiB)
+       DO ispin = 1,nspins
+          CALL chi_analytic(current_env,qs_env,ispin,iB,error=error)
+       ENDDO
+    ENDDO
+    !
+    CALL timestop(0.0_dp,handle)
+    !
+  END SUBROUTINE current_do_chi
 
   SUBROUTINE current_env_init(current_env,qs_env,error)
     !
@@ -598,6 +631,9 @@ CONTAINS
     ENDIF
 
     CALL current_env_create(current_env,error=error)
+    !
+    current_env%chi_tensor(:,:,:)     = 0.0_dp
+    current_env%chi_tensor_loc(:,:,:) = 0.0_dp
     !
     ! If current_density or full_nmr different allocations are required
     current_section => section_vals_get_subs_vals(qs_env%input, &

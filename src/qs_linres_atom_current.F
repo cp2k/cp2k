@@ -318,6 +318,7 @@ CONTAINS
                    DO kneighbor = 1,nnode_c
 
                       katom = reduced_3c_oce(kkind)%index_atom(kneighbor)
+
                       rbc(1:3) = reduced_3c_oce(kkind)%rbc(1:3,kneighbor)
 
                       IF (katom /= last_katom) THEN
@@ -1211,8 +1212,6 @@ CONTAINS
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-
-!    TYPE(section_vals_type), POINTER         :: lr_section
 
     NULLIFY(para_env, dft_control)
     NULLIFY(jrho1_atom_set, grid_atom, harmonics)

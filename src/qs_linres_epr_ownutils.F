@@ -57,7 +57,6 @@ MODULE qs_linres_epr_ownutils
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_linres_epr_bind0,             ONLY: chicorr_analytic
   USE qs_linres_nmr_epr_common_utils,  ONLY: mult_G_ov_G2_grid
   USE qs_linres_op,                    ONLY: fac_vecp,&
                                              set_vecp,&
@@ -347,8 +346,8 @@ CONTAINS
                     error=error)
 
     CALL get_epr_env(epr_env=epr_env,&
-                     nablavks_set=nablavks_set,&!jrho1_set=jrho1_set,&
-                     nablavks_atom_set=nablavks_atom_set,&!jrho1_atom_set=jrho1_atom_set,&
+                     nablavks_set=nablavks_set,&
+                     nablavks_atom_set=nablavks_atom_set,&
                      g_total=g_total,g_so=g_so)
 
     CALL get_current_env(current_env=current_env,&
@@ -560,9 +559,10 @@ CONTAINS
 !>      06.2006 created [RD]
 !> \author RD
 ! *****************************************************************************
-  SUBROUTINE epr_g_soo(epr_env,qs_env,error)
+  SUBROUTINE epr_g_soo(epr_env,current_env,qs_env,error)
 
     TYPE(epr_env_type)                       :: epr_env
+    TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -576,10 +576,11 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, gapw, paw_atom, &
                                                 soo_rho_hard, success
-    REAL(dp)                                 :: bind_ra_idir1, eps_r, eps_x, &
-                                                rho_spin, temp_soo_soft
+    REAL(dp)                                 :: bind_ra_idir1, &
+                                                chi_tensor(3,3,2), eps_r, &
+                                                eps_x, rho_spin, temp_soo_soft
     REAL(dp), DIMENSION(3, 3)                :: temp_soo_gapw
-    REAL(dp), DIMENSION(:, :), POINTER       :: bind0, g_soo, g_total
+    REAL(dp), DIMENSION(:, :), POINTER       :: g_soo, g_total
     REAL(KIND=dp), DIMENSION(3)              :: ra
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -607,10 +608,10 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: g_section, interp_section, &
                                                 lr_section
 
-    NULLIFY(atomic_kind_set, atom_kind, atom_list, bind0, bind_set,&
-      dft_control, grid_atom, g_section, g_soo, g_total, harmonics,&
-      interp_section, logger, lr_section, para_env, particle_set, rho,&
-      rho_atom, rho_atom_set)
+    NULLIFY(atomic_kind_set, atom_kind, atom_list, bind_set, dft_control, &
+         grid_atom, g_section, g_soo, g_total, harmonics, interp_section, &
+         logger, lr_section, para_env, particle_set, rho, rho_atom, &
+         rho_atom_set)
 
     logger => cp_error_get_logger(error)
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
@@ -630,7 +631,11 @@ CONTAINS
                     pw_env=pw_env,rho=rho,rho_atom_set=rho_atom_set,error=error)
 
     CALL get_epr_env(epr_env=epr_env,bind_set=bind_set,&
-                     g_soo=g_soo,g_total=g_total,bind0=bind0)
+                     g_soo=g_soo,g_total=g_total)
+
+    CALL get_current_env(current_env=current_env,&
+                         chi_tensor=chi_tensor,&
+                         error=error)
 
     gapw = dft_control%qs_control%gapw
     nkind = SIZE(atomic_kind_set,1)
@@ -656,7 +661,7 @@ CONTAINS
 
     DO iB=1,3
        DO idir1=1,3
-          temp_soo_soft = 1.0_dp * epr_env%g_soo_chicorr_factor * bind0(idir1,iB) * &
+          temp_soo_soft = 1.0_dp * epr_env%g_soo_chicorr_factor * chi_tensor(idir1,iB,2) * &
                           (REAL(dft_control%multiplicity,KIND=dp)-1.0_dp)
           IF (output_unit>0) THEN
              WRITE (UNIT=output_unit,FMT="(T2,A,T18,i1,i1,T56,E24.16)")&
@@ -884,11 +889,6 @@ CONTAINS
              ! set to zero for the calculation of the shift
              CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw)
           ENDDO
-          !
-          ! First compute the contribution to the CHI tensor coming from the soft density
-          IF (ispin == 2) THEN
-             CALL chicorr_analytic(epr_env,current_env,qs_env,ispin,iB,error=error)
-          END IF
           !
           DO idir = 1,3
              rho_rspace => current_env%jrho1_set(idir,iB)%rho%rho_r(ispin)

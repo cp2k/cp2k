@@ -53,7 +53,7 @@ MODULE task_list_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'task_list_methods'
 
-  PUBLIC :: generate_qs_task_list
+  PUBLIC :: generate_qs_task_list,get_task_bounds,estimate_task_cost
 
 CONTAINS
 

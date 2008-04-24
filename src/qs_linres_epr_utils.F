@@ -255,10 +255,6 @@ CONTAINS
     epr_env%g_zke = 0.0_dp
     epr_env%g_so = 0.0_dp
     epr_env%g_soo = 0.0_dp
-    ! Initialize the Bind0 tensor components
-    ALLOCATE(epr_env%bind0(3,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    epr_env%bind0 = 0.0_dp
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          &                            "PRINT%PROGRAM_RUN_INFO",error=error)
@@ -358,12 +354,6 @@ CONTAINS
           DEALLOCATE(epr_env%g_soo,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
-        ! bind0
-        IF(ASSOCIATED(epr_env%bind0)) THEN
-          DEALLOCATE(epr_env%bind0,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        END IF
-
       END IF  ! ref count
     END IF ! failure
 

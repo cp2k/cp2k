@@ -305,7 +305,6 @@ CONTAINS
 
     !
     ! Initialize the chemical shift tensor
-    nmr_env%chi_tensor = 0.0_dp
     ALLOCATE(nmr_env%chemical_shift(3,3,natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     nmr_env%chemical_shift = 0.0_dp

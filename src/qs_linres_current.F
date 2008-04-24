@@ -25,7 +25,8 @@ MODULE qs_linres_current
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_scale_and_add
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -47,7 +48,8 @@ MODULE qs_linres_current
                                              rs_pool_create_rs,&
                                              rs_pool_give_back_rs,&
                                              rs_pools_create_rs_vect
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
+                                             cp_sm_plus_fm_fm_t
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
@@ -84,7 +86,8 @@ MODULE qs_linres_current
   USE qs_linres_atom_current,          ONLY: calculate_jrho_atom,&
                                              calculate_jrho_atom_coeff,&
                                              calculate_jrho_atom_rad
-  USE qs_linres_op,                    ONLY: set_vecp
+  USE qs_linres_op,                    ONLY: ind_m2,&
+                                             set_vecp
   USE qs_linres_types,                 ONLY: current_env_type,&
                                              get_current_env
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -95,6 +98,8 @@ MODULE qs_linres_current
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
+  USE qs_operators_ao,                 ONLY: rRc_xyz_der_ao,&
+                                             set_up_op_sm
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
@@ -105,13 +110,13 @@ MODULE qs_linres_current
                                              int2pair,&
                                              pair2int,&
                                              rs_get_my_tasks
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix,&
-                                             deallocate_matrix,&
-                                             get_block_node,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             set_matrix
+  USE sparse_matrix_types,             ONLY: &
+       add_block_node, allocate_matrix, allocate_matrix_set, &
+       deallocate_matrix, deallocate_matrix_set, get_block_node, &
+       real_matrix_p_type, real_matrix_type, replicate_matrix_structure, &
+       set_matrix
+  USE task_list_methods,               ONLY: estimate_task_cost,&
+                                             get_task_bounds
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -123,7 +128,7 @@ MODULE qs_linres_current
   PRIVATE
 
   ! *** Public subroutines ***
-  PUBLIC :: current_response_current,calculate_jrho_resp
+  PUBLIC :: current_response_current,calculate_jrho_resp,chi_analytic
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current'
 
@@ -622,12 +627,13 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, bcol, brow, curr_tasks, dest, dir, handle, i, iatom, &
-      iatom_old, igrid_level, iiB, iiiB, ikind, ikind_old, ilist, inode, &
-      ipgf, iset, iset_old, istat, itask, ithread, jatom, jatom_old, jkind, &
-      jkind_old, jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, &
-      maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, &
-      nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat, tp(3)
+    INTEGER :: ab, added_tasks, bcol, brow, cost, curr_tasks, dest, dir, &
+      handle, i, iatom, iatom_old, igrid_level, iiB, iiiB, ikind, ikind_old, &
+      ilist, inode, ipgf, iset, iset_old, istat, itask, ithread, j, jatom, &
+      jatom_old, jkind, jkind_old, jpgf, jset, jset_old, lb_cube(3), maxco, &
+      maxpgf, maxset, maxsgf, maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, &
+      ncob, nkind, nlist, nnode, nseta, nsetb, ntasks, nthread, sgfa, sgfb, &
+      stat, tp(3), ub_cube(3)
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -946,7 +952,8 @@ CONTAINS
                 END IF
 
                 IF (distributed_rs_grids) THEN
-                   NULLIFY (jpblock,jpblock_rii,jp_block_riii )
+!                   NULLIFY (jpblock,jpblock_rii,jp_block_riii )
+                   NULLIFY (jpblock,jpblock_rii,jpblock_riii )
                    CALL add_block_node ( deltajp, brow, bcol, jpblock ,error=error)
                    jpblock = jp_block
                    CALL add_block_node ( deltajp_rii, brow, bcol, jpblock_rii ,error=error)
@@ -1007,21 +1014,44 @@ CONTAINS
                             END DO
 
                             IF(rs_rho(igrid_level)%rs_grid%distributed) THEN
-                               CALL rs_find_node(rs_rho(igrid_level)%rs_grid,tp,dest)
-                               tasks(4,ntasks) = 1
+                               ! find the bounds required for proper collocation
+                               CALL get_task_bounds(rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                                    la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                                    lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                                    ra,rab,rab2,dft_control%qs_control%eps_rho_rspace,&
+                                    lb_cube,ub_cube)
+                               ! finds the node(s) that need to process this task
+                               ! on exit tasks(4,:) is 1 for distributed tasks and 2 for generalised tasks
+                               CALL rs_find_node(rs_rho(igrid_level)%rs_grid,tp,dest,&
+                                    ntasks=ntasks,tasks=tasks,lb_cube=lb_cube,ub_cube=ub_cube,added_tasks=added_tasks)
+                               IF ( ntasks > curr_tasks ) THEN
+                                  curr_tasks = (curr_tasks+add_tasks)*mult_tasks
+                                  CALL reallocate(dist_ab,1,3,1,curr_tasks)
+                               END IF
                             ELSE
-                               dest = rs_rho(igrid_level)%rs_grid % my_pos
+                               dest =  rs_rho(igrid_level)%rs_grid%my_pos
+                               tasks (1,ntasks) = dest
                                tasks(4,ntasks) = 0
+                               added_tasks = 1
                             ENDIF
 
-                            tasks (1,ntasks) = dest
-                            tasks (2,ntasks) = rs_rho(igrid_level)%rs_grid % my_pos
-                            CALL pair2int(tasks(3,ntasks),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+                            ! cost_factor for this task
+                            CALL estimate_task_cost(cost,rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                                 la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                                 lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                                 ra,rab,rab2,dft_control%qs_control%eps_rho_rspace)
 
-                            tasks(5,ntasks) = 1 
-
-                            dist_ab (:,ntasks) = rab(:)
-
+                            DO j= 1, added_tasks
+                               tasks (2,ntasks-added_tasks+j) = rs_rho(igrid_level)% rs_grid % my_pos
+                               tasks (5,ntasks-added_tasks+j) = cost
+                               !encode the atom pairs and basis info as a single long integer
+                               CALL pair2int(tasks(3,ntasks-added_tasks+j),igrid_level,&
+                                    iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+                               dist_ab (1,ntasks-added_tasks+j) = rab(1)
+                               dist_ab (2,ntasks-added_tasks+j) = rab(2)
+                               dist_ab (3,ntasks-added_tasks+j) = rab(3)
+                            ENDDO
+                           
                          END DO loop_jpgf
 
                       END DO loop_ipgf
@@ -1260,6 +1290,383 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_jrho_resp
+
+  SUBROUTINE chi_analytic(current_env,qs_env,ispin,iB,error)
+    !
+    TYPE(current_env_type)                   :: current_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: ispin, iB
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_analytic', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, icenter, idir, &
+                                                idir2, ii, iiB, iii, iiiB, &
+                                                istat, istate, j, nao, &
+                                                nbr_center(2), output_unit
+    LOGICAL                                  :: failure, gapw, ionode
+    REAL(dp)                                 :: chi(3), contrib, contrib2, &
+                                                dk(3)
+    REAL(dp), DIMENSION(:), POINTER          :: occupation
+    REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_0, vecbuf_1_d, &
+                                                vecbuf_1_rxp
+    TYPE(cp_2d_i_p_type), DIMENSION(:), &
+      POINTER                                :: center_list
+    TYPE(cp_2d_r_p_type)                     :: vecbuf_1_p(3)
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
+      POINTER                                :: centers_set
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: psi1_D, psi1_p, psi1_rxp
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, momxpsi_istate, &
+                                                psi0_istate, psi_p1_istate, &
+                                                psi_p2_istate, psi_rxp_istate
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, op_mom_ao, op_p_ao
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: op_mom_der_ao
+
+!
+!
+
+    failure = .FALSE.
+    !
+    CALL timeset(routineN,"I"," ",handle)
+    !
+    NULLIFY(dft_control,matrix_s,mos,para_env,mo_coeff,occupation,op_mom_ao,&
+         &  op_mom_der_ao,center_list,centers_set,psi0_istate,psi_rxp_istate,&
+         &  psi_p1_istate,psi_p2_istate,momxpsi_istate,op_p_ao,psi1_p,psi1_rxp,&
+         &  psi1_D)
+
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit = -1
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    END IF
+
+    CALL get_qs_env(qs_env=qs_env,&
+         &          dft_control=dft_control,&
+         &          matrix_s=matrix_s,&
+         &          mos=mos,&
+         &          para_env=para_env,&
+         &          error=error)
+
+    gapw = dft_control%qs_control%gapw
+    IF (output_unit>0) THEN
+       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+       WRITE(output_unit,*) 'chi_analytic: gapw=',gapw!,' reset to .false.'
+       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+    END IF
+    !gapw=.FALSE.
+
+    CALL get_current_env(current_env=current_env,&
+         &               nao=nao,&
+         &               nbr_center=nbr_center,&
+         &               center_list=center_list,&
+         &               centers_set=centers_set,&
+         &               op_p_ao=op_p_ao,&
+         &               psi1_p=psi1_p,&
+         &               psi1_rxp=psi1_rxp,&
+         &               psi1_D=psi1_D,&
+         &               error=error)
+    !
+    ! Allocate sparse matrices for dipole, quadrupole and their derivatives => 9x3
+    ! Remember the derivatives are antisymmetric
+    CALL allocate_matrix_set(op_mom_ao,9,error=error)
+    CALL allocate_matrix_set(op_mom_der_ao,9,3,error=error)
+    CALL set_up_op_sm(op_mom_ao(1)%matrix,qs_env,symmetry="none",&
+         &            name="op_mom",error=error)
+    DO idir2=1,3
+       CALL replicate_matrix_structure(op_mom_ao(1)%matrix, &
+            &                          op_mom_der_ao(1,idir2)%matrix,&
+            &                          "op_mom_der_ao"//"-"//TRIM(&
+            &                          ADJUSTL(cp_to_string(idir2))),&
+            &                          target_symmetry="none",&
+            &                          error=error)
+       CALL set_matrix(op_mom_der_ao(1,idir2)%matrix,0.0_dp)
+    ENDDO
+
+    DO idir = 2,SIZE(op_mom_ao,1)
+       CALL replicate_matrix_structure(op_mom_ao(1)%matrix, &
+            &                          op_mom_ao(idir)%matrix,&
+            &                          "op_mom_ao"//"-"//TRIM(&
+            &                          ADJUSTL(cp_to_string(idir))),&
+            &                          target_symmetry="none",&
+            &                          error=error)
+       CALL set_matrix(op_mom_ao(idir)%matrix,0.0_dp)
+       DO idir2=1,3
+          CALL replicate_matrix_structure(op_mom_ao(1)%matrix,&
+               &                          op_mom_der_ao(idir,idir2)%matrix,&
+               &                          "op_mom_der_ao"//"-"//TRIM(&
+               &                          ADJUSTL(cp_to_string(idir*idir2))),&
+               &                          target_symmetry="none",&
+               &                          error=error)
+          CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix,0.0_dp)
+       ENDDO
+    ENDDO
+    !
+    ! get iiB and iiiB
+    CALL set_vecp(iB,iiB,iiiB)
+    !
+    ! get ground state MOS
+    CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
+         &          occupation_numbers=occupation)
+    !
+    ! Allocate full matrices for only one vector
+    NULLIFY(tmp_fm_struct)
+    CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+         &                   ncol_global=1,para_env=para_env,&
+         &                   context=mo_coeff%matrix_struct%context,&
+         &                   error=error)
+    CALL cp_fm_create(psi0_istate, tmp_fm_struct ,error=error)
+    CALL cp_fm_create(psi_rxp_istate, tmp_fm_struct ,error=error)
+    CALL cp_fm_create(psi_p1_istate, tmp_fm_struct ,error=error)
+    CALL cp_fm_create(psi_p2_istate, tmp_fm_struct ,error=error)
+    CALL cp_fm_create(momxpsi_istate, tmp_fm_struct ,error=error)
+    CALL cp_fm_struct_release( tmp_fm_struct ,error=error)
+    !
+    ! Allocate buffer vectors
+    NULLIFY(vecbuf_0,vecbuf_1_rxp,vecbuf_1_d)
+    ALLOCATE(vecbuf_0(1,nao),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(vecbuf_1_rxp(1,nao),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(vecbuf_1_d(1,nao),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO idir=1,3
+       NULLIFY(vecbuf_1_p(idir)%array)
+       ALLOCATE(vecbuf_1_p(idir)%array(1,nao),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    !
+    ! Initialize the temporary vector chi
+    chi = 0.0_dp
+    !
+    ! Start loop over the occupied  states
+    DO icenter = 1,nbr_center(ispin)
+       !
+       ! Get the Wannier center of the istate-th ground state orbital
+       dk(1:3) = centers_set(ispin)%array(1:3,icenter)
+       !
+       ! Compute the multipole integrals for the state istate,
+       ! using as reference center the corresponding Wannier center
+       DO idir = 1,9
+          CALL set_matrix(op_mom_ao(idir)%matrix, 0.0_dp)
+          DO idir2 = 1,3
+             CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix, 0.0_dp)
+          ENDDO
+       ENDDO
+       !
+       !WRITE(*,*) ' state ', istate, dk(1:3)
+       CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
+            &              minimum_image=.FALSE.,soft=gapw,error=error)
+
+
+       DO j = center_list(ispin)%array(1,icenter),center_list(ispin)%array(1,icenter+1)-1
+          istate = center_list(ispin)%array(2,j)
+
+          !
+          ! EXTRACT from the ground state full MOS matrix the coefficients of istate
+          CALL cp_fm_get_submatrix(mo_coeff,vecbuf_0,1,istate,nao,1,&
+               &                   transpose=.TRUE.,error=error)
+          vecbuf_0(1,1:nao) = vecbuf_0(1,1:nao) * occupation(istate)
+          CALL cp_fm_set_submatrix(psi0_istate,vecbuf_0,1,1,nao,1,&
+               &                   transpose=.TRUE.,error=error)
+          !
+          ! Extract from the full MOS matrices of the response functions the coefficients
+          ! referring to istate
+          ! psi1_rxp_iB_istate
+          CALL cp_fm_get_submatrix(psi1_rxp(ispin,iB)%matrix,vecbuf_1_rxp,1,&
+               &                   istate,nao,1,transpose=.TRUE.,error=error)
+       
+          IF(current_env%full) THEN
+             ! psi1_d_iB_istate
+             CALL cp_fm_get_submatrix(psi1_D(ispin,iB)%matrix,vecbuf_1_d,1,istate,&
+                  &                   nao,1,transpose=.TRUE.,error=error)
+             vecbuf_1_rxp(1,1:nao) = vecbuf_1_rxp(1,1:nao) - vecbuf_1_d(1,1:nao)
+          ENDIF
+          CALL cp_fm_set_submatrix(psi_rxp_istate,vecbuf_1_rxp,1,1,nao,1,&
+               &                   transpose=.TRUE.,error=error)
+          !
+          ! psi1_p_iiB_istate and psi1_p_iiiB_istate
+          CALL cp_fm_get_submatrix(psi1_p(ispin,iiB)%matrix,&
+               &                   vecbuf_1_p(iiB)%array,1,istate,nao,1,&
+               &                   transpose=.TRUE.,error=error)
+          CALL cp_fm_set_submatrix(psi_p1_istate,vecbuf_1_p(iiB)%array,1,1,&
+               &                   nao,1,transpose=.TRUE.,error=error)
+          CALL cp_fm_get_submatrix(psi1_p(ispin,iiiB)%matrix,&
+               &                   vecbuf_1_p(iiiB)%array,1,istate,nao,1,&
+               &                   transpose=.TRUE.,error=error)
+          CALL cp_fm_set_submatrix(psi_p2_istate,vecbuf_1_p(iiiB)%array,1,1,&
+               &                   nao,1,transpose=.TRUE.,error=error)
+          !
+          ! Multuply left and right by the appropriate coefficients and sum into the
+          ! correct component of the chi tensor using the appropriate multiplicative factor
+          ! (don't forget the occupation number)
+          ! Loop over the cartesian components of the tensor
+          ! The loop over the components of the external field is external, thereby
+          ! only one column of the chi tensor is computed here
+          DO idir = 1,3
+             ! get ii and iii
+             CALL set_vecp(idir,ii,iii)
+             !
+             ! term: 2[C0| (r-dk)_ii |d_iii(C1(rxp-D))]-2[C0| (r-dk)_iii |d_ii(C1(rxp-D))]
+             ! the factor 2 should be already included in the matrix elements
+             contrib = 0.0_dp
+             CALL cp_sm_fm_multiply(op_mom_der_ao(ii,iii)%matrix,psi_rxp_istate,&
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+             CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+             chi(idir) = chi(idir) + 2.0_dp * contrib
+             
+             contrib = 0.0_dp
+             CALL cp_sm_fm_multiply(op_mom_der_ao(iii,ii)%matrix,psi_rxp_istate,&
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+             CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+             chi(idir) = chi(idir) - 2.0_dp *contrib
+             !
+             ! correction: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
+             ! factor 2 not included in the matrix elements
+             contrib = 0.0_dp
+             CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,psi_rxp_istate,&
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+             CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+             chi(idir) = chi(idir) + 2.0_dp*dk(ii)*contrib
+             !
+             contrib2 = 0.0_dp
+             CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,psi_rxp_istate,&
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+             CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
+             chi(idir) = chi(idir) - 2.0_dp*dk(iii)*contrib2
+             !
+             ! term: -2[C0| (r-dk)_ii  (r-dk)_iiB | d_iii(C1(piiiB))] \
+             !       +2[C0| (r-dk)_iii (r-dk)_iiB | d_ii(C1(piiiB))]
+             ! the factor 2 should be already included in the matrix elements
+             contrib = 0.0_dp
+             idir2 = ind_m2(ii,iiB)
+             CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p2_istate,&
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+             CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+             chi(idir) = chi(idir) - 2.0_dp * contrib
+             contrib2 = 0.0_dp
+             IF(iiB==iii) THEN
+                CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p2_istate,&
+                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
+                chi(idir) = chi(idir) - contrib2
+             ENDIF
+
+             contrib = 0.0_dp
+             idir2 = ind_m2(iii,iiB)
+             CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p2_istate,&
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+             CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+             chi(idir) = chi(idir) + 2.0_dp * contrib
+             contrib2 = 0.0_dp
+             IF(iiB==ii) THEN
+                CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p2_istate,&
+                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
+                chi(idir) = chi(idir) + contrib2
+             ENDIF
+             !
+             ! correction: -dk_ii * 2[C0|(r-dk)_iiB | d_iii(C1(piiiB))] \
+             !             +dk_iii * 2[C0|(r-dk)_iiB | d_ii(C1(piiiB))]
+             ! the factor 2 should be already included in the matrix elements
+             ! no additional correction terms because of the orthogonality between C0 and C1
+             contrib = 0.0_dp
+             CALL cp_sm_fm_multiply(op_mom_der_ao(iiB,iii)%matrix,psi_p2_istate,&
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+             CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+             chi(idir) = chi(idir) - 2.0_dp*dk(ii)*contrib
+             !
+             contrib2 = 0.0_dp
+             CALL cp_sm_fm_multiply(op_mom_der_ao(iiB,ii)%matrix,psi_p2_istate,&
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+             CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
+             chi(idir) = chi(idir) + 2.0_dp*dk(iii)*contrib2
+             !
+             ! term: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] \
+             !       -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))]
+             ! the factor 2 should be already included in the matrix elements
+             contrib = 0.0_dp
+             idir2 = ind_m2(ii,iiiB)
+             CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p1_istate,&
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+             CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+             chi(idir) = chi(idir) + 2.0_dp*contrib
+             contrib2 = 0.0_dp
+             IF(iiiB==iii) THEN
+                CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p1_istate,&
+                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
+                chi(idir) = chi(idir) + contrib2
+             ENDIF
+             
+             contrib = 0.0_dp
+             idir2 = ind_m2(iii,iiiB)
+             CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p1_istate,&
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+             CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+             chi(idir) = chi(idir) - 2.0_dp * contrib
+             contrib2 = 0.0_dp
+             IF(iiiB==ii) THEN
+                CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p1_istate,&
+                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
+                chi(idir) = chi(idir) - contrib2
+             ENDIF
+             !
+             ! correction: +dk_ii * 2[C0|(r-dk)_iiiB | d_iii(C1(piiB))] +\
+             !             -dk_iii * 2[C0|(r-dk)_iiiB | d_ii(C1(piiB))]
+             ! the factor 2 should be already included in the matrix elements
+             contrib = 0.0_dp
+             CALL cp_sm_fm_multiply(op_mom_der_ao(iiiB,iii)%matrix,psi_p1_istate,&
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+             CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+             chi(idir) = chi(idir) + 2.0_dp*dk(ii)*contrib
+             !
+             contrib2 = 0.0_dp
+             CALL cp_sm_fm_multiply(op_mom_der_ao(iiiB,ii)%matrix,psi_p1_istate,&
+                  &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
+             CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
+             chi(idir) = chi(idir) - 2.0_dp*dk(iii)*contrib2
+             
+          ENDDO  ! idir
+
+       ENDDO ! istate
+
+    ENDDO  ! icenter
+    !
+    DO idir = 1,3
+       current_env%chi_tensor(idir,iB,ispin) = current_env%chi_tensor(idir,iB,ispin)+&
+            &                                  chi(idir)
+    ENDDO
+    !
+    ! deallocate the sparse matrices
+    CALL deallocate_matrix_set(op_mom_ao,error=error)
+    CALL deallocate_matrix_set(op_mom_der_ao,error=error)
+    CALL cp_fm_release (psi0_istate, error=error )
+    CALL cp_fm_release (psi_rxp_istate, error=error )
+    CALL cp_fm_release (psi_p1_istate, error=error )
+    CALL cp_fm_release (psi_p2_istate, error=error )
+    CALL cp_fm_release (momxpsi_istate, error=error )
+    DEALLOCATE(vecbuf_0,vecbuf_1_rxp,vecbuf_1_d,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO idir = 1,3
+       DEALLOCATE(vecbuf_1_p(idir)%array,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE chi_analytic
 
 END MODULE qs_linres_current
 

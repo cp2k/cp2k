@@ -427,7 +427,6 @@ OBJECTS_GENERIC =\
  qs_ks_types.o\
  qs_linres_nmr_epr_common_utils.o\
  qs_linres_op.o\
- qs_linres_epr_bind0.o\
  qs_linres_epr_nablavks.o\
  qs_linres_epr_ownutils.o\
  qs_linres_epr_utils.o\
