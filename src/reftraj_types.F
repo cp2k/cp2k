@@ -36,6 +36,7 @@ MODULE reftraj_types
   TYPE reftraj_info_type
      INTEGER                                  :: first_snapshot
      INTEGER                                  :: last_snapshot
+     INTEGER                                  :: stride
      LOGICAL                                  :: eval_ef
      LOGICAL                                  :: variable_volume
      LOGICAL                                  :: msd
@@ -65,6 +66,7 @@ MODULE reftraj_types
      INTEGER                                  :: isnap
      INTEGER                                  :: natom
      LOGICAL                                  :: init
+     LOGICAL                                  :: skip_this
      REAL(KIND=dp)                            :: epot, epot0, time, time0
      TYPE(reftraj_info_type), POINTER         :: info
      TYPE(reftraj_msd_type), POINTER          :: msd
@@ -103,6 +105,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(reftraj%info%traj_parser)
     NULLIFY(reftraj%info%cell_parser)
+    reftraj%skip_this = .FALSE.
 
     ! Initialize parser for trajectory
     CALL section_vals_val_get(reftraj_section,"TRAJ_FILE_NAME",c_val=filename,error=error)
@@ -118,6 +121,7 @@ CONTAINS
 
     CALL section_vals_val_get(reftraj_section,"FIRST_SNAPSHOT",i_val=reftraj%info%first_snapshot,error=error)
     CALL section_vals_val_get(reftraj_section,"LAST_SNAPSHOT",i_val=reftraj%info%last_snapshot,error=error)
+    CALL section_vals_val_get(reftraj_section,"STRIDE",i_val=reftraj%info%stride,error=error)
     CALL section_vals_val_get(reftraj_section,"EVAL_ENERGY_FORCES",l_val=reftraj%info%eval_ef,error=error)
   
     CALL section_vals_val_get(reftraj_section,"MSD%_SECTION_PARAMETERS_",&

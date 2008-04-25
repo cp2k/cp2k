@@ -47,6 +47,7 @@ MODULE md_util
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: kelvin
+  USE reftraj_types,                   ONLY: reftraj_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -72,10 +73,11 @@ CONTAINS
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE md_output(md_env,root_section,forced_io,error)
+  SUBROUTINE md_output(md_env,root_section,forced_io,ensemble,error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: root_section
     LOGICAL, INTENT(IN)                      :: forced_io
+    INTEGER, INTENT(IN)                      :: ensemble
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'md_output', &
@@ -83,6 +85,7 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: do_print
+    TYPE(reftraj_type), POINTER              :: reftraj
     TYPE(section_vals_type), POINTER         :: print_section
 
     CALL timeset(routineN,handle)
@@ -90,6 +93,10 @@ CONTAINS
     IF (forced_io) THEN
        print_section => section_vals_get_subs_vals(root_section,"MOTION%MD%PRINT",error=error)
        CALL section_vals_val_get(print_section,"FORCE_LAST",l_val=do_print,error=error)
+    END IF
+    IF(ensemble==reftraj_ensemble) THEN
+        CALL get_md_env(md_env, reftraj=reftraj, error=error)
+        do_print = do_print .AND. (.NOT. reftraj%skip_this)
     END IF
     IF (do_print) THEN
        ! Dumps all files related to the MD run

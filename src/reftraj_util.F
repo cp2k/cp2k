@@ -21,8 +21,7 @@ MODULE reftraj_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser_methods,               ONLY: parser_get_next_line,&
-                                             parser_get_object
+  USE cp_parser_methods,               ONLY: parser_get_next_line
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -54,6 +53,7 @@ MODULE reftraj_util
   USE reftraj_types,                   ONLY: reftraj_msd_type,&
                                              reftraj_type
   USE termination,                     ONLY: stop_program
+  USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -62,7 +62,7 @@ MODULE reftraj_util
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'reftraj_util'
 
-      PUBLIC ::   initialize_reftraj, compute_msd_reftraj, write_output_reftraj
+      PUBLIC ::   initialize_reftraj, compute_msd_reftraj, skip_snapshot, write_output_reftraj
       
 CONTAINS
 
@@ -83,61 +83,37 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_reftraj', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=10)                        :: AA
-    CHARACTER(LEN=80)                        :: title
-    CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: iatom, iter, natom, &
-                                                Natom_read, nskip
+    INTEGER                                  :: natom, nline_to_skip, nskip
     LOGICAL                                  :: failure, my_end
-    REAL(KIND=dp)                            :: x, y, z
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: msd_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
     failure = .FALSE.
 
-    NULLIFY (force_env, msd_section, particles, particle_set, simpar, subsys)
+    NULLIFY (force_env, msd_section, particles, simpar, subsys)
     CALL get_md_env(md_env=md_env, force_env=force_env, para_env=para_env,&
          simpar=simpar, error=error)
     CALL force_env_get(force_env=force_env,  subsys=subsys,error=error)
     CALL cp_subsys_get(subsys=subsys, particles=particles,error=error)
     natom = particles%n_els
-    particle_set => particles%els
 
     my_end = .FALSE.
-    CALL parser_get_next_line(reftraj%info%traj_parser,1,error=error)
-    nskip = reftraj%info%first_snapshot
-    CPPostcondition(nskip>=0,cp_failure_level,routineP,error,failure)
-    Frames: DO iter = 1,nskip
-       ! Trajectory File
-       CALL parser_get_object(reftraj%info%traj_parser,natom_read,error=error)
-       CPPostcondition(natom_read==natom,cp_failure_level,routineP,error,failure)
-       ! Digest title line
-       CALL parser_get_next_line(reftraj%info%traj_parser,2,error=error)    
-       DO iatom = 1,natom_read
-          READ(reftraj%info%traj_parser%input_line,*)AA, x, y, z
-          name=TRIM(particle_set(iatom)%atomic_kind%element_symbol)
-          CPPostcondition((TRIM(AA)==name),cp_failure_level,routineP,error,failure)
-          CALL parser_get_next_line(reftraj%info%traj_parser,1,at_end=my_end,error=error)
-          IF (my_end) THEN 
-             CALL cp_assert(iatom==natom,cp_fatal_level,cp_assertion_failed,routineP,&
-                  "Number of lines in XYZ format not equal to the number of atoms."//&
-                  " Error in XYZ format. Very probably the line with title is missing or is empty."//&
-                  " Please check the XYZ file and rerun your job!"//&
-CPSourceFileRef,&
-                  only_ionode=.TRUE.)
-             EXIT Frames
-          END IF
-       END DO
-    END DO Frames
+    nline_to_skip = 0
 
-    reftraj%isnap = nskip-1
+    nskip = reftraj%info%first_snapshot-1
+    CPPostcondition(nskip>=0,cp_failure_level,routineP,error,failure)
+
+    IF(nskip > 0 ) THEN
+      nline_to_skip = (natom+2)*nskip
+      CALL parser_get_next_line(reftraj%info%traj_parser,nline_to_skip,at_end=my_end,error=error)
+    END IF
+
+    reftraj%isnap = nskip
     CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
          "Reached the end of the trajectory file for REFTRAJ. Number of steps skipped "//&
          "equal to the number of steps present in the file. "//&
@@ -146,18 +122,9 @@ CPSourceFileRef,&
 
     ! Cell File
     IF(reftraj%info%variable_volume) THEN
-       CALL parser_get_next_line(reftraj%info%cell_parser,1,error=error)
-       DO iter = 1,nskip
-          CALL parser_get_next_line(reftraj%info%cell_parser,1,at_end=my_end,error=error)
-          IF (my_end) THEN
-             CALL cp_assert(iter==nskip,cp_fatal_level,cp_assertion_failed,routineP,&
-                  "Number of lines in cell file lesser than the amount of steps requested to "//&
-                  "skip!"//&
-CPSourceFileRef,&
-                  only_ionode=.TRUE.)
-             EXIT
-          END IF
-       END DO
+       IF(nskip > 0 ) THEN
+          CALL parser_get_next_line(reftraj%info%cell_parser,nskip,at_end=my_end,error=error)
+       END IF
        CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
             "Reached the end of the cell file for REFTRAJ. Number of steps skipped "//&
             "equal to the number of steps present in the file. "//&
@@ -165,9 +132,10 @@ CPSourceFileRef,&
             only_ionode=.TRUE.)
     END IF
 
+
     reftraj%natom = natom
     IF(reftraj%info%last_snapshot>0) THEN
-       simpar%nsteps = (reftraj%info%last_snapshot - reftraj%info%first_snapshot)
+       simpar%nsteps = (reftraj%info%last_snapshot - reftraj%info%first_snapshot + 1)
     END IF
 
     IF(reftraj%info%msd) THEN
@@ -199,8 +167,8 @@ CPSourceFileRef,&
     CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER :: first_atom, iatom, ikind, imol, istat, last_atom, natom, &
-      natom_read, nkind, nmol, nmolecule, nmolkind, npart, total_mass
+    INTEGER :: first_atom, iatom, ikind, imol, istat, last_atom, natom_read, &
+      nkind, nmol, nmolecule, nmolkind, npart, total_mass
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: com(3), mass, mass_mol, tol, &
                                                 x, y, z
@@ -374,8 +342,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_msd_reftraj', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom, first_atom, iatom, ikind, imol, imol_global, last_atom, &
-      natom_kind, nmol_per_kind, nmolecule, nmolkind
+    INTEGER :: atom, bo(2), first_atom, iatom, ikind, imol, imol_global, &
+      last_atom, mepos, natom_kind, nmol_per_kind, nmolecule, nmolkind, num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: com(3), diff2_com(4), dr2, &
@@ -408,6 +376,10 @@ CPSourceFileRef,&
          error=error)
     CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds,error=error)
     
+    num_pe = para_env%num_pe
+    mepos  = para_env%mepos
+
+
     IF(reftraj%msd%msd_kind)THEN
       reftraj%msd%val_msd_kind = 0.0_dp
       reftraj%msd%num_disp_atom =  0
@@ -416,7 +388,8 @@ CPSourceFileRef,&
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                atom_list=atom_list,&
                                natom=natom_kind)
-          DO iatom = 1,natom_kind
+          bo = get_limit(natom_kind,num_pe,mepos)
+          DO iatom = bo(1), bo(2) !1,natom_kind
             atom = atom_list(iatom)
             dx =  particle_set(atom)%r(1)-reftraj%msd%ref0_pos(1,atom)
             dy =  particle_set(atom)%r(2)-reftraj%msd%ref0_pos(2,atom)
@@ -498,6 +471,61 @@ CPSourceFileRef,&
     END IF
 
   END SUBROUTINE compute_msd_reftraj 
+           
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      04.2008 created 
+!> \author MI
+! *****************************************************************************
+  SUBROUTINE skip_snapshot(reftraj,md_env,error)
+  
+    TYPE(reftraj_type), POINTER              :: reftraj
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'skip_snapshot', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nline_to_skip
+    LOGICAL                                  :: failure, my_end
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+
+    failure = .FALSE.
+    
+    reftraj%skip_this = .TRUE.
+
+    NULLIFY ( simpar )
+    CALL get_md_env(md_env=md_env, simpar=simpar, error=error)
+
+    
+    my_end = .FALSE.
+    nline_to_skip = (reftraj%natom+2)
+    CALL parser_get_next_line(reftraj%info%traj_parser,nline_to_skip,at_end=my_end,error=error)
+
+    IF(reftraj%isnap+1 /= simpar%nsteps) THEN
+      CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
+           "Reached the end of the trajectory file for REFTRAJ "//&
+           "before the required number of iterations has been done. "//&
+CPSourceFileRef,&
+           only_ionode=.TRUE.)
+    END IF
+
+    ! Cell File
+    IF(reftraj%info%variable_volume) THEN
+       CALL parser_get_next_line(reftraj%info%cell_parser,1,at_end=my_end,error=error)
+       IF (my_end) THEN
+          CALL cp_assert(reftraj%isnap+1 /= simpar%nsteps,cp_fatal_level,cp_assertion_failed,routineP,&
+                "Number of lines in cell file lesser than the amount of steps requested to "//&
+                "skip!"//&
+CPSourceFileRef,&
+                only_ionode=.TRUE.)
+       END IF
+    END IF
+
+  END SUBROUTINE skip_snapshot
 
 ! *****************************************************************************
 !> \param error variable to control error logging, stopping,...

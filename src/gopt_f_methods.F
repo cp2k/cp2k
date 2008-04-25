@@ -644,7 +644,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CALL write_trajectory(force_env,  root_section, it, 0.0_dp, etot, error=error)
+    CALL write_trajectory(force_env,  root_section, it, 0.0_dp, 0.0_dp, etot, error=error)
 
   END SUBROUTINE write_geo_traj
 

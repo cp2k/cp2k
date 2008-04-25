@@ -37,8 +37,6 @@ MODULE input_cp2k_motion
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1732,13 +1730,19 @@ CONTAINS
        CALL keyword_create(keyword, name="FIRST_SNAPSHOT",&
             description="Index of the snapshot stored in the trajectory file "//&
             "from which to start a REFTRAJ run",&
-            repeats=.FALSE., usage="FIRST_SNAPSHOT <INTEGER>", default_i_val=0, error=error)
+            repeats=.FALSE., usage="FIRST_SNAPSHOT <INTEGER>", default_i_val=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
        CALL keyword_create(keyword, name="LAST_SNAPSHOT",&
             description="Index of the last snapshot stored in the trajectory file that is read along a REFTRAJ run",&
             repeats=.FALSE., usage="LAST_SNAPSHOT", default_i_val=0, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="STRIDE",&
+            description=" Stride in number of snapshot for the  reftraj analysis",&
+            repeats=.FALSE., usage="STRIDE", default_i_val=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
