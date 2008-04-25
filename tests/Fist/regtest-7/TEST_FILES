@@ -9,6 +9,7 @@ uo2_shell_nvt_res_2.inp         2
 uo2_shell_npti_b.inp            2
 uo2_shell_npti.inp              2
 uo2_shell_npt300.inp            2
+uo2_shell_npt_msd.inp           2
 uo2_nvt.inp                     2
 uo2_nvt_0.inp                   2
 uo2_nvt_1.inp                   2

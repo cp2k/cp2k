@@ -84,62 +84,48 @@
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT uo2_shell_npt300
+  PROJECT uo2_shell_npt_msd
   RUN_TYPE MD
 &END GLOBAL
 &MOTION
   &MD
-    ENSEMBLE NPT_F
+    ENSEMBLE REFTRAJ
     STEPS  20
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-    &BAROSTAT
-      PRESSURE 0.
-      TIMECON 1000
-    &END BAROSTAT
-    &THERMOSTAT
-      REGION MOLECULE
-      &NOSE
-        LENGTH 6
-        YOSHIDA 3
-        TIMECON 1000
-        MTS 2
-      &END NOSE
+    &REFTRAJ
+
+      TRAJ_FILE_NAME uo2_shell_npt300-pos-1.xyz
+      CELL_FILE_NAME uo2_shell_npt300-1.cell
+      VARIABLE_VOLUME
+      EVAL_ENERGY_FORCES F
+      FIRST_SNAPSHOT 3
+      LAST_SNAPSHOT 15
+      STRIDE 2
+      &MSD
+        REF0_FILENAME  ../sample_xyz/uo2_displ.xyz
+        MSD_PER_KIND
+        DISPLACED_ATOM
+        DISPLACEMENT_TOL [angstrom] 0.5
+      &END
+
+ 
     &END
-    &PRINT
-      &ENERGY
-      &END
-      &SHELL_ENERGY LOW
-      &END
-    &END PRINT
+
   &END MD
   &PRINT
-    &TRAJECTORY
-      &EACH
-        MD 1
-      &END
+    &TRAJECTORY OFF
     &END
-    &VELOCITIES
-      &EACH
-        MD 1000
-      &END
+    &VELOCITIES OFF
     &END
-    &CELL
-      &EACH
-        MD 1
-      &END
+    &CELL OFF
     &END
-    &STRESS
+    &STRESS OFF
     &END
     &RESTART
       &EACH
         MD 5
       &END
     &END
-    &RESTART_HISTORY
-      &EACH
-        MD 1000
-      &END
+    &RESTART_HISTORY OFF
     &END
   &END
 &END MOTION
