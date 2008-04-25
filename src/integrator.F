@@ -1167,10 +1167,6 @@ CONTAINS
             reftraj_env%info%traj_parser%input_line 
         READ(reftraj_env%info%traj_parser%input_line,FMT="(T6,I8,T23,F12.3,T41,F20.10)")&
              trj_itimes, trj_time, trj_epot
-!   dbg old style
-!         READ(reftraj_env%info%traj_parser%input_line,FMT="(T6,I8,T20,F20.10,T53,F12.3)")&
-!              trj_itimes, trj_epot, trj_time
-!   dbg
          DO i = 1,nread
              READ(UNIT=reftraj_env%info%traj_parser%input_unit,FMT="(A)",IOSTAT=istat) &
                   reftraj_env%info%traj_parser%input_line
@@ -1193,8 +1189,6 @@ CONTAINS
          CALL parser_get_next_line(reftraj_env%info%cell_parser,1,at_end=my_end,error=error)
          CALL parse_cell_line(reftraj_env%info%cell_parser%input_line, cell_itimes, cell_time, h, vol, error)
          CPPostcondition(trj_itimes==cell_itimes,cp_failure_level,routineP,error,failure)
-!dbg
-   write(*,*)   '  isnap  ', reftraj_env%isnap, simpar%nsteps
          IF (my_end) THEN
             CALL cp_assert(reftraj_env%isnap==(simpar%nsteps-1),cp_fatal_level,cp_assertion_failed,routineP,&
                  "Reached the end of the cell info frames in the CELL file. Number of "//&
@@ -1210,8 +1204,7 @@ CPSourceFileRef,&
          reftraj_env%itimes0 = trj_itimes 
       END IF
    
-      IF (trj_itimes/=0.0_dp.AND.trj_time/=0.0_dp) simpar%dt = &
-         (trj_time/femtoseconds)/REAL(trj_itimes,KIND=dp)
+      IF (trj_itimes/=0.0_dp.AND.trj_time/=0.0_dp) simpar%dt = (trj_time/femtoseconds)/REAL(trj_itimes,KIND=dp)
    
       reftraj_env%epot   = trj_epot
       reftraj_env%itimes = trj_itimes
@@ -1234,8 +1227,7 @@ CPSourceFileRef,&
       IF(reftraj_env%info%msd) THEN
         CALL compute_msd_reftraj(reftraj_env,md_env, particle_set,error=error)
       END IF
-
-    END IF  ! skip_this
+    END IF
     
   END SUBROUTINE reftraj
 
