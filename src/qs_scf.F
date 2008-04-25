@@ -497,6 +497,8 @@ CONTAINS
                just_energy=energy_only,diis_step=diis_step,error=error)
 
           ! print 'heavy weight' or relatively expensive quantities
+          CALL qs_scf_loop_print(qs_env,scf_env,para_env,error)
+
           scf_env%p_mix = scf_control%p_mix
           scf_env%iter_param = 0.0_dp
           IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
