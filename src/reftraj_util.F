@@ -53,7 +53,6 @@ MODULE reftraj_util
   USE reftraj_types,                   ONLY: reftraj_msd_type,&
                                              reftraj_type
   USE termination,                     ONLY: stop_program
-  USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -342,8 +341,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_msd_reftraj', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom, bo(2), first_atom, iatom, ikind, imol, imol_global, &
-      last_atom, mepos, natom_kind, nmol_per_kind, nmolecule, nmolkind, num_pe
+    INTEGER :: atom, first_atom, iatom, ikind, imol, imol_global, last_atom, &
+      mepos, natom_kind, nmol_per_kind, nmolecule, nmolkind, num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: com(3), diff2_com(4), dr2, &
@@ -388,8 +387,7 @@ CPSourceFileRef,&
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                atom_list=atom_list,&
                                natom=natom_kind)
-          bo = get_limit(natom_kind,num_pe,mepos)
-          DO iatom = bo(1), bo(2) !1,natom_kind
+          DO iatom = 1,natom_kind
             atom = atom_list(iatom)
             dx =  particle_set(atom)%r(1)-reftraj%msd%ref0_pos(1,atom)
             dy =  particle_set(atom)%r(2)-reftraj%msd%ref0_pos(2,atom)
