@@ -21,7 +21,6 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE integrator
-
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -37,7 +36,9 @@ MODULE integrator
   USE constraint_util,                 ONLY: getold,&
                                              pv_constraint
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser_methods,               ONLY: parser_get_next_line
+  USE cp_parser_methods,               ONLY: broadcast_input_information,&
+                                             parser_get_next_line,&
+                                             parser_read_line
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
@@ -120,8 +121,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'langevin', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, nmolecule, &
-      nmolecule_kind, nparticle, nparticle_kind, nparticle_local
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, nmolecule, &
+      nmolecule_kind, nparticle, nparticle_kind, nparticle_local, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c, c1, c2, c3, c4, dm, dt, &
                                                 gam, mass, sigma
@@ -181,16 +182,16 @@ CONTAINS
     molecule_set => molecules%els
 
     ! Allocate work storage
-    ALLOCATE (pos(3,nparticle),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (pos(3,nparticle),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     pos(:,:) = 0.0_dp
 
-    ALLOCATE (vel(3,nparticle),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (vel(3,nparticle),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     vel(:,:) = 0.0_dp
 
-    ALLOCATE (w(3,nparticle),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (w(3,nparticle),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     w(:,:) = 0.0_dp
 
     IF (simpar%constraint) CALL getold(gci,local_molecules,molecule_set,&
@@ -252,8 +253,8 @@ CONTAINS
     ! Broadcast the new particle positions
     CALL update_particle_set(particle_set,para_env%group,pos=pos)
 
-    DEALLOCATE (pos,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (pos,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! Update forces
     CALL force_env_calc_energy_force(force_env,error=error)
@@ -287,11 +288,11 @@ CONTAINS
     ! Broadcast the new particle velocities
     CALL update_particle_set(particle_set,para_env%group,vel=vel)
 
-    DEALLOCATE (vel,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (vel,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    DEALLOCATE (w,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (w,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! Update virial
     IF (simpar%constraint) CALL pv_constraint(gci,local_molecules,molecule_set,&
@@ -1121,8 +1122,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=10)                        :: AA
-    INTEGER                                  :: cell_itimes, I, istat, &
-                                                nparticle, Nread, trj_itimes
+    INTEGER                                  :: cell_itimes, I, nparticle, &
+                                                Nread, stat, trj_itimes
     LOGICAL                                  :: failure, init, my_end
     REAL(KIND=dp)                            :: cell_time, h(3,3), trj_epot, &
                                                 trj_time, vol
@@ -1147,86 +1148,105 @@ CONTAINS
 
     CALL force_env_get(force_env=force_env, cell=cell, subsys=subsys, &
          error=error)
-    reftraj_env%isnap = reftraj_env%isnap + 1
+    reftraj_env%isnap = reftraj_env%isnap + reftraj_env%info%stride
 
-    IF(.NOT. reftraj_env%skip_this ) THEN
-      ! Do some checks on coordinates and box
-      CALL apply_qmmm_walls_reflective(force_env, error=error)
-      CALL cp_subsys_get(subsys=subsys, particles=particles, error=error)
-      nparticle    = particles%n_els
-      particle_set => particles%els
-      ALLOCATE (pos(3,nparticle),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      pos = 0.0_dp
-   
-      ! SnapShots read from an external file
-      IF(para_env%mepos==para_env%source) THEN
-         READ(UNIT=reftraj_env%info%traj_parser%input_unit,FMT="(A)", IOSTAT=istat) reftraj_env%info%traj_parser%input_line  
-         READ(reftraj_env%info%traj_parser%input_line,FMT="(I8)") Nread
-         READ(UNIT=reftraj_env%info%traj_parser%input_unit,FMT="(A)",IOSTAT=istat) &
-            reftraj_env%info%traj_parser%input_line 
-        READ(reftraj_env%info%traj_parser%input_line,FMT="(T6,I8,T23,F12.3,T41,F20.10)")&
-             trj_itimes, trj_time, trj_epot
-         DO i = 1,nread
-             READ(UNIT=reftraj_env%info%traj_parser%input_unit,FMT="(A)",IOSTAT=istat) &
-                  reftraj_env%info%traj_parser%input_line
-             READ(reftraj_env%info%traj_parser%input_line,*) AA,pos(1:3,i)
-             pos(1,i) = cp_unit_to_cp2k(pos(1,i),"angstrom",error=error)
-             pos(2,i) = cp_unit_to_cp2k(pos(2,i),"angstrom",error=error)
-             pos(3,i) = cp_unit_to_cp2k(pos(3,i),"angstrom",error=error)
-         END DO    
-      END IF
-      reftraj_env%info%traj_parser%input_line_number = reftraj_env%info%traj_parser%input_line_number + &
-             nparticle + 2 
-      CALL mp_bcast (trj_itimes,para_env%source,para_env%group)
-      CALL mp_bcast (trj_time,para_env%source,para_env%group)
-      CALL mp_bcast (trj_epot,para_env%source,para_env%group)
-      CALL update_particle_set ( particle_set, para_env % group, pos = pos )
-      DEALLOCATE (pos, STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-   
-      IF(reftraj_env%info%variable_volume)THEN
-         CALL parser_get_next_line(reftraj_env%info%cell_parser,1,at_end=my_end,error=error)
-         CALL parse_cell_line(reftraj_env%info%cell_parser%input_line, cell_itimes, cell_time, h, vol, error)
-         CPPostcondition(trj_itimes==cell_itimes,cp_failure_level,routineP,error,failure)
-         IF (my_end) THEN
-            CALL cp_assert(reftraj_env%isnap==(simpar%nsteps-1),cp_fatal_level,cp_assertion_failed,routineP,&
-                 "Reached the end of the cell info frames in the CELL file. Number of "//&
-                 "missing frames ("//cp_to_string((simpar%nsteps-1)-reftraj_env%isnap)//")."//& 
+    ! Do some checks on coordinates and box
+    CALL apply_qmmm_walls_reflective(force_env, error=error)
+    CALL cp_subsys_get(subsys=subsys, particles=particles, error=error)
+    nparticle    = particles%n_els
+    particle_set => particles%els
+    ALLOCATE (pos(3,nparticle),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    pos = 0.0_dp
+    
+    ! SnapShots read from an external file
+    IF(para_env%mepos==para_env%source) THEN
+       CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
+       READ(reftraj_env%info%traj_parser%input_line,FMT="(I8)") nread
+       CPPostcondition(nread==nparticle,cp_failure_level,routineP,error,failure)
+       CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
+       READ(reftraj_env%info%traj_parser%input_line,FMT="(T6,I8,T23,F12.3,T41,F20.10)")trj_itimes, trj_time, trj_epot
+       DO i = 1,nread-1
+          CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
+          READ(reftraj_env%info%traj_parser%input_line,*) AA,pos(1:3,i)
+          pos(1,i) = cp_unit_to_cp2k(pos(1,i),"angstrom",error=error)
+          pos(2,i) = cp_unit_to_cp2k(pos(2,i),"angstrom",error=error)
+          pos(3,i) = cp_unit_to_cp2k(pos(3,i),"angstrom",error=error)
+       END DO
+       ! End of file is properly addressed in the previous call..
+       ! Let's check directly (providing some info) also for the last
+       ! line of this frame..
+       CALL parser_read_line(reftraj_env%info%traj_parser,1,at_end=my_end,error=error)
+       READ(reftraj_env%info%traj_parser%input_line,*) AA,pos(1:3,i)
+       pos(1,i) = cp_unit_to_cp2k(pos(1,i),"angstrom",error=error)
+       pos(2,i) = cp_unit_to_cp2k(pos(2,i),"angstrom",error=error)
+       pos(3,i) = cp_unit_to_cp2k(pos(3,i),"angstrom",error=error)
+    END IF
+    CALL mp_bcast(my_end,para_env%source,para_env%group)
+    ! Check if we reached the end of the file and provide some info..
+    IF (my_end) THEN
+       CALL cp_assert(reftraj_env%isnap==(simpar%nsteps-1),cp_fatal_level,cp_assertion_failed,routineP,&
+            "Reached the end of the Trajectory  frames in the TRAJECTORY file. Number of "//&
+            "missing frames ("//cp_to_string((simpar%nsteps-1)-reftraj_env%isnap)//")."//& 
 CPSourceFileRef,&
-                 only_ionode=.TRUE.)
-         END IF
-      END IF
+            only_ionode=.TRUE.)
+    END IF
+    CALL broadcast_input_information(reftraj_env%info%traj_parser,error=error)
+    CALL mp_bcast (trj_itimes,para_env%source,para_env%group)
+    CALL mp_bcast (trj_time,para_env%source,para_env%group)
+    CALL mp_bcast (trj_epot,para_env%source,para_env%group)
+    CALL update_particle_set (particle_set, para_env%group, pos=pos)
+    DEALLOCATE (pos, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    
+    IF(reftraj_env%info%variable_volume)THEN
+       CALL parser_get_next_line(reftraj_env%info%cell_parser,1,at_end=my_end,error=error)
+       CALL parse_cell_line(reftraj_env%info%cell_parser%input_line, cell_itimes, cell_time, h, vol, error)
+       CPPostcondition(trj_itimes==cell_itimes,cp_failure_level,routineP,error,failure)
+       ! Check if we reached the end of the file and provide some info..
+       IF (my_end) THEN
+          CALL cp_assert(reftraj_env%isnap==(simpar%nsteps-1),cp_fatal_level,cp_assertion_failed,routineP,&
+               "Reached the end of the cell info frames in the CELL file. Number of "//&
+               "missing frames ("//cp_to_string((simpar%nsteps-1)-reftraj_env%isnap)//")."//& 
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+       END IF
+    END IF
    
-      IF (init) THEN
-         reftraj_env%time0   = trj_time
-         reftraj_env%epot0   = trj_epot
-         reftraj_env%itimes0 = trj_itimes 
-      END IF
-   
-      IF (trj_itimes/=0.0_dp.AND.trj_time/=0.0_dp) simpar%dt = (trj_time/femtoseconds)/REAL(trj_itimes,KIND=dp)
-   
-      reftraj_env%epot   = trj_epot
-      reftraj_env%itimes = trj_itimes
-      reftraj_env%time   = trj_time/femtoseconds
-   
-      IF(reftraj_env%info%variable_volume)THEN
-         cell%hmat(1:3,1) = h(1:3,1)
-         cell%hmat(1:3,2) = h(1:3,2)
-         cell%hmat(1:3,3) = h(1:3,3)
-         CALL get_hinv(cell)
-         CALL force_env_set_cell(force_env, cell, error)
-      END IF
-      
-      ! Task to perform on the reference trajectory
-      ! Compute energy and forces
-      CALL force_env_calc_energy_force(force_env,eval_energy_forces=reftraj_env%info%eval_EF,error=error)
-      CALL metadyn_forces(force_env, error=error)
-   
-      ! Compute MSD with respect to a reference configuration
-      IF(reftraj_env%info%msd) THEN
-        CALL compute_msd_reftraj(reftraj_env,md_env, particle_set,error=error)
-      END IF
+    IF (init) THEN
+       reftraj_env%time0   = trj_time
+       reftraj_env%epot0   = trj_epot
+       reftraj_env%itimes0 = trj_itimes 
+    END IF
+    
+    IF (trj_itimes/=0.0_dp.AND.trj_time/=0.0_dp) simpar%dt = (trj_time/femtoseconds)/REAL(trj_itimes,KIND=dp)
+    
+    reftraj_env%epot   = trj_epot
+    reftraj_env%itimes = trj_itimes
+    reftraj_env%time   = trj_time/femtoseconds
+    
+    IF(reftraj_env%info%variable_volume)THEN
+       cell%hmat(1:3,1) = h(1:3,1)
+       cell%hmat(1:3,2) = h(1:3,2)
+       cell%hmat(1:3,3) = h(1:3,3)
+       CALL get_hinv(cell)
+       CALL force_env_set_cell(force_env, cell, error)
+    END IF
+    
+    ! Task to perform on the reference trajectory
+    ! Compute energy and forces
+    CALL force_env_calc_energy_force(force_env,eval_energy_forces=reftraj_env%info%eval_EF,error=error)
+    CALL metadyn_forces(force_env, error=error)
+    
+    ! Compute MSD with respect to a reference configuration
+    IF(reftraj_env%info%msd) THEN
+       CALL compute_msd_reftraj(reftraj_env,md_env, particle_set,error=error)
+    END IF
+
+    ! Skip according the stride both Trajectory and Cell (if possible)
+    CALL parser_get_next_line(reftraj_env%info%traj_parser,(reftraj_env%info%stride-1)*(nparticle+2),error=error)
+    IF(reftraj_env%info%variable_volume)THEN
+       CALL parser_get_next_line(reftraj_env%info%cell_parser,(reftraj_env%info%stride-1),error=error)
     END IF
     
   END SUBROUTINE reftraj
@@ -2060,9 +2080,9 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'nve_respa', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i_step, iparticle, iparticle_kind, iparticle_local, istat, &
+    INTEGER :: i_step, iparticle, iparticle_kind, iparticle_local, &
       n_time_steps, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
-      nparticle_local
+      nparticle_local, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dm, dt, mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -2124,10 +2144,10 @@ CPSourceFileRef,&
     molecule_set => molecules % els
 
     ! Allocate work storage for positions and velocities
-    ALLOCATE (pos(3,nparticle),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (vel(3,nparticle),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (pos(3,nparticle),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (vel(3,nparticle),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     vel(:,:) = 0.0_dp
 
     IF (simpar%constraint) CALL getold(gci, local_molecules, molecule_set,  &
@@ -2213,8 +2233,8 @@ CPSourceFileRef,&
        CALL virial_evaluate ( atomic_kind_set, particle_set,  &
             local_particles, virial, para_env % group , error=error )
     END DO
-    DEALLOCATE (pos,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (pos,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! Multiple time step (second part)
     ! Compute forces for respa force_env
@@ -2237,8 +2257,8 @@ CPSourceFileRef,&
     ! Broadcast the new particle velocities
     CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
-    DEALLOCATE (vel,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (vel,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE nve_respa
 

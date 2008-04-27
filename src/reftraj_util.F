@@ -61,7 +61,7 @@ MODULE reftraj_util
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'reftraj_util'
 
-      PUBLIC ::   initialize_reftraj, compute_msd_reftraj, skip_snapshot, write_output_reftraj
+      PUBLIC ::   initialize_reftraj, compute_msd_reftraj, write_output_reftraj
       
 CONTAINS
 
@@ -469,61 +469,6 @@ CPSourceFileRef,&
     END IF
 
   END SUBROUTINE compute_msd_reftraj 
-           
-! *****************************************************************************
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      04.2008 created 
-!> \author MI
-! *****************************************************************************
-  SUBROUTINE skip_snapshot(reftraj,md_env,error)
-  
-    TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'skip_snapshot', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: nline_to_skip
-    LOGICAL                                  :: failure, my_end
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
-
-    failure = .FALSE.
-    
-    reftraj%skip_this = .TRUE.
-
-    NULLIFY ( simpar )
-    CALL get_md_env(md_env=md_env, simpar=simpar, error=error)
-
-    
-    my_end = .FALSE.
-    nline_to_skip = (reftraj%natom+2)
-    CALL parser_get_next_line(reftraj%info%traj_parser,nline_to_skip,at_end=my_end,error=error)
-
-    IF(reftraj%isnap+1 /= simpar%nsteps) THEN
-      CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
-           "Reached the end of the trajectory file for REFTRAJ "//&
-           "before the required number of iterations has been done. "//&
-CPSourceFileRef,&
-           only_ionode=.TRUE.)
-    END IF
-
-    ! Cell File
-    IF(reftraj%info%variable_volume) THEN
-       CALL parser_get_next_line(reftraj%info%cell_parser,1,at_end=my_end,error=error)
-       IF (my_end) THEN
-          CALL cp_assert(reftraj%isnap+1 /= simpar%nsteps,cp_fatal_level,cp_assertion_failed,routineP,&
-                "Number of lines in cell file lesser than the amount of steps requested to "//&
-                "skip!"//&
-CPSourceFileRef,&
-                only_ionode=.TRUE.)
-       END IF
-    END IF
-
-  END SUBROUTINE skip_snapshot
 
 ! *****************************************************************************
 !> \param error variable to control error logging, stopping,...

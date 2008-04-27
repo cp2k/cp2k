@@ -23,8 +23,7 @@ MODULE free_energy_methods
   USE free_energy_types,               ONLY: free_energy_type,&
                                              ui_var_type
   USE input_constants,                 ONLY: do_fe_ac,&
-                                             do_fe_ui,&
-                                             reftraj_ensemble
+                                             do_fe_ui
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -35,7 +34,6 @@ MODULE free_energy_methods
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE memory_utilities,                ONLY: reallocate
-  USE reftraj_types,                   ONLY: reftraj_type
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -77,22 +75,17 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(free_energy_type), POINTER          :: fe_env
-    TYPE(reftraj_type), POINTER              :: reftraj
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(ui_var_type), POINTER               :: cv
 
-    NULLIFY(force_env, istep, subsys, cv, reftraj, root_section, simpar)
+    NULLIFY(force_env, istep, subsys, cv, root_section, simpar)
     logger => cp_error_get_logger(error)
     failure   = .FALSE.
     converged = .FALSE.
     CALL get_md_env(md_env, force_env=force_env, fe_env=fe_env, simpar=simpar,&
          itimes=istep, error=error)
-    IF(simpar%ensemble == reftraj_ensemble) THEN
-         CALL get_md_env(md_env,reftraj=reftraj,error=error)
-         IF(reftraj%skip_this) RETURN
-    END IF
     CALL timeset(routineN,"I","",handle)
     ! Metadynamics is also a free energy calculation but is handled in a different
     ! module. 

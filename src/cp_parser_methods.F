@@ -38,7 +38,8 @@ MODULE cp_parser_methods
   PUBLIC :: parser_next_token, parser_test_next_token
   PUBLIC :: parser_get_object, parser_get_real, parser_get_integer,&
        parser_get_logical, parser_get_string, parser_location,&
-       parser_search_string,parser_get_next_line, parser_skip_space
+       parser_search_string,parser_get_next_line, parser_skip_space,&
+       parser_read_line, broadcast_input_information
 
   ! *** Global parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_methods'

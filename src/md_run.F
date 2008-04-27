@@ -75,7 +75,6 @@ MODULE md_run
                                              reftraj_type,&
                                              release_reftraj
   USE reftraj_util,                    ONLY: initialize_reftraj,&
-                                             skip_snapshot,&
                                              write_output_reftraj
   USE termination,                     ONLY: external_control
   USE thermostat_methods,              ONLY: create_thermostats
@@ -148,7 +147,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, istep, stat
+    INTEGER                                  :: handle, i, istep, md_stride, &
+                                                stat
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: check, failure, save_mem, &
                                                 should_stop
@@ -328,10 +328,12 @@ CONTAINS
        CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
        CALL md_energy(md_env,md_ener,error) 
        CALL md_write_output ( md_env, error ) !inits the print env at itimes == 0 also writes trajectories
+       md_stride = 1
     ELSE
        CALL get_md_env(md_env, reftraj=reftraj, error=error)
        CALL initialize_reftraj(reftraj, reftraj_section, md_env, error=error)
        itimes = reftraj%info%first_snapshot -1
+       md_stride = reftraj%info%stride
     END IF
     
     CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
@@ -340,7 +342,7 @@ CONTAINS
          root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error)
 
     ! Real MD Loop
-    DO istep=1, simpar%nsteps
+    DO istep=1, simpar%nsteps, md_stride
       itimes = itimes + 1
 
       CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
@@ -354,14 +356,6 @@ CONTAINS
            extension=".LagrangeMultLog",log_filename=.FALSE.,error=error)
       simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
            "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)      
-
-      IF(simpar%ensemble == reftraj_ensemble) THEN
-        IF(reftraj%info%stride > 1 .AND. (MOD((istep-1),reftraj%info%stride)/=0) ) THEN
-          CALL skip_snapshot(reftraj, md_env, error=error)
-        ELSE
-          reftraj%skip_this = .FALSE.
-        END IF
-      END IF
 
       ! Velocity Verlet Integrator
       CALL velocity_verlet(md_env,error)
@@ -388,25 +382,25 @@ CONTAINS
       CALL external_control(should_stop,"MD",globenv,error=error)
       IF (should_stop) THEN
          CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes,error=error)
-         CALL md_output(md_env,root_section,should_stop,simpar%ensemble,error=error)
+         CALL md_output(md_env,root_section,should_stop,error=error)
          EXIT
       END IF
-
+      
       IF(simpar%ensemble /= reftraj_ensemble) THEN
-        CALL md_energy(md_env, md_ener, error) 
-        CALL temperature_control(simpar, md_env, md_ener, force_env, logger, error)
-        CALL comvel_control(simpar, md_ener, force_env, logger, error)
-      ELSEIF(.NOT. reftraj%skip_this ) THEN
-        CALL md_ener_reftraj(md_env, md_ener, error)
+         CALL md_energy(md_env, md_ener, error) 
+         CALL temperature_control(simpar, md_env, md_ener, force_env, logger, error)
+         CALL comvel_control(simpar, md_ener, force_env, logger, error)
+      ELSE
+         CALL md_ener_reftraj(md_env, md_ener, error)
       END IF
 
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
 
-      CALL md_output(md_env,root_section,should_stop,simpar%ensemble,error=error)
+      CALL md_output(md_env,root_section,should_stop,error=error)
       IF(simpar%ensemble == reftraj_ensemble ) THEN
-          IF( .NOT. reftraj%skip_this) CALL write_output_reftraj(md_env,error=error) 
+         CALL write_output_reftraj(md_env,error=error) 
       END IF
 
     END DO

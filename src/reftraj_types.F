@@ -66,7 +66,6 @@ MODULE reftraj_types
      INTEGER                                  :: isnap
      INTEGER                                  :: natom
      LOGICAL                                  :: init
-     LOGICAL                                  :: skip_this
      REAL(KIND=dp)                            :: epot, epot0, time, time0
      TYPE(reftraj_info_type), POINTER         :: info
      TYPE(reftraj_msd_type), POINTER          :: msd
@@ -105,7 +104,6 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(reftraj%info%traj_parser)
     NULLIFY(reftraj%info%cell_parser)
-    reftraj%skip_this = .FALSE.
 
     ! Initialize parser for trajectory
     CALL section_vals_val_get(reftraj_section,"TRAJ_FILE_NAME",c_val=filename,error=error)
