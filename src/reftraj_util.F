@@ -342,8 +342,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_msd_reftraj', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom, bo(2), first_atom, iatom, ikind, imol, imol_global, last_atom, &
-      mepos, natom_kind, nmol_per_kind, nmolecule, nmolkind, num_pe
+    INTEGER :: atom, bo(2), first_atom, iatom, ikind, imol, imol_global, &
+      last_atom, mepos, natom_kind, nmol_per_kind, nmolecule, nmolkind, num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: com(3), diff2_com(4), dr2, &
@@ -571,7 +571,7 @@ CPSourceFileRef,&
             END IF
             WRITE(UNIT=out_msd,FMT="(I8, F12.3, I10)") reftraj%itimes, &
                    reftraj%time*femtoseconds, reftraj%msd%num_disp_atom
-            DO iat = 1,size(reftraj%msd%disp_atom_dr,2)
+            DO iat = 1,SIZE(reftraj%msd%disp_atom_dr,2)
                IF(reftraj%msd%disp_atom_dr(1,iat) > 0.0_dp) THEN
                  WRITE(UNIT=out_msd,FMT="(I8, 3F20.10)") iat,& !reftraj%msd%disp_atom_index(iat),&
                       reftraj%msd%disp_atom_dr(1,iat)*angstrom, &
