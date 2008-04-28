@@ -53,6 +53,7 @@ MODULE reftraj_util
   USE reftraj_types,                   ONLY: reftraj_msd_type,&
                                              reftraj_type
   USE termination,                     ONLY: stop_program
+  USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -341,7 +342,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_msd_reftraj', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom, first_atom, iatom, ikind, imol, imol_global, last_atom, &
+    INTEGER :: atom, bo(2), first_atom, iatom, ikind, imol, imol_global, last_atom, &
       mepos, natom_kind, nmol_per_kind, nmolecule, nmolkind, num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
@@ -382,12 +383,14 @@ CPSourceFileRef,&
     IF(reftraj%msd%msd_kind)THEN
       reftraj%msd%val_msd_kind = 0.0_dp
       reftraj%msd%num_disp_atom =  0
+      reftraj%msd%disp_atom_dr =  0.0_dp
       DO ikind=1,atomic_kinds%n_els
           atomic_kind => atomic_kinds%els(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                atom_list=atom_list,&
                                natom=natom_kind)
-          DO iatom = 1,natom_kind
+          bo = get_limit(natom_kind,num_pe,mepos)
+          DO iatom = bo(1), bo(2) 
             atom = atom_list(iatom)
             dx =  particle_set(atom)%r(1)-reftraj%msd%ref0_pos(1,atom)
             dy =  particle_set(atom)%r(2)-reftraj%msd%ref0_pos(2,atom)
@@ -402,10 +405,9 @@ CPSourceFileRef,&
             IF(reftraj%msd%disp_atom) THEN
               IF( dr2 > reftraj%msd%disp_atom_tol ) THEN
                 reftraj%msd%num_disp_atom  = reftraj%msd%num_disp_atom  +1
-                reftraj%msd%disp_atom_index(reftraj%msd%num_disp_atom) = atom
-                reftraj%msd%disp_atom_dr(1, reftraj%msd%num_disp_atom) = dx
-                reftraj%msd%disp_atom_dr(2, reftraj%msd%num_disp_atom) = dy
-                reftraj%msd%disp_atom_dr(3, reftraj%msd%num_disp_atom) = dz
+                reftraj%msd%disp_atom_dr(1, atom) = dx
+                reftraj%msd%disp_atom_dr(2, atom) = dy
+                reftraj%msd%disp_atom_dr(3, atom) = dz
               END IF
             END IF        
           END DO  !iatom
@@ -414,6 +416,9 @@ CPSourceFileRef,&
 
       END DO  ! ikind
     ENDIF  
+    CALL mp_sum(reftraj%msd%val_msd_kind,para_env%group)
+    CALL mp_sum(reftraj%msd%num_disp_atom,para_env%group)
+    CALL mp_sum(reftraj%msd%disp_atom_dr,para_env%group)
 
     IF(reftraj%msd%msd_molecule) THEN
       CALL cp_subsys_get(subsys=subsys, local_molecules_new=local_molecules, &
@@ -566,11 +571,13 @@ CPSourceFileRef,&
             END IF
             WRITE(UNIT=out_msd,FMT="(I8, F12.3, I10)") reftraj%itimes, &
                    reftraj%time*femtoseconds, reftraj%msd%num_disp_atom
-            DO iat = 1,reftraj%msd%num_disp_atom
-               WRITE(UNIT=out_msd,FMT="(I8, 3F20.10)") reftraj%msd%disp_atom_index(iat),&
-                    reftraj%msd%disp_atom_dr(1,iat)*angstrom, &
-                    reftraj%msd%disp_atom_dr(2,iat)*angstrom,&
-                    reftraj%msd%disp_atom_dr(3,iat)*angstrom
+            DO iat = 1,size(reftraj%msd%disp_atom_dr,2)
+               IF(reftraj%msd%disp_atom_dr(1,iat) > 0.0_dp) THEN
+                 WRITE(UNIT=out_msd,FMT="(I8, 3F20.10)") iat,& !reftraj%msd%disp_atom_index(iat),&
+                      reftraj%msd%disp_atom_dr(1,iat)*angstrom, &
+                      reftraj%msd%disp_atom_dr(2,iat)*angstrom,&
+                      reftraj%msd%disp_atom_dr(3,iat)*angstrom
+               END IF
             END DO
          ENDIF       
          CALL cp_print_key_finished_output(out_msd,logger,reftraj_section,&
