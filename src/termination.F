@@ -29,7 +29,9 @@ MODULE termination
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_bcast
   USE string_utilities,                ONLY: compress
-  USE timings,                         ONLY: print_stack
+  USE timings,                         ONLY: print_stack,&
+                                             timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -277,10 +279,12 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: exit_fname, exit_fname_level, &
                                                 exit_gname, exit_gname_level
-    INTEGER                                  :: i, unit_number
+    INTEGER                                  :: handle, i, unit_number
     LOGICAL                                  :: failure, should_wait
     REAL(KIND=dp)                            :: t1, t2, time_check
     TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     logger => cp_error_get_logger(error)
@@ -366,6 +370,8 @@ CONTAINS
        END IF
     END IF
     CALL mp_bcast(should_stop,logger%para_env%source,logger%para_env%group)
+
+    CALL timestop(handle)
 
   END SUBROUTINE external_control
 
