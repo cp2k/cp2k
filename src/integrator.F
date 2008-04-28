@@ -517,8 +517,8 @@ CONTAINS
                                                 nshell
     LOGICAL                                  :: failure, shell_adiabatic, &
                                                 shell_present
-    REAL(KIND=dp)                            :: ds, dt, max_vel, poly_v(3), s, &
-                                                scale_v(3)
+    REAL(KIND=dp)                            :: ds, dt, max_vel, poly_v(3), &
+                                                s, scale_v(3)
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -867,10 +867,10 @@ CONTAINS
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
-    REAL(KIND=dp)                            :: arg_r, arg_v, dt, infree, kin, &
-                                                max_vel, poly_r(3), poly_v(3), &
-                                                roll_tol, scale_r(3), &
-                                                scale_v(3)
+    REAL(KIND=dp)                            :: arg_r, arg_v, dt, infree, &
+                                                kin, max_vel, poly_r(3), &
+                                                poly_v(3), roll_tol, &
+                                                scale_r(3), scale_v(3)
     REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
     REAL(KIND=dp), SAVE                      :: eps_0
@@ -1344,10 +1344,8 @@ CPSourceFileRef,&
                                                 nparticle_kind, nshell
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
-    REAL(KIND=dp)                            :: arg_r, arg_v, arg_vx, dt, infree, &
-                                                kin, max_vel, poly_r(3), poly_v(3), &
-                                                roll_tol, scale_r(3), &
-                                                scale_v(3)
+    REAL(KIND=dp) :: arg_r, arg_v, arg_vx, dt, infree, kin, max_vel, &
+      poly_r(3), poly_v(3), roll_tol, scale_r(3), scale_v(3)
     REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -1618,7 +1616,7 @@ CPSourceFileRef,&
                                                 nparticle_kind, nshell
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
-    REAL(KIND=dp) :: aa, aax, arg_r, arg_v, arg_vx, gamma1, dt, infree, kin, &
+    REAL(KIND=dp) :: aa, aax, arg_r, arg_v, arg_vx, dt, gamma1, infree, kin, &
       max_vel, poly_r(3), poly_v(3), roll_tol, scale_r(3), scale_v(3)
     REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
@@ -1905,7 +1903,8 @@ CPSourceFileRef,&
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
-    REAL(KIND=dp)                            :: dt, infree, kin, max_vel, roll_tol, trvg
+    REAL(KIND=dp)                            :: dt, infree, kin, max_vel, &
+                                                roll_tol, trvg
     REAL(KIND=dp), DIMENSION(3)              :: arg_r, arg_v, e_val, poly_r, &
                                                 poly_v, scale_r, scale_v, &
                                                 vector_v

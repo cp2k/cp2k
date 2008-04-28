@@ -290,8 +290,8 @@ CONTAINS
     LOGICAL                                  :: failure, init, is_mixed, &
                                                 new_file, qmmm, &
                                                 shell_adiabatic, shell_present
-    REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), dt, &
-                                                econs, pv_scalar, pv_xx
+    REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
+                                                dt, econs, pv_scalar, pv_xx
     REAL(KIND=dp)                            :: harm_shell, hugoniot
     REAL(KIND=dp), POINTER                   :: constant, time, used_time
     REAL(KIND=dp), SAVE                      :: itimes_old, t_old
