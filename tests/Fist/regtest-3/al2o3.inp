@@ -3,6 +3,9 @@
   METHOD FIST
   &MM
     &FORCEFIELD
+#      &SPLINE
+#        EMAX_SPLINE  10
+#      &END
       &CHARGE
         ATOM AL
         CHARGE 1.2

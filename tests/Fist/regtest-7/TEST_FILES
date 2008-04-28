@@ -38,3 +38,7 @@ uo2_shell_npe_3.inp             2
 uo2_shell_npe_4.inp             2
 uo2_shell_npe_5.inp             2
 uo2_shell_npe_6.inp             2
+#Variable time step
+uo2_shell_nve_vdt.inp           2
+uo2_shell_nve_vdt_r.inp         2
+uo2_shell_npt_vdt.inp           2
