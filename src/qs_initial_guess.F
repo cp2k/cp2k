@@ -451,41 +451,41 @@ CPSourceFileRef,&
                       isgfa=first_sgf(atom_a)
                       SELECT CASE (nsgf)
                       CASE (1) ! s-basis
-                         pdiag(isgfa   ) = (zeff         - yy)*0.5_dp
+                         pdiag(isgfa   ) = (zeff         - yy)
                       CASE (4) ! sp-basis
-                         pdiag(isgfa   ) = (zeff*0.25_dp - yy)*0.5_dp
-                         pdiag(isgfa+ 1) = (zeff*0.25_dp - yy)*0.5_dp
-                         pdiag(isgfa+ 2) = (zeff*0.25_dp - yy)*0.5_dp
-                         pdiag(isgfa+ 3) = (zeff*0.25_dp - yy)*0.5_dp
+                         pdiag(isgfa   ) = (zeff*0.25_dp - yy)
+                         pdiag(isgfa+ 1) = (zeff*0.25_dp - yy)
+                         pdiag(isgfa+ 2) = (zeff*0.25_dp - yy)
+                         pdiag(isgfa+ 3) = (zeff*0.25_dp - yy)
                       CASE (9) ! spd-basis
                          IF (z < 21 .OR. z > 30 .AND. z < 39 .OR. z > 48 .AND. z < 57) THEN
                             !   Main Group Element:  The "d" shell is formally empty.
-                            pdiag(isgfa   ) = (zeff*0.25_dp - yy)*0.5_dp
-                            pdiag(isgfa+ 1) = (zeff*0.25_dp - yy)*0.5_dp
-                            pdiag(isgfa+ 2) = (zeff*0.25_dp - yy)*0.5_dp
-                            pdiag(isgfa+ 3) = (zeff*0.25_dp - yy)*0.5_dp
-                            pdiag(isgfa+ 4) = (             - yy)*0.5_dp
-                            pdiag(isgfa+ 5) = (             - yy)*0.5_dp
-                            pdiag(isgfa+ 6) = (             - yy)*0.5_dp
-                            pdiag(isgfa+ 7) = (             - yy)*0.5_dp
-                            pdiag(isgfa+ 8) = (             - yy)*0.5_dp
+                            pdiag(isgfa   ) = (zeff*0.25_dp - yy)
+                            pdiag(isgfa+ 1) = (zeff*0.25_dp - yy)
+                            pdiag(isgfa+ 2) = (zeff*0.25_dp - yy)
+                            pdiag(isgfa+ 3) = (zeff*0.25_dp - yy)
+                            pdiag(isgfa+ 4) = (             - yy)
+                            pdiag(isgfa+ 5) = (             - yy)
+                            pdiag(isgfa+ 6) = (             - yy)
+                            pdiag(isgfa+ 7) = (             - yy)
+                            pdiag(isgfa+ 8) = (             - yy)
                          ELSE IF (z < 99) THEN
                             sum = zeff - 9.0_dp*yy
                             !   First, put 2 electrons in the 's' shell
-                            pdiag(isgfa   ) = (MAX(0.0_dp, MIN(sum, 2.0_dp)))*0.5_dp
+                            pdiag(isgfa   ) = (MAX(0.0_dp, MIN(sum, 2.0_dp)))
                             sum = sum - 2.0_dp
                             IF (sum > 0.0_dp) THEN
                                !   Now put as many electrons as possible into the 'd' shell
-                               pdiag(isgfa+ 4) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp
-                               pdiag(isgfa+ 5) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp
-                               pdiag(isgfa+ 6) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp
-                               pdiag(isgfa+ 7) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp
-                               pdiag(isgfa+ 8) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp
+                               pdiag(isgfa+ 4) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))
+                               pdiag(isgfa+ 5) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))
+                               pdiag(isgfa+ 6) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))
+                               pdiag(isgfa+ 7) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))
+                               pdiag(isgfa+ 8) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))
                                sum = MAX(0.0_dp, sum-10.0_dp)
                                !   Put the remaining electrons in the 'p' shell
-                               pdiag(isgfa+ 1) = (sum/3.0_dp)*0.5_dp
-                               pdiag(isgfa+ 2) = (sum/3.0_dp)*0.5_dp
-                               pdiag(isgfa+ 3) = (sum/3.0_dp)*0.5_dp
+                               pdiag(isgfa+ 1) = (sum/3.0_dp)
+                               pdiag(isgfa+ 2) = (sum/3.0_dp)
+                               pdiag(isgfa+ 3) = (sum/3.0_dp)
                             END IF
                          END IF
                       CASE DEFAULT
