@@ -32,7 +32,7 @@ MODULE md
        ensemble_name_types, isokin_ensemble, langevin_ensemble, &
        npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &
        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
-       nvt_ensemble, use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, &
+       nvt_ensemble, reftraj_ensemble, use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, &
        use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -73,6 +73,8 @@ MODULE md
   TYPE simulation_parameters_type
      INTEGER        :: nsteps
      REAL (KIND=dp) :: dt
+     REAL (KIND=dp) :: dt_fact
+     REAL (KIND=dp) :: dr_tol
      REAL (KIND=dp) :: temp_ext
      REAL (KIND=dp) :: temp_baro_ext
      REAL (KIND=dp) :: temp_baro
@@ -95,6 +97,7 @@ MODULE md
      LOGICAL        :: annealing_cell
      LOGICAL        :: dump_lm 
      LOGICAL        :: angvel_zero 
+     LOGICAL        :: variable_dt
      INTEGER        :: nfree, nfree_rot_transl
      INTEGER        :: info_constraint
      INTEGER        :: lagrange_multipliers
@@ -179,8 +182,18 @@ CONTAINS
             ADJUSTR ( ensemble_name_types(simpar % ensemble)(1:20))
        WRITE ( iw, '( A,T71,I10 )' ) ' MD| Number of Time Steps ', &
             simpar % nsteps
-       WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Time Step [','fs','] ',&
+       IF (simpar%variable_dt ) THEN
+            
+            WRITE ( iw, '( A )' ) ' MD| Variable Time Step is activated '
+            WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Max. Time Step [','fs','] ',&
             simpar % dt /unit%fs
+            WRITE ( iw, '( A, T71, F10.4 )' ) ' MD| Max. atomic displacement permitted [A] ',&
+            simpar % dr_tol/ unit%angstrom
+       ELSE
+         WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Time Step [','fs','] ',&
+            simpar % dt /unit%fs
+
+       END IF
        WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature [K] ', &
             simpar % temp_ext/ unit % kelvin
        WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature tolerance [K] ', &
@@ -298,6 +311,19 @@ CPSourceFileRef,&
                only_ionode=.TRUE.)
          END IF
        END IF
+       ! Print warning for variable time step
+       IF(simpar % variable_dt ) THEN
+         IF ( simpar % ensemble == langevin_ensemble .OR. &
+              simpar % ensemble == reftraj_ensemble .OR. &
+              simpar % do_respa )  THEN
+              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+              "The variable timestep  has been required, however "//&
+              "this option is not available either with the Langevin ensemble or with the multiple timestep schme. "//&
+              "The run will proceed with constant timestep, as read from input. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+         END IF
+       END IF
     END IF
 
     CALL cp_print_key_finished_output(iw,logger,md_section,&
@@ -347,6 +373,13 @@ CPSourceFileRef,&
           simpar % annealing_cell = .TRUE.
        ELSE
           simpar % annealing_cell = .FALSE.
+       END IF
+       CALL section_vals_val_get(md_section,"DISPLACEMENT_TOL",n_rep_val=n_rep,error=error)
+       IF (n_rep==1) THEN
+          CALL section_vals_val_get(md_section,"DISPLACEMENT_TOL",r_val=simpar%dr_tol,error=error)
+          simpar % variable_dt = .TRUE.
+       ELSE
+          simpar % variable_dt = .FALSE.
        END IF
 
        IF (simpar%ensemble == langevin_ensemble) THEN
@@ -425,6 +458,8 @@ CPSourceFileRef,&
     simpar % ensemble = nve_ensemble
     simpar % nsteps = 0
     simpar % dt = 0.0_dp
+    simpar % dt_fact = 1.0_dp
+    simpar % dr_tol = -1.0_dp
     simpar % temp_ext = 0.0_dp
     simpar % temp_baro_ext = 0.0_dp
     simpar % temp_baro = 0.0_dp
@@ -436,6 +471,7 @@ CPSourceFileRef,&
     simpar % constraint = .FALSE.
     simpar % annealing = .FALSE.
     simpar % angvel_zero = .FALSE.
+    simpar % variable_dt = .FALSE.
     simpar % shake_tol = EPSILON(0.0_dp)
     simpar % roll_tol  = EPSILON(0.0_dp)
     simpar % tau_cell = 1000.0_dp

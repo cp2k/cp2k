@@ -154,7 +154,7 @@ CONTAINS
                                                 should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
-    REAL(KIND=dp), POINTER                   :: t, used_time
+    REAL(KIND=dp), POINTER                   :: time, used_time
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(barostat_type), POINTER             :: barostat
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -182,7 +182,7 @@ CONTAINS
     NULLIFY (particles, cell, cell_ref, simpar, itimes, used_time, subsys, &
          md_ener, motion_section, thermostats, barostat, reftraj, force_env_section,&
          kg_coeff_section, reftraj_section, work_section, atomic_kinds, &
-         local_particles, t, fe_env, dyn_coeff_set)
+         local_particles, time, fe_env, dyn_coeff_set)
     logger => cp_error_get_logger(error)
     root_section => force_env % root_section
     para_env     => force_env % para_env
@@ -262,7 +262,7 @@ CONTAINS
     time_iter_start=m_walltime()
 
     CALL get_md_env ( md_env, force_env=force_env, itimes = itimes, &
-                     md_ener=md_ener, t = t, used_time = used_time, error=error )
+                     md_ener=md_ener, t = time, used_time = used_time, error=error )
 
     ! Initialize the md_ener structure
     CALL initialize_md_ener(md_ener, force_env, simpar, error=error)
@@ -325,7 +325,7 @@ CONTAINS
             force_env%virial, force_env%para_env%group, error=error)
 
        CALL section_vals_val_get(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
-       CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
+       CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=time,error=error)
        CALL md_energy(md_env,md_ener,error) 
        CALL md_write_output ( md_env, error ) !inits the print env at itimes == 0 also writes trajectories
        md_stride = 1
@@ -359,6 +359,7 @@ CONTAINS
 
       ! Velocity Verlet Integrator
       CALL velocity_verlet(md_env,error)
+      time = time + simpar%dt * simpar%dt_fact
 
       ! Close Shake output if requested...
       CALL cp_print_key_finished_output(simpar%info_constraint, logger,&

@@ -1509,6 +1509,16 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="DISPLACEMENT_TOL",&
+            description="This keyword sets a maximum atomic displacement permitted in each Cartesian direction."//&
+            "The maximum velocity is evaluated and if it is too large to remain"//&
+            "within the assigned limit, the time step is rescaled accordingly,"//&
+            "and the first half step of the velocity verlet is repeated.",&
+            usage="DISPLACEMENT_TOL <REAL>", type_of_var=real_t,&
+            unit_str='angstrom',  error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="gamma",&
             description="Gamma parameter for the Langevin dynamics",&
             usage="gamma 0.001",&

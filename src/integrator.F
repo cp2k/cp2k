@@ -68,7 +68,8 @@ MODULE integrator
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
                                              set_md_env
-  USE message_passing,                 ONLY: mp_bcast
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_max
   USE metadynamics,                    ONLY: metadyn_forces
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
@@ -245,7 +246,7 @@ CONTAINS
             molecule_kind_set, dt, force_env%root_section, error)
 
        CALL shake_control(gci,local_molecules,molecule_set,molecule_kind_set,&
-            particle_set,pos,vel,simpar%dt,simpar%shake_tol,&
+            particle_set,pos,vel,dt,simpar%shake_tol,&
             simpar%info_constraint,simpar%lagrange_multipliers,&
             simpar%dump_lm,cell,para_env%group,local_particles, error)
     END IF
@@ -280,7 +281,7 @@ CONTAINS
 
     IF (simpar%constraint) THEN
        CALL rattle_control(gci,local_molecules,molecule_set,molecule_kind_set,&
-            particle_set,vel,simpar%dt,simpar%shake_tol,&
+            particle_set,vel,dt,simpar%shake_tol,&
             simpar%info_constraint,simpar%lagrange_multipliers,&
             simpar%dump_lm,cell,para_env%group,local_particles, error)
     END IF
@@ -323,7 +324,7 @@ CONTAINS
                                                 nshell
     LOGICAL                                  :: failure, shell_adiabatic, &
                                                 shell_present
-    REAL(KIND=dp)                            :: dt
+    REAL(KIND=dp)                            :: dt, max_vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -413,7 +414,20 @@ CONTAINS
 
     ! Velocity Verlet (first part)
     CALL vv_first(tmp,atomic_kind_set, local_particles, particle_set, &
-         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, max_vel)
+
+    IF(simpar%variable_dt) THEN
+        CALL mp_max(max_vel,para_env%group)
+        IF(max_vel * dt  > simpar%dr_tol) THEN
+           simpar%dt_fact = simpar%dr_tol/max_vel/dt
+           ! repeat the first vv half-step with the rescaled time step 
+           dt = dt*simpar%dt_fact
+           CALL vv_first(tmp,atomic_kind_set, local_particles, particle_set, &
+                core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, max_vel)
+        ELSE
+           simpar%dt_fact = 1.0_dp
+        END IF
+    END IF
 
     IF (simpar%constraint) THEN 
        ! Possibly update the target values
@@ -421,7 +435,7 @@ CONTAINS
            molecule_kind_set, dt, force_env%root_section, error)
 
        CALL shake_control(gci,local_molecules, molecule_set,&
-           molecule_kind_set, particle_set, tmp%pos, tmp%vel, simpar%dt,simpar%shake_tol, &
+           molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt,simpar%shake_tol, &
            simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
            cell,para_env%group,local_particles, error )
     END IF
@@ -442,7 +456,7 @@ CONTAINS
          core_particle_set, shell_particle_set, nparticle_kind,shell_adiabatic, dt )
 
     IF (simpar%constraint) CALL rattle_control(gci,local_molecules, molecule_set, &
-         molecule_kind_set, particle_set, tmp%vel, simpar%dt,simpar%shake_tol,&
+         molecule_kind_set, particle_set, tmp%vel, dt,simpar%shake_tol,&
          simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
          cell,para_env%group,local_particles, error )
 
@@ -503,7 +517,7 @@ CONTAINS
                                                 nshell
     LOGICAL                                  :: failure, shell_adiabatic, &
                                                 shell_present
-    REAL(KIND=dp)                            :: ds, dt, poly_v(3), s, &
+    REAL(KIND=dp)                            :: ds, dt, max_vel, poly_v(3), s, &
                                                 scale_v(3)
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -578,7 +592,25 @@ CONTAINS
     poly_v(1:3) = 2.0_dp*s/SQRT(ds)/dt
     CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
          core_particle_set, shell_particle_set, nparticle_kind,&
-         shell_adiabatic, dt,  poly_v=poly_v, scale_v=scale_v)
+         shell_adiabatic, dt, max_vel,  poly_v=poly_v, scale_v=scale_v)
+
+
+    IF(simpar%variable_dt) THEN
+        CALL mp_max(max_vel,para_env%group)
+        IF(max_vel * dt  > simpar%dr_tol) THEN
+           simpar%dt_fact = simpar%dr_tol/max_vel/dt
+           ! repeat the first vv half-step with the rescaled time step 
+           dt = simpar%dt*simpar%dt_fact
+           scale_v(1:3) = SQRT(1.0_dp/ds)
+           poly_v(1:3) = 2.0_dp*s/SQRT(ds)/dt
+           CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
+                core_particle_set, shell_particle_set, nparticle_kind,&
+                shell_adiabatic, dt, max_vel,  poly_v=poly_v, scale_v=scale_v)
+        ELSE
+           simpar%dt_fact = 1.0_dp
+        END IF
+    END IF
+
 
     ! Broadcast the new particle positions and deallocate the pos components of temporary
     CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
@@ -626,7 +658,7 @@ CONTAINS
                                                 nshell
     LOGICAL                                  :: failure, shell_adiabatic, &
                                                 shell_present
-    REAL(KIND=dp)                            :: dt
+    REAL(KIND=dp)                            :: dt, max_vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -730,7 +762,21 @@ CONTAINS
 
    ! Velocity Verlet (first part)
     CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
-         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, max_vel)
+
+    IF(simpar%variable_dt) THEN
+        CALL mp_max(max_vel,para_env%group)
+        IF(max_vel * dt  > simpar%dr_tol) THEN
+           simpar%dt_fact = simpar%dr_tol/max_vel/dt
+           ! repeat the first vv half-step with the rescaled time step 
+           dt = simpar%dt*simpar%dt_fact
+           CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
+         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, max_vel)
+
+        ELSE
+           simpar%dt_fact = 1.0_dp
+        END IF
+    END IF
 
     IF (simpar%constraint) THEN 
        ! Possibly update the target values
@@ -738,7 +784,7 @@ CONTAINS
            molecule_kind_set, dt, force_env%root_section, error)
 
        CALL shake_control( gci, local_molecules, molecule_set,   &
-           molecule_kind_set, particle_set,tmp%pos, tmp%vel, simpar%dt,simpar%shake_tol,&
+           molecule_kind_set, particle_set,tmp%pos, tmp%vel, dt,simpar%shake_tol,&
            simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
            cell, para_env%group,local_particles,error )
     END IF
@@ -759,7 +805,7 @@ CONTAINS
          core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
 
     IF (simpar%constraint) CALL rattle_control( gci, local_molecules, molecule_set, &
-         molecule_kind_set, particle_set, tmp%vel, simpar%dt,simpar%shake_tol,&
+         molecule_kind_set, particle_set, tmp%vel, dt,simpar%shake_tol,&
          simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
          cell,para_env%group,local_particles, error )
 
@@ -821,13 +867,12 @@ CONTAINS
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
-    REAL(dp)                                 :: kin
-    REAL(dp), DIMENSION(3, 3)                :: pv_kin
-    REAL(KIND=dp)                            :: arg_r, arg_v, dt, infree, &
-                                                poly_r(3), poly_v(3), &
+    REAL(KIND=dp)                            :: arg_r, arg_v, dt, infree, kin, &
+                                                max_vel, poly_r(3), poly_v(3), &
                                                 roll_tol, scale_r(3), &
                                                 scale_v(3)
     REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
+    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
     REAL(KIND=dp), SAVE                      :: eps_0
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -988,15 +1033,36 @@ CONTAINS
        ! first half of velocity verlet
        CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
             core_particle_set, shell_particle_set, nparticle_kind,&
-            shell_adiabatic, dt, poly_r=poly_r, poly_v=poly_v, &
+            shell_adiabatic, dt, max_vel, poly_r=poly_r, poly_v=poly_v, &
             scale_r=scale_r, scale_v=scale_v )
+
+       IF(simpar%variable_dt) THEN
+           CALL mp_max(max_vel, para_env%group)
+           IF(max_vel*dt > simpar%dr_tol) THEN
+              simpar%dt_fact = simpar%dr_tol/max_vel/dt
+              dt = dt*simpar%dt_fact
+              arg_r = arg_r * simpar%dt_fact*simpar%dt_fact
+              poly_r(1:3) = 1.0_dp + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4
+              arg_v = arg_v * simpar%dt_fact*simpar%dt_fact
+              poly_v(1:3) = 1.0_dp + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
+              scale_r(1:3) = EXP( 0.5_dp * dt * npt ( 1, 1 ) % v )
+              scale_v(1:3) = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * &
+                            (1.0_dp + 3.0_dp * infree ) )
+              CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
+                  core_particle_set, shell_particle_set, nparticle_kind,&
+                  shell_adiabatic, dt, max_vel, poly_r=poly_r, poly_v=poly_v, &
+                  scale_r=scale_r, scale_v=scale_v )
+           ELSE
+              simpar%dt_fact = 1.0_dp
+           END IF
+       END IF
 
        roll_tol = 0.0_dp
        vector_r ( : ) = scale_r(:) * poly_r(:)
        vector_v ( : ) = scale_v(:) * poly_v(:)
 
        IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
-            molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, simpar,  &
+            molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar,  &
             roll_tol, iroll, vector_r, vector_v, para_env % group, cell=cell, &
             local_particles=local_particles, error=error )
     END DO SR
@@ -1038,7 +1104,7 @@ CONTAINS
        roll_tol = 0.0_dp
        IF ( simpar % constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
             particle_set, local_particles, molecule_kind_set, molecule_set,  &
-            local_molecules, tmp%vel, cell, npt, simpar, virial, vector_v,  &
+            local_molecules, tmp%vel, dt,  cell, npt, simpar, virial, vector_v,  &
             roll_tol, iroll, infree, first, para_env,error=error)
 
        CALL update_pv ( gci, simpar, atomic_kind_set, tmp%vel, particle_set, &
@@ -1278,13 +1344,12 @@ CPSourceFileRef,&
                                                 nparticle_kind, nshell
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
-    REAL(dp)                                 :: arg_r, arg_v, arg_vx, infree, &
-                                                kin, poly_r(3), poly_v(3), &
+    REAL(KIND=dp)                            :: arg_r, arg_v, arg_vx, dt, infree, &
+                                                kin, max_vel, poly_r(3), poly_v(3), &
                                                 roll_tol, scale_r(3), &
                                                 scale_v(3)
-    REAL(dp), DIMENSION(3)                   :: vector_r, vector_v
-    REAL(dp), DIMENSION(3, 3)                :: pv_kin
-    REAL(KIND=dp)                            :: dt
+    REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
+    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1423,8 +1488,33 @@ CPSourceFileRef,&
        ! first half of velocity verlet
        CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
             core_particle_set, shell_particle_set, nparticle_kind,&
-            shell_adiabatic, dt, poly_r=poly_r, poly_v=poly_v, &
+            shell_adiabatic, dt, max_vel, poly_r=poly_r, poly_v=poly_v, &
             scale_r=scale_r, scale_v=scale_v )
+
+       IF(simpar%variable_dt) THEN
+           CALL mp_max(max_vel, para_env%group)
+           IF(max_vel*dt > simpar%dr_tol) THEN
+              simpar%dt_fact = simpar%dr_tol/max_vel/dt
+              dt = dt*simpar%dt_fact
+              arg_r = arg_r * simpar%dt_fact*simpar%dt_fact
+              poly_r(1) = 1._dp + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4
+              arg_v = arg_v * simpar%dt_fact*simpar%dt_fact
+              poly_v(1) = 1._dp + e2*arg_vx + e4*arg_vx*arg_vx + e6*arg_vx**3 + e8*arg_vx**4
+              poly_v(2) = 1._dp + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
+              poly_v(3) = 1._dp + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
+              scale_r(1) = EXP( 0.5_dp * dt * npt ( 1, 1 ) % v )
+              scale_v(1) = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * &
+                   (1._dp + infree ) )
+              scale_v(2) = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * infree )
+              scale_v(3) = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * infree )
+              CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
+                  core_particle_set, shell_particle_set, nparticle_kind,&
+                  shell_adiabatic, dt, max_vel, poly_r=poly_r, poly_v=poly_v, &
+                  scale_r=scale_r, scale_v=scale_v )
+           ELSE
+              simpar%dt_fact = 1.0_dp
+           END IF
+       END IF
 
        roll_tol = 0._dp
        vector_r ( : ) = 0._dp
@@ -1432,7 +1522,7 @@ CPSourceFileRef,&
        vector_r ( 1 ) = scale_r(1) * poly_r(1)
 
        IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
-            molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, simpar,&
+            molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar,&
             roll_tol, iroll, vector_r, vector_v, para_env % group, cell=cell, &
             local_particles=local_particles, error=error )
     END DO SR
@@ -1468,7 +1558,7 @@ CPSourceFileRef,&
        roll_tol = 0._dp
        IF ( simpar % constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
             particle_set, local_particles, molecule_kind_set, molecule_set,  &
-            local_molecules, tmp%vel, cell, npt, simpar, virial, vector_v,  &
+            local_molecules, tmp%vel, dt, cell, npt, simpar, virial, vector_v,  &
             roll_tol, iroll, infree, first, para_env, error=error )
 
        CALL update_pv ( gci, simpar, atomic_kind_set, tmp%vel, particle_set, &
@@ -1528,11 +1618,10 @@ CPSourceFileRef,&
                                                 nparticle_kind, nshell
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
-    REAL(dp) :: aa, aax, arg_r, arg_v, arg_vx, gamma1, infree, kin, &
-      poly_r(3), poly_v(3), roll_tol, scale_r(3), scale_v(3)
-    REAL(dp), DIMENSION(3)                   :: vector_r, vector_v
-    REAL(dp), DIMENSION(3, 3)                :: pv_kin
-    REAL(KIND=dp)                            :: dt
+    REAL(KIND=dp) :: aa, aax, arg_r, arg_v, arg_vx, gamma1, dt, infree, kin, &
+      max_vel, poly_r(3), poly_v(3), roll_tol, scale_r(3), scale_v(3)
+    REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
+    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1677,8 +1766,35 @@ CPSourceFileRef,&
        ! first half of velocity verlet
        CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
             core_particle_set, shell_particle_set, nparticle_kind,&
-            shell_adiabatic, dt, poly_r=poly_r, poly_v=poly_v, &
+            shell_adiabatic, dt, max_vel, poly_r=poly_r, poly_v=poly_v, &
             scale_r=scale_r, scale_v=scale_v )
+
+
+       IF(simpar%variable_dt) THEN
+           CALL mp_max(max_vel, para_env%group)
+           IF(max_vel*dt > simpar%dr_tol) THEN
+              simpar%dt_fact = simpar%dr_tol/max_vel/dt
+              dt = dt*simpar%dt_fact
+              arg_r = arg_r * simpar%dt_fact*simpar%dt_fact
+              poly_r(1) = 1._dp + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4
+              arg_vx = ( 0.25_dp * dt * aax ) * ( 0.25_dp * dt * aax )
+              poly_v(1) = 1._dp + e2*arg_vx + e4*arg_vx*arg_vx + e6*arg_vx**3 + e8*arg_vx**4
+              arg_v = ( 0.25_dp * dt * aa ) * ( 0.25_dp * dt * aa )
+              poly_v(2) = 1._dp + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
+              poly_v(3) = 1._dp + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
+       
+              scale_r(1) = EXP( 0.5_dp * dt * npt ( 1, 1 ) % v )
+              scale_v(1) = EXP( -0.25_dp * dt * aax )
+              scale_v(2) = EXP( -0.25_dp * dt * aa )
+              scale_v(3) = EXP( -0.25_dp * dt * aa )
+              CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
+                  core_particle_set, shell_particle_set, nparticle_kind,&
+                  shell_adiabatic, dt, max_vel, poly_r=poly_r, poly_v=poly_v, &
+                  scale_r=scale_r, scale_v=scale_v )
+           ELSE
+              simpar%dt_fact = 1.0_dp
+           END IF
+        END IF
 
        roll_tol = 0._dp
        vector_r ( : ) = 0._dp
@@ -1686,7 +1802,7 @@ CPSourceFileRef,&
        vector_r ( 1 ) = scale_r(1) * poly_r(1)
 
        IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
-            molecule_set, molecule_kind_set, particle_set, tmp%pos,tmp%vel, simpar,&
+            molecule_set, molecule_kind_set, particle_set, tmp%pos,tmp%vel, dt, simpar,&
             roll_tol, iroll, vector_r, vector_v, para_env % group, cell=cell,&
             local_particles=local_particles, error=error )
     END DO SR
@@ -1722,7 +1838,7 @@ CPSourceFileRef,&
        roll_tol = 0._dp
        IF ( simpar % constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
             particle_set, local_particles, molecule_kind_set, molecule_set, local_molecules,&
-            tmp%vel, cell, npt, simpar, virial, vector_v, roll_tol, iroll, infree, first,&
+            tmp%vel, dt, cell, npt, simpar, virial, vector_v, roll_tol, iroll, infree, first,&
             para_env, error=error)
        ! perform damping on the barostat momentum
        CALL damp_veps ( npt ( 1, 1 ), gamma1, dt )
@@ -1789,13 +1905,11 @@ CPSourceFileRef,&
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
-    REAL(dp)                                 :: kin
-    REAL(dp), DIMENSION(3, 3)                :: pv_kin
-    REAL(KIND=dp)                            :: dt, infree, roll_tol, trvg
+    REAL(KIND=dp)                            :: dt, infree, kin, max_vel, roll_tol, trvg
     REAL(KIND=dp), DIMENSION(3)              :: arg_r, arg_v, e_val, poly_r, &
                                                 poly_v, scale_r, scale_v, &
                                                 vector_v
-    REAL(KIND=dp), DIMENSION(3, 3)           :: u, uh
+    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin, u, uh
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1954,11 +2068,33 @@ CPSourceFileRef,&
 
        CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
             core_particle_set, shell_particle_set, nparticle_kind,&
-            shell_adiabatic, dt, poly_r, poly_v, scale_r, scale_v, u)
+            shell_adiabatic, dt, max_vel, poly_r, poly_v, scale_r, scale_v, u)
+
+       IF(simpar%variable_dt) THEN
+           CALL mp_max(max_vel, para_env%group)
+           IF(max_vel*dt > simpar%dr_tol) THEN
+              simpar%dt_fact = simpar%dr_tol/max_vel/dt
+              dt = dt*simpar%dt_fact
+              arg_r(:) = arg_r(:) * simpar%dt_fact*simpar%dt_fact
+              poly_r = 1._dp + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4
+              scale_r ( : ) = EXP ( 0.5_dp * dt * e_val ( : ) )
+              arg_v(:) = arg_v(:) * simpar%dt_fact*simpar%dt_fact
+              poly_v = 1.0_dp + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
+              scale_v ( : ) = EXP ( -0.25_dp * dt * ( &
+                    e_val ( : ) + trvg * infree ) )
+
+              CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
+                  core_particle_set, shell_particle_set, nparticle_kind,&
+                  shell_adiabatic, dt, max_vel, poly_v, scale_r, scale_v, u)
+           ELSE
+              simpar%dt_fact = 1.0_dp
+           END IF
+       END IF
+
 
        roll_tol = 0.0_dp
        IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
-            molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, simpar,  &
+            molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar,  &
             roll_tol, iroll, scale_r*poly_r, scale_v*poly_v, para_env % group, u, cell,&
             local_particles=local_particles, error=error )
     END DO SR
@@ -2000,7 +2136,7 @@ CPSourceFileRef,&
        roll_tol = 0.0_dp
        IF ( simpar % constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
             particle_set, local_particles, molecule_kind_set, molecule_set,  &
-            local_molecules, tmp%vel, cell, npt, simpar, virial, vector_v,  &
+            local_molecules, tmp%vel, dt, cell, npt, simpar, virial, vector_v,  &
             roll_tol, iroll, infree, first, para_env, u, error=error)
 
        CALL update_pv ( gci, simpar, atomic_kind_set, tmp%vel, particle_set, &
@@ -2190,7 +2326,7 @@ CPSourceFileRef,&
               molecule_kind_set, dt, force_env%root_section, error)
 
           CALL shake_control( gci, local_molecules, molecule_set,&
-              molecule_kind_set, particle_set,pos, vel, simpar%dt, simpar%shake_tol,&
+              molecule_kind_set, particle_set,pos, vel, dt, simpar%shake_tol,&
               simpar%info_constraint, simpar%lagrange_multipliers,simpar%dump_lm, cell,&
               para_env%group, local_particles, error )
        END IF
@@ -2220,7 +2356,7 @@ CPSourceFileRef,&
        END DO
 
        IF (simpar%constraint) CALL rattle_control( gci,local_molecules, molecule_set, &
-            molecule_kind_set, particle_set, vel, simpar%dt,simpar%shake_tol,&
+            molecule_kind_set, particle_set, vel, dt,simpar%shake_tol,&
             simpar%info_constraint, simpar%lagrange_multipliers,&
             simpar%dump_lm, cell, para_env%group,local_particles, error )
 

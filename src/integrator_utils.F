@@ -661,7 +661,7 @@ CONTAINS
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE rattle_roll_setup ( old, gci, atomic_kind_set, particle_set, local_particles, &
-       molecule_kind_set, molecule_set, local_molecules, vel, cell, npt, simpar, virial,&
+       molecule_kind_set, molecule_set, local_molecules, vel, dt, cell, npt, simpar, virial,&
        vector_v, roll_tol, iroll, infree, first, para_env, u, error )
 
     TYPE(old_variables_type), POINTER        :: old
@@ -673,6 +673,7 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    REAL(KIND=dp), INTENT(IN)                :: dt
     TYPE(cell_type), POINTER                 :: cell
     TYPE(npt_info_type), DIMENSION(:, :), &
       POINTER                                :: npt
@@ -719,7 +720,7 @@ CONTAINS
     ! resetting
     CALL set ( old, atomic_kind_set, particle_set, vel, local_particles, cell , npt, 'B' )
     CALL rattle_roll_control( gci, local_molecules, molecule_set, molecule_kind_set, &
-         particle_set, vel, simpar, virial, vector_v,   &
+         particle_set, vel, dt, simpar, virial, vector_v,   &
          npt_loc % v, npt_loc %  mass, roll_tol, iroll,    &
          para_env, u, cell, local_particles, error=error )
 
@@ -944,7 +945,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE vv_first ( tmp, atomic_kind_set, local_particles, particle_set, &
        core_particle_set, shell_particle_set, nparticle_kind,&
-       shell_adiabatic, dt, poly_r, poly_v, scale_r, scale_v, u )
+       shell_adiabatic, dt, max_vel, poly_r, poly_v, scale_r, scale_v, u )
 
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -957,6 +958,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nparticle_kind
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
     REAL(KIND=dp)                            :: dt
+    REAL(KIND=dp), INTENT(OUT)               :: max_vel
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: poly_r(3), poly_v(3), &
                                                 scale_r(3), scale_v(3)
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: u
@@ -982,6 +984,7 @@ CONTAINS
     IF(PRESENT(poly_v)) my_poly_v = poly_v
     IF(PRESENT(scale_r)) my_scale_r = scale_r
     IF(PRESENT(scale_v)) my_scale_v = scale_v
+    max_vel = 0.0_dp
 
     !     *** Velocity Verlet (first part) ***
     IF(shell_adiabatic) THEN
@@ -1013,7 +1016,8 @@ CONTAINS
                         fac_massc*tmp%core_vel (:,shell_index)
                    tmp%pos (:,iparticle) = fac_masss*tmp%shell_pos (:,shell_index)+&
                         fac_massc*tmp%core_pos (:,shell_index)
-
+                   
+                   max_vel = MAX(max_vel,ABS(tmp%vel(1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
                 END DO  ! iparticle_local
              ELSE
                 DO iparticle_local=1,nparticle_local
@@ -1036,6 +1040,7 @@ CONTAINS
                         fac_massc*tmp%core_vel (:,shell_index)
                    tmp%pos (:,iparticle) = fac_masss*tmp%shell_pos (:,shell_index)+&
                         fac_massc*tmp%core_pos (:,shell_index)
+                   max_vel = MAX(max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
                 END DO  ! iparticle_local
              END IF
           ELSE
@@ -1046,6 +1051,7 @@ CONTAINS
                    ! Transform positions and velocities and forces
                    CALL transform_first(particle_set,tmp%pos,tmp%vel,&
                         iparticle,u,dm,dt,poly_v,poly_r,scale_v,scale_r)
+                   max_vel = MAX(max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
                 END DO  ! iparticle_local
              ELSE
                 DO iparticle_local=1,nparticle_local
@@ -1068,6 +1074,7 @@ CONTAINS
                    tmp%pos (3,iparticle) = &
                         particle_set(iparticle)%r(3) * my_scale_r(3) * my_scale_r(3)+&
                         my_scale_r(3) * my_poly_r(3) * dt * tmp%vel ( 3, iparticle )
+                   max_vel = MAX(max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
                 END DO  ! iparticle_local
              END IF
           END IF
@@ -1084,6 +1091,7 @@ CONTAINS
                 ! Transform positions and velocities and forces
                 CALL transform_first(particle_set,tmp%pos,tmp%vel,&
                      iparticle,u,dm,dt,poly_v,poly_r,scale_v,scale_r)
+                max_vel = MAX(max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
              END DO  ! iparticle_local
           ELSE
              DO iparticle_local=1,nparticle_local
@@ -1106,6 +1114,7 @@ CONTAINS
                 tmp%pos (3,iparticle) = &
                      particle_set(iparticle)%r(3) * my_scale_r(3) * my_scale_r(3)+&
                      my_scale_r(3) * my_poly_r(3) * dt * tmp%vel ( 3, iparticle )
+                max_vel = MAX(max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
              END DO
           END IF
        END DO

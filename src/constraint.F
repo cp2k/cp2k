@@ -285,7 +285,7 @@ CONTAINS
 !>      Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
 ! *****************************************************************************
   SUBROUTINE shake_roll_control( gci, local_molecules, molecule_set,&
-       molecule_kind_set, particle_set, pos, vel, simpar, roll_tol, iroll,&
+       molecule_kind_set, particle_set, pos, vel, dt, simpar, roll_tol, iroll,&
        vector_r, vector_v, group, u, cell, local_particles, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
@@ -294,6 +294,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
+    REAL(KIND=dp), INTENT(IN)                :: dt
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
     REAL(KIND=dp), INTENT(OUT)               :: roll_tol
@@ -313,7 +314,7 @@ CONTAINS
       lagrange_mult, log_unit, n3x3con, n4x6con, nconstraint, nkind, &
       nmol_per_kind
     LOGICAL                                  :: do_ext_constraint, dump_lm
-    REAL(KIND=dp)                            :: dt, int_max_sigma, mass, &
+    REAL(KIND=dp)                            :: int_max_sigma, mass, &
                                                 max_sigma, shake_tol
     REAL(KIND=dp), DIMENSION(3, 3)           :: r_shake, v_shake
     REAL(KIND=dp), DIMENSION(SIZE(pos, 2))   :: imass
@@ -325,7 +326,6 @@ CONTAINS
     CALL timeset ( routineN, 'I', ' ', handle )
     nkind = SIZE ( molecule_kind_set )
     shake_tol = simpar%shake_tol
-    dt = simpar%dt
     log_unit = simpar%info_constraint
     lagrange_mult = simpar%lagrange_multipliers
     dump_lm = simpar%dump_lm
@@ -410,7 +410,7 @@ CONTAINS
 !>      Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
 ! *****************************************************************************
   SUBROUTINE rattle_roll_control( gci, local_molecules, molecule_set, &
-       molecule_kind_set, particle_set, vel, simpar, virial, vector,&
+       molecule_kind_set, particle_set, vel, dt, simpar, virial, vector,&
        veps, mass, roll_tol, iroll, para_env, u, cell, local_particles, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
@@ -419,6 +419,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    REAL(KIND=dp), INTENT(IN)                :: dt
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
     TYPE(virial_type), POINTER               :: virial
@@ -443,7 +444,7 @@ CONTAINS
       lagrange_mult, log_unit, n3x3con, n4x6con, nconstraint, nkind, &
       nmol_per_kind
     LOGICAL                                  :: do_ext_constraint, dump_lm
-    REAL(KIND=dp)                            :: amass, dt, int_max_sigma, &
+    REAL(KIND=dp)                            :: amass, int_max_sigma, &
                                                 max_sigma, rattle_tol
     REAL(KIND=dp), DIMENSION(3, 3)           :: r_rattle
     REAL(KIND=dp), DIMENSION(SIZE(vel, 2))   :: imass
@@ -456,7 +457,6 @@ CONTAINS
     ! initialize locals
     nkind = SIZE ( molecule_kind_set )
     rattle_tol = simpar%shake_tol
-    dt         = simpar%dt
     log_unit   = simpar%info_constraint
     lagrange_mult = simpar%lagrange_multipliers
     dump_lm = simpar%dump_lm
