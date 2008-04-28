@@ -3319,16 +3319,17 @@ CONTAINS
        CALL keyword_create(keyword, name="SCF_GUESS",&
             description="Change the initial guess for the wavefunction.",&
             usage="SCF_GUESS RESTART", default_i_val=atomic_guess,&
-            enum_c_vals=s2a("ATOMIC","RESTART","RANDOM","CORE","DENSITIES","HISTORY_RESTART","NONE"),&
+            enum_c_vals=s2a("ATOMIC","RESTART","RANDOM","CORE","DENSITIES","HISTORY_RESTART","MOPAC","NONE"),&
             enum_desc=s2a("Generate a trial atomic density based on the SZV part of the basis", &
             "Use the RESTART file as an initial guess (and ATOMIC if not present).", &
             "Use random wavefunction coefficients.", &
             "Diagonalize the core hamiltonian for an initial guess.", &
             "Use the aux_basis_set for collocation.", &
             "Extrapolated from previous RESTART files.", &
+            "Use same guess as MOPAC (only for semi-empirical run)", &
             "Skip initial guess (only for NON-SCC DFTB)."), &
             enum_i_vals=(/atomic_guess,restart_guess,random_guess,core_guess,&
-            densities_guess,history_guess,no_guess/),&
+            densities_guess,history_guess,mopac_guess,no_guess/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

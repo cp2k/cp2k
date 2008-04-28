@@ -230,7 +230,7 @@ MODULE input_constants
                                 do_eb=5
 
   INTEGER, PARAMETER, PUBLIC :: atomic_guess=1,restart_guess=2,random_guess=3,&
-       core_guess=4, densities_guess=5, history_guess=6, no_guess=7
+       core_guess=4, densities_guess=5, history_guess=6, no_guess=7, mopac_guess=8
   INTEGER, PARAMETER, PUBLIC :: pw_interp=1,&
        spline3_nopbc_interp=2,spline3_pbc_interp=3 ! to move somewhere else
   INTEGER, PARAMETER, PUBLIC :: do_gapw_gcs=1,&

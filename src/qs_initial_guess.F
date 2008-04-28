@@ -30,15 +30,14 @@ MODULE qs_initial_guess
                                              core_guess,&
                                              densities_guess,&
                                              history_guess,&
+                                             mopac_guess,&
                                              no_guess,&
                                              random_guess,&
                                              restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
-                                             dp,&
-                                             dp_size,&
-                                             int_size
+                                             dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
@@ -65,8 +64,7 @@ MODULE qs_initial_guess
   USE sparse_matrix_types,             ONLY: get_matrix_diagonal,&
                                              real_matrix_p_type,&
                                              set_matrix_diagonal
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -106,15 +104,16 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name, filename
     INTEGER :: atom_a, density_guess, group, handle, homo, i, iatom, id_nr, &
       ikind, iset, isgf, isgfa, ishell, ispin, istat, j, la, last_read, maxl, &
-      maxll, nao, natom, ncount, nelectron, nmo, not_read, nset, nspin, nvec, &
-      qs_env_id
+      maxll, nao, natom, ncount, nelectron, nmo, not_read, nset, nsgf, nspin, &
+      nvec, qs_env_id, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
     LOGICAL                                  :: exist, failure, id_equal, &
                                                 ortho_basis, scp
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
-                                                total_rho, trps1, trps2
+                                                sum, total_rho, trps1, trps2, &
+                                                yy, zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
     REAL(KIND=dp), DIMENSION(0:3)            :: edftb
     TYPE(all_potential_type), POINTER        :: all_potential
@@ -147,7 +146,7 @@ CONTAINS
          ortho,work2,work1,mo_array,s_sparse,p_rmpv,scf_control, &
          dft_control,h_core_sparse)
     NULLIFY(dft_section, input)
-    NULLIFY (moa,mob)
+    NULLIFY(moa,mob)
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -341,331 +340,348 @@ CPSourceFileRef,&
        ! molecular orbitals (MOs)
 
        IF (ortho_basis) THEN
-         CALL simple_eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,&
-                                 work2,.FALSE.,0.0_dp,&
-                                 work_syevx=scf_control%work_syevx,&
-                                 smear=0.0_dp,&
-                                 error=error)
+          CALL simple_eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,&
+                                  work2,.FALSE.,0.0_dp,&
+                                  work_syevx=scf_control%work_syevx,&
+                                  smear=0.0_dp,&
+                                  error=error)
        ELSE
-         CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2,&
-                          .FALSE.,0.0_dp,&
-                          use_cholesky=scf_control%use_cholesky,&
-                          work_syevx=scf_control%work_syevx,&
-                          use_jacobi=.FALSE.,&
-                          jacobi_threshold=scf_control%jacobi_threshold,&
-                          smear=0.0_dp,&
-                          error=error)
+          CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2,&
+                           .FALSE.,0.0_dp,&
+                           use_cholesky=scf_control%use_cholesky,&
+                           work_syevx=scf_control%work_syevx,&
+                           use_jacobi=.FALSE.,&
+                           jacobi_threshold=scf_control%jacobi_threshold,&
+                           smear=0.0_dp,&
+                           error=error)
        END IF
 
        ! Open shell case: copy alpha MOs to beta MOs
 
        IF (nspin == 2) THEN
-         CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=moa)
-         CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mob,nmo=nmo)
-         CALL cp_fm_to_fm(moa,mob,nmo)
+          CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=moa)
+          CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mob,nmo=nmo)
+          CALL cp_fm_to_fm(moa,mob,nmo)
        END IF
 
        ! Build an initial density matrix (for each spin in the case of
        ! an open shell calculation) from the first MOs set
 
        DO ispin=1,nspin
-         CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                       p_rmpv(ispin)%matrix,&
-                                       error=error)
-       END DO
-
-    ELSE IF (density_guess == atomic_guess) THEN
-
-      group = qs_env%para_env%group
-
-      natom = SIZE(particle_set)
-      ALLOCATE (first_sgf(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "first_sgf",natom*int_size)
-      CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf)
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxl)
-      ALLOCATE (econf(0:maxl),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "econf",(maxl + 1)*int_size)
-
-      CALL get_mo_set(mo_array(1)%mo_set,nao=nao)
-      ALLOCATE (pdiag(nao),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "pdiag",nao*dp_size)
-      pdiag(:) = 0.0_dp
-
-      ALLOCATE (sdiag(nao),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "sdiag",nao*dp_size)
-      IF (ortho_basis) THEN
-        sdiag(:) = 1.0_dp
-      ELSE
-        CALL get_matrix_diagonal(s_sparse(1)%matrix,sdiag)
-        CALL mp_sum(sdiag,group)
-      END IF
-
-      DO ispin=1,nspin
-
-        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                        maxocc=maxocc,&
-                        nelectron=nelectron)
-
-        ncount = 0
-        trps1 = 0.0_dp
-        trps2 = 0.0_dp
-        pdiag(:) = 0.0_dp
-
-        IF (nelectron /= 0) THEN
-
-          DO ikind=1,SIZE(atomic_kind_set)
-
-            atomic_kind => atomic_kind_set(ikind)
-
-            CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                 natom=natom,&
-                                 atom_list=atom_list,&
-                                 all_potential=all_potential,&
-                                 gth_potential=gth_potential,&
-                                 orb_basis_set=orb_basis_set)
-
-            IF ( dft_control%qs_control%dftb ) THEN
-              CALL get_dftb_atom_param(dftb_parameter=atomic_kind%dftb_parameter,&
-                                       lmax=maxll,occupation=edftb)
-              maxll = MIN(maxll,maxl)
-              econf(0:maxl)=edftb(0:maxl)
-            ELSEIF (ASSOCIATED(all_potential)) THEN
-              CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf)
-              maxll = MIN(SIZE(elec_conf) - 1,maxl)
-              econf(:) = 0.0_dp
-              econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
-            ELSE IF (ASSOCIATED(gth_potential)) THEN
-              CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf)
-              maxll = MIN(SIZE(elec_conf) - 1,maxl)
-              econf(:) = 0.0_dp
-              econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
-            ELSE
-              CYCLE
-            END IF
-
-            IF ( dft_control%qs_control%dftb ) THEN
-
-               DO iatom=1,natom
-                 atom_a = atom_list(iatom)
-                 isgfa=first_sgf(atom_a)
-                 DO la=0,maxll
-                   SELECT CASE (la)
-                     CASE (0)
-                       pdiag(isgfa) = econf(0)
-                     CASE (1)
-                       pdiag(isgfa+1) = econf(1)/3._dp
-                       pdiag(isgfa+2) = econf(1)/3._dp
-                       pdiag(isgfa+3) = econf(1)/3._dp
-                     CASE (2)
-                       pdiag(isgfa+4) = econf(2)/5._dp
-                       pdiag(isgfa+5) = econf(2)/5._dp
-                       pdiag(isgfa+6) = econf(2)/5._dp
-                       pdiag(isgfa+7) = econf(2)/5._dp
-                       pdiag(isgfa+8) = econf(2)/5._dp
-                     CASE (3)
-                       pdiag(isgfa+ 9) = econf(3)/7._dp
-                       pdiag(isgfa+10) = econf(3)/7._dp
-                       pdiag(isgfa+11) = econf(3)/7._dp
-                       pdiag(isgfa+12) = econf(3)/7._dp
-                       pdiag(isgfa+13) = econf(3)/7._dp
-                       pdiag(isgfa+14) = econf(3)/7._dp
-                       pdiag(isgfa+15) = econf(3)/7._dp
-                     CASE DEFAULT
-                       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                   END SELECT
-                 END DO
-               END DO
-
-            ELSE
-
-              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                     nset=nset,&
-                                     nshell=nshell,&
-                                     l=l,&
-                                     first_sgf=first_sgfa,&
-                                     last_sgf=last_sgfa)
-  
-              DO iset=1,nset
-                DO ishell=1,nshell(iset)
-                  la = l(ishell,iset)
-                  nelec = maxocc*REAL(2*la + 1,dp)
-                  IF (econf(la) > 0.0_dp) THEN
-                    IF (econf(la) >= nelec) THEN
-                      paa = maxocc
-                      econf(la) = econf(la) - nelec
-                    ELSE
-                      paa = maxocc*econf(la)/nelec
-                      econf(la) = 0.0_dp
-                      ncount = ncount + NINT(nelec/maxocc)
-                    END IF
-                    DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
-                      DO iatom=1,natom
-                        atom_a = atom_list(iatom)
-                        isgf = first_sgf(atom_a) + isgfa - 1
-                        pdiag(isgf) = paa
-                        IF (paa == maxocc) THEN
-                          trps1 = trps1 + paa*sdiag(isgf)
-                        ELSE
-                          trps2 = trps2 + paa*sdiag(isgf)
-                        END IF
-                      END DO
-                    END DO
-                  END IF
-                END DO ! ishell
-              END DO ! iset
-
-            END IF
-
-          END DO ! ikind
-
-          IF (trps2 == 0.0_dp) THEN
-            DO isgf=1,nao
-              IF (sdiag(isgf) > 0.0_dp) pdiag(isgf) = pdiag(isgf)/sdiag(isgf)
-            END DO
-          ELSE
-            scale = (REAL(nelectron,dp) - trps1)/trps2
-            DO isgf=1,nao
-              IF (pdiag(isgf) < maxocc) pdiag(isgf) = scale*pdiag(isgf)
-            END DO
-          END IF
-
-        END IF
-
-        CALL set_matrix_diagonal(p_rmpv(ispin)%matrix,pdiag)
-
-        ! The orbital transformation method (OT) requires not only an
-        ! initial density matrix, but also an initial wavefunction (MO set)
-
-        IF (scf_control%use_ot) THEN
-
-          IF (dft_control%restricted.AND.(ispin == 2)) THEN
-
-            CALL mo_set_restrict(mo_array,error=error)
-
-          ELSE
-
-            CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                            mo_coeff=mo_coeff,&
-                            nmo=nmo)
-            CALL cp_fm_init_random(mo_coeff,nmo,error=error)
-            CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
-
-            ! multiply times PS
-
-            IF (ortho_basis) THEN
-              CALL cp_fm_to_fm(mo_coeff,sv,error=error)
-            ELSE
-              CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
-            END IF
-
-            ! here we could easily multiply with the diag that we actually have replicated already
-
-            CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo,error=error)
-            CALL cp_fm_release(sv,error=error)
-
-            ! and ortho the result
-
-            IF (ortho_basis) THEN
-              CALL make_basis_simple(mo_coeff,nmo,error=error)
-            ELSE
-              CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
-            END IF
-
-          END IF
-
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                                         p_rmpv(ispin)%matrix,&
                                         error=error)
+       END DO
 
-        END IF
+    ELSE IF((density_guess == atomic_guess).OR.(density_guess == mopac_guess)) THEN
+       ! ATOMIC GUESS and MOPAC GUESS share most of the structures...
+       group = qs_env%para_env%group
+       natom = SIZE(particle_set)
+       ALLOCATE (first_sgf(natom),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       
+       CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxl)
+       ALLOCATE (econf(0:maxl),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       
+       CALL get_mo_set(mo_array(1)%mo_set,nao=nao)
+       ALLOCATE (pdiag(nao),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       pdiag(:) = 0.0_dp
+       
+       ALLOCATE (sdiag(nao),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       IF (ortho_basis) THEN
+          sdiag(:) = 1.0_dp
+       ELSE
+          CALL get_matrix_diagonal(s_sparse(1)%matrix,sdiag)
+          CALL mp_sum(sdiag,group)
+       END IF
 
-      END DO
+       DO ispin=1,nspin
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                          maxocc=maxocc,&
+                          nelectron=nelectron)
+          
+          ncount   = 0
+          trps1    = 0.0_dp
+          trps2    = 0.0_dp
+          pdiag(:) = 0.0_dp
+          
+          IF (nelectron /= 0) THEN
+             DO ikind=1,SIZE(atomic_kind_set)
+                atomic_kind => atomic_kind_set(ikind)
+          
+                CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                     natom=natom,&
+                                     atom_list=atom_list,&
+                                     all_potential=all_potential,&
+                                     gth_potential=gth_potential,&
+                                     orb_basis_set=orb_basis_set)
 
-      DEALLOCATE (econf,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"econf")
+                IF ( dft_control%qs_control%dftb ) THEN
+                   CALL get_dftb_atom_param(dftb_parameter=atomic_kind%dftb_parameter,&
+                        lmax=maxll,occupation=edftb)
+                   maxll = MIN(maxll,maxl)
+                   econf(0:maxl)=edftb(0:maxl)
+                ELSEIF (ASSOCIATED(all_potential)) THEN
+                   CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf, nsgf=nsgf, z=z, zeff=zeff)
+                   maxll = MIN(SIZE(elec_conf) - 1,maxl)
+                   econf(:) = 0.0_dp
+                   econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
+                ELSE IF (ASSOCIATED(gth_potential)) THEN
+                   CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf, nsgf=nsgf, z=z, zeff=zeff)
+                   maxll = MIN(SIZE(elec_conf) - 1,maxl)
+                   econf(:) = 0.0_dp
+                   econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
+                ELSE
+                   CYCLE
+                END IF
+          
+                IF (density_guess == mopac_guess) THEN
+                   ! MOPAC GUESS
+                   IF (dft_control%qs_control%dftb) THEN
+                      CALL stop_program(routineP,"MOPAC initial guess not available for DFTB!") 
+                   END IF
 
-      DEALLOCATE (first_sgf,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"first_sgf")
+                   yy = REAL(dft_control%charge,KIND=dp)/REAL(nao,KIND=dp)
+                   DO iatom=1,natom
+                      atom_a = atom_list(iatom)
+                      isgfa=first_sgf(atom_a)
+                      SELECT CASE (nsgf)
+                      CASE (1) ! s-basis
+                         pdiag(isgfa   ) = (zeff         - yy)*0.5_dp
+                      CASE (4) ! sp-basis
+                         pdiag(isgfa   ) = (zeff*0.25_dp - yy)*0.5_dp
+                         pdiag(isgfa+ 1) = (zeff*0.25_dp - yy)*0.5_dp
+                         pdiag(isgfa+ 2) = (zeff*0.25_dp - yy)*0.5_dp
+                         pdiag(isgfa+ 3) = (zeff*0.25_dp - yy)*0.5_dp
+                      CASE (9) ! spd-basis
+                         IF (z < 21 .OR. z > 30 .AND. z < 39 .OR. z > 48 .AND. z < 57) THEN
+                            !   Main Group Element:  The "d" shell is formally empty.
+                            pdiag(isgfa   ) = (zeff*0.25_dp - yy)*0.5_dp
+                            pdiag(isgfa+ 1) = (zeff*0.25_dp - yy)*0.5_dp
+                            pdiag(isgfa+ 2) = (zeff*0.25_dp - yy)*0.5_dp
+                            pdiag(isgfa+ 3) = (zeff*0.25_dp - yy)*0.5_dp
+                            pdiag(isgfa+ 4) = (             - yy)*0.5_dp
+                            pdiag(isgfa+ 5) = (             - yy)*0.5_dp
+                            pdiag(isgfa+ 6) = (             - yy)*0.5_dp
+                            pdiag(isgfa+ 7) = (             - yy)*0.5_dp
+                            pdiag(isgfa+ 8) = (             - yy)*0.5_dp
+                         ELSE IF (z < 99) THEN
+                            sum = zeff - 9.0_dp*yy
+                            !   First, put 2 electrons in the 's' shell
+                            pdiag(isgfa   ) = (MAX(0.0_dp, MIN(sum, 2.0_dp)))*0.5_dp
+                            sum = sum - 2.0_dp
+                            IF (sum > 0.0_dp) THEN
+                               !   Now put as many electrons as possible into the 'd' shell
+                               pdiag(isgfa+ 4) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp
+                               pdiag(isgfa+ 5) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp
+                               pdiag(isgfa+ 6) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp
+                               pdiag(isgfa+ 7) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp
+                               pdiag(isgfa+ 8) = (MAX(0.0_dp, MIN(sum*0.2_dp, 2.0_dp)))*0.5_dp
+                               sum = MAX(0.0_dp, sum-10.0_dp)
+                               !   Put the remaining electrons in the 'p' shell
+                               pdiag(isgfa+ 1) = (sum/3.0_dp)*0.5_dp
+                               pdiag(isgfa+ 2) = (sum/3.0_dp)*0.5_dp
+                               pdiag(isgfa+ 3) = (sum/3.0_dp)*0.5_dp
+                            END IF
+                         END IF
+                      CASE DEFAULT
+                         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                      END SELECT
+                   END DO
+                ELSE
+                   ! ATOMIC GUESS
+                   IF ( dft_control%qs_control%dftb ) THEN
+                      DO iatom=1,natom
+                         atom_a = atom_list(iatom)
+                         isgfa=first_sgf(atom_a)
+                         DO la=0,maxll
+                            SELECT CASE (la)
+                            CASE (0)
+                               pdiag(isgfa) = econf(0)
+                            CASE (1)
+                               pdiag(isgfa+1) = econf(1)/3._dp
+                               pdiag(isgfa+2) = econf(1)/3._dp
+                               pdiag(isgfa+3) = econf(1)/3._dp
+                            CASE (2)
+                               pdiag(isgfa+4) = econf(2)/5._dp
+                               pdiag(isgfa+5) = econf(2)/5._dp
+                               pdiag(isgfa+6) = econf(2)/5._dp
+                               pdiag(isgfa+7) = econf(2)/5._dp
+                               pdiag(isgfa+8) = econf(2)/5._dp
+                            CASE (3)
+                               pdiag(isgfa+ 9) = econf(3)/7._dp
+                               pdiag(isgfa+10) = econf(3)/7._dp
+                               pdiag(isgfa+11) = econf(3)/7._dp
+                               pdiag(isgfa+12) = econf(3)/7._dp
+                               pdiag(isgfa+13) = econf(3)/7._dp
+                               pdiag(isgfa+14) = econf(3)/7._dp
+                               pdiag(isgfa+15) = econf(3)/7._dp
+                            CASE DEFAULT
+                               CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                            END SELECT
+                         END DO
+                      END DO
+                   ELSE
+                      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                             nset=nset,&
+                                             nshell=nshell,&
+                                             l=l,&
+                                             first_sgf=first_sgfa,&
+                                             last_sgf=last_sgfa)
+                   
+                      DO iset=1,nset
+                         DO ishell=1,nshell(iset)
+                            la = l(ishell,iset)
+                            nelec = maxocc*REAL(2*la + 1,dp)
+                            IF (econf(la) > 0.0_dp) THEN
+                               IF (econf(la) >= nelec) THEN
+                                  paa = maxocc
+                                  econf(la) = econf(la) - nelec
+                               ELSE
+                                  paa = maxocc*econf(la)/nelec
+                                  econf(la) = 0.0_dp
+                                  ncount = ncount + NINT(nelec/maxocc)
+                               END IF
+                               DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
+                                  DO iatom=1,natom
+                                     atom_a = atom_list(iatom)
+                                     isgf = first_sgf(atom_a) + isgfa - 1
+                                     pdiag(isgf) = paa
+                                     IF (paa == maxocc) THEN
+                                        trps1 = trps1 + paa*sdiag(isgf)
+                                     ELSE
+                                        trps2 = trps2 + paa*sdiag(isgf)
+                                     END IF
+                                  END DO
+                               END DO
+                            END IF
+                         END DO ! ishell
+                      END DO ! iset
+                   END IF
+                END IF
+             END DO ! ikind
+          
+             IF (trps2 == 0.0_dp) THEN
+                DO isgf=1,nao
+                   IF (sdiag(isgf) > 0.0_dp) pdiag(isgf) = pdiag(isgf)/sdiag(isgf)
+                END DO
+             ELSE
+                scale = (REAL(nelectron,dp) - trps1)/trps2
+                DO isgf=1,nao
+                   IF (pdiag(isgf) < maxocc) pdiag(isgf) = scale*pdiag(isgf)
+                END DO
+             END IF
+          END IF
+          
+          CALL set_matrix_diagonal(p_rmpv(ispin)%matrix,pdiag)
+          
+          ! The orbital transformation method (OT) requires not only an
+          ! initial density matrix, but also an initial wavefunction (MO set)
+          IF (scf_control%use_ot) THEN
+             IF (dft_control%restricted.AND.(ispin == 2)) THEN
+                CALL mo_set_restrict(mo_array,error=error)
+             ELSE
+                CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                                mo_coeff=mo_coeff,&
+                                nmo=nmo)
+                CALL cp_fm_init_random(mo_coeff,nmo,error=error)
+                CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
+                ! multiply times PS
+                IF (ortho_basis) THEN
+                   CALL cp_fm_to_fm(mo_coeff,sv,error=error)
+                ELSE
+                   CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
+                END IF
+                ! here we could easily multiply with the diag that we actually have replicated already
+                CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo,error=error)
+                CALL cp_fm_release(sv,error=error)
+                ! and ortho the result
+                IF (ortho_basis) THEN
+                   CALL make_basis_simple(mo_coeff,nmo,error=error)
+                ELSE
+                   CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
+                END IF
+             END IF
+             CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+                                           p_rmpv(ispin)%matrix,&
+                                           error=error)
+          END IF
+       END DO
 
-      DEALLOCATE (pdiag,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pdiag")
-
-      DEALLOCATE (sdiag,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"sdiag")
-
+       DEALLOCATE (econf,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       
+       DEALLOCATE (first_sgf,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       
+       DEALLOCATE (pdiag,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       
+       DEALLOCATE (sdiag,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       
     ELSE IF (density_guess == densities_guess) THEN
+       
+       ! Collocation of the density into the PW-grid
+       CALL collocate_atomic_charge_density(total_rho=total_rho, qs_env=qs_env, error=error)
 
-      ! Collocation of the density into the PW-grid
-      CALL collocate_atomic_charge_density(total_rho=total_rho, qs_env=qs_env, error=error)
+       ! do some assertions here on these matrices having the same structure,
+       ! as is currently required
+       DO ispin=1,SIZE(qs_env%matrix_s)
+          id_equal=(qs_env%matrix_s(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
+          CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+       ENDDO
+       ! matrix_p = rho%rho_ao
+       DO ispin=1,SIZE(qs_env%rho%rho_ao)
+          id_equal=(qs_env%rho%rho_ao(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
+          CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+       ENDDO
+       DO ispin=1,SIZE(qs_env%matrix_h)
+          id_equal=(qs_env%matrix_h(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
+          CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+       ENDDO
+       DO ispin=1,SIZE(qs_env%matrix_ks)
+          id_equal=(qs_env%matrix_ks(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
+          CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+       ENDDO
+       ! end sparsity check
+       
+       qs_env%scf_env%iter_count = 1
+       
+       CALL qs_ks_did_change(ks_env=qs_env%ks_env, rho_changed=.TRUE., error=error)
 
-      ! do some assertions here on these matrices having the same structure,
-      ! as is currently required
-      DO ispin=1,SIZE(qs_env%matrix_s)
-        id_equal=(qs_env%matrix_s(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
-        CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-      ENDDO
-      ! matrix_p = rho%rho_ao
-      DO ispin=1,SIZE(qs_env%rho%rho_ao)
-        id_equal=(qs_env%rho%rho_ao(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
-        CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-      ENDDO
-      DO ispin=1,SIZE(qs_env%matrix_h)
-        id_equal=(qs_env%matrix_h(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
-        CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-      ENDDO
-      DO ispin=1,SIZE(qs_env%matrix_ks)
-        id_equal=(qs_env%matrix_ks(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
-        CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-      ENDDO
-      ! end sparsity check
+       CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, qs_env=qs_env, calculate_forces=.TRUE.,&
+            just_energy=.FALSE., error=error)
 
-      qs_env%scf_env%iter_count = 1
-
-      ! qs_ks_build_kohn_sham_matrix (Integration)
-      !CALL qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env, qs_env=qs_env, &
-      !                                  ks_matrix=qs_env%matrix_ks, rho=qs_env%rho, &
-      !                                  energy=qs_env%energy, calculate_forces=.TRUE., &
-      !                                  just_energy=.FALSE., kg_gpw=.FALSE., error=error)
-      CALL qs_ks_did_change(ks_env=qs_env%ks_env, rho_changed=.TRUE., error=error)
-
-      CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, qs_env=qs_env, &
-                               calculate_forces=.TRUE., just_energy=.FALSE., error=error)
-
-      ! diagonalization
-      DO ispin = 1,qs_env%dft_control%nspins
-        CALL copy_sm_to_fm(qs_env%matrix_ks(ispin)%matrix, qs_env%scf_env%scf_work1(ispin)%matrix,error=error)
-      END DO
-
-      qs_env%scf_env%iter_method = "Mixing/Diag"
-      qs_env%scf_env%iter_delta = 0.0_dp
-
-      DO ispin = 1,qs_env%dft_control%nspins
-        CALL eigensolver(matrix_ks=qs_env%scf_env%scf_work1(ispin)%matrix, &
-                         mo_set=qs_env%mos(ispin)%mo_set, ortho=qs_env%scf_env%ortho, &
-                         work=qs_env%scf_env%scf_work2, do_level_shift=.FALSE., &
-                         level_shift=scf_control%level_shift, &
-                         use_cholesky=scf_control%use_cholesky, work_syevx=scf_control%work_syevx, &
-                         use_jacobi=.FALSE., jacobi_threshold=scf_control%jacobi_threshold, &
-                         smear=scf_control%smear, error=error)
-
-        ! calculate_density_matrix
-        CALL calculate_density_matrix(qs_env%mos(ispin)%mo_set, qs_env%rho%rho_ao(ispin)%matrix, &
-                                      error=error)
-      END DO
+       ! diagonalization
+       DO ispin = 1,qs_env%dft_control%nspins
+          CALL copy_sm_to_fm(qs_env%matrix_ks(ispin)%matrix, qs_env%scf_env%scf_work1(ispin)%matrix,error=error)
+       END DO
+       
+       qs_env%scf_env%iter_method = "Mixing/Diag"
+       qs_env%scf_env%iter_delta = 0.0_dp
+       
+       DO ispin = 1,qs_env%dft_control%nspins
+          CALL eigensolver(matrix_ks=qs_env%scf_env%scf_work1(ispin)%matrix, &
+                           mo_set=qs_env%mos(ispin)%mo_set, ortho=qs_env%scf_env%ortho, &
+                           work=qs_env%scf_env%scf_work2, do_level_shift=.FALSE., &
+                           level_shift=scf_control%level_shift, &
+                           use_cholesky=scf_control%use_cholesky, work_syevx=scf_control%work_syevx, &
+                           use_jacobi=.FALSE., jacobi_threshold=scf_control%jacobi_threshold, &
+                           smear=scf_control%smear, error=error)
+          
+          ! calculate_density_matrix
+          CALL calculate_density_matrix(qs_env%mos(ispin)%mo_set, qs_env%rho%rho_ao(ispin)%matrix, error=error)
+       END DO
 
     ELSE IF (density_guess == no_guess) THEN
-
+      
     ELSE
-
-      CALL stop_program(routineP,&
-                        "An invalid keyword for the initial density "//&
-                        "guess was specified")
-
+       CALL stop_program(routineP,"An invalid keyword for the initial density guess was specified")
     END IF
 
     CALL timestop(0.0_dp,handle)
