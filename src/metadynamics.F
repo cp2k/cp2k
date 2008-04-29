@@ -372,7 +372,7 @@ CONTAINS
                                                 iw, iwall
     LOGICAL                                  :: explicit, failure
     REAL(kind=dp) :: check_val, diff_ss, dsdr(3), dt, ekin_w, fac_t, fft, &
-      norm, rval, scal, scalf, ss0_test, tmp_ss, tol_ekin
+      norm, rval, scal, scalf, ss0_test, tol_ekin
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
     TYPE(cp_logger_type), POINTER            :: logger
@@ -478,9 +478,8 @@ CONTAINS
           cv => meta_env%metavar(i_c)
           diff_ss = cv%ss-cv%ss0
           IF (meta_env%metavar(i_c)%periodic) THEN
-             ! The difference of a periodic COLVAR is always within [0,pi]
-             tmp_ss  = COS(diff_ss)
-             diff_ss = ACOS(tmp_ss)
+             ! The difference of a periodic COLVAR is always within [-pi,pi]
+             diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
           END IF
           cv%cv_energy = 0.5_dp*cv%lambda*(diff_ss)**2.0_dp
           cv%ff_s      = cv%lambda*(diff_ss)
@@ -627,8 +626,7 @@ CONTAINS
                                                 n_step, ndum, stat
     INTEGER, POINTER                         :: n_hills
     LOGICAL                                  :: explicit, failure
-    REAL(dp)                                 :: dfunc, diff_ss, dp2, rval, &
-                                                tmp_ss
+    REAL(dp)                                 :: dfunc, diff_ss, dp2, rval
     REAL(dp), DIMENSION(:), POINTER          :: ddp
     REAL(dp), DIMENSION(:, :), POINTER       :: delta_s_history, ss_history, &
                                                 tmp
@@ -805,9 +803,8 @@ CONTAINS
        DO i=1,n_colvar
           diff_ss = colvars(i)%ss0-ss_history(i,ih)
           IF (colvars(i)%periodic) THEN
-             ! The difference of a periodic COLVAR is always within [0,pi]
-             tmp_ss  = COS(diff_ss)
-             diff_ss = ACOS(tmp_ss)
+             ! The difference of a periodic COLVAR is always within [-pi,pi]
+             diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
           END IF
           ddp(i)=(diff_ss)/delta_s_history(i,ih)
           dp2=dp2+ddp(i)**2
