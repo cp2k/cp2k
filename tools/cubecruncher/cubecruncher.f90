@@ -274,9 +274,10 @@ MODULE command_line_tools
     CHARACTER(LEN=200) :: cube_name_out
     CHARACTER(LEN=200) :: cube_name_subtract
     CHARACTER(LEN=200) :: xyz_name
-    LOGICAL :: do_xyz, do_center, do_fold, do_foldsmart,do_center_atom,do_center_geo
+    LOGICAL :: do_xyz, do_center, do_fold, do_foldsmart,do_center_atom,do_center_geo, do_center_point
     LOGICAL :: have_input, have_output, write_help, write_version, do_subtract
     INTEGER :: atom_center, stride
+    REAL    :: center_point(3)
   END TYPE
 CONTAINS
 !-------------------------------------------------------------------------------
@@ -289,6 +290,8 @@ CONTAINS
     input%do_center=.FALSE.
     input%do_center_atom=.FALSE.
     input%do_center_geo=.FALSE.
+    input%do_center_point=.FALSE.
+    input%center_point=(/0.0,0.0,0.0/)
     input%do_fold=.FALSE.
     input%do_foldsmart=.FALSE.
     input%do_subtract=.FALSE.
@@ -313,11 +316,13 @@ CONTAINS
       write(6,'(A80)') " -xyz coords.xyz         : merge in a xyz coordinate file                      "
       write(6,'(A80)') "                              (e.g. for VMD usage)                             "
       write(6,'(A80)') " -subtract min.cube      : subtract min.cube from input.cube                   "
-      write(6,'(A80)') " -center {#|geo}         : #=1..Natom center the cube around atom #            "
+      write(6,'(A80)') " -center {#|geo|point}   : #=1..Natom center the cube around atom #            "
       write(6,'(A80)') "                           geo        center the cube so that the cell         "
       write(6,'(A80)') "                              boundaries are as far as possible from the       "
       write(6,'(A80)') "                              molecule                                         "
+      write(6,'(A80)') "                           point      center around a fixed point              "
       write(6,'(A80)') " -fold                   : fold atoms inside the box defined by the cube       "
+      write(6,'(A80)') " -point x y z            : coordinates of the center point                     "
       write(6,'(A80)') " -foldsmart              : idem, but place hydrogens near heavier atoms        " 
       write(6,'(A80)') " -stride #               : reduces resolution writing grids with stride #      " 
       write(6,'(A80)') " -help                   : print this message                                  "
@@ -358,14 +363,25 @@ CONTAINS
       CASE("-center")
         input%do_center=.TRUE.
         CALL getarg(I+1,nextarg)
-        IF (nextarg.EQ."geo") THEN
+        SELECT CASE(nextarg)
+        CASE("geo")
             input%do_center_geo=.TRUE.
             WRITE(6,*) "Centering around the geometric center "
-        ELSE
+        CASE("point")
+            input%do_center_point=.TRUE.
+            WRITE(6,*) "Centering around a given point center "
+        CASE DEFAULT
             input%do_center_atom=.TRUE.
             READ(nextarg,*) input%atom_center
             WRITE(6,*) "Centering around atom      ",input%atom_center
-        ENDIF
+        END SELECT
+      CASE("-point")
+        CALL getarg(I+1,nextarg)
+        READ(nextarg,*) input%center_point(1)
+        CALL getarg(I+2,nextarg)
+        READ(nextarg,*) input%center_point(2)
+        CALL getarg(I+3,nextarg)
+        READ(nextarg,*) input%center_point(3)
       CASE("-stride")
         CALL getarg(I+1,nextarg)
         READ(nextarg,*) input%stride
@@ -407,7 +423,7 @@ PROGRAM main
    ! do simple checking of input and output
    !
    IF (input%write_version) THEN
-      write(6,*) "This is cubecruncher version 1.0"
+      write(6,*) "This is cubecruncher version 1.1"
       did_something=.TRUE.
    ENDIF
    IF (input%write_help .OR. narg<1) THEN
@@ -474,6 +490,9 @@ PROGRAM main
            center(1)=0.5*(MINVAL(cube%coords(1,:))+MAXVAL(cube%coords(1,:)))
            center(2)=0.5*(MINVAL(cube%coords(2,:))+MAXVAL(cube%coords(2,:)))
            center(3)=0.5*(MINVAL(cube%coords(3,:))+MAXVAL(cube%coords(3,:)))
+        ENDIF
+        IF (input%do_center_point) THEN
+           center=input%center_point
         ENDIF
         CALL center_cube(cube,center)
         write(6,*) "Done"
