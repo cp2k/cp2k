@@ -1,4 +1,12 @@
-
+#MOPAC REFERENCE
+#
+#          FINAL HEAT OF FORMATION =       2113.49370 KCAL =       8842.85762 KJ
+#
+#
+#          TOTAL ENERGY            =      -421.707886676 EV
+#          ELECTRONIC ENERGY       =       -998.74877 EV  POINT GROUP:     C*v
+#          CORE-CORE REPULSION     =        577.04088 EV
+#
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -10,12 +18,18 @@
       &END
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
+      SCF_GUESS MOPAC
     &END SCF
     &PRINT
+      &MO
+        EIGENVECTORS
+        EIGENVALUES
+      &END
       &AO_MATRICES
+          DENSITY
           CORE_HAMILTONIAN
           OVERLAP
+          KOHN_SHAM_MATRIX
       &END
     &END
   &END DFT
@@ -27,7 +41,7 @@
     &END CELL
     &COORD
        Br                   .00000000     .00000000     .00000000
-       Cl                   .60673664    -.11133319    -.90673603
+       Cl                   .00000000     .00000000    1.00000000
     &END COORD
     &PRINT
       &KINDS

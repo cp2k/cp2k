@@ -84,3 +84,5 @@ Si_tersoff_qmmm.inp
 Si_tersoff_qmmm.inp
 # numerics
 Si_tersoff_qmmm.inp
+# bug fix fock1c_2el
+Si_tersoff_qmmm.inp

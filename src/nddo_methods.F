@@ -1042,8 +1042,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fock1_2el', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ijw, ikw, im, j, jlw, jm, &
-                                                k, klw, l
+    INTEGER                                  :: i, ijw, ikw, iL, im, j, jL, &
+                                                jlw, jm, k, kL, klw, l, lL
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: sum
 
@@ -1053,32 +1053,32 @@ CONTAINS
     !  F(i,j)=F(i,j)+sum(k,l)((PA(k,l)+PB(k,l))*<i,j|k,l>
     !                        -(PA(k,l)        )*<i,k|j,l>), k,l on type sep.
     !
-    DO i = 1, sep%natorb
-       DO j = 1, i
-          !
+    DO iL = 1, sep%natorb
+       i = se_orbital_pointer(iL)
+       DO jL = 1, iL
+          j = se_orbital_pointer(jL)
+
           !    `J' Address IJ in W
-          !
-          ijw = (i*(i-1))/2 + j
+          ijw = (iL*(iL-1))/2 + jL
           sum = 0.0_dp
-          DO k = 1, sep%natorb
-             DO l =  1, sep%natorb
-                !
+          DO kL = 1, sep%natorb
+             k = se_orbital_pointer(kL)
+             DO lL =  1, sep%natorb
+                l = se_orbital_pointer(lL)
+
                 !    `J' Address KL in W
-                !
-                im = MAX(k,l)
-                jm = MIN(k,l)
+                im = MAX(kL,lL)
+                jm = MIN(kL,lL)
                 klw = (im*(im-1))/2 + jm
-                !
+
                 !    `K' Address IK in W
-                !
-                im = MAX(k,j)
-                jm = MIN(k,j)
+                im = MAX(kL,jL)
+                jm = MIN(kL,jL)
                 ikw = (im*(im-1))/2 + jm
-                !
+
                 !    `K' Address JL in W
-                !
-                im = MAX(l,i)
-                jm = MIN(l,i)
+                im = MAX(lL,iL)
+                jm = MIN(lL,iL)
                 jlw = (im*(im-1))/2 + jm
 
                 sum = sum + p_tot(k,l) * sep%w(ijw, klw) - p_mat(k,l) * sep%w(ikw, jlw)

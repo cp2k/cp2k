@@ -228,3 +228,11 @@ ch2o.inp
 h2op_2.inp
 h2po4.inp
 st.inp
+#bug fix
+brcl.inp
+hcl.inp
+# bug fix fock1c_2el
+b2h6_pm6.inp
+h2op_2.inp
+h2po4.inp
+st.inp

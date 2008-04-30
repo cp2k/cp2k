@@ -229,8 +229,8 @@ CONTAINS
     sep%bfn1  = sep%bfn1*bohr/evolt
     sep%bfn2  = sep%bfn2/bohr/bohr
     sep%bfn3  = sep%bfn3*bohr
-    sep%f0sd  = sep%f0sd/evolt
-    sep%g2sd  = sep%g2sd/evolt
+    sep%f0sd  = sep%f0sd
+    sep%g2sd  = sep%g2sd
     sep%a     = sep%a*bohr/evolt
     sep%b     = sep%b/bohr/bohr
     sep%c     = sep%c*bohr

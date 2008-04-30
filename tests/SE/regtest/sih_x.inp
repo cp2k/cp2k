@@ -1,25 +1,22 @@
-#MOPAC REFERENCE
-#
-#          FINAL HEAT OF FORMATION =         17.03447 KCAL =         71.27223 KJ
-#
-#
-#          TOTAL ENERGY            =      -277.982528055 EV
-#          ELECTRONIC ENERGY       =       -352.61544 EV  POINT GROUP:     C*v
-#          CORE-CORE REPULSION     =         74.63291 EV
-#
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
+    CHARGE=-1
     &QS
       METHOD MNDOD
       &SE
        ANALYTICAL_GRADIENTS F
        STO_NG 6
       &END
-
     &END QS
     &SCF
-      SCF_GUESS MOPAC
+      MAX_SCF 100
+      SCF_GUESS ATOMIC
+      &PRINT
+         &RESTART OFF
+         &END
+      &END
     &END SCF
     &PRINT
       &MO
@@ -41,8 +38,8 @@
       PERIODIC NONE
     &END CELL
     &COORD
-       H                    .00000000     .00000000     .00000000
-       Cl                   .60673664    -.11133319    -.90673603
+       Si       0.0     0.0     0.0 
+       H        1.4     0.0     0.0 
     &END COORD
     &PRINT
       &KINDS
