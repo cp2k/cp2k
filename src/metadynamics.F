@@ -371,8 +371,10 @@ CONTAINS
     INTEGER                                  :: handle, i, i_c, icolvar, ii, &
                                                 iw, iwall
     LOGICAL                                  :: explicit, failure
-    REAL(kind=dp) :: check_val, diff_ss, dsdr(3), dt, ekin_w, fac_t, fft, &
-      norm, rval, scal, scalf, ss0_test, tol_ekin
+    REAL(kind=dp)                            :: check_val, diff_ss, dsdr(3), &
+                                                dt, ekin_w, fac_t, fft, norm, &
+                                                rval, scal, scalf, ss0_test, &
+                                                tol_ekin
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
     TYPE(cp_logger_type), POINTER            :: logger
