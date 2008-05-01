@@ -48,7 +48,7 @@ MODULE semi_empirical_int_num
   PUBLIC :: rotint_num,  rotnuc_num,  corecore_num,&
            drotint_num, drotnuc_num, dcorecore_num,&
             nucint_num,  terep_num,  nucint_sp_num,&
-          terep_sp_num
+          terep_sp_num, terep_d_num,  nucint_d_num 
 
 CONTAINS
 
@@ -202,7 +202,7 @@ CONTAINS
        limij = (ii*(ii+1))/2
        limkl = (kk*(kk+1))/2
        CALL store_2el_2c_diag(limij, limkl, ww, w, error=error)
-    ENDIF    
+    ENDIF
   END SUBROUTINE rotint_num
 
 ! *****************************************************************************
@@ -782,7 +782,9 @@ CONTAINS
 !>                ssss   = (ssss) integral
 !>                          derivatives are intended w.r.t. rij
 !>         The storage of the nuclear attraction integrals  core(kl/ij) iS
-!>         (SS/)=1,   (SO/)=2,   (OO/)=3,   (PP/)=4
+!>         (SS/)=1,   (SP/)=2,   (PP/)=3,   (P+P+/)=4,   (SD/)=5,
+!>         (DP/)=6,   (DD/)=7,   (D+P+)=8,  (D+D+/)=9,   (D#D#)=10
+!>
 !>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
 !> \par History
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -864,11 +866,11 @@ CONTAINS
 !>        short_range    = requests only the evaluation of the short range part
 !>          longrange    = requests only the evaluation of the long range part
 !>      on output core   = 4 X 2 array of electron-core attraction integrals
-!>                ssss   = (ssss) integral
-!>                          derivatives are intended w.r.t. rij
 !>
 !>         The storage of the nuclear attraction integrals  core(kl/ij) iS
-!>         (SS/)=1,   (SO/)=2,   (OO/)=3,   (PP/)=4
+!>         (SS/)=1,   (SP/)=2,   (PP/)=3,   (P+P+/)=4,   (SD/)=5,
+!>         (DP/)=6,   (DD/)=7,   (D+P+)=8,  (D+D+/)=9,   (D#D#)=10
+!>
 !>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
 !> \author
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich 

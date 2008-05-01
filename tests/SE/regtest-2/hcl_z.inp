@@ -1,0 +1,66 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD MNDOD
+      &SE
+       STO_NG 6
+      &END
+
+    &END QS
+    &SCF
+      SCF_GUESS MOPAC
+    &END SCF
+    &PRINT
+      &MO
+        EIGENVECTORS
+        EIGENVALUES
+      &END
+      &AO_MATRICES
+          DENSITY
+          CORE_HAMILTONIAN
+          OVERLAP
+          KOHN_SHAM_MATRIX
+      &END
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 30.0 30.0 30.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+       H     .00000000      .00000000     .00000000  
+       Cl    .00000000      .00000000    1.40000000  
+    &END COORD
+    &PRINT
+      &KINDS
+        BASIS_SET
+        SE_PARAMETERS
+      &END
+    &END
+  &END SUBSYS
+  &PRINT
+    &FORCES
+    &END
+  &END
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT HCl
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 100
+    TIMESTEP 0.5
+    TEMPERATURE 300
+    TEMP_TOL 100
+  &END MD
+  &PRINT
+   &VELOCITIES OFF
+   &END
+   &TRAJECTORY OFF
+   &END
+  &END
+&END

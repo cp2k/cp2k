@@ -498,7 +498,7 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,error)
        routineN = 'check_dterep_ana', routineP = moduleN//':'//routineN
 
   LOGICAL                                  :: check_value
-  INTEGER                                  :: j
+  INTEGER                                  :: j, i
   REAL(dp)                                 :: delta, od, rn
   REAL(dp), DIMENSION(491)                 :: nri, ri0, rim, rip
 
@@ -520,6 +520,10 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,error)
      END IF
      IF (.NOT.check_value(dri(j), nri(j), delta*100.0_dp, 0.1_dp)) THEN
         WRITE(*,*)"ERROR for derivative of RI integral, RI(j), j::",j
+        WRITE(*,*)"FULL SET OF INTEGRALS: INDX  ANAL  NUM   DIFF"
+        DO i = 1, 491
+           WRITE(*,'(I5,3F15.9)')i, dri(i), nri(i), nri(i)-dri(i)
+        END DO
         STOP
      END IF
   END DO

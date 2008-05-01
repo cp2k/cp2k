@@ -29,7 +29,7 @@ MODULE semi_empirical_int_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_utils'
 
   PUBLIC :: taper_eval, dtaper_eval, ijkl_d, ijkl_sp, rotmat, rot_2el_2c_first,&
-            store_2el_2c_diag, d_ijkl_sp
+            store_2el_2c_diag, d_ijkl_sp, d_ijkl_d
   
 CONTAINS
 
@@ -626,8 +626,9 @@ CONTAINS
   END FUNCTION dcharg_int_nri
 
 ! *****************************************************************************
-!> \brief General driver for computing semi-empirical integrals <ij|kl> involving
-!>        d-orbitals. The choice of the linear quadrupole was REALLY unhappy 
+!> \brief General driver for computing semi-empirical integrals <ij|kl> 
+!>        involving d-orbitals.
+!>        The choice of the linear quadrupole was REALLY unhappy 
 !>        in the first development of the NDDO codes. That choice makes
 !>        impossible the merging of the integral code with or without d-orbitals
 !>        unless a reparametrization of all NDDO codes for s and p orbitals will
@@ -650,6 +651,71 @@ CONTAINS
     REAL(KIND=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_d', &
+      routineP = moduleN//':'//routineN
+
+    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, charg_int_ri, error)
+
+  END FUNCTION ijkl_d
+
+! *****************************************************************************
+!> \brief General driver for computing the derivatives of semi-empirical integrals <ij|kl> 
+!>        involving d-orbitals.
+!>        The choice of the linear quadrupole was REALLY unhappy 
+!>        in the first development of the NDDO codes. That choice makes
+!>        impossible the merging of the integral code with or without d-orbitals
+!>        unless a reparametrization of all NDDO codes for s and p orbitals will
+!>        be performed.. more over the choice of the linear quadrupole does not make 
+!>        calculations rotational invariants (of course the rotational invariant 
+!>        can be forced). The definitions of quadrupoles for d-orbitals is the 
+!>        correct one in order to have the rotational invariant property by 
+!>        construction..
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 03.2008 [tlaino]
+! *****************************************************************************
+  FUNCTION d_ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, error) RESULT(res)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
+    REAL(KIND=dp), INTENT(IN)                :: r
+    LOGICAL, INTENT(IN)                      :: longrange
+    INTEGER, INTENT(IN)                      :: itype
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_d', &
+      routineP = moduleN//':'//routineN
+
+    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, dcharg_int_ri, error)
+
+  END FUNCTION d_ijkl_d
+
+! *****************************************************************************
+!> \brief Low level general driver for computing semi-empirical integrals <ij|kl> 
+!>        and their derivatives involving d-orbitals.
+!>        The choice of the linear quadrupole was REALLY unhappy 
+!>        in the first development of the NDDO codes. That choice makes
+!>        impossible the merging of the integral code with or without d-orbitals
+!>        unless a reparametrization of all NDDO codes for s and p orbitals will
+!>        be performed.. more over the choice of the linear quadrupole does not make 
+!>        calculations rotational invariants (of course the rotational invariant 
+!>        can be forced). The definitions of quadrupoles for d-orbitals is the 
+!>        correct one in order to have the rotational invariant property by 
+!>        construction..
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 03.2008 [tlaino]
+! *****************************************************************************
+  FUNCTION ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, eval, error) RESULT(res)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
+    REAL(KIND=dp), INTENT(IN)                :: r
+    LOGICAL, INTENT(IN)                      :: longrange
+    INTEGER, INTENT(IN)                      :: itype
+    REAL(KIND=dp)                            :: eval
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_d_low', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l1, l1max, l1min, l2, l2max, &
@@ -715,7 +781,7 @@ CONTAINS
              ccc = clm_d(ij, l1, m) * clm_d(kl, l2, m)
              IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
                 mm   = ABS (m)
-                chrg = charg_int_ri(r, l1, l2, mm, dij, dkl, add, error)
+                chrg = eval(r, l1, l2, mm, dij, dkl, add, error)
                 s1   = s1 + chrg * ccc
              END IF
           END DO
@@ -723,7 +789,7 @@ CONTAINS
        END DO
     END DO
     res = sum
-  END FUNCTION ijkl_d
+  END FUNCTION ijkl_d_low
   
 ! *****************************************************************************
 !> \brief Interaction function between two point-charge configurations (MNDO/d)
@@ -853,6 +919,137 @@ CONTAINS
     ! We should NEVER reach this point
     CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
   END FUNCTION charg_int_ri
+
+! *****************************************************************************
+!> \brief Derivatives of the interaction function between two point-charge 
+!>        configurations (MNDO/d)
+!>        Rotational invariant property built-in in the quadrupole definition
+!>        r    -  Distance r12
+!>        l1,m -  Quantum numbers for multipole of configuration 1
+!>        l2,m -  Quantum numbers for multipole of configuration 2
+!>        da   -  charge separation of configuration 1
+!>        db   -  charge separation of configuration 2
+!>        add  -  additive term
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 03.2008 [tlaino]
+! *****************************************************************************
+  FUNCTION dcharg_int_ri(r, l1_i, l2_i, m, da_i, db_i, add, error) RESULT(charg)
+    REAL(KIND=dp), INTENT(in)                :: r
+    INTEGER, INTENT(in)                      :: l1_i, l2_i, m
+    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: charg
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_ri', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: l1, l2
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: aa, ab, da, db, dxdx, dxqxz, &
+                                                dzdz, dzqzz, fact, qqzz, &
+                                                qxzqxz, xyxy, zzzz
+
+    failure = .FALSE.
+    IF      ( l1_i  <= l2_i) THEN
+       l1 = l1_i
+       l2 = l2_i
+       da = da_i
+       db = db_i
+       fact  = 1.0_dp
+    ELSE IF ( l1_i  > l2_i ) THEN
+       l1 = l2_i
+       l2 = l1_i
+       da = db_i
+       db = da_i
+       fact  = (-1.0_dp)**(l1+l2)
+    END IF
+    charg = 0.0_dp
+    ! Q - Q.
+    IF (l1 == 0 .AND. l2 == 0) THEN
+       charg = r/SQRT(r**2+add)**3
+       charg = -fact*charg
+       RETURN
+    END IF
+    ! Q - Z.
+    IF (l1 == 0 .AND. l2 == 1) THEN
+       charg =  (r+db)/SQRT((r+db)**2+add)**3 - (r-db)/SQRT((r-db)**2+add)**3
+       charg = -charg*0.5_dp*fact
+       RETURN
+    END IF
+    ! Z - Z.
+    IF (l1 == 1 .AND. l2 == 1 .AND. m == 0) THEN
+       dzdz  = &
+            +(r+da-db)/SQRT((r+da-db)**2+add)**3 + (r-da+db)/SQRT((r-da+db)**2+add)**3 &
+            -(r-da-db)/SQRT((r-da-db)**2+add)**3 - (r+da+db)/SQRT((r+da+db)**2+add)**3
+       charg = -dzdz*0.25_dp*fact
+       RETURN
+    END IF
+    ! X - X
+    IF (l1 == 1 .AND. l2 == 1 .AND. m == 1) THEN
+       dxdx  = 2.0_dp*r/SQRT(r**2+(da-db)**2+add)**3 - 2.0_dp*r/SQRT(r**2+(da+db)**2+add)**3
+       charg = -dxdx*0.25_dp*fact
+       RETURN
+    END IF
+    ! Q - ZZ
+    IF (l1 == 0 .AND. l2 == 2) THEN
+       qqzz  = (r-db)/SQRT((r-db)**2+add)**3 - 2.0_dp*r/SQRT(r**2+db**2+add)**3 + (r+db)/SQRT((r+db)**2+add)**3
+       charg = -qqzz*0.25_dp*fact
+       RETURN
+    END IF
+    ! Z - ZZ
+    IF (l1 == 1 .AND. l2 == 2 .AND. m == 0) THEN
+       dzqzz = &
+            +(r-da-db)/SQRT((r-da-db)**2+add)**3        - 2.0_dp*(r-da)/SQRT((r-da)**2+db**2+add)**3 &
+            +(r+db-da)/SQRT((r+db-da)**2+add)**3        -     (r-db+da)/SQRT((r-db+da)**2+add)**3    &
+            +2.0_dp*(r+da)/SQRT((r+da)**2+db**2+add)**3 -     (r+da+db)/SQRT((r+da+db)**2+add)**3
+       charg = -dzqzz*0.125_dp*fact
+       RETURN
+    END IF
+    ! ZZ - ZZ
+    IF (l1 == 2 .AND. l2 == 2 .AND. m == 0) THEN
+       zzzz = &
+            +(r-da-db)/SQRT((r-da-db)**2+add)**3        + (r+da+db)/SQRT((r+da+db)**2+add)**3    &
+            +(r-da+db)/SQRT((r-da+db)**2+add)**3        + (r+da-db)/SQRT((r+da-db)**2+add)**3    &
+            -2.0_dp*(r-da)/SQRT((r-da)**2+db**2+add)**3 - 2.0_dp*(r-db)/SQRT((r-db)**2+da**2+add)**3 &
+            -2.0_dp*(r+da)/SQRT((r+da)**2+db**2+add)**3 - 2.0_dp*(r+db)/SQRT((r+db)**2+da**2+add)**3 &
+            +2.0_dp*r/SQRT(r**2+(da-db)**2+add)**3      + 2.0_dp*r/SQRT(r**2+(da+db)**2+add)**3
+       xyxy = &
+            +4.0_dp*r/SQRT(r**2+(da-db)**2+add)**3 + 4.0_dp*r/SQRT(r**2+(da+db)**2+add)**3 &
+            -8.0_dp*r/SQRT(r**2+da**2+db**2+add)**3
+       charg = -(zzzz*0.0625_dp - xyxy*0.015625_dp)*fact
+       RETURN
+    END IF
+    ! X - ZX
+    IF (l1 == 1 .AND. l2 == 2 .AND. m == 1) THEN
+       ab = db/SQRT(2.0_dp)
+       dxqxz = &
+            -2.0_dp*(r-ab)/SQRT((r-ab)**2+(da-ab)**2+add)**3 + 2.0_dp*(r+ab)/SQRT((r+ab)**2+(da-ab)**2+add)**3 &
+            +2.0_dp*(r-ab)/SQRT((r-ab)**2+(da+ab)**2+add)**3 - 2.0_dp*(r+ab)/SQRT((r+ab)**2+(da+ab)**2+add)**3
+       charg = -dxqxz*0.125_dp*fact
+       RETURN
+    END IF
+    ! ZX - ZX
+    IF (l1 == 2 .AND. l2 == 2 .AND. m == 1) THEN
+       aa = da/SQRT (2.0_dp)
+       ab = db/SQRT (2.0_dp)
+       qxzqxz = &
+            +2.0_dp*(r+aa-ab)/SQRT((r+aa-ab)**2+(aa-ab)**2+add)**3 - 2.0_dp*(r+aa+ab)/SQRT((r+aa+ab)**2+(aa-ab)**2+add)**3 &
+            -2.0_dp*(r-aa-ab)/SQRT((r-aa-ab)**2+(aa-ab)**2+add)**3 + 2.0_dp*(r-aa+ab)/SQRT((r-aa+ab)**2+(aa-ab)**2+add)**3 &
+            -2.0_dp*(r+aa-ab)/SQRT((r+aa-ab)**2+(aa+ab)**2+add)**3 + 2.0_dp*(r+aa+ab)/SQRT((r+aa+ab)**2+(aa+ab)**2+add)**3 &
+            +2.0_dp*(r-aa-ab)/SQRT((r-aa-ab)**2+(aa+ab)**2+add)**3 - 2.0_dp*(r-aa+ab)/SQRT((r-aa+ab)**2+(aa+ab)**2+add)**3
+       charg = -qxzqxz*0.0625_dp*fact
+       RETURN
+    END IF
+    ! XX - XX
+    IF (l1 == 2 .AND. l2 == 2 .AND. m == 2) THEN
+       xyxy = 4.0_dp*r/SQRT(r**2+(da-db)**2+add)**3 + 4.0_dp*r/SQRT(r**2+(da+db)**2+add)**3 - 8.0_dp*r/SQRT(r**2+da**2+db**2+add)**3
+       charg = -xyxy*0.0625_dp*fact
+       RETURN
+    END IF
+    ! We should NEVER reach this point
+    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+  END FUNCTION dcharg_int_ri
 
 ! *****************************************************************************
 !> \brief Computes the general rotation matrices for the integrals
