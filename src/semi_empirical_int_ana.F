@@ -19,14 +19,18 @@ MODULE semi_empirical_int_ana
                                              do_method_pchg,&
                                              do_method_pdg,&
                                              do_method_pm3,&
-                                             do_method_pm6
+                                             do_method_pm6,&
+                                             do_method_undef
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: angstrom,&
                                              evolt
   USE semi_empirical_int_arrays,       ONLY: &
-       fac_x_to_z, inddd, inddp, indexa, indexb, indpp, int2c_type, &
-       map_22_to_491, map_x_to_z, pxy, rij_threshold
-  USE semi_empirical_int_utils,        ONLY: dtaper_eval,&
+       fac_x_to_z, ijkl_ind, ijkl_sym, inddd, inddp, indexa, indexb, indpp, &
+       int2c_type, l_index, map_x_to_z, rij_threshold
+  USE semi_empirical_int_num,          ONLY: nucint_sp_num,&
+                                             terep_sp_num
+  USE semi_empirical_int_utils,        ONLY: d_ijkl_sp,&
+                                             dtaper_eval,&
                                              rot_2el_2c_first,&
                                              rotmat,&
                                              store_2el_2c_diag,&
@@ -768,9 +772,11 @@ CONTAINS
        ssss  = 0.0_dp
        dssss = 0.0_dp
     END IF
-
-    CALL dnucint_ana_spcore(sepi, sepj, rij, ssss, core, dssss, dcore, itype, taper,&
-         longrange,error=error)
+    
+    ! Value of the integrals
+    CALL  nucint_sp_num(sepi, sepj, rij, ssss,  core, itype, longrange, error=error)
+    ! Integrals derivatives
+    CALL dnucint_sp_ana(sepi, sepj, rij,dssss, dcore, itype, longrange, error=error)
 
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! compute the contribution from d-orbitals
@@ -812,7 +818,6 @@ CONTAINS
        END IF
     END IF
 
-
     IF (l_core) THEN
        ! If no orbitals are present on the atom let's zero the integral contribution
        IF (sepi%natorb == -1) dcore(:,1) = 0.0_dp
@@ -832,7 +837,7 @@ CONTAINS
   END SUBROUTINE dnucint_ana
 
 ! *****************************************************************************
-!> \brief Calculates the nuclear attraction integrals for sp basis
+!> \brief Calculates the nuclear attraction integrals and derivatives for sp basis
 !> \param on input rij     = interatomic distance
 !>                sepi    = paramters of atom i
 !>                sepj    = paramters of atom j
@@ -853,216 +858,73 @@ CONTAINS
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
+!>      05.2008 Teodoro Laino [tlaino] - University of Zurich: major rewriting
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE dnucint_ana_spcore ( sepi, sepj, rij, ssss, core, dssss, dcore, itype,&
-       taper, longrange, error)
+  SUBROUTINE dnucint_sp_ana ( sepi, sepj, rij, dssss, dcore, itype, longrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
-    REAL(dp), INTENT(INOUT), OPTIONAL        :: ssss
-    REAL(dp), DIMENSION(10, 2), &
-      INTENT(INOUT), OPTIONAL                :: core
     REAL(dp), INTENT(INOUT), OPTIONAL        :: dssss
     REAL(dp), DIMENSION(10, 2), &
       INTENT(INOUT), OPTIONAL                :: dcore
     INTEGER, INTENT(IN)                      :: itype
-    TYPE(taper_type), POINTER                :: taper
     LOGICAL, INTENT(IN)                      :: longrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_ana_spcore', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_sp_ana', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: ij, kl
     LOGICAL                                  :: failure, l_core, l_ssss, si, &
                                                 sj
-    REAL(dp)                                 :: ade, adi, adj, aed, aee, aeq, &
-                                                ami, amj, aqe, aqi, aqj, da, &
-                                                db, ddi, ddj, qa, qb, qqi, &
-                                                qqj, r, rsq, xxx, zi, zj
-    REAL(dp), DIMENSION(7)                   :: arg, darg, dri, dsqr, ri, sqr
 
     failure   = .FALSE.
-    CPPrecondition(PRESENT(core).EQV.PRESENT(dcore),cp_failure_level,routineP,error,failure)
-    CPPrecondition(PRESENT(ssss).EQV.PRESENT(dssss),cp_failure_level,routineP,error,failure)
-    l_core  = PRESENT(core)
-    l_ssss  = PRESENT(ssss)
+    l_core  = PRESENT(dcore)
+    l_ssss  = PRESENT(dssss)
 
     IF (.NOT.(l_core.OR.l_ssss)) RETURN
-    ri  = 0.0_dp
-    dri = 0.0_dp
-    r   = rij
     si  = (sepi%natorb > 1)
     sj  = (sepj%natorb > 1)
-    zi  = sepi%zeff
-    zj  = sepj%zeff
-    ddi = sepi%cs(2)
-    ddj = sepj%cs(2)
-    qqi = sepi%cs(3)*SQRT(2.0_dp)
-    qqj = sepj%cs(3)*SQRT(2.0_dp)
 
-    !  Evaluation of the (SS/SS) term for the core-core interaction
-    aee = 0.0_dp
-    IF (itype/=do_method_pchg) THEN
-       ami = sepi%ko(9)
-       amj = sepj%ko(9)
-       aee = ami + amj
-       aee = aee * aee
-    END IF
-    IF (longrange)  aee = 0.0_dp
-    rsq     = r**2
-    arg(1)  = rsq + aee
-    sqr(1)  = pxy(1)/SQRT(arg(1))
-    darg(1) = 2.0_dp *r
-    dsqr(1) = -(0.5_dp/arg(1))*darg(1)*sqr(1)
-    ri(1)      = sqr(1)
-    dri(1)     = dsqr(1)
-    ! Store the value for (SS|SS)
+    ij = indexa(1, 1)
     IF (l_ssss) THEN
-       ssss   =  ri(1)
-       dssss  = dri(1)
+       ! Store the value for the derivative of <S  S  | S  S  > (Used for computing the core-core interactions)
+       dssss = d_ijkl_sp (sepi, sepj, ij, ij, 0, 0, 0, 0, -1, rij, longrange, itype, error)
     END IF
 
     IF (l_core) THEN
-       aee = 0.0_dp
-       IF (itype/=do_method_pchg) THEN
-          aee = amj + sepi%ko(1)
-          aee = aee * aee
-       END IF
-       IF (longrange)  aee = 0.0_dp
-       arg(1)     = rsq + aee
-       sqr(1)     = pxy(1)/SQRT(arg(1))
-       darg(1)    = 2.0_dp *r
-       dsqr(1)    = -(0.5_dp/arg(1))*darg(1)*sqr(1)
-       ri(1)      = sqr(1)
-       dri(1)     = dsqr(1)
-       core(1,1)  = zj*ri(1)
-       dcore(1,1) = zj*dri(1)
-       ! In case (i) is an heavy atom
+       !     <S  S  | S  S  >
+       kl = indexa(1, 1)
+       dcore(1,1)    = d_ijkl_sp (sepi, sepj, kl, ij, 0, 0, 0, 0, 1, rij, longrange, itype, error) * sepj%zeff
        IF (si) THEN
-          da  = ddi
-          qa  = qqi
-          ade = 0.0_dp
-          aqe = 0.0_dp
-          aee = 0.0_dp
-          IF (itype /=do_method_pchg) THEN
-             adi = sepi%ko(2)
-             aqi = sepi%ko(3)
-             aee = amj + sepi%ko(7)
-             ade = adi + amj
-             aqe = aqi + amj
-             aee = aee * aee
-             ade = ade * ade
-             aqe = aqe * aqe
-          END IF
-          IF (longrange) THEN
-             ade = 0.0_dp
-             aqe = 0.0_dp
-          END IF
-          arg(1) = rsq + aee
-          darg(1)= 2.0_dp *r
-          xxx = r+da
-          arg(2) = xxx*xxx + ade
-          darg(2)= 2.0_dp *xxx
-          xxx = r-da
-          arg(3) = xxx*xxx + ade
-          darg(3)= 2.0_dp *xxx
-          xxx = r+qa
-          arg(4) = xxx*xxx + aqe
-          darg(4)= 2.0_dp *xxx
-          xxx = r-qa
-          arg(5) = xxx*xxx + aqe
-          darg(5)= 2.0_dp *xxx
-          arg(6) = rsq + aqe
-          darg(6)= 2.0_dp *r
-          arg(7) = arg(6) + qa*qa
-          darg(7)= darg(6)
-          sqr(1:7) = pxy(1:7)/SQRT(arg(1:7))
-          dsqr     = -(0.5_dp/arg)*darg*sqr
-          ri(2)      = sqr(2) + sqr(3)
-          ri(3)      = sqr(1) + sqr(4) + sqr(5) + sqr(6)
-          ri(4)      = sqr(1) + sqr(6) + sqr(7)
-          core(2,1)  = zj*ri(2)
-          core(3,1)  = zj*ri(3)
-          core(4,1)  = zj*ri(4)
-          dri(2)     = dsqr(2) + dsqr(3)
-          dri(3)     = dsqr(1) + dsqr(4) + dsqr(5) + dsqr(6)
-          dri(4)     = dsqr(1) + dsqr(6) + dsqr(7)
-          dcore(2,1) = zj*dri(2)
-          dcore(3,1) = zj*dri(3)
-          dcore(4,1) = zj*dri(4)
+          !  <S  P  | S  S  >
+          kl = indexa(2, 1)
+          dcore(2,1) = d_ijkl_sp (sepi, sepj, kl, ij, 0, 1, 0, 0, 1, rij, longrange, itype, error) * sepj%zeff
+          !  <P  P  | S  S  >
+          kl = indexa(2, 2)
+          dcore(3,1) = d_ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 1, rij, longrange, itype, error) * sepj%zeff
+          !  <P+ P+ | S  S  >
+          kl = indexa(3, 3)
+          dcore(4,1) = d_ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 1, rij, longrange, itype, error) * sepj%zeff
        END IF
 
-       aee = 0.0_dp
-       IF (itype/=do_method_pchg) THEN
-          aee = ami + sepj%ko(1)
-          aee = aee * aee
-       END IF
-       IF (longrange)  aee = 0.0_dp
-       arg(1)     = rsq + aee
-       sqr(1)     = pxy(1)/SQRT(arg(1))
-       darg(1)    = 2.0_dp *r
-       dsqr(1)    = -(0.5_dp/arg(1))*darg(1)*sqr(1)
-       ri(1)      = sqr(1)
-       dri(1)     = dsqr(1)
-       core(1,2)  = zi*ri(1)
-       dcore(1,2) = zi*dri(1)
-       ! In case (j) is an heavy atom
+       !     <S  S  | S  S  >
+       kl = indexa(1, 1)
+       dcore(1,2)    = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 0, 2, rij, longrange, itype, error) * sepi%zeff
        IF (sj) THEN
-          db  = ddj
-          qb  = qqj
-          aed = 0.0_dp
-          aeq = 0.0_dp
-          aee = 0.0_dp
-          IF (itype /=do_method_pchg) THEN
-             adj = sepj%ko(2)
-             aqj = sepj%ko(3)
-             aee = ami + sepj%ko(7)
-             aed = ami + adj
-             aeq = ami + aqj
-             aee = aee * aee
-             aed = aed * aed
-             aeq = aeq * aeq
-          END IF
-          IF (longrange) THEN
-             ade = 0.0_dp
-             aqe = 0.0_dp
-          END IF
-          arg(1) = rsq + aee
-          darg(1)= 2.0_dp *r
-          xxx = r-db
-          arg(2) = xxx*xxx + aed
-          darg(2)= 2.0_dp *xxx
-          xxx = r+db
-          arg(3) = xxx*xxx + aed
-          darg(3)= 2.0_dp *xxx
-          xxx = r-qb
-          arg(4) = xxx*xxx + aeq
-          darg(4)= 2.0_dp *xxx
-          xxx = r+qb
-          arg(5) = xxx*xxx + aeq
-          darg(5)= 2.0_dp *xxx
-          arg(6) = rsq + aeq
-          darg(6)= 2.0_dp *r
-          arg(7) = arg(6) + qb*qb
-          darg(7)= darg(6)
-          sqr(1:7) = pxy(1:7)/SQRT(arg(1:7))
-          dsqr     = -(0.5_dp/arg)*darg*sqr
-          ri(2)      = sqr(2) + sqr(3)
-          ri(3)      = sqr(1) + sqr(4) + sqr(5) + sqr(6)
-          ri(4)      = sqr(1) + sqr(6) + sqr(7)
-          core(2,2)  = zi*ri(2)
-          core(3,2)  = zi*ri(3)
-          core(4,2)  = zi*ri(4)
-          dri(2)     = dsqr(2) + dsqr(3)
-          dri(3)     = dsqr(1) + dsqr(4) + dsqr(5) + dsqr(6)
-          dri(4)     = dsqr(1) + dsqr(6) + dsqr(7)
-          dcore(2,2) = zi*dri(2)
-          dcore(3,2) = zi*dri(3)
-          dcore(4,2) = zi*dri(4)
+          !  <S  S  | S  P  >
+          kl = indexa(2, 1)
+          dcore(2,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 1, 2, rij, longrange, itype, error) * sepi%zeff
+          !  <S  S  | P  P  >
+          kl = indexa(2, 2)
+          dcore(3,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 2, rij, longrange, itype, error) * sepi%zeff
+          !  <S  S  | P+ P+ >
+          kl = indexa(3, 3)
+          dcore(4,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 2, rij, longrange, itype, error) * sepi%zeff
        END IF
     END IF
 
-  END SUBROUTINE dnucint_ana_spcore
+  END SUBROUTINE dnucint_sp_ana
 
 ! *****************************************************************************
 !> \brief calculates the derivative of the two-particle interactions
@@ -1391,28 +1253,20 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dterep_ana', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ind
     LOGICAL                                  :: failure, longrange
     REAL(dp), DIMENSION(491)                 :: rep_d_lr, rep_lr
     REAL(KIND=dp)                            :: dft, ft
-    REAL(KIND=dp), DIMENSION(22)             :: dri, ri
 
     failure = .FALSE.
     longrange = .FALSE.
     IF (PRESENT(do_longrange))  longrange = do_longrange
     rep   = 0.0_dp
     rep_d = 0.0_dp
-    ri    = 0.0_dp
-    dri   = 0.0_dp
 
-    CALL dterep_sp_ana ( sepi, sepj, rij, ri, dri, taper, longrange, error=error)
-
-    ! Store the value of the integrals in the proper order
-    DO i = 1, 34
-       ind      = map_22_to_491(i)
-       rep(i)   =  ri(ind)
-       rep_d(i) = dri(ind)
-    END DO
+    ! Integral Values for sp shells only
+    CALL  terep_sp_num(sepi, sepj, rij,   rep(1:34), longrange, error=error)
+    ! Integral Derivatives
+    CALL dterep_sp_ana(sepi, sepj, rij, rep_d(1:34), longrange, error=error)
 
     IF (sepi%dorb.OR.sepi%dorb) THEN
        ! compute the contribution from d-orbitals
@@ -1466,417 +1320,54 @@ CONTAINS
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
+!>      05.2008 Teodoro Laino [tlaino] - University of Zurich: major rewriting
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE dterep_sp_ana ( sepi, sepj, rij, ri, dri, taper, longrange, error)
+  SUBROUTINE dterep_sp_ana ( sepi, sepj, rij, drep, longrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
-    REAL(dp), DIMENSION(22), INTENT(INOUT)   :: ri, dri
-    TYPE(taper_type), POINTER                :: taper
+    REAL(dp), DIMENSION(34), INTENT(INOUT)   :: drep
     LOGICAL, INTENT(IN)                      :: longrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dterep_sp_ana', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: si, sj
-    REAL(dp) :: ade, adi, adj, adq, aed, aee, aeq, ami, amj, aqd, aqe, aqi, &
-      aqj, aqq, axx, da, db, ddi, ddj, ddxdx, ddxqxz, ddzdz, ddze, ddzqxx, &
-      ddzqzz, dedz, dee, deqxx, deqzz, dqxxdz, dqxxe, dqxxqxx, dqxxqyy, &
-      dqxxqzz, dqxzdx, dqxzqxz, dqzzdz, dqzze, dqzzqxx, dqzzqzz, drsq, dwww, &
-      dxdx, dxqxz, dxxx, dyyy, dzdz, dze, dzqxx, dzqzz, dzzz, edz, ee, eqxx, &
-      eqzz, qa, qb, qqi, qqj, qxxdz, qxxe, qxxqxx, qxxqyy, qxxqzz, qxzdx, &
-      qxzqxz, qzzdz, qzze, qzzqxx, qzzqzz, r, rsq, www, xxx, yyy, zi, zj, zzz
-    REAL(dp), DIMENSION(72)                  :: arg, darg, dsqr, sqr
+    INTEGER                                  :: i, ij, j, k, kl, l, lasti, &
+                                                lastj, li, lj, lk, ll, nold, &
+                                                numb
+    LOGICAL                                  :: failure
 
-    r=rij
-    si = (sepi%natorb > 1)
-    sj = (sepj%natorb > 1)
-    zi = sepi%zeff
-    zj = sepj%zeff
-    ddi = sepi%cs(2)
-    ddj = sepj%cs(2)
-    qqi = sepi%cs(3)*SQRT(2.0_dp)
-    qqj = sepj%cs(3)*SQRT(2.0_dp)
+    failure = .FALSE.
+    lasti = sepi%natorb
+    lastj = sepj%natorb
+    DO i = 1, MIN(lasti,4)
+       li = l_index(i)
+       DO j = 1, i
+          lj = l_index(j)
+          ij = indexa(i, j)
+          DO k = 1, MIN(lastj,4)
+             lk = l_index(k)
+             DO l = 1, k
+                ll = l_index(l)
+                kl = indexa(k, l)
 
-    !  hydrogen - hydrogen  (SS/SS)
-    ami  = sepi%ko(1)
-    amj  = sepj%ko(1)
-    aee  = ami + amj
-    aee  = aee * aee
-    IF (longrange) aee = 0.0_dp
-    rsq  = r*r
-    drsq = 2.0_dp*r
-    arg(1)  = rsq + aee
-    darg(1) = drsq
-    sqr(1)  = pxy(1)/SQRT(arg(1))
-    dsqr(1) = -(0.5_dp/arg(1))*darg(1)*sqr(1)
-    ee      = sqr(1)
-    dee     = dsqr(1)
-    ri(1)   = ee 
-    dri(1)  = dee
-    IF (si.OR.sj) THEN
-       ! In case (i) is an heavy atom
-       IF (si) THEN
-          da=ddi
-          qa=qqi
-          IF (longrange) THEN
-             ade = 0.0_dp
-             aqe = 0.0_dp
-          ELSE
-             adi = sepi%ko(2)
-             aqi = sepi%ko(3)
-             ade = adi + amj
-             ade = ade * ade
-             aqe = aqi + amj
-             aqe = aqe * aqe
-          END IF
-          xxx       = r+da
-          arg(2)    = xxx*xxx + ade
-          darg(2)   = 2.0_dp*xxx
-          xxx       = r-da
-          arg(3)    = xxx*xxx + ade
-          darg(3)   = 2.0_dp*xxx
-          xxx       = r+qa
-          arg(4)    = xxx*xxx + aqe
-          darg(4)   = 2.0_dp*xxx
-          xxx       = r-qa
-          arg(5)    = xxx*xxx + aqe
-          darg(5)   = 2.0_dp*xxx
-          arg(6)    = rsq + aqe
-          darg(6)   = drsq
-          arg(7)    = arg(6) + qa*qa
-          darg(7)   = darg(6)
-          sqr(2:7)  = pxy(2:7)/SQRT(arg(2:7))
-          dsqr(2:7) = -(0.5_dp/arg(2:7))*darg(2:7)*sqr(2:7)
-          dze      = sqr(2) + sqr(3)
-          qzze     = sqr(4) + sqr(5) + sqr(6)
-          qxxe     = sqr(7) + sqr(6)
-          ri(2)    = dze
-          ri(3)    = ee + qzze
-          ri(4)    = ee + qxxe
-          ddze     = dsqr(2) + dsqr(3)
-          dqzze    = dsqr(4) + dsqr(5) + dsqr(6)
-          dqxxe    = dsqr(7) + dsqr(6)
-          dri(2)   = ddze
-          dri(3)   = dee + dqzze
-          dri(4)   = dee + dqxxe
-       END IF
-
-       ! In case (j) is an heavy atom
-       IF (sj) THEN
-          db=ddj
-          qb=qqj
-          IF (longrange) THEN
-             aed = 0.0_dp
-             aeq = 0.0_dp
-          ELSE
-             adj = sepj%ko(2)
-             aqj = sepj%ko(3)
-             aed = ami + adj
-             aed = aed * aed
-             aeq = ami + aqj
-             aeq = aeq * aeq
-          END IF
-          xxx = r-db
-          arg(8) = xxx*xxx + aed
-          darg(8)= 2.0_dp*xxx
-          xxx = r+db
-          arg(9) = xxx*xxx + aed
-          darg(9)= 2.0_dp*xxx
-          xxx = r-qb
-          arg(10) = xxx*xxx + aeq
-          darg(10)= 2.0_dp*xxx
-          xxx = r+qb
-          arg(11) = xxx*xxx + aeq
-          darg(11)= 2.0_dp*xxx
-          arg(12) = rsq + aeq
-          darg(12)= drsq
-          arg(13) = arg(12) + qb*qb
-          darg(13)= darg(12)
-          sqr(8:13) = pxy(8:13)/SQRT(arg(8:13))
-          dsqr(8:13) = -(0.5_dp/arg(8:13))*darg(8:13)*sqr(8:13)
-          edz       = sqr(8) + sqr(9)
-          eqzz      = sqr(10) + sqr(11) + sqr(12)
-          eqxx      = sqr(12) + sqr(13)
-          ri(5)     = edz
-          ri(11)    = ee + eqzz
-          ri(12)    = ee + eqxx
-          dedz      = dsqr(8)  + dsqr(9)
-          deqzz     = dsqr(10) + dsqr(11) + dsqr(12)
-          deqxx     = dsqr(12) + dsqr(13)
-          dri(5)    = dedz
-          dri(11)   = dee + deqzz
-          dri(12)   = dee + deqxx
-       END IF
-
-       ! In case both (i) and (j) are heavy atoms
-       IF (si.AND.sj) THEN
-          IF (longrange) THEN
-             axx = 0.0_dp
-             adq = 0.0_dp
-             aqd = 0.0_dp
-             aqq = 0.0_dp
-          ELSE
-             axx = adi + adj
-             axx = axx * axx
-             adq = adi + aqj
-             adq = adq * adq
-             aqd = aqi + adj
-             aqd = aqd * aqd
-             aqq = aqi + aqj
-             aqq = aqq * aqq
-          END IF
-          xxx = da-db
-          arg(14) = rsq + axx + xxx*xxx
-          darg(14)= drsq
-          xxx = da+db
-          arg(15) = rsq + axx + xxx*xxx
-          darg(15)= drsq
-          xxx = r + da - db
-          arg(16) = xxx*xxx + axx
-          darg(16)= 2.0_dp* xxx
-          xxx = r - da + db
-          arg(17) = xxx*xxx + axx
-          darg(17)= 2.0_dp* xxx
-          xxx = r - da - db
-          arg(18) = xxx*xxx + axx
-          darg(18)= 2.0_dp* xxx
-          xxx = r + da + db
-          arg(19) = xxx*xxx + axx
-          darg(19)= 2.0_dp* xxx
-          xxx = r + da
-          arg(20) = xxx*xxx + adq
-          darg(20)= 2.0_dp* xxx
-          arg(21) = arg(20) + qb*qb
-          darg(21)= darg(20)
-          xxx = r - da
-          arg(22) = xxx*xxx + adq
-          darg(22)= 2.0_dp* xxx
-          arg(23) = arg(22) + qb*qb
-          darg(23)= darg(22)
-          xxx = r - db
-          arg(24) = xxx*xxx + aqd
-          darg(24)= 2.0_dp* xxx
-          arg(25) = arg(24) + qa*qa
-          darg(25)= darg(24)
-          xxx = r + db
-          arg(26) = xxx*xxx + aqd
-          darg(26)= 2.0_dp* xxx
-          arg(27) = arg(26) + qa*qa
-          darg(27)= darg(26)
-          xxx = r + da - qb
-          arg(28) = xxx*xxx + adq
-          darg(28)= 2.0_dp*xxx
-          xxx = r - da - qb
-          arg(29) = xxx*xxx + adq
-          darg(29)= 2.0_dp* xxx
-          xxx = r + da + qb
-          arg(30) = xxx*xxx + adq
-          darg(30)= 2.0_dp* xxx
-          xxx = r - da + qb
-          arg(31) = xxx*xxx + adq
-          darg(31)= 2.0_dp* xxx
-          xxx = r + qa - db
-          arg(32) = xxx*xxx + aqd
-          darg(32)= 2.0_dp* xxx
-          xxx = r + qa + db
-          arg(33) = xxx*xxx + aqd
-          darg(33)= 2.0_dp* xxx
-          xxx = r - qa - db
-          arg(34) = xxx*xxx + aqd
-          darg(34)= 2.0_dp* xxx
-          xxx = r - qa + db
-          arg(35) = xxx*xxx + aqd
-          darg(35)= 2.0_dp* xxx
-          arg(36) = rsq + aqq
-          darg(36)= drsq
-          xxx = qa - qb
-          arg(37) = arg(36) + xxx*xxx
-          darg(37)= darg(36)
-          xxx = qa + qb
-          arg(38) = arg(36) + xxx*xxx
-          darg(38)= darg(36)
-          arg(39) = arg(36) + qa*qa
-          darg(39)= darg(36)
-          arg(40) = arg(36) + qb*qb
-          darg(40)= darg(36)
-          arg(41) = arg(39) + qb*qb
-          darg(41)= darg(39)
-          xxx = r - qb
-          arg(42) = xxx*xxx + aqq
-          darg(42)= 2.0_dp*xxx
-          arg(43) = arg(42) + qa*qa
-          darg(43)= darg(42)
-          xxx = r + qb
-          arg(44) = xxx*xxx + aqq
-          darg(44)= 2.0_dp*xxx
-          arg(45) = arg(44) + qa*qa
-          darg(45)= darg(44)
-          xxx = r + qa
-          arg(46) = xxx*xxx + aqq
-          darg(46)= 2.0_dp*xxx
-          arg(47) = arg(46) + qb*qb
-          darg(47)= darg(46)
-          xxx = r - qa
-          arg(48) = xxx*xxx + aqq
-          darg(48)= 2.0_dp*xxx
-          arg(49) = arg(48) + qb*qb
-          darg(49)= darg(48)
-          xxx = r + qa - qb
-          arg(50) = xxx*xxx + aqq
-          darg(50)= 2.0_dp*xxx
-          xxx = r + qa + qb
-          arg(51) = xxx*xxx + aqq
-          darg(51)= 2.0_dp*xxx
-          xxx = r - qa - qb
-          arg(52) = xxx*xxx + aqq
-          darg(52)= 2.0_dp*xxx
-          xxx = r - qa + qb
-          arg(53) = xxx*xxx + aqq
-          darg(53)= 2.0_dp*xxx
-          qa=qa/2.0_dp
-          qb=qb/2.0_dp
-          xxx = da - qb
-          dxxx= 0.0_dp
-          xxx = xxx*xxx
-          yyy = r - qb
-          dyyy= 2.0_dp*yyy
-          yyy = yyy*yyy
-          zzz = da + qb
-          dzzz= 0.0_dp
-          zzz = zzz*zzz
-          www = r + qb
-          dwww= 2.0_dp*www
-          www = www*www
-          arg(54) =  xxx +  yyy + adq
-          darg(54)= dxxx + dyyy 
-          arg(55) =  xxx +  www + adq
-          darg(55)= dxxx + dwww
-          arg(56) =  zzz +  yyy + adq
-          darg(56)= dzzz + dyyy
-          arg(57) =  zzz +  www + adq
-          darg(57)= dzzz + dwww
-          xxx = qa - db
-          dxxx= 0.0_dp
-          xxx = xxx*xxx
-          yyy = qa + db
-          dyyy= 0.0_dp
-          yyy = yyy*yyy
-          zzz = r + qa
-          dzzz= 2.0_dp*zzz
-          zzz = zzz*zzz
-          www = r - qa
-          dwww= 2.0_dp*www
-          www = www*www
-          arg(58) =  zzz +  xxx + aqd
-          darg(58)= dzzz + dxxx
-          arg(59) =  www +  xxx + aqd
-          darg(59)= dwww + dxxx
-          arg(60) =  zzz +  yyy + aqd
-          darg(60)= dzzz + dyyy
-          arg(61) =  www +  yyy + aqd
-          darg(61)= dwww + dyyy
-          xxx = qa - qb
-          xxx = xxx*xxx
-          arg(62) =  arg(36) + 2._dp*xxx
-          darg(62)= darg(36)
-          yyy = qa + qb
-          yyy = yyy*yyy
-          arg(63) =  arg(36) + 2._dp*yyy
-          darg(63)= darg(36)
-          arg(64) =  arg(36) + 2._dp*(qa*qa+qb*qb)
-          darg(64)= darg(36)
-          zzz = r + qa - qb
-          dzzz= 2.0_dp*zzz
-          zzz = zzz*zzz
-          arg(65) = zzz + xxx + aqq
-          darg(65)= dzzz
-          arg(66) = zzz + yyy + aqq
-          darg(66)= dzzz
-          zzz = r + qa + qb
-          dzzz= 2.0_dp*zzz
-          zzz = zzz*zzz
-          arg(67) = zzz + xxx + aqq
-          darg(67)= dzzz
-          arg(68) = zzz + yyy + aqq
-          darg(68)= dzzz
-          zzz = r - qa - qb
-          dzzz= 2.0_dp*zzz
-          zzz = zzz*zzz
-          arg(69) = zzz + xxx + aqq
-          darg(69)= dzzz
-          arg(70) = zzz + yyy + aqq
-          darg(70)= dzzz
-          zzz = r - qa + qb
-          dzzz= 2.0_dp*zzz
-          zzz = zzz*zzz
-          arg(71) = zzz + xxx + aqq
-          darg(71)= dzzz
-          arg(72) = zzz + yyy + aqq
-          darg(72)= dzzz
-          sqr(14:72)  = pxy(14:72)/SQRT(arg(14:72))
-          dsqr(14:72) = -(0.5_dp/arg(14:72))*darg(14:72)*sqr(14:72)
-          dxdx   = sqr(14) + sqr(15)
-          dzdz   = sqr(16) + sqr(17) + sqr(18) + sqr(19)
-          dzqxx  = sqr(20) + sqr(21) + sqr(22) + sqr(23)
-          qxxdz  = sqr(24) + sqr(25) + sqr(26) + sqr(27)
-          dzqzz  = sqr(28) + sqr(29) + sqr(30) + sqr(31) + sqr(22) + sqr(20)
-          qzzdz  = sqr(32) + sqr(33) + sqr(34) + sqr(35) + sqr(24) + sqr(26)
-          qxxqxx = sqr(37) + sqr(38) + sqr(39) + sqr(40) + sqr(36)
-          qxxqyy = sqr(41) + sqr(39) + sqr(40) + sqr(36)
-          qxxqzz = sqr(43) + sqr(45) + sqr(42) + sqr(44) + sqr(39) + sqr(36)
-          qzzqxx = sqr(47) + sqr(49) + sqr(46) + sqr(48) + sqr(40) + sqr(36)
-          qzzqzz = sqr(50) + sqr(51) + sqr(52) + sqr(53) + sqr(48) + sqr(46) + sqr(42) + sqr(44) + sqr(36)
-          dxqxz  = sqr(54) + sqr(55) + sqr(56) + sqr(57)
-          qxzdx  = sqr(58) + sqr(59) + sqr(60) + sqr(61)
-          qxzqxz = sqr(65) + sqr(67) + sqr(69) + sqr(71) + sqr(66) + sqr(68) + sqr(70) + sqr(72)
-          ddxdx   = dsqr(14) + dsqr(15)
-          ddzdz   = dsqr(16) + dsqr(17) + dsqr(18) + dsqr(19)
-          ddzqxx  = dsqr(20) + dsqr(21) + dsqr(22) + dsqr(23)
-          dqxxdz  = dsqr(24) + dsqr(25) + dsqr(26) + dsqr(27)
-          ddzqzz  = dsqr(28) + dsqr(29) + dsqr(30) + dsqr(31) + dsqr(22) + dsqr(20)
-          dqzzdz  = dsqr(32) + dsqr(33) + dsqr(34) + dsqr(35) + dsqr(24) + dsqr(26)
-          dqxxqxx = dsqr(37) + dsqr(38) + dsqr(39) + dsqr(40) + dsqr(36)
-          dqxxqyy = dsqr(41) + dsqr(39) + dsqr(40) + dsqr(36)
-          dqxxqzz = dsqr(43) + dsqr(45) + dsqr(42) + dsqr(44) + dsqr(39) + dsqr(36)
-          dqzzqxx = dsqr(47) + dsqr(49) + dsqr(46) + dsqr(48) + dsqr(40) + dsqr(36)
-          dqzzqzz = dsqr(50) + dsqr(51) + dsqr(52) + dsqr(53) + dsqr(48) + dsqr(46) + dsqr(42) + dsqr(44) + dsqr(36)
-          ddxqxz  = dsqr(54) + dsqr(55) + dsqr(56) + dsqr(57)
-          dqxzdx  = dsqr(58) + dsqr(59) + dsqr(60) + dsqr(61)
-          dqxzqxz = dsqr(65) + dsqr(67) + dsqr(69) + dsqr(71) + dsqr(66) + dsqr(68) + dsqr(70) + dsqr(72)
-          ri(6)  = dzdz
-          ri(7)  = dxdx
-          ri(8)  =  edz + qzzdz
-          ri(9)  =  edz + qxxdz
-          ri(10) =        qxzdx
-          ri(13) =  dze + dzqzz
-          ri(14) =  dze + dzqxx
-          ri(15) =        dxqxz
-          ri(16) = ee + eqzz + qzze + qzzqzz
-          ri(17) = ee + eqzz + qxxe + qxxqzz
-          ri(18) = ee + eqxx + qzze + qzzqxx
-          ri(19) = ee + eqxx + qxxe + qxxqxx
-          ri(20) =                    qxzqxz
-          ri(21) = ee + eqxx + qxxe + qxxqyy
-          ri(22) = 0.5_dp * (qxxqxx - qxxqyy)
-          dri(6)  = ddzdz
-          dri(7)  = ddxdx
-          dri(8)  =  dedz + dqzzdz
-          dri(9)  =  dedz + dqxxdz
-          dri(10) =         dqxzdx
-          dri(13) =  ddze + ddzqzz
-          dri(14) =  ddze + ddzqxx
-          dri(15) =         ddxqxz
-          dri(16) = dee + deqzz + dqzze + dqzzqzz
-          dri(17) = dee + deqzz + dqxxe + dqxxqzz
-          dri(18) = dee + deqxx + dqzze + dqzzqxx
-          dri(19) = dee + deqxx + dqxxe + dqxxqxx
-          dri(20) =                       dqxzqxz
-          dri(21) = dee + deqxx + dqxxe + dqxxqyy
-          dri(22) = 0.5_dp  * ( dqxxqxx - dqxxqyy )
-       END IF
-    END IF
+                numb = ijkl_ind(ij, kl)
+                IF (numb > 0) THEN
+                   nold = ijkl_sym(numb)
+                   IF (nold > 0) THEN
+                      drep(numb) =  drep( nold)
+                   ELSE IF (nold < 0) THEN
+                      drep(numb) = -drep(-nold)
+                   ELSE IF (nold == 0) THEN
+                      drep(numb) = d_ijkl_sp (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
+                                              longrange, do_method_undef, error)
+                   END IF
+                END IF
+             END DO
+          END DO
+       END DO
+    END DO
 
   END SUBROUTINE dterep_sp_ana
 

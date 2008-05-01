@@ -29,7 +29,7 @@ MODULE semi_empirical_int_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_utils'
 
   PUBLIC :: taper_eval, dtaper_eval, ijkl_d, ijkl_sp, rotmat, rot_2el_2c_first,&
-            store_2el_2c_diag
+            store_2el_2c_diag, d_ijkl_sp
   
 CONTAINS
 
@@ -100,6 +100,60 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_sp', &
       routineP = moduleN//':'//routineN
 
+    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, charg_int_nri, error)
+
+  END FUNCTION ijkl_sp
+
+! *****************************************************************************
+!> \brief General driver for computing derivatives of semi-empirical integrals 
+!>        <ij|kl> with sp basis set. 
+!>        This code uses the old definitions of quadrupoles and therefore
+!>        cannot be used for integrals involving d-orbitals (which requires a
+!>        definition of quadrupoles based on the rotational invariant property)
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 05.2008 [tlaino]
+! *****************************************************************************
+  FUNCTION d_ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, error) RESULT(res)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
+    REAL(KIND=dp), INTENT(IN)                :: r
+    LOGICAL, INTENT(IN)                      :: longrange
+    INTEGER, INTENT(IN)                      :: itype
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_sp', &
+      routineP = moduleN//':'//routineN
+
+    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, dcharg_int_nri, error)
+
+  END FUNCTION d_ijkl_sp
+
+! *****************************************************************************
+!> \brief Low level general driver for computing semi-empirical integrals
+!>        <ij|kl> and their derivatives with sp basis set only.
+!>        This code uses the old definitions of quadrupoles and
+!>        therefore cannot be used for integrals involving d-orbitals (which
+!>        require a definition of quadrupoles based on the rotational invariant
+!>        property)
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 05.2008 [tlaino]
+! *****************************************************************************
+  FUNCTION ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, eval, error) RESULT(res)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
+    REAL(KIND=dp), INTENT(IN)                :: r
+    LOGICAL, INTENT(IN)                      :: longrange
+    INTEGER, INTENT(IN)                      :: itype
+    REAL(KIND=dp)                            :: eval
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_sp_low', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: l1, l1max, l1min, l2, l2max, &
                                                 l2min, lij, lkl, lmin, m, mm
     REAL(KIND=dp)                            :: add, ccc, chrg, dij, dkl, &
@@ -168,7 +222,7 @@ CONTAINS
              ccc = clm_sp(ij, l1, m) * clm_sp(kl, l2, m)
              IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
                 mm   = ABS (m)
-                chrg = charg_int_nri(r, l1, l2, clm_sp(ij, l1, m), clm_sp(kl, l2, m), dij, dkl, add, error)
+                chrg = eval(r, l1, l2, clm_sp(ij, l1, m), clm_sp(kl, l2, m), dij, dkl, add, error)
                 s1   = s1 + chrg
              END IF
           END DO
@@ -176,7 +230,7 @@ CONTAINS
        END DO
     END DO
     res = sum
-  END FUNCTION ijkl_sp
+  END FUNCTION ijkl_sp_low
 
 ! *****************************************************************************
 !> \brief Interaction function between two point-charge configurations NDDO sp-code
@@ -209,6 +263,7 @@ CONTAINS
                                                 xyxy, zzzz
 
     failure = .FALSE.
+    ! Computing only Integral Values
     IF      ( l1_i  < l2_i) THEN
        l1 = l1_i
        l2 = l2_i
@@ -371,6 +426,204 @@ CONTAINS
     ! We should NEVER reach this point
     CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
   END FUNCTION charg_int_nri
+
+
+! *****************************************************************************
+!> \brief Derivatives of interaction function between two point-charge 
+!>        configurations NDDO sp-code. 
+!>        Non-Rotational Invariant definition of quadrupoles
+!>
+!>        r    -  Distance r12
+!>        l1,m -  Quantum numbers for multipole of configuration 1
+!>        l2,m -  Quantum numbers for multipole of configuration 2
+!>        da   -  charge separation of configuration 1
+!>        db   -  charge separation of configuration 2
+!>        add  -  additive term
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 04.2008 [tlaino]
+! *****************************************************************************
+  FUNCTION dcharg_int_nri(r, l1_i, l2_i, m1_i, m2_i, da_i, db_i, add, error) RESULT(charg)
+    REAL(KIND=dp), INTENT(in)                :: r
+    INTEGER, INTENT(in)                      :: l1_i, l2_i, m1_i, m2_i
+    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: charg
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_nri', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: l1, l2, m1, m2
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: da, db, dxdx, dxqxz, dzdz, &
+                                                dzqxx, dzqzz, fact, qqxx, &
+                                                qqzz, qxxqxx, qxxqyy, qxzqxz, &
+                                                xyxy, zzzz
+
+    failure = .FALSE.
+    ! Computing only Integral Derivatives
+    IF      ( l1_i  < l2_i) THEN
+       l1 = l1_i
+       l2 = l2_i
+       m1 = m1_i
+       m2 = m2_i
+       da = da_i
+       db = db_i
+       fact  = 1.0_dp
+    ELSE IF ( l1_i  > l2_i ) THEN
+       l1 = l2_i
+       l2 = l1_i
+       m1 = m2_i
+       m2 = m1_i
+       da = db_i
+       db = da_i
+       fact  = (-1.0_dp)**(l1+l2)
+    ELSE IF ( l1_i == l2_i ) THEN
+       l1 = l1_i
+       l2 = l2_i
+       IF   ( m1_i <= m2_i ) THEN
+          m1 = m1_i
+          m2 = m2_i
+          da = da_i
+          db = db_i
+       ELSE
+          m1 = m2_i
+          m2 = m1_i
+          da = db_i
+          db = da_i
+       END IF
+       fact = 1.0_dp
+    END IF
+    charg = 0.0_dp
+    ! Q - Q.
+    IF (l1 == 0 .AND. l2 == 0) THEN
+       charg = r/SQRT(r**2+add)**3
+       charg = -charg*fact
+       RETURN
+    END IF
+    ! Q - Z.
+    IF (l1 == 0 .AND. l2 == 1 .AND. m2 == CLMz) THEN
+       charg = (r+db)/SQRT((r+db)**2+add)**3 - (r-db)/SQRT((r-db)**2+add)**3
+       charg = -charg*0.5_dp*fact
+       RETURN
+    END IF
+    ! Z - Z.
+    IF (l1 == 1 .AND. l2 == 1 .AND. m1 == CLMz .AND. m2 == CLMz ) THEN
+       dzdz  = &
+            +(r+da-db)/SQRT((r+da-db)**2+add)**3 + (r-da+db)/SQRT((r-da+db)**2+add)**3 &
+            -(r-da-db)/SQRT((r-da-db)**2+add)**3 - (r+da+db)/SQRT((r+da+db)**2+add)**3
+       charg = -dzdz*0.25_dp*fact
+       RETURN
+    END IF
+    ! X - X
+    IF (l1 == 1 .AND. l2 == 1 .AND. m1 == CLMp .AND. m2 == CLMp ) THEN
+       dxdx  = 2.0_dp*r/SQRT(r**2+(da-db)**2+add)**3 - 2.0_dp*r/SQRT(r**2+(da+db)**2+add)**3
+       charg = -dxdx*0.25_dp*fact
+       RETURN
+    END IF
+    ! Q - ZZ
+    IF (l1 == 0 .AND. l2 == 2 .AND. m2 == CLMzz) THEN
+       qqzz  = (r-db)/SQRT((r-db)**2+add)**3 - 2.0_dp*r/SQRT(r**2+add)**3 + (r+db)/SQRT((r+db)**2+add)**3
+       charg = -qqzz*0.25_dp*fact
+       RETURN
+    END IF
+    ! Q - XX
+    IF (l1 == 0 .AND. l2 == 2 .AND. (m2 == CLMyy .OR. m2 == CLMxx)) THEN
+       qqxx  = -r/SQRT(r**2+add)**3 + r/SQRT(r**2+add+db**2)**3
+       charg = -qqxx*0.5_dp*fact
+       RETURN
+    END IF
+    ! Z - ZZ
+    IF (l1 == 1 .AND. l2 == 2 .AND. m1 == CLMz .AND. m2 == CLMzz ) THEN
+       dzqzz = &
+            +(r-da-db)/SQRT((r-da-db)**2+add)**3    - 2.0_dp*(r-da)/SQRT((r-da)**2+add)**3 &
+            +(r-da+db)/SQRT((r-da+db)**2+add)**3    - (r+da-db)/SQRT((r+da-db)**2+add)**3 &
+            +2.0_dp*(r+da)/SQRT((r+da)**2+add)**3   - (r+da+db)/SQRT((r+da+db)**2+add)**3
+       charg = -dzqzz*0.125_dp*fact
+       RETURN
+    END IF
+    ! Z - XX
+    IF (l1 == 1 .AND. l2 == 2 .AND. m1 == CLMz .AND. ( m2 == CLMyy .OR. m2 == CLMxx )) THEN
+       dzqxx = &
+            +(r+da)/SQRT((r+da)**2+add)**3    - (r+da)/SQRT((r+da)**2+add+db**2)**3 &
+            -(r-da)/SQRT((r-da)**2+add)**3    + (r-da)/SQRT((r-da)**2+add+db**2)**3
+       charg = -dzqxx*0.25_dp*fact
+       RETURN
+    END IF
+    ! ZZ - ZZ
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMzz .AND. m2 == CLMzz ) THEN
+       zzzz = &
+            +(r-da-db)/SQRT((r-da-db)**2+add)**3    + (r+da+db)/SQRT((r+da+db)**2+add)**3 &
+            +(r-da+db)/SQRT((r-da+db)**2+add)**3    + (r+da-db)/SQRT((r+da-db)**2+add)**3
+       xyxy = &
+            +(r-da)/SQRT((r-da)**2+add)**3       + (r+da)/SQRT((r+da)**2+add)**3 &
+            +(r-db)/SQRT((r-db)**2+add)**3       + (r+db)/SQRT((r+db)**2+add)**3 &
+            -2.0_dp*r/SQRT(r**2+add)**3
+       charg = -(zzzz*0.0625_dp - xyxy*0.125_dp)*fact
+       RETURN
+    END IF
+    ! ZZ - XX
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMzz .AND. ( m2 == CLMxx .OR. m2 == CLMyy )) THEN
+       zzzz = &
+            -(r+da)/SQRT((r+da)**2+add)**3    + (r+da)/SQRT((r+da)**2+db**2+add)**3 &
+            -(r-da)/SQRT((r-da)**2+add)**3    + (r-da)/SQRT((r-da)**2+db**2+add)**3
+       xyxy =   r/SQRT(r**2+db**2+add)**3     - r/SQRT(r**2+add)**3
+       charg = -(zzzz*0.125_dp - xyxy*0.25_dp)*fact
+       RETURN
+    END IF
+    ! X - ZX
+    IF (l1 == 1 .AND. l2 == 2 .AND. m1 == CLMp .AND. m2 == CLMzp ) THEN
+       db = db/2.0_dp
+       dxqxz = &
+            -(r-db)/SQRT((r-db)**2+(da-db)**2+add)**3 + (r+db)/SQRT((r+db)**2+(da-db)**2+add)**3 &
+            +(r-db)/SQRT((r-db)**2+(da+db)**2+add)**3 - (r+db)/SQRT((r+db)**2+(da+db)**2+add)**3
+       charg = -dxqxz*0.25_dp*fact
+       RETURN
+    END IF
+    ! ZX - ZX
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMzp .AND. m2 == CLMzp ) THEN
+       da = da / 2.0_dp
+       db = db / 2.0_dp
+       qxzqxz = &
+            +(r+da-db)/SQRT((r+da-db)**2+(da-db)**2+add)**3 - (r+da+db)/SQRT((r+da+db)**2+(da-db)**2+add)**3 &
+            -(r-da-db)/SQRT((r-da-db)**2+(da-db)**2+add)**3 + (r-da+db)/SQRT((r-da+db)**2+(da-db)**2+add)**3 &
+            -(r+da-db)/SQRT((r+da-db)**2+(da+db)**2+add)**3 + (r+da+db)/SQRT((r+da+db)**2+(da+db)**2+add)**3 &
+            +(r-da-db)/SQRT((r-da-db)**2+(da+db)**2+add)**3 - (r-da+db)/SQRT((r-da+db)**2+(da+db)**2+add)**3
+       charg = -qxzqxz*0.125_dp*fact
+       RETURN
+    END IF
+    ! XX - XX
+    IF (l1 == 2 .AND. l2 == 2 .AND. (((m1 == CLMyy) .AND. (m2 == CLMyy)).OR.((m1 == CLMxx) .AND. (m2 == CLMxx)))) THEN
+       qxxqxx = &
+            + 2.0_dp*r/SQRT(r**2+add)**3                   +        r/SQRT(r**2+(da-db)**2+add)**3 &
+            +        r/SQRT(r**2+(da+db)**2+add)**3        - 2.0_dp*r/SQRT(r**2+da**2+add)**3      &
+            - 2.0_dp*r/SQRT(r**2+db**2+add)**3
+       charg = -qxxqxx*0.125_dp*fact
+       RETURN
+    END IF
+    ! XX - YY
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMyy .AND. m2 == CLMxx) THEN
+       qxxqyy = &
+            + r/SQRT(r**2+add)**3                   - r/SQRT(r**2+da**2+add)**3 &
+            - r/SQRT(r**2+db**2+add)**3             + r/SQRT(r**2+da**2+db**2+add)**3 
+       charg = -qxxqyy*0.25_dp*fact
+       RETURN
+    END IF
+    ! XY - XY
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMxy .AND. m2 == CLMxy) THEN
+       qxxqxx = &
+            + 2.0_dp*r/SQRT(r**2+add)**3                    +        r/SQRT(r**2+(da-db)**2+add)**3  &
+            +        r/SQRT(r**2+(da+db)**2+add)**3         - 2.0_dp*r/SQRT(r**2+da**2+add)**3       &
+            - 2.0_dp*r/SQRT(r**2+db**2+add)**3 
+       qxxqyy = &
+            + r/SQRT(r**2+add)**3                   - r/SQRT(r**2+da**2+add)**3 &
+            - r/SQRT(r**2+db**2+add)**3             + r/SQRT(r**2+da**2+db**2+add)**3
+       charg = -0.5_dp * (qxxqxx*0.125_dp - qxxqyy*0.25_dp) * fact
+       RETURN
+    END IF
+    ! We should NEVER reach this point
+    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+  END FUNCTION dcharg_int_nri
 
 ! *****************************************************************************
 !> \brief General driver for computing semi-empirical integrals <ij|kl> involving

@@ -47,7 +47,8 @@ MODULE semi_empirical_int_num
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_num'
   PUBLIC :: rotint_num,  rotnuc_num,  corecore_num,&
            drotint_num, drotnuc_num, dcorecore_num,&
-            nucint_num,  terep_num
+            nucint_num,  terep_num,  nucint_sp_num,&
+          terep_sp_num
 
 CONTAINS
 

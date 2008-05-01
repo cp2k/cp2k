@@ -28,25 +28,6 @@ MODULE semi_empirical_int_arrays
   ! Mapping index for orbital ordering
   INTEGER, DIMENSION(9), PUBLIC        :: se_orbital_pointer=(/1,4,2,3,9,8,7,6,5/)
 
-!TL to delete when analytical derivatives will be working for d------
-  ! Parameters for multipole sums
-  REAL(KIND=dp), DIMENSION(72), PARAMETER, PUBLIC  :: pxy = (/&
-  !    1          2          3          4         5         6           7          8          9         10
-     1.0_dp,   -0.5_dp,    0.5_dp,   0.25_dp,  0.25_dp,   -0.5_dp,    0.5_dp,   -0.5_dp,    0.5_dp,   0.25_dp,& ! 0
-    0.25_dp,   -0.5_dp,    0.5_dp,    0.5_dp,  -0.5_dp,   0.25_dp,   0.25_dp,  -0.25_dp,  -0.25_dp,   0.25_dp,& ! 1
-   -0.25_dp,  -0.25_dp,   0.25_dp,   0.25_dp, -0.25_dp,  -0.25_dp,   0.25_dp, -0.125_dp,  0.125_dp, -0.125_dp,& ! 2
-   0.125_dp, -0.125_dp,  0.125_dp, -0.125_dp, 0.125_dp,   0.25_dp,  0.125_dp,  0.125_dp,  -0.25_dp,  -0.25_dp,& ! 3
-    0.25_dp, -0.125_dp,  0.125_dp, -0.125_dp, 0.125_dp, -0.125_dp,  0.125_dp, -0.125_dp,  0.125_dp, 0.0625_dp,& ! 4
-  0.0625_dp, 0.0625_dp, 0.0625_dp,  -0.25_dp,  0.25_dp,   0.25_dp,  -0.25_dp,  -0.25_dp,   0.25_dp,   0.25_dp,& ! 5
-   -0.25_dp,    0.0_dp,    0.0_dp,    0.0_dp, 0.125_dp, -0.125_dp, -0.125_dp,  0.125_dp, -0.125_dp,  0.125_dp,& ! 6
-   0.125_dp, -0.125_dp/)
-
-  ! Array to map ri(22) into rep(491) for 2electron 2center integrals
-  INTEGER, DIMENSION(34), PARAMETER, PUBLIC       :: map_22_to_491 =(/&
-       1,   5, 11, 12, 12,  2,  6, 13, 14, 14,  3,  8, 16, 18, 18,  7, 15, &
-       10, 20,  4,  9, 17, 19, 21,  7, 15, 10, 20, 22,  4,  9, 17, 21, 19 /)
-!TL to delete ------
-
   ! Arrays to treat the invertion of the reference frame for the integrals
   ! Using the same indexing convention of the integrals
   INTEGER, PARAMETER, DIMENSION(2,9), PUBLIC        :: map_x_to_z = RESHAPE((/&
