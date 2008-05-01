@@ -177,6 +177,7 @@ CONTAINS
     IF (scf_control%use_ot.AND.&
         (.NOT.((scf_control%density_guess == random_guess).OR.&
                (scf_control%density_guess == atomic_guess).OR.&
+               (scf_control%density_guess == mopac_guess).OR.&
                (((scf_control%density_guess == restart_guess).OR.&
                 (scf_control%density_guess == history_guess)).AND.&
                 (scf_control%level_shift == 0.0_dp))))) THEN
