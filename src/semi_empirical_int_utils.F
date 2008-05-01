@@ -652,9 +652,9 @@ CONTAINS
     ! Check for special case: both atoms lie on the Z Axis
     IF (ABS(check) > 0.99999999_dp) THEN
        IF (PRESENT(do_invert)) THEN
-          imap(1)   = 1
-          imap(2)   = 3
-          imap(3)   = 2
+          imap(1)   = 3
+          imap(2)   = 2
+          imap(3)   = 1
           eval      = .TRUE.
           do_invert = .TRUE.
        ELSE
@@ -679,9 +679,9 @@ CONTAINS
        ! When debugging the derivatives of the rotation matrix we must possibly force
        ! the inversion of the reference frame
        CPPostcondition(.NOT.do_derivatives,cp_failure_level,routineP,error,failure)
-       imap(1)   = 1
-       imap(2)   = 3
-       imap(3)   = 2
+       imap(1)   = 3
+       imap(2)   = 2
+       imap(3)   = 1
        eval      = .TRUE.
     END IF
     IF (eval) THEN
@@ -1002,7 +1002,7 @@ CONTAINS
           ij_matrix%dd_d = 0.0_dp
        END IF
        IF (debug_this_module) THEN 
-          CALL check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert=do_invert, error=error)
+          CALL check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert=do_invert, error=error)
        END IF
     END IF
 

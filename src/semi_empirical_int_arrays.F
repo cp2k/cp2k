@@ -6,7 +6,8 @@
 ! *****************************************************************************
 !> \brief Arrays of parameters used in the semi-empirical calculations
 !> \References  Everywhere in this module TCA stands for:
-!>      - TCA: W. Thiel and  A. A. Voityuk - Teor. Chim. Acta (1992) 81:391-404
+!>   - TCA:   W. Thiel and  A. A. Voityuk - Teor. Chim. Acta (1992) 81:391-404
+!>   - TCA77: M.J.S. Dewar and W. Thiel - Teor. Chim. Acta (1977) 46:89-104
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich 
 !> \date   03.2008 [tlaino]
@@ -46,12 +47,30 @@ MODULE semi_empirical_int_arrays
        10, 20,  4,  9, 17, 19, 21,  7, 15, 10, 20, 22,  4,  9, 17, 21, 19 /)
 !TL to delete ------
 
-  ! Parameters for sp axis inversion
-  INTEGER, DIMENSION(84), PARAMETER, PUBLIC        :: map_full_sp = (/&
-        4, 7, 5, 8, 6,10, 14,17,15,18,16,20,24,27,25,28,26,30,31,61,32,&
-       62,33,63,34,67,35, 68,36,70,37,64,38,65,39,69,40,66,41,71,42,72,&
-       43,73,44,77,45,78, 46,80,47,74,48,75,49,79,50,76,51,91,52,92,53,&
-       93,54,97,55,98,56,100,57,94,58,95,59,99,60,96,84,87,85,88,86,90/)
+  ! Arrays to treat the invertion of the reference frame for the integrals
+  ! Using the same indexing convention of the integrals
+  INTEGER, PARAMETER, DIMENSION(2,9), PUBLIC        :: map_x_to_z = RESHAPE((/&
+       1,0,& ! s    <-> s
+       4,0,& ! px   <-> pz
+       3,0,& ! py   <-> py
+       2,0,& ! pz   <-> px
+       7,5,& ! dx2  <-> SQR3/2*dz2 +    0.5*dx2
+       6,0,& ! dzx  <-> dzx
+       7,5,& ! dz2  <->   -0.5*dz2 + SQR3/2*dx2
+       9,0,& ! dzy  <-> dxy
+       8,0 & ! dxy  <-> dzy
+       /),(/2,9/))
+  REAL(KIND=dp), PARAMETER, DIMENSION(2,9), PUBLIC  :: fac_x_to_z =  RESHAPE((/&
+        1.0_dp,0.0_dp,&
+        1.0_dp,0.0_dp,&
+        1.0_dp,0.0_dp,&
+        1.0_dp,0.0_dp,&
+        0.8660254037844386_dp,0.5_dp,&
+        1.0_dp,0.0_dp,&
+       -0.5_dp,0.8660254037844386_dp,&
+        1.0_dp,0.0_dp,&
+        1.0_dp,0.0_dp &
+        /),(/2,9/))
 
   ! Clm coefficients for d-orbitals:  see  Table [1] and [2] of TCA
   REAL(KIND=dp), DIMENSION (45,0:2,-2:2),  PUBLIC :: clm_d

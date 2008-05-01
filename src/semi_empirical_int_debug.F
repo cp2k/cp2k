@@ -44,9 +44,9 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
   imap(2) = 2
   imap(3) = 3
   IF (do_invert) THEN
-     imap(1) = 1
-     imap(2) = 3
-     imap(3) = 2
+     imap(1) = 3
+     imap(2) = 2
+     imap(3) = 1
   END IF
   ! Check derivatives: analytical VS numerical
   WRITE(*,*)"DEBUG::"//routineP
@@ -176,9 +176,9 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, shortrange, taper, invert, i
   imap(2) = 2
   imap(3) = 3
   IF (invert) THEN
-     imap(1) = 1
-     imap(2) = 3
-     imap(3) = 2
+     imap(1) = 3
+     imap(2) = 2
+     imap(3) = 1
   END IF
   limkl = indexb(kk, kk)
   ! Check derivatives: analytical VS numerical
@@ -191,7 +191,7 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, shortrange, taper, invert, i
         r  = SQRT(DOT_PRODUCT(r0,r0))
 
         CALL rotmat_create(matrix, error)
-        CALL rotmat (sepi, sepj, -r0, r, matrix, do_derivatives=.FALSE., debug_invert=invert,&
+        CALL rotmat (sepi, sepj, r0, r, matrix, do_derivatives=.FALSE., debug_invert=invert,&
              error=error)
 
         ! Compute integrals in diatomic frame
@@ -518,7 +518,7 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,error)
         WRITE(*,*)"Error in value of the integral RI",j,ri(j),ri0(j)
         STOP
      END IF
-     IF (.NOT.check_value(dri(j), nri(j), delta, 0.1_dp)) THEN
+     IF (.NOT.check_value(dri(j), nri(j), delta*100.0_dp, 0.1_dp)) THEN
         WRITE(*,*)"ERROR for derivative of RI integral, RI(j), j::",j
         STOP
      END IF

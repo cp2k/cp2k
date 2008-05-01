@@ -10,6 +10,7 @@
 !>      23.11.2007 jhu   short range version of integrals
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
+!>      Teodoro Laino (05.2008) [tlaino] - University of Zurich : 
 ! *****************************************************************************
 MODULE semi_empirical_int_ana
 
@@ -23,8 +24,8 @@ MODULE semi_empirical_int_ana
   USE physcon,                         ONLY: angstrom,&
                                              evolt
   USE semi_empirical_int_arrays,       ONLY: &
-       inddd, inddp, indexa, indexb, indpp, int2c_type, map_22_to_491, &
-       map_full_sp, pxy, rij_threshold
+       fac_x_to_z, inddd, inddp, indexa, indexb, indpp, int2c_type, &
+       map_22_to_491, map_x_to_z, pxy, rij_threshold
   USE semi_empirical_int_utils,        ONLY: dtaper_eval,&
                                              rot_2el_2c_first,&
                                              rotmat,&
@@ -67,7 +68,7 @@ CONTAINS
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
-!>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the core-core part
+!>      Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the core-core part
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
   RECURSIVE SUBROUTINE rotnuc_ana (sepi,sepj,rijv,itype,e1b,e2a,de1b,de2a,shortrange,taper,error)
@@ -130,8 +131,8 @@ CONTAINS
           ! Possibly Invert Frame
           IF (invert) THEN
              xtmp=drij(3)
-             drij(3)=drij(2)
-             drij(2)=xtmp
+             drij(3)=drij(1)
+             drij(1)=xtmp
           END IF
        END IF
        
@@ -187,8 +188,8 @@ CONTAINS
           IF (n==1) e1b = -tmp
           IF (n==2) e2a = -tmp
        END DO
-       IF (invert.AND.l_e1b)           CALL invert_integral  ( e1b,3,error)
-       IF (invert.AND.l_e2a)           CALL invert_integral  ( e2a,3,error)
+       IF (invert.AND.l_e1b)  CALL invert_integral  (sepi, sepi, int1el=e1b, error=error)
+       IF (invert.AND.l_e2a)  CALL invert_integral  (sepj, sepj, int1el=e2a, error=error)
 
        ! Possibly compute derivatives
        task (1)         = l_de1b
@@ -246,8 +247,8 @@ CONTAINS
           IF (n==1) de1b = -tmp_d
           IF (n==2) de2a = -tmp_d
        END DO
-       IF (invert.AND.l_de1b) CALL invert_derivative(de1b,3,error)
-       IF (invert.AND.l_de2a) CALL invert_derivative(de2a,3,error)
+       IF (invert.AND.l_de1b) CALL invert_derivative(sepi, sepi, dint1el=de1b, error=error)
+       IF (invert.AND.l_de2a) CALL invert_derivative(sepj, sepj, dint1el=de2a, error=error)
        CALL rotmat_release(ij_matrix, error)
 
        ! Possibly debug the analytical values versus the numerical ones
@@ -315,7 +316,7 @@ CONTAINS
        denuc = 0._dp
     END IF
     IF (rij > rij_threshold) THEN
-       ! Compute Integrals in diatomic frame opportunely inverted
+       ! Compute Integrals in diatomic frame
        rij  = SQRT(rij)
 
        IF (l_enuc.OR.l_denuc) THEN
@@ -555,67 +556,152 @@ CONTAINS
 !> \brief Exploits inversion symmetry to avoid divergence
 !> \par History
 !>      04.2007 created [tlaino]
+!>      05.2008 New driver for integral invertion (supports d-orbitals)
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE invert_integral(array, np, error)
-    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: array
-    INTEGER, INTENT(IN)                      :: np
+  SUBROUTINE invert_integral(sepi, sepj, int1el, int2el, error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(:), INTENT(INOUT), &
+      OPTIONAL                               :: int1el, int2el
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'invert_integral', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i1, i2
-    INTEGER, DIMENSION(2, 42)                :: map
-    REAL(KIND=dp)                            :: tmp
+    INTEGER                                  :: fdim, gind, gknd, i, imap, &
+                                                ind, j, jmap, jnd, k, kmap, &
+                                                knd, l, lmap, lnd, ndim, &
+                                                sdim, tdim, tind
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: ifac, jfac, kfac, lfac
+    REAL(KIND=dp), DIMENSION(2025)           :: tmp2el
+    REAL(KIND=dp), DIMENSION(45)             :: tmp1el
 
-    map = RESHAPE(map_full_sp,(/2,42/))
-    DO i = 1, np
-       i1= map(1,i)
-       i2= map(2,i)
+    failure = .FALSE.
+    ! One-electron integral
+    IF (PRESENT(int1el)) THEN
+       fdim   = (sepi%natorb+1)*sepi%natorb/2
+       ndim   = 0
+       tmp1el(1:fdim) = 0.0_dp
+       DO i = 1, sepi%natorb             
+       DO j = 1, i
+          ndim = ndim + 1
+          
+          ! Get the integral in the original frame (along z)
+          DO ind = 1, 2
+             imap = map_x_to_z(ind,i)
+             IF (imap==0) CYCLE
+             ifac = fac_x_to_z(ind,i)
+             DO jnd = 1, 2
+                jmap = map_x_to_z(jnd,j)
+                IF (jmap==0) CYCLE
+                jfac = fac_x_to_z(jnd,j)
+                gind = indexb(imap,jmap)
 
-       tmp=array(i1)
-       array(i1)=array(i2)
-       array(i2)=tmp
-    END DO
+                tmp1el(ndim) = tmp1el(ndim) + ifac*jfac*int1el(gind)
+             END DO
+          END DO
+       END DO
+       END DO
+       int1el(1:fdim) = tmp1el(1:fdim)
+    END IF
 
+    ! Two electron integrals
+    IF (PRESENT(int2el)) THEN
+       sdim   = (sepi%natorb+1)*sepi%natorb/2
+       tdim   = (sepj%natorb+1)*sepj%natorb/2
+       fdim   = sdim*tdim
+       ndim   = 0
+       tmp2el(1:fdim) = 0.0_dp
+       DO i = 1, sepi%natorb             
+       DO j = 1, i
+          DO k = 1, sepj%natorb             
+          DO l = 1, k
+             ndim = ndim + 1
+              
+             ! Get the integral in the original frame (along z)
+             DO ind = 1, 2
+                imap = map_x_to_z(ind,i)
+                IF (imap==0) CYCLE
+                ifac = fac_x_to_z(ind,i)
+                DO jnd = 1, 2
+                   jmap = map_x_to_z(jnd,j)
+                   IF (jmap==0) CYCLE
+                   jfac = fac_x_to_z(jnd,j)
+                   gind = indexb(imap,jmap)
+                   
+             ! Get the integral in the original frame (along z)
+             DO knd = 1, 2
+                kmap = map_x_to_z(knd,k)
+                IF (kmap==0) CYCLE
+                kfac = fac_x_to_z(knd,k)
+                DO lnd = 1, 2
+                   lmap = map_x_to_z(lnd,l)
+                   IF (lmap==0) CYCLE
+                   lfac = fac_x_to_z(lnd,l)
+                   gknd = indexb(kmap,lmap)
+                   
+                   tind = (gind-1)*tdim+gknd
+                   tmp2el(ndim) = tmp2el(ndim) + ifac*jfac*int2el(tind)
+                END DO
+             END DO
+                       
+                END DO
+             END DO
+                   
+          END DO
+          END DO
+       END DO
+       END DO
+       int2el(1:fdim) = tmp2el(1:fdim)
+    END IF
   END SUBROUTINE invert_integral
-
+  
 ! *****************************************************************************
 !> \brief Exploits inversion symmetry to avoid divergence
 !> \par History
 !>      04.2007 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE invert_derivative(array, np, error)
-    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: array
-    INTEGER, INTENT(IN)                      :: np
+  SUBROUTINE invert_derivative(sepi, sepj, dint1el, dint2el, error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT), OPTIONAL                :: dint1el, dint2el
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'invert_derivative', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i1, i2, j, m
-    INTEGER, DIMENSION(2, 42)                :: map
+    INTEGER                                  :: i, m
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
-    map = RESHAPE(map_full_sp,(/2,42/))
-    DO j=1,3
-       DO i =1, np
-          i1= map(1,i)
-          i2= map(2,i)
-
-          tmp=array(i1,j)
-          array(i1,j)=array(i2,j)
-          array(i2,j)=tmp
-       END DO
+    failure = .FALSE.
+    ! Integral part
+    DO i=1,3
+       IF (PRESENT(dint1el)) THEN
+          CALL invert_integral(sepi, sepj, int1el=dint1el(:,i), error=error)
+       END IF
+       IF (PRESENT(dint2el)) THEN
+          CALL invert_integral(sepi, sepj, int2el=dint2el(:,i), error=error)
+       END IF
     END DO
 
-    DO m=1,SIZE(array,1)
-       tmp=array(m,2)
-       array(m,2)=array(m,3)
-       array(m,3)=tmp
-    ENDDO
+    ! Derivatives part
+    IF (PRESENT(dint1el)) THEN
+       DO m=1,SIZE(dint1el,1)
+          tmp=dint1el(m,3)
+          dint1el(m,3)=dint1el(m,1)
+          dint1el(m,1)=tmp
+       END DO
+    END IF
+    IF (PRESENT(dint2el)) THEN
+       DO m=1,SIZE(dint2el,1)
+          tmp=dint2el(m,3)
+          dint2el(m,3)=dint2el(m,1)
+          dint2el(m,1)=tmp
+       END DO
+    END IF
   END SUBROUTINE invert_derivative
 
 ! *****************************************************************************
@@ -688,7 +774,7 @@ CONTAINS
 
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! compute the contribution from d-orbitals
-       STOP "D-ORBITALS: dnucint_ana"
+       STOP "D-ORBITALS: dnucint_ana not working with analytical derivatives"
     END IF
 
     IF (.NOT.longrange) THEN
@@ -1051,8 +1137,8 @@ CONTAINS
           ! Possibly Invert Frame
           IF (invert) THEN
              xtmp=drij(3)
-             drij(3)=drij(2)
-             drij(2)=xtmp
+             drij(3)=drij(1)
+             drij(1)=xtmp
           END IF
        END IF
 
@@ -1153,7 +1239,7 @@ CONTAINS
              limij = (ii*(ii+1))/2
              limkl = (kk*(kk+1))/2
              CALL store_2el_2c_diag(limij, limkl, ww(1:istep), w, error=error)
-             IF (invert) CALL invert_integral(w,42,error)
+             IF (invert) CALL invert_integral(sepi, sepj, int2el=w, error=error)
           END IF
 
           IF (debug_this_module) THEN
@@ -1263,7 +1349,7 @@ CONTAINS
              limkl = (kk*(kk+1))/2
              CALL store_2el_2c_diag(limij, limkl, ww_dx=ww_d(1:istep,1), ww_dy=ww_d(1:istep,2), ww_dz=ww_d(1:istep,3),&
                   dw=dw, error=error)
-             IF (invert) CALL invert_derivative(dw,42,error)
+             IF (invert) CALL invert_derivative(sepi, sepj, dint2el=dw, error=error)
           END IF
 
           IF (debug_this_module) THEN
@@ -1330,7 +1416,7 @@ CONTAINS
 
     IF (sepi%dorb.OR.sepi%dorb) THEN
        ! compute the contribution from d-orbitals
-       STOP "D-ORBITALS: dterep_ana"
+       STOP "D-ORBITALS: dterep_ana not working with analytical derivatives"
     END IF
 
     ! Tapering function
