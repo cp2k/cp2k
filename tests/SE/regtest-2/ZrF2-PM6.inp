@@ -1,0 +1,52 @@
+&GLOBAL
+  PROJECT O2
+  RUN_TYPE ENERGY_FORCE
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    ROKS
+    MULTIP 3
+    &QS
+      METHOD PM6
+      &SE
+      &END
+    &END QS
+    &SCF
+      MAX_SCF 50
+      EPS_SCF 1.0E-6
+      SCF_GUESS mopac
+      MIXING 0.1
+      &OT 
+        ROTATION
+        LINESEARCH 3PNT
+        MINIMIZER CG
+        PRECONDITIONER NONE
+      &END
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 5
+      &END
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+ F     0.000000     0.000000     0.000000
+Zr     0.000000     0.000000     1.935824
+ F     1.757762     0.000000     2.746804
+    &END COORD
+    &PRINT
+      &KINDS
+        BASIS_SET
+        POTENTIAL
+      &END KINDS
+    &END PRINT
+  &END SUBSYS
+&END FORCE_EVAL
