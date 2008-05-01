@@ -197,6 +197,76 @@ MODULE semi_empirical_par_utils
             setup_1c_2el_int
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief  Gives back the number of valence electrons for element z and also the
+!>         number of atomic orbitals for that specific element
+! *****************************************************************************
+  SUBROUTINE valence_electrons(z, sep, extended_basis_set, error)
+    INTEGER, INTENT(IN)                      :: z
+    TYPE(semi_empirical_type), POINTER       :: sep
+    LOGICAL, INTENT(IN)                      :: extended_basis_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'valence_electrons', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: natorb
+    LOGICAL                                  :: check, failure
+    REAL(KIND=dp)                            :: zeff
+
+    failure = .FALSE.
+    CPPostcondition(z>=0, cp_failure_level, routineP, error, failure)
+    ! Determine the Z eff
+    zeff = REAL(zval(z),KIND=dp)
+    ! Determine the number of atomic orbitals
+    natorb = 0
+    IF(nqs(z)>0)                            natorb = natorb+1
+    IF(nqp(z)>0)                            natorb = natorb+3
+    IF(extended_basis_set.AND.nqd(z)>0) natorb = natorb+5
+    IF(extended_basis_set.AND.nqf(z)>0) natorb = natorb+7
+    ! Check and assignemnt
+    check = (natorb<=4).OR.(extended_basis_set)
+    CPPostcondition(check, cp_failure_level, routineP, error, failure)
+    sep%zeff               = zeff
+    sep%natorb             = natorb
+    sep%extended_basis_set = extended_basis_set
+  END SUBROUTINE valence_electrons
+
+! *****************************************************************************
+!> \brief  Gives back the number of basis function for each l
+! *****************************************************************************
+  FUNCTION get_se_basis(z,l,error) RESULT(n)
+    INTEGER, INTENT(IN)                      :: z, l
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER                                  :: n
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_se_basis', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF ( z < 0 .OR. z > nelem ) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,"invalid atomic number")
+    ELSE
+       IF     ( l==0 ) THEN
+          n = nqs(z)
+       ELSEIF ( l==1 ) THEN
+          n = nqp(z)
+       ELSEIF ( l==2 ) THEN
+          n = nqd(z)
+       ELSEIF ( l==3 ) THEN
+          n = nqf(z)
+       ELSE
+          CALL stop_program(routineN,moduleN,__LINE__,"invalid l quantum number")
+       END IF
+       IF ( n < 0 ) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,"invalid n quantum number")
+       END IF
+    END IF
+  END FUNCTION get_se_basis
+
 ! *****************************************************************************
 !> \brief  Converts parameter units to internal
 !> \author Teodoro Laino [tlaino] - University of Zurich
@@ -274,10 +344,10 @@ CONTAINS
     iop = Nop(z)
     iod = Nod(z)
 
-    p = 2.e0_dp 
+    p  = 2.0_dp 
     p4 = p**4
     !  GSSC is the number of two-electron terms of type <SS|SS>
-    gssc  = REAL(MAX(ios-1,0),KINd=dp)
+    gssc  = REAL(MAX(ios-1,0),KIND=dp)
     k = iop
     !  GSPC is the number of two-electron terms of type <SS|PP>
     gspc = REAL(ios*k,KIND=dp) 
@@ -285,19 +355,19 @@ CONTAINS
     !  GP2C is the number of two-electron terms of type <PP|PP>
     !       plus 0.5 of the number of HPP integrals.
     !  (HPP is not used; instead it is replaced by 0.5(GPP-GP2))
-    gp2c = REAL((k*(k - 1))/2,KIND=dp) + 0.5e0_dp*REAL((l*(l - 1))/2,KIND=dp)
+    gp2c = REAL((k*(k - 1))/2,KIND=dp) + 0.5_dp*REAL((l*(l - 1))/2,KIND=dp)
     !  GPPC is minus 0.5 times the number of HPP integrals.
-    gppc = -0.5e0_dp*REAL((l*(l - 1))/2,KIND=dp)
+    gppc = -0.5_dp*REAL((l*(l - 1))/2,KIND=dp)
     !  HSPC is the number of two-electron terms of type <SP|SP>.
     !       (S and P must have the same spin.  In all cases, if
     !  P is non-zero, there are two S electrons)
     hspc = REAL(-k ,KIND=dp)
     !  Constraint the value of the STO exponent
-    zp = MAX(0.3e0_dp,zp) 
+    zp = MAX(0.3_dp,zp) 
     !  Take into account constraints on the values of the integrals
-    hpp = 0.5e0_dp*(gpp-gp2) 
-    hpp = MAX(0.1e0_dp,hpp)
-    hsp = MAX(1.e-7_dp,hsp)
+    hpp = 0.5_dp*(gpp-gp2) 
+    hpp = MAX(0.1_dp,hpp)
+    hsp = MAX(1.E-7_dp,hsp)
 
     ! Evaluation of EISOL
     eisol = uss*ios + upp*iop + udd*iod + gss*gssc + gpp*gppc + gsp*gspc + gp2*gp2c + hsp*hspc 
@@ -307,31 +377,31 @@ CONTAINS
     CPPostcondition(qn>0, cp_failure_level, routineP, error, failure)
 
     ! Charge separation evaluation
-    dd = (2.e0_dp*qn + 1)*(4.e0_dp*zs*zp)**(qn + 0.5e0_dp)/(zs+zp)**(2.e0_dp*qn + 2)/SQRT(3.e0_dp) 
-    qq = SQRT((4.e0_dp*qn*qn + 6.e0_dp*qn + 2.e0_dp)/20.e0_dp)/zp
+    dd = (2.0_dp*qn + 1)*(4.0_dp*zs*zp)**(qn + 0.5_dp)/(zs+zp)**(2.0_dp*qn + 2)/SQRT(3.0_dp) 
+    qq = SQRT((4.0_dp*qn*qn + 6.0_dp*qn + 2.0_dp)/20.0_dp)/zp
 
     ! Calculation of the additive terms in atomic units
     jmax = 5 
-    gdd1 = (hsp/(evolt*dd**2))**(1.e0_dp/3.e0_dp) 
+    gdd1 = (hsp/(evolt*dd**2))**(1.0_dp/3.0_dp) 
     d1 = gdd1 
-    d2 = gdd1 + 0.04e0_dp 
+    d2 = gdd1 + 0.04_dp 
     DO j = 1, jmax 
        df = d2 - d1 
-       hsp1 = 0.5e0_dp*d1 - 0.5e0_dp/SQRT(4.e0_dp*dd**2+1.e0_dp/d1**2) 
-       hsp2 = 0.5e0_dp*d2 - 0.5e0_dp/SQRT(4.e0_dp*dd**2+1.e0_dp/d2**2) 
-       IF (ABS(hsp2 - hsp1) < 1.e-25_dp) EXIT  
+       hsp1 = 0.5_dp*d1 - 0.5_dp/SQRT(4.0_dp*dd**2+1.0_dp/d1**2) 
+       hsp2 = 0.5_dp*d2 - 0.5_dp/SQRT(4.0_dp*dd**2+1.0_dp/d2**2) 
+       IF (ABS(hsp2 - hsp1) < EPSILON(0.0_dp)) EXIT  
        d3 = d1 + df*(hsp/evolt-hsp1)/(hsp2 - hsp1) 
        d1 = d2 
        d2 = d3 
     END DO
-    gqq = (p4*hpp/(evolt*48.e0_dp*qq**4))**0.2e0_dp 
+    gqq = (p4*hpp/(evolt*48.0_dp*qq**4))**0.2_dp 
     q1 = gqq 
-    q2 = gqq + 0.04e0_dp 
+    q2 = gqq + 0.04_dp 
     DO j = 1, jmax 
        qf = q2 - q1 
-       hpp1 = 0.25e0_dp*q1 - 0.5e0_dp/SQRT(4.e0_dp*qq**2+1.e0_dp/q1**2) + 0.25e0_dp/SQRT(8.e0_dp*qq**2+1.e0_dp/q1**2) 
-       hpp2 = 0.25e0_dp*q2 - 0.5e0_dp/SQRT(4.e0_dp*qq**2+1.e0_dp/q2**2) + 0.25e0_dp/SQRT(8.e0_dp*qq**2+1.e0_dp/q2**2) 
-       IF (ABS(hpp2 - hpp1) < 1.e-25_dp) EXIT  
+       hpp1 = 0.25_dp*q1 - 0.5_dp/SQRT(4.0_dp*qq**2+1.0_dp/q1**2) + 0.25_dp/SQRT(8.0_dp*qq**2+1.0_dp/q1**2) 
+       hpp2 = 0.25_dp*q2 - 0.5_dp/SQRT(4.0_dp*qq**2+1.0_dp/q2**2) + 0.25_dp/SQRT(8.0_dp*qq**2+1.0_dp/q2**2) 
+       IF (ABS(hpp2 - hpp1) < EPSILON(0.0_dp)) EXIT  
        q3 = q1 + qf*(hpp/evolt - hpp1)/(hpp2 - hpp1) 
        q1 = q2 
        q2 = q3 
@@ -357,75 +427,6 @@ CONTAINS
     ! arrays
     CALL calpar_d(sep,error)
   END SUBROUTINE calpar
-
-! *****************************************************************************
-!> \brief  Gives back the number of valence electrons for element z and also the
-!>         number of atomic orbitals for that specific element
-! *****************************************************************************
-  SUBROUTINE valence_electrons(z, sep, extended_basis_set, error)
-    INTEGER, INTENT(IN)                      :: z
-    TYPE(semi_empirical_type), POINTER       :: sep
-    LOGICAL, INTENT(IN)                      :: extended_basis_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'valence_electrons', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: natorb
-    LOGICAL                                  :: check, failure
-    REAL(KIND=dp)                            :: zeff
-
-    failure = .FALSE.
-    CPPostcondition(z>=0, cp_failure_level, routineP, error, failure)
-    ! Determine the Z eff
-    zeff = REAL(zval(z),KIND=dp)
-    ! Determine the number of atomic orbitals
-    natorb = 0
-    IF(nqs(z)>0)                            natorb = natorb+1
-    IF(nqp(z)>0)                            natorb = natorb+3
-    IF(extended_basis_set.AND.nqd(z)>0) natorb = natorb+5
-    IF(extended_basis_set.AND.nqf(z)>0) natorb = natorb+7
-    ! Check and assignemnt
-    check = (natorb<=4).OR.(extended_basis_set)
-    CPPostcondition(check, cp_failure_level, routineP, error, failure)
-    sep%zeff               = zeff
-    sep%natorb             = natorb
-    sep%extended_basis_set = extended_basis_set
-  END SUBROUTINE valence_electrons
-
-! *****************************************************************************
-!> \brief  Gives back the number of basis function for each l
-! *****************************************************************************
-  FUNCTION get_se_basis(z,l,error) RESULT(n)
-    INTEGER, INTENT(IN)                      :: z, l
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    INTEGER                                  :: n
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_se_basis', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    IF ( z < 0 .OR. z > nelem ) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"invalid atomic number")
-    ELSE
-       IF ( l==0 ) THEN
-          n = nqs(z)
-       ELSEIF ( l==1 ) THEN
-          n = nqp(z)
-       ELSEIF ( l==2 ) THEN
-          n = nqd(z)
-       ELSEIF ( l==3 ) THEN
-          n = nqf(z)
-       ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,"invalid l quantum number")
-       END IF
-       IF ( n < 0 ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,"invalid n quantum number")
-       END IF
-    END IF
-  END FUNCTION get_se_basis
 
 ! *****************************************************************************
 !> \brief  Finalize the initialization of parameters, defining additional 
@@ -770,6 +771,10 @@ CONTAINS
                                                 s0, s1, s2, s3, tmp
 
     failure = .FALSE.
+    CPPostcondition(ea>0.0_dp, cp_failure_level, routineP, error, failure)
+    CPPostcondition(eb>0.0_dp, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ec>0.0_dp, cp_failure_level, routineP, error, failure)
+    CPPostcondition(ed>0.0_dp, cp_failure_level, routineP, error, failure)
     aea = LOG(ea)
     aeb = LOG(eb)
     aec = LOG(ec)
@@ -861,6 +866,7 @@ CONTAINS
                                                 f1, f2, y1, y2
 
     failure = .FALSE.
+    CPPostcondition(fg/=0.0_dp, cp_failure_level, routineP, error, failure)
     ! Term for SS
     IF (l == 0) THEN
        res = 0.5_dp * evolt/fg
@@ -877,7 +883,7 @@ CONTAINS
        IF (delta < epsil) EXIT
        y1 = a1 + delta * g1
        y2 = a1 + delta * g2
-       IF (l == 1) THEN
+       IF      (l == 1) THEN
           f1 = (ev4*(1/y1 - 1/SQRT(y1**2 + dsq)) - fg) ** 2
           f2 = (ev4*(1/y2 - 1/SQRT(y2**2 + dsq)) - fg) ** 2
        ELSE IF (l == 2) THEN
