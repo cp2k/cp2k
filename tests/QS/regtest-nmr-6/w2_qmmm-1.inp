@@ -1,0 +1,153 @@
+@SET BASIS_SET 3-21G*
+@SET BASIS_SET_FILE ../EMSL_BASIS_SETS
+@SET POTENTIAL_FILE ../POTENTIAL
+@SET PROJECT_NAME w2_qmmm-1
+
+&FORCE_EVAL
+  METHOD QMMM
+  &DFT
+    BASIS_SET_FILE_NAME ${BASIS_SET_FILE}
+    POTENTIAL_FILE_NAME ${POTENTIAL_FILE}
+    &MGRID
+      COMMENSURATE
+      CUTOFF 100
+    &END MGRID
+    &QS
+      METHOD GAPW
+    &END QS
+    &SCF
+      MAX_SCF 5
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+
+  &PROPERTIES
+    &LINRES
+       &LOCALIZE
+         MAX_ITER 5
+       &END
+       OPT_METHOD CG
+       LINESEARCH 2PNT
+       PRECONDITIONER FULL_ALL
+       MAX_SCF 5
+       &CURRENT
+         ORBITAL_CENTER WANNIER
+       &END CURRENT
+       &NMR
+       &END
+    &END
+  &END
+
+  &MM
+    &FORCEFIELD
+      &BEND
+        ATOMS H O H
+        K 0.
+        THETA0 1.8
+      &END BEND
+      &BOND
+        ATOMS O H
+        K 0.
+        R0 1.8
+      &END BOND
+      &CHARGE
+        ATOM O
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.4238
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          atoms O O
+          EPSILON 78.198
+          SIGMA 3.166
+          RCUT 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms O H
+          EPSILON 0.0
+          SIGMA 3.6705
+          RCUT 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms H H
+          EPSILON 0.0
+          SIGMA 3.30523
+          RCUT 11.4
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 100
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &QMMM
+    &CELL
+      ABC 5 5 5
+      UNIT ANGSTROM
+    &END CELL
+    ECOUPL GAUSS
+    NOCENTER F
+    NOCENTER0 F
+    NOCOMPATIBILITY
+    USE_GEEP_LIB 12
+
+    &QM_KIND O
+      MM_INDEX 1
+    &END QM_KIND
+    &QM_KIND H
+      MM_INDEX 2 3
+    &END QM_KIND
+
+    &PERIODIC 
+      GMAX 0.1
+      &MULTIPOLE
+        RCUT 65.0
+        EWALD_PRECISION 0.000001
+      &END
+    &END
+    &PRINT
+      &PERIODIC_INFO
+      &END 
+    &END
+
+  &END QMMM
+  &SUBSYS
+    &CELL
+      ABC 7 7 7
+      UNIT ANGSTROM
+    &END CELL
+
+    &KIND H
+      BASIS_SET ${BASIS_SET}
+      POTENTIAL ALL
+    &END KIND
+    &KIND O
+      BASIS_SET ${BASIS_SET}
+      POTENTIAL ALL
+    &END KIND
+
+    &TOPOLOGY
+      CONN_FILE ./w2.psf
+      CONNECTIVITY PSF
+      COORD_FILE_NAME ./w2.pdb
+      COORDINATE PDB
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ${PROJECT_NAME}
+  RUN_TYPE LINEAR_RESPONSE
+&END GLOBAL
