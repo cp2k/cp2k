@@ -10,7 +10,8 @@
 !>      23.11.2007 jhu   short range version of integrals
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
-!>      Teodoro Laino (05.2008) [tlaino] - University of Zurich : 
+!>      Teodoro Laino (05.2008) [tlaino] - University of Zurich : analytical
+!>                 derivatives for d-orbitals
 ! *****************************************************************************
 MODULE semi_empirical_int_ana
 
