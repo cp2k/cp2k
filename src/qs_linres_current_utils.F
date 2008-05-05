@@ -582,7 +582,7 @@ CONTAINS
     LOGICAL                                  :: failure, gapw
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: state_done
     REAL(dp)                                 :: center(3), center2(3), dist, &
-                                                mdist, rab(3)
+                                                mdist, r(3), rab(3)
     REAL(dp), DIMENSION(:), POINTER          :: common_center
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -699,6 +699,29 @@ CONTAINS
     natom = SIZE(particle_set,1)
     ALLOCATE(current_env%centers_set(nspins),current_env%center_list(nspins),STAT=istat)
     CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
+    !
+    !
+    IF(current_env%do_qmmm) THEN
+       DO ispin = 1,nspins
+          DO istate = 1,SIZE(linres_control%localized_wfn_control%centers_set(ispin)%array,2)
+             ! just to be sure...
+             r(:) = pbc(linres_control%localized_wfn_control%centers_set(ispin)%array(:,istate),cell)
+             IF(r(1).LT.0.0_dp) THEN
+                linres_control%localized_wfn_control%centers_set(ispin)%array(1,istate) = &
+                     r(1) + qs_env%cell%hmat(1,1)
+             ENDIF
+             IF(r(2).LT.0.0_dp) THEN
+                linres_control%localized_wfn_control%centers_set(ispin)%array(2,istate) = &
+                     r(2) + qs_env%cell%hmat(2,2)
+             ENDIF
+             IF(r(3).LT.0.0_dp) THEN
+                linres_control%localized_wfn_control%centers_set(ispin)%array(3,istate) = &
+                     r(3) + qs_env%cell%hmat(3,3)
+             ENDIF
+          ENDDO
+       ENDDO
+    ENDIF
+    !
     max_states = 0
     DO ispin = 1,nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=n_mo(ispin),homo=homo)
@@ -747,8 +770,9 @@ CONTAINS
           DO istate = 1,homo
              mdist = 1.0E20_dp
              DO iatom = 1,natom
-                rab = pbc(particle_set(iatom)%r(:),&
-                     &    linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,istate),cell)
+                r   = pbc(particle_set(iatom)%r(:),cell)
+                rab = pbc(r,linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,istate),&
+                     &cell)
                 dist = SQRT(rab(1)**2+rab(2)**2+rab(3)**2)
                 IF(dist.LT.mdist) THEN
                    buff(istate) = iatom
@@ -769,10 +793,10 @@ CONTAINS
                 ENDIF
              ENDDO
              IF(output_unit>0) THEN
-                WRITE(output_unit,'(A,I4,A,I5)') 'clustering ',j,' center(s) on atom ',iatom
+                WRITE(output_unit,'(A,I6,A,I6)') 'clustering ',j,' center(s) on atom ',iatom
              ENDIF
              current_env%center_list(ispin)%array(1,iatom+1) = &
-                  current_env%center_list(ispin)%array(1,iatom) + j
+                  & current_env%center_list(ispin)%array(1,iatom) + j
              current_env%centers_set(ispin)%array(:,iatom) = &
                   &  pbc(particle_set(iatom)%r,cell)
           ENDDO
@@ -788,6 +812,45 @@ CONTAINS
           CALL stop_program("current_env_init","unknown orbital center, try again...")
        END SELECT
     ENDDO
+    !
+    !
+    IF(current_env%do_qmmm.AND.&
+         & (current_env%orb_center.EQ.current_orb_center_wannier.OR.&
+         &  current_env%orb_center.EQ.current_orb_center_atom)) THEN
+       IF(output_unit>0) THEN
+          WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
+          WRITE(output_unit,*) 'orbital center shifted to match the '
+          WRITE(output_unit,*) 'center of the box (L/2 L/2 L/2) (superdirty...)'
+          WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
+       ENDIF
+       DO ispin = 1,nspins
+          DO istate = 1,current_env%nbr_center(ispin)
+             IF(current_env%centers_set(ispin)%array(1,istate).LE.0.0_dp) THEN
+                current_env%centers_set(ispin)%array(1,istate) = &
+                     current_env%centers_set(ispin)%array(1,istate) + qs_env%cell%hmat(1,1)
+             ENDIF
+             IF(current_env%centers_set(ispin)%array(2,istate).LE.0.0_dp) THEN
+                current_env%centers_set(ispin)%array(2,istate) = &
+                     current_env%centers_set(ispin)%array(2,istate) + qs_env%cell%hmat(2,2)
+             ENDIF
+             IF(current_env%centers_set(ispin)%array(3,istate).LE.0.0_dp) THEN
+                current_env%centers_set(ispin)%array(3,istate) = &
+                  current_env%centers_set(ispin)%array(3,istate) + qs_env%cell%hmat(3,3)
+             ENDIF
+          ENDDO
+       ENDDO
+       ! printing
+       IF(output_unit>0) THEN
+          DO ispin = 1,nspins
+             WRITE(output_unit,'(/,T2,A,I2)') "WANNIER CENTERS for spin ",ispin
+             WRITE(output_unit,'(/,T18,A)') "--------------- Shifted Centers --------------- "
+             DO istate = 1,current_env%nbr_center(ispin)
+                WRITE(output_unit,'(T5,A,I6,3F12.6)')&
+                     'state ',istate,current_env%centers_set(ispin)%array(1:3,istate)
+             ENDDO
+          ENDDO
+       ENDIF
+    ENDIF
 
     max_nbr_center = MAXVAL(current_env%nbr_center(1:nspins))
     current_env%nao = nao

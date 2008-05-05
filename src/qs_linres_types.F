@@ -99,7 +99,7 @@ MODULE qs_linres_types
 !> \author MI 
 ! *****************************************************************************
   TYPE current_env_type
-     LOGICAL                                     :: full,simple_done(6),simple_converged(6)
+     LOGICAL                                     :: full,simple_done(6),simple_converged(6),do_qmmm
      LOGICAL, DIMENSION(:,:), POINTER            :: full_done
      INTEGER                                     :: ref_count,nao,nstates(2),gauge,orb_center,nbr_center(2)
      INTEGER, DIMENSION(:    ), POINTER          :: list_cubes

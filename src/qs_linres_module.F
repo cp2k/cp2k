@@ -104,7 +104,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: epr_present, failure, ionode, &
+    LOGICAL                                  :: do_qmmm, epr_present, &
+                                                failure, ionode, &
                                                 lr_calculation, nmr_present
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(current_env_type)                   :: current_env
@@ -121,6 +122,7 @@ CONTAINS
     lr_calculation = .FALSE.
     nmr_present = .FALSE.
     epr_present = .FALSE.
+    do_qmmm = .FALSE.
 
     NULLIFY(dft_control,p_env,linres_control,logger,lr_section,prop_section,qs_env)
 
@@ -132,6 +134,7 @@ CONTAINS
        CALL force_env_get(force_env,&
                           qs_env=qs_env,error=error)
     CASE(use_qmmm)
+       do_qmmm = .TRUE.
        CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
                           qs_env=qs_env,error=error)
     CASE DEFAULT
@@ -178,6 +181,7 @@ CONTAINS
 
           !Initialize the current environment
           current_env%ref_count=0
+          current_env%do_qmmm = do_qmmm
           CALL current_env_init(current_env,qs_env,error=error)
           CALL current_operators(current_env,qs_env,error=error)
           CALL current_do_current(current_env,p_env,qs_env,error=error)

@@ -487,7 +487,6 @@ CONTAINS
              ENDDO ! ia
           ENDDO ! ispin
        ENDDO ! iat
-       !
     ENDDO ! ikind
     !
     !
