@@ -189,11 +189,19 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_isend
+#if defined(__FFTSGL)
+     MODULE PROCEDURE mp_isend_rm2, mp_isend_cv, mp_isend_rm2_lp, mp_isend_cv_lp
+#else
      MODULE PROCEDURE mp_isend_rm2, mp_isend_cv
+#endif
   END INTERFACE
 
   INTERFACE mp_irecv
+#if defined(__FFTSGL)
+     MODULE PROCEDURE mp_irecv_rm2, mp_irecv_cv, mp_irecv_rm2_lp, mp_irecv_cv_lp
+#else
      MODULE PROCEDURE mp_irecv_rm2, mp_irecv_cv
+#endif
   END INTERFACE
 
   ! type internally used to store message passing performance indicators
@@ -3545,6 +3553,97 @@ SUBROUTINE mp_isend_cv(msgin,dest,comm,request,tag)
 #endif
 END SUBROUTINE mp_isend_cv
 
+#if defined(__FFTSGL)
+SUBROUTINE mp_isend_rm2_lp(msgin,dest,comm,request,tag)
+  IMPLICIT NONE
+  REAL (KIND=sp), POINTER, DIMENSION (:,:) :: msgin
+  INTEGER, INTENT ( IN ) :: dest, comm
+  INTEGER, INTENT(out) :: request
+  INTEGER, OPTIONAL, INTENT(in) :: tag
+
+  INTEGER :: msglen, ierr, my_tag
+  INTEGER :: lower1,lower2
+  REAL(KIND=sp) :: foo(1)
+    INTEGER :: handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_rm2', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+
+#if defined(__parallel)
+  t_start = m_walltime ( )
+  my_tag = 0
+  IF (PRESENT(tag)) my_tag=tag
+
+  msglen = SIZE(msgin,1)*SIZE(msgin,2)
+  IF (msglen>0) THEN
+     lower1=LBOUND(msgin,1)
+     lower2=LBOUND(msgin,2)
+     CALL mpi_isend(msgin(lower1,lower2),msglen,MP_STD_REAL,dest,my_tag,&
+          comm,request,ierr)
+  ELSE
+     CALL mpi_isend(foo,msglen,MP_STD_REAL,dest,my_tag,&
+          comm,request,ierr)
+  END IF
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isend_rm2" )
+
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+#else
+  ierr=1
+  CALL mp_stop( ierr, "mp_isend called in non parallel case" )
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+END SUBROUTINE mp_isend_rm2_lp
+
+SUBROUTINE mp_isend_cv_lp(msgin,dest,comm,request,tag)
+  IMPLICIT NONE
+  COMPLEX (KIND=sp), POINTER, DIMENSION (:) :: msgin
+  INTEGER, INTENT ( IN ) :: dest, comm
+  INTEGER, INTENT(out) :: request
+  INTEGER, OPTIONAL, INTENT(in) :: tag
+
+  INTEGER :: msglen, ierr, my_tag
+  INTEGER :: lower1
+  REAL(KIND=sp) :: foo(1)
+  INTEGER :: handle
+  CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_rm2', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+
+#if defined(__parallel)
+  t_start = m_walltime ( )
+  my_tag = 0
+  IF (PRESENT(tag)) my_tag=tag
+
+  msglen = SIZE(msgin)
+  IF (msglen>0) THEN
+     lower1=LBOUND(msgin,1)
+     CALL mpi_isend(msgin(lower1),msglen,MP_STD_COMPLEX,dest,my_tag,&
+          comm,request,ierr)
+  ELSE
+     CALL mpi_isend(foo,msglen,MP_STD_COMPLEX,dest,my_tag,&
+          comm,request,ierr)
+  END IF
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isend_cv" )
+
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=2*msglen*reallen)
+#else
+  ierr=1
+  CALL mp_stop( ierr, "mp_isend called in non parallel case" )
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+END SUBROUTINE mp_isend_cv_lp
+#endif
+
 ! *****************************************************************************
 !> \brief non blocking recieve of real arrays 
 !> \note
@@ -3636,6 +3735,94 @@ SUBROUTINE mp_irecv_cv(msgout,source,comm,request,tag)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_irecv_cv
+
+#if defined(__FFTSGL)
+SUBROUTINE mp_irecv_rm2_lp(msgout,source,comm,request,tag)
+  IMPLICIT NONE
+  REAL (KIND=sp), POINTER, DIMENSION (:,:) :: msgout
+  INTEGER, INTENT ( IN ) :: source, comm
+  INTEGER, INTENT(out) :: request
+  INTEGER, OPTIONAL, INTENT(in) :: tag
+  INTEGER :: msglen, ierr, my_tag
+  INTEGER :: lower1,lower2
+  REAL(KIND=sp) :: foo(1)
+    INTEGER :: handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_rm2', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+
+#if defined(__parallel)
+  t_start = m_walltime ( )
+  my_tag = 0
+  IF (PRESENT(tag)) my_tag=tag
+
+  msglen = SIZE(msgout,1)*SIZE(msgout,2)
+  IF (msglen>0) THEN
+     lower1=LBOUND(msgout,1)
+     lower2=LBOUND(msgout,2)
+     CALL mpi_irecv(msgout(lower1,lower2),msglen,MP_STD_REAL,source, my_tag,&
+          comm,request,ierr)
+  ELSE
+     CALL mpi_irecv(foo,msglen,MP_STD_REAL,source, my_tag,&
+          comm,request,ierr)
+  END IF
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_irecv_rm2" )
+
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+#else
+  CALL mp_abort( "mp_irecv called in non parallel case" )
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+END SUBROUTINE mp_irecv_rm2_lp
+
+SUBROUTINE mp_irecv_cv_lp(msgout,source,comm,request,tag)
+  IMPLICIT NONE
+  COMPLEX (KIND=sp), POINTER, DIMENSION (:) :: msgout
+  INTEGER, INTENT ( IN ) :: source, comm
+  INTEGER, INTENT(out) :: request
+  INTEGER, OPTIONAL, INTENT(in) :: tag
+
+  INTEGER :: msglen, ierr, my_tag
+  INTEGER :: lower1
+  REAL(KIND=sp) :: foo(1)
+  INTEGER :: handle
+  CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_cv', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+
+#if defined(__parallel)
+  t_start = m_walltime ( )
+  my_tag = 0
+  IF (PRESENT(tag)) my_tag=tag
+
+  msglen = SIZE(msgout)
+  IF (msglen>0) THEN
+     lower1=LBOUND(msgout,1)
+     CALL mpi_irecv(msgout(lower1),msglen,MP_STD_COMPLEX,source, my_tag,&
+          comm,request,ierr)
+  ELSE
+     CALL mpi_irecv(foo,msglen,MP_STD_COMPLEX,source, my_tag,&
+          comm,request,ierr)
+  END IF
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_irecv_cv" )
+
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=2*msglen*reallen)
+#else
+  CALL mp_abort( "mp_irecv called in non parallel case" )
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+END SUBROUTINE mp_irecv_cv_lp
+#endif
 
 ! *****************************************************************************
 !> \brief waits for completion of the given request

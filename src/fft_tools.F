@@ -946,6 +946,9 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
     INTEGER, INTENT(OUT), OPTIONAL           :: status
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'fft3d_pb', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: abuf, bbuf
     INTEGER                                  :: handle, lg(2), lz(3), mcy3, &
@@ -953,7 +956,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
                                                 my1, my2, my3, my_pos, mz1, &
                                                 mz2, mz3, np, sign
     INTEGER, DIMENSION(2)                    :: dim, pos
-    LOGICAL                                  :: test
+    LOGICAL                                  :: failure, test
     REAL(KIND=dp)                            :: flops, nx, sum_data
     REAL(KIND=lp)                            :: norm
     TYPE(cp_error_type)                      :: error
@@ -2973,15 +2976,15 @@ END SUBROUTINE release_fft_scratch
 
 ! *****************************************************************************
 SUBROUTINE sparse_alltoall ( rs, scount, sreq, rq, rcount, rreq, group )
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rs
     INTEGER, DIMENSION(:), POINTER           :: scount, sreq
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rq
     INTEGER, DIMENSION(:), POINTER           :: rcount, rreq
     INTEGER, INTENT(IN)                      :: group
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: msgin, msgout
+    COMPLEX(KIND=lp), DIMENSION(:), POINTER  :: msgin, msgout
     INTEGER                                  :: ip, n, nr, ns, pos, rn, sn
 
     CALL mp_sync ( group )
