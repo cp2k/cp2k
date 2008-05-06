@@ -252,7 +252,8 @@ CONTAINS
             error=error)
 
        CALL keyword_create(keyword, name="K",&
-            description="Specifies the force constant for the harmonic restraint",&
+            description="Specifies the force constant for the harmonic restraint. The functional "//&
+            "form for the restraint is: K*(X-TARGET)^2.",&
             usage="K {real}",&
             type_of_var=real_t, default_r_val=0.0_dp, unit_str="internal_cp2k",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
