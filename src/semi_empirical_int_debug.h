@@ -147,7 +147,7 @@ END INTERFACE rot_2el_2c_first_debug
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
 INTERFACE check_dterep_ana
-  SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,error)
+  SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,lgrad,error)
     USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
@@ -157,7 +157,7 @@ INTERFACE check_dterep_ana
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: r
     REAL(dp), DIMENSION(491), INTENT(IN)     :: ri, dri
-    LOGICAL, INTENT(IN)                      :: shortrange
+  LOGICAL, INTENT(IN)                      :: shortrange, lgrad
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
   END SUBROUTINE check_dterep_ana

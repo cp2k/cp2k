@@ -478,7 +478,7 @@ END SUBROUTINE check_dcorecore_ana
 !>      04.2007 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,error)
+SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,lgrad,error)
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: terep_num
@@ -489,7 +489,7 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,error)
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), INTENT(IN)                     :: r
   REAL(dp), DIMENSION(491), INTENT(IN)     :: ri, dri
-  LOGICAL, INTENT(IN)                      :: shortrange
+  LOGICAL, INTENT(IN)                      :: shortrange, lgrad
   TYPE(taper_type), POINTER                :: taper
   TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -505,11 +505,13 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,error)
   od = 0.5_dp/delta
   rn = r
   CALL terep_num(sepi,sepj,rn,ri0,taper,shortrange,error=error)
-  rn = r + delta
-  CALL terep_num(sepi,sepj,rn,rip,taper,shortrange,error=error)
-  rn = r - delta
-  CALL terep_num(sepi,sepj,rn,rim,taper,shortrange,error=error)
-  nri = od * (rip - rim)
+  IF (lgrad) THEN
+     rn = r + delta
+     CALL terep_num(sepi,sepj,rn,rip,taper,shortrange,error=error)
+     rn = r - delta
+     CALL terep_num(sepi,sepj,rn,rim,taper,shortrange,error=error)
+     nri = od * (rip - rim)
+  END IF
   ! check
   WRITE(*,*)"DEBUG::"//routineP
   DO j = 1, 491
@@ -517,13 +519,15 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,error)
         WRITE(*,*)"Error in value of the integral RI",j,ri(j),ri0(j)
         STOP
      END IF
-     IF (.NOT.check_value(dri(j), nri(j), delta*100.0_dp, 0.1_dp)) THEN
-        WRITE(*,*)"ERROR for derivative of RI integral, RI(j), j::",j
-        WRITE(*,*)"FULL SET OF INTEGRALS: INDX  ANAL  NUM   DIFF"
-        DO i = 1, 491
-           WRITE(*,'(I5,3F15.9)')i, dri(i), nri(i), nri(i)-dri(i)
-        END DO
-        STOP
+     IF (lgrad) THEN
+        IF (.NOT.check_value(dri(j), nri(j), delta*100.0_dp, 0.1_dp)) THEN
+           WRITE(*,*)"ERROR for derivative of RI integral, RI(j), j::",j
+           WRITE(*,*)"FULL SET OF INTEGRALS: INDX  ANAL  NUM   DIFF"
+           DO i = 1, 491
+              WRITE(*,'(I5,3F15.9)')i, dri(i), nri(i), nri(i)-dri(i)
+           END DO
+           STOP
+        END IF
      END IF
   END DO
 END SUBROUTINE check_dterep_ana

@@ -44,6 +44,8 @@ MODULE semi_empirical_int_ana
                                              rotmat_type,&
                                              semi_empirical_type,&
                                              taper_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -145,7 +147,7 @@ CONTAINS
        END IF
        
        CALL dnucint_ana(sepi,sepj,rij,core=core,dcore=dcore,itype=itype,taper=taper,&
-            shortrange=shortrange,error=error)
+            shortrange=shortrange,lgrad=lgrad,error=error)
       
        ! Copy parameters over to arrays for do loop.
        last_orbital(1)  = sepi%natorb
@@ -329,7 +331,7 @@ CONTAINS
 
        IF (l_enuc.OR.l_denuc) THEN
           CALL dnucint_ana(sepi,sepj,rij,ssss=ssss,dssss=dssss,itype=itype,taper=taper,&
-               shortrange=shortrange,error=error)
+               shortrange=shortrange,lgrad=l_denuc,error=error)
 
           ! Zeroing local method dependent core-core corrections
           qcorr = 0.0_dp
@@ -736,7 +738,7 @@ CONTAINS
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
   RECURSIVE SUBROUTINE dnucint_ana ( sepi, sepj, rij, ssss, core, dssss, dcore, itype,&
-       taper, shortrange, do_longrange, error)
+       taper, shortrange, do_longrange, lgrad, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(OUT), OPTIONAL          :: ssss
@@ -749,6 +751,7 @@ CONTAINS
     TYPE(taper_type), POINTER                :: taper
     LOGICAL, INTENT(IN)                      :: shortrange
     LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
+    LOGICAL, INTENT(IN)                      :: lgrad
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_ana', &
@@ -760,33 +763,41 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(10, 2)          :: core_lr, dcore_lr
 
     failure = .FALSE.
-
-
     longrange = .FALSE.
     IF (PRESENT(do_longrange))  longrange = do_longrange
     CPPrecondition(PRESENT(core).EQV.PRESENT(dcore),cp_failure_level,routineP,error,failure)
     CPPrecondition(PRESENT(ssss).EQV.PRESENT(dssss),cp_failure_level,routineP,error,failure)
-    l_core  = PRESENT(core)
-    l_ssss  = PRESENT(ssss)
+    l_core   = PRESENT( core)
+    l_ssss   = PRESENT( ssss)
     IF (l_core) THEN
        core  = 0.0_dp
+    END IF
+    IF (l_core.AND.lgrad) THEN 
        dcore = 0.0_dp
     END IF
     IF (l_ssss) THEN
        ssss  = 0.0_dp
+    END IF
+    IF (l_ssss.AND.lgrad) THEN
        dssss = 0.0_dp
     END IF
     
     ! Value of the integrals for sp shell
     CALL  nucint_sp_num(sepi, sepj, rij, ssss,  core, itype, longrange, error=error)
-    ! Integrals derivatives for sp shell
-    CALL dnucint_sp_ana(sepi, sepj, rij,dssss, dcore, itype, longrange, error=error)
 
     IF ((sepi%dorb.OR.sepj%dorb).AND.l_core) THEN
        ! Compute the contribution from d-orbitals
        CALL  nucint_d_num(sepi, sepj, rij, core, itype, longrange, error=error)
-       ! Compute the contribution from d-orbitals
-       CALL dnucint_d_ana(sepi, sepj, rij,dcore, itype, longrange, error=error)
+    END IF
+    
+    IF (lgrad) THEN
+       ! Integrals derivatives for sp shell
+       CALL dnucint_sp_ana(sepi, sepj, rij,dssss, dcore, itype, longrange, error=error)
+
+       IF ((sepi%dorb.OR.sepj%dorb).AND.l_core) THEN
+          ! Integral derivatives involving d-orbitals
+          CALL dnucint_d_ana(sepi, sepj, rij,dcore, itype, longrange, error=error)
+       END IF
     END IF
 
     IF (.NOT.longrange) THEN
@@ -798,12 +809,18 @@ CONTAINS
           dft= dtaper_eval (taper, rij, error)
        END IF
 
+       IF (lgrad) THEN
+          IF (l_core) THEN
+             dcore(:,:) = ft*dcore(:,:)+dft*core(:,:)
+          END IF
+          IF (l_ssss) THEN
+             dssss      = ft*dssss+dft*ssss
+          END IF
+       END IF
        IF (l_core) THEN
-          dcore(:,:) = ft*dcore(:,:)+dft*core(:,:)
           core(:,:)  = ft*core(:,:)
        END IF
        IF (l_ssss) THEN
-          dssss      = ft*dssss+dft*ssss
           ssss       = ft*ssss
        END IF
     END IF
@@ -812,34 +829,34 @@ CONTAINS
     IF ( shortrange ) THEN
        IF (l_ssss) THEN
           CALL dnucint_ana( sepi, sepj, rij, ssss=ssss_lr, dssss=dssss_lr, itype=itype,&
-               taper=taper, shortrange=.FALSE., do_longrange=.TRUE., error=error )
-           ssss =  ssss -  ssss_lr
-          dssss = dssss - dssss_lr
+               taper=taper, shortrange=.FALSE., do_longrange=.TRUE., lgrad=lgrad, error=error )
+                      ssss =  ssss -  ssss_lr
+          IF (lgrad) dssss = dssss - dssss_lr
        END IF
        IF (l_core) THEN
           CALL dnucint_ana( sepi, sepj, rij, core=core_lr, dcore=dcore_lr, itype=itype,&
-               taper=taper, shortrange=.FALSE., do_longrange=.TRUE., error=error )
-           core =  core -  core_lr
-          dcore = dcore - dcore_lr
+               taper=taper, shortrange=.FALSE., do_longrange=.TRUE., lgrad=lgrad, error=error )
+                      core =  core -  core_lr
+          IF (lgrad) dcore = dcore - dcore_lr
        END IF
     END IF
 
     IF (l_core) THEN
-       ! If no orbitals are present on the atom let's zero the integral contribution
-       IF (sepi%natorb == -1) dcore(:,1) = 0.0_dp
-       IF (sepj%natorb == -1) dcore(:,2) = 0.0_dp
-       
+       IF (lgrad) THEN
+          ! If no orbitals are present on the atom let's zero the integral contribution
+          IF (sepi%natorb == -1) dcore(:,1) = 0.0_dp
+          IF (sepj%natorb == -1) dcore(:,2) = 0.0_dp
+       END IF
+
        ! If no orbitals are present on the atom let's zero the integral contribution
        IF (sepi%natorb == -1) core(:,1) = 0.0_dp
        IF (sepj%natorb == -1) core(:,2) = 0.0_dp
     END IF
 
     ! Debug Procedure.. Check valifity of analytical gradients of nucint
-    IF (debug_this_module) THEN
-       CALL check_dnucint_ana(sepi,sepj,rij,dssss,dcore,itype,shortrange,taper=taper,&
-            error=error)
+    IF (debug_this_module.AND.lgrad) THEN
+       CALL check_dnucint_ana(sepi,sepj,rij,dssss,dcore,itype,shortrange,taper=taper,error=error)
     END IF
-
   END SUBROUTINE dnucint_ana
 
 ! *****************************************************************************
@@ -889,8 +906,8 @@ CONTAINS
     failure   = .FALSE.
     l_core  = PRESENT(dcore)
     l_ssss  = PRESENT(dssss)
-
     IF (.NOT.(l_core.OR.l_ssss)) RETURN
+
     si  = (sepi%natorb > 1)
     sj  = (sepj%natorb > 1)
 
@@ -931,7 +948,6 @@ CONTAINS
           dcore(4,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 2, rij, longrange, itype, error) * sepi%zeff
        END IF
     END IF
-
   END SUBROUTINE dnucint_sp_ana
 
 ! *****************************************************************************
@@ -1018,7 +1034,6 @@ CONTAINS
           kl = indexa(8, 8)
           dcore(10, 1)= d_ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
        END IF
-
     END IF
   END SUBROUTINE dnucint_d_ana
 
@@ -1075,6 +1090,7 @@ CONTAINS
     IF (l_w)    w = 0.0_dp
     IF (lgrad) dw = 0.0_dp
     IF (.NOT.(l_w.OR.lgrad)) RETURN
+    
     rij = DOT_PRODUCT(rijv, rijv)
     IF (rij > rij_threshold) THEN
        ! The repulsion integrals over molecular frame (w) are stored in the
@@ -1088,7 +1104,7 @@ CONTAINS
        CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=lgrad, do_invert=invert, error=error)          
 
        ! Compute integrals in diatomic frame as well their derivatives (if requested)
-       CALL dterep_ana(sepi,sepj,rij,rep,rep_d,taper,shortrange,error=error)
+       CALL dterep_ana(sepi,sepj,rij,rep,rep_d,taper,shortrange,lgrad=lgrad,error=error)
 
        IF (lgrad) THEN
           drij(:) = rijv/rij
@@ -1317,7 +1333,6 @@ CONTAINS
        END IF
        CALL rotmat_release(ij_matrix, error)
     ENDIF
-
   END SUBROUTINE rotint_ana
 
 ! *****************************************************************************
@@ -1336,7 +1351,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
   RECURSIVE SUBROUTINE dterep_ana (sepi, sepj, rij, rep, rep_d, taper, shortrange,&
-       do_longrange, error)
+       do_longrange, lgrad, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), INTENT(IN)                :: rij
     REAL(KIND=dp), DIMENSION(491), &
@@ -1344,6 +1359,7 @@ CONTAINS
     TYPE(taper_type), POINTER                :: taper
     LOGICAL, INTENT(IN)                      :: shortrange
     LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
+    LOGICAL, INTENT(IN)                      :: lgrad
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dterep_ana', &
@@ -1357,41 +1373,51 @@ CONTAINS
     longrange = .FALSE.
     IF (PRESENT(do_longrange))  longrange = do_longrange
     rep   = 0.0_dp
-    rep_d = 0.0_dp
+    IF (lgrad) THEN
+       rep_d = 0.0_dp
+    END IF
 
     ! Integral Values for sp shells only
     CALL  terep_sp_num(sepi, sepj, rij,   rep(1:34), longrange, error=error)
-    ! Integral Derivatives
-    CALL dterep_sp_ana(sepi, sepj, rij, rep_d(1:34), longrange, error=error)
 
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d-orbitals
        CALL  terep_d_num (sepi, sepj, rij, rep,   longrange, error=error )
-       ! Compute the derivatives from d-orbitals
-       CALL dterep_d_ana (sepi, sepj, rij, rep_d, longrange, error=error )
+    END IF
+
+    IF (lgrad) THEN
+       ! Integral Derivatives
+       CALL dterep_sp_ana(sepi, sepj, rij, rep_d(1:34), longrange, error=error)
+
+       IF (sepi%dorb.OR.sepj%dorb) THEN
+          ! Compute the derivatives from d-orbitals
+          CALL dterep_d_ana (sepi, sepj, rij, rep_d, longrange, error=error )
+       END IF
     END IF
 
     ! Tapering function
     IF (.NOT.longrange) THEN
        ft = taper_eval(taper,rij,error)
        dft= dtaper_eval(taper,rij,error)
-       rep_d(:) = dft*rep(:)+ft*rep_d(:)
+       IF (lgrad) THEN
+          rep_d(:) = dft*rep(:)+ft*rep_d(:)
+       END IF
        rep(:) = ft*rep(:)
     END IF
 
     IF ( shortrange ) THEN
        CALL dterep_ana ( sepi, sepj, rij, rep_lr, rep_d_lr, taper, shortrange=.FALSE.,&
-            do_longrange=.TRUE., error=error)
+            do_longrange=.TRUE., lgrad=lgrad, error=error)
        ! Correct Integral and Derivatives values
-        rep  =   rep -  rep_lr
-       rep_d = rep_d - rep_d_lr
+                   rep  =   rep -  rep_lr
+       IF (lgrad) rep_d = rep_d - rep_d_lr
     END IF
 
     ! Possibly debug 2el 2cent integrals and derivatives
     IF (debug_this_module) THEN
-       CALL check_dterep_ana(sepi, sepj, rij, rep, rep_d, shortrange,taper=taper, error=error)
+       CALL check_dterep_ana(sepi, sepj, rij, rep, rep_d, shortrange, taper=taper,&
+            lgrad=lgrad, error=error)
     END IF
-
   END SUBROUTINE dterep_ana
 
 ! *****************************************************************************
@@ -1459,7 +1485,6 @@ CONTAINS
           END DO
        END DO
     END DO
-
   END SUBROUTINE dterep_sp_ana
 
 ! *****************************************************************************
@@ -1521,7 +1546,6 @@ CONTAINS
           END DO
        END DO
     END DO
-
   END SUBROUTINE dterep_d_ana
 
 END MODULE semi_empirical_int_ana
