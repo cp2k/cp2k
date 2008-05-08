@@ -267,7 +267,7 @@ CONTAINS
                                                 Imp, IndMM, Ipot, j1, j1L
     REAL(KIND=dp)                            :: r, rt1, rt2, rt3
     REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab, r_pbc, rij
-    REAL(KIND=dp), DIMENSION(45, 3)          :: de1b
+    REAL(KIND=dp), DIMENSION(3, 45)          :: de1b
     TYPE(qmmm_pot_type), POINTER             :: Pot
 
     CALL timeset(routineN,"I","",handle)
@@ -299,11 +299,11 @@ CONTAINS
              DO j1L = 1, i1L-1
                 j1 = se_orbital_pointer(j1L)
                 i2 = i2 + 1
-                force_ab = force_ab - 2.0_dp * de1b(i2,:)*p_block_a(i1,j1)
+                force_ab = force_ab - 2.0_dp * de1b(:,i2)*p_block_a(i1,j1)
              END DO
              j1 = se_orbital_pointer(j1L)
              i2 = i2 + 1
-             force_ab = force_ab -  de1b(i2,:)*p_block_a(i1,j1)
+             force_ab = force_ab -  de1b(:,i2)*p_block_a(i1,j1)
           END DO
           ! The array of QM forces are really the forces
           forces_qm(:)  = forces_qm(:)  - force_ab

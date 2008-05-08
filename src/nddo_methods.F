@@ -987,7 +987,7 @@ CONTAINS
 
     INTEGER                                  :: i1, i1L, i2, j1, j1L
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(45, 3)          :: de1b, de2a
+    REAL(KIND=dp), DIMENSION(3, 45)          :: de1b, de2a
 
     failure = .FALSE.
     CALL drotnuc (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype, anag=anag,&
@@ -1001,11 +1001,11 @@ CONTAINS
        DO j1L = 1, i1L-1
           j1 = se_orbital_pointer(j1L)
           i2 = i2 + 1
-          force = force - 2.0_dp * de1b(i2,:) * pi_block(i1,j1)
+          force = force - 2.0_dp * de1b(:,i2) * pi_block(i1,j1)
        END DO
        j1 = se_orbital_pointer(j1L)
        i2 = i2 + 1
-       force = force - de1b(i2,:) * pi_block(i1,j1)
+       force = force - de1b(:,i2) * pi_block(i1,j1)
     END DO
     !
     ! Add the electron-nuclear attraction term for atom sepj
@@ -1016,11 +1016,11 @@ CONTAINS
        DO j1L = 1, i1L-1
           j1 = se_orbital_pointer(j1L)
           i2 = i2 + 1
-          force = force - 2.0_dp * de2a(i2,:) * pj_block(i1,j1)
+          force = force - 2.0_dp * de2a(:,i2) * pj_block(i1,j1)
        END DO
        j1 = se_orbital_pointer(j1L)
        i2 = i2 + 1
-       force = force - de2a(i2,:) * pj_block(i1,j1)
+       force = force - de2a(:,i2) * pj_block(i1,j1)
     END DO
     
   END SUBROUTINE dfock1_1el
@@ -1214,8 +1214,8 @@ CONTAINS
                                                 lL, natorb(2)
     LOGICAL                                  :: failure, task_coulomb
     REAL(KIND=dp)                            :: aa, bb
-    REAL(KIND=dp), DIMENSION(2025, 3)        :: dw
     REAL(KIND=dp), DIMENSION(3)              :: a
+    REAL(KIND=dp), DIMENSION(3, 2025)        :: dw
 
     failure = .FALSE.
     task_coulomb = PRESENT(pj_tot)
@@ -1251,7 +1251,7 @@ CONTAINS
                    bb = 1.0_dp
                 END IF
                 kr = kr + 1
-                a = dw(kr,:)*factor
+                a = dw(:,kr)*factor
                 IF (task_coulomb) THEN
                    ! Coulomb
                    IF (.NOT.switch) THEN

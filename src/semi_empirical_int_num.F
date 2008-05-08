@@ -694,8 +694,7 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE nucint_num(sepi, sepj, rij, ssss, core, itype, taper, shortrange,&
-                                  do_longrange, error)
+  RECURSIVE SUBROUTINE nucint_num(sepi, sepj, rij, ssss, core, itype, taper, shortrange, do_longrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(OUT), OPTIONAL          :: ssss
@@ -949,7 +948,7 @@ CONTAINS
   SUBROUTINE drotint_num(sepi,sepj,r,dw,delta,shortrange,taper, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
-    REAL(dp), DIMENSION(2025, 3), &
+    REAL(dp), DIMENSION(3, 2025), &
       INTENT(OUT)                            :: dw
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: shortrange
@@ -971,7 +970,7 @@ CONTAINS
        CALL rotint_num(sepi,sepj,rr,wp,shortrange,taper=taper,error=error)
        rr(i)=rr(i)-2._dp*delta
        CALL rotint_num(sepi,sepj,rr,wm,shortrange,taper=taper,error=error)
-       dw(:,i) = od * (wp(:) - wm(:))
+       dw(i,:) = od * (wp(:) - wm(:))
     END DO
 
   END SUBROUTINE drotint_num
@@ -982,7 +981,7 @@ CONTAINS
   SUBROUTINE drotnuc_num(sepi,sepj,r,de1b,de2a,itype,delta,shortrange,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
-    REAL(dp), DIMENSION(45, 3), &
+    REAL(dp), DIMENSION(3, 45), &
       INTENT(OUT), OPTIONAL                  :: de1b, de2a
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(IN)                     :: delta
@@ -1010,10 +1009,10 @@ CONTAINS
        rr(i)=rr(i)-2._dp*delta
        CALL rotnuc_num(sepi,sepj,rr,e1m,e2m,itype,shortrange,taper=taper,error=error)
        IF (l_de1b) THEN
-          de1b(:,i) = od * (e1p(:) - e1m(:))
+          de1b(i,:) = od * (e1p(:) - e1m(:))
        END IF
        IF (l_de2a) THEN
-          de2a(:,i) = od * (e2p(:) - e2m(:))
+          de2a(i,:) = od * (e2p(:) - e2m(:))
        END IF
     END DO
   END SUBROUTINE drotnuc_num

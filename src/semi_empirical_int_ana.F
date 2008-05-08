@@ -85,7 +85,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), DIMENSION(45), INTENT(OUT), &
       OPTIONAL                               :: e1b, e2a
-    REAL(dp), DIMENSION(45, 3), &
+    REAL(dp), DIMENSION(3, 45), &
       INTENT(OUT), OPTIONAL                  :: de1b, de2a
     LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(taper_type), POINTER                :: taper
@@ -101,12 +101,12 @@ CONTAINS
     REAL(KIND=dp)                            :: rij, xtmp
     REAL(KIND=dp), DIMENSION(10, 2)          :: core, dcore
     REAL(KIND=dp), DIMENSION(3)              :: drij
+    REAL(KIND=dp), DIMENSION(3, 45)          :: tmp_d
     REAL(KIND=dp), DIMENSION(45)             :: tmp
-    REAL(KIND=dp), DIMENSION(45, 3)          :: tmp_d
     TYPE(rotmat_type), POINTER               :: ij_matrix
 
     NULLIFY(ij_matrix)
-    rij=DOT_PRODUCT(rijv,rijv)
+    rij = DOT_PRODUCT(rijv,rijv)
     ! Initialization
     l_e1b  = PRESENT(e1b)
     l_e2a  = PRESENT(e2a)
@@ -214,41 +214,41 @@ CONTAINS
                 IF (ind2 == 0) THEN
                    IF (ind1 == 0) THEN
                       ! Type of Integral (SS/)
-                      tmp_d(m,:) = dcore(1, n)*drij
+                      tmp_d(:,m) = dcore(1, n)*drij
                    ELSE IF (ind1 < 4) THEN
                       ! Type of Integral (SP/)
-                      tmp_d(m,:) = ij_matrix%sp_d(1, ind1, :) *  core(2, n)           + &
-                                   ij_matrix%sp  (1, ind1   ) * dcore(2, n) * drij
+                      tmp_d(:,m) = ij_matrix%sp_d(:, 1, ind1) *  core(2, n)           + &
+                                   ij_matrix%sp  (   1, ind1) * dcore(2, n) * drij
                    ELSE
                       ! Type of Integral (SD/)
-                      tmp_d(m,:) = ij_matrix%sd_d(1, ind1-3, :) *  core(5, n)         + &
-                                   ij_matrix%sd  (1, ind1-3   ) * dcore(5, n) * drij
+                      tmp_d(:,m) = ij_matrix%sd_d(:, 1, ind1-3) *  core(5, n)         + &
+                                   ij_matrix%sd  (   1, ind1-3) * dcore(5, n) * drij
                    END IF
                 ELSE IF (ind2 < 4) THEN
                    IF (ind1 < 4) THEN
                       ! Type of Integral (PP/)
                       ipp = indpp(ind1, ind2)
-                      tmp_d(m,:) = dcore(3, n) * drij *  ij_matrix%pp  (ipp, 1, 1)    + &
-                                    core(3, n)        *  ij_matrix%pp_d(ipp, 1, 1, :) + &
-                                   dcore(4, n) * drij * (ij_matrix%pp  (ipp, 2, 2   )+ij_matrix%pp  (ipp, 3, 3   )) + &
-                                    core(4, n) *        (ij_matrix%pp_d(ipp, 2, 2, :)+ij_matrix%pp_d(ipp, 3, 3, :))
+                      tmp_d(:,m) = dcore(3, n) * drij *  ij_matrix%pp  (   ipp, 1, 1) + &
+                                    core(3, n)        *  ij_matrix%pp_d(:, ipp, 1, 1) + &
+                                   dcore(4, n) * drij * (ij_matrix%pp  (   ipp, 2, 2)+ij_matrix%pp  (   ipp, 3, 3)) + &
+                                    core(4, n) *        (ij_matrix%pp_d(:, ipp, 2, 2)+ij_matrix%pp_d(:, ipp, 3, 3))
                    ELSE
                       ! Type of Integral (PD/)
                       idp = inddp(ind1-3, ind2)
-                      tmp_d(m,:) = dcore(6, n) * drij *  ij_matrix%pd  (idp, 1, 1   ) + &
-                                    core(6, n) *         ij_matrix%pd_d(idp, 1, 1, :) + &
-                                   dcore(8, n) * drij * (ij_matrix%pd  (idp, 2, 2   )+ij_matrix%pd  (idp, 3, 3   )) + &
-                                    core(8, n) *        (ij_matrix%pd_d(idp, 2, 2, :)+ij_matrix%pd_d(idp, 3, 3, :)) 
+                      tmp_d(:,m) = dcore(6, n) * drij *  ij_matrix%pd  (   idp, 1, 1) + &
+                                    core(6, n) *         ij_matrix%pd_d(:, idp, 1, 1) + &
+                                   dcore(8, n) * drij * (ij_matrix%pd  (   idp, 2, 2)+ij_matrix%pd  (   idp, 3, 3)) + &
+                                    core(8, n) *        (ij_matrix%pd_d(:, idp, 2, 2)+ij_matrix%pd_d(:, idp, 3, 3)) 
                    END IF
                 ELSE
                    ! Type of Integral (DD/)
                    idd = inddd(ind1-3, ind2-3)
-                   tmp_d(m,:) = dcore( 7, n) * drij *  ij_matrix%dd  (idd, 1, 1   ) + &
-                                 core( 7, n) *         ij_matrix%dd_d(idd, 1, 1, :) + &
-                                dcore( 9, n) * drij * (ij_matrix%dd  (idd, 2, 2   )+ij_matrix%dd  (idd, 3, 3   )) + &
-                                 core( 9, n) *        (ij_matrix%dd_d(idd, 2, 2, :)+ij_matrix%dd_d(idd, 3, 3, :)) + &
-                                dcore(10, n) * drij * (ij_matrix%dd  (idd, 4, 4   )+ij_matrix%dd  (idd, 5, 5   )) + &
-                                 core(10, n) *        (ij_matrix%dd_d(idd, 4, 4, :)+ij_matrix%dd_d(idd, 5, 5, :))
+                   tmp_d(:,m) = dcore( 7, n) * drij *  ij_matrix%dd  (   idd, 1, 1) + &
+                                 core( 7, n) *         ij_matrix%dd_d(:, idd, 1, 1) + &
+                                dcore( 9, n) * drij * (ij_matrix%dd  (   idd, 2, 2)+ij_matrix%dd  (   idd, 3, 3)) + &
+                                 core( 9, n) *        (ij_matrix%dd_d(:, idd, 2, 2)+ij_matrix%dd_d(:, idd, 3, 3)) + &
+                                dcore(10, n) * drij * (ij_matrix%dd  (   idd, 4, 4)+ij_matrix%dd  (   idd, 5, 5)) + &
+                                 core(10, n) *        (ij_matrix%dd_d(:, idd, 4, 4)+ij_matrix%dd_d(:, idd, 5, 5))
                 END IF
              END DO
           END DO
@@ -688,26 +688,26 @@ CONTAINS
     ! Integral part
     DO i=1,3
        IF (PRESENT(dint1el)) THEN
-          CALL invert_integral(sepi, sepj, int1el=dint1el(:,i), error=error)
+          CALL invert_integral(sepi, sepj, int1el=dint1el(i,:), error=error)
        END IF
        IF (PRESENT(dint2el)) THEN
-          CALL invert_integral(sepi, sepj, int2el=dint2el(:,i), error=error)
+          CALL invert_integral(sepi, sepj, int2el=dint2el(i,:), error=error)
        END IF
     END DO
 
     ! Derivatives part
     IF (PRESENT(dint1el)) THEN
-       DO m=1,SIZE(dint1el,1)
-          tmp=dint1el(m,3)
-          dint1el(m,3)=dint1el(m,1)
-          dint1el(m,1)=tmp
+       DO m=1,SIZE(dint1el,2)
+          tmp=dint1el(3,m)
+          dint1el(3,m)=dint1el(1,m)
+          dint1el(1,m)=tmp
        END DO
     END IF
     IF (PRESENT(dint2el)) THEN
-       DO m=1,SIZE(dint2el,1)
-          tmp=dint2el(m,3)
-          dint2el(m,3)=dint2el(m,1)
-          dint2el(m,1)=tmp
+       DO m=1,SIZE(dint2el,2)
+          tmp=dint2el(3,m)
+          dint2el(3,m)=dint2el(1,m)
+          dint2el(1,m)=tmp
        END DO
     END IF
   END SUBROUTINE invert_derivative
@@ -1045,7 +1045,7 @@ CONTAINS
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     REAL(dp), DIMENSION(2025), INTENT(OUT), &
       OPTIONAL                               :: w
-    REAL(dp), DIMENSION(2025, 3), &
+    REAL(dp), DIMENSION(3, 2025), &
       INTENT(OUT), OPTIONAL                  :: dw
     LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(taper_type), POINTER                :: taper
@@ -1063,9 +1063,9 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: drij
     REAL(KIND=dp)                            :: cc, cc_d(3), wrepp, wrepp_d(3)
     REAL(KIND=dp), DIMENSION(2025)           :: ww
-    REAL(KIND=dp), DIMENSION(2025, 3)        :: ww_d
+    REAL(KIND=dp), DIMENSION(3, 2025)        :: ww_d
+    REAL(KIND=dp), DIMENSION(3, 45, 45)      :: v_d
     REAL(KIND=dp), DIMENSION(45, 45)         :: v
-    REAL(KIND=dp), DIMENSION(45, 45, 3)      :: v_d
     REAL(KIND=dp), DIMENSION(491)            :: rep, rep_d
     TYPE(rotmat_type), POINTER               :: ij_matrix
 
@@ -1075,7 +1075,7 @@ CONTAINS
     IF (l_w)    w = 0.0_dp
     IF (lgrad) dw = 0.0_dp
     IF (.NOT.(l_w.OR.lgrad)) RETURN
-    rij=DOT_PRODUCT(rijv, rijv)
+    rij = DOT_PRODUCT(rijv, rijv)
     IF (rij > rij_threshold) THEN
        ! The repulsion integrals over molecular frame (w) are stored in the
        ! order in which they will later be used.  ie.  (i,j/k,l) where
@@ -1214,7 +1214,7 @@ CONTAINS
              limij = indexb(ii, ii)
              limkl = indexb(kk, kk)
              istep = limkl * limij
-             ww_d(1:istep,:) = 0.0_dp
+             ww_d(:,1:istep) = 0.0_dp
              
              ! Second step in rotation of integrals
              DO i1 = 1, ii
@@ -1226,37 +1226,37 @@ CONTAINS
                       DO l = 1, k
                          kl = indexb(k, l)
                          IF (logv_d(ij, kl)) THEN
-                            wrepp_d = v_d(ij, kl, :)
-                            wrepp   =   v(ij, kl)
+                            wrepp_d = v_d(:,ij, kl)
+                            wrepp   =   v(  ij, kl)
                             SELECT CASE (mm)
                             CASE(1)
                                ! (SS/)
                                i = 1
                                j = 1
                                iw_loc = (indexb(i,j)-1) * limkl + kl
-                               ww_d(iw_loc, :) = wrepp_d
+                               ww_d(:, iw_loc) = wrepp_d
                             CASE(2)
                                ! (SP/)
                                j = 1
                                DO i = 1, 3
                                   iw_loc = (indexb(i+1,j)-1) * limkl + kl
-                                  ww_d(iw_loc, :) = ww_d(iw_loc, :) + ij_matrix%sp_d(i1-1, i,:) * wrepp +&
-                                                                      ij_matrix%sp(i1-1, i) * wrepp_d
+                                  ww_d(:, iw_loc) = ww_d(:, iw_loc) + ij_matrix%sp_d(:, i1-1, i) * wrepp +&
+                                                                      ij_matrix%sp  (   i1-1, i) * wrepp_d
                                END DO
                             CASE(3)
                                ! (PP/)
                                DO i = 1, 3
-                                  cc   = ij_matrix%pp(i, i1-1, j1-1)
-                                  cc_d = ij_matrix%pp_d(i, i1-1, j1-1, :)
+                                  cc   = ij_matrix%pp  (   i, i1-1, j1-1)
+                                  cc_d = ij_matrix%pp_d(:, i, i1-1, j1-1)
                                   iw_loc = (indexb(i+1,i+1)-1) * limkl + kl
-                                  ww_d(iw_loc, :) = ww_d(iw_loc, :) + cc_d * wrepp + cc *wrepp_d
+                                  ww_d(:, iw_loc) = ww_d(:, iw_loc) + cc_d * wrepp + cc *wrepp_d
                                   iminus = i - 1
                                   IF (iminus /= 0) THEN
                                      DO j = 1, iminus
-                                        cc   = ij_matrix%pp(1+i+j, i1-1, j1-1)
-                                        cc_d = ij_matrix%pp_d(1+i+j, i1-1, j1-1, :)
+                                        cc   = ij_matrix%pp  (   1+i+j, i1-1, j1-1)
+                                        cc_d = ij_matrix%pp_d(:, 1+i+j, i1-1, j1-1)
                                         iw_loc = (indexb(i+1,j+1)-1) * limkl + kl
-                                        ww_d(iw_loc, :) = ww_d(iw_loc, :) + cc_d * wrepp + cc * wrepp_d
+                                        ww_d(:, iw_loc) = ww_d(:, iw_loc) + cc_d * wrepp + cc * wrepp_d
                                      END DO
                                   END IF
                                END DO
@@ -1265,8 +1265,8 @@ CONTAINS
                                j = 1
                                DO i = 1, 5
                                   iw_loc = (indexb(i+4,j)-1) * limkl + kl
-                                  ww_d(iw_loc, :) = ww_d(iw_loc, :) + ij_matrix%sd_d(i1-4, i, :) * wrepp +&
-                                                                      ij_matrix%sd(i1-4, i)      * wrepp_d
+                                  ww_d(:, iw_loc) = ww_d(:, iw_loc) + ij_matrix%sd_d(:, i1-4, i) * wrepp +&
+                                                                      ij_matrix%sd  (   i1-4, i) * wrepp_d
                                END DO
                             CASE(5)
                                ! (DP/)
@@ -1274,25 +1274,25 @@ CONTAINS
                                   DO j = 1, 3
                                      iw_loc = (indexb(i+4,j+1)-1) * limkl + kl
                                      ij1 = 3 * (i-1) + j
-                                     ww_d(iw_loc, :) = ww_d(iw_loc, :) + ij_matrix%pd_d(ij1, i1-4, j1-1, :) * wrepp +&
-                                                                         ij_matrix%pd(ij1, i1-4, j1-1)      * wrepp_d
+                                     ww_d(:, iw_loc) = ww_d(:, iw_loc) + ij_matrix%pd_d(:, ij1, i1-4, j1-1) * wrepp +&
+                                                                         ij_matrix%pd  (   ij1, i1-4, j1-1) * wrepp_d
                                   END DO
                                END DO
                             CASE(6)
                                ! (DD/)
                                DO i = 1, 5
-                                  cc   = ij_matrix%dd(i, i1-4, j1-4)
-                                  cc_d = ij_matrix%dd_d(i, i1-4, j1-4, :)
+                                  cc   = ij_matrix%dd  (   i, i1-4, j1-4)
+                                  cc_d = ij_matrix%dd_d(:, i, i1-4, j1-4)
                                   iw_loc = (indexb(i+4,i+4)-1) * limkl + kl
-                                  ww_d(iw_loc, :) = ww_d(iw_loc, :) + cc_d * wrepp + cc * wrepp_d
+                                  ww_d(:, iw_loc) = ww_d(:, iw_loc) + cc_d * wrepp + cc * wrepp_d
                                   iminus = i - 1
                                   IF (iminus /= 0) THEN
                                      DO j = 1, iminus
                                         ij1 = inddd(i, j)
-                                        cc   = ij_matrix%dd(ij1, i1-4, j1-4)
-                                        cc_d = ij_matrix%dd_d(ij1, i1-4, j1-4, :)
+                                        cc   = ij_matrix%dd  (   ij1, i1-4, j1-4)
+                                        cc_d = ij_matrix%dd_d(:, ij1, i1-4, j1-4)
                                         iw_loc = (indexb(i+4,j+4)-1) * limkl + kl
-                                        ww_d(iw_loc, :) = ww_d(iw_loc, :) + cc_d * wrepp + cc * wrepp_d
+                                        ww_d(:, iw_loc) = ww_d(:, iw_loc) + cc_d * wrepp + cc * wrepp_d
                                      END DO
                                   END IF
                                END DO
@@ -1305,7 +1305,7 @@ CONTAINS
              ! Store two electron integrals in the triangular format
              limij = (ii*(ii+1))/2
              limkl = (kk*(kk+1))/2
-             CALL store_2el_2c_diag(limij, limkl, ww_dx=ww_d(1:istep,1), ww_dy=ww_d(1:istep,2), ww_dz=ww_d(1:istep,3),&
+             CALL store_2el_2c_diag(limij, limkl, ww_dx=ww_d(1,1:istep), ww_dy=ww_d(2,1:istep), ww_dz=ww_d(3,1:istep),&
                   dw=dw, error=error)
              IF (invert) CALL invert_derivative(sepi, sepj, dint2el=dw, error=error)
           END IF

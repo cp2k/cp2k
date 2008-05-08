@@ -98,11 +98,11 @@ MODULE semi_empirical_types
      REAL(KIND=dp), DIMENSION (15, 5, 3)      :: pd
      REAL(KIND=dp), DIMENSION (15, 5, 5)      :: dd
      ! Derivatives of Rotation Matrices
-     REAL(KIND=dp), DIMENSION (    3, 3, 3)   :: sp_d
-     REAL(KIND=dp), DIMENSION (    5, 5, 3)   :: sd_d
-     REAL(KIND=dp), DIMENSION ( 6, 3, 3, 3)   :: pp_d
-     REAL(KIND=dp), DIMENSION (15, 5, 3, 3)   :: pd_d
-     REAL(KIND=dp), DIMENSION (15, 5, 5, 3)   :: dd_d
+     REAL(KIND=dp), DIMENSION (3,     3, 3)   :: sp_d
+     REAL(KIND=dp), DIMENSION (3,     5, 5)   :: sd_d
+     REAL(KIND=dp), DIMENSION (3,  6, 3, 3)   :: pp_d
+     REAL(KIND=dp), DIMENSION (3, 15, 5, 3)   :: pd_d
+     REAL(KIND=dp), DIMENSION (3, 15, 5, 5)   :: dd_d
   END TYPE rotmat_type
 
   PUBLIC :: semi_empirical_type,&

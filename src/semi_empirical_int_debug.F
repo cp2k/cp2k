@@ -62,22 +62,22 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
              error=error)
      END DO
      ! SP
-     matrix_n%sp_d(:, :, j) = (matrix_p%sp - matrix_m%sp)/(2.0_dp*dx)
+     matrix_n%sp_d(j, :, :) = (matrix_p%sp - matrix_m%sp)/(2.0_dp*dx)
      DO i = 1, 3
         DO k = 1, 3
-           IF (.NOT.check_value(matrix_n%sp_d(k,i,j), ij_matrix%sp_d(k,i,j), dx, 0.1_dp)) THEN
-              WRITE(*,*)"ERROR for SP rotation matrix derivative SP(k,i,j), k,i,j::",k,i,j
+           IF (.NOT.check_value(matrix_n%sp_d(j,k,i), ij_matrix%sp_d(j,k,i), dx, 0.1_dp)) THEN
+              WRITE(*,*)"ERROR for SP rotation matrix derivative SP(j,k,i), j,k,i::",j,k,i
               STOP
            END IF
         END DO
      END DO
      ! PP
-     matrix_n%pp_d(:, :, :, j) = (matrix_p%pp - matrix_m%pp)/(2.0_dp*dx)
+     matrix_n%pp_d(j, :, :, :) = (matrix_p%pp - matrix_m%pp)/(2.0_dp*dx)
      DO i = 1, 3
         DO k = 1, 3
            DO l = 1, 6
-              IF (.NOT.check_value(matrix_n%pp_d(l,k,i,j), ij_matrix%pp_d(l,k,i,j), dx, 0.1_dp)) THEN
-                 WRITE(*,*)"ERROR for PP rotation matrix derivative PP(l,k,i,j), l,k,i,j::",l,k,i,j
+              IF (.NOT.check_value(matrix_n%pp_d(j,l,k,i), ij_matrix%pp_d(j,l,k,i), dx, 0.1_dp)) THEN
+                 WRITE(*,*)"ERROR for PP rotation matrix derivative PP(j,l,k,i), j,l,k,i::",j,l,k,i
                  STOP
               END IF
            END DO
@@ -86,34 +86,34 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
      ! d-orbitals debug
      IF (sepi%dorb.OR.sepj%dorb) THEN
         ! SD
-        matrix_n%sd_d(:, :, j) = (matrix_p%sd - matrix_m%sd)/(2.0_dp*dx)
+        matrix_n%sd_d(j, :, :) = (matrix_p%sd - matrix_m%sd)/(2.0_dp*dx)
         DO i = 1, 5
            DO k = 1, 5
-              IF (.NOT.check_value(matrix_n%sd_d(k,i,j), ij_matrix%sd_d(k,i,j), dx, 0.1_dp)) THEN
-                 WRITE(*,*)"ERROR for SD rotation matrix derivative SD(k,i,j), k,i,j::",k,i,j
+              IF (.NOT.check_value(matrix_n%sd_d(j,k,i), ij_matrix%sd_d(j,k,i), dx, 0.1_dp)) THEN
+                 WRITE(*,*)"ERROR for SD rotation matrix derivative SD(j,k,i), j,k,i::",j,k,i
                  STOP
               END IF
            END DO
         END DO
         ! DP
-        matrix_n%pd_d(:, :, :, j) = (matrix_p%pd - matrix_m%pd)/(2.0_dp*dx)
+        matrix_n%pd_d(j, :, :, :) = (matrix_p%pd - matrix_m%pd)/(2.0_dp*dx)
         DO i = 1, 3
            DO k = 1, 5
               DO l = 1, 15
-                 IF (.NOT.check_value(matrix_n%pd_d(l,k,i,j), ij_matrix%pd_d(l,k,i,j), dx, 0.1_dp)) THEN
-                    WRITE(*,*)"ERROR for DP rotation matrix derivative DP(l,k,i,j), l,k,i,j::",l,k,i,j
+                 IF (.NOT.check_value(matrix_n%pd_d(j,l,k,i), ij_matrix%pd_d(j,l,k,i), dx, 0.1_dp)) THEN
+                    WRITE(*,*)"ERROR for DP rotation matrix derivative DP(j,l,k,i), j,l,k,i::",j,l,k,i
                     STOP
                  END IF
               END DO
            END DO
         END DO
         ! DD
-        matrix_n%dd_d(:, :, :, j) = (matrix_p%dd - matrix_m%dd)/(2.0_dp*dx)
+        matrix_n%dd_d(j, :, :, :) = (matrix_p%dd - matrix_m%dd)/(2.0_dp*dx)
         DO i = 1, 5
            DO k = 1, 5
               DO l = 1, 15
-                 IF (.NOT.check_value(matrix_n%dd_d(l,k,i,j), ij_matrix%dd_d(l,k,i,j), dx, 0.1_dp)) THEN
-                    WRITE(*,*)"ERROR for DD rotation matrix derivative DD(l,k,i,j), l,k,i,j::",l,k,i,j
+                 IF (.NOT.check_value(matrix_n%dd_d(j,l,k,i), ij_matrix%dd_d(j,l,k,i), dx, 0.1_dp)) THEN
+                    WRITE(*,*)"ERROR for DD rotation matrix derivative DD(j,l,k,i), j,l,k,i::",j,l,k,i
                     STOP
                  END IF
               END DO
@@ -153,7 +153,7 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, shortrange, taper, invert, i
   LOGICAL, INTENT(IN)                      :: shortrange, invert
   TYPE(taper_type), POINTER                :: taper
   INTEGER, INTENT(IN)                      :: ii, kk
-  REAL(KIND=dp), DIMENSION(45, 45, 3), &
+  REAL(KIND=dp), DIMENSION(3, 45, 45), &
     INTENT(IN)                             :: v_d
   TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -212,8 +212,8 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, shortrange, taper, invert, i
         DO k = 1, limkl
            ! Compute the numerical derivative
            v_n(i,k) = (v_p(i,k)-v_m(i,k))/(2.0_dp*dx)
-           IF (.NOT.check_value(v_d(i,k,j), v_n(i,k), dx, 0.1_dp)) THEN
-              WRITE(*,*)"ERROR for  rot_2el_2c_first derivative V_D(i,k,j), i,k,j::",i,k,j
+           IF (.NOT.check_value(v_d(j,i,k), v_n(i,k), dx, 0.1_dp)) THEN
+              WRITE(*,*)"ERROR for  rot_2el_2c_first derivative V_D(j,i,k), j,i,k::",j,i,k
               STOP
            END IF
         END DO
@@ -251,8 +251,7 @@ SUBROUTINE check_dnucint_ana (sepi,sepj,r,dssss,dcore,itype,shortrange,taper,err
        routineN = 'check_dnucint_ana', routineP = moduleN//':'//routineN
 
   INTEGER                                  :: i, j
-  REAL(dp)                                 :: delta, nssss, od, rn, ssssm, &
-       ssssp
+  REAL(dp)                                 :: delta, nssss, od, rn, ssssm, ssssp
   REAL(dp), DIMENSION(10, 2)               :: corem, corep, ncore
   LOGICAL                                  :: check_value
 
@@ -342,7 +341,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, shortrange, taper, e1b, e2
   TYPE(taper_type), POINTER                :: taper
   REAL(dp), DIMENSION(45), INTENT(IN), &
     OPTIONAL                               :: e1b, e2a
-  REAL(dp), DIMENSION(45, 3), &
+  REAL(dp), DIMENSION(3, 45), &
     INTENT(IN), OPTIONAL                   :: de1b, de2a
   TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -354,7 +353,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, shortrange, taper, e1b, e2
                                               lgrad, check_value
   REAL(dp)                                 :: delta
   REAL(KIND=dp), DIMENSION(45)             :: e1b2, e2a2
-  REAL(KIND=dp), DIMENSION(45, 3)          :: de1b2, de2a2
+  REAL(KIND=dp), DIMENSION(3, 45)          :: de1b2, de2a2
 
   l_e1b  = PRESENT(e1b)
   l_e2a  = PRESENT(e2a)
@@ -391,8 +390,8 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, shortrange, taper, e1b, e2
            DO j = 1, 45
               ! Additional check on the value of the integral before checking derivatives
               IF (ABS(e1b2(j))>delta) THEN
-                 IF (.NOT.check_value(de1b2(j,i), de1b(j,i), delta, 0.1_dp)) THEN
-                    WRITE(*,*)"ERROR for derivative of E1B.  DE1B(j,i), j,i::",j,i
+                 IF (.NOT.check_value(de1b2(i,j), de1b(i,j), delta, 0.1_dp)) THEN
+                    WRITE(*,*)"ERROR for derivative of E1B.  DE1B(i,j), i,j::",i,j
                     STOP
                  END IF
               END IF
@@ -404,8 +403,8 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, shortrange, taper, e1b, e2
            DO j = 1, 45
               ! Additional check on the value of the integral before checking derivatives
               IF (ABS(e2a2(j))>delta) THEN
-                 IF (.NOT.check_value(de2a2(j,i), de2a(j,i), delta, 0.1_dp)) THEN
-                    WRITE(*,*)"ERROR for derivative of E2A.  DE2A(j,i), j,i::",j,i
+                 IF (.NOT.check_value(de2a2(i,j), de2a(i,j), delta, 0.1_dp)) THEN
+                    WRITE(*,*)"ERROR for derivative of E2A.  DE2A(i,j), i,j::",i,j
                     STOP
                  END IF
               END IF
@@ -550,7 +549,7 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,shortrange,taper,error)
   REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
   REAL(dp), DIMENSION(2025), INTENT(IN), &
     OPTIONAL                               :: w
-  REAL(dp), DIMENSION(2025, 3), &
+  REAL(dp), DIMENSION(3, 2025), &
     INTENT(IN), OPTIONAL                   :: dw
   LOGICAL, INTENT(IN)                      :: shortrange
   TYPE(taper_type), POINTER                :: taper
@@ -560,7 +559,7 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,shortrange,taper,error)
        routineN = 'rotint_ana', routineP = moduleN//':'//routineN  
 
   REAL(dp), DIMENSION(2025)                :: w2
-  REAL(dp), DIMENSION(2025, 3)             :: dw2
+  REAL(dp), DIMENSION(3, 2025)             :: dw2
   LOGICAL                                  :: check_value
   INTEGER                                  :: j, i
   REAL(KIND=dp)                            :: delta
@@ -586,9 +585,9 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,shortrange,taper,error)
      CALL rotint_num(sepi,sepj,rijv,w2,shortrange=shortrange,taper=taper,error=error)
      DO i = 1, 3
         DO j = 1, 2025
-           IF ((ABS(w2(j))>delta).AND.(ABS(dw2(j,i))>delta*10)) THEN
-              IF (.NOT.check_value(dw(j,i), dw2(j,i), delta, 0.1_dp)) THEN
-                 WRITE(*,*)"ERROR for derivative of the integral value W(j). DW(j,i) j,i::",j,i
+           IF ((ABS(w2(j))>delta).AND.(ABS(dw2(i,j))>delta*10)) THEN
+              IF (.NOT.check_value(dw(i,j), dw2(i,j), delta, 0.1_dp)) THEN
+                 WRITE(*,*)"ERROR for derivative of the integral value W(j). DW(i,j) i,j::",i,j
                  STOP
               END IF
            END IF
