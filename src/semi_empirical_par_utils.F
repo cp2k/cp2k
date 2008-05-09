@@ -531,7 +531,7 @@ CONTAINS
     REAL(KIND=dp)                            :: amnl
 
     amnl = fac(n1+n2+l)/SQRT(fac(2*n1)*fac(2*n2)) * (2.0_dp*z1/(z1+z2))**n1 * &
-         (2.0_dp*z2/(z1+z2))**n2 * 2.0_dp * SQRT(z1*z2) * 2.0_dp**l/(z1+z2)**(l+1)
+         (2.0_dp*z2/(z1+z2))**n2 * 2.0_dp * SQRT(z1*z2) / (z1+z2)**(l+1)
 
   END FUNCTION amn_l_low
 
@@ -557,7 +557,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: d, da, fg
+    REAL(KIND=dp)                            :: d, fg
 
     failure = .FALSE.
     ! SS term
@@ -566,33 +566,32 @@ CONTAINS
     IF (sep%natorb>= 4) THEN
        ! Other terms for SP basis
        ! SP
-       d  = amn(2)/SQRT(12.0_dp)
+       d  = amn(2)/SQRT(3.0_dp)
        fg = sep%hsp
        sep%cs(2) = d
        sep%ko(2) = ko_ij(1, d, fg, error)
        ! PP
        sep%ko(7) = sep%ko(1)
-       d  = SQRT(amn(3)*0.1_dp)
+       d  = SQRT(amn(3)*2.0_dp/5.0_dp)
        fg = 0.5_dp*(sep%gpp-sep%gp2)
        sep%cs(3) = d
        sep%ko(3) = ko_ij(2, d, fg, error)
        ! Terms involving d-orbitals
        IF (sep%dorb) THEN
           ! SD
-          da = SQRT(1.0_dp/60.0_dp)
-          d  = SQRT(amn(4)*da)
+          d  = SQRT(amn(4)*2.0_dp/SQRT(15.0_dp))
           fg = sep%onec2el(19)
           sep%cs(4) = d
           sep%ko(4) = ko_ij(2, d, fg, error)
           ! PD
-          d  = amn(5)/SQRT(20.0_dp)
+          d  = amn(5)/SQRT(5.0_dp)
           fg = sep%onec2el(23) - 1.8_dp * sep%onec2el(35)
           sep%cs(5) = d
           sep%ko(5) = ko_ij(1, d, fg, error)
           ! DD
           fg = 0.2_dp * (sep%onec2el(29)+2.0_dp*sep%onec2el(30)+2.0_dp*sep%onec2el(31))
           sep%ko(8) = ko_ij (0, 1.0_dp, fg, error)
-          d  = SQRT(amn(6)/14.0_dp)
+          d  = SQRT(amn(6)*2.0_dp/7.0_dp)
           fg = sep%onec2el(44) - (20.0_dp/35.0_dp) * sep%onec2el(52)
           sep%cs(6) = d
           sep%ko(6) = ko_ij(2, d, fg, error)
