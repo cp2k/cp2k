@@ -103,3 +103,6 @@ NO2-ROKS.inp
 md.inp
 # numerics after new FOCK matrix construction
 md.inp
+# numerics
+hcl_ot.inp
+ZrF2-PM6.inp
