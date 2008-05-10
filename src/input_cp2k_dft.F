@@ -1976,19 +1976,19 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RC_INTERACTION",&
             description="Cutoff radius for localization",&
-            usage="RC_INTERACTION {real} ",default_r_val=24._dp, error=error)
+            usage="RC_INTERACTION {real} ",unit_str="bohr",default_r_val=24._dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RC_COULOMB",&
             description="Cutoff radius for Coulomb interactions",&
-            usage="RC_COULOMB {real} ",default_r_val=24._dp, error=error)
+            usage="RC_COULOMB {real} ",unit_str="bohr",default_r_val=24._dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RC_RANGE",&
             description="Range of cutoff switch function (tapering)",&
-            usage="RC_RANGE {real} ",default_r_val=8._dp, error=error)
+            usage="RC_RANGE {real} ",unit_str="bohr",default_r_val=8._dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
