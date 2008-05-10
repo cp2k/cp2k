@@ -84,6 +84,7 @@ MODULE semi_empirical_types
 !> \brief Taper type
 ! *****************************************************************************
   TYPE taper_type
+     LOGICAL                               :: apply_taper
      REAL(KIND=dp)                         :: r0, al
   END TYPE taper_type
 
@@ -401,8 +402,14 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(taper),cp_failure_level,routineP,error,failure)
     ALLOCATE (taper,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    taper%r0 = rc - 0.5_dp * range
-    taper%al = 24._dp/range
+    IF (range > EPSILON(0.0_dp)) THEN
+       taper%apply_taper = .TRUE.
+       CPPrecondition(range>0.0_dp,cp_failure_level,routineP,error,failure)
+       taper%r0 = rc - 0.5_dp * range
+       taper%al = 24._dp/range
+    ELSE
+       taper%apply_taper = .FALSE.
+    END IF
     
   END SUBROUTINE taper_create
 

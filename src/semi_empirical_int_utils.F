@@ -48,10 +48,12 @@ CONTAINS
     REAL(KIND=dp)                            :: dr, ep
 
     ft = 1._dp
-    dr = -taper%al*(rij-taper%r0)
-    IF ( dr < 20._dp ) THEN
-       ep = EXP(dr)
-       ft = ep/(1._dp+ep)
+    IF (taper%apply_taper) THEN
+       dr = -taper%al*(rij-taper%r0)
+       IF ( dr < 20._dp ) THEN
+          ep = EXP(dr)
+          ft = ep/(1._dp+ep)
+       END IF
     END IF
   END FUNCTION taper_eval
   
@@ -70,12 +72,13 @@ CONTAINS
     REAL(KIND=dp)                            :: dr, ep
 
     dft = 0.0_dp
-    dr = -taper%al*(rij-taper%r0)
-    IF ( dr < 20._dp ) THEN
-       ep = EXP(dr)
-       dft = 1._dp/(1._dp+ep)**2 * ep * (-taper%al)
+    IF (taper%apply_taper) THEN
+       dr = -taper%al*(rij-taper%r0)
+       IF ( dr < 20._dp ) THEN
+          ep = EXP(dr)
+          dft = 1._dp/(1._dp+ep)**2 * ep * (-taper%al)
+       END IF
     END IF
-
   END FUNCTION dtaper_eval
 
 ! *****************************************************************************

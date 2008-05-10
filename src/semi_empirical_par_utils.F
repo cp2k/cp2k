@@ -110,8 +110,8 @@ MODULE semi_empirical_par_utils
        -1,                                                                  -1,&!    2
        -1,-1,                                                -1,-1,-1,-1,-1,-1,&!   10
        -1,-1,                                                 3, 3, 3, 3, 3,-1,&!   18
-       -1,-1, 3,                3, 3, 3, 3, 3, 3, 3, 3,-1,   -1,-1, 4, 4, 4,-1,&!   36
-       -1,-1, 4,                4, 4, 4, 4, 4, 4, 4, 4,-1,   -1,-1, 5, 5, 5,-1,&!   54
+       -1,-1, 3,                3, 3, 3, 3, 3, 3, 3, 3, 3,    4, 4, 4, 4, 4,-1,&!   36
+       -1,-1, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,    5, 5, 5, 5, 5,-1,&!   54
        -1,-1, 5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 5,                     &      
                                 5, 5, 5, 5, 5, 5, 5, 5,-1,   -1,-1,-1,-1,-1,-1,&!   86
        -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
@@ -202,8 +202,7 @@ CONTAINS
 !> \brief  Gives back the number of valence electrons for element z and also the
 !>         number of atomic orbitals for that specific element
 ! *****************************************************************************
-  SUBROUTINE valence_electrons(z, sep, extended_basis_set, error)
-    INTEGER, INTENT(IN)                      :: z
+  SUBROUTINE valence_electrons(sep, extended_basis_set, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     LOGICAL, INTENT(IN)                      :: extended_basis_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -211,20 +210,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'valence_electrons', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: natorb
+    INTEGER                                  :: natorb, z
     LOGICAL                                  :: check, failure
     REAL(KIND=dp)                            :: zeff
 
     failure = .FALSE.
+    z       = sep%z
     CPPostcondition(z>=0, cp_failure_level, routineP, error, failure)
     ! Determine the Z eff
     zeff = REAL(zval(z),KIND=dp)
     ! Determine the number of atomic orbitals
     natorb = 0
-    IF(nqs(z)>0)                            natorb = natorb+1
-    IF(nqp(z)>0)                            natorb = natorb+3
-    IF(extended_basis_set.AND.nqd(z)>0) natorb = natorb+5
-    IF(extended_basis_set.AND.nqf(z)>0) natorb = natorb+7
+    IF(nqs(z)>0)                                        natorb = natorb+1
+    IF(nqp(z)>0)                                        natorb = natorb+3
+    IF(extended_basis_set.AND.element_has_d(sep,error)) natorb = natorb+5
+    IF(extended_basis_set.AND.element_has_f(sep,error)) natorb = natorb+7
     ! Check and assignemnt
     check = (natorb<=4).OR.(extended_basis_set)
     CPPostcondition(check, cp_failure_level, routineP, error, failure)
@@ -449,7 +449,8 @@ CONTAINS
     failure = .FALSE.
     ! Determine if this element owns d-orbitals (only if the parametrization
     ! supports the d-orbitals)
-    IF (sep%extended_basis_set) sep%dorb = nqd(sep%z)>0
+    IF (sep%extended_basis_set) sep%dorb = element_has_d(sep,error)
+    WRITE(*,*)sep%z, sep%dorb
     IF (sep%dorb) THEN
        CALL amn_l(sep, amn, error)
        CALL eval_1c_2el_spd(sep, error)
@@ -478,6 +479,40 @@ CONTAINS
   END SUBROUTINE calpar_d
 
 ! *****************************************************************************
+!> \brief  Determines if the elements has d-orbitals
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   05.2008 [tlaino]
+! *****************************************************************************    
+  FUNCTION element_has_d(sep, error) RESULT(res)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'element_has_d', &
+      routineP = moduleN//':'//routineN
+
+    res = (nqd(sep%z)>0.AND.sep%sto_exponents(2)>EPSILON(0.0_dp))
+  END FUNCTION element_has_d
+
+! *****************************************************************************
+!> \brief  Determines if the elements has f-orbitals
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   05.2008 [tlaino]
+! *****************************************************************************    
+  FUNCTION element_has_f(sep, error) RESULT(res)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'element_has_f', &
+      routineP = moduleN//':'//routineN
+
+    res = (nqf(sep%z)>0.AND.sep%sto_exponents(3)>EPSILON(0.0_dp))
+  END FUNCTION element_has_f
+
+! *****************************************************************************
 !> \brief  Computes the A^{\mu \nu}_l values for the evaluation of the two-center
 !>          two-electron integrals. The term is the one reported in Eq.(7) of TCA
 !>
@@ -504,7 +539,6 @@ CONTAINS
     z3 = sep%sto_exponents(2)
     CPPostcondition(z1>0.0_dp, cp_failure_level, routineP, error, failure)
     CPPostcondition(z2>0.0_dp, cp_failure_level, routineP, error, failure)
-    CPPostcondition(z3>0.0_dp, cp_failure_level, routineP, error, failure)
     amn = 0.0_dp
     nsp = nqs(sep%z)
     IF (sep%natorb>=4) THEN
@@ -512,7 +546,8 @@ CONTAINS
        amn(2) = amn_l_low(z1, z2, nsp, nsp, 1)
        amn(3) = amn_l_low(z2, z2, nsp, nsp, 2)
        IF (sep%dorb) THEN
-          nd = nqd(sep%z)
+          CPPostcondition(z3>0.0_dp, cp_failure_level, routineP, error, failure)
+          nd     = nqd(sep%z)
           amn(4) = amn_l_low(z1, z3, nsp, nd, 2)
           amn(5) = amn_l_low(z2, z3, nsp, nd, 1)
           amn(6) = amn_l_low(z3, z3,  nd, nd, 2)

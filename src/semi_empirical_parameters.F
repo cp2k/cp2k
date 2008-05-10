@@ -91,7 +91,7 @@ CONTAINS
     sep%eheat   = 0.0_dp
     sep%z       = z
     sep%defined = .TRUE.
-    CALL valence_electrons (z, sep, extended_basis_set=.FALSE., error=error)
+    CALL valence_electrons (sep, extended_basis_set=.FALSE., error=error)
 
   END SUBROUTINE pcharge_default_parameter
 
@@ -110,8 +110,6 @@ CONTAINS
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
-    CALL valence_electrons(z, sep, extended_basis_set=(itype==do_method_mndod),&
-         error=error)
 
     SELECT CASE (z)
     CASE DEFAULT
@@ -679,6 +677,8 @@ CONTAINS
     END SELECT
     ! In case overwrite with MNDO-d parameters
     IF (itype==do_method_mndod) CALL  mndod_default_parameter(sep, z, error)
+    ! Finalize parameters for the element
+    CALL valence_electrons(sep, extended_basis_set=(itype==do_method_mndod),error=error)
     CALL calpar(z,sep,error)
     CALL convert_param_to_cp2k(sep,error)
     
@@ -947,7 +947,6 @@ CONTAINS
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
-    CALL valence_electrons(z, sep, extended_basis_set=.FALSE., error=error)
 
     SELECT CASE (z)
     CASE DEFAULT
@@ -1408,6 +1407,8 @@ CONTAINS
        sep%hsp   =    1.3000000_dp
     CASE (83:106)
     END SELECT
+    ! Finalize parameters for the element
+    CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
     CALL calpar(z,sep,error)
     CALL convert_param_to_cp2k(sep,error)
 
@@ -1428,7 +1429,6 @@ CONTAINS
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
-    CALL valence_electrons(z, sep, extended_basis_set=.FALSE., error=error)
 
     SELECT CASE (z)
       CASE DEFAULT
@@ -1618,6 +1618,8 @@ CONTAINS
          sep%fn1(2) =  0.05914991_dp; sep%fn2(2) = 5.76111270_dp; sep%fn3(2) = 2.20488800_dp
       CASE (80:106)
     END SELECT
+    ! Finalize parameters for the element
+    CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
     CALL calpar(z,sep,error)
     CALL convert_param_to_cp2k(sep,error)
 
@@ -1638,7 +1640,6 @@ CONTAINS
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
-    CALL valence_electrons(z, sep, extended_basis_set=.FALSE., error=error)
 
     SELECT CASE (z)
     CASE DEFAULT
@@ -2405,6 +2406,8 @@ CONTAINS
        !     Data (GuesP3(91,J),J=1,10)/10*0.0e0_dp/
     CASE (92:106)
     END SELECT
+    ! Finalize parameters for the element
+    CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
     CALL calpar(z,sep,error)
     CALL convert_param_to_cp2k(sep,error)
 
@@ -2425,7 +2428,6 @@ CONTAINS
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
-    CALL valence_electrons(z, sep, extended_basis_set=.TRUE., error=error)
 
     SELECT CASE (z)
     CASE DEFAULT
@@ -3750,6 +3752,8 @@ CONTAINS
        sep%hsp         =    0.295606_dp
     CASE(84:106)
     END SELECT
+    ! Finalize parameters for the element
+    CALL valence_electrons(sep, extended_basis_set=.TRUE., error=error)
     CALL calpar(z,sep,error)
     CALL convert_param_to_cp2k(sep, error)
     CALL init_pm6_pair_params(error)
@@ -3781,7 +3785,6 @@ CONTAINS
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
-    CALL valence_electrons(z, sep, extended_basis_set=.FALSE., error=error)
 
     SELECT CASE (z)
     CASE DEFAULT
@@ -4130,6 +4133,8 @@ CONTAINS
        sep%d(2)             =    2.263417_dp
     CASE (54:106)
     END SELECT
+    ! Finalize parameters for the element
+    CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
     CALL calpar(z,sep, error)
     CALL convert_param_to_cp2k(sep, error)
 
