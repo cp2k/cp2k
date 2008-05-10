@@ -450,7 +450,6 @@ CONTAINS
     ! Determine if this element owns d-orbitals (only if the parametrization
     ! supports the d-orbitals)
     IF (sep%extended_basis_set) sep%dorb = element_has_d(sep,error)
-    WRITE(*,*)sep%z, sep%dorb
     IF (sep%dorb) THEN
        CALL amn_l(sep, amn, error)
        CALL eval_1c_2el_spd(sep, error)
