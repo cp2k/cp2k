@@ -610,8 +610,14 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
      CALL mp_sum ( nscp, qs_ot_env ( 1 ) % scp_para_env % group )
    ENDIF
 ! **** SCP
-   qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k+nscp))
-   qs_ot_env(1)%gradient =  - qs_ot_env(1)%gnorm
+   ! Handling the case of no free variables to optimize
+   IF (n*k+nscp /= 0) THEN
+      qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k+nscp))
+      qs_ot_env(1)%gradient =  - qs_ot_env(1)%gnorm
+   ELSE
+      qs_ot_env(1)%delta=0.0_dp
+      qs_ot_env(1)%gradient=0.0_dp
+   END IF
 END SUBROUTINE ot_new_sd_direction
 
 !
@@ -739,9 +745,14 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
      CALL mp_sum ( nscp, qs_ot_env ( 1 ) % scp_para_env % group )
    ENDIF
 !***SCP
-   qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k+nscp))
-
-   beta_pr=(qs_ot_env(1)%gnorm-gnorm_cross)/qs_ot_env(1)%gnorm_old
+   ! Handling the case of no free variables to optimize
+   IF (n*k+nscp /= 0) THEN
+      qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k+nscp))
+      beta_pr=(qs_ot_env(1)%gnorm-gnorm_cross)/qs_ot_env(1)%gnorm_old
+   ELSE
+      qs_ot_env(1)%delta=0.0_dp      
+      beta_pr = 0.0_dp
+   END IF
    beta_pr=MAX(beta_pr,0.0_dp) ! reset to SD
 
    test_down=0.0_dp
@@ -914,8 +925,14 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
      CALL mp_sum ( nscp, qs_ot_env ( 1 ) % scp_para_env % group )
    ENDIF
 !***SCP
-   qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k+nscp))
-   qs_ot_env(1)%gradient =  - qs_ot_env(1)%gnorm
+   ! Handling the case of no free variables to optimize
+   IF (n*k+nscp /= 0) THEN
+      qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k+nscp))
+      qs_ot_env(1)%gradient =  - qs_ot_env(1)%gnorm
+   ELSE
+      qs_ot_env(1)%delta = 0.0_dp
+      qs_ot_env(1)%gradient = 0.0_dp
+   END IF
 
    ! make the diis matrix and solve it
 

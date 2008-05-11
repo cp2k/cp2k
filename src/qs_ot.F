@@ -1234,28 +1234,29 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
     CALL cp_fm_get_info(qs_ot_env%rot_mat_x,matrix_struct=fm_struct,nrow_global=k,error=error)
-    CALL cp_cfm_create(cmat_x,fm_struct,"cmat_x",error=error)
-    CALL cp_cfm_create(cmat_u,fm_struct,"cmat_u",error=error)
-    ALLOCATE(evals_exp(k))
-
-    ! rot_mat_u = exp(rot_mat_x)
-    ! i rot_mat_x is hermitian, so go over the complex variables for diag
-    CALL cp_cfm_get_info(cmat_x,local_data=local_data_c,error=error)
-    CALL cp_fm_get_info(qs_ot_env%rot_mat_x,local_data=local_data_r,error=error)
-    local_data_c=CMPLX(0.0_dp,local_data_r,KIND=dp)
-    CALL cp_cfm_heevd(cmat_x,qs_ot_env%rot_mat_evec,qs_ot_env%rot_mat_evals,error=error)
-    evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * qs_ot_env%rot_mat_evals(:) )
-    CALL cp_cfm_to_cfm(qs_ot_env%rot_mat_evec,cmat_x,error=error)
-    CALL cp_cfm_column_scale(cmat_x,evals_exp)
-    CALL cp_cfm_gemm('N','C',k,k,k,cone,cmat_x,qs_ot_env%rot_mat_evec,czero,cmat_u,error=error)
-    CALL cp_cfm_get_info(cmat_u,local_data=local_data_c,error=error)
-    CALL cp_fm_get_info(qs_ot_env%rot_mat_u,local_data=local_data_r,error=error)
-    local_data_r=REAL(local_data_c,KIND=dp)
-
-    CALL cp_cfm_release(cmat_x,error=error)
-    CALL cp_cfm_release(cmat_u,error=error)
-    DEALLOCATE(evals_exp)
-
+    IF (k/=0) THEN
+       CALL cp_cfm_create(cmat_x,fm_struct,"cmat_x",error=error)
+       CALL cp_cfm_create(cmat_u,fm_struct,"cmat_u",error=error)
+       ALLOCATE(evals_exp(k))
+       
+       ! rot_mat_u = exp(rot_mat_x)
+       ! i rot_mat_x is hermitian, so go over the complex variables for diag
+       CALL cp_cfm_get_info(cmat_x,local_data=local_data_c,error=error)
+       CALL cp_fm_get_info(qs_ot_env%rot_mat_x,local_data=local_data_r,error=error)
+       local_data_c=CMPLX(0.0_dp,local_data_r,KIND=dp)
+       CALL cp_cfm_heevd(cmat_x,qs_ot_env%rot_mat_evec,qs_ot_env%rot_mat_evals,error=error)
+       evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * qs_ot_env%rot_mat_evals(:) )
+       CALL cp_cfm_to_cfm(qs_ot_env%rot_mat_evec,cmat_x,error=error)
+       CALL cp_cfm_column_scale(cmat_x,evals_exp)
+       CALL cp_cfm_gemm('N','C',k,k,k,cone,cmat_x,qs_ot_env%rot_mat_evec,czero,cmat_u,error=error)
+       CALL cp_cfm_get_info(cmat_u,local_data=local_data_c,error=error)
+       CALL cp_fm_get_info(qs_ot_env%rot_mat_u,local_data=local_data_r,error=error)
+       local_data_r=REAL(local_data_c,KIND=dp)
+       
+       CALL cp_cfm_release(cmat_x,error=error)
+       CALL cp_cfm_release(cmat_u,error=error)
+       DEALLOCATE(evals_exp)
+    END IF
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_ot_generate_rotation
@@ -1291,43 +1292,43 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
 
     CALL cp_fm_get_info(qs_ot_env%rot_mat_u,nrow_global=k,error=error)
-
-    ! create the derivative of the energy wrt to rot_mat_u
-    CALL cp_fm_gemm('N','N',k,k,k,1.0_dp,qs_ot_env%rot_mat_u,qs_ot_env%rot_mat_chcf, &
-         0.0_dp,qs_ot_env%matrix_buf1,error=error)
-
-    ! now we get to the derivative wrt the antisymmetric matrix rot_mat_x
-    CALL cp_fm_get_info(qs_ot_env%rot_mat_x,matrix_struct=fm_struct,error=error)
-    CALL cp_cfm_create(cmat_buf1,fm_struct,"cmat_buf1",error=error)
-    CALL cp_cfm_create(cmat_buf2,fm_struct,"cmat_buf2",error=error)
-
-    ! init cmat_buf1
-    CALL cp_fm_get_info(qs_ot_env%matrix_buf1,matrix_struct=fm_struct, local_data=local_data_r,error=error)
-    CALL cp_cfm_get_info(cmat_buf1, nrow_local=nrow_local,   ncol_local=ncol_local, &
-         row_indices=row_indices, col_indices=col_indices, &
-         local_data=local_data_c,error=error)
-    local_data_c=local_data_r
-
-    CALL cp_cfm_gemm('T','N',k,k,k,cone,cmat_buf1,qs_ot_env%rot_mat_evec,czero,cmat_buf2,error=error)
-    CALL cp_cfm_gemm('C','N',k,k,k,cone,qs_ot_env%rot_mat_evec,cmat_buf2,czero,cmat_buf1,error=error)
-    DO j=1,ncol_local
-       DO i=1,nrow_local
-          e1=qs_ot_env%rot_mat_evals(row_indices(i))
-          e2=qs_ot_env%rot_mat_evals(col_indices(j))
-          local_data_c(i,j)=local_data_c(i,j)*cint(e1,e2)
+    IF (k/=0) THEN
+       ! create the derivative of the energy wrt to rot_mat_u
+       CALL cp_fm_gemm('N','N',k,k,k,1.0_dp,qs_ot_env%rot_mat_u,qs_ot_env%rot_mat_chcf, &
+            0.0_dp,qs_ot_env%matrix_buf1,error=error)
+       
+       ! now we get to the derivative wrt the antisymmetric matrix rot_mat_x
+       CALL cp_fm_get_info(qs_ot_env%rot_mat_x,matrix_struct=fm_struct,error=error)
+       CALL cp_cfm_create(cmat_buf1,fm_struct,"cmat_buf1",error=error)
+       CALL cp_cfm_create(cmat_buf2,fm_struct,"cmat_buf2",error=error)
+       
+       ! init cmat_buf1
+       CALL cp_fm_get_info(qs_ot_env%matrix_buf1,matrix_struct=fm_struct, local_data=local_data_r,error=error)
+       CALL cp_cfm_get_info(cmat_buf1, nrow_local=nrow_local,   ncol_local=ncol_local, &
+            row_indices=row_indices, col_indices=col_indices, &
+            local_data=local_data_c,error=error)
+       local_data_c=local_data_r
+       
+       CALL cp_cfm_gemm('T','N',k,k,k,cone,cmat_buf1,qs_ot_env%rot_mat_evec,czero,cmat_buf2,error=error)
+       CALL cp_cfm_gemm('C','N',k,k,k,cone,qs_ot_env%rot_mat_evec,cmat_buf2,czero,cmat_buf1,error=error)
+       DO j=1,ncol_local
+          DO i=1,nrow_local
+             e1=qs_ot_env%rot_mat_evals(row_indices(i))
+             e2=qs_ot_env%rot_mat_evals(col_indices(j))
+             local_data_c(i,j)=local_data_c(i,j)*cint(e1,e2)
+          ENDDO
        ENDDO
-    ENDDO
-    CALL cp_cfm_gemm('N','N',k,k,k,cone,qs_ot_env%rot_mat_evec,cmat_buf1,czero,cmat_buf2,error=error)
-    CALL cp_cfm_gemm('N','C',k,k,k,cone,cmat_buf2,qs_ot_env%rot_mat_evec,czero,cmat_buf1,error=error)
-
-    local_data_r=REAL(local_data_c,KIND=dp)
-    CALL cp_fm_transpose(qs_ot_env%matrix_buf1,qs_ot_env%matrix_buf2,error=error)
-    CALL cp_fm_scale_and_add(-1.0_dp,qs_ot_env%matrix_buf1,+1.0_dp,qs_ot_env%matrix_buf2,error=error)
-    CALL cp_fm_to_fm(qs_ot_env%matrix_buf1,qs_ot_env%rot_mat_gx,error=error)
-
-    CALL cp_cfm_release(cmat_buf1,error=error)
-    CALL cp_cfm_release(cmat_buf2,error=error)
-
+       CALL cp_cfm_gemm('N','N',k,k,k,cone,qs_ot_env%rot_mat_evec,cmat_buf1,czero,cmat_buf2,error=error)
+       CALL cp_cfm_gemm('N','C',k,k,k,cone,cmat_buf2,qs_ot_env%rot_mat_evec,czero,cmat_buf1,error=error)
+       
+       local_data_r=REAL(local_data_c,KIND=dp)
+       CALL cp_fm_transpose(qs_ot_env%matrix_buf1,qs_ot_env%matrix_buf2,error=error)
+       CALL cp_fm_scale_and_add(-1.0_dp,qs_ot_env%matrix_buf1,+1.0_dp,qs_ot_env%matrix_buf2,error=error)
+       CALL cp_fm_to_fm(qs_ot_env%matrix_buf1,qs_ot_env%rot_mat_gx,error=error)
+       
+       CALL cp_cfm_release(cmat_buf1,error=error)
+       CALL cp_cfm_release(cmat_buf2,error=error)
+    END IF
     CALL timestop(0.0_dp,handle)
   CONTAINS
 ! *****************************************************************************
