@@ -309,7 +309,7 @@ CONTAINS
     LOGICAL                                  :: failure, l_denuc, l_enuc
     REAL(dp) :: a, aab, alpi, alpj, apdg, ax, dai, daj, dax, dbi, dbj, &
       denuc_loc, dqcorr, drija, dscale, dssss, dzz, enuc_loc, pai, paj, pbi, &
-      pbj, poi, poj, qcorr, rij, rija, scale, ssss, xab, xtmp, zaf, zbf, zz
+      pbj, qcorr, rij, rija, scale, ssss, xab, xtmp, zaf, zbf, zz
     REAL(dp), DIMENSION(3)                   :: drij, z
     REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
                                                 fnj3
@@ -338,6 +338,7 @@ CONTAINS
           scale = 0.0_dp
           dscale= 0.0_dp
           dqcorr= 0.0_dp
+          zz = sepi%zeff*sepj%zeff
           ! Method dependent code
           IF(itype /= do_method_pm6) THEN
              alpi = sepi%alp
@@ -363,7 +364,6 @@ CONTAINS
                    END IF
                 END IF
              ENDIF
-             zz = sepi%zeff*sepj%zeff
              enuc_loc = zz*ssss
              IF (l_denuc) THEN
                 denuc_loc= zz*dssss
@@ -471,21 +471,9 @@ CONTAINS
              END IF
           ELSE
              ! PM6 core-core terms
-             IF ( ABS(sepi%rho) > EPSILON(0.0_dp) ) THEN
-               poi = sepi%rho
-             ELSE
-               poi = sepi%ko(9)
-             END IF
-             IF ( ABS(sepj%rho) > EPSILON(0.0_dp) ) THEN
-               poj = sepj%rho
-             ELSE
-               poj = sepj%ko(9)
-             END IF
-             scale = sepi%zeff*sepj%zeff/SQRT(rij*rij+(poi+poj)**2)
-             IF(shortrange) scale = scale - sepi%zeff*sepj%zeff/rij
+             scale = zz*ssss
              IF (l_denuc) THEN
-               dscale = -rij*sepi%zeff*sepj%zeff/(rij*rij+(poi+poj)**2)**(1.5_dp)
-               IF(shortrange) dscale = dscale + sepi%zeff*sepj%zeff/rij/rij
+                dscale = zz*dssss
              END IF
              drija  = angstrom
              rija   = rij*drija

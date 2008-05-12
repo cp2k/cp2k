@@ -475,6 +475,11 @@ CONTAINS
        sep%ko(9) = sep%ko(1)
        sep%aq    = 0.5_dp/sep%ko(3)
     END IF
+    ! In case the Klopman-Ohno CORE therm is provided let's overwrite the
+    ! computed one
+    IF ( ABS(sep%rho) > EPSILON(0.0_dp) ) THEN
+       sep%ko(9) = sep%rho
+    END IF
   END SUBROUTINE calpar_d
 
 ! *****************************************************************************

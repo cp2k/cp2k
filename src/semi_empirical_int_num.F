@@ -520,8 +520,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ig, nt
-    REAL(dp) :: a, aab, alpi, alpj, apdg, ax, dai, daj, dbi, dbj, pai, paj, &
-      pbi, pbj, poi, poj, qcorr, rij, rija, scale, ssss, xab, zaf, zbf, zz
+    REAL(dp)                                 :: a, aab, alpi, alpj, apdg, ax, &
+                                                dai, daj, dbi, dbj, pai, paj, &
+                                                pbi, pbj, qcorr, rij, rija, &
+                                                scale, ssss, xab, zaf, zbf, zz
     REAL(dp), DIMENSION(3)                   :: z
     REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
                                                 fnj3
@@ -533,6 +535,7 @@ CONTAINS
 
        CALL nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,taper=taper,shortrange=shortrange,&
             error=error)
+       zz = sepi%zeff*sepj%zeff
        ! Nuclear-Nuclear contribution
        IF(itype /= do_method_pm6) THEN
           alpi = sepi%alp
@@ -546,7 +549,6 @@ CONTAINS
              IF(sepj%z == 7.OR.sepj%z == 8) &
                   scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpj*rij)
           ENDIF
-          zz = sepi%zeff*sepj%zeff
           enuc = zz*ssss
           scale=ABS(scale*enuc)
           zz=zz/rij
@@ -631,42 +633,27 @@ CONTAINS
           ELSE
              qcorr = 0.0_dp
           END IF
-          enuc=enuc+scale+qcorr
        ELSE
-          enuc = 0._dp
-          rija = rij*angstrom
-          IF ( ABS(sepi%rho) > EPSILON(0.0_dp) ) THEN
-             poi = sepi%rho
-          ELSE
-             poi = sepi%ko(9)
-          END IF
-          IF ( ABS(sepj%rho) > EPSILON(0._dp) ) THEN
-             poj = sepj%rho
-          ELSE
-             poj = sepj%ko(9)
-          END IF
-          scale = sepi%zeff*sepj%zeff/SQRT(rij*rij+(poi+poj)**2)
-          IF(shortrange) scale = scale -  sepi%zeff*sepj%zeff/rij
+          rija  = rij*angstrom
+          scale = zz*ssss
           ! PM6 core-core terms
           xab = sepi%xab(sepj%z)
           aab = sepi%aab(sepj%z)
           IF ( (sepi%z == 1 .AND. (sepj%z == 6 .OR. sepj%z == 7 .OR. sepj%z == 8)) .OR. &
                (sepj%z == 1 .AND. (sepi%z == 6 .OR. sepi%z == 7 .OR. sepi%z == 8)) ) THEN
              ! Special Case O-H or N-H or C-H
-             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*rija*rija))
+             enuc=scale*(1._dp+2._dp*xab*EXP(-aab*rija*rija))
           ELSEIF ( sepi%z == 6 .AND. sepj%z == 6 ) THEN
              ! Special Case C-C
-             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)) &
-                  +9.28_dp*EXP(-5.98_dp*rija))
+             enuc=scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))+9.28_dp*EXP(-5.98_dp*rija))
           ELSEIF ( (sepi%z == 8 .AND. sepj%z == 14) .OR. &
                (sepj%z == 8 .AND. sepi%z == 14) ) THEN
              ! Special Case Si-O
-             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)) &
-                  -0.0007_dp*EXP(-(rija-2.9_dp)**2) )
+             enuc=scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))-0.0007_dp*EXP(-(rija-2.9_dp)**2) )
           ELSE
              ! General Case
              ! Factor of 2 found by experiment 
-             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))
+             enuc=scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))
           END IF
           ! General correction term a*exp(-b*(rij-c)^2)
           enuc=enuc+(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*sepi%zeff*sepj%zeff/rij
@@ -674,7 +661,10 @@ CONTAINS
           ! Hard core repulsion
           enuc=enuc+1.e-8_dp/evolt &
                * ( (REAL(sepi%z,dp)**(1._dp/3._dp) + REAL(sepj%z,dp)**(1._dp/3._dp))/rija )**12
+          scale = 0.0_dp
+          qcorr = 0.0_dp
        END IF
+       enuc=enuc+scale+qcorr
     END IF
   END SUBROUTINE corecore_num
 
