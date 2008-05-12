@@ -814,32 +814,32 @@ CONTAINS
     IF (l_core) THEN
        !     <S  S  | S  S  >
        kl = indexa(1, 1)
-       core(1,1)    = ijkl_sp (sepi, sepj, kl, ij, 0, 0, 0, 0, 1, rij, longrange, itype, error) * sepj%zeff
+       core(1,1)    = ijkl_sp (sepi, sepj, kl, ij, 0, 0, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
        IF (si) THEN
           !  <S  P  | S  S  >
           kl = indexa(2, 1)
-          core(2,1) = ijkl_sp (sepi, sepj, kl, ij, 0, 1, 0, 0, 1, rij, longrange, itype, error) * sepj%zeff
+          core(2,1) = ijkl_sp (sepi, sepj, kl, ij, 0, 1, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
           !  <P  P  | S  S  >
           kl = indexa(2, 2)
-          core(3,1) = ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 1, rij, longrange, itype, error) * sepj%zeff
+          core(3,1) = ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
           !  <P+ P+ | S  S  >
           kl = indexa(3, 3)
-          core(4,1) = ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 1, rij, longrange, itype, error) * sepj%zeff
+          core(4,1) = ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
        END IF
 
        !     <S  S  | S  S  >
        kl = indexa(1, 1)
-       core(1,2)    = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 0, 2, rij, longrange, itype, error) * sepi%zeff
+       core(1,2)    = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 0, 1, rij, longrange, itype, error) * sepi%zeff
        IF (sj) THEN
           !  <S  S  | S  P  >
           kl = indexa(2, 1)
-          core(2,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 1, 2, rij, longrange, itype, error) * sepi%zeff
+          core(2,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 1, 1, rij, longrange, itype, error) * sepi%zeff
           !  <S  S  | P  P  >
           kl = indexa(2, 2)
-          core(3,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 2, rij, longrange, itype, error) * sepi%zeff
+          core(3,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, longrange, itype, error) * sepi%zeff
           !  <S  S  | P+ P+ >
           kl = indexa(3, 3)
-          core(4,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 2, rij, longrange, itype, error) * sepi%zeff
+          core(4,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, longrange, itype, error) * sepi%zeff
        END IF
     END IF
 

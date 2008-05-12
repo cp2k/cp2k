@@ -185,7 +185,7 @@ CONTAINS
        IF (l1 == 0) THEN
           IF (lij == 1) THEN
              pij = sepi%ko(1)
-             IF (ic == 1 .OR. ic == -1) THEN
+             IF (ic == -1 .OR. ic == 1) THEN
                 pij = sepi%ko(9)
              END IF
           ELSE IF (lij == 3) THEN
@@ -202,7 +202,7 @@ CONTAINS
           IF (l2 == 0) THEN
              IF (lkl == 1) THEN
                 pkl = sepj%ko(1)
-                IF (ic == 2 .OR. ic == -1) THEN
+                IF (ic == -1 .OR. ic == 2) THEN
                    pkl = sepj%ko(9)
                 END IF
              ELSE IF (lkl == 3) THEN

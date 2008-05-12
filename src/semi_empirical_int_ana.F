@@ -908,32 +908,32 @@ CONTAINS
     IF (l_core) THEN
        !     <S  S  | S  S  >
        kl = indexa(1, 1)
-       dcore(1,1)    = d_ijkl_sp (sepi, sepj, kl, ij, 0, 0, 0, 0, 1, rij, longrange, itype, error) * sepj%zeff
+       dcore(1,1)    = d_ijkl_sp (sepi, sepj, kl, ij, 0, 0, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
        IF (si) THEN
           !  <S  P  | S  S  >
           kl = indexa(2, 1)
-          dcore(2,1) = d_ijkl_sp (sepi, sepj, kl, ij, 0, 1, 0, 0, 1, rij, longrange, itype, error) * sepj%zeff
+          dcore(2,1) = d_ijkl_sp (sepi, sepj, kl, ij, 0, 1, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
           !  <P  P  | S  S  >
           kl = indexa(2, 2)
-          dcore(3,1) = d_ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 1, rij, longrange, itype, error) * sepj%zeff
+          dcore(3,1) = d_ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
           !  <P+ P+ | S  S  >
           kl = indexa(3, 3)
-          dcore(4,1) = d_ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 1, rij, longrange, itype, error) * sepj%zeff
+          dcore(4,1) = d_ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
        END IF
 
        !     <S  S  | S  S  >
        kl = indexa(1, 1)
-       dcore(1,2)    = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 0, 2, rij, longrange, itype, error) * sepi%zeff
+       dcore(1,2)    = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 0, 1, rij, longrange, itype, error) * sepi%zeff
        IF (sj) THEN
           !  <S  S  | S  P  >
           kl = indexa(2, 1)
-          dcore(2,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 1, 2, rij, longrange, itype, error) * sepi%zeff
+          dcore(2,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 1, 1, rij, longrange, itype, error) * sepi%zeff
           !  <S  S  | P  P  >
           kl = indexa(2, 2)
-          dcore(3,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 2, rij, longrange, itype, error) * sepi%zeff
+          dcore(3,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, longrange, itype, error) * sepi%zeff
           !  <S  S  | P+ P+ >
           kl = indexa(3, 3)
-          dcore(4,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 2, rij, longrange, itype, error) * sepi%zeff
+          dcore(4,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, longrange, itype, error) * sepi%zeff
        END IF
     END IF
   END SUBROUTINE dnucint_sp_ana
