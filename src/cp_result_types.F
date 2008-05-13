@@ -753,7 +753,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(res_target%desc_map(SIZE(tmp_map)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
-    ! walkaround a NAG compiler bug that appears randomly from time
+    ! workaround for a NAG compiler bug that appears randomly from time
     ! to time..
     ! this fix may become obsolete in the future.
     DO i = 1, SIZE(tmp_string)
