@@ -79,7 +79,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nder
-    LOGICAL                                  :: do_et, right_iteration_level
+    LOGICAL                                  :: do_et, my_calc_forces, &
+                                                right_iteration_level
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -92,7 +93,8 @@ CONTAINS
 
     CALL timeset(routineN,'I','',handle)
 
-
+    my_calc_forces = .FALSE.
+    IF( PRESENT( calc_forces ) ) my_calc_forces = calc_forces
     para_env=>qs_env%para_env
 
     CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
@@ -119,11 +121,12 @@ CONTAINS
        ! *** In case of denisty_fitting, calculate the corresponding overlap_matrices
        IF( dft_control%do_wfn_fitting) THEN
          NULLIFY(matrix_s_aux_fit,matrix_s_aux_fit_vs_orb)
-         IF( calc_forces ) THEN
+         IF( my_calc_forces ) THEN
            nder = 1
          ELSE
            nder = 0
          END IF
+         CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit, error=error)
          CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s=matrix_s_aux_fit,&
                                    matrix_name="AUX_FIT_OVERLAP",&
                                    basis_set_id_a=use_aux_fit_basis_set,&
@@ -131,6 +134,7 @@ CONTAINS
                                    neighbor_list_sab=qs_env%sab_aux_fit,&
                                    error=error)
          CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit=matrix_s_aux_fit,error=error)
+         CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, error=error)
          CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s=matrix_s_aux_fit_vs_orb,&
                                    matrix_name="MIXED_OVERLAP",&
                                    basis_set_id_a=use_aux_fit_basis_set,&

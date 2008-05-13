@@ -110,6 +110,7 @@ CONTAINS
     NULLIFY (matrix_s, atomic_kind_set)
     NULLIFY (se_kind_a, se_kind_mm, taper)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
     CALL build_overlap_matrix(qs_env,para_env,matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
@@ -118,7 +119,6 @@ CONTAINS
                               error=error)
     CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
     CALL get_qs_env(qs_env=qs_env,&
-                    matrix_s=matrix_s,&
                     taper=taper,&
                     atomic_kind_set=atomic_kind_set,&
                     ks_qmmm_env=ks_qmmm_env_loc,&

@@ -123,6 +123,7 @@ CONTAINS
 
      ! calculate overlap matrix
      IF(calculate_forces) THEN
+        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
         CALL build_overlap_matrix(qs_env,para_env,nderivative=1, matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
@@ -131,6 +132,7 @@ CONTAINS
                               error=error)
         CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
      ELSE
+        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
         CALL build_overlap_matrix(qs_env,para_env,matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
