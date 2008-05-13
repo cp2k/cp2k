@@ -720,7 +720,9 @@ CPSourceFileRef,&
        full_block => fm%local_data
 #if defined(__SCALAPACK)
        ! zero-out whole target_m
-       CALL dcopy(SIZE(target_m,1)*SIZE(target_m,2),0.0_dp,0,target_m(1,1),1)
+       IF (SIZE(target_m,1)*SIZE(target_m,2)/=0) THEN
+          CALL dcopy(SIZE(target_m,1)*SIZE(target_m,2),0.0_dp,0,target_m(1,1),1)
+       END IF
 #endif
 
        CALL cp_fm_get_info(matrix=fm, &
