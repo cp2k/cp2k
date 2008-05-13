@@ -17,6 +17,8 @@ MODULE qs_energy
   USE et_coupling,                     ONLY: calc_et_coupling
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
+                                             use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -39,14 +41,10 @@ MODULE qs_energy
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_scf,                          ONLY: scf
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type 
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_methods,                     ONLY: xas
-  USE sparse_matrix_output,            ONLY: write_sparse_matrix
-  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
-                                             use_orb_basis_set
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -80,16 +78,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, nder
     LOGICAL                                  :: do_et, right_iteration_level
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(section_vals_type), POINTER         :: input, rest_b_section
-    INTEGER                                  :: nder
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
-
+      POINTER                                :: matrix_s_aux_fit, &
+                                                matrix_s_aux_fit_vs_orb
+    TYPE(section_vals_type), POINTER         :: input, rest_b_section
 
 !   ---------------------------------------------------------------------------
 

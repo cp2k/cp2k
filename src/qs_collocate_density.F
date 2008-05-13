@@ -59,8 +59,8 @@ MODULE qs_collocate_density
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: pw_interp,&
-                                             spline3_pbc_interp
-  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
+                                             spline3_pbc_interp,&
+                                             use_aux_fit_basis_set,&
                                              use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -514,8 +514,9 @@ CONTAINS
     INTEGER :: bcol, brow, ga_gb_function, handle, i, iatom, iatom_old, &
       igrid_level, ikind, ikind_old, ipgf, iset, iset_old, istat, itask, &
       ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, &
-      maxco, maxpgf, maxset, maxsgf, maxsgf_set, n, na1, na2, natoms, nb1, &
-      nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat
+      maxco, maxpgf, maxset, maxsgf, maxsgf_set, my_basis_set_id, n, na1, &
+      na2, natoms, nb1, nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, &
+      nthread, sgfa, sgfb, stat
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -558,7 +559,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(section_vals_type), POINTER         :: input, interp_section
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
-    INTEGER                                  :: my_basis_set_id
 
 !   ---------------------------------------------------------------------------
 
@@ -941,8 +941,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: dir, group, group_size, handle, i, iatom, igrid_level, ipgf, &
-      iset, istat, maxco, maxsgf_set, my_pos, na1, na2, nao, natom, ncoa, &
-      ncol_global, nseta, offset, sgfa, stat
+      iset, istat, maxco, maxsgf_set, my_basis_set_id, my_pos, na1, na2, nao, &
+      natom, ncoa, ncol_global, nseta, offset, sgfa, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: where_is_the_point
     INTEGER, DIMENSION(3)                    :: lb, location, tp, ub
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
@@ -964,7 +964,6 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(REALSPACE_GRID_P_TYPE), &
       DIMENSION(:), POINTER                  :: rs_rho
-    INTEGER                                  :: my_basis_set_id
 
     IF( PRESENT( basis_set_id ) ) THEN
       my_basis_set_id = basis_set_id
