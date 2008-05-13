@@ -714,6 +714,8 @@ CONTAINS
                    END DO
                 ELSE
                    DO i = 1, SIZE(sep%fn1,1)
+                      ! Skip the printing of params that are zero..
+                      IF (sep%fn1(i)==0.0_dp.AND.sep%fn2(i)==0.0_dp.AND.sep%fn3(i)==0.0_dp) CYCLE
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
                            ADJUSTR("FN1"//TRIM(ADJUSTL(cp_to_string(i)))),&
                            "- "//"Core-Core VDW, Multiplier   [a.u.]: ",sep%fn1(i)
