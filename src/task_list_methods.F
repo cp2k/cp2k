@@ -25,6 +25,8 @@ MODULE task_list_methods
                                              return_cube_nonortho
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
+  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
+                                             use_orb_basis_set
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE memory_utilities,                ONLY: reallocate
@@ -61,16 +63,18 @@ CONTAINS
 !> \par History
 !>      01.2008 factored out of calculate_rho_elec [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE generate_qs_task_list(qs_env, soft_valid, tasks, dist_ab, ntasks, atom_pair_send, atom_pair_recv, error)
+  SUBROUTINE generate_qs_task_list(qs_env, tasks, dist_ab, ntasks, atom_pair_send, atom_pair_recv,soft_valid, &
+                                   basis_set_id, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab
     INTEGER                                  :: ntasks
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_send, atom_pair_recv
+    LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_qs_task_list', &
@@ -81,8 +85,8 @@ CONTAINS
 
     INTEGER :: ab, added_tasks, bcol, brow, cost, curr_tasks, dest, dir, &
       handle, iatom, igrid_level, ikind, ilist, inode, ipgf, iset, j, jatom, &
-      jkind, jpgf, jset, lb_cube(3), maxpgf, maxset, natoms, nkind, nlist, &
-      nnode, nseta, nsetb, tp(3), ub_cube(3)
+      jkind, jpgf, jset, lb_cube(3), maxpgf, maxset, my_basis_set_id, natoms, &
+      nkind, nlist, nnode, nseta, nsetb, tp(3), ub_cube(3)
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb
     LOGICAL                                  :: distributed_rs_grids, &
@@ -121,13 +125,30 @@ CONTAINS
     my_soft=.FALSE.
     IF (PRESENT(soft_valid)) my_soft = soft_valid
 
-    CALL get_qs_env(qs_env=qs_env,&
-         atomic_kind_set=atomic_kind_set,&
-         cell=cell,&
-         particle_set=particle_set,&
-         dft_control=dft_control,&
-         sab_orb=sab_orb,&
-         pw_env=pw_env,error=error)
+    IF( PRESENT(basis_set_id)) THEN
+      my_basis_set_id = basis_set_id
+    ELSE
+      my_basis_set_id = use_orb_basis_set
+    END IF
+
+    SELECT CASE (my_basis_set_id)
+    CASE (use_orb_basis_set)
+      CALL get_qs_env(qs_env=qs_env,&
+           atomic_kind_set=atomic_kind_set,&
+           cell=cell,&
+           particle_set=particle_set,&
+           dft_control=dft_control,&
+           sab_orb=sab_orb,&
+           pw_env=pw_env,error=error)
+    CASE (use_aux_fit_basis_set)
+      CALL get_qs_env(qs_env=qs_env,&
+           atomic_kind_set=atomic_kind_set,&
+           cell=cell,&
+           particle_set=particle_set,&
+           dft_control=dft_control,&
+           sab_aux_fit=sab_orb,&
+           pw_env=pw_env,error=error)
+    END SELECT
     CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
 
     ! *** assign from pw_env
@@ -150,13 +171,19 @@ CONTAINS
     maxpgf=0
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
-
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            softb = my_soft, &
-            orb_basis_set=orb_basis_set)
+       SELECT CASE (my_basis_set_id)
+       CASE (use_orb_basis_set)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              softb = my_soft, &
+              orb_basis_set=orb_basis_set)
+       CASE (use_aux_fit_basis_set)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              softb = my_soft, &
+              aux_fit_basis_set=orb_basis_set,&
+              basis_set_id=my_basis_set_id)
+       END SELECT 
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
             npgf=npgfa, nset=nseta )
 
@@ -179,9 +206,15 @@ CONTAINS
     loop_ikind: DO ikind=1,nkind
 
        atomic_kind => atomic_kind_set(ikind)
-
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            softb = my_soft, orb_basis_set=orb_basis_set)
+       SELECT CASE (my_basis_set_id)
+       CASE (use_orb_basis_set)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              softb = my_soft, orb_basis_set=orb_basis_set)
+       CASE (use_aux_fit_basis_set)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              softb = my_soft, aux_fit_basis_set=orb_basis_set,&
+              basis_set_id=my_basis_set_id)
+       END SELECT
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -198,9 +231,15 @@ CONTAINS
        loop_jkind: DO jkind=1,nkind
 
           atomic_kind => atomic_kind_set(jkind)
-
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               softb = my_soft, orb_basis_set=orb_basis_set)
+          SELECT CASE (my_basis_set_id)
+          CASE (use_orb_basis_set)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                 softb = my_soft, orb_basis_set=orb_basis_set)
+          CASE (use_aux_fit_basis_set)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                 softb = my_soft, aux_fit_basis_set=orb_basis_set,&
+                 basis_set_id=my_basis_set_id)
+          END SELECT
 
           IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -213,7 +252,6 @@ CONTAINS
                pgf_radius=rpgfb,&
                set_radius=set_radius_b,&
                zet=zetb)
-
           ab = ikind + nkind*(jkind - 1)
 
           IF (ASSOCIATED(sab_orb(ab)%neighbor_list_set)) THEN

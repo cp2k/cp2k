@@ -25,7 +25,8 @@ MODULE qs_semi_empirical_hamiltonian
                                              do_method_pdg,&
                                              do_method_pm3,&
                                              do_method_pm6,&
-                                             do_method_rm1
+                                             do_method_rm1,&
+                                             use_orb_basis_set
   USE kinds,                           ONLY: dp
   USE nddo_methods,                    ONLY: build_nddo_fock_matrix
   USE particle_types,                  ONLY: particle_type
@@ -122,9 +123,21 @@ CONTAINS
 
      ! calculate overlap matrix
      IF(calculate_forces) THEN
-       CALL build_overlap_matrix(qs_env=qs_env,para_env=para_env,nderivative=1,error=error)
+        CALL build_overlap_matrix(qs_env,para_env,nderivative=1, matrix_s=matrix_s,&
+                              matrix_name="OVERLAP",&
+                              basis_set_id_a=use_orb_basis_set,&
+                              basis_set_id_b=use_orb_basis_set, &
+                              neighbor_list_sab=qs_env%sab_orb,&
+                              error=error)
+        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
      ELSE
-       CALL build_overlap_matrix(qs_env=qs_env,para_env=para_env,error=error)
+        CALL build_overlap_matrix(qs_env,para_env,matrix_s=matrix_s,&
+                              matrix_name="OVERLAP",&
+                              basis_set_id_a=use_orb_basis_set,&
+                              basis_set_id_b=use_orb_basis_set, &
+                              neighbor_list_sab=qs_env%sab_orb,&
+                              error=error)
+        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
      END IF
 
      CALL get_qs_env(qs_env=qs_env,&

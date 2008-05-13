@@ -12,7 +12,8 @@
 ! *****************************************************************************
 MODULE qs_environment_methods
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_ddapc_types,                  ONLY: cp_ddapc_release
   USE cp_ddapc_util,                   ONLY: cp_ddapc_init
@@ -21,6 +22,7 @@ MODULE qs_environment_methods
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
   USE f77_blas
+  USE input_constants,                 ONLY: use_aux_fit_basis_set
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
@@ -97,8 +99,8 @@ SUBROUTINE qs_env_setup(qs_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nhistory, nvariables, &
-                                                stat
+    INTEGER                                  :: handle, n_ao_aux_fit, &
+                                                nhistory, nvariables, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: outer_scf_history
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -161,6 +163,18 @@ SUBROUTINE qs_env_setup(qs_env,error)
               nrow_block=scf_control%nrow_block,&
               ncol_block=scf_control%ncol_block,&
               error=error)
+       
+       ! If we do wfn_fitting rebuild fm_pools
+       IF( qs_env%dft_control%do_wfn_fitting ) THEN
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                                  nsgf=n_ao_aux_fit,&
+                                  basis_set_id=use_aux_fit_basis_set)
+         CALL mpools_rebuild_fm_pools(qs_env%mpools_aux_fit,mos=qs_env%mos_aux_fit,&
+              blacs_env=qs_env%blacs_env, para_env=para_env,&
+              nrow_block=scf_control%nrow_block,&
+              ncol_block=n_ao_aux_fit,&
+              error=error)
+        END IF
 
        ! create 2d distribution
 
@@ -219,7 +233,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit
     TYPE(task_list_type), POINTER            :: task_list
 
     CALL timeset(routineN,"I","",handle)
@@ -229,7 +243,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
-         particle_set=particle_set, matrix_ks=matrix_ks, error=error)
+         particle_set=particle_set, matrix_ks=matrix_ks, matrix_ks_aux_fit=matrix_ks_aux_fit, error=error)
 
     ! *** rebuilds the S_sm_pools ***
     CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%matrix_s,&
@@ -240,6 +254,18 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     CALL deallocate_matrix_set(matrix_ks,error=error)
     CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
 
+    
+    IF( dft_control%do_wfn_fitting) THEN
+      ! *** rebuilds the S_sm_pools ***
+      CALL mpools_rebuild_s_sm_pools(qs_env%mpools_aux_fit,s=qs_env%matrix_s_aux_fit,&
+           nspins=dft_control%nspins,particle_set=particle_set,&
+           para_env=para_env, basis_set_id=use_aux_fit_basis_set, error=error)
+
+      ! *** deallocate matrices that will have the wrong structure ***
+      CALL deallocate_matrix_set(matrix_ks_aux_fit,error=error)
+      CALL set_qs_env(qs_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
+    END IF
+    
     IF(dft_control%qs_control%gapw) THEN
       qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
       IF (ASSOCIATED(qs_env%rho_core)) THEN
@@ -269,8 +295,9 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
              CALL allocate_task_list(task_list,error)
              CALL set_qs_env(qs_env=qs_env,task_list=task_list,error=error)
           ENDIF
-          CALL generate_qs_task_list(qs_env, .FALSE. , &
-                 task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv, error)
+          CALL generate_qs_task_list(qs_env, &
+                 task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv,&
+                 soft_valid=.FALSE., error=error)
        ENDIF
        ! generate the soft task list
        IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
@@ -279,10 +306,23 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
              CALL allocate_task_list(task_list,error)
              CALL set_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)
           ENDIF
-          CALL generate_qs_task_list(qs_env, .TRUE. , &
-                 task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv, error)
+          CALL generate_qs_task_list(qs_env, &
+                 task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv,&
+                 soft_valid = .TRUE., error=error)
        ENDIF
     ENDIF
+
+    IF( dft_control%do_wfn_fitting) THEN
+      ! generate the aux_fit task list
+      CALL get_qs_env(qs_env=qs_env,task_list_aux_fit=task_list,error=error)
+      IF (.NOT. ASSOCIATED(task_list)) THEN
+        CALL allocate_task_list(task_list,error)
+        CALL set_qs_env(qs_env=qs_env,task_list_aux_fit=task_list,error=error)
+      ENDIF
+      CALL generate_qs_task_list(qs_env,&
+           task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv, &
+           soft_valid=.FALSE.,basis_set_id=use_aux_fit_basis_set, error=error)
+    END IF
 
     ! *** environment for ddapc ***
     IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
@@ -404,13 +444,14 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: gapw_xc
+    LOGICAL                                  :: do_wfn_fitting, gapw_xc
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,error=error)
     gapw_xc=dft_control%qs_control%gapw_xc
+    do_wfn_fitting = dft_control%do_wfn_fitting
     CALL qs_rho_rebuild(qs_env%rho,qs_env=qs_env,&
          rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
     IF(gapw_xc) THEN
@@ -418,7 +459,11 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
          rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, gapw_xc=gapw_xc, error=error)
       qs_env%rho_xc%rho_ao => qs_env%rho%rho_ao
     END IF
-
+    IF(do_wfn_fitting) THEN
+      CALL qs_rho_rebuild(qs_env%rho_aux_fit,qs_env=qs_env,&
+                          rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, &
+                          basis_set_id=use_aux_fit_basis_set, error=error)
+    END IF
     CALL timestop(handle)
 
 END SUBROUTINE qs_env_rebuild_rho

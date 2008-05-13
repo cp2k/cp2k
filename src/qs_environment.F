@@ -92,7 +92,7 @@ MODULE qs_environment
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
        do_method_gapw, do_method_gapw_xc, do_method_mndo, do_method_mndod, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_rm1, &
-       general_roks, restart_guess
+       general_roks, restart_guess, use_aux_fit_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -223,7 +223,6 @@ CONTAINS
     END IF
     cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
     harris_section => section_vals_get_subs_vals(force_env_section, "DFT%QS%HARRIS", error=error)
-
     my_qmmm     = .FALSE.
     IF (PRESENT(qmmm)) my_qmmm=qmmm
     my_qmmm_periodic = .FALSE.
@@ -310,7 +309,7 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
 
       CALL hfx_create(qs_env%x_data, para_env, hfx_section,natom,max_set,atomic_kind_set, &
-                      particle_set, error=error)
+                      particle_set, qs_env%dft_control, error=error)
     END IF
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
                            "PROPERTIES%ET_COUPLING",error=error)
@@ -339,8 +338,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, ispin, istat, iw, lmax_sphere, maxl, maxlgto, maxlppl, &
-      maxlppnl, method_id, multiplicity, my_ival, n_ao, natom, nelectron, &
-      output_unit
+      maxlppnl, method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, natom, &
+      nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
                                                 harris_flag, ionode, &
@@ -361,7 +360,7 @@ CONTAINS
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+      POINTER                                :: mos, mos_aux_fit
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
@@ -401,7 +400,7 @@ CONTAINS
     END IF
 
     ! Initialise the Quickstep environment
-    NULLIFY (mos, taper)
+    NULLIFY (mos, taper, mos_aux_fit)
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (force)
@@ -523,7 +522,6 @@ CONTAINS
 
     CALL init_orbital_pointers(maxl)
     CALL init_spherical_harmonics(maxl,root_section,error)
-
     !   *** Initialise the atomic kind set ***
     CALL init_atomic_kind_set(atomic_kind_set,para_env,qs_env%input,error=error)
 
@@ -692,6 +690,7 @@ CONTAINS
                              nsgf=n_ao,&
                              nelectron=nelectron)
 
+
     ! the total number of electrons
     nelectron = nelectron - dft_control%charge
 
@@ -834,6 +833,30 @@ CPSourceFileRef,&
     END DO
 
     CALL set_qs_env(qs_env,mos=mos,error=error)
+    ! If we do wfn fitting, set mo_set_aux_fit
+    IF( dft_control%do_wfn_fitting ) THEN
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             nsgf=n_ao_aux_fit,&
+                             nelectron=nelectron,&
+                             basis_set_id=use_aux_fit_basis_set)
+      ALLOCATE (mos_aux_fit(dft_control%nspins),STAT=istat)
+      IF (istat /= 0) THEN
+         CALL stop_memory(routineN,moduleN,__LINE__,&
+              "mos_aux_fit",dft_control%nspins*int_size)
+      END IF
+
+      DO ispin=1,dft_control%nspins
+         NULLIFY (mos_aux_fit(ispin)%mo_set)
+         CALL allocate_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,&
+                              nao=n_ao_aux_fit,&
+                              nmo=n_mo(ispin),&
+                              nelectron=nelectron_spin(ispin),&
+                              maxocc=maxocc,&
+                              error=error)
+      END DO
+      CALL set_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
+    END IF
+
 
     ! Print the DFT control parameters
     CALL write_dft_control(dft_control,dft_section,error)

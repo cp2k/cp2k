@@ -932,6 +932,25 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="AUX_FIT_BASIS_SET",&
+            variants=s2a("AUXILIARY_FIT_BASIS_SET", "AUX_FIT_BASIS"),&
+            description="The auxliliary basis set (GTO type) for wfn fitting",&
+            usage="AUX_FIT_BASIS_SET DZVP", default_c_val=" ", &
+            n_var=1, required=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AUX_BASIS_FIT_NORMALIZATION",&
+            variants=s2a( "AUXILIARY_BASIS_FIT_NORMALIZATION", "AUX_BASIS_FIT_NORM"),&
+            description="The normalization of the auxliliary basis set for wfn fitting",&
+            usage="AUX_BASIS_FIT_NORMALIZATION NO", &
+            enum_c_vals=s2a( "NONE","NO","WFN","WAVEFUNCTION","FUNCTION",&
+            "DENS","DENSITY","SQUARE","UNDEFINED"),&
+            enum_i_vals=(/0,0,1,1,1,2,2,2,-1/),&
+            default_i_val=-1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="BASIS_SET",&
             variants=s2a("ORBITAL_BASIS_SET","ORB_BASIS"),&
             description="The basis set (GTO type)",&

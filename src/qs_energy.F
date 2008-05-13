@@ -31,15 +31,22 @@ MODULE qs_energy
   USE qs_dftb_matrices,                ONLY: build_dftb_matrices
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
+  USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_scf,                          ONLY: scf
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type 
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_methods,                     ONLY: xas
+  USE sparse_matrix_output,            ONLY: write_sparse_matrix
+  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
+                                             use_orb_basis_set
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -79,10 +86,15 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(section_vals_type), POINTER         :: input, rest_b_section
+    INTEGER                                  :: nder
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
+
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,'I','',handle)
+
 
     para_env=>qs_env%para_env
 
@@ -107,11 +119,37 @@ CONTAINS
     ELSE
        CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv,&
                                           calculate_forces=.FALSE.,error=error)
+       ! *** In case of denisty_fitting, calculate the corresponding overlap_matrices
+       IF( dft_control%do_wfn_fitting) THEN
+         NULLIFY(matrix_s_aux_fit,matrix_s_aux_fit_vs_orb)
+         IF( calc_forces ) THEN
+           nder = 1
+         ELSE
+           nder = 0
+         END IF
+         CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s=matrix_s_aux_fit,&
+                                   matrix_name="AUX_FIT_OVERLAP",&
+                                   basis_set_id_a=use_aux_fit_basis_set,&
+                                   basis_set_id_b=use_aux_fit_basis_set, &
+                                   neighbor_list_sab=qs_env%sab_aux_fit,&
+                                   error=error)
+         CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit=matrix_s_aux_fit,error=error)
+         CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s=matrix_s_aux_fit_vs_orb,&
+                                   matrix_name="MIXED_OVERLAP",&
+                                   basis_set_id_a=use_aux_fit_basis_set,&
+                                   basis_set_id_b=use_orb_basis_set, &
+                                   neighbor_list_sab=qs_env%sab_aux_fit_vs_orb,&
+                                   error=error)
+         CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,error=error)
+       END IF
+
        CALL qs_env_update_s_mstruct(qs_env,error=error)
        CALL calculate_ecore_self(qs_env,error=error)
        CALL calculate_ecore_overlap(qs_env, para_env, &
                                       calculate_forces=.FALSE.,error=error)
     END IF
+
+ 
 
     ! *** Perform a SCF run ***
     CALL scf(qs_env=qs_env, globenv=globenv, error=error)

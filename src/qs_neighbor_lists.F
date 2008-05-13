@@ -149,13 +149,13 @@ CONTAINS
     LOGICAL :: all_pairs_list, all_potential_present, cls, epr, &
       gth_potential_present, mic, molecule_only, nmr, paw_atom, &
       paw_atom_present, print_subcell_grid, rho0_present
-    LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_present, &
-      oce_present, orb_present, ppl_present, ppnl_present, Qlm_present, &
-      semi_present
+    LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
+      aux_present, oce_present, orb_present, ppl_present, ppnl_present, &
+      Qlm_present, semi_present
     REAL(dp)                                 :: alpha, r_skin, rcprj
-    REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, c_radius, oce_radius, &
-      orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, short_orb_radius, &
-      V0hmv0s_radius
+    REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, &
+      c_radius, oce_radius, orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, &
+      short_aux_fit_radius, short_orb_radius, V0hmv0s_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ab_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(all_potential_type), POINTER        :: all_potential
@@ -168,14 +168,16 @@ CONTAINS
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, &
+                                                aux_fit_basis_set, &
+                                                orb_basis_set
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_2c, sab_all, &
-      sab_orb, sab_scp, sac_3c, sac_oce, sac_ppl, sac_ppnl, sbc_3c, sbc_oce, &
-      sbc_ppnl
+      sab_aux_fit, sab_aux_fit_vs_orb, sab_orb, sab_scp, sac_3c, sac_oce, &
+      sac_ppl, sac_ppnl, sbc_3c, sbc_oce, sbc_ppnl
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -210,6 +212,8 @@ CONTAINS
     NULLIFY (sac_3c)
     NULLIFY (sbc_3c)
     NULLIFY (sab_all)
+    NULLIFY (sab_aux_fit)
+    NULLIFY (sab_aux_fit_vs_orb)
 ! *** SCP
     NULLIFY (sab_scp)
 ! *** SCP
@@ -256,6 +260,8 @@ CONTAINS
                     rho0_mpole=rho0_mpole,&
                     rhoz_set=rhoz_set,&
                     sab_orb=sab_orb,&
+                    sab_aux_fit=sab_aux_fit,&
+                    sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
                     sac_ppl=sac_ppl,&
                     sac_ppnl=sac_ppnl,&
                     sbc_ppnl=sbc_ppnl,&
@@ -287,6 +293,11 @@ CONTAINS
     ALLOCATE (orb_present(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_present",nkind*int_size)
+
+    ALLOCATE (aux_fit_present(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "aux_fit_present",nkind*int_size)
+
 ! ***SCP
     ALLOCATE (aux_present(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -301,6 +312,17 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "short_orb_radius",nkind*dp_size)
     short_orb_radius(:) = 0.0_dp
+
+    ALLOCATE (aux_fit_radius(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "aux_fit_radius",nkind*dp_size)
+    aux_fit_radius(:) = 0.0_dp
+    ALLOCATE (short_aux_fit_radius(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "short_aux_fit_radius",nkind*dp_size)
+    short_aux_fit_radius(:) = 0.0_dp
+
+   
 
     IF (gth_potential_present) THEN
 
@@ -392,6 +414,7 @@ CONTAINS
                            gth_potential=gth_potential,&
                            orb_basis_set=orb_basis_set,&
                            aux_basis_set=aux_basis_set,&
+                           aux_fit_basis_set=aux_fit_basis_set,&
                            paw_proj_set=paw_proj,&
                            paw_atom=paw_atom)
 
@@ -435,6 +458,26 @@ CONTAINS
       ELSE
 
         orb_present(ikind) = .FALSE.
+
+      END IF
+
+      IF (ASSOCIATED(aux_fit_basis_set)) THEN
+
+        aux_fit_present(ikind) = .TRUE.
+
+        CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,&
+                               kind_radius=aux_fit_radius(ikind),&
+                               short_kind_radius=short_aux_fit_radius(ikind))
+
+      ELSE IF (qs_env%dft_control%qs_control%dftb) THEN
+        ! Set the interaction radius for the neighbor lists (DFTB case)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_atom)
+        CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
+                                 cutoff=orb_radius(ikind),&
+                                 defined=orb_present(ikind),error=error)
+      ELSE
+
+        aux_fit_present(ikind) = .FALSE.
 
       END IF
 
@@ -620,8 +663,48 @@ CONTAINS
     END IF
 
     ! Put the generated neighbor lists into the QS environment
-
     CALL set_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
+
+    IF( qs_env%dft_control%do_wfn_fitting ) THEN
+      IF (molecule_only) THEN
+        ! *** this needs to be checked
+        CALL build_restricted_neighbor_lists(sab_aux_fit,atom,cell,r_skin,&
+                                             maxatom_local,print_subcell_grid,&
+                                             output_unit,aux_fit_present,aux_fit_present,&
+                                             aux_fit_radius,aux_fit_radius,&
+                                             name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL")
+      ELSE
+        CALL build_neighbor_lists(sab_aux_fit,atom,cell,r_skin,maxatom_local,&
+                                  print_subcell_grid,output_unit,&
+                                  aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,&
+                                  name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL",&
+                                  l3c_oce=paw_atom_present,&
+                                  l3c_rho0=rho0_present,mic=mic)
+      END IF
+
+      IF (molecule_only) THEN
+        ! *** This needs to be checked
+        CALL build_restricted_neighbor_lists(sab_aux_fit_vs_orb,atom,cell,r_skin,&
+                                             maxatom_local,print_subcell_grid,&
+                                             output_unit,aux_fit_present,orb_present,&
+                                             aux_fit_radius,orb_radius,&
+                                             name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL")
+      ELSE
+        CALL build_neighbor_lists(sab_aux_fit_vs_orb,atom,cell,r_skin,maxatom_local,&
+                                  print_subcell_grid,output_unit,&
+                                  aux_fit_present,orb_present,aux_fit_radius,orb_radius,&
+                                  name="ORBITAL AUX_FIT_ORBITAL",&
+                                  l3c_oce=paw_atom_present,&
+                                  l3c_rho0=rho0_present,mic=mic,&
+                                  symmetric=.FALSE.)
+      END IF
+
+      ! Put the generated neighbor lists into the QS environment
+
+      CALL set_qs_env(qs_env=qs_env,sab_aux_fit=sab_aux_fit,error=error)
+      CALL set_qs_env(qs_env=qs_env,sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,error=error)
+    END IF
+
 
     print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_ORB"
 
@@ -646,6 +729,55 @@ CONTAINS
                                         local=.TRUE.,&
                                         error=error)
     END IF
+
+    print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_AUX_FIT"
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+                                         print_key_path,error=error),&
+              cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger=logger,&
+                                basis_section=force_env_section,&
+                                print_key_path=print_key_path,&
+                                extension=".out",&
+                                middle_name="sab_aux_fit",&
+                                local=.TRUE.,&
+                                log_filename=.FALSE.,&
+                                file_position="REWIND",&
+                                error=error)
+      CALL write_neighbor_lists(sab_aux_fit,particle_set,cell,para_env,iw,&
+                                "AUX_FIT_ORBITAL AUX_FIT_ORBITAL",error)
+      CALL cp_print_key_finished_output(unit_nr=iw,&
+                                        logger=logger,&
+                                        basis_section=force_env_section,&
+                                        print_key_path=print_key_path,&
+                                        local=.TRUE.,&
+                                        error=error)
+    END IF
+
+    print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_AUX_FIT_VS_ORB"
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+                                         print_key_path,error=error),&
+              cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger=logger,&
+                                basis_section=force_env_section,&
+                                print_key_path=print_key_path,&
+                                extension=".out",&
+                                middle_name="sab_aux_fit_vs_orb",&
+                                local=.TRUE.,&
+                                log_filename=.FALSE.,&
+                                file_position="REWIND",&
+                                error=error)
+      CALL write_neighbor_lists(sab_aux_fit_vs_orb,particle_set,cell,para_env,iw,&
+                                "ORBITAL AUX_FIT_ORBITAL",error)
+      CALL cp_print_key_finished_output(unit_nr=iw,&
+                                        logger=logger,&
+                                        basis_section=force_env_section,&
+                                        print_key_path=print_key_path,&
+                                        local=.TRUE.,&
+                                        error=error)
+    END IF
+
 
     ! Build orbital-orbital list containing all the pairs, to be used with
     ! non-symmetric operators. Beware: the cutoff of the orbital-orbital overlap

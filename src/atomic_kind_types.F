@@ -38,7 +38,7 @@ MODULE atomic_kind_types
   USE input_constants,                 ONLY: &
        do_fist, do_kg, do_method_am1, do_method_dftb, do_method_mndo, &
        do_method_mndod, do_method_pdg, do_method_pm3, do_method_pm6, &
-       do_method_rm1, do_qs
+       do_method_rm1, do_qs, use_aux_fit_basis_set, use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -110,6 +110,7 @@ MODULE atomic_kind_types
      TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
      TYPE(gto_basis_set_type), POINTER      :: soft_basis_set
      TYPE(gto_basis_set_type), POINTER      :: hard_basis_set
+     TYPE(gto_basis_set_type), POINTER      :: aux_fit_basis_set
      TYPE(paw_proj_set_type),  POINTER      :: paw_proj_set
      REAL(dp)                               :: hard_radius     ! for hard and soft exp
      REAL(dp)                               :: hard0_radius    ! for hard exp of rho0
@@ -201,6 +202,7 @@ CONTAINS
        NULLIFY (atomic_kind_set(ikind)%se_parameter)
        NULLIFY (atomic_kind_set(ikind)%dftb_parameter)
        NULLIFY (atomic_kind_set(ikind)%aux_basis_set)
+       NULLIFY (atomic_kind_set(ikind)%aux_fit_basis_set)
        NULLIFY (atomic_kind_set(ikind)%orb_basis_set)
        NULLIFY (atomic_kind_set(ikind)%atom_list)
        NULLIFY (atomic_kind_set(ikind)%elec_conf)
@@ -276,6 +278,9 @@ CONTAINS
           IF (ASSOCIATED(atomic_kind_set(ikind)%aux_basis_set)) THEN
              CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%aux_basis_set,error)
           END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%aux_fit_basis_set)) THEN
+             CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%aux_fit_basis_set,error)
+          END IF
           IF (ASSOCIATED(atomic_kind_set(ikind)%soft_basis_set).AND.&
                atomic_kind_set(ikind)%paw_atom) THEN
              CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%soft_basis_set,error)
@@ -326,13 +331,13 @@ CONTAINS
 !> \author MK (02.01.2002)
 ! *****************************************************************************
   SUBROUTINE get_atomic_kind(atomic_kind,all_potential,elp_potential,&
-       gth_potential,se_parameter,dftb_parameter,aux_basis_set,orb_basis_set,&
+       gth_potential,se_parameter,dftb_parameter,aux_basis_set,aux_fit_basis_set,orb_basis_set,&
        element_symbol,name,mass,kind_number,natom,atom_list,alpha_core_charge,&
        ccore_charge,core_charge,alpha_scp,I_scp,core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
        soft_basis_set, elec_conf,hard_basis_set,paw_proj_set,softb,paw_atom,qm_atom,&
        hard_radius,hard0_radius,max_rad_local, gpw_type_forced,harmonics, max_iso_not0,&
        max_s_harm, grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active,&
-       dft_plus_u_atom, l_of_dft_plus_u, u_minus_j)
+       dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, basis_set_id)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, &
@@ -346,7 +351,9 @@ CONTAINS
     TYPE(qs_dftb_atom_type), OPTIONAL, &
       POINTER                                :: dftb_parameter
     TYPE(gto_basis_set_type), OPTIONAL, &
-      POINTER                                :: aux_basis_set, orb_basis_set
+      POINTER                                :: aux_basis_set, &
+                                                aux_fit_basis_set, &
+                                                orb_basis_set
     CHARACTER(LEN=2), INTENT(OUT), OPTIONAL  :: element_symbol
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
@@ -382,12 +389,19 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL           :: shell_active, dft_plus_u_atom
     INTEGER, INTENT(OUT), OPTIONAL           :: l_of_dft_plus_u
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: u_minus_j
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atomic_kind', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: l
+    INTEGER                                  :: l, my_basis_set_id
     LOGICAL                                  :: softb_local
+
+    IF( PRESENT(basis_set_id) ) THEN
+      my_basis_set_id = basis_set_id
+    ELSE
+      my_basis_set_id = use_orb_basis_set
+    END IF
 
     softb_local = .FALSE.
 
@@ -400,6 +414,7 @@ CONTAINS
        IF (PRESENT(se_parameter))  se_parameter => atomic_kind%se_parameter
        IF (PRESENT(dftb_parameter))  dftb_parameter => atomic_kind%dftb_parameter
        IF (PRESENT(aux_basis_set)) aux_basis_set => atomic_kind%aux_basis_set
+       IF (PRESENT(aux_fit_basis_set)) aux_fit_basis_set => atomic_kind%aux_fit_basis_set
        IF (PRESENT(orb_basis_set)) THEN
           IF(softb_local) THEN
              orb_basis_set => atomic_kind%soft_basis_set
@@ -473,25 +488,50 @@ CONTAINS
           END IF
        END IF
        IF (PRESENT(ncgf)) THEN
-          IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
-             CALL get_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
-                  ncgf=ncgf)
-          ELSE IF(ASSOCIATED(atomic_kind%dftb_parameter)) THEN
-             l = atomic_kind%dftb_parameter%lmax
-             ncgf = ((l+1)*(l+2)*(l+3))/6
-          ELSE
-             ncgf = 0
-          END IF
+          SELECT CASE ( my_basis_set_id)
+          CASE (use_orb_basis_set)
+            IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
+              CALL get_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
+                   ncgf=ncgf)
+            ELSE IF(ASSOCIATED(atomic_kind%dftb_parameter)) THEN
+              l = atomic_kind%dftb_parameter%lmax
+              ncgf = ((l+1)*(l+2)*(l+3))/6
+            ELSE
+              ncgf = 0
+            END IF
+          CASE (use_aux_fit_basis_set)
+            IF (ASSOCIATED(atomic_kind%aux_fit_basis_set)) THEN
+              CALL get_gto_basis_set(gto_basis_set=atomic_kind%aux_fit_basis_set,&
+                   ncgf=ncgf)
+            ELSE IF(ASSOCIATED(atomic_kind%dftb_parameter)) THEN
+              l = atomic_kind%dftb_parameter%lmax
+              ncgf = ((l+1)*(l+2)*(l+3))/6
+            ELSE
+              ncgf = 0
+            END IF
+          END SELECT
        END IF
        IF (PRESENT(nsgf)) THEN
-          IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
-             CALL get_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
-                  nsgf=nsgf)
-          ELSE IF(ASSOCIATED(atomic_kind%dftb_parameter)) THEN
-             nsgf = atomic_kind%dftb_parameter%natorb
-          ELSE
-             nsgf = 0
-          END IF
+          SELECT CASE ( my_basis_set_id)
+          CASE (use_orb_basis_set)
+            IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
+              CALL get_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
+                   nsgf=nsgf)
+            ELSE IF(ASSOCIATED(atomic_kind%dftb_parameter)) THEN
+              nsgf = atomic_kind%dftb_parameter%natorb
+            ELSE
+              nsgf = 0
+            END IF
+          CASE (use_aux_fit_basis_set)
+            IF (ASSOCIATED(atomic_kind%aux_fit_basis_set)) THEN
+              CALL get_gto_basis_set(gto_basis_set=atomic_kind%aux_fit_basis_set,&
+                   nsgf=nsgf)
+            ELSE IF(ASSOCIATED(atomic_kind%dftb_parameter)) THEN
+              nsgf = atomic_kind%dftb_parameter%natorb
+            ELSE
+              nsgf = 0
+            END IF
+          END SELECT
        END IF
        IF (PRESENT(z)) THEN
           IF (ASSOCIATED(atomic_kind%all_potential)) THEN
@@ -591,7 +631,7 @@ CONTAINS
        atom_of_kind,kind_of,natom_of_kind,maxder,&
        max_ngrid_rad,&
        max_sph_harm,maxg_iso_not0,lmax_rho0,&
-       zetsoft_max)
+       zetsoft_max,basis_set_id)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -609,12 +649,13 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: max_ngrid_rad, max_sph_harm, &
                                                 maxg_iso_not0, lmax_rho0
     REAL(kind=dp), INTENT(out), OPTIONAL     :: zetsoft_max
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atomic_kind_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, iatom, ikind, imax, ipgf, iset, lmax_rho0_kind, &
-      max_iso_not0, max_s_harm, n, ngrid_rad, nkind
+      max_iso_not0, max_s_harm, my_basis_set_id, n, ngrid_rad, nkind
     INTEGER, DIMENSION(:), POINTER           :: n_ppl, npgf_kind
     LOGICAL                                  :: dft_plus_u_atom, paw_atom, &
                                                 qm_atom
@@ -624,11 +665,18 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set, &
-                                                soft_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, &
+                                                aux_fit_basis_set, &
+                                                orb_basis_set, soft_basis_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
     TYPE(shell_kind_type), POINTER           :: shell
+
+    IF( PRESENT(basis_set_id) ) THEN
+      my_basis_set_id = basis_set_id
+    ELSE
+      my_basis_set_id = use_orb_basis_set
+    END IF
 
     IF (ASSOCIATED(atomic_kind_set)) THEN
 
@@ -679,6 +727,7 @@ CONTAINS
                elp_potential=elp_potential,&
                gth_potential=gth_potential,&
                aux_basis_set=aux_basis_set,&
+               aux_fit_basis_set=aux_fit_basis_set,&
                orb_basis_set=orb_basis_set,&
                soft_basis_set=soft_basis_set,&
                dftb_parameter=dftb_parameter,&
@@ -714,10 +763,18 @@ CONTAINS
                 CALL get_gto_basis_set(gto_basis_set=aux_basis_set,ncgf=imax)
                 maxcgf = MAX(maxcgf,imax)
              END IF
-             IF (ASSOCIATED(orb_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=imax)
-                maxcgf = MAX(maxcgf,imax)
-             END IF
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set) 
+               IF (ASSOCIATED(orb_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=imax)
+                  maxcgf = MAX(maxcgf,imax)
+               END IF
+             CASE (use_aux_fit_basis_set)
+               IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,ncgf=imax)
+                  maxcgf = MAX(maxcgf,imax)
+               END IF
+             END SELECT
              IF (ASSOCIATED(dftb_parameter)) THEN
                 CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=imax)
                 imax=((imax+1)*(imax+2)*(imax+3))/6
@@ -734,15 +791,28 @@ CONTAINS
                 END IF
                 maxco = MAX(maxco,imax)
              END IF
-             IF (ASSOCIATED(orb_basis_set)) THEN
-                IF (PRESENT(maxder)) THEN
-                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                        maxco=imax,maxder=maxder)
-                ELSE
-                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxco=imax)
-                END IF
-                maxco = MAX(maxco,imax)
-             END IF
+             SELECT CASE (my_basis_set_id) 
+             CASE (use_orb_basis_set)
+               IF (ASSOCIATED(orb_basis_set)) THEN
+                  IF (PRESENT(maxder)) THEN
+                     CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                          maxco=imax,maxder=maxder)
+                  ELSE
+                     CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxco=imax)
+                  END IF
+                  maxco = MAX(maxco,imax)
+               END IF
+             CASE (use_aux_fit_basis_set)
+               IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                  IF (PRESENT(maxder)) THEN
+                     CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,&
+                          maxco=imax,maxder=maxder)
+                  ELSE
+                     CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,maxco=imax)
+                  END IF
+                  maxco = MAX(maxco,imax)
+               END IF
+             END SELECT
              IF (ASSOCIATED(gth_potential)) THEN
                 CALL get_potential(potential=gth_potential,lprj_ppnl_max=imax)
                 maxco = MAX(maxco,ncoset(imax))
@@ -755,49 +825,92 @@ CONTAINS
              END IF
           ENDIF
           IF (PRESENT(maxgtop)) THEN
-             IF (ASSOCIATED(orb_basis_set)) THEN
+            SELECT CASE (my_basis_set_id)
+            CASE (use_orb_basis_set)
+              IF (ASSOCIATED(orb_basis_set)) THEN
                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxco=imax,&
                      nset=n)
                 maxgtop = MAX(maxgtop, n*imax)
-             END IF
+              END IF
+            CASE (use_aux_fit_basis_set)
+              IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,maxco=imax,&
+                     nset=n)
+                maxgtop = MAX(maxgtop, n*imax)
+              END IF
+            END SELECT  
           END IF
           IF (PRESENT(maxgtops)) THEN
-             IF (ASSOCIATED(orb_basis_set)) THEN
+            SELECT CASE (my_basis_set_id)
+            CASE (use_orb_basis_set)
+              IF (ASSOCIATED(orb_basis_set)) THEN
                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxso=imax,&
                      nset=n)
                 maxgtops = MAX(maxgtops, n*imax)
-             END IF
+              END IF
+            CASE (use_aux_fit_basis_set) 
+              IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,maxso=imax,&
+                     nset=n)
+                maxgtops = MAX(maxgtops, n*imax)
+              END IF
+            END SELECT
           END IF
           IF (PRESENT(maxlgto)) THEN
              IF (ASSOCIATED(aux_basis_set)) THEN
                 CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxl=imax)
                 maxlgto = MAX(maxlgto,imax)
              END IF
-             IF (ASSOCIATED(orb_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=imax)
-                maxlgto = MAX(maxlgto,imax)
-             END IF
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               IF (ASSOCIATED(orb_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=imax)
+                  maxlgto = MAX(maxlgto,imax)
+               END IF
+             CASE (use_aux_fit_basis_set)
+               IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,maxl=imax)
+                  maxlgto = MAX(maxlgto,imax)
+               END IF
+             END SELECT
              IF (ASSOCIATED(dftb_parameter)) THEN
                 CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=imax)
                 maxlgto = MAX(maxlgto,imax)
              END IF
           END IF
           IF (PRESENT(maxnset)) THEN
-             IF (ASSOCIATED(orb_basis_set)) THEN
+            SELECT CASE (my_basis_set_id)
+            CASE (use_orb_basis_set)
+              IF (ASSOCIATED(orb_basis_set)) THEN
                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                      nset=n)
                 maxnset = MAX(maxnset, n)
-             END IF
+              END IF
+            CASE (use_aux_fit_basis_set)
+              IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,&
+                     nset=n)
+                maxnset = MAX(maxnset, n)
+              END IF
+            END SELECT
           END IF
           IF (PRESENT(maxpgf)) THEN
              IF (ASSOCIATED(aux_basis_set)) THEN
                 CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxpgf=imax)
                 maxpgf = MAX(maxpgf,imax)
              END IF
-             IF (ASSOCIATED(orb_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxpgf=imax)
-                maxpgf = MAX(maxpgf,imax)
-             END IF
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               IF (ASSOCIATED(orb_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxpgf=imax)
+                 maxpgf = MAX(maxpgf,imax)
+               END IF
+             CASE (use_aux_fit_basis_set)
+               IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,maxpgf=imax)
+                 maxpgf = MAX(maxpgf,imax)
+               END IF
+             END SELECT
           END IF
           IF (PRESENT(maxppnl).AND.ASSOCIATED(gth_potential)) THEN
              CALL get_potential(potential=gth_potential,nppnl=imax)
@@ -808,39 +921,66 @@ CONTAINS
                 CALL get_gto_basis_set(gto_basis_set=aux_basis_set,nsgf=imax)
                 maxsgf = MAX(maxsgf,imax)
              END IF
-             IF (ASSOCIATED(orb_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=imax)
-                maxsgf = MAX(maxsgf,imax)
-             END IF
+             SELECT CASE (my_basis_set_id)
+             CASE( use_orb_basis_set)
+               IF (ASSOCIATED(orb_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=imax)
+                 maxsgf = MAX(maxsgf,imax)
+               END IF
+             CASE( use_aux_fit_basis_set)
+               IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,nsgf=imax)
+                 maxsgf = MAX(maxsgf,imax)
+               END IF
+            END SELECT
           END IF
           IF (PRESENT(maxsgf_set)) THEN
              IF (ASSOCIATED(aux_basis_set)) THEN
                 CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxsgf_set=imax)
                 maxsgf_set = MAX(maxsgf_set,imax)
              END IF
-             IF (ASSOCIATED(orb_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxsgf_set=imax)
-                maxsgf_set = MAX(maxsgf_set,imax)
-             END IF
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               IF (ASSOCIATED(orb_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxsgf_set=imax)
+                 maxsgf_set = MAX(maxsgf_set,imax)
+               END IF
+             CASE (use_aux_fit_basis_set)
+               IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,maxsgf_set=imax)
+                 maxsgf_set = MAX(maxsgf_set,imax)
+               END IF
+             END SELECT
           END IF
           IF (PRESENT(maxshell)) THEN
              IF (ASSOCIATED(aux_basis_set)) THEN
                 CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxshell=imax)
                 maxshell = MAX(maxshell,imax)
              END IF
-             IF (ASSOCIATED(orb_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxshell=imax)
-                maxshell = MAX(maxshell,imax)
-             END IF
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,maxshell=imax)
+                 maxshell = MAX(maxshell,imax)
+               END IF
+             END SELECT
           END IF
           IF (PRESENT(natom)) THEN
              natom = natom + atomic_kind_set(ikind)%natom
           END IF
           IF (PRESENT(ncgf)) THEN
-             IF (ASSOCIATED(orb_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=n)
-                ncgf = ncgf + n*atomic_kind_set(ikind)%natom
-             END IF
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               IF (ASSOCIATED(orb_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=n)
+                 ncgf = ncgf + n*atomic_kind_set(ikind)%natom
+               END IF
+             CASE (use_aux_fit_basis_set)
+               IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,ncgf=n)
+                 ncgf = ncgf + n*atomic_kind_set(ikind)%natom
+               END IF
+             END SELECT
              IF (ASSOCIATED(dftb_parameter)) THEN
                 CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=imax)
                 n=((imax+1)*(imax+2)*(imax+3))/6
@@ -867,32 +1007,64 @@ CONTAINS
              nelectron = nelectron + atomic_kind_set(ikind)%natom*INT(zeff-zeff_correction)
           END IF
           IF (PRESENT(npgf)) THEN
-             IF (ASSOCIATED(orb_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,npgf_sum=n)
-                npgf = npgf + n*atomic_kind_set(ikind)%natom
-             END IF
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               IF (ASSOCIATED(orb_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set,npgf_sum=n)
+                 npgf = npgf + n*atomic_kind_set(ikind)%natom
+               END IF
+             CASE (use_aux_fit_basis_set)
+               IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,npgf_sum=n)
+                 npgf = npgf + n*atomic_kind_set(ikind)%natom
+               END IF
+             END SELECT
           END IF
           IF (PRESENT(nset)) THEN
-             IF (ASSOCIATED(orb_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nset=n)
-                nset = nset + n*atomic_kind_set(ikind)%natom
-             END IF
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               IF (ASSOCIATED(orb_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nset=n)
+                 nset = nset + n*atomic_kind_set(ikind)%natom
+               END IF
+             CASE (use_aux_fit_basis_set)
+               IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,nset=n)
+                 nset = nset + n*atomic_kind_set(ikind)%natom
+               END IF
+             END SELECT
           END IF
           IF (PRESENT(nsgf)) THEN
-             IF (ASSOCIATED(orb_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=n)
-                nsgf = nsgf + n*atomic_kind_set(ikind)%natom
-             END IF
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               IF (ASSOCIATED(orb_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=n)
+                 nsgf = nsgf + n*atomic_kind_set(ikind)%natom
+               END IF
+             CASE (use_aux_fit_basis_set)
+               IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,nsgf=n)
+                 nsgf = nsgf + n*atomic_kind_set(ikind)%natom
+               END IF
+             END SELECT
              IF (ASSOCIATED(dftb_parameter)) THEN
                 CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,natorb=n)
                 nsgf = nsgf + n*atomic_kind_set(ikind)%natom
              END IF
           END IF
           IF (PRESENT(nshell)) THEN
-             IF (ASSOCIATED(orb_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nshell_sum=n)
-                nshell = nshell + n*atomic_kind_set(ikind)%natom
-             END IF
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               IF (ASSOCIATED(orb_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nshell_sum=n)
+                 nshell = nshell + n*atomic_kind_set(ikind)%natom
+               END IF
+             CASE (use_aux_fit_basis_set)
+               IF (ASSOCIATED(aux_fit_basis_set)) THEN
+                 CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,nshell_sum=n)
+                 nshell = nshell + n*atomic_kind_set(ikind)%natom
+               END IF
+             END SELECT
              IF (ASSOCIATED(dftb_parameter)) THEN
                 CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=n)
                 nshell = nshell + (n+1)*atomic_kind_set(ikind)%natom
@@ -1008,6 +1180,11 @@ CONTAINS
                   atomic_kind%orb_basis_set%norm_type = 2
              CALL init_orb_basis_set(atomic_kind%orb_basis_set,error)
           END IF
+          IF (ASSOCIATED(atomic_kind%aux_fit_basis_set)) THEN
+             IF(atomic_kind%aux_fit_basis_set%norm_type < 0) &
+                  atomic_kind%aux_fit_basis_set%norm_type = 2
+             CALL init_orb_basis_set(atomic_kind%aux_fit_basis_set,error)
+          END IF
           IF (ASSOCIATED(atomic_kind%aux_basis_set)) THEN
              IF(atomic_kind%aux_basis_set%norm_type < 0) &
                   atomic_kind%aux_basis_set%norm_type = 1  
@@ -1018,7 +1195,6 @@ CONTAINS
              IF(method == "KG_GPW")&
                   CALL init_potential(atomic_kind%gth_potential,error)
           END IF
-
           IF (ASSOCIATED(atomic_kind%orb_basis_set))THEN
              IF(atomic_kind%orb_basis_set%norm_type < 0) THEN
                 IF(PRESENT(method)) THEN
@@ -1033,6 +1209,21 @@ CONTAINS
              END IF
              CALL init_orb_basis_set(atomic_kind%orb_basis_set,error)
           END IF
+          IF (ASSOCIATED(atomic_kind%aux_fit_basis_set)) THEN
+             IF(atomic_kind%aux_fit_basis_set%norm_type < 0) THEN
+                IF(PRESENT(method)) THEN
+                   IF(method == "KG_GPW") THEN
+                      atomic_kind%aux_fit_basis_set%norm_type = 2
+                   ELSE
+                      atomic_kind%aux_fit_basis_set%norm_type = 1
+                   END IF
+                ELSE
+                   atomic_kind%aux_fit_basis_set%norm_type = 1
+                END IF
+             END IF
+             CALL init_orb_basis_set(atomic_kind%aux_fit_basis_set,error)
+          END IF
+
           IF (ASSOCIATED(atomic_kind%aux_basis_set))THEN
              IF(atomic_kind%aux_basis_set%norm_type < 0) &
                   atomic_kind%aux_basis_set%norm_type = 1
@@ -1171,7 +1362,8 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: current_symbol, element_symbol
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
-      keyword, orb_basis_set_name, potential_name, potential_type
+      aux_fit_basis_set_name, keyword, orb_basis_set_name, potential_name, &
+      potential_type
     INTEGER                                  :: handle, i, i_rep, ipos, &
                                                 k_rep, n_rep, naux, ngauss, &
                                                 ngrid_ang, ngrid_rad, norb, &
@@ -1310,6 +1502,8 @@ CONTAINS
     ! Normal parsing of the KIND section
 
     IF (k_rep>0) THEN
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="AUX_FIT_BASIS_SET", c_val=aux_fit_basis_set_name,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="AUX_BASIS_SET", c_val=aux_basis_set_name,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
@@ -1521,6 +1715,16 @@ CONTAINS
           CALL set_gto_basis_set(gto_basis_set=atomic_kind%aux_basis_set,&
                norm_type=naux)
        END IF
+
+       ! Allocate and initialise the auxiliary basis set data set structure for fitting
+       IF (aux_fit_basis_set_name /= '') THEN
+          CALL allocate_gto_basis_set(atomic_kind%aux_fit_basis_set,error)
+          CALL read_gto_basis_set(atomic_kind%element_symbol,aux_fit_basis_set_name,&
+               atomic_kind%aux_fit_basis_set,para_env,dft_section,error=error)
+          CALL set_gto_basis_set(gto_basis_set=atomic_kind%aux_fit_basis_set,&
+               norm_type=naux)
+       END IF
+
 
        ! Allocate and initialise the potential data set structure
        IF ((potential_name /= '').OR.explicit_potential) THEN
@@ -1836,7 +2040,9 @@ CONTAINS
                atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name),&
                "Number of atoms: ",atomic_kind%natom
 
-          CALL write_orb_basis_set(atomic_kind%orb_basis_set,output_unit,error)
+          CALL write_orb_basis_set(atomic_kind%orb_basis_set,output_unit,error=error)
+          CALL write_orb_basis_set(atomic_kind%aux_fit_basis_set,output_unit,&
+                                   basis_set_id=use_aux_fit_basis_set, error=error)
 
           IF (atomic_kind%ghost) THEN
              WRITE (UNIT=output_unit,FMT="(/,T6,A)")&
@@ -1850,7 +2056,7 @@ CONTAINS
                   "Rho0 radius:",atomic_kind%hard0_radius,&
                   "Maximum GTO radius used for PAW projector construction:",&
                   atomic_kind%max_rad_local
-             CALL write_orb_basis_set(atomic_kind%soft_basis_set,output_unit,error)
+             CALL write_orb_basis_set(atomic_kind%soft_basis_set,output_unit,error=error)
           END IF
           CALL write_aux_basis_set(atomic_kind%aux_basis_set,output_unit,error)
           ! Potentials

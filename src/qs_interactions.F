@@ -104,8 +104,9 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set, &
-                                                soft_basis
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, &
+                                                aux_fit_basis_set, &
+                                                orb_basis_set, soft_basis
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
 
 !   ---------------------------------------------------------------------------
@@ -140,6 +141,7 @@ CONTAINS
                            gth_potential=gth_potential,&
                            elp_potential=elp_potential,&
                            aux_basis_set=aux_basis_set,&
+                           aux_fit_basis_set=aux_fit_basis_set,&
                            orb_basis_set=orb_basis_set,&
                            soft_basis_set=soft_basis,&
                            paw_proj_set=paw_proj_set,&
@@ -318,6 +320,59 @@ CONTAINS
                            ppl_radius=ppl_radius)
 
       END IF
+
+!     *** Calculate the aux fit orbital basis function radii ***
+
+      IF (ASSOCIATED(aux_fit_basis_set)) THEN
+
+        p_orb = .TRUE.
+        CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,&
+                               nset=nset,&
+                               nshell=nshell,&
+                               npgf=npgf,&
+                               l=lshell,&
+                               zet=zet,&
+                               gcc=gcc,&
+                               pgf_radius=pgf_radius,&
+                               set_radius=set_radius)
+
+        kind_radius = 0.0_dp
+        short_radius = 0.0_dp
+        kg_radius = 0.0_dp
+
+        DO iset=1,nset
+          set_radius(iset) = 0.0_dp
+          DO ipgf=1,npgf(iset)
+            pgf_radius(ipgf,iset) = 0.0_dp
+            DO ishell=1,nshell(iset)
+              l = lshell(ishell,iset)
+              gcca = gcc(ipgf,ishell,iset)
+              zeta = zet(ipgf,iset)
+              pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
+                                          exp_radius(l,zeta,&
+                                                     qs_control%eps_pgf_orb,&
+                                                     gcca))
+              short_radius = MAX(short_radius,&
+                             exp_radius(l,zeta,&
+                             qs_control%eps_pgf_orb*eps_reduce,&
+                             gcca))
+              kg_radius = MAX(kg_radius,&
+                              exp_radius(l,zeta,qs_control%eps_kg_gpw,gcca))
+            END DO
+            set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
+          END DO
+          kind_radius = MAX(kind_radius,set_radius(iset))
+        END DO
+
+        CALL set_gto_basis_set(gto_basis_set=aux_fit_basis_set,&
+                               pgf_radius=pgf_radius,&
+                               set_radius=set_radius,&
+                               kind_radius=kind_radius,&
+                               short_kind_radius=short_radius,&
+                               kg_gpw_kind_radius=kg_radius)
+
+      END IF
+
 
 !     *** Calculate the aux orbital basis function radii ***
 

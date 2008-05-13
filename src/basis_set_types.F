@@ -21,6 +21,8 @@ MODULE basis_set_types
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
+  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
+                                             use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_list_get,&
                                              section_vals_type,&
@@ -1300,9 +1302,9 @@ CONTAINS
     END IF
 
   END SUBROUTINE write_gto_basis_set
-
 ! *****************************************************************************
-  SUBROUTINE write_orb_basis_set(orb_basis_set,output_unit,error)
+
+  SUBROUTINE write_orb_basis_set(orb_basis_set,output_unit,basis_set_id, error)
 
     ! Write a Gaussian-type orbital (GTO) basis set data set to the output
     ! unit.
@@ -1311,13 +1313,27 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     INTEGER, INTENT(in)                      :: output_unit
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: icgf, ico, ipgf, iset, ishell
+    INTEGER                                  :: icgf, ico, ipgf, iset, &
+                                                ishell, my_basis_set_id
+
+    IF( PRESENT(basis_set_id)) THEN
+      my_basis_set_id = basis_set_id
+    ELSE
+      my_basis_set_id = use_orb_basis_set
+    END IF
 
     IF (ASSOCIATED(orb_basis_set).AND.(output_unit>0)) THEN
-       WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40)")&
-            "Orbital basis set information for",TRIM(orb_basis_set%name)
+       SELECT CASE (my_basis_set_id)
+       CASE (use_orb_basis_set)
+         WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40)")&
+              "Orbital basis set information for",TRIM(orb_basis_set%name)
+       CASE (use_aux_fit_basis_set)
+         WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40)")&
+              "Basis set info for wfn fitting   ",TRIM(orb_basis_set%name)
+       END SELECT
 
        WRITE (UNIT=output_unit,FMT="(/,(T8,A,T71,I10))")&
             "Number of orbital shell sets:            ",&

@@ -339,6 +339,10 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_wfn_fitting_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_qs_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -798,6 +802,28 @@ CONTAINS
             description="Activates the printing of the orbital "//&
             "orbital neighbor lists, "//&
             "i.e. the overlap neighbor lists",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+            name="sab_aux_fit",&
+            description="Activates the printing of the orbital "//&
+            "orbital neighbor lists wavefunction fitting basis, "//&
+            "i.e. the overlap neighbor lists",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+            name="sab_aux_fit_vs_orb",&
+            description="Activates the printing of the orbital "//&
+            "orbital mixed neighbor lists of wavefunction fitting basis, "//&
+            "and the orbital basis, i.e. the overlap neighbor lists",&
             default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&
             error=error)
@@ -1872,6 +1898,40 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_dftb_control_section
+
+! *****************************************************************************
+  SUBROUTINE create_wfn_fitting_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_wfn_fitting_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"WFN_FITTING",&
+            description="Parameters needed to set wavefunction fitting",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="METHOD",&
+            description="Method that shall be used for wavefunction fitting",&
+            usage="METHOD BASIS_SET_FIT",&
+            enum_c_vals=s2a("BASIS_SET_FIT"),&
+            enum_i_vals=(/do_wfn_fit_basis_set/),&
+            enum_desc=s2a("Fit wavefunction using AUX_BASIS_FIT"), &
+            default_i_val=do_wfn_fit_basis_set, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_wfn_fitting_section 
 
 ! *****************************************************************************
   SUBROUTINE create_dftb_parameter_section(section, error)

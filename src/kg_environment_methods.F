@@ -196,9 +196,10 @@ CONTAINS
           CALL allocate_task_list(task_list,error)
           CALL set_qs_env(qs_env=qs_env,task_list=task_list,error=error)
        ENDIF
-       CALL generate_qs_task_list(qs_env, .FALSE. , &
+       CALL generate_qs_task_list(qs_env, &
               task_list%tasks, task_list%dist_ab, task_list%ntasks,&
-              task_list%atom_pair_send, task_list%atom_pair_recv, error)
+              task_list%atom_pair_send, task_list%atom_pair_recv, &
+              soft_valid=.FALSE., error=error)
     ENDIF
     ! generate the soft task list
     IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
@@ -207,9 +208,10 @@ CONTAINS
           CALL allocate_task_list(task_list,error)
           CALL set_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)
        ENDIF
-       CALL generate_qs_task_list(qs_env, .TRUE. , &
+       CALL generate_qs_task_list(qs_env,&
               task_list%tasks, task_list%dist_ab, task_list%ntasks, &
-              task_list%atom_pair_send, task_list%atom_pair_recv, error)
+              task_list%atom_pair_send, task_list%atom_pair_recv, &
+              soft_valid=.TRUE.,error=error)
     ENDIF
 
 !dbg

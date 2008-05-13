@@ -29,14 +29,10 @@ MODULE hfx_derivatives
   USE hfx_screening_methods,           ONLY: comp_pmax_mat,&
                                              comp_screen_mat,&
                                              comp_screen_mat_per
-  USE hfx_types,                       ONLY: hfx_basis_type,&
-                                             hfx_box_scheme,&
-                                             hfx_cell_type,&
-                                             hfx_general_type,&
-                                             hfx_load_balance_type,&
-                                             hfx_potential_type,&
-                                             hfx_screening_type,&
-                                             hfx_type
+  USE hfx_types,                       ONLY: &
+       hfx_basis_info_type, hfx_basis_type, hfx_box_scheme, hfx_cell_type, &
+       hfx_general_type, hfx_load_balance_type, hfx_potential_type, &
+       hfx_screening_type, hfx_type
   USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
                                              do_hfx_potential_gaussian,&
                                              do_hfx_potential_id,&
@@ -236,6 +232,7 @@ MODULE hfx_derivatives
       POINTER                                :: screen_periodic
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(hfx_basis_info_type), POINTER       :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_general_type)                   :: general_parameter
@@ -336,6 +333,8 @@ MODULE hfx_derivatives
     screening_parameter    = actual_x_data%screening_parameter
     general_parameter      = actual_x_data%general_parameter
     potential_parameter    = actual_x_data%potential_parameter
+    basis_info             => actual_x_data%basis_info
+
     IF(potential_parameter%omega /= 0.0_dp) THEN
       omega2Inv = 1.0_dp/(potential_parameter%omega**2)
     ELSE
@@ -350,11 +349,9 @@ MODULE hfx_derivatives
                     particle_set=particle_set,&
                     error=error)
  
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxsgf=maxsgf,&
-                             maxnset=max_set,&
-                             maxlgto=max_am)
-   
+    maxsgf = basis_info%max_sgf
+    max_set = basis_info%max_set
+    max_am = basis_info%max_am 
     natom = SIZE(particle_set,1)
 
 
@@ -436,7 +433,7 @@ MODULE hfx_derivatives
     !! Calculate max entries for screening on actual density. If screen_p_mat_forces = FALSE, the
     !! matrix is initialized to 1.0
     CALL comp_pmax_mat(pmax_set,pmax_atom,pmax_max, &
-                       full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,&
+                       full_density,full_density_beta,screen_pmat_forces,particle_set,max_set,&
                        kind_of, basis_parameter, error)
     !! Calculatematrices for screening purpose taking into account periodicity. The farfield part is already
     !! in memory
@@ -450,7 +447,7 @@ MODULE hfx_derivatives
 
       ALLOCATE(screen_periodic(SIZE(actual_x_data%neighbor_cells),max_set,max_set,natom,natom),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL comp_screen_mat_per(lib(i_thread+1), screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
+      CALL comp_screen_mat_per(lib(i_thread+1), screen_set,screen_atom,screen_max,screen_periodic,particle_set,max_set,&
                                potential_parameter,.FALSE.,&
                                kind_of, basis_parameter,&
                                neighbor_cells=actual_x_data%neighbor_cells,&
@@ -461,7 +458,7 @@ MODULE hfx_derivatives
       shm_far_field_boxes => actual_x_data%far_field_boxes
     ELSE
 
-      CALL comp_screen_mat(lib(i_thread+1),screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
+      CALL comp_screen_mat(lib(i_thread+1),screen_set,screen_atom,screen_max,particle_set,max_set,&
                            potential_parameter,.FALSE., kind_of, basis_parameter, i_thread, &
                            error=error)
       !! Farfield screening matrix already there
@@ -474,7 +471,7 @@ MODULE hfx_derivatives
 
     !! Load balance the work
     IF( actual_x_data%b_first_load_balance_forces ) THEN
-      CALL load_balance_forces(actual_x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
+      CALL load_balance_forces(actual_x_data,eps_schwarz,eps_box,particle_set,max_set,para_env,&
                                potential_parameter,screen_set,screen_atom,screen_max,&
                                pmax_set,shm_is_assoc_atomic_block, do_periodic,&
                                load_balance_parameter, box_size, box_size_inv, kind_of, basis_parameter,i_thread, n_threads,&

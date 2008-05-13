@@ -11,8 +11,6 @@
 ! *****************************************************************************
 MODULE hfx_screening_methods 
   
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
   USE erf_fn,                          ONLY: erfc
   USE hfx_libint_interface,            ONLY: evaluate_eri_screen,&
                                              pbc
@@ -107,7 +105,7 @@ MODULE hfx_screening_methods
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE comp_screen_mat(lib, screen_set,screen_atom,screen_max,particle_set,&
-                             atomic_kind_set,potential_parameter,read_from_memory,&
+                             max_set,potential_parameter,read_from_memory,&
                              kind_of, basis_parameter, i_thread, buffer, error)
     TYPE(lib_int)                            :: lib
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
@@ -115,8 +113,7 @@ MODULE hfx_screening_methods
     REAL(dp)                                 :: screen_max
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: max_set
     TYPE(hfx_potential_type)                 :: potential_parameter
     LOGICAL                                  :: read_from_memory
     INTEGER                                  :: kind_of(*)
@@ -131,8 +128,8 @@ MODULE hfx_screening_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: jatom, jkind, jset, k, katom, &
-                                                kkind, kset, max_set, natom, &
-                                                ncob, nsetb, nsetc, sgfb, stat
+                                                kkind, kset, natom, ncob, &
+                                                nsetb, nsetc, sgfb, stat
     INTEGER, DIMENSION(:), POINTER           :: lb_max, lb_min, lc_max, &
                                                 lc_min, npgfb, npgfc, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
@@ -145,7 +142,6 @@ MODULE hfx_screening_methods
     failure = .FALSE.
 
     natom=SIZE(particle_set)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
     ALLOCATE(screen_set(max_set,max_set,natom,natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -242,7 +238,7 @@ MODULE hfx_screening_methods
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE comp_pmax_mat(pmax_set,pmax_atom,pmax_max, &
-                           full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,&
+                           full_density,full_density_beta,screen_pmat_forces,particle_set,max_set,&
                            kind_of, basis_parameter, error)
 
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
@@ -253,8 +249,7 @@ MODULE hfx_screening_methods
     LOGICAL, INTENT(IN)                      :: screen_pmat_forces
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: max_set
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -263,9 +258,9 @@ MODULE hfx_screening_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'comp_pmax_mat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: jatom, jkind, jset, katom, kkind, kset, max_set, mb, mc, &
-      natom, nsetb, nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, pc1, &
-      pc2, sgfb, sgfc, stat
+    INTEGER :: jatom, jkind, jset, katom, kkind, kset, mb, mc, natom, nsetb, &
+      nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, pc1, pc2, sgfb, &
+      sgfc, stat
     INTEGER, DIMENSION(:), POINTER           :: last_sgf_global, nsgfb, nsgfc
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
     LOGICAL                                  :: failure
@@ -274,7 +269,6 @@ MODULE hfx_screening_methods
     failure = .FALSE.
 
     natom=SIZE(particle_set)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
 
     ! create a mapping array of easy access to the density matrix elements
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)
@@ -359,7 +353,7 @@ MODULE hfx_screening_methods
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE comp_screen_mat_per(lib, screen_set, screen_atom, screen_max,screen_periodic,particle_set,&
-                                 atomic_kind_set,potential_parameter, read_from_memory, kind_of, basis_parameter, buffer,&
+                                 max_set,potential_parameter, read_from_memory, kind_of, basis_parameter, buffer,&
                                  neighbor_cells, box_size, box_size_inv, i_thread, error)
     TYPE(lib_int)                            :: lib
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
@@ -369,8 +363,7 @@ MODULE hfx_screening_methods
       POINTER                                :: screen_periodic
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: max_set
     TYPE(hfx_potential_type)                 :: potential_parameter
     LOGICAL                                  :: read_from_memory
     INTEGER                                  :: kind_of(*)
@@ -388,8 +381,8 @@ MODULE hfx_screening_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: jatom, jkind, jset, k, katom, &
-                                                kkind, kset, max_set, natom, &
-                                                ncob, nsetb, nsetc, sgfb, stat
+                                                kkind, kset, natom, ncob, &
+                                                nsetb, nsetc, sgfb, stat
     INTEGER, DIMENSION(:), POINTER           :: lb_max, lb_min, lc_max, &
                                                 lc_min, npgfb, npgfc, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
@@ -402,7 +395,6 @@ MODULE hfx_screening_methods
     failure = .FALSE.
 
     natom=SIZE(particle_set)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
     ALLOCATE(screen_set(max_set,max_set,natom,natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -569,14 +561,13 @@ MODULE hfx_screening_methods
 !>      08.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE screen_farfield(boxes, particle_set, atomic_kind_set, &
+  SUBROUTINE screen_farfield(boxes, particle_set, max_set, &
                              kind_of, basis_parameter, error)
     TYPE(hfx_box_scheme), DIMENSION(:, :), &
       POINTER                                :: boxes
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: max_set
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -587,8 +578,8 @@ MODULE hfx_screening_methods
 
     INTEGER                                  :: jatom, jkind, jpgf, jset, k, &
                                                 katom, kkind, kpgf, kset, &
-                                                max_set, natom, ncob, nsetb, &
-                                                nsetc, sgfb, stat
+                                                natom, ncob, nsetb, nsetc, &
+                                                sgfb, stat
     INTEGER(int_8)                           :: box_idx1, box_idx2
     INTEGER, DIMENSION(:), POINTER           :: lb_max, lb_min, lc_max, &
                                                 lc_min, npgfb, npgfc, nsgfb
@@ -603,7 +594,6 @@ MODULE hfx_screening_methods
     failure = .FALSE.
 
     natom=SIZE(particle_set)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
    
     ALLOCATE(contraction_max(max_set,natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -746,14 +736,13 @@ MODULE hfx_screening_methods
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE screen_farfield_per(boxes, particle_set, atomic_kind_set, &
+  SUBROUTINE screen_farfield_per(boxes, particle_set, max_set, &
                                  neighbor_cells, box_size, box_size_inv, kind_of, basis_parameter, error)
     TYPE(hfx_box_scheme), DIMENSION(:, :), &
       POINTER                                :: boxes
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: max_set
     TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
     REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
@@ -767,8 +756,8 @@ MODULE hfx_screening_methods
 
     INTEGER                                  :: i, jatom, jkind, jpgf, jset, &
                                                 k, katom, kkind, kpgf, kset, &
-                                                max_set, natom, ncob, nsetb, &
-                                                nsetc, sgfb, stat
+                                                natom, ncob, nsetb, nsetc, &
+                                                sgfb, stat
     INTEGER(int_8)                           :: box_idx1, box_idx2
     INTEGER, DIMENSION(:), POINTER           :: lb_max, lb_min, lc_max, &
                                                 lc_min, npgfb, npgfc, nsgfb
@@ -783,7 +772,6 @@ MODULE hfx_screening_methods
     failure = .FALSE.
     alpha = 0.0_dp
     natom=SIZE(particle_set)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
    
     ALLOCATE(contraction_max(max_set,natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -920,15 +908,14 @@ MODULE hfx_screening_methods
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE update_pmax_mat(pmax_set, full_density, full_density_beta, particle_set, &
-                             atomic_kind_set,kind_of,basis_parameter,error)
+                             max_set ,kind_of,basis_parameter,error)
 
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
     REAL(dp), DIMENSION(:, :), POINTER       :: full_density, &
                                                 full_density_beta
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: max_set
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -937,9 +924,9 @@ MODULE hfx_screening_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_mat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: jatom, jkind, jset, katom, kkind, kset, max_set, mb, mc, &
-      natom, nsetb, nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, pc1, &
-      pc2, sgfb, sgfc, stat
+    INTEGER :: jatom, jkind, jset, katom, kkind, kset, mb, mc, natom, nsetb, &
+      nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, pc1, pc2, sgfb, &
+      sgfc, stat
     INTEGER, DIMENSION(:), POINTER           :: last_sgf_global, nsgfb, nsgfc
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
     LOGICAL                                  :: failure
@@ -948,7 +935,6 @@ MODULE hfx_screening_methods
     failure = .FALSE.
 
     natom=SIZE(particle_set)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
 
     ! create a mapping array of easy access to the density matrix elements
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)

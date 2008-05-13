@@ -45,7 +45,9 @@ MODULE qs_scf_post
   USE external_potential_types,        ONLY: gth_potential_type
   USE f77_blas
   USE input_constants,                 ONLY: ot_precond_full_all,&
-                                             state_loc_all
+                                             state_loc_all,&
+                                             use_aux_fit_basis_set,&
+                                             use_orb_basis_set
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_get_ivals,&
                                              section_get_lval,&
@@ -193,12 +195,13 @@ CONTAINS
     TYPE(evals_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_evals
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+      POINTER                                :: mos, mos_aux_fit
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(preconditioner_type), POINTER       :: preconditioner
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: wf_g, wf_r
+    TYPE(pw_p_type)                          :: wf_g, wf_g_aux_fit, wf_r, &
+                                                wf_r_aux_fit
     TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -220,10 +223,11 @@ CONTAINS
 
     failure=.FALSE.
     my_localized_wfn = .FALSE.
-    NULLIFY(dft_control,pw_env,auxbas_pw_pool,pw_pools,mos,rho,mo_coeff,&
-            ks_rmpv,matrix_s,qs_loc_env,scf_control,unoccupied_orbs,&
-            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,&
-            rho_core,tddfpt_control,subsys,particles,input,print_key)
+    NULLIFY(dft_control, pw_env, auxbas_pw_pool, pw_pools, mos, rho, &
+         mo_coeff, ks_rmpv, matrix_s, qs_loc_env, scf_control, &
+         unoccupied_orbs, mo_eigenvalues, unoccupied_evals, fm_struct_tmp, &
+         molecule_set, rho_core, tddfpt_control, subsys, particles, input, &
+         print_key)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -238,7 +242,7 @@ CONTAINS
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s, &
             input=input, subsys=subsys,rho_core=rho_core,tddfpt_control=tddfpt_control,&
-            error=error)
+            mos_aux_fit=mos_aux_fit, error=error)
        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 
@@ -273,6 +277,13 @@ CONTAINS
           CALL pw_pool_create_pw(auxbas_pw_pool,wf_g%pw,&
                                   use_data = COMPLEXDATA1D,&
                                   in_space = RECIPROCALSPACE, error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool,wf_r_aux_fit%pw,&
+                                  use_data = REALDATA3D,&
+                                  in_space = REALSPACE, error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool,wf_g_aux_fit%pw,&
+                                  use_data = COMPLEXDATA1D,&
+                                  in_space = RECIPROCALSPACE, error=error)
+
        END IF
 
        ! Makes the MOs eigenstates, computes eigenvalues, write cubes
@@ -312,7 +323,7 @@ CONTAINS
 
                 ! Prints the cube files of OCCUPIED ORBITALS
                 CALL qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env,&
-                     mo_coeff, wf_g, wf_r, particles, homo, ispin, ionode, error)
+                     mo_coeff, wf_g, wf_r, particles, homo, ispin, ionode, error=error)
              ENDDO
           ENDIF
        ENDIF
@@ -507,6 +518,10 @@ CPSourceFileRef,&
           CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,&
                error=error)
           CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw,&
+               error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r_aux_fit%pw,&
+               error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g_aux_fit%pw,&
                error=error)
        END IF
 
@@ -715,7 +730,7 @@ CPSourceFileRef,&
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env,&
-       mo_coeff, wf_g, wf_r, particles, homo, ispin, ionode, error)
+       mo_coeff, wf_g, wf_r, particles, homo, ispin, ionode, basis_set_id, error)
     TYPE(section_vals_type), POINTER         :: input, dft_section
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_logger_type), POINTER            :: logger
@@ -725,19 +740,27 @@ CPSourceFileRef,&
     TYPE(particle_list_type), POINTER        :: particles
     INTEGER, INTENT(IN)                      :: homo, ispin
     LOGICAL, INTENT(IN)                      :: ionode
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_occ_cubes', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename, title
-    INTEGER                                  :: ivector, nhomo, unit_nr
+    INTEGER                                  :: ivector, my_basis_set_id, &
+                                                nhomo, unit_nr
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+
+    IF(PRESENT(basis_set_id)) THEN
+      my_basis_set_id = basis_set_id
+    ELSE
+      my_basis_set_id = use_orb_basis_set
+    END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
          error=error),cp_p_file) .AND. section_get_lval(dft_section,"PRINT%MO_CUBES%WRITE_CUBE",error=error)) THEN
@@ -751,15 +774,23 @@ CPSourceFileRef,&
                           pw_env=pw_env,&
                           error=error)
           CALL calculate_wavefunction(mo_coeff,ivector,wf_r,wf_g,atomic_kind_set,&
-               cell,dft_control,particle_set,pw_env ,error=error)
+               cell,dft_control,particle_set,pw_env ,basis_set_id=my_basis_set_id, error=error)
           WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",ivector,"_",ispin
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",extension=".cube",&
                middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
           WRITE(title,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
-          CALL pw_to_cube(wf_r%pw,unit_nr,ionode,title,particles=particles,&
-               stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
-               error=error)
-          CALL cp_print_key_finished_output(unit_nr,logger,input,"DFT%PRINT%MO_CUBES",error=error)
+          SELECT CASE (my_basis_set_id)
+          CASE (use_orb_basis_set) 
+            CALL pw_to_cube(wf_r%pw,unit_nr,ionode,title,particles=particles,&
+                 stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
+                 error=error)
+            CALL cp_print_key_finished_output(unit_nr,logger,input,"DFT%PRINT%MO_CUBES",error=error)
+          CASE (use_aux_fit_basis_set)
+            CALL pw_to_cube(wf_r%pw,unit_nr,ionode,title,particles=particles,&
+                 stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
+                 error=error)
+            CALL cp_print_key_finished_output(unit_nr,logger,input,"DFT%PRINT%MO_CUBES",error=error)
+          END SELECT
        ENDDO
     END IF
 

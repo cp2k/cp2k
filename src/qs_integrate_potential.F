@@ -51,7 +51,9 @@ MODULE qs_integrate_potential
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: pw_interp,&
-                                             spline3_pbc_interp
+                                             spline3_pbc_interp,&
+                                             use_aux_fit_basis_set,&
+                                             use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -274,7 +276,7 @@ CONTAINS
 !>     coordinates can be computed as well
 ! *****************************************************************************
   SUBROUTINE integrate_v_rspace(v_rspace, p,h,qs_env,calculate_forces,compute_tau,gapw,&
-       matrix_dv,error)
+       matrix_dv, basis_set_id, error)
 
     TYPE(pw_p_type)                          :: v_rspace
     TYPE(real_matrix_p_type), INTENT(IN), &
@@ -285,6 +287,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, TARGET                       :: matrix_dv
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace', &
@@ -297,8 +300,9 @@ CONTAINS
       iatom_old, idir, igrid_level, ikind, ikind_old, ilevel, ipgf, ipgf_new, &
       iset, iset_new, iset_old, istat, itask, ithread, jatom, jatom_new, &
       jatom_old, jkind, jkind_old, jpgf, jpgf_new, jset, jset_new, jset_old, &
-      maxco, maxpgf, maxset, maxsgf_set, n, na1, na2, natom, nb1, nb2, ncoa, &
-      ncob, nkind, nseta, nsetb, ntasks, nthread, offs_dv, sgfa, sgfb, stat
+      maxco, maxpgf, maxset, maxsgf_set, my_basis_set_id, n, na1, na2, natom, &
+      nb1, nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, offs_dv, &
+      sgfa, sgfb, stat
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -367,8 +371,15 @@ CONTAINS
     my_gapw = .FALSE.
     IF (PRESENT(compute_tau)) my_compute_tau = compute_tau
     IF (PRESENT(gapw)) my_gapw = gapw
-
-    CALL get_qs_env(qs_env=qs_env,&
+    IF (PRESENT(basis_set_id)) THEN
+      my_basis_set_id = basis_set_id
+    ELSE
+      my_basis_set_id = use_orb_basis_set
+    END IF
+   
+    SELECT CASE (my_basis_set_id)
+    CASE (use_orb_basis_set) 
+      CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
          cell=cell,&
          dft_control=dft_control,&
@@ -380,6 +391,20 @@ CONTAINS
          task_list_soft=task_list_soft,&
          force=force,pw_env=pw_env,&
          virial=virial,error=error)
+    CASE (use_aux_fit_basis_set)
+      CALL get_qs_env(qs_env=qs_env,&
+         atomic_kind_set=atomic_kind_set,&
+         cell=cell,&
+         dft_control=dft_control,&
+         particle_set=particle_set,&
+         sab_aux_fit=sab_orb,&
+         para_env=para_env,&
+         input=input,&
+         task_list_aux_fit=task_list,&
+         task_list_soft=task_list_soft,&
+         force=force,pw_env=pw_env,&
+         virial=virial,error=error)
+    END SELECT
 
     CALL mp_sync(para_env%group)
     IF (my_compute_tau) THEN
@@ -432,7 +457,8 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          maxco=maxco,&
-         maxsgf_set=maxsgf_set)
+         maxsgf_set=maxsgf_set,&
+         basis_set_id=my_basis_set_id)
 
     distributed_grids = .FALSE.
     DO igrid_level = 1, gridlevel_info%ngrid_levels
@@ -516,10 +542,17 @@ CONTAINS
     maxpgf=0
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
-
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            softb = my_gapw, &
-            orb_basis_set=orb_basis_set)
+       SELECT CASE (my_basis_set_id)
+       CASE (use_orb_basis_set)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              softb = my_gapw, &
+              orb_basis_set=orb_basis_set)
+       CASE (use_aux_fit_basis_set)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              softb = my_gapw, &
+              aux_fit_basis_set=orb_basis_set,&
+              basis_set_id=my_basis_set_id)
+       END SELECT
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -572,9 +605,17 @@ CONTAINS
           END IF
 
           IF (ikind .NE. ikind_old ) THEN
-             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                  softb = my_gapw, &
-                  orb_basis_set=orb_basis_set)
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                    softb = my_gapw, &
+                    orb_basis_set=orb_basis_set)
+             CASE (use_aux_fit_basis_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                    softb = my_gapw, &
+                    aux_fit_basis_set=orb_basis_set,&
+                    basis_set_id = my_basis_set_id)
+             END SELECT
 
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfa,&
@@ -590,11 +631,17 @@ CONTAINS
           ENDIF
 
           IF (jkind .NE. jkind_old ) THEN
-             
-             CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
-                  softb = my_gapw, &
-                  orb_basis_set=orb_basis_set)
-
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
+                    softb = my_gapw, &
+                    orb_basis_set=orb_basis_set)
+             CASE (use_aux_fit_basis_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
+                    softb = my_gapw, &
+                    aux_fit_basis_set=orb_basis_set,&
+                    basis_set_id=my_basis_set_id)
+             END SELECT
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfb,&
                   kind_radius=kind_radius_b,&

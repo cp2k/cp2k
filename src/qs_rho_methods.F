@@ -12,6 +12,8 @@
 MODULE qs_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE f77_blas
+  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
+                                             use_orb_basis_set
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -71,17 +73,20 @@ CONTAINS
 !>      11.2002 created replacing qs_rho_create and qs_env_rebuild_rho[fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, gapw_xc, error)
+  SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, gapw_xc, &
+                            basis_set_id, error)
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids, &
                                                 gapw_xc
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_rebuild', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, nspins, stat
+    INTEGER                                  :: handle, i, my_basis_set_id, &
+                                                nspins, stat
     LOGICAL                                  :: failure, my_gapw_xc, &
                                                 my_rebuild_ao, &
                                                 my_rebuild_grids
@@ -91,149 +96,161 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
 
-  NULLIFY(pw_env,auxbas_pw_pool,matrix_s,dft_control)
-  CALL timeset(routineN,'I',' ',handle)
-  failure=.FALSE.
-  my_gapw_xc=.FALSE.
-  my_rebuild_ao=.TRUE.
-  my_rebuild_grids=.TRUE.
-  IF (PRESENT(rebuild_ao)) my_rebuild_ao=rebuild_ao
-  IF (PRESENT(rebuild_grids)) my_rebuild_grids=rebuild_grids
-  IF (PRESENT(gapw_xc)) my_gapw_xc=gapw_xc
+    NULLIFY(pw_env,auxbas_pw_pool,matrix_s,dft_control)
+    CALL timeset(routineN,'I',' ',handle)
+    failure=.FALSE.
+    my_gapw_xc=.FALSE.
+    my_rebuild_ao=.TRUE.
+    my_rebuild_grids=.TRUE.
+    IF (PRESENT(rebuild_ao)) my_rebuild_ao=rebuild_ao
+    IF (PRESENT(rebuild_grids)) my_rebuild_grids=rebuild_grids
+    IF (PRESENT(gapw_xc)) my_gapw_xc=gapw_xc
 
-  CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
-       matrix_s=matrix_s,error=error)
-  CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-  nspins=dft_control%nspins
-
-  IF (.NOT.ASSOCIATED(rho)) THEN
-     my_rebuild_grids=.TRUE.
-     my_rebuild_ao=.TRUE.
-     ALLOCATE(rho,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     IF (.NOT.failure) THEN
-        rho%ref_count=1
-        rho%rho_g_valid=.FALSE.
-        rho%rho_r_valid=.FALSE.
-        rho%tau_g_valid=.FALSE.
-        rho%tau_r_valid=.FALSE.
-        rho%soft_valid = .FALSE.
-        last_rho_id_nr=last_rho_id_nr+1
-        rho%id_nr=last_rho_id_nr
-        rho%rebuild_each=5
-        NULLIFY(rho%rho_r, rho%rho_g, rho%rho_ao, rho%tot_rho_r, rho%tot_rho_g, rho%tau_r, rho%tau_g)
-        ALLOCATE(rho%tot_rho_r(nspins),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        IF (.not.failure) rho%tot_rho_r=0.0_dp
-     END IF
-  END IF
-
-  ! rho_ao
-  IF(.NOT. my_gapw_xc) THEN
-    IF (my_rebuild_ao.OR..NOT.ASSOCIATED(rho%rho_ao)) THEN
+    IF (PRESENT(basis_set_id)) THEN
+      my_basis_set_id = basis_set_id
+    ELSE
+      my_basis_set_id = use_orb_basis_set
+    END IF
+ 
+    SELECT CASE (my_basis_set_id)
+    CASE (use_orb_basis_set) 
+      CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
+           matrix_s=matrix_s,error=error)
+    CASE (use_aux_fit_basis_set)
+      CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
+           matrix_s_aux_fit=matrix_s,error=error)
+    END SELECT
+    CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+    nspins=dft_control%nspins
+  
+    IF (.NOT.ASSOCIATED(rho)) THEN
+       my_rebuild_grids=.TRUE.
+       my_rebuild_ao=.TRUE.
+       ALLOCATE(rho,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        IF (.NOT.failure) THEN
-          IF (ASSOCIATED(rho%rho_ao)) THEN
-             CALL deallocate_matrix_set(rho%rho_ao,error=error)
+          rho%ref_count=1
+          rho%rho_g_valid=.FALSE.
+          rho%rho_r_valid=.FALSE.
+          rho%tau_g_valid=.FALSE.
+          rho%tau_r_valid=.FALSE.
+          rho%soft_valid = .FALSE.
+          last_rho_id_nr=last_rho_id_nr+1
+          rho%id_nr=last_rho_id_nr
+          rho%rebuild_each=5
+          NULLIFY(rho%rho_r, rho%rho_g, rho%rho_ao, rho%tot_rho_r, rho%tot_rho_g, rho%tau_r, rho%tau_g)
+          ALLOCATE(rho%tot_rho_r(nspins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (.not.failure) rho%tot_rho_r=0.0_dp
+       END IF
+    END IF
+  
+    ! rho_ao
+    IF(.NOT. my_gapw_xc) THEN
+      IF (my_rebuild_ao.OR..NOT.ASSOCIATED(rho%rho_ao)) THEN
+         IF (.NOT.failure) THEN
+            IF (ASSOCIATED(rho%rho_ao)) THEN
+               CALL deallocate_matrix_set(rho%rho_ao,error=error)
+            END IF
+            CALL allocate_matrix_set(rho%rho_ao,nspins,error=error)
+            DO i=1,nspins
+               NULLIFY (rho%rho_ao(i)%matrix)
+               CALL replicate_matrix_structure(matrix_s(1)%matrix,&
+                  rho%rho_ao(i)%matrix,&
+                    "DENSITY_MATRIX_AUX_FIT_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
+            END DO
+         END IF
+       END IF
+    END IF
+  
+    ! rho_r
+    IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%rho_r)) THEN
+       IF (.NOT.failure) THEN
+          IF (ASSOCIATED(rho%rho_r)) THEN
+             DO i=1,SIZE(rho%rho_r)
+                CALL pw_release(rho%rho_r(i)%pw,error=error)
+             END DO
+             DEALLOCATE(rho%rho_r,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
-          CALL allocate_matrix_set(rho%rho_ao,nspins,error=error)
+          ALLOCATE(rho%rho_r(nspins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (.NOT.failure) THEN
           DO i=1,nspins
-             NULLIFY (rho%rho_ao(i)%matrix)
-             CALL replicate_matrix_structure(matrix_s(1)%matrix,&
-                rho%rho_ao(i)%matrix,&
-                  "DENSITY_MATRIX_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
+             CALL pw_pool_create_pw(auxbas_pw_pool,rho%rho_r(i)%pw,&
+                  use_data=REALDATA3D,in_space=REALSPACE,error=error)
           END DO
        END IF
-     END IF
-  END IF
-
-  ! rho_r
-  IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%rho_r)) THEN
-     IF (.NOT.failure) THEN
-        IF (ASSOCIATED(rho%rho_r)) THEN
-           DO i=1,SIZE(rho%rho_r)
-              CALL pw_release(rho%rho_r(i)%pw,error=error)
-           END DO
-           DEALLOCATE(rho%rho_r,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        ALLOCATE(rho%rho_r(nspins),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF
-     IF (.NOT.failure) THEN
-        DO i=1,nspins
-           CALL pw_pool_create_pw(auxbas_pw_pool,rho%rho_r(i)%pw,&
-                use_data=REALDATA3D,in_space=REALSPACE,error=error)
-        END DO
-     END IF
-  END IF
-
-  ! rho_g
-  IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%rho_g)) THEN
-     IF (.NOT.failure) THEN
-        IF (ASSOCIATED(rho%rho_g)) THEN
-           DO i=1,SIZE(rho%rho_g)
-              CALL pw_release(rho%rho_g(i)%pw,error=error)
-           END DO
-           DEALLOCATE(rho%rho_g,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        ALLOCATE(rho%rho_g(nspins),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF
-     IF (.NOT.failure) THEN
-        DO i=1,nspins
-           CALL pw_pool_create_pw(auxbas_pw_pool,rho%rho_g(i)%pw,&
-                use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-        END DO
-     END IF
-  END IF
-
-  ! allocate tau_r and tau_g if use_kinetic_energy_density
-  IF (dft_control%use_kinetic_energy_density) THEN
-     ! tau_r
-     IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%tau_r)) THEN
-        IF (.NOT.failure) THEN
-           IF (ASSOCIATED(rho%tau_r)) THEN
-              DO i=1,SIZE(rho%tau_r)
-                 CALL pw_release(rho%tau_r(i)%pw,error=error)
-              END DO
-              DEALLOCATE(rho%tau_r,stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-           END IF
-           ALLOCATE(rho%tau_r(nspins),stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF (.NOT.failure) THEN
-           DO i=1,nspins
-              CALL pw_pool_create_pw(auxbas_pw_pool,rho%tau_r(i)%pw,&
-                   use_data=REALDATA3D,in_space=REALSPACE,error=error)
-           END DO
-        END IF
-     END IF
-
-     ! tau_g
-     IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%tau_g)) THEN
-        IF (.NOT.failure) THEN
-           IF (ASSOCIATED(rho%tau_g)) THEN
-              DO i=1,SIZE(rho%tau_g)
-                 CALL pw_release(rho%tau_g(i)%pw,error=error)
-              END DO
-              DEALLOCATE(rho%tau_g,stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-           END IF
-           ALLOCATE(rho%tau_g(nspins),stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF (.NOT.failure) THEN
-           DO i=1,nspins
-              CALL pw_pool_create_pw(auxbas_pw_pool,rho%tau_g(i)%pw,&
-                   use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-           END DO
-        END IF
-     END IF
-  END IF  ! use_kinetic_energy_density
-
-  CALL timestop(0.0_dp,handle)
+    END IF
+  
+    ! rho_g
+    IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%rho_g)) THEN
+       IF (.NOT.failure) THEN
+          IF (ASSOCIATED(rho%rho_g)) THEN
+             DO i=1,SIZE(rho%rho_g)
+                CALL pw_release(rho%rho_g(i)%pw,error=error)
+             END DO
+             DEALLOCATE(rho%rho_g,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          ALLOCATE(rho%rho_g(nspins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (.NOT.failure) THEN
+          DO i=1,nspins
+             CALL pw_pool_create_pw(auxbas_pw_pool,rho%rho_g(i)%pw,&
+                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+          END DO
+       END IF
+    END IF
+  
+    ! allocate tau_r and tau_g if use_kinetic_energy_density
+    IF (dft_control%use_kinetic_energy_density) THEN
+       ! tau_r
+       IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%tau_r)) THEN
+          IF (.NOT.failure) THEN
+             IF (ASSOCIATED(rho%tau_r)) THEN
+                DO i=1,SIZE(rho%tau_r)
+                   CALL pw_release(rho%tau_r(i)%pw,error=error)
+                END DO
+                DEALLOCATE(rho%tau_r,stat=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END IF
+             ALLOCATE(rho%tau_r(nspins),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (.NOT.failure) THEN
+             DO i=1,nspins
+                CALL pw_pool_create_pw(auxbas_pw_pool,rho%tau_r(i)%pw,&
+                     use_data=REALDATA3D,in_space=REALSPACE,error=error)
+             END DO
+          END IF
+       END IF
+  
+       ! tau_g
+       IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%tau_g)) THEN
+          IF (.NOT.failure) THEN
+             IF (ASSOCIATED(rho%tau_g)) THEN
+                DO i=1,SIZE(rho%tau_g)
+                   CALL pw_release(rho%tau_g(i)%pw,error=error)
+                END DO
+                DEALLOCATE(rho%tau_g,stat=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END IF
+             ALLOCATE(rho%tau_g(nspins),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (.NOT.failure) THEN
+             DO i=1,nspins
+                CALL pw_pool_create_pw(auxbas_pw_pool,rho%tau_g(i)%pw,&
+                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+             END DO
+          END IF
+       END IF
+    END IF  ! use_kinetic_energy_density
+  
+    CALL timestop(0.0_dp,handle)
 END SUBROUTINE qs_rho_rebuild
 
 ! *****************************************************************************

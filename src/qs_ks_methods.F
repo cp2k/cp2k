@@ -65,7 +65,8 @@ MODULE qs_ks_methods
   USE input_constants,                 ONLY: &
        do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, do_spin_density, &
        sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-       sic_mauri_us, sic_none, xc_none
+       sic_mauri_us, sic_none, use_aux_fit_basis_set, use_orb_basis_set, &
+       xc_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -110,7 +111,8 @@ MODULE qs_ks_methods
   USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
@@ -123,6 +125,7 @@ MODULE qs_ks_methods
                                              scp_modify_hartree_pot
   USE qs_ks_scp_types,                 ONLY: qs_ks_scp_env_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
@@ -146,6 +149,9 @@ MODULE qs_ks_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
+  USE wfn_fitting_methods,             ONLY: fit_mo_coeffs,&
+                                             merge_ks_times_mo_coeff
+  USE wfn_fitting_types,               ONLY: wfn_fitting_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
   USE xc_adiabatic_methods,            ONLY: rescale_MCY3_pade
@@ -313,17 +319,21 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
-    TYPE(cp_fm_type), POINTER                :: hc_tmp, mo_coeff
+    TYPE(cp_fm_type), POINTER                :: hc_tmp, mo_coeff, &
+                                                mo_coeff_aux_fit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mo_array, mos
+      POINTER                                :: mo_array, mos, mos_aux_fit
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, rho_tot_gspace, &
       v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_g, v_spin_ddapc_rest_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
+                                                v_rspace_new_aux_fit, &
+                                                v_tau_rspace, &
+                                                v_tau_rspace_aux_fit
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -335,18 +345,21 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho_buffer
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv, matrix_h, &
-                                                matrix_s, my_rho, rest_mat
+                                                matrix_p_aux_fit, matrix_s, &
+                                                my_rho, rest_mat
     TYPE(scp_energy_type), POINTER           :: scp_energy
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
                                                 hfx_section, hfx_sections, &
                                                 input, scf_section
     TYPE(virial_type), POINTER               :: virial
+    TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
 
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
          pw_env, cell, logger, v_rspace_new, v_tau_rspace,&
-         input, poisson_env, scf_section,my_rho,becke)
+         input, poisson_env, scf_section,my_rho,becke, v_rspace_new_aux_fit,&
+         v_tau_rspace_aux_fit)
 
     !   -----------------------------------------------------------------------
 
@@ -695,6 +708,31 @@ CONTAINS
        END IF
 ! ****SCP   
 
+       !! calculate the density matrix for the fitted mo_coeffs
+       IF( dft_control%do_wfn_fitting ) THEN       
+         NULLIFY(mo_coeff_aux_fit)
+         CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
+         CALL get_qs_env(qs_env,mos=mos,wfn_fitting_env=wfn_fitting_env,error=error)
+         CALL fit_mo_coeffs(wfn_fitting_env, para_env, &
+                            qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
+                            mos, mos_aux_fit, ks_env%s_mstruct_changed, error)
+         CALL set_qs_env(qs_env,wfn_fitting_env=wfn_fitting_env,error=error)
+
+         DO ispin=1,nspins
+           matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao
+           CALL calculate_density_matrix(mos_aux_fit(ispin)%mo_set, &
+                                         matrix_p_aux_fit(ispin)%matrix,error=error)
+           CALL calculate_rho_elec(matrix_p=qs_env%rho_aux_fit%rho_ao(ispin)%matrix,&
+                rho=qs_env%rho_aux_fit%rho_r(ispin),&
+                rho_gspace=qs_env%rho_aux_fit%rho_g(ispin),&
+                total_rho=qs_env%rho_aux_fit%tot_rho_r(ispin),&
+                qs_env=qs_env,soft_valid=.FALSE.,&
+                basis_set_id=use_aux_fit_basis_set, error=error)
+         END DO
+         qs_env%rho_aux_fit%rho_r_valid=.TRUE.
+         qs_env%rho_aux_fit%rho_g_valid=.TRUE.
+       END IF
+
        ! only activate stress calculation if 
        IF (use_virial .AND. calculate_forces) virial%pv_calculate = .TRUE.
 
@@ -702,10 +740,16 @@ CONTAINS
          ! *** calculate the xc potential on the pw density ***
          ! *** associates v_rspace_new if the xc potential needs to be computed.
 ! CJM getting the XC potential
+         !! If we do wavefunction fitting, we need the vxc_potential in the auxiliary basis set
+         IF( dft_control%do_wfn_fitting ) THEN
+           CALL qs_vxc_create(qs_env=qs_env,&
+              vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
+              just_energy=just_energy, gapw_xc=gapw_xc, basis_set_id=use_aux_fit_basis_set,&
+              error=error)
+         END IF
          CALL qs_vxc_create(qs_env=qs_env,&
               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
               just_energy=just_energy, gapw_xc=gapw_xc, error=error)
-
          IF (gapw .OR. gapw_xc) THEN
             CALL calculate_vxc_atom(qs_env,just_energy,error)
          END IF
@@ -725,7 +769,13 @@ CONTAINS
          virial%pv_virial = virial%pv_virial - virial%pv_xc 
          virial%pv_calculate = .FALSE.
        ENDIF
-       
+      
+       ! *** Initialize the auxiliary ks matrix to zero if required
+       IF( dft_control%do_wfn_fitting ) THEN
+         DO ispin = 1,nspins
+           CALL set_matrix(qs_env%matrix_ks_aux_fit(ispin)%matrix,0.0_dp) 
+         END DO
+       END IF
        ! *** Add Hartree-Fock contribution if required ***
        IF ( do_hfx ) THEN
          DO ispin = 1,nspins
@@ -745,8 +795,14 @@ CONTAINS
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          DO irep = 1,n_rep_hf
            IF( .NOT. do_adiabatic_rescaling) THEN
-             CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hfx_sections,&
-                                        para_env,ks_env%s_mstruct_changed,irep,.TRUE.,error)
+             IF( dft_control%do_wfn_fitting ) THEN
+               CALL integrate_four_center(qs_env, qs_env%matrix_ks_aux_fit,energy,&
+                                          qs_env%rho_aux_fit,hfx_sections,&
+                                          para_env,ks_env%s_mstruct_changed,irep,.TRUE.,error)
+             ELSE
+               CALL integrate_four_center(qs_env, ks_matrix ,energy,rho,hfx_sections,&
+                                          para_env,ks_env%s_mstruct_changed,irep,.TRUE.,error)
+             END IF
              IF( calculate_forces ) THEN
                CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
                CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hfx_section,&
@@ -1001,6 +1057,7 @@ CONTAINS
                          qs_env=qs_env, &
                          calculate_forces=calculate_forces,&
                          gapw=gapw, error=error)
+
                  END IF
              END DO
           END IF ! ASSOCIATED(v_rspace_new)
@@ -1033,6 +1090,42 @@ CONTAINS
               DEALLOCATE(v_tau_rspace, stat=stat)
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
+
+          ! Add contributions from wfn_fitting if requested
+          IF (dft_control%do_wfn_fitting) THEN
+            IF( ASSOCIATED(v_rspace_new_aux_fit)) THEN
+              DO ispin=1,nspins
+                ! Calculate the xc potential
+                v_rspace_new_aux_fit(ispin)%pw%cr3d  =&
+                   v_rspace_new_aux_fit(ispin)%pw%pw_grid%dvol * &
+                   v_rspace_new_aux_fit(ispin)%pw%cr3d
+                ! Add potential to ks_matrix aux_fit
+                CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin),&
+                                        p=qs_env%rho_aux_fit%rho_ao(ispin),&
+                                        h=qs_env%matrix_ks_aux_fit(ispin),&
+                                        qs_env=qs_env, &
+                                        calculate_forces=calculate_forces,&
+                                        gapw=gapw_xc,&
+                                        basis_set_id=use_aux_fit_basis_set,&
+                                        error=error)
+                 CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new_aux_fit(ispin)%pw,&
+                     error=error)
+              END DO
+              DEALLOCATE(v_rspace_new_aux_fit,stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+            END IF
+            ! Clean up v_tau_rspace_aux_fit, which is actually not needed
+            IF( ASSOCIATED(v_tau_rspace_aux_fit)) THEN
+              DO ispin=1,nspins
+                CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace_aux_fit(ispin)%pw,&
+                       error=error)
+              END DO
+              DEALLOCATE(v_tau_rspace_aux_fit, stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            END IF  
+          END IF
+
+          
        END IF  ! .NOT. just energy
 
        IF (explicit_potential) THEN
@@ -1131,6 +1224,15 @@ CONTAINS
              CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
              CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
                                           mo_derivs(ispin)%matrix, k,error=error)
+             IF( dft_control%do_wfn_fitting) THEN
+               CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mos,error=error)
+               CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
+               CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
+               CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
+               CALL merge_ks_times_mo_coeff(ispin, qs_env%wfn_fitting_env, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
+                                            qs_env%matrix_ks_aux_fit, error)
+             END IF
+             
              ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
              scaling_factor=2.0_dp*occupation_numbers
              CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
@@ -1189,6 +1291,9 @@ CONTAINS
             energy%qmmm_el + energy%mulliken + &
             energy%kg_gpw_ekin_mol + energy%ddapc_restraint + energy%s2_restraint +&
             energy%becke + energy%dft_plus_u
+       IF( dft_control%do_wfn_fitting ) THEN
+         energy%total = energy%total + energy%exc_aux_fit
+       END IF 
 ! **** SCP
        IF (dft_control % scp) THEN
          CALL get_scp_env ( scp_env, energy = scp_energy, error = error )
@@ -1357,7 +1462,7 @@ CONTAINS
                  iloc=iorb-iorb_block+1
                  CALL calculate_wavefunction(mo_coeff,iorb,rho_i(iloc),rho_g, &
                           atomic_kind_set,cell,dft_control,particle_set, &
-                          pw_env,error)
+                          pw_env,error=error)
 
              ENDDO
    
@@ -1368,7 +1473,7 @@ CONTAINS
                    jloc=jorb-jorb_block+1
                    CALL calculate_wavefunction(mo_coeff,jorb,rho_j(jloc),rho_g, &
                             atomic_kind_set,cell,dft_control,particle_set, &
-                            pw_env,error)
+                            pw_env,error=error)
 
                 ENDDO
    
@@ -2191,19 +2296,22 @@ END SUBROUTINE qs_ks_did_change
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
-     just_energy, harris, nsc_force, gapw_xc, epr_xc, adiabatic_rescale_factor, error)
+     just_energy, harris, nsc_force, gapw_xc, epr_xc, adiabatic_rescale_factor, &
+     basis_set_id, error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp)                            :: exc
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: just_energy, harris, &
                                                 nsc_force, gapw_xc, epr_xc
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: adiabatic_rescale_factor
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, myfun, &
+    INTEGER                                  :: handle, ispin, &
+                                                my_basis_set_id, myfun, &
                                                 nelec_spin(2), stat
     LOGICAL :: do_adiabatic_rescaling, failure, harris_flag, my_epr_xc, &
       my_gapw_xc, my_just_energy, nsc_flag, sic_scaling_b_zero, uf_grid
@@ -2260,6 +2368,13 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     do_adiabatic_rescaling = .TRUE.
   END IF
 
+  IF( PRESENT(basis_set_id) ) THEN
+    my_basis_set_id = basis_set_id
+  ELSE
+    my_basis_set_id = use_orb_basis_set
+  END IF
+
+
   CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,input=input, &
        pw_env=pw_env, cell=cell,virial=virial, error=error)
   IF(my_epr_xc) THEN
@@ -2282,7 +2397,12 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      ELSEIF(my_gapw_xc) THEN
         CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct, error=error)
      ELSE
-        CALL get_qs_env(qs_env=qs_env, rho=rho_struct, error=error)
+        SELECT CASE (my_basis_set_id)
+        CASE (use_orb_basis_set)
+          CALL get_qs_env(qs_env=qs_env, rho=rho_struct, error=error)
+        CASE (use_aux_fit_basis_set)
+          CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_struct, error=error)
+        END SELECT
      END IF
 
      ! test if the real space density is available
@@ -2292,7 +2412,6 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      CALL cp_assert( dft_control%nspins == 1 .OR. dft_control%nspins == 2,&
           cp_failure_level,cp_assertion_failed,routineP,&
           "nspins must be 1 or 2",error,failure)
-
      ! there are some options related to SIC here.
      ! Normal DFT computes E(rho_alpha,rho_beta) (or its variant E(2*rho_alpha) for non-LSD)
      ! SIC can             E(rho_alpha,rho_beta)-b*(E(rho_alpha,rho_beta)-E(rho_beta,rho_beta))

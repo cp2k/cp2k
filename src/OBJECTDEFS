@@ -564,6 +564,8 @@ OBJECTS_GENERIC =\
  vibrational_analysis.o\
  virial_methods.o\
  virial_types.o\
+ wfn_fitting_methods.o\
+ wfn_fitting_types.o\
  whittaker.o\
  wiener_process.o\
  xas_control.o\

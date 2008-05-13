@@ -25,6 +25,8 @@ MODULE qs_overlap
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
+                                             use_orb_basis_set
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -35,8 +37,7 @@ MODULE qs_overlap
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
@@ -73,31 +74,58 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Calculation of the overlap matrix over Cartesian Gaussian functions.
 !> \author  MK
+!> \par     History
+!>          Enlarged functionality of this routine. Now overlap matrices based
+!>          on different basis sets can be calculated, taking into account also
+!>          mixed overlaps NOTE: the pointer to the overlap matrix must now be
+!>          put into its corresponding env outside of this routine
+!>          [Manuel Guidon]
+!> \param   qs_env the QS env
+!> \param   para_env the parallel env
+!> \param   nderivative Derivative with respect to basis origin
+!> \param   matrix_s The overlap matrix to be calculated
+!> \param   matrix_name The name of the overlap matrix (i.e. for output)
+!> \param   basis_set_id_a basis set to be used for bra in <a|b>
+!> \param   basis_set_id_b basis set to be used for ket in <a|b>
+!> \param   neighbor_list_sab pair list (must be consistent with basis sets!)
+!> \param   error for error handling
 !> \date    11.03.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE build_overlap_matrix(qs_env,para_env,nderivative,error)
+
+  SUBROUTINE build_overlap_matrix(qs_env,para_env,nderivative,matrix_s,matrix_name,&
+                                  basis_set_id_a, basis_set_id_b, neighbor_list_sab, &
+                                  error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: nderivative
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
+    INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: neighbor_list_sab
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=12)                        :: cgfsym
+    CHARACTER(LEN=32)                        :: symmetry_string
     CHARACTER(LEN=80)                        :: name
     INTEGER :: handle, i, iab, iatom, iblock, icol, ikind, ilist, inode, &
-      irow, iset, istat, iw, jatom, jkind, jset, last_jatom, ldai, maxco, &
-      maxder, maxlgto, maxsgf, natom, ncoa, ncob, nder, neighbor_list_id, &
-      nkind, nlist, nnode, nseta, nsetb, nsgf, sgfa, sgfb
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+      irow, iset, istat, iw, jatom, jkind, jset, last_jatom, ldai, max_maxco, &
+      max_maxlgto, max_maxsgf, maxco, maxder, maxlgto, maxsgf, natom, ncoa, &
+      ncob, nder, neighbor_list_id, nkind, nlist, nnode, nseta, nsetb, &
+      nsgf_a, nsgf_b, sgfa, sgfb
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_a, first_sgf_b, &
+                                                last_sgf_a, last_sgf_b
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: new_atom_b, &
+    LOGICAL                                  :: do_symmetric, new_atom_b, &
                                                 return_s_derivatives
     REAL(KIND=dp)                            :: dab, f, rab2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -115,27 +143,23 @@ CONTAINS
       DIMENSION(:)                           :: sint
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
+                                                orb_basis_set
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
 
     CALL timeset(routineN,"I","",handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY ( atomic_kind_set,particle_set,matrix_s,sab_orb,distribution_2d)
+    NULLIFY ( atomic_kind_set,particle_set,matrix_s,distribution_2d)
+
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
-                    matrix_s=matrix_s,&
-                    sab_orb=sab_orb,&
                     neighbor_list_id=neighbor_list_id, &
                     distribution_2d=distribution_2d,error=error)
 
@@ -153,62 +177,108 @@ CONTAINS
     maxder = ncoset(nder)
     CALL allocate_matrix_set(matrix_s,maxder,error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf_a,basis_set_id=basis_set_id_a)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf_b,basis_set_id=basis_set_id_b)
 
-    ALLOCATE (first_sgf(natom),STAT=istat)
+    ALLOCATE (first_sgf_a(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "first_sgf",natom*int_size)
-    ALLOCATE (last_sgf(natom),STAT=istat)
+                                     "first_sgf_a",natom*int_size)
+    ALLOCATE (last_sgf_a(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "last_sgf",natom*int_size)
+                                     "last_sgf_a",natom*int_size)
+    ALLOCATE (first_sgf_b(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "first_sgf_b",natom*int_size)
+    ALLOCATE (last_sgf_b(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "last_sgf_b",natom*int_size)
+
 
     CALL get_particle_set(particle_set=particle_set,&
-                          first_sgf=first_sgf,&
-                          last_sgf=last_sgf)
+                          first_sgf=first_sgf_a,&
+                          last_sgf=last_sgf_a,&
+                          basis_set_id=basis_set_id_a)
+    CALL get_particle_set(particle_set=particle_set,&
+                          first_sgf=first_sgf_b,&
+                          last_sgf=last_sgf_b,&
+                          basis_set_id=basis_set_id_b)
+
+   do_symmetric = .TRUE.
+   symmetry_string = "symmetric"
+   IF( basis_set_id_a /= basis_set_id_b ) THEN
+     do_symmetric = .FALSE.
+     symmetry_string = "none"
+   END IF
    ! XXXXXXX, sparsity_id, does this result in the same overlap matrix
    ! XXXXXXX, as qs_build_core_hamiltonian, if so it is a pitty to have
    ! XXXXXXX, the code duplication,if not, this sparsity_id is wrong.
     CALL allocate_matrix(matrix=matrix_s(1)%matrix,&
                          nblock_row=natom,&
                          nblock_col=natom,&
-                         nrow=nsgf,&
-                         ncol=nsgf,&
-                         first_row=first_sgf,&
-                         last_row=last_sgf,&
-                         first_col=first_sgf,&
-                         last_col=last_sgf,&
-                         matrix_name="OVERLAP MATRIX",&
-                         matrix_symmetry="symmetric",&
+                         nrow=nsgf_a,&
+                         ncol=nsgf_b,&
+                         first_row=first_sgf_a,&
+                         last_row=last_sgf_a,&
+                         first_col=first_sgf_b,&
+                         last_col=last_sgf_b,&
+                         matrix_name=TRIM(matrix_name),&
+                         matrix_symmetry=symmetry_string,&
                          sparsity_id=neighbor_list_id, &
                          distribution_2d=distribution_2d,error=error)
 
-    DEALLOCATE (first_sgf,STAT=istat)
+    DEALLOCATE (first_sgf_a,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "first_sgf")
-    DEALLOCATE (last_sgf,STAT=istat)
+                                     "first_sgf_a")
+    DEALLOCATE (last_sgf_a,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "last_sgf")
+                                     "last_sgf_a")
 
+    DEALLOCATE (first_sgf_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "first_sgf_b")
+    DEALLOCATE (last_sgf_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "last_sgf_b")
+
+    symmetry_string = "antisymmetric"
+    IF( basis_set_id_a /= basis_set_id_b) THEN
+      symmetry_string = "none"
+    END IF
     DO i=2,maxder
       cgfsym = cgf_symbol(1,indco(1:3,i))
-      name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE OVERLAP MATRIX "//&
-             "W.R.T. THE NUCLEAR COORDINATES"
+      name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE "//TRIM(matrix_name)//&
+             " W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
       CALL uppercase(name)
       CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                                       TARGET=matrix_s(i)%matrix,&
                                       target_name=TRIM(name),&
-                                      target_symmetry="antisymmetric",error=error)
+                                      target_symmetry=TRIM(symmetry_string),error=error)
     END DO
 
 !   *** Allocate work storage ***
+    max_maxco = 0
+    max_maxlgto = 0
+    max_maxsgf = 0
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxco=maxco,&
+                             maxlgto=maxlgto,&
+                             maxsgf=maxsgf,&
+                             basis_set_id=basis_set_id_a)
+    max_maxco = MAX(maxco,max_maxco)
+    max_maxlgto = MAX(maxlgto,max_maxlgto)
+    max_maxsgf = MAX(maxsgf,max_maxsgf)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=maxco,&
                              maxlgto=maxlgto,&
-                             maxsgf=maxsgf)
+                             maxsgf=maxsgf,&
+                             basis_set_id=basis_set_id_b)
+    max_maxco = MAX(maxco,max_maxco)
+    max_maxlgto = MAX(maxlgto,max_maxlgto)
+    max_maxsgf = MAX(maxsgf,max_maxsgf)
 
-    ldai = ncoset(maxlgto+nder)
+    ldai = ncoset(max_maxlgto+nder)
     CALL init_orbital_pointers(ldai)
 
     ALLOCATE (ai_work(ldai,ldai,ncoset(nder)),STAT=istat)
@@ -217,14 +287,14 @@ CONTAINS
                        "ai_work",ldai*ldai*ncoset(nder)*dp_size)
     END IF
 
-    ALLOCATE (sab(maxco,maxco*maxder),STAT=istat)
+    ALLOCATE (sab(max_maxco,max_maxco*maxder),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "sab",maxco*maxco*maxder*dp_size)
+                                     "sab",max_maxco*max_maxco*maxder*dp_size)
     sab(:,:) = 0.0_dp
 
-    ALLOCATE (work(maxco,maxsgf),STAT=istat)
+    ALLOCATE (work(max_maxco,max_maxsgf),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work",maxco*maxsgf*dp_size)
+                                     "work",max_maxco*max_maxsgf*dp_size)
     work(:,:) = 0.0_dp
 
     ALLOCATE (sint(maxder),STAT=istat)
@@ -237,13 +307,18 @@ CONTAINS
     DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
+      SELECT CASE (basis_set_id_a)
+      CASE (use_orb_basis_set)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             orb_basis_set=basis_set_a)
+      CASE (use_aux_fit_basis_set)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             aux_fit_basis_set=basis_set_a)
+      END SELECT
 
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           orb_basis_set=orb_basis_set)
+      IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
 
-      IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+      CALL get_gto_basis_set(gto_basis_set=basis_set_a,&
                              first_sgf=first_sgfa,&
                              lmax=la_max,&
                              lmin=la_min,&
@@ -258,13 +333,19 @@ CONTAINS
       DO jkind=1,nkind
 
         atomic_kind => atomic_kind_set(jkind)
+        SELECT CASE (basis_set_id_b)
+        CASE (use_orb_basis_set)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               orb_basis_set=basis_set_b)
+        CASE (use_aux_fit_basis_set)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               aux_fit_basis_set=basis_set_b)
+        END SELECT
 
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             orb_basis_set=orb_basis_set)
 
-        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+        IF (.NOT.ASSOCIATED(basis_set_b)) CYCLE
 
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+        CALL get_gto_basis_set(gto_basis_set=basis_set_b,&
                                first_sgf=first_sgfb,&
                                lmax=lb_max,&
                                lmin=lb_min,&
@@ -278,9 +359,9 @@ CONTAINS
 
         iab = ikind + nkind*(jkind - 1)
 
-        IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+        IF (.NOT.ASSOCIATED(neighbor_list_sab(iab)%neighbor_list_set)) CYCLE
 
-        neighbor_list_set => sab_orb(iab)%neighbor_list_set
+        neighbor_list_set => neighbor_list_sab(iab)%neighbor_list_set
 
         CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
                                    nlist=nlist)
@@ -311,12 +392,17 @@ CONTAINS
             END IF
 
             IF (new_atom_b) THEN
-              IF (iatom <= jatom) THEN
+              IF( do_symmetric ) THEN
+                IF (iatom <= jatom) THEN
+                  irow = iatom
+                  icol = jatom
+                ELSE
+                  irow = jatom
+                  icol = iatom
+                END IF
+              ELSE
                 irow = iatom
                 icol = jatom
-              ELSE
-                irow = jatom
-                icol = iatom
               END IF
               DO i=1,maxder
                 NULLIFY (sint(i)%block)
@@ -362,32 +448,54 @@ CONTAINS
                              sphi_b(1,sgfb),SIZE(sphi_b,1),&
                              0.0_dp,work(1,1),SIZE(work,1))
 
-                  IF (iatom <= jatom) THEN
+                  IF ( do_symmetric ) THEN
+                    IF (iatom <= jatom) THEN
 
+                      CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                                 1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 work(1,1),SIZE(work,1),&
+                                 1.0_dp,sint(i)%block(sgfa,sgfb),&
+                                 SIZE(sint(i)%block,1))
+
+                    ELSE
+
+  !                   *** The first derivatives are anti-symmetric ***
+
+                      IF (i > 1) THEN
+                        f = -1.0_dp
+                      ELSE
+                        f = 1.0_dp
+                      END IF
+
+                      CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+                                 f,work(1,1),SIZE(work,1),&
+                                 sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 1.0_dp,sint(i)%block(sgfb,sgfa),&
+                                 SIZE(sint(i)%block,1))
+                    END IF
+                  ELSE
                     CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
                                1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                work(1,1),SIZE(work,1),&
                                1.0_dp,sint(i)%block(sgfa,sgfb),&
                                SIZE(sint(i)%block,1))
 
-                  ELSE
-
 !                   *** The first derivatives are anti-symmetric ***
-
+!!!!!!******** This part needs to be fixed in case of a non-symmetric overlap matrix****!!!!!
                     IF (i > 1) THEN
                       f = -1.0_dp
                     ELSE
                       f = 1.0_dp
                     END IF
 
-                    CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                               f,work(1,1),SIZE(work,1),&
-                               sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                               1.0_dp,sint(i)%block(sgfb,sgfa),&
-                               SIZE(sint(i)%block,1))
+!                    CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+!                               f,work(1,1),SIZE(work,1),&
+!                               sphi_a(1,sgfa),SIZE(sphi_a,1),&
+!                               1.0_dp,sint(i)%block(sgfb,sgfa),&
+!                               SIZE(sint(i)%block,1))
 
+!!!!!!**********************************************************************************!!!!!!
                   END IF
-
                 END DO
 
               END DO
@@ -425,8 +533,6 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "sint")
 
-    CALL set_qs_env(qs_env=qs_env,&
-                    matrix_s=matrix_s,error=error)
 
 !   *** Print the overlap matrix distribution ***
 

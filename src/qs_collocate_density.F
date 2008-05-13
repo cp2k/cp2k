@@ -60,6 +60,8 @@ MODULE qs_collocate_density
                                              gridlevel_info_type
   USE input_constants,                 ONLY: pw_interp,&
                                              spline3_pbc_interp
+  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
+                                             use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -493,13 +495,14 @@ CONTAINS
 !>      (in real and g-space respectively)
 ! *****************************************************************************
   SUBROUTINE calculate_rho_elec(matrix_p, rho,rho_gspace, total_rho,&
-       qs_env, soft_valid, compute_tau, error)
+       qs_env, soft_valid, compute_tau, basis_set_id, error)
 
     TYPE(real_matrix_type), POINTER          :: matrix_p
     TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, compute_tau
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_elec', &
@@ -555,6 +558,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(section_vals_type), POINTER         :: input, interp_section
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
+    INTEGER                                  :: my_basis_set_id
 
 !   ---------------------------------------------------------------------------
 
@@ -588,17 +592,38 @@ CONTAINS
        ga_gb_function = FUNC_AB
     ENDIF
 
-    CALL get_qs_env(qs_env=qs_env,&
-         atomic_kind_set=atomic_kind_set,&
-         cell=cell,&
-         dft_control=dft_control,&
-         particle_set=particle_set,&
-         sab_orb=sab_orb,&
-         para_env=para_env,&
-         task_list=task_list,&
-         task_list_soft=task_list_soft,&
-         input=input,&
-         pw_env=pw_env,error=error)
+    IF( PRESENT(basis_set_id) ) THEN
+      my_basis_set_id = basis_set_id
+    ELSE
+      my_basis_set_id = use_orb_basis_set
+    END IF
+   
+    SELECT CASE (my_basis_set_id)
+    CASE (use_orb_basis_set) 
+      CALL get_qs_env(qs_env=qs_env,&
+           atomic_kind_set=atomic_kind_set,&
+           cell=cell,&
+           dft_control=dft_control,&
+           particle_set=particle_set,&
+           sab_orb=sab_orb,&
+           para_env=para_env,&
+           task_list=task_list,&
+           task_list_soft=task_list_soft,&
+           input=input,&
+           pw_env=pw_env,error=error)
+    CASE (use_aux_fit_basis_set)
+      CALL get_qs_env(qs_env=qs_env,&
+           atomic_kind_set=atomic_kind_set,&
+           cell=cell,&
+           dft_control=dft_control,&
+           particle_set=particle_set,&
+           sab_aux_fit=sab_orb,&
+           para_env=para_env,&
+           task_list_aux_fit=task_list,&
+           task_list_soft=task_list_soft,&
+           input=input,&
+           pw_env=pw_env,error=error)
+    END SELECT
 
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
@@ -609,7 +634,8 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          maxco=maxco,&
          maxsgf=maxsgf,&
-         maxsgf_set=maxsgf_set)
+         maxsgf_set=maxsgf_set,&
+         basis_set_id=my_basis_set_id)
     nkind = SIZE(atomic_kind_set)
     CALL reallocate(pabt,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
@@ -621,10 +647,17 @@ CONTAINS
     maxpgf=0
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
-
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            softb = my_soft, &
-            orb_basis_set=orb_basis_set)
+       SELECT CASE( my_basis_set_id)
+       CASE (use_orb_basis_set)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              softb = my_soft, &
+              orb_basis_set=orb_basis_set)
+       CASE (use_aux_fit_basis_set)
+           CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              softb = my_soft, &
+              aux_fit_basis_set=orb_basis_set,&
+              basis_set_id=my_basis_set_id)
+       END SELECT
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -685,12 +718,10 @@ CONTAINS
 
     iatom_old = -1 ; jatom_old = -1 ; iset_old = -1 ; jset_old = -1 
     ikind_old = -1 ; jkind_old = -1
-
     loop_tasks: DO itask=1,ntasks
 
        !decode the atom pair and basis info
        CALL int2pair(tasks(3,itask),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
-
        ikind = particle_set(iatom)%atomic_kind%kind_number
        jkind = particle_set(jatom)%atomic_kind%kind_number
 
@@ -707,10 +738,17 @@ CONTAINS
           END IF
 
           IF(ikind .NE. ikind_old ) THEN
-             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                  softb = my_soft, &
-                  orb_basis_set=orb_basis_set)
-
+             SELECT CASE (my_basis_set_id)
+               CASE (use_orb_basis_set)
+                 CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                    softb = my_soft, &
+                    orb_basis_set=orb_basis_set)
+               CASE (use_aux_fit_basis_set)
+                 CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                    softb = my_soft, &
+                    aux_fit_basis_set=orb_basis_set,&
+                    basis_set_id=my_basis_set_id)
+             END SELECT
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfa,&
                   lmax=la_max,&
@@ -725,10 +763,17 @@ CONTAINS
           ENDIF
 
           IF (jkind .NE. jkind_old ) THEN
-             CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
-                  softb = my_soft, &
-                  orb_basis_set=orb_basis_set)
-
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
+                    softb = my_soft, &
+                    orb_basis_set=orb_basis_set)
+             CASE (use_aux_fit_basis_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
+                    softb = my_soft, &
+                    aux_fit_basis_set=orb_basis_set,&
+                    basis_set_id=my_basis_set_id)
+             END SELECT
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfb,&
                   kind_radius=kind_radius_b,&
@@ -821,8 +866,7 @@ CONTAINS
           ENDIF
        ELSE
           use_subpatch = .FALSE.
-       ENDIF
-
+       ENDIF 
        IF (iatom <= jatom) THEN
           CALL collocate_pgf_product_rspace(&
                la_max(iset),zeta(ipgf,iset),la_min(iset),&
@@ -861,7 +905,6 @@ CONTAINS
 
     total_rho = pw_integrate_function(rho%pw,isign=-1)
     CALL timestop(0.0_dp,handle)
-
   END SUBROUTINE calculate_rho_elec
 
 ! *****************************************************************************
@@ -879,7 +922,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE calculate_wavefunction(mo_vectors,ivector,rho,rho_gspace, &
                    atomic_kind_set,cell,dft_control,particle_set, &
-                   pw_env,error)
+                   pw_env,basis_set_id, error)
 
     TYPE(cp_fm_type), POINTER                :: mo_vectors
     INTEGER                                  :: ivector
@@ -891,6 +934,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction', &
@@ -920,6 +964,13 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(REALSPACE_GRID_P_TYPE), &
       DIMENSION(:), POINTER                  :: rs_rho
+    INTEGER                                  :: my_basis_set_id
+
+    IF( PRESENT( basis_set_id ) ) THEN
+      my_basis_set_id = basis_set_id
+    ELSE
+      my_basis_set_id = use_orb_basis_set 
+    END IF
 
     failure=.FALSE.
 
@@ -960,12 +1011,12 @@ CONTAINS
     ENDDO
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-
 !   *** Allocate work storage ***
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=maxco,&
                              natom=natom,&
-                             maxsgf_set=maxsgf_set)
+                             maxsgf_set=maxsgf_set,&
+                             basis_set_id=my_basis_set_id)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,"pab",maxco*1*dp_size)
@@ -979,10 +1030,14 @@ CONTAINS
     ALLOCATE(where_is_the_point(0:group_size-1))
 
     DO iatom=1,natom
-
-      CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                               orb_basis_set=orb_basis_set)
-
+      SELECT CASE (my_basis_set_id)
+      CASE (use_orb_basis_set)
+        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                             orb_basis_set=orb_basis_set)
+      CASE (use_aux_fit_basis_set)
+        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                             aux_fit_basis_set=orb_basis_set)
+      END SELECT
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                              first_sgf=first_sgfa,&
                              lmax=la_max,&

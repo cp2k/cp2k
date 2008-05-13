@@ -1712,19 +1712,21 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs
+      POINTER                                :: mo_derivs, mo_derivs_aux_fit
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: ao_mo_fm_pools
+      POINTER                                :: ao_mo_fm_pools, &
+                                                ao_mo_fm_pools_aux_fit
     TYPE(cp_fm_struct_type), POINTER         :: ao_ao_fmstruct, ao_mo_fmstruct
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools
+      POINTER                                :: S_sm_pools, S_sm_pools_aux_fit
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+      POINTER                                :: mos, mos_aux_fit
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
+                                                matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
 !   ---------------------------------------------------------------------------
@@ -1732,8 +1734,10 @@ END SUBROUTINE qs_scf_print_summary
     CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct,&
-            dft_control, mos, occupation_numbers, S_sm_pools, ks_env)
-    NULLIFY(atomic_kind_set, mo_derivs, mo_coeff, scf_control)
+            dft_control, mos, occupation_numbers, S_sm_pools, ks_env,&
+            ao_mo_fm_pools_aux_fit, matrix_ks_aux_fit, S_sm_pools_aux_fit)
+    NULLIFY(atomic_kind_set, mo_derivs, mo_coeff, scf_control, mo_coeff_aux_fit,&
+            mo_derivs_aux_fit)
 
     failure=.FALSE.
 
@@ -1746,6 +1750,7 @@ END SUBROUTINE qs_scf_print_summary
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
          mos=mos,&
+         mos_aux_fit=mos_aux_fit,&
          matrix_ks=matrix_ks,&
          ks_env=ks_env,&
          atomic_kind_set=atomic_kind_set,&
@@ -1755,6 +1760,11 @@ END SUBROUTINE qs_scf_print_summary
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
          S_sm_pools=S_sm_pools,&
          error=error)
+    IF( dft_control%do_wfn_fitting) THEN
+      CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
+           S_sm_pools=S_sm_pools_aux_fit,&
+           error=error)
+    END IF
 
     ! very first tests for xas
 
@@ -1785,6 +1795,34 @@ END SUBROUTINE qs_scf_print_summary
        END DO
     END IF
 
+!   *** finish initialization of the MOs for wfn fitting ***
+    IF(dft_control%do_wfn_fitting) THEN
+      CPPrecondition(ASSOCIATED(mos_aux_fit),cp_failure_level,routineP,error,failure)
+      IF (.NOT.failure) THEN
+         DO ispin=1,SIZE(mos_aux_fit)
+            CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit,homo=homo)
+            IF (.NOT.ASSOCIATED(mo_coeff_aux_fit)) THEN
+               CALL init_mo_set(mos_aux_fit(ispin)%mo_set,&
+                    ao_mo_fm_pools_aux_fit(ispin)%pool,&
+                    name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+                    "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                    error=error)
+            END IF
+            IF(my_transition_potential .AND. ispin==1) THEN
+              CALL get_mo_set(mos_aux_fit(ispin)%mo_set,&
+                   occupation_numbers=occupation_numbers)
+              occupation_numbers(dft_control%xas_estate) = &
+                   dft_control%xas_control%occ_estate
+              occupation_numbers(homo) = dft_control%xas_control%occ_homo
+              uniform_occupation = .FALSE.
+  
+              CALL set_mo_set(mos_aux_fit(ispin)%mo_set,&
+                   uniform_occupation=uniform_occupation,error=error)
+            END IF
+         END DO
+      END IF
+    END IF
+
 !   *** get the mo_derivs OK if needed ***
     IF (qs_env%requires_mo_derivs) THEN
      CALL get_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
@@ -1806,6 +1844,28 @@ END SUBROUTINE qs_scf_print_summary
        ! nothing should be done
     ENDIF
 
+!   *** get the mo_derivs OK if needed ***
+    IF( dft_control%do_wfn_fitting) THEN
+      IF (qs_env%requires_mo_derivs) THEN
+       CALL get_qs_env(qs_env,mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
+       IF (.NOT.ASSOCIATED(mo_derivs_aux_fit)) THEN
+         IF (dft_control%restricted) THEN ! right now, there might be more mos than needed derivs
+            ALLOCATE(mo_derivs_aux_fit(1))
+            CALL get_mo_set(mos_aux_fit(1)%mo_set,mo_coeff=mo_coeff_aux_fit)
+            CALL cp_fm_create(mo_derivs_aux_fit(1)%matrix,mo_coeff_aux_fit%matrix_struct,error=error)
+         ELSE
+            ALLOCATE(mo_derivs_aux_fit(dft_control%nspins))
+            DO ispin=1,dft_control%nspins
+               CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
+               CALL cp_fm_create(mo_derivs_aux_fit(ispin)%matrix,mo_coeff_aux_fit%matrix_struct,error=error)
+            ENDDO
+         ENDIF
+         CALL set_qs_env(qs_env,mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
+       ENDIF
+      ELSE
+         ! nothing should be done
+      ENDIF
+    END IF
 !   *** Allocate the distributed SCF matrices ***
 
     IF ((.NOT.ASSOCIATED(scf_env%scf_work1)).OR.&
@@ -1869,6 +1929,20 @@ END SUBROUTINE qs_scf_print_summary
        CALL set_qs_env(qs_env=qs_env,&
             matrix_ks=matrix_ks,error=error)
     END IF
+
+!   *** Allocate matrix_ks_aux_fit if requested and put it in the QS environment ***
+
+    IF( dft_control%do_wfn_fitting) THEN    
+      IF (.not.ASSOCIATED(matrix_ks_aux_fit)) THEN
+         CALL sm_pools_create_matrix_vect(S_sm_pools_aux_fit,matrix_ks_aux_fit,&
+              name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+              "KOHN-SHAM_MATRIX for wfn fitting",&
+              error=error)
+         CALL set_qs_env(qs_env=qs_env,&
+              matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
+      END IF
+    END IF
+
 
 !   *** allocate p_mix_new ***
     IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN

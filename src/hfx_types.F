@@ -11,9 +11,11 @@
 ! *****************************************************************************
 MODULE hfx_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -21,6 +23,7 @@ MODULE hfx_types
   USE hfx_helpers,                     ONLY: count_cells,&
                                              next_image_cell
   USE hfx_libint_wrapper,              ONLY: lib_int
+  USE input_constants,                 ONLY: use_aux_fit_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -45,7 +48,8 @@ MODULE hfx_types
           hfx_compression_type,&
           hfx_container_type, hfx_container_node, hfx_cache_type, &
           hfx_basis_type, &
-          hfx_p_type, hfx_create_neighbor_cells, hfx_init_container
+          hfx_p_type, hfx_create_neighbor_cells, hfx_init_container,&
+          hfx_basis_info_type
 
 #define CACHE_SIZE 1024
 
@@ -180,6 +184,14 @@ MODULE hfx_types
   END TYPE
 
 ! *****************************************************************************
+  TYPE hfx_basis_info_type
+    INTEGER                                  :: max_set
+    INTEGER                                  :: max_sgf
+    INTEGER                                  :: max_am
+  END TYPE
+
+
+! *****************************************************************************
 !> \brief stores some data used in construction of Kohn-Sham matrix
 !> \param potential_parameter stores information on the potential (1/r, erfc(wr)/r
 !> \param screening_parameter stores screening infos such as epsilon
@@ -238,6 +250,7 @@ MODULE hfx_types
     REAL(dp), DIMENSION(:,:), POINTER        :: full_ks_alpha
     REAL(dp), DIMENSION(:,:), POINTER        :: full_ks_beta
     TYPE(lib_int)                            :: lib
+    TYPE(hfx_basis_info_type)                :: basis_info
   END TYPE
 
 ! *****************************************************************************
@@ -268,7 +281,8 @@ MODULE hfx_types
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,max_set,atomic_kind_set, particle_set, error)
+  SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,max_set,atomic_kind_set, particle_set, &
+                        dft_control, error)
     TYPE(hfx_type), DIMENSION(:, :), POINTER :: x_data
     TYPE(cp_para_env_type)                   :: para_env
     TYPE(section_vals_type), POINTER         :: hfx_section
@@ -277,6 +291,7 @@ MODULE hfx_types
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create', &
@@ -304,7 +319,6 @@ MODULE hfx_types
 !$  n_threads = omp_get_max_threads() 
     ALLOCATE(x_data(n_rep_hf,n_threads),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
     DO i_thread=1,n_threads
       DO irep=1,n_rep_hf
         actual_x_data => x_data(irep,i_thread)
@@ -435,8 +449,23 @@ MODULE hfx_types
         DO ikind = 1,nkind
             NULLIFY(atom_kind)
             atom_kind => atomic_kind_set(ikind)
-            CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                 orb_basis_set=orb_basis_a)
+            IF( .NOT.dft_control%do_wfn_fitting ) THEN
+              CALL get_atomic_kind(atomic_kind=atom_kind,&
+                                   orb_basis_set=orb_basis_a)
+              CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                                       maxsgf=actual_x_data%basis_info%max_sgf,&
+                                       maxnset=actual_x_data%basis_info%max_set,&
+                                       maxlgto=actual_x_data%basis_info%max_am)
+
+            ELSE
+              CALL get_atomic_kind(atomic_kind=atom_kind,&
+                                   aux_fit_basis_set=orb_basis_a)
+              CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                                       maxsgf=actual_x_data%basis_info%max_sgf,&
+                                       maxnset=actual_x_data%basis_info%max_set,&
+                                       maxlgto=actual_x_data%basis_info%max_am,&
+                                       basis_set_id=use_aux_fit_basis_set)
+            END IF
             CALL get_gto_basis_set(gto_basis_set=orb_basis_a, &
                                    lmax=actual_x_data%basis_parameter(ikind)%lmax, &
                                    lmin=actual_x_data%basis_parameter(ikind)%lmin, &

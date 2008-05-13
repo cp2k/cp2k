@@ -27,7 +27,9 @@ MODULE particle_types
   USE f77_blas
   USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
-                                             dump_xmol
+                                             dump_xmol,&
+                                             use_aux_fit_basis_set,&
+                                             use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -235,7 +237,7 @@ END SUBROUTINE clone_particle
 ! *****************************************************************************
   SUBROUTINE get_particle_set(particle_set,first_cgf,first_nco,first_nso,&
                               first_sgf,last_cgf,last_nco,last_nso,&
-                              last_sgf,ncgf,ncotot,nsotot,nsgf,r)
+                              last_sgf,ncgf,ncotot,nsotot,nsgf,r,basis_set_id)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -249,16 +251,24 @@ END SUBROUTINE clone_particle
       OPTIONAL                               :: nsgf
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: r
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_particle_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: icgf, ico, iparticle, isgf, &
-                                                iso, maxco, maxso, nc, &
+                                                iso, maxco, maxso, &
+                                                my_basis_set_id, nc, &
                                                 nparticle, ns, nset
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
 
 !   ---------------------------------------------------------------------------
+
+    IF( PRESENT(basis_set_id) ) THEN
+      my_basis_set_id = basis_set_id
+    ELSE
+      my_basis_set_id = use_orb_basis_set
+    END IF
 
     IF (ASSOCIATED(particle_set)) THEN
 
@@ -347,7 +357,8 @@ END SUBROUTINE clone_particle
         DO iparticle=1,nparticle
           CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
                                ncgf=nc,&
-                               nsgf=ns)
+                               nsgf=ns,&
+                               basis_set_id=my_basis_set_id)
           IF (PRESENT(ncgf)) ncgf(iparticle) = nc
           IF (PRESENT(first_cgf)) first_cgf(iparticle) = icgf + 1
           icgf = icgf + nc
@@ -370,9 +381,16 @@ END SUBROUTINE clone_particle
           PRESENT(ncotot)) THEN
         ico = 0
         DO iparticle = 1,nparticle
-          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
-                               orb_basis_set=orb_basis)
-          CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nset,maxco=maxco)
+          SELECT CASE (my_basis_set_id)
+          CASE (use_orb_basis_set)
+            CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
+                                 orb_basis_set=orb_basis)
+            CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nset,maxco=maxco)
+          CASE (use_aux_fit_basis_set)
+            CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
+                                 aux_fit_basis_set=orb_basis)
+            CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nset,maxco=maxco)
+          END SELECT
           nc = maxco*nset
           IF(PRESENT(first_nco)) first_nco(iparticle) = ico + 1
           IF(PRESENT(last_nco))  last_nco(iparticle)  = ico + nc
@@ -387,9 +405,16 @@ END SUBROUTINE clone_particle
           PRESENT(nsotot)) THEN
         iso = 0
         DO iparticle = 1,nparticle
-          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
-                               orb_basis_set=orb_basis)
-          CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nset,maxso=maxso)
+          SELECT CASE (my_basis_set_id)
+          CASE (use_orb_basis_set)
+            CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
+                                 orb_basis_set=orb_basis)
+            CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nset,maxso=maxso)
+          CASE (use_aux_fit_basis_set)
+            CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
+                                 aux_fit_basis_set=orb_basis)
+            CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nset,maxso=maxso)
+          END SELECT
           ns = maxso*nset
           IF(PRESENT(first_nso)) first_nso(iparticle) = iso + 1
           IF(PRESENT(last_nso))  last_nso(iparticle)  = iso + ns

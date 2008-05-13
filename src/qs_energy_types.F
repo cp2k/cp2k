@@ -33,6 +33,7 @@ MODULE qs_energy_types
                 dispersion,& 
                 ex,&
                 exc,&
+                exc_aux_fit,&
                 exc1,&
                 hartree,&
                 hartree_1c,&
@@ -142,6 +143,7 @@ CONTAINS
       qs_energy%qmmm_nu = 0.0_dp
       qs_energy%ex = 0.0_dp
       qs_energy%exc = 0.0_dp
+      qs_energy%exc_aux_fit = 0.0_dp
       qs_energy%exc1 = 0.0_dp
       qs_energy%e_hartree = 0.0_dp
       qs_energy%hartree = 0.0_dp
@@ -216,6 +218,7 @@ CONTAINS
       qs_energy_out%qmmm_nu         = qs_energy_in%qmmm_nu
       qs_energy_out%ex              = qs_energy_in%ex
       qs_energy_out%exc             = qs_energy_in%exc
+      qs_energy_out%exc_aux_fit     = qs_energy_in%exc_aux_fit
       qs_energy_out%exc1            = qs_energy_in%exc1
       qs_energy_out%hartree         = qs_energy_in%hartree
       qs_energy_out%hartree_1c      = qs_energy_in%hartree_1c

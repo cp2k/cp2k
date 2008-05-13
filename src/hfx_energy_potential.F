@@ -40,10 +40,10 @@ MODULE hfx_energy_potential
                                              screen_farfield_per,&
                                              update_pmax_mat
   USE hfx_types,                       ONLY: &
-       hfx_basis_type, hfx_box_scheme, hfx_cache_type, hfx_cell_type, &
-       hfx_container_type, hfx_general_type, hfx_init_container, &
-       hfx_load_balance_type, hfx_memory_type, hfx_potential_type, &
-       hfx_screening_type, hfx_type
+       hfx_basis_info_type, hfx_basis_type, hfx_box_scheme, hfx_cache_type, &
+       hfx_cell_type, hfx_container_type, hfx_general_type, &
+       hfx_init_container, hfx_load_balance_type, hfx_memory_type, &
+       hfx_potential_type, hfx_screening_type, hfx_type
   USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
                                              do_hfx_potential_gaussian,&
                                              do_hfx_potential_id,&
@@ -164,6 +164,7 @@ MODULE hfx_energy_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(hfx_basis_info_type), POINTER       :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_cache_type), DIMENSION(:), &
@@ -299,6 +300,7 @@ MODULE hfx_energy_potential
 
 
     basis_parameter   => actual_x_data%basis_parameter
+    basis_info        => actual_x_data%basis_info
 
     !! initalize some counters
     neris_total = 0_int_8
@@ -401,11 +403,11 @@ MODULE hfx_energy_potential
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxsgf=maxsgf,&
-                             maxnset=max_set,&
-                             maxlgto=max_am, &
                              kind_of=kind_of)
 
+    maxsgf = basis_info%max_sgf
+    max_am = basis_info%max_am
+    max_set =basis_info%max_set
     !! Initialize memory used by libint
     CALL initialize_libint(lib(i_thread+1), max_am, error)
 
@@ -479,12 +481,12 @@ MODULE hfx_energy_potential
         NULLIFY(actual_pmax_set)
         shm_actual_pmax_set => actual_pmax_set
         CALL update_pmax_mat(actual_pmax_set, full_density, full_density_beta, &
-                             particle_set,atomic_kind_set, kind_of, basis_parameter, error)
+                             particle_set,max_set, kind_of, basis_parameter, error)
       END IF
       IF(geometry_did_change ) THEN
         CALL update_pmax_mat(actual_x_data%initial_p, &
                              full_density,full_density_beta,&
-                             particle_set,atomic_kind_set, kind_of, basis_parameter, error)
+                             particle_set,max_set, kind_of, basis_parameter, error)
       END IF
     ELSE
       IF(geometry_did_change) THEN
@@ -542,7 +544,7 @@ MODULE hfx_energy_potential
       box_size_inv(3) = 1.0_dp/box_size(3)
       ALLOCATE(screen_periodic(SIZE(actual_x_data%neighbor_cells),max_set,max_set,natom,natom),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL comp_screen_mat_per(lib(i_thread+1), screen_set,screen_atom,screen_max,screen_periodic,particle_set,atomic_kind_set,&
+      CALL comp_screen_mat_per(lib(i_thread+1), screen_set,screen_atom,screen_max,screen_periodic,particle_set,max_set,&
                                potential_parameter,.NOT.geometry_did_change,&
                                kind_of, basis_parameter,&
                                actual_x_data%x_screening_buffer_periodic,&
@@ -550,19 +552,19 @@ MODULE hfx_energy_potential
       IF(geometry_did_change) THEN
         NULLIFY(shm_far_field_boxes)
         CALL screen_farfield_per(actual_x_data%far_field_boxes, &
-                                 particle_set, atomic_kind_set, &
+                                 particle_set, max_set, &
                                  actual_x_data%neighbor_cells, box_size, box_size_inv, kind_of, basis_parameter, error)
         shm_far_field_boxes => actual_x_data%far_field_boxes
        END IF
 
     ELSE
-      CALL comp_screen_mat(lib(i_thread+1),screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
+      CALL comp_screen_mat(lib(i_thread+1),screen_set,screen_atom,screen_max,particle_set,max_set,&
                            potential_parameter,.NOT.geometry_did_change,kind_of, basis_parameter, i_thread,&
                            actual_x_data%x_screening_buffer, error)
       IF(geometry_did_change) THEN
         NULLIFY(shm_far_field_boxes)
         CALL screen_farfield(actual_x_data%far_field_boxes,&
-                             particle_set, atomic_kind_set,&
+                             particle_set, max_set,&
                              kind_of, basis_parameter, error)
         shm_far_field_boxes => actual_x_data%far_field_boxes
       END IF
@@ -582,7 +584,7 @@ MODULE hfx_energy_potential
     !! an optional parameter. Of course, this is only done if the geometry did change
     IF( geometry_did_change ) THEN
       IF( actual_x_data%b_first_load_balance_energy ) THEN
-        CALL load_balance_energy(actual_x_data,eps_schwarz,eps_box,particle_set,atomic_kind_set,para_env,&
+        CALL load_balance_energy(actual_x_data,eps_schwarz,eps_box,particle_set,max_set,para_env,&
                                  potential_parameter,screen_set,screen_atom,screen_max,&
                                  shm_is_assoc_atomic_block,do_periodic,load_balance_parameter, box_size, &
                                  box_size_inv, kind_of, basis_parameter, shm_initial_p, i_thread, n_threads, &

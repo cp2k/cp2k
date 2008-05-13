@@ -11,8 +11,6 @@
 ! *****************************************************************************
 MODULE hfx_load_balance_methods 
   
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
   USE hfx_distribution_mc,             ONLY: optimize_distribution
@@ -88,7 +86,7 @@ MODULE hfx_load_balance_methods
 !>      11.2007 parallelize load balance on box_idx1 [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE load_balance_energy(x_data, eps_schwarz, eps_box, particle_set,atomic_kind_set,para_env,&
+  SUBROUTINE load_balance_energy(x_data, eps_schwarz, eps_box, particle_set,max_set,para_env,&
                                  potential_parameter, screen_set, screen_atom, screen_max,&
                                  is_assoc_atomic_block_global, do_periodic,&
                                  load_balance_parameter, box_size, box_size_inv, kind_of, basis_parameter, pmax_set, &
@@ -97,8 +95,7 @@ MODULE hfx_load_balance_methods
     REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: max_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(hfx_potential_type), INTENT(IN)     :: potential_parameter
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
@@ -121,7 +118,7 @@ MODULE hfx_load_balance_methods
       routineP = moduleN//':'//routineN
 
     INTEGER :: data_from, dest, i, iatom, ibin, icpu, ikind, ipos, iset, j, &
-      jatom, jkind, jset, katom, kkind, kset, latom, lkind, lset, max_set, &
+      jatom, jkind, jset, katom, kkind, kset, latom, lkind, lset, &
       my_process_id, natom, nbins, nseta, nsetb, nsetc, nsetd, &
       pgf_radius_box, radius1, radius2, req(2), source, stat
     INTEGER(int_8) :: box_idx1, box_idx2, box_idx3, box_idx4, &
@@ -157,7 +154,6 @@ MODULE hfx_load_balance_methods
       omega2Inv = 0.0_dp
     END IF
     natom=SIZE(particle_set)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set) 
     failure=.FALSE.
 
     ncpu = para_env%num_pe
@@ -675,7 +671,7 @@ MODULE hfx_load_balance_methods
 !>      11.2007 parallelize load balance on box_idx1 [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE load_balance_forces(x_data, eps_schwarz, eps_box, particle_set,atomic_kind_set,para_env,&
+  SUBROUTINE load_balance_forces(x_data, eps_schwarz, eps_box, particle_set,max_set,para_env,&
                                  potential_parameter, screen_set, screen_atom, screen_max,&
                                  pmax_set, is_assoc_atomic_block_global, do_periodic, &
                                  load_balance_parameter, box_size, box_size_inv, kind_of, basis_parameter,&
@@ -684,8 +680,7 @@ MODULE hfx_load_balance_methods
     REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: max_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(hfx_potential_type), INTENT(IN)     :: potential_parameter
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
@@ -708,7 +703,7 @@ MODULE hfx_load_balance_methods
       routineP = moduleN//':'//routineN
 
     INTEGER :: data_from, dest, i, iatom, ibin, icpu, ikind, ipos, iset, j, &
-      jatom, jkind, jset, katom, kkind, kset, latom, lkind, lset, max_set, &
+      jatom, jkind, jset, katom, kkind, kset, latom, lkind, lset, &
       my_process_id, natom, nbins, nseta, nsetb, nsetc, nsetd, &
       pgf_radius_box, radius1, radius2, req(2), source, stat
     INTEGER(int_8) :: box_idx1, box_idx2, box_idx3, box_idx4, &
@@ -763,7 +758,6 @@ MODULE hfx_load_balance_methods
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxnset=max_set)
       total_integrals = 0
       my_process_id = para_env%mepos*n_threads + i_thread
       DO iatom=1,natom
