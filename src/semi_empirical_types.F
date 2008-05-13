@@ -508,7 +508,7 @@ CONTAINS
     CHARACTER(LEN=5), DIMENSION(0:3), PARAMETER :: &
       beta_lab = (/"BETAS","BETAP","BETAD","BETAF"/)
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: l, natorb, ngauss, &
+    INTEGER                                  :: i, l, natorb, ngauss, &
                                                 output_unit, typ, z
     LOGICAL                                  :: defined
     REAL(KIND=dp)                            :: alp, eheat, eisol, gp2, gpp, &
@@ -545,27 +545,21 @@ CONTAINS
           SELECT CASE (typ)
           CASE DEFAULT
              CALL stop_program(routineN,moduleN,__LINE__,"Semiempirical method unknown")
-          CASE (do_method_am1,do_method_rm1)
-             SELECT CASE (typ)
-             CASE(do_method_am1)
-                WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
-                     " Semi empirical parameters: ","Austin Model 1 (AM1)",TRIM(name)
-             CASE(do_method_rm1)
-                WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
-                     " Semi empirical parameters: ","Recife Model 1 (RM1)",TRIM(name)
-             END SELECT
+          CASE(do_method_am1)
+             WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+                  " Semi empirical parameters: ","Austin Model 1 (AM1)",TRIM(name)
+          CASE(do_method_rm1)
+             WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+                  " Semi empirical parameters: ","Recife Model 1 (RM1)",TRIM(name)
           CASE (do_method_pm3)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
-                  " Semi empirical parameters: ","Parametric Method 3 (PM3) ",&
-                  TRIM(name)
+                  " Semi empirical parameters: ","Parametric Method 3 (PM3) ",TRIM(name)
           CASE (do_method_pm6)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
-                  " Semi empirical parameters: ","Parametric Method 6 (PM6) ",&
-                  TRIM(name)
+                  " Semi empirical parameters: ","Parametric Method 6 (PM6) ",TRIM(name)
           CASE (do_method_pdg)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
-                  " Semi empirical parameters: ","PDDG/PM3 ",&
-                  TRIM(name)
+                  " Semi empirical parameters: ","PDDG/PM3 ",TRIM(name)
           CASE (do_method_mndo)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","MNDO ",TRIM(name)
@@ -667,6 +661,71 @@ CONTAINS
              END IF
              WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
                    ADJUSTR("PO9"),"- "//"Klopman-Ohno term, CORE     [bohr]: ",sep%ko(9)
+             SELECT CASE (typ)
+             CASE (do_method_am1, do_method_rm1, do_method_pm3, do_method_pdg)
+                IF((typ == do_method_am1 .OR. typ == do_method_rm1) .AND. sep%z == 5) THEN
+                   ! Standard case
+                   DO i = 1, SIZE(sep%bfn1,1)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN1"//TRIM(ADJUSTL(cp_to_string(i)))//"_ALL"),&
+                           "- "//"Core-Core VDW, Multiplier   [a.u.]: ",sep%bfn1(i,1)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN2"//TRIM(ADJUSTL(cp_to_string(i)))//"_ALL"),&
+                           "- "//"Core-Core VDW, Exponent     [a.u.]: ",sep%bfn2(i,1)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN3"//TRIM(ADJUSTL(cp_to_string(i)))//"_ALL"),&
+                           "- "//"Core-Core VDW, Position     [a.u.]: ",sep%bfn3(i,1)
+                   END DO
+                   ! Special Case : Hydrogen
+                   DO i = 1, SIZE(sep%bfn1,1)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN1"//TRIM(ADJUSTL(cp_to_string(i)))//"_H"),&
+                           "- "//"Core-Core VDW, Multiplier   [a.u.]: ",sep%bfn1(i,2)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN2"//TRIM(ADJUSTL(cp_to_string(i)))//"_H"),&
+                           "- "//"Core-Core VDW, Exponent     [a.u.]: ",sep%bfn2(i,2)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN3"//TRIM(ADJUSTL(cp_to_string(i)))//"_H"),&
+                           "- "//"Core-Core VDW, Position     [a.u.]: ",sep%bfn3(i,2)
+                   END DO
+                   ! Special Case : Carbon
+                   DO i = 1, SIZE(sep%bfn1,1)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN1"//TRIM(ADJUSTL(cp_to_string(i)))//"_C"),&
+                           "- "//"Core-Core VDW, Multiplier   [a.u.]: ",sep%bfn1(i,3)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN2"//TRIM(ADJUSTL(cp_to_string(i)))//"_C"),&
+                           "- "//"Core-Core VDW, Exponent     [a.u.]: ",sep%bfn2(i,3)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN3"//TRIM(ADJUSTL(cp_to_string(i)))//"_C"),&
+                           "- "//"Core-Core VDW, Position     [a.u.]: ",sep%bfn3(i,3)
+                   END DO
+                   ! Special Case : Halogens
+                   DO i = 1, SIZE(sep%bfn1,1)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN1"//TRIM(ADJUSTL(cp_to_string(i)))//"_HALO"),&
+                           "- "//"Core-Core VDW, Multiplier   [a.u.]: ",sep%bfn1(i,4)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN2"//TRIM(ADJUSTL(cp_to_string(i)))//"_HALO"),&
+                           "- "//"Core-Core VDW, Exponent     [a.u.]: ",sep%bfn2(i,4)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN3"//TRIM(ADJUSTL(cp_to_string(i)))//"_HALO"),&
+                           "- "//"Core-Core VDW, Position     [a.u.]: ",sep%bfn3(i,4)
+                   END DO
+                ELSE
+                   DO i = 1, SIZE(sep%fn1,1)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN1"//TRIM(ADJUSTL(cp_to_string(i)))),&
+                           "- "//"Core-Core VDW, Multiplier   [a.u.]: ",sep%fn1(i)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN2"//TRIM(ADJUSTL(cp_to_string(i)))),&
+                           "- "//"Core-Core VDW, Exponent     [a.u.]: ",sep%fn2(i)
+                      WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                           ADJUSTR("FN3"//TRIM(ADJUSTL(cp_to_string(i)))),&
+                           "- "//"Core-Core VDW, Position     [a.u.]: ",sep%fn3(i)
+                   END DO
+                END IF
+             END SELECT
           ELSE
              WRITE (UNIT=output_unit,FMT="(T55,A)") "Parameters are not defined"
           END IF
