@@ -52,6 +52,7 @@ MODULE qs_linres_current_utils
                                              current_gauge_r_and_Bader,&
                                              current_gauge_r_and_step_func,&
                                              current_orb_center_atom,&
+                                             current_orb_center_box,&
                                              current_orb_center_common,&
                                              current_orb_center_wannier
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -573,16 +574,17 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_env_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i, i_B, iao, iatom, icount, idir, ini, ir, &
-      ispin, istat, istate, istate2, istate_next, j, k, max_nbr_center, &
-      max_states, n_mo(2), n_rep, nao, natom, ncubes, nmo, nmoloc, nspins, &
-      output_unit
+    INTEGER :: handle, homo, i, i_B, iao, iatom, ibox, icount, idir, ii, ini, &
+      ir, ispin, istat, istate, istate2, istate_next, ix, iy, iz, j, k, &
+      max_nbr_center, max_states, n_mo(2), n_rep, nao, natom, nbr_box, &
+      ncubes, nmo, nmoloc, nspins, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: buff, first_sgf, last_sgf
-    INTEGER, DIMENSION(:), POINTER           :: bounds, list
-    LOGICAL                                  :: failure, gapw
+    INTEGER, DIMENSION(:), POINTER           :: bounds, list, nbox
+    LOGICAL                                  :: failure, gapw, is0
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: state_done
     REAL(dp)                                 :: center(3), center2(3), dist, &
                                                 mdist, r(3), rab(3)
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rbuff
     REAL(dp), DIMENSION(:), POINTER          :: common_center
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -603,9 +605,6 @@ CONTAINS
       POINTER                                :: matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: current_section, lr_section
-
-!
-!
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -666,6 +665,10 @@ CONTAINS
        CALL section_vals_val_get(current_section,"COMMON_CENTER",r_vals=common_center,error=error)
     CASE(current_orb_center_atom)
        current_env%orb_center_name = "ATOM"
+    CASE(current_orb_center_box)
+       current_env%orb_center_name = "BOX"
+       ! Is there a user specified nbox?
+       CALL section_vals_val_get(current_section,"NBOX",i_vals=nbox,error=error)
     CASE DEFAULT
        CALL stop_program("current_env_init","unknown orbital center, try again...")
     END SELECT
@@ -708,15 +711,15 @@ CONTAINS
              r(:) = pbc(linres_control%localized_wfn_control%centers_set(ispin)%array(:,istate),cell)
              IF(r(1).LT.0.0_dp) THEN
                 linres_control%localized_wfn_control%centers_set(ispin)%array(1,istate) = &
-                     r(1) + qs_env%cell%hmat(1,1)
+                     r(1) + cell%hmat(1,1)
              ENDIF
              IF(r(2).LT.0.0_dp) THEN
                 linres_control%localized_wfn_control%centers_set(ispin)%array(2,istate) = &
-                     r(2) + qs_env%cell%hmat(2,2)
+                     r(2) + cell%hmat(2,2)
              ENDIF
              IF(r(3).LT.0.0_dp) THEN
                 linres_control%localized_wfn_control%centers_set(ispin)%array(3,istate) = &
-                     r(3) + qs_env%cell%hmat(3,3)
+                     r(3) + cell%hmat(3,3)
              ENDIF
           ENDDO
        ENDDO
@@ -729,7 +732,7 @@ CONTAINS
        CPPrecondition(nmoloc==homo,cp_warning_level,routineP,error,failure)
        current_env%nstates(ispin) = homo
        max_states = MAX(max_states,homo)
-
+       !
        ALLOCATE(current_env%center_list(ispin)%array(2,homo+1),&
             &   current_env%centers_set(ispin)%array(3,homo),STAT=istat)
        CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
@@ -765,10 +768,10 @@ CONTAINS
           ! use the atom as -center-
           ALLOCATE(buff(homo),STAT=istat)
           CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
-          !
           buff(:) = 0
+          !
           DO istate = 1,homo
-             mdist = 1.0E20_dp
+             mdist = HUGE(0.0_dp)
              DO iatom = 1,natom
                 r   = pbc(particle_set(iatom)%r(:),cell)
                 rab = pbc(r,linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,istate),&
@@ -780,34 +783,99 @@ CONTAINS
                 ENDIF
              ENDDO
           ENDDO
-          current_env%nbr_center(ispin) = natom
-          current_env%center_list(ispin)%array(1,1) = 1
+          !
           i = 0
+          ii = 1
+          current_env%center_list(ispin)%array(1,1) = 1
           DO iatom = 1,natom
              j = 0
+             is0 = .TRUE.
              DO istate = 1,homo
                 IF(buff(istate).EQ.iatom) THEN
                    j = j + 1
                    i = i + 1
+                   is0 = .FALSE.
                    current_env%center_list(ispin)%array(2,i) = istate
                 ENDIF
              ENDDO
-             IF(output_unit>0) THEN
-                WRITE(output_unit,'(A,I6,A,I6)') 'clustering ',j,' center(s) on atom ',iatom
+             IF(.NOT.is0) THEN
+                IF(output_unit>0) THEN
+                   WRITE(output_unit,'(A,I6,A,I6)') 'clustering ',j,' center(s) on atom ',iatom
+                ENDIF
+                current_env%center_list(ispin)%array(1,ii+1) = &
+                     & current_env%center_list(ispin)%array(1,ii) + j
+                current_env%centers_set(ispin)%array(:,ii) = &
+                     &  pbc(particle_set(iatom)%r,cell)
+                ii = ii + 1
              ENDIF
-             current_env%center_list(ispin)%array(1,iatom+1) = &
-                  & current_env%center_list(ispin)%array(1,iatom) + j
-             current_env%centers_set(ispin)%array(:,iatom) = &
-                  &  pbc(particle_set(iatom)%r,cell)
           ENDDO
+          current_env%nbr_center(ispin) = ii-1
+          !
           DEALLOCATE(buff,STAT=istat)
           CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
-          !CASE(current_orb_center_box)
-          !   !
-          !   ! use boxes as -center-
-          !   ALLOCATE(current_env%centers_set(ispin)%array(3,homo),STAT=istat)
-          !   CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
-          !   CALL stop_program("current_env_init","3 you need to work more here...")
+       CASE(current_orb_center_box)
+          !
+          ! use boxes as -center-
+          nbr_box = nbox(1)*nbox(2)*nbox(3)
+          ALLOCATE(rbuff(3,nbr_box),buff(homo),STAT=istat)
+          CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
+          rbuff(:,:) = HUGE(0.0_dp)
+          buff(:) = 0
+          !
+          ibox = 1
+          DO iz = 1,nbox(3)
+             DO iy = 1,nbox(2)
+                DO ix = 1,nbox(1)
+                   rbuff(1,ibox) = cell%hmat(1,1)*((REAL(ix,KIND=dp)-0.5_dp)/REAL(nbox(1),KIND=dp)-0.5_dp)
+                   rbuff(2,ibox) = cell%hmat(2,2)*((REAL(iy,KIND=dp)-0.5_dp)/REAL(nbox(2),KIND=dp)-0.5_dp)
+                   rbuff(3,ibox) = cell%hmat(3,3)*((REAL(iz,KIND=dp)-0.5_dp)/REAL(nbox(3),KIND=dp)-0.5_dp)
+                   ibox = ibox+1
+                ENDDO
+             ENDDO
+          ENDDO
+          !
+          DO istate = 1,homo
+             mdist = HUGE(0.0_dp)
+             DO ibox = 1,nbr_box
+                rab(:) = pbc(rbuff(:,ibox), &
+                     &       linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,istate),&
+                     &       cell)
+                dist = SQRT(rab(1)**2+rab(2)**2+rab(3)**2)
+                IF(dist.LT.mdist) THEN
+                   buff(istate) = ibox
+                   mdist = dist
+                ENDIF
+             ENDDO
+          ENDDO
+          !
+          i = 0
+          ii = 1
+          current_env%center_list(ispin)%array(1,1) = 1
+          DO ibox = 1,nbr_box
+             j = 0
+             is0 = .TRUE.
+             DO istate = 1,homo
+                IF(buff(istate).EQ.ibox) THEN
+                   j = j + 1
+                   i = i + 1
+                   is0 = .FALSE.
+                   current_env%center_list(ispin)%array(2,i) = istate
+                ENDIF
+             ENDDO
+             IF(.NOT.is0) THEN
+                IF(output_unit>0) THEN
+                   WRITE(output_unit,'(A,I6,A,I6)') 'clustering ',j,' center(s) on box ',ibox
+                ENDIF
+                current_env%center_list(ispin)%array(1,ii+1) = &
+                  & current_env%center_list(ispin)%array(1,ii) + j
+                current_env%centers_set(ispin)%array(:,ii) = rbuff(:,ibox)
+                ii = ii + 1
+             ENDIF
+          ENDDO
+          current_env%nbr_center(ispin) = ii-1
+          !
+          DEALLOCATE(buff,rbuff,STAT=istat)
+          CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
        CASE DEFAULT
           CALL stop_program("current_env_init","unknown orbital center, try again...")
        END SELECT
@@ -816,7 +884,8 @@ CONTAINS
     !
     IF(current_env%do_qmmm.AND.&
          & (current_env%orb_center.EQ.current_orb_center_wannier.OR.&
-         &  current_env%orb_center.EQ.current_orb_center_atom)) THEN
+         &  current_env%orb_center.EQ.current_orb_center_atom.OR.&
+         &  current_env%orb_center.EQ.current_orb_center_box)) THEN
        IF(output_unit>0) THEN
           WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
           WRITE(output_unit,*) 'orbital center shifted to match the '
@@ -827,15 +896,15 @@ CONTAINS
           DO istate = 1,current_env%nbr_center(ispin)
              IF(current_env%centers_set(ispin)%array(1,istate).LE.0.0_dp) THEN
                 current_env%centers_set(ispin)%array(1,istate) = &
-                     current_env%centers_set(ispin)%array(1,istate) + qs_env%cell%hmat(1,1)
+                     current_env%centers_set(ispin)%array(1,istate) + cell%hmat(1,1)
              ENDIF
              IF(current_env%centers_set(ispin)%array(2,istate).LE.0.0_dp) THEN
                 current_env%centers_set(ispin)%array(2,istate) = &
-                     current_env%centers_set(ispin)%array(2,istate) + qs_env%cell%hmat(2,2)
+                     current_env%centers_set(ispin)%array(2,istate) + cell%hmat(2,2)
              ENDIF
              IF(current_env%centers_set(ispin)%array(3,istate).LE.0.0_dp) THEN
                 current_env%centers_set(ispin)%array(3,istate) = &
-                  current_env%centers_set(ispin)%array(3,istate) + qs_env%cell%hmat(3,3)
+                  current_env%centers_set(ispin)%array(3,istate) + cell%hmat(3,3)
              ENDIF
           ENDDO
        ENDDO
@@ -874,7 +943,7 @@ CONTAINS
           ini = 1
           IF(idir == 1) ini = 2
           DO istate = ini,current_env%nbr_center(ispin)
-             mdist = 100.0_dp
+             mdist = HUGE(0.0_dp)
              !
              DO istate2 = 1,current_env%nbr_center(ispin)
                 IF(.NOT.state_done(idir,istate2)) THEN
@@ -912,6 +981,8 @@ CONTAINS
        WRITE(output_unit,"(T2,A)") "CURRENT| Orbital center used "//TRIM(current_env%orb_center_name)
        IF(current_env%orb_center.EQ.current_orb_center_common) THEN
           WRITE(output_unit,"(T2,A,3F10.6)") "CURRENT| Common center ",common_center(1:3)
+       ELSEIF(current_env%orb_center.EQ.current_orb_center_box) THEN
+          WRITE(output_unit,"(T2,A,3I5)") "CURRENT| nbr boxes in each direction ",nbox(1:3)
        ENDIF
        !IF(current_env%full) THEN
        !   WRITE(output_unit,"(T2,A,T2,A)") "CURRENT|","Full orbital dependent correction"

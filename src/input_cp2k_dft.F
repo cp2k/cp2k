@@ -5171,11 +5171,13 @@ CONTAINS
             description="The orbital center.",&
             usage="ORBITAL_CENTER WANNIER",&
             default_i_val=current_orb_center_wannier,&
-            enum_c_vals=s2a("WANNIER", "COMMON", "ATOM"),&
+            enum_c_vals=s2a("WANNIER", "COMMON", "ATOM", "BOX"),&
             enum_desc=s2a("Use the Wannier centers.",&
                           "Use a common center (works only for an isolate molecule).",&
-                          "Use the atoms as center."),&
-            enum_i_vals=(/current_orb_center_wannier,current_orb_center_common,current_orb_center_atom/),&
+                          "Use the atoms as center.",&
+                          "Boxing."),&
+            enum_i_vals=(/current_orb_center_wannier,current_orb_center_common,&
+            &             current_orb_center_atom,current_orb_center_box/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5183,6 +5185,13 @@ CONTAINS
        CALL keyword_create(keyword, name="COMMON_CENTER",&
             description="The common center ", usage="COMMON_CENTER 0.0 1.0 0.0",&
             n_var=3,default_r_vals=(/0.0_dp,0.0_dp,0.0_dp/),type_of_var=real_t,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NBOX",&
+            description="How many boxes along each directions ", usage="NBOX 6 6 5",&
+            n_var=3,default_i_vals=(/4,4,4/),type_of_var=integer_t,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

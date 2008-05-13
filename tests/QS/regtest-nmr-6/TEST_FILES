@@ -6,9 +6,11 @@
 ch4-gapw-1.inp 14
 ch4-gapw-2.inp 14
 ch4-gapw-3.inp 14
+ch4-gapw-4.inp 14
 no-gapw-1.inp 14
 no-gapw-2.inp 14
 no-gapw-3.inp 14
+no-gapw-4.inp 14
 ch4-gapw-1-distributed.inp 14
 ch4-gapw-1-replicated.inp  14
 no-gapw-1-distributed.inp  14
