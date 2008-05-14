@@ -479,7 +479,7 @@ CONTAINS
        DO i_c= 1, meta_env%n_colvar
           cv => meta_env%metavar(i_c)
           diff_ss = cv%ss-cv%ss0
-          IF (meta_env%metavar(i_c)%periodic) THEN
+          IF (cv%periodic) THEN
              ! The difference of a periodic COLVAR is always within [-pi,pi]
              diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
           END IF
@@ -520,6 +520,10 @@ CONTAINS
                 SELECT CASE(cv%walls(iwall)%id_type)
                 CASE(do_wall_reflective)
                    ss0_test=cv%ss0+dt*cv%vvp
+                   IF (cv%periodic) THEN
+                      ! A periodic COLVAR is always within [-pi,pi]
+                      ss0_test = SIGN(1.0_dp,ASIN(SIN(ss0_test)))*ACOS(COS(ss0_test))
+                   END IF
                    SELECT CASE(cv%walls(iwall)%id_direction)
                    CASE(do_wall_p)
                       IF ((ss0_test > cv%walls(iwall)%pos).AND.(cv%vvp>0)) cv%vvp = -cv%vvp
@@ -535,6 +539,10 @@ CONTAINS
        DO i_c = 1, meta_env%n_colvar
           cv => meta_env%metavar(i_c)
           cv%ss0 = cv%ss0 + dt*cv%vvp
+          IF (cv%periodic) THEN
+             ! A periodic COLVAR is always within [-pi,pi]
+             cv%ss0 = SIGN(1.0_dp,ASIN(SIN(cv%ss0)))*ACOS(COS(cv%ss0))
+          END IF
           meta_env%cv_energy = meta_env%cv_energy + cv%cv_energy
        ENDDO
     ENDIF
@@ -853,6 +861,10 @@ CONTAINS
                 CYCLE
              CASE(do_wall_quadratic)
                 diff_ss = colvars(ih)%ss0-colvars(ih)%walls(iwall)%pos
+                IF (colvars(ih)%periodic) THEN
+                   ! The difference of a periodic COLVAR is always within [-pi,pi]
+                   diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
+                END IF
                 dfunc = 2.0_dp*colvars(ih)%walls(iwall)%k_quadratic*diff_ss
                 SELECT CASE (colvars(ih)%walls(iwall)%id_direction)
                 CASE(do_wall_p)
@@ -862,6 +874,10 @@ CONTAINS
                 END SELECT
              CASE(do_wall_gaussian)
                 diff_ss = colvars(ih)%ss0-colvars(ih)%walls(iwall)%pos
+                IF (colvars(ih)%periodic) THEN
+                   ! The difference of a periodic COLVAR is always within [-pi,pi]
+                   diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
+                END IF
                 ww      = colvars(ih)%walls(iwall)%ww_gauss
                 delta_s = colvars(ih)%walls(iwall)%sigma_gauss
                 ddp = (diff_ss)/delta_s
