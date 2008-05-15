@@ -27,6 +27,9 @@ MODULE qs_linres_current
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                             fm_pools_create_fm_vect,&
+                                             fm_pools_give_back_fm_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -90,6 +93,8 @@ MODULE qs_linres_current
                                              set_vecp
   USE qs_linres_types,                 ONLY: current_env_type,&
                                              get_current_env
+  USE qs_matrix_pools,                 ONLY: mpools_get,&
+                                             qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_modify_pab_block,             ONLY: FUNC_ADBmDAB,&
@@ -128,7 +133,7 @@ MODULE qs_linres_current
   PRIVATE
 
   ! *** Public subroutines ***
-  PUBLIC :: current_response_current,calculate_jrho_resp,chi_analytic
+  PUBLIC :: current_build_current,calculate_jrho_resp,chi_analytic
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current'
 
@@ -157,21 +162,19 @@ CONTAINS
 !>       Therefore it is done state by state (see linres_nmr_shift)
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE current_response_current(current_env,qs_env,psi1,p_psi1,error)
+  SUBROUTINE current_build_current(current_env,qs_env,iB,error)
     !
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: psi1, p_psi1
+    INTEGER, INTENT(IN)                      :: iB
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'current_response_current', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_current', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: ext, filename
-    INTEGER :: handle, homo, i_B, iao, iatom, idir, idir3, ii_B, iii_B, &
-      ispin, istat, istate, j, jstate, nao, natom, nmo, nspins, output_unit, &
-      unit_nr
+    INTEGER :: handle, homo, iao, idir, idir3, iiB, iiiB, ispin, istat, &
+      istate, j, jstate, nao, natom, nmo, nspins, output_unit, unit_nr
     LOGICAL                                  :: failure, gapw, ionode, uni_occ
     REAL(dp)                                 :: alpha, dk(3), &
                                                 jrho_tot_G(3,3), &
@@ -184,6 +187,10 @@ CONTAINS
     TYPE(cp_2d_i_p_type), DIMENSION(:), &
       POINTER                                :: center_list
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: p_psi1, psi1
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_work1, mo_coeff, psi0_fk, &
                                                 psi_a_iB
@@ -204,6 +211,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: density_matrix, &
@@ -213,24 +221,46 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: current_section
 
-!
-!
-
     failure = .FALSE.
     CALL timeset(routineN,"I"," ",handle)
     !
-    NULLIFY(rho_rspace,rho_gspace,logger,current_section)
-    NULLIFY(density_matrix0,density_matrix,density_matrix_ii,density_matrix_iii)
-    NULLIFY(cell,dft_control,mos,rho_struct,particle_set,pw_env)
-    NULLIFY(auxbas_rs_pool,auxbas_pw_pool,pw_pools)
-    NULLIFY(shift_pw_gspace,para_env,center_list)
-    NULLIFY(mo_coeff,psi0_fk,fm_work1,psi_a_iB)
+    NULLIFY(rho_rspace,rho_gspace,logger,current_section,density_matrix0,density_matrix,&
+         &  density_matrix_ii,density_matrix_iii,cell,dft_control,mos,rho_struct,particle_set,&
+         &  pw_env,auxbas_rs_pool,auxbas_pw_pool,pw_pools,shift_pw_gspace,para_env,center_list,&
+         &  mo_coeff,psi0_fk,fm_work1,psi_a_iB,psi1,p_psi1)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit= cp_logger_get_default_unit_nr(logger)
+    !
+    !
+    CALL get_current_env(current_env=current_env,&
+                         center_list=center_list,&
+                         error=error)
+    !
+    !
+    CALL get_qs_env(qs_env=qs_env,&
+         &          rho=rho_struct,&
+         &          cell=cell,&
+         &          dft_control=dft_control,&
+         &          mos=mos,&
+         &          mpools=mpools,&
+         &          para_env=para_env,&
+         &          particle_set=particle_set,&
+         &          error=error)
 
-    nspins = SIZE(psi1,1)
+    gapw  = dft_control%qs_control%gapw
+    nspins = dft_control%nspins
+    natom = SIZE(particle_set,1)
+    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
+    CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+    !
+    !
+    CALL mpools_get(mpools, ao_mo_fm_pools=ao_mo_fm_pools,error=error)
+    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, psi1, name=routineP//":psi1",error=error)
+    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, p_psi1, name=routineP//":p_psi1",error=error)
+    !
+    !
     ALLOCATE(density_matrix0(nspins),density_matrix(nspins),density_matrix_ii(nspins),&
          &   density_matrix_iii(nspins))
     DO ispin = 1,nspins
@@ -239,20 +269,7 @@ CONTAINS
        NULLIFY(density_matrix_ii(ispin)%matrix)
        NULLIFY(density_matrix_iii(ispin)%matrix)
     ENDDO
-    !
-    !
-    CALL get_current_env(current_env=current_env,&
-                         center_list=center_list,&
-                         error=error)
-    !
-    !
-    CALL get_qs_env(qs_env=qs_env,rho=rho_struct,&
-         &          cell=cell,dft_control=dft_control,mos=mos,&
-         &          para_env=para_env,particle_set=particle_set,error=error)
-    gapw  = dft_control%qs_control%gapw
-    natom = SIZE(particle_set,1)
-    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+
     current_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES%CURRENT",&
          &                                        error=error)
     !
@@ -313,236 +330,231 @@ CONTAINS
                &                  ncol=homo,alpha=alpha,error=error)
        ENDDO
        !
-       ! Loop on the field direction
-       DO i_B = 1,3
-          DO ispin = 1,dft_control%nspins
-             CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-             CALL cp_fm_set_all(p_psi1(ispin)%matrix,0.0_dp,error=error)
-          ENDDO
+       ! Lets go!
+       !DO i_B = 1,3
+       DO ispin = 1,dft_control%nspins
+          CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_fm_set_all(p_psi1(ispin)%matrix,0.0_dp,error=error)
+       ENDDO
 
-          CALL set_vecp(i_B,ii_B,iii_B)
-          DO ispin = 1,nspins
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
-                  &          occupation_numbers=occupation,homo=homo,nao=nao,nmo=nmo,&
-                  &          uniform_occupation=uni_occ,maxocc=maxocc)
-             NULLIFY(fm_work1)
-             !
-             ! create a new matrix
-             NULLIFY(tmp_fm_struct)
-             CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-                  &                   ncol_global=nmo,para_env=para_env,&
-                  &                   context=mo_coeff%matrix_struct%context,&
-                  &                   error=error)
-             IF(ASSOCIATED(fm_work1))THEN
-                CALL cp_fm_release(fm_work1,error=error)
-             ENDIF
-             CALL cp_fm_create(fm_work1,tmp_fm_struct,error=error)
-             CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-             IF ( .NOT. uni_occ ) THEN
-                CALL cp_fm_create(psi0_fk,tmp_fm_struct,error=error)
-                CALL cp_fm_set_all(psi0_fk,0.0_dp,error=error)
-             ELSE
-                NULLIFY(psi0_fk)
-             END IF
-             CALL cp_fm_struct_release(tmp_fm_struct,error=error)
-             !
-             ! Allocate buffer vectors
-             DO idir = 1,3
-                ALLOCATE(vecbuf(idir)%array(1,nao),STAT=istat)
-                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             END DO
-             ALLOCATE(vecbuf_psi1(1,nao),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             !
-             ! Construct the 3 density matrices for the field in direction i_B
-             !
-             ! First the full matrix psi_a_iB
-             !   psi1_rxp - psi1_D - (R_\nu-dk)_ii psi1_piiiB + (R_\nu-dk)_iii psi1_piiB
-             psi_a_iB => psi1(ispin)%matrix
-             CALL cp_fm_set_all(psi_a_iB,0.0_dp,error=error)
-             !
-             ! contributions from the response psi1_p_ii and psi1_p_iii
-             DO istate = 1,current_env%nbr_center(ispin)
-                dk(1:3) = current_env%centers_set(ispin)%array(1:3,istate)
-                !
-                ! Copy the vector in the full matrix psi1
-                DO j = center_list(ispin)%array(1,istate),center_list(ispin)%array(1,istate+1)-1
-                   jstate = center_list(ispin)%array(2,j)
-                   CALL cp_fm_get_submatrix(current_env%psi1_p(ispin,ii_B)%matrix,&
-                        &                   vecbuf(ii_B)%array,1,jstate,nao,1,&
-                        &                   transpose=.TRUE.,error=error)
-                   CALL cp_fm_get_submatrix(current_env%psi1_p(ispin,iii_B)%matrix,&
-                        &                   vecbuf(iii_B)%array,1,jstate,nao,1,&
-                        &                   transpose=.TRUE.,error=error)
-                   DO iao = 1,nao
-                      Rmu(1:3) = current_env%basisfun_center(1:3,iao)
-                      Rmu_dk = pbc(dk,Rmu,cell)
-                      vecbuf_psi1(1,iao) = Rmu_dk(ii_B)*vecbuf(iii_B)%array(1,iao)-&
-                           &               Rmu_dk(iii_B)*vecbuf(ii_B)%array(1,iao)
-                   ENDDO  ! iao
-                   CALL cp_fm_set_submatrix(psi1(ispin)%matrix,vecbuf_psi1,&
-                        &                   1,jstate,nao,1,transpose=.TRUE.,&
-                        &                   error=error)
-                ENDDO
-             ENDDO ! istate
-             !
-             ! contribution from the response psi1_rxp
-             CALL cp_fm_scale_and_add(-1.0_dp,psi_a_iB,1.0_dp,&
-                  &                   current_env%psi1_rxp(ispin,i_B)%matrix,&
-                  &                   error=error)
-             IF(current_env%full) THEN
-                ! contribution from the response psi1_D
-                CALL  cp_fm_scale_and_add(1.0_dp,psi_a_iB,-1.0_dp,&
-                     &                    current_env%psi1_D(ispin,i_B)%matrix,&
-                     &                    error=error)
-             ENDIF
-             !
-             ! Multiply by the occupation number for the density matrix
-             IF ( .NOT. uni_occ ) THEN
-                alpha = 1.0_dp
-                CALL cp_fm_to_fm(mo_coeff,psi0_fk,error=error)
-                CALL cp_fm_column_scale(psi0_fk,occupation(1:homo))
-             ELSE
-                alpha = maxocc
-                psi0_fk => mo_coeff
-             ENDIF
-             !
-             ! Build the first density matrix
-             density_matrix(ispin)%matrix => current_env%jp1_ao(ispin)%matrix
-             CALL set_matrix(density_matrix(ispin)%matrix ,0.0_dp)
-             CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix(ispin)%matrix ,&
-                  &                  matrix_v=psi0_fk,matrix_g=psi_a_iB,&
-                  &                  ncol=homo,alpha=alpha,error=error)
-             !
-             ! Build the second density matrix
-             density_matrix_iii(ispin)%matrix => current_env%jp2_ao(1,ispin)%matrix
-             CALL set_matrix(density_matrix_iii(ispin)%matrix,0.0_dp)
-             CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix ,&
-                  &                  matrix_v=psi0_fk,matrix_g=current_env%psi1_p(ispin,iii_B)%matrix,&
-                  &                  ncol=homo,alpha=alpha,error=error)
-             !
-             ! Build the third density matrix
-             density_matrix_ii(ispin)%matrix => current_env%jp2_ao(2,ispin)%matrix
-             CALL set_matrix(density_matrix_ii(ispin)%matrix ,0.0_dp)
-             CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix ,&
-                  &                  matrix_v=psi0_fk,matrix_g=current_env%psi1_p(ispin,ii_B)%matrix,&
-                  &                  ncol=homo,alpha=alpha,error=error)
-             DO idir3=1,3
-                ! set to zero for the calculation of the shift
-                CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw)
-             ENDDO
-             DO idir = 1,3
-                !
-                ! Calculate the current density on the pw grid (only soft if GAPW)
-                ! idir is the cartesian component of the response current density
-                ! generated by the magnetic field pointing in cartesian direction i_B
-                ! Use the qs_rho_type already  used for rho during the scf
-                
-                rho_rspace => current_env%jrho1_set(idir,i_B)%rho%rho_r(ispin)
-                rho_gspace => current_env%jrho1_set(idir,i_B)%rho%rho_g(ispin)
-
-                CALL pw_zero(rho_rspace%pw)
-                CALL pw_zero(rho_gspace%pw)
-                CALL calculate_jrho_resp(density_matrix(ispin)%matrix, &
-                     &                   density_matrix_ii(ispin)%matrix,&
-                     &                   density_matrix_iii(ispin)%matrix, &
-                     &                   i_B,idir,rho_rspace,rho_gspace,qs_env,&
-                     &                   gapw,error=error)
-
-                scale_fac = cell%deth / twopi
-                CALL pw_scale(rho_rspace%pw,scale_fac)
-                CALL pw_scale(rho_gspace%pw,scale_fac)
-
-                jrho_tot_G(idir,i_B) = pw_integrate_function(rho_gspace%pw,isign=-1)
-                jrho_tot_R(idir,i_B) = pw_integrate_function(rho_rspace%pw,isign=-1)
-
-                IF(output_unit>0) THEN
-                   WRITE(output_unit,'(T2,2(A,E24.16))') 'Integrated j_'&
-                        &//ACHAR(idir+119)//ACHAR(i_B+119)//'(r): G-space=',&
-                        &jrho_tot_G(idir,i_B),' R-space=',jrho_tot_R(idir,i_B)
-                ENDIF
-                !
-             ENDDO ! idir
-             !
-             ! Deallocate buffer vectors
-             DO idir = 1,3
-                DEALLOCATE(vecbuf(idir)%array,STAT=istat)
-                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             ENDDO
-             DEALLOCATE(vecbuf_psi1,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
+       CALL set_vecp(iB,iiB,iiiB)
+       DO ispin = 1,nspins
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
+               &          occupation_numbers=occupation,homo=homo,nao=nao,nmo=nmo,&
+               &          uniform_occupation=uni_occ,maxocc=maxocc)
+          NULLIFY(fm_work1)
+          !
+          ! create a new matrix
+          NULLIFY(tmp_fm_struct)
+          CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+               &                   ncol_global=nmo,para_env=para_env,&
+               &                   context=mo_coeff%matrix_struct%context,&
+               &                   error=error)
+          IF(ASSOCIATED(fm_work1))THEN
              CALL cp_fm_release(fm_work1,error=error)
-             IF(.NOT.uni_occ) THEN
-                CALL cp_fm_release(psi0_fk,error=error)
-             ELSE
-                NULLIFY(psi0_fk)
-             ENDIF
-          ENDDO !  ispin
-
-          IF(gapw) THEN
-             DO idir = 1,3
-                !
-                ! compute the atomic response current densities on the spherical grids
-                ! First the sparse matrices are multiplied by the expansion coefficients
-                ! this is the equivalent of the CPC for the charge density
-                CALL calculate_jrho_atom_coeff(qs_env,current_env,density_matrix0,density_matrix,&
-                     &                           density_matrix_ii,density_matrix_iii,&
-                     &                           i_B,idir,error=error)
-                !
-                ! Then the radial parts are computed on the local radial grid, atom by atom
-                ! 8 functions are computed for each atom, per grid point
-                ! and per LM angular momentum. The multiplication by the Clebsh-Gordon
-                ! coefficients or they correspondent for the derivatives, is also done here
-                CALL calculate_jrho_atom_rad(qs_env,current_env,i_B,idir,error=error)
-                !
-                ! The current on the atomic grids
-                CALL calculate_jrho_atom(current_env,qs_env,i_B,idir,error=error)
-             ENDDO ! idir
+          ENDIF
+          CALL cp_fm_create(fm_work1,tmp_fm_struct,error=error)
+          CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
+          IF ( .NOT. uni_occ ) THEN
+             CALL cp_fm_create(psi0_fk,tmp_fm_struct,error=error)
+             CALL cp_fm_set_all(psi0_fk,0.0_dp,error=error)
+          ELSE
+             NULLIFY(psi0_fk)
+          END IF
+          CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+          !
+          ! Allocate buffer vectors
+          DO idir = 1,3
+             ALLOCATE(vecbuf(idir)%array(1,nao),STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          END DO
+          ALLOCATE(vecbuf_psi1(1,nao),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          !
+          ! Construct the 3 density matrices for the field in direction iB
+          !
+          ! First the full matrix psi_a_iB
+          !   psi1_rxp - psi1_D - (R_\nu-dk)_ii psi1_piiiB + (R_\nu-dk)_iii psi1_piiB
+          psi_a_iB => psi1(ispin)%matrix
+          CALL cp_fm_set_all(psi_a_iB,0.0_dp,error=error)
+          !
+          ! contributions from the response psi1_p_ii and psi1_p_iii
+          DO istate = 1,current_env%nbr_center(ispin)
+             dk(1:3) = current_env%centers_set(ispin)%array(1:3,istate)
+             !
+             ! Copy the vector in the full matrix psi1
+             DO j = center_list(ispin)%array(1,istate),center_list(ispin)%array(1,istate+1)-1
+                jstate = center_list(ispin)%array(2,j)
+                CALL cp_fm_get_submatrix(current_env%psi1_p(ispin,iiB)%matrix,&
+                     &                   vecbuf(iiB)%array,1,jstate,nao,1,&
+                     &                   transpose=.TRUE.,error=error)
+                CALL cp_fm_get_submatrix(current_env%psi1_p(ispin,iiiB)%matrix,&
+                     &                   vecbuf(iiiB)%array,1,jstate,nao,1,&
+                     &                   transpose=.TRUE.,error=error)
+                DO iao = 1,nao
+                   Rmu(1:3) = current_env%basisfun_center(1:3,iao)
+                   Rmu_dk = pbc(dk,Rmu,cell)
+                   vecbuf_psi1(1,iao) = Rmu_dk(iiB)*vecbuf(iiiB)%array(1,iao)-&
+                        &               Rmu_dk(iiiB)*vecbuf(iiB)%array(1,iao)
+                ENDDO  ! iao
+                CALL cp_fm_set_submatrix(psi1(ispin)%matrix,vecbuf_psi1,&
+                     &                   1,jstate,nao,1,transpose=.TRUE.,&
+                     &                   error=error)
+             ENDDO
+          ENDDO ! istate
+          !
+          ! contribution from the response psi1_rxp
+          CALL cp_fm_scale_and_add(-1.0_dp,psi_a_iB,1.0_dp,&
+               &                   current_env%psi1_rxp(ispin,iB)%matrix,&
+               &                   error=error)
+          IF(current_env%full) THEN
+             ! contribution from the response psi1_D
+             CALL  cp_fm_scale_and_add(1.0_dp,psi_a_iB,-1.0_dp,&
+                  &                    current_env%psi1_D(ispin,iB)%matrix,&
+                  &                    error=error)
           ENDIF
           !
-          ! Cube files 
-          IF (BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
-               &    "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
-             IF(output_unit>0) THEN
-                WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-                WRITE(output_unit,*) 'Are you sure you want to punch current density cube files?'
-                WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-             ENDIF
-             DO idir = 1,3
-                CALL pw_zero(wf_r%pw)
-                !!WARNING
-                ! if nspins=2 here ist should be add instead of copy, or separated cubefiles
-                ! for the different spin should be written
-                !!WARNING
-                DO ispin =1 ,nspins
-                   CALL pw_copy(current_env%jrho1_set(idir,i_B)%rho%rho_r(ispin)%pw,wf_r%pw)
-                ENDDO
-                IF(gapw) THEN
-                   ! Add the local hard and soft contributions
-                   ! This can be done atom by atom by a spline extrapolation of the  values
-                   ! on the spherical grid to the grid points.
-                   CALL stop_program(routineP,"GAPW needs to be finalized") 
-                   DO iatom = 1,natom
-                   ENDDO
-                ENDIF
-                filename="jresp"
-                WRITE(ext,'(a2,I1,a2,I1,a5)')  "iB",i_B,"_d",idir,".cube"
-                WRITE(ext,'(a2,a1,a2,a1,a5)')  "iB",ACHAR(i_B+119),"_d",ACHAR(idir+119),".cube"
-                unit_nr=cp_print_key_unit_nr(logger,current_section,"PRINT%CURRENT_CUBES",&
-                     &                       extension=TRIM(ext),middle_name=TRIM(filename),&
-                     &                       log_filename=.FALSE.,file_position="REWIND",&
-                     &                       error=error)
-                
-                CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"RESPONSE CURRENT DENSITY ",&
-                     &             stride=section_get_ivals(current_section,"PRINT%CURRENT_CUBES%STRIDE",&
-                     &             error=error),error=error)
-                CALL cp_print_key_finished_output(unit_nr,logger,current_section,&
-                     &                            "PRINT%CURRENT_CUBES",error=error)
-             ENDDO
+          ! Multiply by the occupation number for the density matrix
+          IF ( .NOT. uni_occ ) THEN
+             alpha = 1.0_dp
+             CALL cp_fm_to_fm(mo_coeff,psi0_fk,error=error)
+             CALL cp_fm_column_scale(psi0_fk,occupation(1:homo))
+          ELSE
+             alpha = maxocc
+             psi0_fk => mo_coeff
+          ENDIF
+          !
+          ! Build the first density matrix
+          density_matrix(ispin)%matrix => current_env%jp1_ao(ispin)%matrix
+          CALL set_matrix(density_matrix(ispin)%matrix ,0.0_dp)
+          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix(ispin)%matrix ,&
+               &                  matrix_v=psi0_fk,matrix_g=psi_a_iB,&
+               &                  ncol=homo,alpha=alpha,error=error)
+          !
+          ! Build the second density matrix
+          density_matrix_iii(ispin)%matrix => current_env%jp2_ao(1,ispin)%matrix
+          CALL set_matrix(density_matrix_iii(ispin)%matrix,0.0_dp)
+          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix ,&
+               &                  matrix_v=psi0_fk,matrix_g=current_env%psi1_p(ispin,iiiB)%matrix,&
+               &                  ncol=homo,alpha=alpha,error=error)
+          !
+          ! Build the third density matrix
+          density_matrix_ii(ispin)%matrix => current_env%jp2_ao(2,ispin)%matrix
+          CALL set_matrix(density_matrix_ii(ispin)%matrix ,0.0_dp)
+          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix ,&
+               &                  matrix_v=psi0_fk,matrix_g=current_env%psi1_p(ispin,iiB)%matrix,&
+               &                  ncol=homo,alpha=alpha,error=error)
+          DO idir3=1,3
+             ! set to zero for the calculation of the shift
+             CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw)
+          ENDDO
+          DO idir = 1,3
+             !
+             ! Calculate the current density on the pw grid (only soft if GAPW)
+             ! idir is the cartesian component of the response current density
+             ! generated by the magnetic field pointing in cartesian direction iB
+             ! Use the qs_rho_type already  used for rho during the scf
+             rho_rspace => current_env%jrho1_set(idir)%rho%rho_r(ispin)
+             rho_gspace => current_env%jrho1_set(idir)%rho%rho_g(ispin)
+             CALL pw_zero(rho_rspace%pw)
+             CALL pw_zero(rho_gspace%pw)
+             CALL calculate_jrho_resp(density_matrix(ispin)%matrix, &
+                  &                   density_matrix_ii(ispin)%matrix,&
+                  &                   density_matrix_iii(ispin)%matrix, &
+                  &                   iB,idir,rho_rspace,rho_gspace,qs_env,&
+                  &                   gapw,error=error)
 
-          ENDIF  ! current cube
-       ENDDO  ! i_B
+             scale_fac = cell%deth / twopi
+             CALL pw_scale(rho_rspace%pw,scale_fac)
+             CALL pw_scale(rho_gspace%pw,scale_fac)
+             
+             jrho_tot_G(idir,iB) = pw_integrate_function(rho_gspace%pw,isign=-1)
+             jrho_tot_R(idir,iB) = pw_integrate_function(rho_rspace%pw,isign=-1)
+
+             IF(output_unit>0) THEN
+                WRITE(output_unit,'(T2,2(A,E24.16))') 'Integrated j_'&
+                     &//ACHAR(idir+119)//ACHAR(iB+119)//'(r): G-space=',&
+                     &jrho_tot_G(idir,iB),' R-space=',jrho_tot_R(idir,iB)
+             ENDIF
+             !
+          ENDDO ! idir
+          !
+          ! Deallocate buffer vectors
+          DO idir = 1,3
+             DEALLOCATE(vecbuf(idir)%array,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          DEALLOCATE(vecbuf_psi1,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+          CALL cp_fm_release(fm_work1,error=error)
+          IF(.NOT.uni_occ) THEN
+             CALL cp_fm_release(psi0_fk,error=error)
+          ELSE
+             NULLIFY(psi0_fk)
+          ENDIF
+       ENDDO !  ispin
+       
+       IF(gapw) THEN
+          DO idir = 1,3
+             !
+             ! compute the atomic response current densities on the spherical grids
+             ! First the sparse matrices are multiplied by the expansion coefficients
+             ! this is the equivalent of the CPC for the charge density
+             CALL calculate_jrho_atom_coeff(qs_env,current_env,density_matrix0,density_matrix,&
+                  &                           density_matrix_ii,density_matrix_iii,&
+                  &                           iB,idir,error=error)
+             !
+             ! Then the radial parts are computed on the local radial grid, atom by atom
+             ! 8 functions are computed for each atom, per grid point
+             ! and per LM angular momentum. The multiplication by the Clebsh-Gordon
+             ! coefficients or they correspondent for the derivatives, is also done here
+             CALL calculate_jrho_atom_rad(qs_env,current_env,iB,idir,error=error)
+             !
+             ! The current on the atomic grids
+             CALL calculate_jrho_atom(current_env,qs_env,iB,idir,error=error)
+          ENDDO ! idir
+       ENDIF
+       !
+       ! Cube files 
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
+            &    "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
+          IF(output_unit>0) THEN
+             WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+             WRITE(output_unit,*) 'Are you sure you want to punch current density cube files?'
+             WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+          ENDIF
+          DO idir = 1,3
+             CALL pw_zero(wf_r%pw)
+             !!WARNING
+             ! if nspins=2 here ist should be add instead of copy, or separated cubefiles
+             ! for the different spin should be written
+             !!WARNING
+             DO ispin =1 ,nspins
+                CALL pw_copy(current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw,wf_r%pw)
+             ENDDO
+             IF(gapw) THEN
+                ! Add the local hard and soft contributions
+                ! This can be done atom by atom by a spline extrapolation of the  values
+                ! on the spherical grid to the grid points.
+                CALL stop_program(routineP,"GAPW needs to be finalized") 
+             ENDIF
+             filename="jresp"
+             WRITE(ext,'(a2,I1,a2,I1,a5)')  "iB",iB,"_d",idir,".cube"
+             WRITE(ext,'(a2,a1,a2,a1,a5)')  "iB",ACHAR(iB+119),"_d",ACHAR(idir+119),".cube"
+             unit_nr=cp_print_key_unit_nr(logger,current_section,"PRINT%CURRENT_CUBES",&
+                  &                       extension=TRIM(ext),middle_name=TRIM(filename),&
+                  &                       log_filename=.FALSE.,file_position="REWIND",&
+                  &                       error=error)
+             
+             CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"RESPONSE CURRENT DENSITY ",&
+                  &             stride=section_get_ivals(current_section,"PRINT%CURRENT_CUBES%STRIDE",&
+                  &             error=error),error=error)
+             CALL cp_print_key_finished_output(unit_nr,logger,current_section,&
+                  &                            "PRINT%CURRENT_CUBES",error=error)
+          ENDDO
+          
+       ENDIF  ! current cube
        !
        ! Integrated current response checksum
        IF(output_unit>0) THEN
@@ -557,6 +569,10 @@ CONTAINS
        ENDIF
        !
        ! Dellocate grids for the calculation of jrho and the shift
+       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, psi1,error=error)
+       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, p_psi1,error=error)
+       !
+       !
        CALL pw_pool_give_back_pw(auxbas_pw_pool,pw_gspace_work%pw,error=error)
        DO ispin = 1,dft_control%nspins
           DO idir = 1,3
@@ -581,7 +597,7 @@ CONTAINS
     ! Finalize
     CALL timestop(0.0_dp,handle)
     !
-  END SUBROUTINE current_response_current
+  END SUBROUTINE current_build_current
 
 ! *****************************************************************************
 !> \brief Calculation of the idir component of the response current density

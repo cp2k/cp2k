@@ -35,10 +35,11 @@ MODULE qs_linres_module
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_linres_current_utils,         ONLY: current_do_chi,&
-                                             current_do_current,&
+  USE qs_linres_current,               ONLY: current_build_current
+  USE qs_linres_current_utils,         ONLY: current_build_chi,&
                                              current_env_cleanup,&
-                                             current_env_init
+                                             current_env_init,&
+                                             current_response
   USE qs_linres_epr_nablavks,          ONLY: epr_nablavks
   USE qs_linres_epr_ownutils,          ONLY: epr_g_print,&
                                              epr_g_so,&
@@ -103,7 +104,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, output_unit
+    INTEGER                                  :: handle, iB, output_unit
     LOGICAL                                  :: do_qmmm, epr_present, &
                                                 failure, ionode, &
                                                 lr_calculation, nmr_present
@@ -178,33 +179,56 @@ CONTAINS
              CALL stop_program(routineP,&
                   "LSD is needed to perform a g tensor calculation!")
           ENDIF
-
+          !
           !Initialize the current environment
           current_env%ref_count=0
           current_env%do_qmmm = do_qmmm
           CALL current_env_init(current_env,qs_env,error=error)
           CALL current_operators(current_env,qs_env,error=error)
-          CALL current_do_current(current_env,p_env,qs_env,error=error)
-          CALL current_do_chi(current_env,qs_env,error=error)
+          CALL current_response(current_env,p_env,qs_env,error)
           !
-          ! Compute NMR shift
+          !Initialize the nmr environment
           IF(nmr_present) THEN
              nmr_env%ref_count=0
              CALL nmr_env_init(nmr_env,qs_env,error=error)
-             CALL nmr_shift(nmr_env,current_env,qs_env,error=error)
+          ENDIF
+          !
+          !Initialize the epr environment
+          IF(epr_present) THEN
+             epr_env%ref_count=0
+             CALL epr_env_init(epr_env,qs_env,error=error)
+             CALL epr_g_zke(epr_env,qs_env,error=error)
+             CALL epr_nablavks(epr_env,qs_env,error=error)
+          ENDIF
+          !
+          ! Loop over field direction
+          DO iB = 1,3
+             !
+             ! Build current response and succeptibility
+             CALL current_build_current(current_env,qs_env,iB,error=error)
+             CALL current_build_chi(current_env,qs_env,iB,error=error)
+             !
+             ! Compute NMR shift
+             IF(nmr_present) THEN
+                CALL nmr_shift(nmr_env,current_env,qs_env,iB,error=error)
+             ENDIF
+             !
+             ! Compute EPR
+             IF(epr_present) THEN
+                CALL epr_ind_magnetic_field(epr_env,current_env,qs_env,iB,error=error)
+                CALL epr_g_so(epr_env,current_env,qs_env,iB,error=error)
+                CALL epr_g_soo(epr_env,current_env,qs_env,iB,error=error)
+             ENDIF
+          ENDDO
+          !
+          ! Finalized the nmr environment
+          IF(nmr_present) THEN
              CALL nmr_shift_print(nmr_env,current_env,qs_env,error=error)
              CALL nmr_env_cleanup(nmr_env,error=error)
           ENDIF
           !
-          ! Compute EPR
+          ! Finalized the epr environment
           IF(epr_present) THEN
-             epr_env%ref_count=0
-             CALL epr_env_init(epr_env,qs_env,error=error)
-             CALL epr_ind_magnetic_field(epr_env,current_env,qs_env,error=error)
-             CALL epr_g_zke(epr_env,qs_env,error=error)
-             CALL epr_nablavks(epr_env,qs_env,error=error)
-             CALL epr_g_so(epr_env,current_env,qs_env,error=error)
-             CALL epr_g_soo(epr_env,current_env,qs_env,error=error)
              CALL epr_g_print(epr_env,qs_env,error=error)
              CALL epr_env_cleanup(epr_env,error=error)
           ENDIF
@@ -212,7 +236,7 @@ CONTAINS
           ! Finalized the current environment
           CALL current_env_cleanup(current_env,error=error)
        ENDIF
-
+       
        ! Other possible LR calculations can be introduced here
       
        CALL p_env_release(p_env,error=error)

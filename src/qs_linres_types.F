@@ -112,7 +112,7 @@ MODULE qs_linres_types
      TYPE(cp_fm_pool_p_type), DIMENSION(:  ), POINTER :: ao_mo_fm_pools
      TYPE(cp_fm_p_type),      DIMENSION(:,:), POINTER :: psi1_p,psi1_rxp,psi1_D,p_psi0,rxp_psi0
      TYPE(jrho_atom_type),    DIMENSION(:  ), POINTER :: jrho1_atom_set
-     TYPE(qs_rho_p_type),     DIMENSION(:,:), POINTER :: jrho1_set
+     TYPE(qs_rho_p_type),     DIMENSION(:  ), POINTER :: jrho1_set
      TYPE(real_matrix_p_type),DIMENSION(:  ), POINTER :: op_p_ao,op_rmd_ao,jp0_ao,jp1_ao
      TYPE(real_matrix_p_type),DIMENSION(:,:), POINTER :: jp2_ao
   END TYPE current_env_type
@@ -405,7 +405,7 @@ CONTAINS
                                                 p_psi0, rxp_psi0
     TYPE(jrho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: jrho1_atom_set
-    TYPE(qs_rho_p_type), DIMENSION(:, :), &
+    TYPE(qs_rho_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: jrho1_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao
@@ -507,14 +507,14 @@ CONTAINS
     TYPE(current_env_type)                   :: current_env
     TYPE(jrho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: jrho1_atom_set
-    TYPE(qs_rho_p_type), DIMENSION(:, :), &
+    TYPE(qs_rho_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: jrho1_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_current_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iB, idir
+    INTEGER                                  :: idir
     LOGICAL                                  :: failure
 
     failure =.FALSE.
@@ -532,10 +532,8 @@ CONTAINS
        
        IF(PRESENT(jrho1_set)) THEN
           IF(ASSOCIATED(current_env%jrho1_set)) THEN
-             DO iB = 1,3
-                DO idir = 1,3
-                   CALL qs_rho_release(current_env%jrho1_set(idir,iB)%rho,error=error)
-                END DO
+             DO idir = 1,3
+                CALL qs_rho_release(current_env%jrho1_set(idir)%rho,error=error)
              END DO
           END IF
           current_env%jrho1_set => jrho1_set

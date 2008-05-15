@@ -305,18 +305,16 @@ CONTAINS
 
     !
     ! Initialize the chemical shift tensor
-    ALLOCATE(nmr_env%chemical_shift(3,3,natom),STAT=istat)
+    ALLOCATE(nmr_env%chemical_shift(3,3,natom),&
+         &   nmr_env%chemical_shift_loc(3,3,natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     nmr_env%chemical_shift = 0.0_dp
-    ALLOCATE(nmr_env%chemical_shift_loc(3,3,natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    nmr_env%chemical_shift = 0.0_dp
+    nmr_env%chemical_shift_loc = 0.0_dp
     IF(nmr_env%do_nics) THEN
-       ALLOCATE(nmr_env%chemical_shift_nics_loc(3,3,nmr_env%n_nics),STAT=istat)
+       ALLOCATE(nmr_env%chemical_shift_nics_loc(3,3,nmr_env%n_nics),&
+            &   nmr_env%chemical_shift_nics(3,3,nmr_env%n_nics),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        nmr_env%chemical_shift_nics_loc = 0.0_dp
-       ALLOCATE(nmr_env%chemical_shift_nics(3,3,nmr_env%n_nics),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        nmr_env%chemical_shift_nics = 0.0_dp
     ENDIF
 

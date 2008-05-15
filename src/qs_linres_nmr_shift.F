@@ -90,19 +90,20 @@ MODULE qs_linres_nmr_shift
 
 CONTAINS
 
-  SUBROUTINE nmr_shift(nmr_env,current_env,qs_env,error)
+  SUBROUTINE nmr_shift(nmr_env,current_env,qs_env,iB,error)
 
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: iB
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_shift', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iB, idir, idir2, &
-                                                idir3, iiB, iiiB, ispin, &
-                                                istat, natom, nspins
+    INTEGER                                  :: handle, idir, idir2, idir3, &
+                                                iiB, iiiB, ispin, istat, &
+                                                natom, nspins
     LOGICAL                                  :: failure, gapw
     REAL(dp)                                 :: scale_fac
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
@@ -173,71 +174,62 @@ CONTAINS
 
     CALL pw_zero(pw_gspace_work%pw)
     !
-    nmr_env%chemical_shift(:,:,:)     = 0.0_dp
-    nmr_env%chemical_shift_loc(:,:,:) = 0.0_dp
-    IF(nmr_env%do_nics) THEN
-       nmr_env%chemical_shift_nics(:,:,:)     = 0.0_dp
-       nmr_env%chemical_shift_nics_loc(:,:,:) = 0.0_dp
-    ENDIF
     !
-    DO iB = 1,3
+    CALL set_vecp(iB,iiB,iiiB)
+    !
+    DO ispin = 1,nspins
        !
-       CALL set_vecp(iB,iiB,iiiB)
-       !
-       DO ispin = 1,nspins
-          !
-          DO idir3=1,3
-             ! set to zero for the calculation of the shift
-             CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw)
-          ENDDO
-          !
-          DO idir = 1,3
-             rho_rspace => current_env%jrho1_set(idir,iB)%rho%rho_r(ispin)
-             rho_gspace => current_env%jrho1_set(idir,iB)%rho%rho_g(ispin)
-             ! Field gradient
-             ! loop over the Gvec  components: x,y,z
-             DO idir2 = 1,3
-                IF(idir /= idir2) THEN
-                   ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
-                   CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,&
-                        &                 pw_gspace_work,idir2,0.0_dp,error=error)
-                   !
-                   ! scale and add to the correct component of the shift column
-                   CALL set_vecp_rev(idir,idir2,idir3)
-                   scale_fac=fac_vecp(idir3,idir2,idir)
-                   CALL pw_scale(pw_gspace_work%pw,scale_fac)
-                   CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw)
-                ENDIF
-             ENDDO
-             !
-          ENDDO ! idir
-       ENDDO ! ispin
-       !
-       ! compute shildings
-       DO ispin = 1,nspins
-          DO idir = 1,3
-             ! Here the shifts are computed from summation of the coeff on the G-grip .
-             CALL gsum_shift_pwgrid(nmr_env,pw_env,particle_set,cell,&
-                  &                 shift_pw_gspace(idir,ispin),iB,idir,&
-                  &                 error=error)
-             ! Here first G->R and then interpolation to get the shifts.
-             ! The interpolation doesnt work in parallel yet.
-             ! The choice between both methods should be left to the user.
-             !CALL pw_transfer(shift_pw_gspace(idir)%pw,shift_pw_rspace%pw)
-             !CALL interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
-             !             i_B,idir,nmr_section,error=error)
-          ENDDO
+       DO idir3=1,3
+          ! set to zero for the calculation of the shift
+          CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw)
        ENDDO
        !
-       IF(gapw) THEN
-          DO idir = 1,3
-             ! Finally the radial functions are multiplied by the YLM and properly summed
-             ! The resulting array is J on the local grid. One array per atom.
-             ! Local contributions by numerical integration over the spherical grids
-             CALL nmr_shift_gapw(nmr_env,current_env,qs_env,iB,idir,error=error)
-          ENDDO ! idir
-       ENDIF
+       DO idir = 1,3
+          rho_rspace => current_env%jrho1_set(idir)%rho%rho_r(ispin)
+          rho_gspace => current_env%jrho1_set(idir)%rho%rho_g(ispin)
+          ! Field gradient
+          ! loop over the Gvec  components: x,y,z
+          DO idir2 = 1,3
+             IF(idir /= idir2) THEN
+                ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
+                CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,&
+                     &                 pw_gspace_work,idir2,0.0_dp,error=error)
+                !
+                ! scale and add to the correct component of the shift column
+                CALL set_vecp_rev(idir,idir2,idir3)
+                scale_fac=fac_vecp(idir3,idir2,idir)
+                CALL pw_scale(pw_gspace_work%pw,scale_fac)
+                CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw)
+             ENDIF
+          ENDDO
+          !
+       ENDDO ! idir
+    ENDDO ! ispin
+    !
+    ! compute shildings
+    DO ispin = 1,nspins
+       DO idir = 1,3
+          ! Here the shifts are computed from summation of the coeff on the G-grip .
+          CALL gsum_shift_pwgrid(nmr_env,pw_env,particle_set,cell,&
+               &                 shift_pw_gspace(idir,ispin),iB,idir,&
+               &                 error=error)
+          ! Here first G->R and then interpolation to get the shifts.
+          ! The interpolation doesnt work in parallel yet.
+          ! The choice between both methods should be left to the user.
+          !CALL pw_transfer(shift_pw_gspace(idir)%pw,shift_pw_rspace%pw)
+          !CALL interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
+             !             i_B,idir,nmr_section,error=error)
+       ENDDO
     ENDDO
+    !
+    IF(gapw) THEN
+       DO idir = 1,3
+          ! Finally the radial functions are multiplied by the YLM and properly summed
+          ! The resulting array is J on the local grid. One array per atom.
+          ! Local contributions by numerical integration over the spherical grids
+          CALL nmr_shift_gapw(nmr_env,current_env,qs_env,iB,idir,error=error)
+       ENDDO ! idir
+    ENDIF
     !
     ! Dellocate grids for the calculation of jrho and the shift
     CALL pw_pool_give_back_pw(auxbas_pw_pool,pw_gspace_work%pw,error=error)
@@ -254,6 +246,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
     !
   END SUBROUTINE nmr_shift
+
 
   SUBROUTINE nmr_shift_gapw(nmr_env,current_env,qs_env,iB,idir,error)
 
@@ -294,9 +287,6 @@ CONTAINS
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-
-!
-!
 
     CALL timeset(routineN,"I"," ",handle)
     !

@@ -75,8 +75,7 @@ MODULE qs_linres_current_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_atom_current,          ONLY: list_3c_jrho_atom
-  USE qs_linres_current,               ONLY: chi_analytic,&
-                                             current_response_current
+  USE qs_linres_current,               ONLY: chi_analytic
   USE qs_linres_methods,               ONLY: linres_scf
   USE qs_linres_op,                    ONLY: set_vecp
   USE qs_linres_types,                 ONLY: current_env_create,&
@@ -111,21 +110,20 @@ MODULE qs_linres_current_utils
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: current_do_current, current_do_chi, current_env_cleanup, current_env_init
+  PUBLIC :: current_response, current_build_chi, current_env_cleanup, current_env_init
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current_utils'
 
 CONTAINS
 
-! *****************************************************************************
-  SUBROUTINE current_do_current(current_env,p_env,qs_env,error)
+  SUBROUTINE current_response(current_env,p_env,qs_env,error)
     !
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'current_do_current', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'current_response', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, homo, i, icenter, idir, ii, iii, ispin, ist_true, &
@@ -162,9 +160,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: current_section, lr_section, &
                                                 print_key
 
-!
-!
-
     failure   = .FALSE.
     CALL timeset(routineN,"I"," ",handle)
     !
@@ -188,10 +183,10 @@ CONTAINS
     END IF
 
     CALL get_qs_env(qs_env=qs_env,&
-          dft_control= dft_control,&
-          mpools=mpools,cell=cell,&
-          linres_control=linres_control,&
-          mos=mos,para_env=para_env,error=error)
+                    dft_control= dft_control,&
+                    mpools=mpools,cell=cell,&
+                    linres_control=linres_control,&
+                    mos=mos,para_env=para_env,error=error)
 
     nspins = dft_control%nspins
 
@@ -515,33 +510,30 @@ CONTAINS
     !If current density and shift are calculated here
     ! probably a lot of memory is required
     ! Better to free what is not anymore necessary in p_env
-
     CALL p_env_release(p_env,error=error)
-    !
-    !Calculate current density and induced field
-    CALL current_response_current(current_env,qs_env,psi1,h1_psi0,error=error)
     !
     ! clean up
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, psi1,error=error)
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, h1_psi0,error=error)
-    NULLIFY(psi1,h1_psi0)
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          &                            "PRINT%PROGRAM_RUN_INFO",error=error)
     !
     CALL timestop(0.0_dp, handle)
     !
-  END SUBROUTINE current_do_current
+  END SUBROUTINE current_response
 
-  SUBROUTINE current_do_chi(current_env,qs_env,error)
+! *****************************************************************************
+
+  SUBROUTINE current_build_chi(current_env,qs_env,iB,error)
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: iB
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'current_do_chi', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iB, iiB, iiiB, ispin, &
-                                                nspins
+    INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
 
@@ -554,16 +546,13 @@ CONTAINS
          &          dft_control=dft_control,&
          &          error=error)
     nspins = dft_control%nspins
-    DO iB = 1,3
-       CALL set_vecp(iB,iiB,iiiB)
-       DO ispin = 1,nspins
-          CALL chi_analytic(current_env,qs_env,ispin,iB,error=error)
-       ENDDO
+    DO ispin = 1,nspins
+       CALL chi_analytic(current_env,qs_env,ispin,iB,error=error)
     ENDDO
     !
     CALL timestop(0.0_dp,handle)
     !
-  END SUBROUTINE current_do_chi
+  END SUBROUTINE current_build_chi
 
   SUBROUTINE current_env_init(current_env,qs_env,error)
     !
@@ -574,8 +563,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_env_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i, i_B, iao, iatom, ibox, icount, idir, ii, ini, &
-      ir, ispin, istat, istate, istate2, istate_next, ix, iy, iz, j, k, &
+    INTEGER :: handle, homo, i, iao, iatom, ibox, icount, idir, ii, ini, ir, &
+      ispin, istat, istate, istate2, istate_next, ix, iy, iz, j, k, &
       max_nbr_center, max_states, n_mo(2), n_rep, nao, natom, nbr_box, &
       ncubes, nmo, nmoloc, nspins, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: buff, first_sgf, last_sgf
@@ -1160,35 +1149,33 @@ CONTAINS
     !
     ! If the current density on the grid needs to be stored
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
-    ALLOCATE(current_env%jrho1_set(3,3),STAT=istat)
+    ALLOCATE(current_env%jrho1_set(3),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DO i_B = 1,3
-       DO idir = 1,3
-          NULLIFY(current_env%jrho1_set(idir,i_B)%rho)
-          ALLOCATE(current_env%jrho1_set(idir,i_B)%rho,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          current_env%jrho1_set(idir,i_B)%rho%ref_count = 1
-          NULLIFY( current_env%jrho1_set(idir,i_B)%rho%rho_r)
-          NULLIFY( current_env%jrho1_set(idir,i_B)%rho%rho_g)
+    DO idir = 1,3
+       NULLIFY(current_env%jrho1_set(idir)%rho)
+       ALLOCATE(current_env%jrho1_set(idir)%rho,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       current_env%jrho1_set(idir)%rho%ref_count = 1
+       NULLIFY( current_env%jrho1_set(idir)%rho%rho_r)
+       NULLIFY( current_env%jrho1_set(idir)%rho%rho_g)
           
-          ALLOCATE(current_env%jrho1_set(idir,i_B)%rho%rho_r(nspins),stat=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(current_env%jrho1_set(idir,i_B)%rho%rho_g(nspins),stat=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          DO ispin=1,nspins
-             CALL pw_pool_create_pw(auxbas_pw_pool,&
-                  &                  current_env%jrho1_set(idir,i_B)%rho%rho_r(ispin)%pw,&
-                  &                  use_data=REALDATA3D,in_space=REALSPACE,error=error)
-             CALL pw_zero(current_env%jrho1_set(idir,i_B)%rho%rho_r(ispin)%pw)
+       ALLOCATE(current_env%jrho1_set(idir)%rho%rho_r(nspins),stat=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(current_env%jrho1_set(idir)%rho%rho_g(nspins),stat=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO ispin=1,nspins
+          CALL pw_pool_create_pw(auxbas_pw_pool,&
+               &                 current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw,&
+               &                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
+          CALL pw_zero(current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw)
              
-             CALL pw_pool_create_pw(auxbas_pw_pool,&
-                  &                  current_env%jrho1_set(idir,i_B)%rho%rho_g(ispin)%pw,&
-                  &                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                  &                  error=error)
-             CALL pw_zero(current_env%jrho1_set(idir,i_B)%rho%rho_g(ispin)%pw)
-          ENDDO
-          CALL qs_rho_retain(current_env%jrho1_set(idir,i_B)%rho,error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool,&
+               &                 current_env%jrho1_set(idir)%rho%rho_g(ispin)%pw,&
+               &                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+               &                 error=error)
+          CALL pw_zero(current_env%jrho1_set(idir)%rho%rho_g(ispin)%pw)
        ENDDO
+       CALL qs_rho_retain(current_env%jrho1_set(idir)%rho,error=error)
     ENDDO
     !
     ! Initialize local current density if GAPW calculation
@@ -1246,7 +1233,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i_B, idir, ispin, istat, j
+    INTEGER                                  :: i, idir, ispin, istat, j
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -1365,35 +1352,25 @@ CONTAINS
           END IF
           ! Current density on the grid
           IF(ASSOCIATED(current_env%jrho1_set)) THEN
-             DO i_B = 1,3
-                DO idir = 1,3
-                   DO i=1,SIZE(current_env%jrho1_set(idir,i_B)%rho%rho_r)
-                      CALL pw_release(current_env%jrho1_set(idir,i_B)%rho%rho_r(i)%pw,error=error)
-                   END DO
-                   DO i=1,SIZE(current_env%jrho1_set(idir,i_B)%rho%rho_g)
-                      CALL pw_release(current_env%jrho1_set(idir,i_B)%rho%rho_g(i)%pw,error=error)
-                   END DO
-                   DEALLOCATE(current_env%jrho1_set(idir,i_B)%rho%rho_r,stat=istat)
-                   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-                   DEALLOCATE(current_env%jrho1_set(idir,i_B)%rho%rho_g,stat=istat)
-                   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-                   DEALLOCATE(current_env%jrho1_set(idir,i_B)%rho,STAT=istat)
-                   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-                   !
-                   ! here ref_count=2 and qs_rho_release doesnt relase the structure
-                   !CALL qs_rho_release(current_env%jrho1_set(idir,i_B)%rho,error=error)
+             DO idir = 1,3
+                DO i=1,SIZE(current_env%jrho1_set(idir)%rho%rho_r)
+                   CALL pw_release(current_env%jrho1_set(idir)%rho%rho_r(i)%pw,error=error)
                 END DO
+                DO i=1,SIZE(current_env%jrho1_set(idir)%rho%rho_g)
+                   CALL pw_release(current_env%jrho1_set(idir)%rho%rho_g(i)%pw,error=error)
+                END DO
+                DEALLOCATE(current_env%jrho1_set(idir)%rho%rho_r,stat=istat)
+                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                DEALLOCATE(current_env%jrho1_set(idir)%rho%rho_g,stat=istat)
+                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                DEALLOCATE(current_env%jrho1_set(idir)%rho,STAT=istat)
+                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                !
              END DO
              DEALLOCATE(current_env%jrho1_set,STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           END IF
-          !IF(ASSOCIATED(current_env%jrho1_set)) THEN
-          !   DO i_B = 1,3
-          !      DO idir = 1,3
-          !         CALL qs_rho_release(current_env%jrho1_set(idir,i_B)%rho,error=error)
-          !      END DO
-          !   END DO
-          !END IF
+          !
           ! Local current density, atom by atom (only gapw)
           IF(ASSOCIATED(current_env%jrho1_atom_set)) THEN
              CALL deallocate_jrho_atom_set(current_env%jrho1_atom_set,error=error)

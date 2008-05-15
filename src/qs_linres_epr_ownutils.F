@@ -278,20 +278,20 @@ CONTAINS
 !>      06.2006 created [RD]
 !> \author RD
 ! *****************************************************************************
-  SUBROUTINE epr_g_so(epr_env,current_env,qs_env,error)
+  SUBROUTINE epr_g_so(epr_env,current_env,qs_env,iB,error)
 
     TYPE(epr_env_type)                       :: epr_env
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: iB
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_so', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: aint_precond, ia, iat, iatom, iB, idir1, idir2, idir3, ikind, &
-      ir, ispin, istat, max_iter, natom, nkind, nspins, output_unit, &
-      precond_kind
+    INTEGER :: aint_precond, ia, iat, iatom, idir1, idir2, idir3, ikind, ir, &
+      ispin, istat, max_iter, natom, nkind, nspins, output_unit, precond_kind
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, gapw, paw_atom, &
@@ -322,8 +322,10 @@ CONTAINS
       POINTER                                :: vks_pw_spline
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_spline_precond_type), POINTER    :: precond
+    TYPE(qs_rho_p_type), DIMENSION(:), &
+      POINTER                                :: jrho1_set
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
-      POINTER                                :: jrho1_set, nablavks_set
+      POINTER                                :: nablavks_set
     TYPE(section_vals_type), POINTER         :: interp_section, lr_section
 
     NULLIFY(atomic_kind_set, atom_kind, atom_list, dft_control,&
@@ -358,27 +360,25 @@ CONTAINS
     nkind = SIZE(atomic_kind_set,1)
     nspins = dft_control%nspins
 
-    DO iB=1,3
-       DO idir1=1,3
-          CALL set_vecp(idir1,idir2,idir3)
-          ! j_pw x nabla_vks_pw
-          temp_so_soft = 0.0_dp
-          DO ispin=1,nspins
-            temp_so_soft = temp_so_soft + (-1.0_dp)**(1 + ispin) * ( &
-                                pw_integral_ab ( jrho1_set(idir2,iB)%rho%rho_r(ispin)%pw, &
-                                nablavks_set(idir3,ispin)%rho%rho_r(1)%pw ) - &
-                                pw_integral_ab ( jrho1_set(idir3,iB)%rho%rho_r(ispin)%pw, &
-                                nablavks_set(idir2,ispin)%rho%rho_r(1)%pw ) &
-                                )
-          END DO
-          temp_so_soft = -1.0_dp * epr_env%g_so_factor * temp_so_soft
-          IF (output_unit>0) THEN
-               WRITE (UNIT=output_unit,FMT="(T2,A,T18,I1,I1,T56,E24.16)")&
+    DO idir1=1,3
+       CALL set_vecp(idir1,idir2,idir3)
+       ! j_pw x nabla_vks_pw
+       temp_so_soft = 0.0_dp
+       DO ispin=1,nspins
+          temp_so_soft = temp_so_soft + (-1.0_dp)**(1 + ispin) * ( &
+                         pw_integral_ab ( jrho1_set(idir2)%rho%rho_r(ispin)%pw, &
+                         nablavks_set(idir3,ispin)%rho%rho_r(1)%pw ) - &
+                         pw_integral_ab ( jrho1_set(idir3)%rho%rho_r(ispin)%pw, &
+                         nablavks_set(idir2,ispin)%rho%rho_r(1)%pw ) &
+                         )
+       END DO
+       temp_so_soft = -1.0_dp * epr_env%g_so_factor * temp_so_soft
+       IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A,T18,I1,I1,T56,E24.16)")&
                "epr|SOX:soft",iB,idir1,temp_so_soft
-          END IF
-          g_so(iB,idir1) = temp_so_soft
-       END DO !idir1
-    END DO !iB
+       END IF
+       g_so(iB,idir1) = temp_so_soft
+    END DO !idir1
 
     IF (gapw) THEN
 
@@ -439,28 +439,27 @@ CONTAINS
              NULLIFY (jrho1_atom, nablavks_atom)
              jrho1_atom => jrho1_atom_set(iatom)
              nablavks_atom => nablavks_atom_set(iatom)
-             DO iB = 1,3
-                DO idir1 = 1,3
-                   CALL set_vecp(idir1,idir2,idir3)
-                   DO ispin = 1,nspins
-                      DO ir = 1,grid_atom%nr
+             DO idir1 = 1,3
+                CALL set_vecp(idir1,idir2,idir3)
+                DO ispin = 1,nspins
+                   DO ir = 1,grid_atom%nr
+                      
+                      IF (grid_atom%rad(ir) >= atom_kind%hard_radius) CYCLE
 
-                         IF (grid_atom%rad(ir) >= atom_kind%hard_radius) CYCLE
+                      DO ia = 1,grid_atom%ng_sphere
 
-                         DO ia = 1,grid_atom%ng_sphere
+                         ra = particle_set(iatom)%r
+                         ra(:) = ra(:) + grid_atom%rad(ir)*harmonics%a(:,ia)
+                         vks_ra_idir2 = Eval_Interp_Spl3_pbc(ra,&
+                                        vks_pw_spline(idir2,ispin)%pw,error)
+                         vks_ra_idir3 = Eval_Interp_Spl3_pbc(ra,&
+                                        vks_pw_spline(idir3,ispin)%pw,error)
 
-                            ra = particle_set(iatom)%r
-                            ra(:) = ra(:) + grid_atom%rad(ir)*harmonics%a(:,ia)
-                            vks_ra_idir2 = Eval_Interp_Spl3_pbc(ra,&
-                                           vks_pw_spline(idir2,ispin)%pw,error)
-                            vks_ra_idir3 = Eval_Interp_Spl3_pbc(ra,&
-                                           vks_pw_spline(idir3,ispin)%pw,error)
+                         IF(iat.LT.bo(1).OR.iat.GT.bo(2))CYCLE!quick and dirty: 
+                         !                                    !here take care of the partition
 
-                            IF(iat.LT.bo(1).OR.iat.GT.bo(2))CYCLE!quick and dirty: 
-                            !                                    !here take care of the partition
-
-                            ! + sum_A j_loc_h_A x nabla_vks_s_A
-                            temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + &
+                         ! + sum_A j_loc_h_A x nabla_vks_s_A
+                         temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + &
                                (-1.0_dp)**(1 + ispin) * ( &
                                jrho1_atom%jrho_vec_rad_h(idir2,iB,ispin)%r_coef(ir,ia) * &
                                vks_ra_idir3 - &
@@ -468,8 +467,8 @@ CONTAINS
                                vks_ra_idir2 &
                                ) * grid_atom%wr(ir)*grid_atom%wa(ia)
 
-                            ! - sum_A j_loc_s_A x nabla_vks_s_A
-                            temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) - &
+                         ! - sum_A j_loc_s_A x nabla_vks_s_A
+                         temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) - &
                                (-1.0_dp)**(1 + ispin) * ( &
                                jrho1_atom%jrho_vec_rad_s(idir2,iB,ispin)%r_coef(ir,ia) * &
                                vks_ra_idir3 - &
@@ -477,8 +476,8 @@ CONTAINS
                                vks_ra_idir2 &
                                ) * grid_atom%wr(ir)*grid_atom%wa(ia)
 
-                            ! + sum_A j_loc_h_A x nabla_vks_loc_h_A
-                            temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + &
+                         ! + sum_A j_loc_h_A x nabla_vks_loc_h_A
+                         temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + &
                                (-1.0_dp)**(1 + ispin) * ( &
                                jrho1_atom%jrho_vec_rad_h(idir2,iB,ispin)%r_coef(ir,ia) * &
                                nablavks_atom%nablavks_vec_rad_h(idir3,ispin)%r_coef(ir,ia) - &
@@ -486,8 +485,8 @@ CONTAINS
                                nablavks_atom%nablavks_vec_rad_h(idir2,ispin)%r_coef(ir,ia) &
                                ) * grid_atom%wr(ir)*grid_atom%wa(ia)
  
-                            ! - sum_A j_loc_h_A x nabla_vks_loc_s_A
-                            temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) - &
+                         ! - sum_A j_loc_h_A x nabla_vks_loc_s_A
+                         temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) - &
                                (-1.0_dp)**(1 + ispin) * ( &
                                jrho1_atom%jrho_vec_rad_h(idir2,iB,ispin)%r_coef(ir,ia) * &
                                nablavks_atom%nablavks_vec_rad_s(idir3,ispin)%r_coef(ir,ia) - &
@@ -512,11 +511,10 @@ CONTAINS
 !                               jrho1_atom%jrho_vec_rad_s(idir3,iB,ispin)%r_coef(ir,ia) * &
 !                               nablavks_atom%nablavks_vec_rad_s(idir2,ispin)%r_coef(ir,ia) &
 !                               ) * grid_atom%wr(ir)*grid_atom%wa(ia)
-                         END DO !ia
-                      END DO !ir
-                   END DO !ispin
-                END DO !idir1
-             END DO !iB
+                      END DO !ia
+                   END DO !ir
+                END DO !ispin
+             END DO !idir1
           END DO !iat
        END DO !ikind
    
@@ -524,15 +522,13 @@ CONTAINS
        temp_so_gapw(:,:) = -1.0_dp * epr_env%g_so_factor_gapw * temp_so_gapw(:,:)
 
        IF (output_unit>0) THEN
-          DO iB = 1,3
-             DO idir1 = 1,3
-                WRITE (UNIT=output_unit,FMT="(T2,A,T18,I1,I1,T56,E24.16)")&
-                "epr|SOX:gapw",iB,idir1,temp_so_gapw(iB,idir1)
-             END DO
+          DO idir1 = 1,3
+             WRITE (UNIT=output_unit,FMT="(T2,A,T18,I1,I1,T56,E24.16)")&
+                  "epr|SOX:gapw",iB,idir1,temp_so_gapw(iB,idir1)
           END DO
        END IF
 
-       g_so(:,:) = g_so(:,:) + temp_so_gapw(:,:)
+       g_so(iB,:) = g_so(iB,:) + temp_so_gapw(iB,:)
 
        DO ispin = 1,nspins
           DO idir1 = 1,3
@@ -546,7 +542,7 @@ CONTAINS
 
     END IF ! gapw
 
-    g_total(:,:) = g_total(:,:) + g_so(:,:)
+    g_total(iB,:) = g_total(iB,:) + g_so(iB,:)
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)
@@ -559,19 +555,20 @@ CONTAINS
 !>      06.2006 created [RD]
 !> \author RD
 ! *****************************************************************************
-  SUBROUTINE epr_g_soo(epr_env,current_env,qs_env,error)
+  SUBROUTINE epr_g_soo(epr_env,current_env,qs_env,iB,error)
 
     TYPE(epr_env_type)                       :: epr_env
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: iB
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_g_soo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: aint_precond, ia, iat, iatom, iB, idir1, ikind, ir, iso, &
-      ispin, istat, max_iter, natom, nkind, nspins, output_unit, precond_kind
+    INTEGER :: aint_precond, ia, iat, iatom, idir1, ikind, ir, iso, ispin, &
+      istat, max_iter, natom, nkind, nspins, output_unit, precond_kind
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, gapw, paw_atom, &
@@ -641,34 +638,30 @@ CONTAINS
     nkind = SIZE(atomic_kind_set,1)
     nspins = dft_control%nspins
 
-    DO iB=1,3
-       DO idir1=1,3
-          temp_soo_soft = 0.0_dp
-          DO ispin=1,nspins
-             temp_soo_soft = temp_soo_soft + (-1.0_dp)**(1 +ispin) * ( &
-                               pw_integral_ab ( bind_set(idir1,iB)%rho%rho_r(1)%pw, &
-                               rho%rho_r(ispin)%pw ) &
-                               )
-          END DO
-          temp_soo_soft = 1.0_dp * epr_env%g_soo_factor * temp_soo_soft
-          IF (output_unit>0) THEN
-             WRITE (UNIT=output_unit,FMT="(T2,A,T18,i1,i1,T56,E24.16)")&
-             "epr|SOO:soft",iB,idir1,temp_soo_soft
-          END IF
-          g_soo(iB,idir1) = temp_soo_soft
+    DO idir1=1,3
+       temp_soo_soft = 0.0_dp
+       DO ispin=1,nspins
+          temp_soo_soft = temp_soo_soft + (-1.0_dp)**(1 +ispin) * ( &
+                          pw_integral_ab ( bind_set(idir1,iB)%rho%rho_r(1)%pw, &
+                          rho%rho_r(ispin)%pw ) &
+                          )
        END DO
+       temp_soo_soft = 1.0_dp * epr_env%g_soo_factor * temp_soo_soft
+       IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A,T18,i1,i1,T56,E24.16)")&
+               "epr|SOO:soft",iB,idir1,temp_soo_soft
+       END IF
+       g_soo(iB,idir1) = temp_soo_soft
     END DO
 
-    DO iB=1,3
-       DO idir1=1,3
-          temp_soo_soft = 1.0_dp * epr_env%g_soo_chicorr_factor * chi_tensor(idir1,iB,2) * &
-                          (REAL(dft_control%multiplicity,KIND=dp)-1.0_dp)
-          IF (output_unit>0) THEN
-             WRITE (UNIT=output_unit,FMT="(T2,A,T18,i1,i1,T56,E24.16)")&
-             "epr|SOO:soft_g0",iB,idir1,temp_soo_soft
-          END IF
-          g_soo(iB,idir1) = g_soo(iB,idir1) + temp_soo_soft
-       END DO
+    DO idir1=1,3
+       temp_soo_soft = 1.0_dp * epr_env%g_soo_chicorr_factor * chi_tensor(idir1,iB,2) * &
+                       (REAL(dft_control%multiplicity,KIND=dp)-1.0_dp)
+       IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A,T18,i1,i1,T56,E24.16)")&
+               "epr|SOO:soft_g0",iB,idir1,temp_soo_soft
+       END IF
+       g_soo(iB,idir1) = g_soo(iB,idir1) + temp_soo_soft
     END DO
 
     IF (gapw .AND. soo_rho_hard) THEN
@@ -686,28 +679,26 @@ CONTAINS
        CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r,error=error)
        CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x,error=error)
 
-       DO iB = 1,3
-          DO idir1 = 1,3
-             CALL pw_pool_create_pw(auxbas_pw_pool,&
-                                    bind_pw_spline(idir1,iB)%pw,&
-                                    use_data=REALDATA3D,in_space=REALSPACE,&
-                                    error=error)
-             ! calculate spline coefficients
-             CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
-                     pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.,error=error)
-             CALL pw_spline_do_precond(precond,&
-                     bind_set(idir1,iB)%rho%rho_r(1)%pw,&
-                     bind_pw_spline(idir1,iB)%pw,error=error)
-             CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
-             success=find_coeffs(values=bind_set(idir1,iB)%rho%rho_r(1)%pw,&
-                     coeffs=bind_pw_spline(idir1,iB)%pw,linOp=spl3_pbc,&
-                     preconditioner=precond,pool=auxbas_pw_pool,&
-                     eps_r=eps_r,eps_x=eps_x,max_iter=max_iter,&
-                     error=error)
-             CPPostconditionNoFail(success,cp_warning_level,routineP,error)
-             CALL pw_spline_precond_release(precond,error=error)
-          END DO ! idir1
-       END DO ! iB
+       DO idir1 = 1,3
+          CALL pw_pool_create_pw(auxbas_pw_pool,&
+                                 bind_pw_spline(idir1,iB)%pw,&
+                                 use_data=REALDATA3D,in_space=REALSPACE,&
+                                 error=error)
+          ! calculate spline coefficients
+          CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
+                   pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.,error=error)
+          CALL pw_spline_do_precond(precond,&
+                   bind_set(idir1,iB)%rho%rho_r(1)%pw,&
+                   bind_pw_spline(idir1,iB)%pw,error=error)
+          CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
+          success=find_coeffs(values=bind_set(idir1,iB)%rho%rho_r(1)%pw,&
+                  coeffs=bind_pw_spline(idir1,iB)%pw,linOp=spl3_pbc,&
+                  preconditioner=precond,pool=auxbas_pw_pool,&
+                  eps_r=eps_r,eps_x=eps_x,max_iter=max_iter,&
+                  error=error)
+          CPPostconditionNoFail(success,cp_warning_level,routineP,error)
+          CALL pw_spline_precond_release(precond,error=error)
+       END DO ! idir1
 
        temp_soo_gapw = 0.0_dp
 
@@ -731,42 +722,40 @@ CONTAINS
              NULLIFY(rho_rad_h,rho_rad_s)
              CALL get_rho_atom(rho_atom=rho_atom, rho_rad_h=rho_rad_h,&
                                rho_rad_s=rho_rad_s)
-             DO iB = 1,3
-                DO idir1 = 1,3
-                   DO ispin = 1,nspins
-                      DO ir = 1,grid_atom%nr
+             DO idir1 = 1,3
+                DO ispin = 1,nspins
+                   DO ir = 1,grid_atom%nr
    
-                         IF (grid_atom%rad(ir) >= atom_kind%hard_radius) CYCLE
+                      IF (grid_atom%rad(ir) >= atom_kind%hard_radius) CYCLE
    
-                         DO ia = 1,grid_atom%ng_sphere
+                      DO ia = 1,grid_atom%ng_sphere
    
-                            ra = particle_set(iatom)%r
-                            ra(:) = ra(:) + grid_atom%rad(ir)*harmonics%a(:,ia)
-                            bind_ra_idir1 = Eval_Interp_Spl3_pbc(ra,&
-                                            bind_pw_spline(idir1,iB)%pw,error)
+                         ra = particle_set(iatom)%r
+                         ra(:) = ra(:) + grid_atom%rad(ir)*harmonics%a(:,ia)
+                         bind_ra_idir1 = Eval_Interp_Spl3_pbc(ra,&
+                                         bind_pw_spline(idir1,iB)%pw,error)
    
-                            IF(iat.LT.bo(1).OR.iat.GT.bo(2))CYCLE!quick and dirty: 
-                            !                                    !here take care of the partition
+                         IF(iat.LT.bo(1).OR.iat.GT.bo(2))CYCLE!quick and dirty: 
+                         !                                    !here take care of the partition
 
-                            rho_spin = 0.0_dp
+                         rho_spin = 0.0_dp
    
-                            DO iso = 1,harmonics%max_iso_not0
-                               rho_spin = rho_spin + &
+                         DO iso = 1,harmonics%max_iso_not0
+                            rho_spin = rho_spin + &
                                   (rho_rad_h(ispin)%r_coef(ir,iso) - &
                                   rho_rad_s(ispin)%r_coef(ir,iso))* &
                                   harmonics%slm(ia,iso)
-                            END DO
+                         END DO
    
-                            temp_soo_gapw(iB,idir1) = temp_soo_gapw(iB,idir1) + &
+                         temp_soo_gapw(iB,idir1) = temp_soo_gapw(iB,idir1) + &
                                (-1.0_dp)**(1 + ispin) * ( &
                                bind_ra_idir1 * rho_spin & 
                                ) * grid_atom%wr(ir)*grid_atom%wa(ia)
    
-                         END DO !ia
-                      END DO !ir
-                   END DO ! ispin
-                END DO !idir1
-             END DO !iB
+                      END DO !ia
+                   END DO !ir
+                END DO ! ispin
+             END DO !idir1
           END DO !iat
        END DO !ikind
 
@@ -774,21 +763,17 @@ CONTAINS
        temp_soo_gapw(:,:) = 1.0_dp * epr_env%g_soo_factor * temp_soo_gapw(:,:)
 
        IF (output_unit>0) THEN
-          DO iB = 1,3
-             DO idir1 = 1,3
-                WRITE (UNIT=output_unit,FMT="(T2,A,T18,I1,I1,T56,E24.16)")&
-                "epr|SOO:gapw",iB,idir1,temp_soo_gapw(iB,idir1)
-             END DO
+          DO idir1 = 1,3
+             WRITE (UNIT=output_unit,FMT="(T2,A,T18,I1,I1,T56,E24.16)")&
+                  "epr|SOO:gapw",iB,idir1,temp_soo_gapw(iB,idir1)
           END DO
        END IF
 
-       g_soo(:,:) = g_soo(:,:) + temp_soo_gapw(:,:)
+       g_soo(iB,:) = g_soo(iB,:) + temp_soo_gapw(iB,:)
 
-       DO iB = 1,3
-          DO idir1 = 1,3
-             CALL pw_pool_give_back_pw(auxbas_pw_pool,bind_pw_spline(idir1,iB)%pw,&
-                                       error=error)
-          END DO
+       DO idir1 = 1,3
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,bind_pw_spline(idir1,iB)%pw,&
+                                    error=error)
        END DO
 
        DEALLOCATE(bind_pw_spline,STAT=istat)
@@ -796,27 +781,27 @@ CONTAINS
 
     END IF ! gapw
 
-    g_total(:,:) = g_total(:,:) + g_soo(:,:)
+    g_total(iB,:) = g_total(iB,:) + g_soo(iB,:)
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)
 
   END SUBROUTINE epr_g_soo
 
-
-  SUBROUTINE epr_ind_magnetic_field(epr_env,current_env,qs_env,error)
+  SUBROUTINE epr_ind_magnetic_field(epr_env,current_env,qs_env,iB,error)
 
     TYPE(epr_env_type)                       :: epr_env
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: iB
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_ind_magnetic_field', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iB, idir, idir2, &
-                                                idir3, iiB, iiiB, ispin, &
-                                                istat, natom, nspins
+    INTEGER                                  :: handle, idir, idir2, idir3, &
+                                                iiB, iiiB, ispin, istat, &
+                                                natom, nspins
     LOGICAL                                  :: failure, gapw
     REAL(dp)                                 :: scale_fac
     TYPE(cell_type), POINTER                 :: cell
@@ -879,47 +864,43 @@ CONTAINS
 
     CALL pw_zero(pw_gspace_work%pw)
     !
-    DO iB = 1,3
+    CALL set_vecp(iB,iiB,iiiB)
+    !
+    DO ispin = 1,nspins
        !
-       CALL set_vecp(iB,iiB,iiiB)
+       DO idir3=1,3
+          ! set to zero for the calculation of the shift
+          CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw)
+       ENDDO
        !
-       DO ispin = 1,nspins
-          !
-          DO idir3=1,3
-             ! set to zero for the calculation of the shift
-             CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw)
+       DO idir = 1,3
+          rho_rspace => current_env%jrho1_set(idir)%rho%rho_r(ispin)
+          rho_gspace => current_env%jrho1_set(idir)%rho%rho_g(ispin)
+          ! Field gradient
+          ! loop over the Gvec  components: x,y,z
+          DO idir2 = 1,3
+             IF(idir /= idir2) THEN
+                ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
+                CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,&
+                     &                 pw_gspace_work,idir2,0.0_dp,error=error)
+                !
+                ! scale and add to the correct component of the shift column
+                CALL set_vecp_rev(idir,idir2,idir3)
+                scale_fac=fac_vecp(idir3,idir2,idir)
+                CALL pw_scale(pw_gspace_work%pw,scale_fac)
+                CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw)
+             ENDIF
           ENDDO
           !
-          DO idir = 1,3
-             rho_rspace => current_env%jrho1_set(idir,iB)%rho%rho_r(ispin)
-             rho_gspace => current_env%jrho1_set(idir,iB)%rho%rho_g(ispin)
-             ! Field gradient
-             ! loop over the Gvec  components: x,y,z
-             DO idir2 = 1,3
-                IF(idir /= idir2) THEN
-                   ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
-                   CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,&
-                        &                 pw_gspace_work,idir2,0.0_dp,error=error)
-                   !
-                   ! scale and add to the correct component of the shift column
-                   CALL set_vecp_rev(idir,idir2,idir3)
-                   scale_fac=fac_vecp(idir3,idir2,idir)
-                   CALL pw_scale(pw_gspace_work%pw,scale_fac)
-                   CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw)
-                ENDIF
-             ENDDO
-             !
-          ENDDO ! idir
-       ENDDO ! ispin
+       ENDDO ! idir
+    ENDDO ! ispin
 
-       ! Store the total soft induced magnetic field (corrected for sic)
-       IF (dft_control%nspins == 2) THEN
-          DO idir = 1,3
-             CALL pw_transfer(shift_pw_gspace(idir,2)%pw,epr_env%bind_set(idir,iB)%rho%rho_r(1)%pw)
-          ENDDO
-       END IF
-
-    ENDDO
+    ! Store the total soft induced magnetic field (corrected for sic)
+    IF (dft_control%nspins == 2) THEN
+       DO idir = 1,3
+          CALL pw_transfer(shift_pw_gspace(idir,2)%pw,epr_env%bind_set(idir,iB)%rho%rho_r(1)%pw)
+       ENDDO
+    END IF
     !
     ! Dellocate grids for the calculation of jrho and the shift
     CALL pw_pool_give_back_pw(auxbas_pw_pool,pw_gspace_work%pw,error=error)
