@@ -57,6 +57,9 @@ MODULE nddo_methods
                                              drotnuc,&
                                              rotint,&
                                              rotnuc
+  USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_finalize,&
+                                             semi_empirical_si_initialize,&
+                                             semi_empirical_si_type
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type,&
                                              taper_type
@@ -119,9 +122,10 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p
     TYPE(section_vals_type), POINTER         :: scf_section
+    TYPE(semi_empirical_si_type), POINTER    :: store_int_env
 
     CALL timeset(routineN,"I","",handle)
-    NULLIFY(matrix_h, dft_control, logger, scf_section)
+    NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env)
     logger => cp_error_get_logger(error)
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
@@ -133,8 +137,9 @@ CONTAINS
                       dft_control=dft_control,&
                       matrix_h=matrix_h,&
                       para_env=para_env,&
+                      se_store_int_env=store_int_env,&
                       error=error)
-       
+
        scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
        CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
@@ -147,10 +152,13 @@ CONTAINS
           CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix,error=error)
        END DO
 
+       CALL semi_empirical_si_initialize(store_int_env, ks_env%s_mstruct_changed, error)
        CALL build_nddo_fock_matrix_exchange(ks_env,qs_env,ks_matrix,rho,energy,&
-            calculate_forces,just_energy,error)
+            calculate_forces,just_energy,store_int_env,error)
        CALL build_nddo_fock_matrix_coulomb (ks_env,qs_env,ks_matrix,rho,energy,&
-            calculate_forces,just_energy,error)
+            calculate_forces,just_energy,store_int_env,error)
+       CALL semi_empirical_si_finalize(store_int_env, ks_env%s_mstruct_changed, error)
+
        ! QM/MM
        IF (qs_env%qmmm) THEN
           DO ispin=1,nspins
@@ -368,7 +376,7 @@ CONTAINS
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE build_nddo_fock_matrix_coulomb (ks_env,qs_env,ks_matrix,rho,energy,&
-       calculate_forces,just_energy,error)
+       calculate_forces,just_energy,store_int_env,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -377,6 +385,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -583,29 +592,32 @@ CONTAINS
                         IF      ( nspins == 1 ) THEN
                            CALL fock1_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
                                 pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&
-                                shortrange=do_ewald, taper=taper, error=error)
+                                shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
+                                error=error)
                         ELSE IF ( nspins == 2 ) THEN
                            CALL fock1_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
                                 pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&
-                                shortrange=do_ewald, taper=taper, error=error)
+                                shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
+                                error=error)
 
                            CALL fock1_1el (se_kind_a,se_kind_b,rij, ksa_block_b, ksb_block_b,&
                                 pa_block_b, pb_block_b, ecore=ecore2, itype=itype, anag=anag,&
-                                shortrange=do_ewald, taper=taper, error=error)
+                                shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
+                                error=error)
                         END IF
                         ! Coulomb Terms
                         IF      ( nspins == 1 ) THEN
                            CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, ksa_block_a,&
                                 p_block_tot_b, ksb_block_a, factor=0.5_dp, anag=anag, shortrange=do_ewald, taper=taper,&
-                                error=error)
+                                store_int_env=store_int_env, error=error)
                         ELSE IF ( nspins == 2 ) THEN
                            CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, ksa_block_a,&
                                 p_block_tot_b, ksb_block_a, factor=1.0_dp, anag=anag, shortrange=do_ewald, taper=taper,&
-                                error=error)
+                                store_int_env=store_int_env, error=error)
 
                            CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_b, ksa_block_b,&
                                 p_block_tot_b, ksb_block_b, factor=1.0_dp, anag=anag, shortrange=do_ewald, taper=taper,&
-                                error=error)
+                                store_int_env=store_int_env, error=error)
                         END IF
 
                         IF(calculate_forces) THEN
@@ -689,7 +701,7 @@ CONTAINS
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE build_nddo_fock_matrix_exchange (ks_env,qs_env,ks_matrix,rho,energy,&
-               calculate_forces,just_energy,error)
+               calculate_forces,just_energy,store_int_env,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -698,6 +710,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -853,13 +866,16 @@ CONTAINS
                       ! Exchange Terms
                       IF      ( nspins == 1 ) THEN
                          CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot, p_block_a, ks_block_a,&
-                              factor=0.5_dp, anag=anag, shortrange=.FALSE., taper=taper, error=error)
+                              factor=0.5_dp, anag=anag, shortrange=.FALSE., taper=taper,&
+                              store_int_env=store_int_env, error=error)
                       ELSE IF ( nspins == 2 ) THEN
                          CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot, p_block_a, ks_block_a,&
-                              factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper, error=error)
+                              factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper,&
+                              store_int_env=store_int_env, error=error)
                          
                          CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot, p_block_b, ks_block_b,&
-                              factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper, error=error)
+                              factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper,&
+                              store_int_env=store_int_env, error=error)
                       END IF
                       IF(calculate_forces) THEN
                          atom_a = atom_of_kind(iatom)
@@ -901,7 +917,8 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock1_1el (sepi, sepj, rij, ksi_block, ksj_block, pi_block,&
-       pj_block, ecore, itype, anag, shortrange, taper, error)
+       pj_block, ecore, itype, anag, shortrange, taper, store_int_env,&
+       error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -912,6 +929,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: anag, shortrange
     TYPE(taper_type), POINTER                :: taper
+    TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fock1_1el', &
@@ -922,8 +940,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(45)             :: e1b, e2a
 
     failure = .FALSE.
-    CALL rotnuc (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-         anag=anag, shortrange=shortrange, taper=taper, error=error)
+    CALL rotnuc (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype, anag=anag,&
+         shortrange=shortrange, taper=taper, store_int_env=store_int_env,&
+         error=error)
     !
     ! Add the electron-nuclear attraction term for atom sepi
     !
@@ -1096,7 +1115,7 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2(sepi, sepj, rij, switch, pi_tot, pi_mat, fi_mat, pj_tot, fj_mat, &
-       factor, anag, shortrange, taper, error)
+       factor, anag, shortrange, taper, store_int_env, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
@@ -1111,6 +1130,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: factor
     LOGICAL, INTENT(IN)                      :: anag, shortrange
     TYPE(taper_type), POINTER                :: taper
+    TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fock2', &
@@ -1128,9 +1148,11 @@ CONTAINS
     
     ! Evaluate integrals
     IF (.NOT.switch) THEN
-       CALL rotint (sepi,sepj, rij,w,anag=anag,shortrange=shortrange,taper=taper,error=error)
+       CALL rotint (sepi,sepj, rij,w,anag=anag,shortrange=shortrange,taper=taper,&
+            store_int_env=store_int_env, error=error)
     ELSE
-       CALL rotint (sepj,sepi,-rij,w,anag=anag,shortrange=shortrange,taper=taper,error=error)
+       CALL rotint (sepj,sepi,-rij,w,anag=anag,shortrange=shortrange,taper=taper,&
+            store_int_env=store_int_env, error=error)
     END IF
     kr = 0
     natorb(1) = sepi%natorb

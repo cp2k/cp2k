@@ -37,3 +37,6 @@ brcl.inp         3
 sih_x.inp        3
 sih_y.inp        3
 tio.inp          3
+# integrals in-core
+H2O-MNDO-si.inp    3
+H2O-MNDO-si-nc.inp 3

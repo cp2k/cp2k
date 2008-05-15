@@ -1998,6 +1998,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -2052,16 +2053,79 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="do_ewald",&
+       CALL keyword_create(keyword, name="DO_EWALD",&
             description="Use an Ewald type method for the calculation of the "//&
                         "Coulomb energy",&
             usage="DO_EWALD",default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       NULLIFY(subsection)
+       CALL create_se_memory_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_se_control_section
+
+! *****************************************************************************
+!> \brief creates the input section for the se-memory part integral storage
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
+! *****************************************************************************
+  SUBROUTINE create_se_memory_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_se_memory_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"MEMORY",&
+            description="Sets up memory parameters for the storage of the integrals",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="EPS_STORAGE",&
+            description="Storage threshold for compression is EPS_STORAGE",&
+            usage="EPS_STORAGE 1.0E-10",&
+            default_r_val=1.0E-10_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="MAX_MEMORY",&
+            description="Defines the maximum amount of memory [MB] used to store precomputed "//&
+                         "(possibly compressed) two-electron two-center integrals",&
+            usage="MAX_MEMORY 256",&
+            default_i_val=50,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="COMPRESS",&
+            description="Enables the compression of the integrals in memory.",&
+            usage="COMPRESS <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+ 
+  END SUBROUTINE create_se_memory_section
+
 
 ! *****************************************************************************
   SUBROUTINE create_mulliken_section(section,error)

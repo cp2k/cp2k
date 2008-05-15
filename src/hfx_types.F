@@ -33,7 +33,6 @@ MODULE hfx_types
                                              int_8
   USE machine,                         ONLY: m_chdir,&
                                              m_getcwd
-  USE particle_types,                  ONLY: particle_type
   USE string_utilities,                ONLY: compress
 #include "cp_common_uses.h"
 
@@ -47,7 +46,7 @@ MODULE hfx_types
           hfx_memory_type, hfx_load_balance_type, hfx_general_type,&
           hfx_compression_type,&
           hfx_container_type, hfx_container_node, hfx_cache_type, &
-          hfx_basis_type, &
+          hfx_basis_type, parse_memory_section, &
           hfx_p_type, hfx_create_neighbor_cells, hfx_init_container,&
           hfx_basis_info_type
 
@@ -215,43 +214,43 @@ MODULE hfx_types
 !> \author Manuel Guidon
 ! *****************************************************************************
   TYPE hfx_type
-    TYPE(hfx_potential_type)                 :: potential_parameter
-    TYPE(hfx_screening_type)                 :: screening_parameter
-    TYPE(hfx_memory_type)                    :: memory_parameter
-    TYPE(hfx_periodic_type)                  :: periodic_parameter
-    TYPE(hfx_load_balance_type)              :: load_balance_parameter
-    TYPE(hfx_general_type)                   :: general_parameter
-    TYPE(hfx_container_type), POINTER        :: maxval_container, maxval_container_disk
-    TYPE(hfx_cache_type)                     :: maxval_cache, maxval_cache_disk
-    TYPE(hfx_container_type), POINTER, &
-                               DIMENSION(:)  :: integral_containers, integral_containers_disk
-    TYPE(hfx_cache_type)                     :: integral_caches(64), integral_caches_disk(64)
+     TYPE(hfx_potential_type)                 :: potential_parameter
+     TYPE(hfx_screening_type)                 :: screening_parameter
+     TYPE(hfx_memory_type)                    :: memory_parameter
+     TYPE(hfx_periodic_type)                  :: periodic_parameter
+     TYPE(hfx_load_balance_type)              :: load_balance_parameter
+     TYPE(hfx_general_type)                   :: general_parameter
+     TYPE(hfx_container_type), POINTER        :: maxval_container, maxval_container_disk
+     TYPE(hfx_cache_type)                     :: maxval_cache, maxval_cache_disk
+     TYPE(hfx_container_type), POINTER, &
+                                DIMENSION(:)  :: integral_containers, integral_containers_disk
+     TYPE(hfx_cache_type)                     :: integral_caches(64), integral_caches_disk(64)
 
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: x_screening_buffer
-    REAL(dp), DIMENSION(:, :, :, :, :), &
-              POINTER                        :: x_screening_buffer_periodic
-    TYPE(hfx_box_scheme), DIMENSION(:,:),&
-                           POINTER           :: far_field_boxes
-    TYPE(hfx_cell_type), DIMENSION(:), &
-               POINTER                       :: neighbor_cells
-    TYPE(hfx_distribution), DIMENSION(:),&
-                             POINTER         :: distribution_energy
-    TYPE(hfx_distribution), DIMENSION(:),&
-                             POINTER         :: distribution_forces
-    REAL(dp), DIMENSION(:,:,:,:), POINTER &
-                                             :: initial_p
-    INTEGER, DIMENSION(:,:), POINTER         :: is_assoc_atomic_block
-    INTEGER                                  :: number_of_p_entries
-    TYPE(hfx_basis_type), DIMENSION(:), &
-                           POINTER           :: basis_parameter
-    INTEGER                                  :: n_rep_hf
-    LOGICAL                                  :: b_first_load_balance_energy, &
-                                                b_first_load_balance_forces
-    REAL(dp), DIMENSION(:,:), POINTER        :: full_ks_alpha
-    REAL(dp), DIMENSION(:,:), POINTER        :: full_ks_beta
-    TYPE(lib_int)                            :: lib
-    TYPE(hfx_basis_info_type)                :: basis_info
-  END TYPE
+     REAL(dp), DIMENSION(:, :, :, :), POINTER :: x_screening_buffer
+     REAL(dp), DIMENSION(:, :, :, :, :), &
+               POINTER                        :: x_screening_buffer_periodic
+     TYPE(hfx_box_scheme), DIMENSION(:,:),&
+                            POINTER           :: far_field_boxes
+     TYPE(hfx_cell_type), DIMENSION(:), &
+                POINTER                       :: neighbor_cells
+     TYPE(hfx_distribution), DIMENSION(:),&
+                              POINTER         :: distribution_energy
+     TYPE(hfx_distribution), DIMENSION(:),&
+                              POINTER         :: distribution_forces
+     REAL(dp), DIMENSION(:,:,:,:), POINTER &
+                                              :: initial_p
+     INTEGER, DIMENSION(:,:), POINTER         :: is_assoc_atomic_block
+     INTEGER                                  :: number_of_p_entries
+     TYPE(hfx_basis_type), DIMENSION(:), &
+                            POINTER           :: basis_parameter
+     INTEGER                                  :: n_rep_hf
+     LOGICAL                                  :: b_first_load_balance_energy, &
+                                                 b_first_load_balance_forces
+     REAL(dp), DIMENSION(:,:), POINTER        :: full_ks_alpha
+     REAL(dp), DIMENSION(:,:), POINTER        :: full_ks_beta
+     TYPE(lib_int)                            :: lib
+     TYPE(hfx_basis_info_type)                :: basis_info
+  END TYPE hfx_type
 
 ! *****************************************************************************
 !> \brief to build arrays of pointers
@@ -281,26 +280,24 @@ MODULE hfx_types
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,max_set,atomic_kind_set, particle_set, &
-                        dft_control, error)
+  SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,max_set,atomic_kind_set, dft_control, error)
     TYPE(hfx_type), DIMENSION(:, :), POINTER :: x_data
     TYPE(cp_para_env_type)                   :: para_env
     TYPE(section_vals_type), POINTER         :: hfx_section
     INTEGER, INTENT(IN)                      :: natom, max_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=512)                       :: error_msg
-    CHARACTER(LEN=default_path_length)       :: char_val, filename, orig_wd
-    INTEGER :: i, i_thread, ikind, int_val, irep, max_memory, n_rep_hf, &
-      n_threads, nkind, pbc_shells, stat, storage_id
+    CHARACTER(LEN=default_path_length)       :: filename
+    INTEGER                                  :: i, i_thread, ikind, int_val, &
+                                                irep, n_rep_hf, n_threads, &
+                                                nkind, pbc_shells, stat, &
+                                                storage_id
     LOGICAL                                  :: do_periodic, failure, &
                                                 logic_val
     REAL(dp)                                 :: omega, real_val
@@ -331,55 +328,8 @@ MODULE hfx_types
   
         !! MEMORY section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"MEMORY",i_rep_section=irep, error=error)
-        CALL section_vals_val_get(hf_sub_section, "MAX_MEMORY", i_val=int_val, error=error)
-        actual_x_data%memory_parameter%max_memory = int_val
-        actual_x_data%memory_parameter%max_compression_counter = int_val*1024*128
-        CALL section_vals_val_get(hf_sub_section, "EPS_STORAGE_SCALING", r_val=real_val, error=error)
-        actual_x_data%memory_parameter%eps_storage_scaling = real_val
-        IF(int_val == 0) THEN
-          actual_x_data%memory_parameter%do_all_on_the_fly = .TRUE.
-        ELSE
-          actual_x_data%memory_parameter%do_all_on_the_fly = .FALSE.
-        END IF
-        actual_x_data%memory_parameter%cache_size = CACHE_SIZE
-        actual_x_data%memory_parameter%actual_memory_usage = 1
-        actual_x_data%memory_parameter%actual_memory_usage_disk = 1
-        CALL section_vals_val_get(hf_sub_section, "MAX_DISK_SPACE", i_val=int_val, error=error)
-!!        actual_x_data%memory_parameter%max_memory = int_val
-        actual_x_data%memory_parameter%max_compression_counter_disk = int_val*1024_int_8*128_int_8
-        IF( int_val == 0 ) THEN
-          actual_x_data%memory_parameter%do_disk_storage = .FALSE.
-        ELSE
-          actual_x_data%memory_parameter%do_disk_storage = .TRUE.
-        END IF
-        CALL section_vals_val_get(hf_sub_section, "STORAGE_LOCATION", c_val=char_val, error=error)
-        CALL compress(char_val,.TRUE.)
-        !! Add ending / if necessary
-
-        IF( SCAN(char_val,"/",.TRUE.) /= LEN_TRIM(char_val)) THEN
-          WRITE(filename,'(A,A)') TRIM(char_val),"/"
-          CALL compress(filename)
-        ELSE
-          filename = TRIM(char_val)
-        END IF
-        CALL compress(filename,.TRUE.)
-
-        !! quickly check if we can write on storage_location
-        CALL m_getcwd(orig_wd)
-        CALL m_chdir(TRIM(filename),stat)
-        IF(stat/=0) THEN
-          WRITE(error_msg,'(A,A,A)') "HFX_MODULE: Request for disk storage failed due to unknown error while writing to ",&
-                                   TRIM(filename), ". Please check STORAGE_LOCATION"
-          CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                          error_msg , &
-                          error,failure)
-        END IF
-        CALL m_chdir(orig_wd,stat)
-
-        actual_x_data%memory_parameter%storage_location = filename
-        
-        CALL compress(actual_x_data%memory_parameter%storage_location, .TRUE.)
-        storage_id = (irep-1)*para_env%num_pe*n_threads + para_env%mepos * n_threads + i_thread-1
+        CALL parse_memory_section(actual_x_data%memory_parameter, hf_sub_section, storage_id, i_thread,&
+             n_threads, para_env, irep, skip_disk=.FALSE., error=error)
 
         !! PERIODIC section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"PERIODIC", i_rep_section=irep, error=error)
@@ -572,6 +522,94 @@ MODULE hfx_types
       END DO
     END DO
   END SUBROUTINE hfx_create 
+
+! *****************************************************************************
+!> \brief - Parses the memory section
+! *****************************************************************************
+  SUBROUTINE parse_memory_section(memory_parameter, hf_sub_section, storage_id,&
+       i_thread, n_threads, para_env, irep, skip_disk, error)
+    TYPE(hfx_memory_type)                    :: memory_parameter
+    TYPE(section_vals_type), POINTER         :: hf_sub_section
+    INTEGER, INTENT(OUT), OPTIONAL           :: storage_id
+    INTEGER, INTENT(IN), OPTIONAL            :: i_thread, n_threads
+    TYPE(cp_para_env_type), OPTIONAL         :: para_env
+    INTEGER, INTENT(IN), OPTIONAL            :: irep
+    LOGICAL, INTENT(IN)                      :: skip_disk
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parse_memory_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=512)                       :: error_msg
+    CHARACTER(LEN=default_path_length)       :: char_val, filename, orig_wd
+    INTEGER                                  :: int_val, stat
+    LOGICAL                                  :: check, failure
+    REAL(dp)                                 :: real_val
+
+    failure = .FALSE.
+    check = (PRESENT(storage_id).EQV.PRESENT(i_thread)) .AND.&
+            (PRESENT(storage_id).EQV.PRESENT(n_threads)).AND.&
+            (PRESENT(storage_id).EQV.PRESENT(para_env)) .AND.&
+            (PRESENT(storage_id).EQV.PRESENT(irep))
+    CPPostcondition(check,cp_failure_level,routineP,error,failure)
+    
+    ! Memory Storage
+    CALL section_vals_val_get(hf_sub_section, "MAX_MEMORY", i_val=int_val, error=error)
+    memory_parameter%max_memory = int_val
+    memory_parameter%max_compression_counter = int_val*1024*128
+    CALL section_vals_val_get(hf_sub_section, "EPS_STORAGE", r_val=real_val, error=error)
+    memory_parameter%eps_storage_scaling = real_val
+    IF(int_val == 0) THEN
+       memory_parameter%do_all_on_the_fly = .TRUE.
+    ELSE
+       memory_parameter%do_all_on_the_fly = .FALSE.
+    END IF
+    memory_parameter%cache_size = CACHE_SIZE
+    memory_parameter%actual_memory_usage = 1
+
+    ! Disk Storage
+    IF (.NOT.skip_disk) THEN
+       memory_parameter%actual_memory_usage_disk = 1
+       CALL section_vals_val_get(hf_sub_section, "MAX_DISK_SPACE", i_val=int_val, error=error)
+       memory_parameter%max_compression_counter_disk = int_val*1024_int_8*128_int_8
+       IF( int_val == 0 ) THEN
+          memory_parameter%do_disk_storage = .FALSE.
+       ELSE
+          memory_parameter%do_disk_storage = .TRUE.
+       END IF
+       CALL section_vals_val_get(hf_sub_section, "STORAGE_LOCATION", c_val=char_val, error=error)
+       CALL compress(char_val,.TRUE.)
+       !! Add ending / if necessary
+       
+       IF( SCAN(char_val,"/",.TRUE.) /= LEN_TRIM(char_val)) THEN
+          WRITE(filename,'(A,A)') TRIM(char_val),"/"
+          CALL compress(filename)
+       ELSE
+          filename = TRIM(char_val)
+       END IF
+       CALL compress(filename,.TRUE.)
+       
+       !! quickly check if we can write on storage_location
+       CALL m_getcwd(orig_wd)
+       CALL m_chdir(TRIM(filename),stat)
+       IF(stat/=0) THEN
+          WRITE(error_msg,'(A,A,A)') "Request for disk storage failed due to unknown error while writing to ",&
+               TRIM(filename), ". Please check STORAGE_LOCATION"
+          CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
+               error_msg , &
+               error,failure)
+       END IF
+       CALL m_chdir(orig_wd,stat)
+
+       memory_parameter%storage_location = filename
+       CALL compress(memory_parameter%storage_location, .TRUE.)
+    ELSE
+       memory_parameter%do_disk_storage = .FALSE.
+    END IF
+    IF (PRESENT(storage_id)) THEN
+       storage_id = (irep-1)*para_env%num_pe*n_threads + para_env%mepos * n_threads + i_thread-1
+    END IF
+  END SUBROUTINE parse_memory_section
 
 ! *****************************************************************************
 !> \brief - This routine deallocates all data structures

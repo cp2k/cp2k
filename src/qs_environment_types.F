@@ -147,6 +147,8 @@ MODULE qs_environment_types
   USE scp_environment_types,           ONLY: scp_env_release,&
                                              scp_env_retain,&
                                              scp_environment_type
+  USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_release,&
+                                             semi_empirical_si_type
   USE semi_empirical_types,            ONLY: taper_release,&
                                              taper_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
@@ -351,6 +353,7 @@ MODULE qs_environment_types
     TYPE(task_list_type), POINTER                         :: task_list_aux_fit
     TYPE(task_list_type), POINTER                         :: task_list_soft
     TYPE(taper_type), POINTER                             :: taper
+    TYPE(semi_empirical_si_type),POINTER                  :: se_store_int_env
     TYPE(wfn_fitting_type), POINTER                       :: wfn_fitting_env
   END TYPE qs_environment_type
 
@@ -393,7 +396,7 @@ CONTAINS
                         neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
                         virial,cp_ddapc_env,cp_ddapc_ewald,outer_scf_history, &
                         outer_scf_ihistory,ep_qs_env,x_data,et_coupling,&
-                        dftb_potential,results,scp_env,taper, wfn_fitting_env, error)
+                        dftb_potential,results,scp_env,taper,se_store_int_env,wfn_fitting_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -504,6 +507,8 @@ CONTAINS
     TYPE(scp_environment_type), OPTIONAL, &
       POINTER                                :: scp_env
     TYPE(taper_type), OPTIONAL, POINTER      :: taper
+    TYPE(semi_empirical_si_type), OPTIONAL, &
+      POINTER                                :: se_store_int_env
     TYPE(wfn_fitting_type), OPTIONAL, &
       POINTER                                :: wfn_fitting_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -592,6 +597,7 @@ CONTAINS
     IF (PRESENT(linres_control)) linres_control => qs_env%linres_control
     IF (PRESENT(virial)) virial => qs_env%virial
     IF (PRESENT(taper)) taper => qs_env%taper
+    IF (PRESENT(se_store_int_env)) se_store_int_env => qs_env%se_store_int_env
     IF (PRESENT(wfn_fitting_env)) wfn_fitting_env => qs_env%wfn_fitting_env
 
     IF (PRESENT(rho_atom_set)) &
@@ -737,6 +743,7 @@ CONTAINS
     NULLIFY (qs_env%task_list_soft)
     NULLIFY (qs_env%scp_env)
     NULLIFY (qs_env%taper)
+    NULLIFY (qs_env%se_store_int_env)
     NULLIFY (qs_env%wfn_fitting_env)
     qs_env%outer_scf_ihistory=0
     qs_env%neighbor_list_id=-1
@@ -785,7 +792,7 @@ CONTAINS
                         kg_sub_pw_env,linres_control,xas_env,virial,&
                         cp_ddapc_env,cp_ddapc_ewald,outer_scf_history,&
                         outer_scf_ihistory,ep_qs_env,x_data,et_coupling,&
-                        dftb_potential,scp_env,taper,wfn_fitting_env,error)
+                        dftb_potential,scp_env,taper,se_store_int_env,wfn_fitting_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
@@ -873,6 +880,8 @@ CONTAINS
     TYPE(scp_environment_type), OPTIONAL, &
       POINTER                                :: scp_env
     TYPE(taper_type), OPTIONAL, POINTER      :: taper
+    TYPE(semi_empirical_si_type), OPTIONAL, &
+      POINTER                                :: se_store_int_env
     TYPE(wfn_fitting_type), OPTIONAL, &
       POINTER                                :: wfn_fitting_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1111,6 +1120,10 @@ CONTAINS
     IF (PRESENT(taper)) THEN
        CALL taper_release(qs_env%taper,error=error)
        qs_env%taper => taper
+    END IF
+    IF (PRESENT(se_store_int_env)) THEN
+       CALL semi_empirical_si_release(qs_env%se_store_int_env,error=error)
+       qs_env%se_store_int_env => se_store_int_env
     END IF
     IF( PRESENT(wfn_fitting_env) ) qs_env%wfn_fitting_env => wfn_fitting_env
   END SUBROUTINE set_qs_env
@@ -1462,6 +1475,9 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qs_env%taper)) THEN
              CALL taper_release(qs_env%taper, error)
+          END IF
+          IF (ASSOCIATED(qs_env%se_store_int_env)) THEN
+             CALL semi_empirical_si_release(qs_env%se_store_int_env, error)
           END IF
           IF (ASSOCIATED(qs_env%wfn_fitting_env)) THEN
             CALL wfn_fitting_env_release(qs_env%wfn_fitting_env, error)

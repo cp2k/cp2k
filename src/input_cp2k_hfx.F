@@ -486,13 +486,14 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"MEMORY",&
-            description="Sets up memory parameters if requested ",&
+            description="Sets up memory parameters for the storage of the ERI's if requested ",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(&
             keyword=keyword,&
             name="EPS_STORAGE_SCALING",&
+            variants=(/"EPS_STORAGE"/),&
             description="Scaling factor to scale eps_schwarz. Storage threshold for compression "//&
                         "will be EPS_SCHWARZ*EPS_STORAGE_SCALING.",&
             usage="EPS_STORAGE 1.0E-2",&
@@ -512,18 +513,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
-!       CALL keyword_create(&
-!            keyword=keyword,&
-!            name="USE_DISK_STORAGE",&
-!            description="Expects a logical flag. If TRUE CP2K starts writing compressed "//&
-!                        "integrals to disk as soon as MAX_MEMORY is reached. "//&
-!                        " You must provide a storage loaction ",&
-!            usage="USE_DISK_STORAGE TRUE",&
-!            default_l_val=.FALSE.,&
-!            error=error)
-!       CALL section_add_keyword(section,keyword,error=error)
-!       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(&
             keyword=keyword,&
             name="STORAGE_LOCATION",&

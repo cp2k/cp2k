@@ -144,6 +144,8 @@ MODULE qs_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
+  USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_create,&
+                                             semi_empirical_si_type
   USE semi_empirical_types,            ONLY: taper_create,&
                                              taper_type
   USE termination,                     ONLY: stop_memory,&
@@ -309,7 +311,7 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
 
       CALL hfx_create(qs_env%x_data, para_env, hfx_section,natom,max_set,atomic_kind_set, &
-                      particle_set, qs_env%dft_control, error=error)
+                      qs_env%dft_control, error=error)
     END IF
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
                            "PROPERTIES%ET_COUPLING",error=error)
@@ -378,9 +380,10 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER :: dft_section, et_becke_section, &
       et_coupling_section, et_ddapc_section, ewald_section, poisson_section, &
-      print_section, qs_section
+      print_section, qs_section, se_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
+    TYPE(semi_empirical_si_type), POINTER    :: se_store_int_env
     TYPE(taper_type), POINTER                :: taper
 
     CALL timeset(routineN,"I",'',handle)
@@ -638,6 +641,7 @@ CONTAINS
           CALL init_coulomb_local(qs_env,gapw_control,error=error)
        END IF
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
+       se_section => section_vals_get_subs_vals(qs_section,"SE",error=error)
        se_control => dft_control%qs_control%se_control
        ! Make interaction radius compatible with unit cell
        rc = se_control%rc_interaction
@@ -683,6 +687,10 @@ CONTAINS
        ! Taper function
        CALL taper_create(taper, 2._dp*se_control%rc_coulomb, se_control%rc_range, error)
        CALL set_qs_env(qs_env, taper=taper, error=error)
+       ! Store integral environment
+       NULLIFY(se_store_int_env)
+       CALL semi_empirical_si_create(se_store_int_env, se_section, error)
+       CALL set_qs_env(qs_env, se_store_int_env=se_store_int_env, error=error)
     ENDIF
 
     !   *** Allocate the MO data types ***

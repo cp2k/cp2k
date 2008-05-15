@@ -524,6 +524,7 @@ OBJECTS_GENERIC =\
  semi_empirical_int_utils.o\
  semi_empirical_parameters.o\
  semi_empirical_par_utils.o\
+ semi_empirical_store_int_types.o\
  semi_empirical_types.o\
  semi_empirical_utils.o\
  shell_potential_types.o\
