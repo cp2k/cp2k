@@ -75,7 +75,6 @@ MODULE qs_linres_current_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_atom_current,          ONLY: list_3c_jrho_atom
-  USE qs_linres_current,               ONLY: chi_analytic
   USE qs_linres_methods,               ONLY: linres_scf
   USE qs_linres_op,                    ONLY: set_vecp
   USE qs_linres_types,                 ONLY: current_env_create,&
@@ -92,8 +91,7 @@ MODULE qs_linres_current_utils
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: set_up_op_sm
-  USE qs_p_env_types,                  ONLY: p_env_release,&
-                                             qs_p_env_type
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_types,                    ONLY: qs_rho_retain
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
@@ -110,7 +108,7 @@ MODULE qs_linres_current_utils
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: current_response, current_build_chi, current_env_cleanup, current_env_init
+  PUBLIC :: current_response, current_env_cleanup, current_env_init
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current_utils'
 
@@ -500,17 +498,12 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(vecbuf_dklxp0,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       !DO ispin = 1,dft_control%nspins
-       !   DO idir = 1,3
-       !      CALL cp_fm_set_all(psi1_D(ispin,idir)%matrix,0.0_dp,error=error)
-       !   ENDDO
-       !ENDDO
     ENDIF
     !
     !If current density and shift are calculated here
     ! probably a lot of memory is required
     ! Better to free what is not anymore necessary in p_env
-    CALL p_env_release(p_env,error=error)
+    !CALL p_env_release(p_env,error=error)
     !
     ! clean up
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, psi1,error=error)
@@ -523,36 +516,6 @@ CONTAINS
   END SUBROUTINE current_response
 
 ! *****************************************************************************
-
-  SUBROUTINE current_build_chi(current_env,qs_env,iB,error)
-    TYPE(current_env_type)                   :: current_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: iB
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: failure
-    TYPE(dft_control_type), POINTER          :: dft_control
-
-    failure = .FALSE.
-    NULLIFY(dft_control)
-    !
-    CALL timeset(routineN,"I"," ",handle)
-    !
-    CALL get_qs_env(qs_env=qs_env,&
-         &          dft_control=dft_control,&
-         &          error=error)
-    nspins = dft_control%nspins
-    DO ispin = 1,nspins
-       CALL chi_analytic(current_env,qs_env,ispin,iB,error=error)
-    ENDDO
-    !
-    CALL timestop(0.0_dp,handle)
-    !
-  END SUBROUTINE current_build_chi
 
   SUBROUTINE current_env_init(current_env,qs_env,error)
     !

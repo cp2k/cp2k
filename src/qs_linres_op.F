@@ -176,12 +176,8 @@ CONTAINS
     !    !First term: operator matrix elements
     !    CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.FALSE.,error=error)
     !************************************************************
-    IF(output_unit>0) THEN
-       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-       WRITE(output_unit,*) 'rmc_x_p_xyz_ao: L is computed for each states'
-       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-    ENDIF
-
+    !
+    chk(:) = 0.0_dp
     DO ispin = 1,nspins
        p_psi0(ispin,1)%matrix%local_data=0e0_dp
        p_psi0(ispin,2)%matrix%local_data=0e0_dp
@@ -194,6 +190,11 @@ CONTAINS
           CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.FALSE.,&
                &              wancen=centers_set(ispin)%array(1:3,icenter),&
                &              error=error)
+          !
+          ! accumulate checksums
+          chk(1) = chk(1)+checksum_matrix(op_rmd_ao(1)%matrix,para_env)
+          chk(2) = chk(2)+checksum_matrix(op_rmd_ao(2)%matrix,para_env)
+          chk(3) = chk(3)+checksum_matrix(op_rmd_ao(3)%matrix,para_env)
           DO idir = 1,3
              CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
              CALL cp_sm_fm_multiply(op_rmd_ao(idir)%matrix,mo_coeff,&
@@ -206,15 +207,12 @@ CONTAINS
              ENDDO
           END DO
        ENDDO
-       rxp_psi0(ispin,1)%matrix%local_data = p_psi0(ispin,1)%matrix%local_data
-       rxp_psi0(ispin,2)%matrix%local_data = p_psi0(ispin,2)%matrix%local_data
-       rxp_psi0(ispin,3)%matrix%local_data = p_psi0(ispin,3)%matrix%local_data
+       CALL cp_fm_to_fm(p_psi0(ispin,1)%matrix,rxp_psi0(ispin,1)%matrix,error)
+       CALL cp_fm_to_fm(p_psi0(ispin,2)%matrix,rxp_psi0(ispin,2)%matrix,error)
+       CALL cp_fm_to_fm(p_psi0(ispin,3)%matrix,rxp_psi0(ispin,3)%matrix,error)
     ENDDO
     !
     ! print checksums
-    chk(1) = checksum_matrix(op_rmd_ao(1)%matrix,para_env)
-    chk(2) = checksum_matrix(op_rmd_ao(2)%matrix,para_env)
-    chk(3) = checksum_matrix(op_rmd_ao(3)%matrix,para_env)
     IF(output_unit>0) THEN
        WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum L_x =',chk(1)
        WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum L_y =',chk(2)

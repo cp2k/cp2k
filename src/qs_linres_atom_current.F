@@ -117,6 +117,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(jrho_atom_type), DIMENSION(:), &
@@ -141,13 +142,14 @@ CONTAINS
          &  jrho1_atom_set,oce,reduced_3c_oce,jp0_block,jp_block,jp_ii_block,&
          &  jp_ii_block,jp_RARnu,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,&
          &  C_coeff_ss_b,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
-         &  sab_orb_neighbor_node)
+         &  sab_orb_neighbor_node,para_env)
     !
     CALL get_qs_env(qs_env=qs_env,&
          &          atomic_kind_set=atomic_kind_set,&
          &          dft_control=dft_control,&
          &          oce=oce,&
          &          sab_all=sab_orb,&
+         &          para_env=para_env,&
          &          error=error)
     !
     CPPrecondition(ASSOCIATED(oce),cp_failure_level,routineP,error,failure)
@@ -198,8 +200,8 @@ CONTAINS
              jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef = 0.0_dp
              jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef = 0.0_dp
              jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef = 0.0_dp
-             jrho1_atom_set(iatom)%jrho_vec_rad_h(idir,iB,ispin)%r_coef = 0.0_dp
-             jrho1_atom_set(iatom)%jrho_vec_rad_s(idir,iB,ispin)%r_coef = 0.0_dp
+             jrho1_atom_set(iatom)%jrho_vec_rad_h(idir,ispin)%r_coef = 0.0_dp
+             jrho1_atom_set(iatom)%jrho_vec_rad_s(idir,ispin)%r_coef = 0.0_dp
           ENDDO ! ispin
        ENDDO ! iat
     ENDDO ! ikind
@@ -574,14 +576,14 @@ CONTAINS
     DO iatom = 1,natom
        DO ispin = 1,nspins
           IF(ASSOCIATED(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef)) THEN
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef,qs_env%para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef,qs_env%para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef,qs_env%para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef,qs_env%para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef,qs_env%para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef,qs_env%para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef,qs_env%para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef,qs_env%para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef,para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef,para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef,para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef,para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef,para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef,para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef,para_env%group)
+             CALL mp_sum(jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef,para_env%group)
           ENDIF
        ENDDO
     ENDDO
@@ -1253,11 +1255,11 @@ CONTAINS
              NULLIFY (jrho1_atom)
              jrho1_atom => jrho1_atom_set(iatom)
              DO ispin = 1,nspins
-                jrho1_atom%jrho_vec_rad_h(idir,iB,ispin)%r_coef = 0.0_dp
-                jrho1_atom%jrho_vec_rad_s(idir,iB,ispin)%r_coef = 0.0_dp
+                jrho1_atom%jrho_vec_rad_h(idir,ispin)%r_coef = 0.0_dp
+                jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef = 0.0_dp
                 CALL calculate_jrho_atom_ang(jrho1_atom,&
-                     jrho1_atom%jrho_vec_rad_h(idir,iB,ispin)%r_coef,&
-                     jrho1_atom%jrho_vec_rad_s(idir,iB,ispin)%r_coef,&
+                     jrho1_atom%jrho_vec_rad_h(idir,ispin)%r_coef,&
+                     jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef,&
                      grid_atom,harmonics,iB,idir,ispin,error=error)
              END DO !ispin
           END DO !iat

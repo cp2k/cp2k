@@ -359,8 +359,8 @@ CONTAINS
           jrho1_atom => jrho1_atom_set(iatom)
           !
           DO ispin = 1,nspins
-             jrho_h_grid => jrho1_atom%jrho_vec_rad_h(idir,iB,ispin)%r_coef
-             jrho_s_grid => jrho1_atom%jrho_vec_rad_s(idir,iB,ispin)%r_coef
+             jrho_h_grid => jrho1_atom%jrho_vec_rad_h(idir,ispin)%r_coef
+             jrho_s_grid => jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef
              !
              ! loop over the atoms neighbors of iatom in terms of the current density
              ! for each compute the contribution to the shift coming from the

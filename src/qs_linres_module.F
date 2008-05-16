@@ -35,9 +35,9 @@ MODULE qs_linres_module
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_linres_current,               ONLY: current_build_current
-  USE qs_linres_current_utils,         ONLY: current_build_chi,&
-                                             current_env_cleanup,&
+  USE qs_linres_current,               ONLY: current_build_chi,&
+                                             current_build_current
+  USE qs_linres_current_utils,         ONLY: current_env_cleanup,&
                                              current_env_init,&
                                              current_response
   USE qs_linres_epr_nablavks,          ONLY: epr_nablavks
@@ -238,7 +238,7 @@ CONTAINS
        ENDIF
        
        ! Other possible LR calculations can be introduced here
-      
+
        CALL p_env_release(p_env,error=error)
 
        IF(output_unit>0) THEN

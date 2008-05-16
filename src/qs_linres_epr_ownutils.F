@@ -461,36 +461,36 @@ CONTAINS
                          ! + sum_A j_loc_h_A x nabla_vks_s_A
                          temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + &
                                (-1.0_dp)**(1 + ispin) * ( &
-                               jrho1_atom%jrho_vec_rad_h(idir2,iB,ispin)%r_coef(ir,ia) * &
+                               jrho1_atom%jrho_vec_rad_h(idir2,ispin)%r_coef(ir,ia) * &
                                vks_ra_idir3 - &
-                               jrho1_atom%jrho_vec_rad_h(idir3,iB,ispin)%r_coef(ir,ia) * &
+                               jrho1_atom%jrho_vec_rad_h(idir3,ispin)%r_coef(ir,ia) * &
                                vks_ra_idir2 &
                                ) * grid_atom%wr(ir)*grid_atom%wa(ia)
 
                          ! - sum_A j_loc_s_A x nabla_vks_s_A
                          temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) - &
                                (-1.0_dp)**(1 + ispin) * ( &
-                               jrho1_atom%jrho_vec_rad_s(idir2,iB,ispin)%r_coef(ir,ia) * &
+                               jrho1_atom%jrho_vec_rad_s(idir2,ispin)%r_coef(ir,ia) * &
                                vks_ra_idir3 - &
-                               jrho1_atom%jrho_vec_rad_s(idir3,iB,ispin)%r_coef(ir,ia) * &
+                               jrho1_atom%jrho_vec_rad_s(idir3,ispin)%r_coef(ir,ia) * &
                                vks_ra_idir2 &
                                ) * grid_atom%wr(ir)*grid_atom%wa(ia)
 
                          ! + sum_A j_loc_h_A x nabla_vks_loc_h_A
                          temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + &
                                (-1.0_dp)**(1 + ispin) * ( &
-                               jrho1_atom%jrho_vec_rad_h(idir2,iB,ispin)%r_coef(ir,ia) * &
+                               jrho1_atom%jrho_vec_rad_h(idir2,ispin)%r_coef(ir,ia) * &
                                nablavks_atom%nablavks_vec_rad_h(idir3,ispin)%r_coef(ir,ia) - &
-                               jrho1_atom%jrho_vec_rad_h(idir3,iB,ispin)%r_coef(ir,ia) * &
+                               jrho1_atom%jrho_vec_rad_h(idir3,ispin)%r_coef(ir,ia) * &
                                nablavks_atom%nablavks_vec_rad_h(idir2,ispin)%r_coef(ir,ia) &
                                ) * grid_atom%wr(ir)*grid_atom%wa(ia)
  
                          ! - sum_A j_loc_h_A x nabla_vks_loc_s_A
                          temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) - &
                                (-1.0_dp)**(1 + ispin) * ( &
-                               jrho1_atom%jrho_vec_rad_h(idir2,iB,ispin)%r_coef(ir,ia) * &
+                               jrho1_atom%jrho_vec_rad_h(idir2,ispin)%r_coef(ir,ia) * &
                                nablavks_atom%nablavks_vec_rad_s(idir3,ispin)%r_coef(ir,ia) - &
-                               jrho1_atom%jrho_vec_rad_h(idir3,iB,ispin)%r_coef(ir,ia) * &
+                               jrho1_atom%jrho_vec_rad_h(idir3,ispin)%r_coef(ir,ia) * &
                                nablavks_atom%nablavks_vec_rad_s(idir2,ispin)%r_coef(ir,ia) &
                                ) * grid_atom%wr(ir)*grid_atom%wa(ia)
 
