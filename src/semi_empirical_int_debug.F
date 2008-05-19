@@ -307,7 +307,7 @@ FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
      ! skip..
      RETURN
   END IF
-  IF ((num-ana)/num*100._dp>thrs) THEN
+  IF (ABS((num-ana)/num*100._dp)>thrs) THEN
      WRITE(*,*) ABS(num-ana)/num*100._dp, thrs
      passed = .FALSE.
   END IF
@@ -449,12 +449,12 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,shortrange, taper, enuc, 
   REAL(dp)                                 :: enuc_num, delta
   REAL(dp), DIMENSION(3)                   :: denuc_num
 
-  delta = 1.0E-5_dp
+  WRITE(*,*)"DEBUG::"//routineP
+  delta = 1.0E-7_dp
   ! check
   IF (PRESENT(enuc)) THEN
      CALL  corecore_num(sepi,sepj,rijv, enuc_num,itype,shortrange,taper,error)
-     WRITE(*,*)"DEBUG::"//routineP
-     IF (.NOT.check_value(enuc, enuc_num, delta, 0.1_dp)) THEN
+     IF (.NOT.check_value(enuc, enuc_num, delta, 0.001_dp)) THEN
         WRITE(*,*)"ERROR for CORE-CORE energy value (numerical different from analytical)!!"
         STOP
      END IF
@@ -462,7 +462,7 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,shortrange, taper, enuc, 
   IF (PRESENT(denuc)) THEN
      CALL dcorecore_num(sepi,sepj,rijv,denuc_num,itype,delta,shortrange,taper,error)
      DO j = 1, 3
-        IF (.NOT.check_value(denuc(j), denuc_num(j), delta, 0.1_dp)) THEN
+        IF (.NOT.check_value(denuc(j), denuc_num(j), delta, 0.001_dp)) THEN
            WRITE(*,*)"ERROR for CORE-CORE energy derivative value (numerical different from analytical). DENUC(j), j::", j
            STOP
         END IF

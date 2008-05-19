@@ -50,3 +50,7 @@ FeH_8cat.inp           3
 FeH_9cat.inp          29
 Pt-cis-2xpet3Cl2-si.inp     3
 Pt-cis-2xpet3Cl2-si-noc.inp 3
+#covering all special core-core PM6 interactions
+CH3Cl2.inp             3
+c2h5cl.inp             3
+sio2.inp               3

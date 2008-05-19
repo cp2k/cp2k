@@ -1,0 +1,50 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    CHARGE -1
+    &QS
+      METHOD PM6
+      &SE
+         ANALYTICAL_GRADIENTS T
+      &END
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-6
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+ H     1.993159     1.759423     3.347927
+ H     0.233386     1.618910     3.687861
+ H     0.829187     2.854381     2.524314
+ C     1.049523     2.304150     3.443131
+Cl     1.214962     3.504400     4.802289
+Cl     0.796082     0.465450     1.360996
+    &END COORD
+    &PRINT
+      &KINDS
+        SE_PARAMETERS
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT SN2F
+  RUN_TYPE DEBUG
+&END GLOBAL
+&MOTION
+  &MD
+      TEMPERATURE 300
+      ENSEMBLE NVE
+      TIMESTEP 0.1
+      STEPS 1
+  &END
+&END
+&DEBUG
+&END

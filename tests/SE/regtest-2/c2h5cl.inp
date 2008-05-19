@@ -1,0 +1,71 @@
+
+
+&GLOBAL
+  PROJECT O2
+  RUN_TYPE DEBUG
+  PRINT_LEVEL LOW
+&END GLOBAL
+&DEBUG
+&END
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    CHARGE 0
+    
+    &QS
+      METHOD PM6
+      &SE
+       RC_INTERACTION [angstrom] 50.0
+       RC_COULOMB     [angstrom] 50.0
+       RC_RANGE       [angstrom]  0.0
+      &END
+    &END QS
+    &SCF
+      MAX_SCF 100
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC
+      MIXING 0.1
+      &OT 
+        MINIMIZER DIIS
+        PRECONDITIONER NONE
+      &END
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 10
+      &END
+      &PRINT
+        &RESTART OFF
+        &END
+        &RESTART_HISTORY OFF
+        &END
+      &END
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 50.0 50.0 50.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+  C        0.00000        0.00000        0.00000
+  C        1.51040        0.00000        0.00000
+  H        1.92040        1.01980        0.00000
+  H        1.92080       -0.50550        0.88530
+  H        1.90960       -0.51230       -0.88550
+  H       -0.42160        0.53860       -0.86860
+  H       -0.42150       -1.02160        0.02840
+ Cl       -0.58480        0.84960        1.47790
+    &END
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END
+    &PRINT
+      &KINDS
+        SE_PARAMETERS
+        BASIS_SET
+        POTENTIAL
+      &END KINDS
+    &END PRINT
+  &END SUBSYS
+&END FORCE_EVAL

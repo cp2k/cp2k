@@ -334,6 +334,8 @@ CONTAINS
                shortrange=shortrange,lgrad=l_denuc,error=error)
 
           ! Zeroing local method dependent core-core corrections
+          enuc_loc  = 0.0_dp
+          denuc_loc = 0.0_dp
           qcorr = 0.0_dp
           scale = 0.0_dp
           dscale= 0.0_dp
@@ -492,7 +494,7 @@ CONTAINS
                 enuc_loc=scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))+9.28_dp*EXP(-5.98_dp*rija))
                 IF (l_denuc) THEN
                    denuc_loc = dscale * (1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))+9.28_dp*EXP(-5.98_dp*rija))&
-                        -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*(aab+6.0_dp*0.0003_dp*rija**5)*drija &
+                        -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*aab*(1.0_dp+6.0_dp*0.0003_dp*rija**5)*drija &
                         -scale*9.28_dp*EXP(-5.98_dp*rija)*5.98_dp*drija
                 END IF
              ELSEIF ( (sepi%z == 8 .AND. sepj%z == 14) .OR. &
@@ -501,7 +503,7 @@ CONTAINS
                 enuc_loc=scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))-0.0007_dp*EXP(-(rija-2.9_dp)**2))
                 IF (l_denuc) THEN
                    denuc_loc = dscale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))-0.0007_dp*EXP(-(rija-2.9_dp)**2))&
-                        -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*(aab+6.0_dp*0.0003_dp*rija**5)*drija+&
+                        -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*aab*(1.0_dp+6.0_dp*0.0003_dp*rija**5)*drija+&
                         scale*0.0007_dp*EXP(-(rija-2.9_dp)**2)*(2.0_dp*(rija-2.9_dp)*drija)
                 END IF
              ELSE
@@ -510,19 +512,19 @@ CONTAINS
                 enuc_loc=scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))
                 IF (l_denuc) THEN
                    denuc_loc = dscale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))&
-                        -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*(aab+6.0_dp*0.0003_dp*rija**5)*drija
+                        -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*aab*(1.0_dp+6.0_dp*0.0003_dp*rija**5)*drija
                 END IF
              END IF
              ! General correction term a*exp(-b*(rij-c)^2)
-             enuc_loc=enuc_loc+(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*sepi%zeff*sepj%zeff/rij
+             enuc_loc=enuc_loc+(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*zz/rij
              IF (l_denuc) THEN
-                denuc_loc=denuc_loc+(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2)*(-2.0_dp*sepi%b*(rij-sepi%c)))&
-                     *sepi%zeff*sepj%zeff/rij-(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*sepi%zeff*sepj%zeff/rij**2
+                denuc_loc=denuc_loc+(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2)*(-2.0_dp*sepi%b*(rij-sepi%c)))*zz/rij-&
+                     (sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*zz/rij**2
              END IF
-             enuc_loc=enuc_loc+(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*sepi%zeff*sepj%zeff/rij
+             enuc_loc=enuc_loc+(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*zz/rij
              IF (l_denuc) THEN
-                denuc_loc=denuc_loc+(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2)*(-2.0_dp*sepj%b*(rij-sepj%c)))&
-                     *sepi%zeff*sepj%zeff/rij-(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*sepi%zeff*sepj%zeff/rij**2
+                denuc_loc=denuc_loc+(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2)*(-2.0_dp*sepj%b*(rij-sepj%c)))*zz/rij-&
+                     (sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*zz/rij**2
              END IF
              ! Hard core repulsion
              xtmp = 1.e-8_dp/evolt * ( (REAL(sepi%z,dp)**(1._dp/3._dp) + REAL(sepj%z,dp)**(1._dp/3._dp))/rija )**12
@@ -544,7 +546,7 @@ CONTAINS
              denuc = (denuc_loc + dscale + dqcorr)*drij
           END IF
           IF (debug_this_module) THEN
-             CALL check_dcorecore_ana(sepi, sepj, rijv, itype,shortrange, taper, enuc, denuc, error)
+             CALL check_dcorecore_ana(sepi, sepj, rijv, itype, shortrange, taper, enuc, denuc, error)
           END IF
        ENDIF
     END IF
