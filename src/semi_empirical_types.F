@@ -507,7 +507,7 @@ CONTAINS
       zeta_lab = (/"ZSN","ZPN","ZDN","ZFN"/)
     CHARACTER(LEN=5), DIMENSION(0:3), PARAMETER :: &
       beta_lab = (/"BETAS","BETAP","BETAD","BETAF"/)
-    CHARACTER(LEN=default_string_length)     :: name
+    CHARACTER(LEN=default_string_length)     :: i_string, name
     INTEGER                                  :: i, l, natorb, ngauss, &
                                                 output_unit, typ, z
     LOGICAL                                  :: defined
@@ -666,64 +666,69 @@ CONTAINS
                 IF((typ == do_method_am1 .OR. typ == do_method_rm1) .AND. sep%z == 5) THEN
                    ! Standard case
                    DO i = 1, SIZE(sep%bfn1,1)
+                      i_string = cp_to_string(i)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN1"//TRIM(ADJUSTL(cp_to_string(i)))//"_ALL"),&
+                           ADJUSTR("FN1"//TRIM(ADJUSTL(i_string))//"_ALL"),&
                            "- "//"Core-Core VDW, Multiplier   [a.u.]: ",sep%bfn1(i,1)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN2"//TRIM(ADJUSTL(cp_to_string(i)))//"_ALL"),&
+                           ADJUSTR("FN2"//TRIM(ADJUSTL(i_string))//"_ALL"),&
                            "- "//"Core-Core VDW, Exponent     [a.u.]: ",sep%bfn2(i,1)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN3"//TRIM(ADJUSTL(cp_to_string(i)))//"_ALL"),&
+                           ADJUSTR("FN3"//TRIM(ADJUSTL(i_string))//"_ALL"),&
                            "- "//"Core-Core VDW, Position     [a.u.]: ",sep%bfn3(i,1)
                    END DO
                    ! Special Case : Hydrogen
                    DO i = 1, SIZE(sep%bfn1,1)
+                      i_string = cp_to_string(i)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN1"//TRIM(ADJUSTL(cp_to_string(i)))//"_H"),&
+                           ADJUSTR("FN1"//TRIM(ADJUSTL(i_string))//"_H"),&
                            "- "//"Core-Core VDW, Multiplier   [a.u.]: ",sep%bfn1(i,2)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN2"//TRIM(ADJUSTL(cp_to_string(i)))//"_H"),&
+                           ADJUSTR("FN2"//TRIM(ADJUSTL(i_string))//"_H"),&
                            "- "//"Core-Core VDW, Exponent     [a.u.]: ",sep%bfn2(i,2)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN3"//TRIM(ADJUSTL(cp_to_string(i)))//"_H"),&
+                           ADJUSTR("FN3"//TRIM(ADJUSTL(i_string))//"_H"),&
                            "- "//"Core-Core VDW, Position     [a.u.]: ",sep%bfn3(i,2)
                    END DO
                    ! Special Case : Carbon
                    DO i = 1, SIZE(sep%bfn1,1)
+                      i_string = cp_to_string(i)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN1"//TRIM(ADJUSTL(cp_to_string(i)))//"_C"),&
+                           ADJUSTR("FN1"//TRIM(ADJUSTL(i_string))//"_C"),&
                            "- "//"Core-Core VDW, Multiplier   [a.u.]: ",sep%bfn1(i,3)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN2"//TRIM(ADJUSTL(cp_to_string(i)))//"_C"),&
+                           ADJUSTR("FN2"//TRIM(ADJUSTL(i_string))//"_C"),&
                            "- "//"Core-Core VDW, Exponent     [a.u.]: ",sep%bfn2(i,3)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN3"//TRIM(ADJUSTL(cp_to_string(i)))//"_C"),&
+                           ADJUSTR("FN3"//TRIM(ADJUSTL(i_string))//"_C"),&
                            "- "//"Core-Core VDW, Position     [a.u.]: ",sep%bfn3(i,3)
                    END DO
                    ! Special Case : Halogens
                    DO i = 1, SIZE(sep%bfn1,1)
+                      i_string = cp_to_string(i)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN1"//TRIM(ADJUSTL(cp_to_string(i)))//"_HALO"),&
+                           ADJUSTR("FN1"//TRIM(ADJUSTL(i_string))//"_HALO"),&
                            "- "//"Core-Core VDW, Multiplier   [a.u.]: ",sep%bfn1(i,4)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN2"//TRIM(ADJUSTL(cp_to_string(i)))//"_HALO"),&
+                           ADJUSTR("FN2"//TRIM(ADJUSTL(i_string))//"_HALO"),&
                            "- "//"Core-Core VDW, Exponent     [a.u.]: ",sep%bfn2(i,4)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN3"//TRIM(ADJUSTL(cp_to_string(i)))//"_HALO"),&
+                           ADJUSTR("FN3"//TRIM(ADJUSTL(i_string))//"_HALO"),&
                            "- "//"Core-Core VDW, Position     [a.u.]: ",sep%bfn3(i,4)
                    END DO
                 ELSE
                    DO i = 1, SIZE(sep%fn1,1)
+                      i_string = cp_to_string(i)
                       ! Skip the printing of params that are zero..
                       IF (sep%fn1(i)==0.0_dp.AND.sep%fn2(i)==0.0_dp.AND.sep%fn3(i)==0.0_dp) CYCLE
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN1"//TRIM(ADJUSTL(cp_to_string(i)))),&
+                           ADJUSTR("FN1"//TRIM(ADJUSTL(i_string))),&
                            "- "//"Core-Core VDW, Multiplier   [a.u.]: ",sep%fn1(i)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN2"//TRIM(ADJUSTL(cp_to_string(i)))),&
+                           ADJUSTR("FN2"//TRIM(ADJUSTL(i_string))),&
                            "- "//"Core-Core VDW, Exponent     [a.u.]: ",sep%fn2(i)
                       WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
-                           ADJUSTR("FN3"//TRIM(ADJUSTL(cp_to_string(i)))),&
+                           ADJUSTR("FN3"//TRIM(ADJUSTL(i_string))),&
                            "- "//"Core-Core VDW, Position     [a.u.]: ",sep%fn3(i)
                    END DO
                 END IF
