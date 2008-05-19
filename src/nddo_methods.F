@@ -261,7 +261,8 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
     TYPE(taper_type), POINTER                :: taper
 
-    failure=.FALSE.
+    failure  = .FALSE.
+    enuclear = 0.0_dp
     NULLIFY(dft_control,cell,force,particle_set)
     NULLIFY(se_control,taper,atomic_kind_set)
 
@@ -290,7 +291,6 @@ CONTAINS
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
        END IF
 
-       enuclear = 0.0_dp
        itype    = get_se_type(dft_control%qs_control%method_id)
 
        IF (do_ewald) THEN
