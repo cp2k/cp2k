@@ -195,7 +195,7 @@ CONTAINS
   SUBROUTINE rotnuc (sepi,sepj,rij,e1b,e2a,itype,anag,shortrange,taper,store_int_env,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
-    REAL(dp), DIMENSION(:), INTENT(OUT), &
+    REAL(dp), DIMENSION(45), INTENT(OUT), &
       OPTIONAL                               :: e1b, e2a
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: anag, shortrange
@@ -332,7 +332,7 @@ CONTAINS
   SUBROUTINE rotnuc_low (sepi,sepj,rij,e1b,e2a,itype,anag,shortrange,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
-    REAL(dp), DIMENSION(:), INTENT(OUT), &
+    REAL(dp), DIMENSION(45), INTENT(OUT), &
       OPTIONAL                               :: e1b, e2a
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: anag, shortrange
@@ -415,8 +415,8 @@ CONTAINS
   SUBROUTINE drotnuc (sepi,sepj,rij,de1b,de2a,itype,delta,anag,shortrange,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
-    REAL(dp), DIMENSION(:, :), INTENT(OUT), &
-      OPTIONAL                               :: de1b, de2a
+    REAL(dp), DIMENSION(3, 45), &
+      INTENT(OUT), OPTIONAL                  :: de1b, de2a
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: anag, shortrange
