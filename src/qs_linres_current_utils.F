@@ -337,12 +337,14 @@ CONTAINS
        ENDDO
        !
        ! The correction is state depedent a loop over the states is necessary
-       ALLOCATE(vecbuf_dklxp0(1,nao),STAT=istat)
+       max_nbr_center = MAXVAL(nbr_center(1:nspins))
+       max_states = MAXVAL(nstates(1:nspins))
+       !
+       ALLOCATE(vecbuf_dklxp0(1,nao),fm_work_ii(nspins),fm_work_iii(nspins),&
+            &   dkl_vec_ii(max_states),dkl_vec_iii(max_states),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        vecbuf_dklxp0(1,nao) = 0.0_dp
        !
-       ALLOCATE(fm_work_ii(nspins),fm_work_iii(nspins),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ispin = 1,nspins
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo,homo=homo,mo_coeff=mo_coeff)
           NULLIFY(tmp_fm_struct,fm_work_ii(ispin)%matrix,fm_work_iii(ispin)%matrix)
@@ -355,15 +357,8 @@ CONTAINS
           CALL cp_fm_set_all(fm_work_ii(ispin)%matrix,0.0_dp,error=error)
           CALL cp_fm_create(fm_work_iii(ispin)%matrix,tmp_fm_struct,error=error)
           CALL cp_fm_set_all(fm_work_iii(ispin)%matrix,0.0_dp,error=error)
-
           CALL cp_fm_struct_release(tmp_fm_struct,error=error)
        ENDDO ! ispin
-       !
-       max_nbr_center = MAXVAL(nbr_center(1:nspins))
-       max_states = MAXVAL(nstates(1:nspins))
-       !
-       ALLOCATE(dkl_vec_ii(max_states),dkl_vec_iii(max_states),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        !
        DO idir = 1,3
           !
@@ -494,16 +489,9 @@ CONTAINS
           CALL cp_fm_release(fm_work_ii(ispin)%matrix,error=error)
           CALL cp_fm_release(fm_work_iii(ispin)%matrix,error=error)
        ENDDO
-       DEALLOCATE(fm_work_ii,fm_work_iii,dkl_vec_ii,dkl_vec_iii,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(vecbuf_dklxp0,STAT=istat)
+       DEALLOCATE(fm_work_ii,fm_work_iii,dkl_vec_ii,dkl_vec_iii,vecbuf_dklxp0,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDIF
-    !
-    !If current density and shift are calculated here
-    ! probably a lot of memory is required
-    ! Better to free what is not anymore necessary in p_env
-    !CALL p_env_release(p_env,error=error)
     !
     ! clean up
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, psi1,error=error)
@@ -936,9 +924,6 @@ CONTAINS
        ELSEIF(current_env%orb_center.EQ.current_orb_center_box) THEN
           WRITE(output_unit,"(T2,A,3I5)") "CURRENT| nbr boxes in each direction ",nbox(1:3)
        ENDIF
-       !IF(current_env%full) THEN
-       !   WRITE(output_unit,"(T2,A,T2,A)") "CURRENT|","Full orbital dependent correction"
-       !ENDIF
     ENDIF
 
     IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
@@ -1144,20 +1129,16 @@ CONTAINS
     ! Initialize local current density if GAPW calculation
     IF(gapw) THEN
        CALL list_3c_jrho_atom(qs_env,error=error)
-       CALL init_jrho_atom_set(jrho1_atom_set,atomic_kind_set,&
-            &                  nspins,.TRUE.,& ! vw need to rm the T
-            &                  error=error)
+       CALL init_jrho_atom_set(jrho1_atom_set,atomic_kind_set,nspins,error=error)
        CALL set_current_env(current_env=current_env,jrho1_atom_set=jrho1_atom_set,&
-            &           error=error)
+            &               error=error)
     ENDIF
     !
-    ALLOCATE(current_env%basisfun_center(3,current_env%nao),STAT=istat)
+    ALLOCATE(current_env%basisfun_center(3,current_env%nao),&
+         &   first_sgf(natom),last_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     current_env%basisfun_center = 0.0_dp
 
-
-    ALLOCATE (first_sgf(natom),last_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
