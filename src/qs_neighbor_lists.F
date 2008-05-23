@@ -1534,6 +1534,9 @@ CONTAINS
         END IF
         rab2_max = rab_max*rab_max
 
+        ! some kinds, like basis none kinds have no radius and no associated pair lists
+        IF (rab2_max == 0.0_dp) CYCLE 
+
         sab_max(1) = rab_max/plane_distance(1,0,0,cell)
         sab_max(2) = rab_max/plane_distance(0,1,0,cell)
         sab_max(3) = rab_max/plane_distance(0,0,1,cell)

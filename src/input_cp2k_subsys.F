@@ -953,7 +953,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="BASIS_SET",&
             variants=s2a("ORBITAL_BASIS_SET","ORB_BASIS"),&
-            description="The basis set (GTO type)",&
+            description="The primary Gaussian basis set (NONE implies no basis used, meaningful with GHOST)",&
             usage="BASIS_SET DZVP", default_c_val=" ", &
             citations=(/VandeVondele2005a,VandeVondele2007/),&
             n_var=1, required=.FALSE., error=error)
@@ -1084,7 +1084,8 @@ CONTAINS
                            name="GHOST",&
                            description="This keyword makes all atoms of this kind "//&
                                         "ghost atoms, i.e. without pseudo or nuclear charge."//&
-                                       "Useful to just have the basis set at that position (BSSE calculations).",&
+                                       "Useful to just have the basis set at that position (BSSE calculations),"//& 
+                                       "or to have a non-interacting particle with BASIS_SET NONE",&
                            usage="GHOST",&
                            default_l_val=.FALSE.,&
                            lone_keyword_l_val=.TRUE.,&

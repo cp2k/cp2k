@@ -1033,25 +1033,27 @@ END SUBROUTINE cp_sm_scale_and_add
                 sparse_matrix%first_row(iblock_row)+1
            sbncol=sparse_matrix%last_col(iblock_col)- &
                 sparse_matrix%first_col(iblock_col)+1
-           IF (MOD(iblock_row,nthread).eq.ithread) THEN
-              flops=flops+2.0_dp*sbnrow*sbncol*ncol
-              CALL DGEMM('N','T',ncol,sbnrow,sbncol,alpha_l, &
-                         rep_v_in (1,sparse_matrix%first_col(iblock_col)), &
+           IF (sbnrow.NE.0.AND.sbncol.NE.0) THEN
+              IF (MOD(iblock_row,nthread).eq.ithread) THEN
+                 flops=flops+2.0_dp*sbnrow*sbncol*ncol
+                 CALL DGEMM('N','T',ncol,sbnrow,sbncol,alpha_l, &
+                            rep_v_in (1,sparse_matrix%first_col(iblock_col)), &
+                            nblock, &
+                            sparse_block(1,1),sbnrow, &
+                            1.0_dp,rep_v_out(1,sparse_matrix%first_row(iblock_row)), &
+                            nblock)
+              ENDIF
+
+              IF (iblock_col .NE. iblock_row .AND. (symmetric .OR. antisymmetric)) THEN
+                 IF (MOD(iblock_col,nthread).eq.ithread) THEN
+                    flops=flops+2.0_dp*sbnrow*sbncol*ncol
+                    CALL DGEMM('N','N',ncol,sbncol,sbnrow,alpha_l_ji, &
+                         rep_v_in (1,sparse_matrix%first_row(iblock_row)), &
                          nblock, &
                          sparse_block(1,1),sbnrow, &
-                         1.0_dp,rep_v_out(1,sparse_matrix%first_row(iblock_row)), &
+                         1.0_dp,rep_v_out(1,sparse_matrix%first_col(iblock_col)), &
                          nblock)
-           ENDIF
-
-           IF (iblock_col .NE. iblock_row .AND. (symmetric .OR. antisymmetric)) THEN
-              IF (MOD(iblock_col,nthread).eq.ithread) THEN
-                 flops=flops+2.0_dp*sbnrow*sbncol*ncol
-                 CALL DGEMM('N','N',ncol,sbncol,sbnrow,alpha_l_ji, &
-                      rep_v_in (1,sparse_matrix%first_row(iblock_row)), &
-                      nblock, &
-                      sparse_block(1,1),sbnrow, &
-                      1.0_dp,rep_v_out(1,sparse_matrix%first_col(iblock_col)), &
-                      nblock)
+                 ENDIF
               ENDIF
            ENDIF
         END IF
@@ -1134,10 +1136,12 @@ END SUBROUTINE cp_sm_scale_and_add
            sbncol=sparse_matrix%last_col(iblock_col)-icol+1
 
            flops=flops+2.0_dp*sbnrow*sbncol*ncol
-           CALL DGEMM('T','N',sbnrow,sbncol,ncol,prefactor,&
-                              rep_v(1,irow),nblock, &
-                              rep_g(1,icol),nblock, &
-                       1.0_dp,sparse_block(1,1),sbnrow)
+           IF (sbnrow.NE.0 .AND. sbncol.NE.0) THEN
+              CALL DGEMM('T','N',sbnrow,sbncol,ncol,prefactor,&
+                                 rep_v(1,irow),nblock, &
+                                 rep_g(1,icol),nblock, &
+                          1.0_dp,sparse_block(1,1),sbnrow)
+           ENDIF
         ENDIF
 
         block_node => next_block_node(block_node)
@@ -2234,11 +2238,15 @@ END SUBROUTINE cp_sm_scale_and_add
            ENDDO
 
            IF (ASSOCIATED(source_block)) THEN
-              CALL dcopy(SIZE(target_block,1)*SIZE(target_block,2),&
-                   source_block(1,1),1,target_block(1,1),1)
+              IF (SIZE(target_block,1)*SIZE(target_block,2).NE.0) THEN
+                 CALL dcopy(SIZE(target_block,1)*SIZE(target_block,2),&
+                      source_block(1,1),1,target_block(1,1),1)
+              ENDIF
            ELSE
-              CALL dcopy(SIZE(target_block,1)*SIZE(target_block,2),&
-                   0.0_dp,0,target_block(1,1),1)
+              IF (SIZE(target_block,1)*SIZE(target_block,2).NE.0) THEN
+                 CALL dcopy(SIZE(target_block,1)*SIZE(target_block,2),&
+                      0.0_dp,0,target_block(1,1),1)
+              ENDIF
            END IF
         END IF
 

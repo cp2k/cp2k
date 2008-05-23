@@ -302,7 +302,10 @@ CONTAINS
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
            orb_basis_set=orb_basis_set)
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-           maxl=maxl)
+           maxl=maxl) 
+
+      ! basis none has no associated maxl, and no pdos
+      IF (maxl<0) CYCLE
 
       IF(PRESENT(ispin)) THEN
         my_mittle =TRIM(spin(ispin))//"_k"//TRIM(ADJUSTL(cp_to_string(kind_number)))
