@@ -94,6 +94,7 @@ OBJECTS_GENERIC =\
  cp_sm_struct.o\
  cp_subsys_methods.o\
  cp_subsys_types.o\
+ cp_symmetry.o\
  cp_units.o\
  cpot_types.o\
  csvr_system_dynamics.o\
@@ -241,6 +242,7 @@ OBJECTS_GENERIC =\
  input_val_types.o\
  integrator.o\
  integrator_utils.o\
+ k290.o\
  kahan_sum.o\
  kg_core.o\
  kg_density.o\
@@ -320,6 +322,7 @@ OBJECTS_GENERIC =\
  molecular_states.o\
  molecule_kind_types.o\
  molecule_types_new.o\
+ molsym.o\
  moments_utils.o\
  motion_utils.o\
  mode_selective.o\

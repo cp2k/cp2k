@@ -34,6 +34,7 @@ MODULE mathlib
   ! *** Public subroutines ***
 
   PUBLIC :: build_rotmat,&
+            jacobi,&
             diamat_all,&
             invert_matrix,&
             power_matrix,&
@@ -54,6 +55,8 @@ MODULE mathlib
             vector_product,&
             matmul_3x3,&
             matvec_3x3,&
+            rotate_vector,&
+            reflect_vector,&
             dotprod_3d,&
             transpose_3d,&
             expint
@@ -64,6 +67,10 @@ MODULE mathlib
 
   INTERFACE set_diag
      MODULE PROCEDURE set_diag_scalar,set_diag_vector
+  END INTERFACE
+
+  INTERFACE swap
+    MODULE PROCEDURE swap_scalar,swap_vector
   END INTERFACE
 
 CONTAINS
@@ -1200,5 +1207,194 @@ CONTAINS
     END IF
     RETURN
   END FUNCTION expint
+
+  SUBROUTINE jacobi(a,d,v)
+
+  ! Purpose: Jacobi matrix diagonalization. The eigenvalues are returned in
+  !          vector d and the eigenvectors are returned in matrix v in ascending
+  !          order.
+
+  ! History: - Creation (20.11.98, Matthias Krack)
+
+! *****************************************************************************
+
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(INOUT) :: a
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: d
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(OUT)   :: v
+
+    INTEGER :: n
+
+! -----------------------------------------------------------------------------
+
+    n = SIZE(d(:))
+
+    ! *** Diagonalize matrix a ***
+    CALL diag(n,a,d,v)
+
+    ! *** Sort eigenvalues and eigenvector in ascending order ***
+    CALL eigsrt(n,d,v)
+
+    ! *****************************************************************************
+
+    CONTAINS
+
+    ! *****************************************************************************
+
+      SUBROUTINE diag(n,a,d,v)
+
+        !   Purpose: Diagonalize matrix a. The eigenvalues are returned in vector d
+        !            and the eigenvectors are returned in matrix v.
+
+        !   History: - Creation (20.11.98, Matthias Krack)
+
+        INTEGER, INTENT(IN) :: n
+
+        REAL(KIND=dp), DIMENSION(n,n), INTENT(INOUT) :: a
+        REAL(KIND=dp), DIMENSION(n), INTENT(OUT)     :: d
+        REAL(KIND=dp), DIMENSION(n,n), INTENT(OUT)   :: v
+
+        REAL(KIND=dp) :: a_max,c,d_min,g,h,s,t,tau,theta,tresh
+        INTEGER  :: i,ip,iq
+        REAL(KIND=dp), DIMENSION(n) :: b,z
+
+    !   ---------------------------------------------------------------------------
+
+        !   *** Initialization ***
+        CALL unit_matrix(v(:,:))
+
+        b(:) = get_diag(a(:,:))
+        d(:) = b(:)
+        z(:) = 0.0_dp
+
+        !   *** Go for 50 iterations ***
+
+        DO i=1,50
+          d_min = MAX(1.0E-3_dp,MINVAL(ABS(d(:))))
+          a_max = 0.0_dp
+          DO ip=1,n-1
+            a_max = MAX(a_max,MAXVAL(ABS(a(ip,ip+1:n))))
+          END DO
+          IF (a_max < 1.0E-10_dp*d_min) RETURN
+          tresh = MERGE(a_max,0.0_dp,(i < 4))
+          DO ip=1,n-1
+            DO iq=ip+1,n
+              g = 100.0_dp*ABS(a(ip,iq))
+              IF ((i > 4).AND.&
+                  ((ABS(d(ip)) + g) == ABS(d(ip))).AND.&
+                  ((ABS(d(iq)) + g) == ABS(d(iq)))) THEN
+                a(ip,iq) = 0.0_dp
+              ELSE IF (ABS(a(ip,iq)) > tresh) THEN
+                h = d(iq) - d(ip)
+                IF ((ABS(h) + g) == ABS(h)) THEN
+                  t = a(ip,iq)/h
+                ELSE
+                  theta = 0.5_dp*h/a(ip,iq)
+                  t = 1.0_dp/(ABS(theta) + SQRT(1.0_dp + theta**2))
+                  IF (theta < 0.0_dp) t = -t
+                END IF
+                c = 1.0_dp/SQRT(1.0_dp + t**2)
+                s = t*c
+                tau = s/(1.0_dp + c)
+                h = t*a(ip,iq)
+                z(ip) = z(ip) - h
+                z(iq) = z(iq) + h
+                d(ip) = d(ip) - h
+                d(iq) = d(iq) + h
+                a(ip,iq) = 0.0_dp
+                CALL jrotate(a(1:ip-1,ip),a(1:ip-1,iq),s,tau)
+                CALL jrotate(a(ip,ip+1:iq-1),a(ip+1:iq-1,iq),s,tau)
+                CALL jrotate(a(ip,iq+1:n),a(iq,iq+1:n),s,tau)
+                CALL jrotate(v(:,ip),v(:,iq),s,tau)
+              END IF
+            END DO
+          END DO
+          b(:) = b(:) + z(:)
+          d(:) = b(:)
+          z(:) = 0.0_dp
+        END DO
+
+        WRITE (6,'(/,T2,A,/)') '*** Too many iterations in jacobi ***'
+
+      END SUBROUTINE diag
+
+      SUBROUTINE jrotate(a,b,ss,tt)
+
+        !   Purpose: Perform a Jacobi rotation of the vectors a and b.
+
+        !   History: - Creation (20.11.98, Matthias Krack)
+
+        !   ***************************************************************************
+
+          REAL(KIND=dp), INTENT(IN) :: ss,tt
+          REAL(KIND=dp), DIMENSION(:), INTENT(INOUT) :: a,b
+
+          REAL(KIND=dp), DIMENSION(SIZE(a)) :: c
+
+        !   ---------------------------------------------------------------------------
+
+          c(:) = a(:)
+          a(:) = a(:) - ss*(b(:) + a(:)*tt)
+          b(:) = b(:) + ss*(c(:) - b(:)*tt)
+
+      END SUBROUTINE jrotate
+
+      SUBROUTINE eigsrt(n,d,v)
+
+        !   Purpose: Sort the values in vector d in ascending order and swap the
+        !            corresponding columns of matrix v.
+
+        !   History: - Creation (20.11.98, Matthias Krack)
+
+          INTEGER, INTENT(IN) :: n
+          REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: d
+          REAL(KIND=dp), DIMENSION(:,:), INTENT(INOUT) :: v
+
+          INTEGER :: i,j
+
+          DO i=1,n-1
+            j = SUM(MINLOC(d(i:n))) + i - 1
+            IF (j /= i) THEN
+              CALL swap(d(i),d(j))
+              CALL swap(v(:,i),v(:,j))
+            END IF
+          END DO
+
+      END SUBROUTINE eigsrt
+
+   END SUBROUTINE jacobi
+
+!   ***************************************************************************
+
+   SUBROUTINE swap_scalar(a,b)
+    REAL(KIND=dp), INTENT(INOUT) :: a,b
+
+    REAL(KIND=dp) :: c
+
+    c = a
+    a = b
+    b = c
+
+   END SUBROUTINE swap_scalar
+
+   SUBROUTINE swap_vector(a,b)
+    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT) :: a,b
+
+    REAL(KIND=dp) :: c
+    INTEGER  :: i,n
+
+    n = SIZE(a(:))
+
+    IF (n /= SIZE(b(:))) THEN
+      CALL stop_program("SUBROUTINE swap_vector (MODULE mathlib)",&
+                        "Check the array bounds of the parameters")
+    END IF
+
+    DO i=1,n
+      c = a(i)
+      a(i) = b(i)
+      b(i) = c
+    END DO
+
+   END SUBROUTINE swap_vector
 
 END MODULE mathlib
