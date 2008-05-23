@@ -1139,6 +1139,8 @@ CONTAINS
                  TRIM(basis_set_file_name)//">",para_env)
          END IF
       END DO search_loop
+    ELSE
+      match=.FALSE.
     ENDIF
 
     IF (.NOT.read_from_input) THEN
