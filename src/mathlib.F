@@ -1247,19 +1247,21 @@ CONTAINS
 
         !   History: - Creation (20.11.98, Matthias Krack)
 
-        INTEGER, INTENT(IN) :: n
+    INTEGER, INTENT(IN)                      :: n
+    REAL(KIND=dp), DIMENSION(n, n), &
+      INTENT(INOUT)                          :: a
+    REAL(KIND=dp), DIMENSION(n), INTENT(OUT) :: d
+    REAL(KIND=dp), DIMENSION(n, n), &
+      INTENT(OUT)                            :: v
 
-        REAL(KIND=dp), DIMENSION(n,n), INTENT(INOUT) :: a
-        REAL(KIND=dp), DIMENSION(n), INTENT(OUT)     :: d
-        REAL(KIND=dp), DIMENSION(n,n), INTENT(OUT)   :: v
+    INTEGER                                  :: i, ip, iq
+    REAL(KIND=dp)                            :: a_max, c, d_min, g, h, s, t, &
+                                                tau, theta, tresh
+    REAL(KIND=dp), DIMENSION(n)              :: b, z
 
-        REAL(KIND=dp) :: a_max,c,d_min,g,h,s,t,tau,theta,tresh
-        INTEGER  :: i,ip,iq
-        REAL(KIND=dp), DIMENSION(n) :: b,z
+!   ---------------------------------------------------------------------------
+!   *** Initialization ***
 
-    !   ---------------------------------------------------------------------------
-
-        !   *** Initialization ***
         CALL unit_matrix(v(:,:))
 
         b(:) = get_diag(a(:,:))
@@ -1325,12 +1327,13 @@ CONTAINS
 
         !   ***************************************************************************
 
-          REAL(KIND=dp), INTENT(IN) :: ss,tt
-          REAL(KIND=dp), DIMENSION(:), INTENT(INOUT) :: a,b
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: a, b
+    REAL(KIND=dp), INTENT(IN)                :: ss, tt
 
-          REAL(KIND=dp), DIMENSION(SIZE(a)) :: c
+    REAL(KIND=dp), DIMENSION(SIZE(a))        :: c
 
-        !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
           c(:) = a(:)
           a(:) = a(:) - ss*(b(:) + a(:)*tt)
@@ -1345,11 +1348,13 @@ CONTAINS
 
         !   History: - Creation (20.11.98, Matthias Krack)
 
-          INTEGER, INTENT(IN) :: n
-          REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: d
-          REAL(KIND=dp), DIMENSION(:,:), INTENT(INOUT) :: v
+    INTEGER, INTENT(IN)                      :: n
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: d
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: v
 
-          INTEGER :: i,j
+    INTEGER                                  :: i, j
 
           DO i=1,n-1
             j = SUM(MINLOC(d(i:n))) + i - 1
@@ -1366,9 +1371,9 @@ CONTAINS
 !   ***************************************************************************
 
    SUBROUTINE swap_scalar(a,b)
-    REAL(KIND=dp), INTENT(INOUT) :: a,b
+    REAL(KIND=dp), INTENT(INOUT)             :: a, b
 
-    REAL(KIND=dp) :: c
+    REAL(KIND=dp)                            :: c
 
     c = a
     a = b
@@ -1377,10 +1382,11 @@ CONTAINS
    END SUBROUTINE swap_scalar
 
    SUBROUTINE swap_vector(a,b)
-    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT) :: a,b
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: a, b
 
-    REAL(KIND=dp) :: c
-    INTEGER  :: i,n
+    INTEGER                                  :: i, n
+    REAL(KIND=dp)                            :: c
 
     n = SIZE(a(:))
 

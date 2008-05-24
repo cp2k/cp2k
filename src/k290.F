@@ -315,8 +315,8 @@ MODULE k290
          CALL xstring(pgrp(indpg),i,j)
          CALL xstring(pgrd(indpg),k,l)
          WRITE (unit,'(T7,A,T60,"[INDEX=",I2,"]",T76,A5)') &
-           ' The point group of the crystal is [Hermann-Mauguin] ',indpg,adjustl(pgrp(indpg)(i:j))
-         WRITE (unit,'(T41,A,T78,A3)') ' [Schoenflies] ',adjustl(pgrd(indpg)(k:l))
+           ' The point group of the crystal is [Hermann-Mauguin] ',indpg,ADJUSTL(pgrp(indpg)(i:j))
+         WRITE (unit,'(T41,A,T78,A3)') ' [Schoenflies] ',ADJUSTL(pgrd(indpg)(k:l))
       ELSE
          CALL xstring(pgrp(-indpg),i,j)
          CALL xstring(pgrd(-indpg),k,l)
