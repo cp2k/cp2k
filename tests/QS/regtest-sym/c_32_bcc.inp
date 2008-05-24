@@ -1,0 +1,38 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    LSD
+    &QS
+      METHOD PM6
+      &SE
+      &END
+    &END QS
+    &SCF
+      MAX_SCF 0
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+#Nb (for W) & Im(-3)m & #229 & cI2 & A2 & Ashcroft and Mermin, 70
+      UNIT SCALED_ANGSTROM
+     A  -1.65000000  1.65000000  1.65000000
+     B   1.65000000 -1.65000000  1.65000000
+     C   1.65000000  1.65000000 -1.65000000
+    &END CELL
+    &COORD
+Nb   .00000000   .00000000   .00000000      .00000000   .00000000   .00000000
+    &END COORD
+    &PRINT
+      &SYMMETRY
+       CHECK_SYMMETRY m<3>m
+      &END
+    &END
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT symmetry
+  RUN_TYPE ENERGY
+&END GLOBAL

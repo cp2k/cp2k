@@ -1,0 +1,38 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD PM6
+      &SE
+      &END
+    &END QS
+    &SCF
+      MAX_SCF 0
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+#Po & Pm(-3)m-O_h^1 #221 & cP1 & A_h & Kittel, 23  
+      UNIT SCALED_ANGSTROM
+     A   3.34000000  0.00000000  0.00000000
+     B   0.00000000  3.34000000  0.00000000
+     C   0.00000000  0.00000000  3.34000000
+    &END CELL
+    &COORD
+#replace Po by Ni
+Ni  0.00000000  0.00000000  0.00000000     0.00000000  0.00000000  0.00000000
+    &END COORD
+    &PRINT
+      &SYMMETRY
+       CHECK_SYMMETRY m<3>m
+      &END
+    &END
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT symmetry
+  RUN_TYPE ENERGY
+&END GLOBAL

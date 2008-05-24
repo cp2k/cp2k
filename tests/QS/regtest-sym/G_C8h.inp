@@ -1,0 +1,51 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD PM6
+      &SE
+      &END
+    &END QS
+    &SCF
+      MAX_SCF 0
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+C  0        0       0
+H  0.00000  1.00000 1
+He  0.09950  0.99504 1
+H  0.70711  0.70711 1
+He  0.77396  0.63324 1
+H  1.00000  0.00000 1
+He  0.99504 -0.09950 1
+H  0.70711 -0.70711 1
+He  0.63324 -0.77396 1
+H  0.00000 -1.00000 1
+He -0.09950 -0.99504 1
+H -0.70711 -0.70711 1
+He -0.77396 -0.63324 1
+H -1.00000  0.00000 1
+He -0.99504  0.09950 1
+H -0.70711  0.70711 1
+He -0.63324  0.77396 1
+C  0        0       2
+    &END COORD
+    &PRINT
+      &SYMMETRY
+        MOLECULE
+        ALL
+        CHECK_SYMMETRY C8h
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT symmetry
+  RUN_TYPE ENERGY
+&END GLOBAL

@@ -1,0 +1,38 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD PM6
+      &SE
+      &END
+    &END QS
+    &SCF
+      MAX_SCF 0
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+#Pa & I4/mmm-D_{4h}^{17} #139 & tI2 & A_a & Pearson (Alloys) 562
+      UNIT SCALED_ANGSTROM
+     A   3.92500000  0.00000000  0.00000000
+     B   0.00000000  3.92500000  0.00000000
+     C   1.96250000  1.96250000  1.61900000
+    &END CELL
+    &COORD
+#replace Pa by Ti
+Ti  0.00000000  0.00000000  0.00000000     0.00000000  0.00000000  0.00000000
+    &END COORD
+    &PRINT
+      &SYMMETRY
+       CHECK_SYMMETRY 4/mmm
+      &END
+    &END
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT symmetry
+  RUN_TYPE ENERGY
+&END GLOBAL
