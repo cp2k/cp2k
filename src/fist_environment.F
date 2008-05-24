@@ -26,6 +26,7 @@ MODULE fist_environment
                                              cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsys_type
+  USE cp_symmetry,                     ONLY: write_symmetry
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
@@ -301,6 +302,9 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
     CALL write_fist_particle_coordinates(particle_set,cell,subsys_section,error)
     CALL write_particle_distances(particle_set,cell,subsys_section,error)
     CALL write_structure_data(particle_set, cell=cell, input_section=subsys_section, error=error)
+
+    ! Print symmetry information
+    CALL write_symmetry(particle_set,cell,subsys_section,error)
     
     ! Distribute molecules and atoms using the new data structures ***
     CALL distribute_molecules_1d ( particle_kind_set=atomic_kind_set,&

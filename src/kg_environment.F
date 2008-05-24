@@ -38,6 +38,7 @@ MODULE kg_environment
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_methods,               ONLY: cp_subsys_read_colvar
   USE cp_subsys_types,                 ONLY: cp_subsys_type
+  USE cp_symmetry,                     ONLY: write_symmetry
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -287,6 +288,9 @@ CONTAINS
 
     ! Print the requested structure data
     CALL write_structure_data(particle_set,cell,subsys_section,error)
+
+    ! Print symmetry information
+    CALL write_symmetry(particle_set,cell,subsys_section,error)
 
     ! Initialize the atomic interaction radii
     CALL init_interaction_radii ( dft_control%qs_control, cell, &

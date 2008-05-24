@@ -63,6 +63,7 @@ MODULE qs_environment
                                              cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsys_type
+  USE cp_symmetry,                     ONLY: write_symmetry
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
@@ -898,6 +899,9 @@ CPSourceFileRef,&
 
     ! Print the requested structure data
     CALL write_structure_data(particle_set,cell,subsys_section,error)
+
+    ! Print symmetry information
+    CALL write_symmetry(particle_set,cell,subsys_section,error)
 
     ! Print the SCF parameters
     CALL scf_c_write_parameters(scf_control,qs_env%input,error=error)
