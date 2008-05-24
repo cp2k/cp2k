@@ -410,7 +410,54 @@ CONTAINS
        CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-       
+
+       CALL cp_print_key_section_create(print_key,"SYMMETRY",&
+            description="controls the output of symmetry information",&
+            print_level=medium_print_level, filename="__STD_OUT__",error=error)
+       CALL keyword_create(keyword, name="MOLECULE",&
+            description="Assume the system is an isolated molecule",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="EPS_GEO",&
+            description="Accuracy required for symmetry detection",&
+            default_r_val=1.e-4_dp, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="STANDARD_ORIENTATION",&
+            description="Print molecular coordinates in standard orientation",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="INERTIA",&
+            description="Print molecular inertia tensor",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="SYMMETRY_ELEMENTS",&
+            description="Print symmetry elements",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="ALL",&
+            description="Print all symmetry information",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="ROTATION_MATRICES",&
+            description="All the rotation matrices of the point group",&
+            default_l_val=.FALSE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="CHECK_SYMMETRY",&
+            description="Check if calculated symmetry has expected value."//&
+            " Use either Schoenfliess or Hermann-Maugin symbols",&
+            default_c_val="NONE", error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"molecules",&
             description="controls the output of information on the molecules",&
             print_level=medium_print_level, filename="__STD_OUT__",error=error)
