@@ -1385,6 +1385,7 @@ CONTAINS
 
     ! Check the length of vector a 
     IF (length_of_a > sym%eps_geo) THEN
+      natoms = SIZE(coord,2)
       DO iatom=1,natoms
         b(:) = coord(:,iatom)
         length_of_b = SQRT(b(1)*b(1) + b(2)*b(2) + b(3)*b(3))
@@ -1525,7 +1526,7 @@ CONTAINS
       END DO
     END IF
 
-    IF ( MOD(plevel/10,10) == 1 ) THEN
+    IF ( MOD(plevel/10,10) == 1 .AND. SIZE(coord,2)>1 ) THEN
       ! Print the moments of the molecular inertia tensor
       WRITE (iw,"(/,T24,A,/,T40,A,2(16X,A),3(/,T25,A,3F18.5))")&
         "Moments of the Molecular Inertia Tensor","Ix","Iy","Iz",&
