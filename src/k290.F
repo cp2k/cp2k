@@ -196,7 +196,11 @@ MODULE k290
       csym%a1(:) = hmat(:,1)
       csym%a2(:) = hmat(:,2)
       csym%a3(:) = hmat(:,3)
-      csym%alat = csym%a1(1)
+      IF ( ABS(csym%a1(1)) > 1.e-10_dp ) THEN
+        csym%alat = csym%a1(1)
+      ELSE
+        csym%alat = SQRT(SUM(csym%a1(:)**2))
+      END IF
       IF (PRESENT(nk)) THEN
         csym%iq1 = nk(1)
         csym%iq2 = nk(2)
