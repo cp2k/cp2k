@@ -963,7 +963,6 @@ CONTAINS
     INTEGER, PARAMETER                       :: nblock = 1000
 
     CHARACTER(LEN=2)                         :: upper_sym_1, upper_sym_2
-    CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: keyword
     INTEGER                                  :: handle, i, i_rep, iatom, &
@@ -984,18 +983,8 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
     
     atom_info => topology%atom_info
-    
     natom = topology%natoms
     
-    !Get the temporary array that we need
-    ALLOCATE(atm_symbol(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO iatom=1,natom
-       atm_symbol(iatom) = ''
-       IF(ASSOCIATED(atom_info%element)) THEN
-          atm_symbol(iatom) = atom_info%element(iatom)
-       END IF
-    END DO
     ! Available external info
     kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
     CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
@@ -1007,10 +996,6 @@ CONTAINS
     DO i_rep=1,n_rep
        CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
             c_val=keyword(i_rep),i_rep_section=i_rep,error=error)
-       CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
-            keyword_name="ELEMENT",n_rep_val=i,error=error)
-       IF (i>0)  CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
-            keyword_name="ELEMENT",c_val=keyword(i_rep),error=error)
        CALL uppercase(keyword(i_rep))
        CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
             keyword_name="MASS",n_rep_val=i,error=error)
@@ -1019,19 +1004,20 @@ CONTAINS
     END DO
     !
     DO iatom=1,natom
-       upper_sym_1=atm_symbol(iatom)
-       CALL uppercase(upper_sym_1)
        !If we reach this point then we've definitely identified the element..
        !Let's look if an external mass has been defined..
        user_defined = .FALSE.
        DO i= 1, SIZE(keyword)
-          IF (upper_sym_1==keyword(i)(1:2).AND.mass(i)/=HUGE(0.0_dp)) THEN
+          IF (atom_info%label_atmname(iatom)==keyword(i).AND.mass(i)/=HUGE(0.0_dp)) THEN
              atom_info%atm_mass(iatom) = mass(i)
              user_defined = .TRUE.
              EXIT
           END IF
        END DO
+       ! If name didn't match let's try with the element
        IF (.NOT.user_defined) THEN
+          upper_sym_1=atom_info%element(iatom)
+          CALL uppercase(upper_sym_1)
           !If not let's look at the tabulated value
           nelem = UBOUND(ptable,1)
           element_found=.FALSE.
@@ -1055,8 +1041,6 @@ CONTAINS
     DEALLOCATE(keyword,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(mass,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(atm_symbol,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(0.0_dp,handle)

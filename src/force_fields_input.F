@@ -2010,8 +2010,10 @@ CPSourceFileRef,&
                file_status="OLD",&
                unit_number=unit_number)
           READ ( unit_number, '(A72)' ) title3
-          IF (iw>0) WRITE ( iw, * ) title3
-
+          IF (iw>0) THEN 
+             WRITE ( iw, * ) "Reading EAM data from: ",TRIM(eam % eam_file_name)
+             WRITE ( iw, * ) "Title: ",title3
+          END IF
           READ ( unit_number, * ) ntyp,rmass,rlatt
 
           READ ( unit_number, * ) drar, drhoar, acutal

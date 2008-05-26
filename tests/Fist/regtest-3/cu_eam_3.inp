@@ -1,0 +1,71 @@
+&FORCE_EVAL
+  METHOD FIST
+  &PRINT
+   &FORCES
+    &EACH
+    &END
+   &END FORCES
+  &END PRINT
+  &MM
+   &FORCEFIELD
+     &SPLINE
+       EPS_SPLINE 1.0E-6
+     &END
+     &CHARGE
+       ATOM Cu
+       CHARGE 0.0
+     &END CHARGE
+     &CHARGE
+       ATOM JKL
+       CHARGE 0.0
+     &END CHARGE
+     &NONBONDED
+       &EAM
+         atoms Cu Cu
+         PARM_FILE_NAME ../EAM_LIB/CU.pot
+       &END EAM
+       &EAM
+         atoms JKL Cu
+         PARM_FILE_NAME ../EAM_LIB/CU.pot
+       &END EAM
+       &EAM
+         atoms JKL JKL
+         PARM_FILE_NAME ../EAM_LIB/CU.pot
+       &END EAM
+     &END NONBONDED
+   &END FORCEFIELD
+   &POISSON
+     &EWALD
+       EWALD_TYPE none
+     &END EWALD
+   &END POISSON
+   &PRINT
+     &FF_INFO
+       SPLINE_DATA
+       SPLINE_INFO
+     &END
+   &END
+  &END
+  &SUBSYS
+    &CELL
+      ABC  40.764229 39.715716 70.
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+ JKL        36.6080047735       36.2811167970        4.6331919138
+ CU        -2.8820605829       -2.6986296084        6.7140672782
+    &END
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+    &KIND JKL
+      ELEMENT CU
+      MASS 99999999
+    &END
+  &END SUBSYS
+&END
+&GLOBAL
+  PRINT_LEVEL HIGH
+  PROJECT NEW
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL

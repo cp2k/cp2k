@@ -1653,23 +1653,7 @@ CPSourceFileRef,&
        CALL uppercase(atmname)
        IF(charge(i)/=-HUGE(0.0_dp)) found = .TRUE.
 
-!TL THis should be deleted together with the chm_info%charge_atm
-!TL       ! loop over params from charmm
-!TL       IF(ASSOCIATED(chm_info%charge_atm)) THEN
-!TL          DO j=1,SIZE(chm_info%charge_atm)
-!TL             IF((chm_info%charge_atm(j))==atmname) THEN
-!TL                charge(i) = chm_info%charge(j)
-!TL                CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-!TL                     "Multiple charge declarations: "//TRIM(atmname)//&
-!TL                     " overwriting! "//&
-!TLCPSourceFileRef,&
-!TL                     only_ionode=.TRUE.)
-!TL                found = .TRUE.
-!TL             END IF
-!TL          END DO
-!TL       END IF
        ! always have the input param last to overwrite all the other ones
-
        IF(ASSOCIATED(inp_info%charge_atm)) THEN
           DO j=1,SIZE(inp_info%charge_atm)
              IF (iw>0) WRITE(iw,*)"Charge Checking ::",TRIM(inp_info%charge_atm(j)),atmname

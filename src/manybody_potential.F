@@ -110,9 +110,9 @@ CONTAINS
          IF(pot%type(i) /= ea_type) CYCLE
          eam => pot%set(i)%eam
          nparticle = SIZE ( particle_set )
-         ALLOCATE ( fembed ( nparticle ), stat=stat )
+         ALLOCATE(fembed(nparticle), stat=stat )
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         fembed ( : ) = 0._dp
+         fembed(:) = 0._dp
          ! computation of embedding function and energy
          nparticle_local = local_particles%n_el(ikind)
          DO iparticle_local=1,nparticle_local
@@ -127,9 +127,11 @@ CONTAINS
             pot_manybody = pot_manybody + embed
          END DO
          ! communicate data
-         CALL mp_sum( fembed, para_env%group )
+         CALL mp_sum(fembed, para_env%group)
          DO iparticle=1,nparticle
-            particle_set(iparticle)%f_embed = fembed(iparticle)
+            IF (particle_set(iparticle)%atomic_kind%kind_number==ikind) THEN
+               particle_set(iparticle)%f_embed = fembed(iparticle)
+            END IF
          END DO
 
          DEALLOCATE ( fembed, stat=stat )

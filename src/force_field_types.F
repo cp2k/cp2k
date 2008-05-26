@@ -122,8 +122,6 @@ MODULE force_field_types
 
 ! *****************************************************************************
   TYPE charmm_info_type
-    CHARACTER (LEN=default_string_length), POINTER :: charge_atm(:)
-    REAL(KIND=dp), POINTER                         :: charge(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_b(:)
     REAL(KIND=dp), POINTER                         :: bond_k(:)
@@ -496,8 +494,6 @@ END SUBROUTINE init_gromos_info
 SUBROUTINE init_chm_info(chm_info)
     TYPE(charmm_info_type), POINTER          :: chm_info
 
-  NULLIFY(chm_info%charge_atm)
-  NULLIFY(chm_info%charge)
   NULLIFY(chm_info%bond_a)
   NULLIFY(chm_info%bond_b)
   NULLIFY(chm_info%bond_k)
@@ -737,14 +733,6 @@ SUBROUTINE deallocate_chm_info(chm_info,error)
     LOGICAL                                  :: failure
 
   failure = .FALSE.
-  IF(ASSOCIATED(chm_info%charge_atm)) THEN
-    DEALLOCATE(chm_info%charge_atm,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF(ASSOCIATED(chm_info%charge)) THEN
-    DEALLOCATE(chm_info%charge,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
   IF(ASSOCIATED(chm_info%bond_a)) THEN
     DEALLOCATE(chm_info%bond_a,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
