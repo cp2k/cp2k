@@ -71,4 +71,4 @@ SCP/regtest-scp
 LIBTEST
 QS/regtest-dft-vdw-corr
 QS/regtest-all-electron
-#QS/regtest-sym
+QS/regtest-sym
