@@ -2,6 +2,7 @@
 # Directories have been reordered according the execution time needed for a g95 sopt
 # in case a new directory is added just drop it at the end of the list..
 # the order will be regularly checked and modified...
+QS/regtest-sym
 Fist/regtest-7
 Fist/regtest-5
 Fist/regtest-12
@@ -71,4 +72,3 @@ SCP/regtest-scp
 LIBTEST
 QS/regtest-dft-vdw-corr
 QS/regtest-all-electron
-QS/regtest-sym
