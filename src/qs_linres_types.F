@@ -186,7 +186,7 @@ MODULE qs_linres_types
 ! *** Public data types ***
 
   PUBLIC ::  allocate_jrho_atom_rad, deallocate_jrho_atom_set, get_nmr_env, &
-             get_current_env, &
+             get_current_env, allocate_jrho_coeff, deallocate_jrho_coeff, &
              init_jrho_atom_set, linres_control_type, init_nablavks_atom_set, &
              nmr_env_type, jrho_atom_type, set_nmr_env, set2zero_jrho_atom_rad, &
              get_epr_env, epr_env_type, set_epr_env, nablavks_atom_type, &
@@ -1015,34 +1015,121 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-!
-!
-
     failure = .FALSE.
     !
     CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,error,failure)
     !
-    jrho1_atom%jrho_h(ispin)%r_coef = 0.0_dp
-    jrho1_atom%jrho_s(ispin)%r_coef = 0.0_dp
-    !
-    jrho1_atom%jrho_a_h(ispin)%r_coef = 0.0_dp
-    jrho1_atom%jrho_a_s(ispin)%r_coef = 0.0_dp
-    jrho1_atom%jrho_b_h(ispin)%r_coef = 0.0_dp
-    jrho1_atom%jrho_b_s(ispin)%r_coef = 0.0_dp
-    !
-    jrho1_atom%jrho_a_h_ii(ispin)%r_coef = 0.0_dp
-    jrho1_atom%jrho_a_s_ii(ispin)%r_coef = 0.0_dp
-    jrho1_atom%jrho_b_h_ii(ispin)%r_coef = 0.0_dp
-    jrho1_atom%jrho_b_s_ii(ispin)%r_coef = 0.0_dp
-    !
-    jrho1_atom%jrho_a_h_iii(ispin)%r_coef = 0.0_dp
-    jrho1_atom%jrho_a_s_iii(ispin)%r_coef = 0.0_dp
-    jrho1_atom%jrho_b_h_iii(ispin)%r_coef = 0.0_dp
-    jrho1_atom%jrho_b_s_iii(ispin)%r_coef = 0.0_dp
-    !
+    IF(.NOT.failure) THEN
+       jrho1_atom%jrho_h(ispin)%r_coef = 0.0_dp
+       jrho1_atom%jrho_s(ispin)%r_coef = 0.0_dp
+       !
+       jrho1_atom%jrho_a_h(ispin)%r_coef = 0.0_dp
+       jrho1_atom%jrho_a_s(ispin)%r_coef = 0.0_dp
+       jrho1_atom%jrho_b_h(ispin)%r_coef = 0.0_dp
+       jrho1_atom%jrho_b_s(ispin)%r_coef = 0.0_dp
+       !
+       jrho1_atom%jrho_a_h_ii(ispin)%r_coef = 0.0_dp
+       jrho1_atom%jrho_a_s_ii(ispin)%r_coef = 0.0_dp
+       jrho1_atom%jrho_b_h_ii(ispin)%r_coef = 0.0_dp
+       jrho1_atom%jrho_b_s_ii(ispin)%r_coef = 0.0_dp
+       !
+       jrho1_atom%jrho_a_h_iii(ispin)%r_coef = 0.0_dp
+       jrho1_atom%jrho_a_s_iii(ispin)%r_coef = 0.0_dp
+       jrho1_atom%jrho_b_h_iii(ispin)%r_coef = 0.0_dp
+       jrho1_atom%jrho_b_s_iii(ispin)%r_coef = 0.0_dp
+       !
+    ENDIF
   END SUBROUTINE set2zero_jrho_atom_rad
 
 ! *****************************************************************************
+
+  SUBROUTINE allocate_jrho_coeff(jrho1_atom,nsotot,error)
+  
+    TYPE(jrho_atom_type), POINTER            :: jrho1_atom
+    INTEGER, INTENT(IN)                      :: nsotot
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_coeff', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, istat
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,"I"," ",handle)
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,error,failure)
+    IF(.NOT.failure) THEN
+       DO i = 1,SIZE(jrho1_atom%cjc0_h,1)
+          ALLOCATE(jrho1_atom%cjc0_h(i)%r_coef(nsotot,nsotot),STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(jrho1_atom%cjc0_s(i)%r_coef(nsotot,nsotot),STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(jrho1_atom%cjc_h(i)%r_coef(nsotot,nsotot),STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(jrho1_atom%cjc_s(i)%r_coef(nsotot,nsotot),STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(jrho1_atom%cjc_ii_h(i)%r_coef(nsotot,nsotot),STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(jrho1_atom%cjc_ii_s(i)%r_coef(nsotot,nsotot),STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(jrho1_atom%cjc_iii_h(i)%r_coef(nsotot,nsotot),STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(jrho1_atom%cjc_iii_s(i)%r_coef(nsotot,nsotot),STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          jrho1_atom%cjc0_h(i)%r_coef = 0.0_dp
+          jrho1_atom%cjc0_s(i)%r_coef = 0.0_dp
+          jrho1_atom%cjc_h(i)%r_coef = 0.0_dp
+          jrho1_atom%cjc_s(i)%r_coef = 0.0_dp
+          jrho1_atom%cjc_ii_h(i)%r_coef = 0.0_dp
+          jrho1_atom%cjc_ii_s(i)%r_coef = 0.0_dp
+          jrho1_atom%cjc_iii_h(i)%r_coef = 0.0_dp
+          jrho1_atom%cjc_iii_s(i)%r_coef = 0.0_dp
+       ENDDO
+    ENDIF
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE allocate_jrho_coeff
+
+! *****************************************************************************
+
+  SUBROUTINE deallocate_jrho_coeff(jrho1_atom,error)
+  
+    TYPE(jrho_atom_type), POINTER            :: jrho1_atom
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_jrho_coeff', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, istat
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,"I"," ",handle)
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,error,failure)
+    IF(.NOT.failure) THEN
+       DO i = 1,SIZE(jrho1_atom%cjc0_h,1)
+          DEALLOCATE(jrho1_atom%cjc0_h(i)%r_coef,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(jrho1_atom%cjc0_s(i)%r_coef,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(jrho1_atom%cjc_h(i)%r_coef,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(jrho1_atom%cjc_s(i)%r_coef,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(jrho1_atom%cjc_ii_h(i)%r_coef,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(jrho1_atom%cjc_ii_s(i)%r_coef,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(jrho1_atom%cjc_iii_h(i)%r_coef,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(jrho1_atom%cjc_iii_s(i)%r_coef,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+    ENDIF
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE deallocate_jrho_coeff
+
+! *****************************************************************************
+
   SUBROUTINE get_jrho_atom(jrho1_atom_set,iatom,cjc_h,cjc_s,cjc_ii_h,cjc_ii_s,&
              cjc_iii_h,cjc_iii_s,jrho_vec_rad_h,jrho_vec_rad_s,error)
 
@@ -1132,6 +1219,7 @@ CONTAINS
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                               maxso=maxso, nset=nset)
        nsotot = maxso * nset 
+
        max_iso_not0 = harmonics%max_iso_not0
 
        DO iat = 1,nat
@@ -1271,7 +1359,7 @@ CONTAINS
     INTEGER :: handle, iat, iatom, idir, ikind, ispin, istat, max_iso_not0, &
       maxso, na, nat, natom, nkind, nr, nset, nsotot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, paw_atom
+    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -1300,7 +1388,6 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
                             orb_basis_set=orb_basis_set, &
                             atom_list=atom_list,natom=nat, &
-                            paw_atom=paw_atom,&
                             harmonics=harmonics,&
                             grid_atom=grid_atom)
 
