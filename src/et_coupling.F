@@ -218,8 +218,14 @@ CONTAINS
 
 !    solve eigenstates for the projector matrix
 
-    Sda=S_det(1)*S_det(2)
-    Wda=((a(1)+a(2))+(b(1)+b(2)))*0.5_dp*Sda
+    IF( qs_env%dft_control%nspins ==2)THEN
+       Sda=S_det(1)*S_det(2)
+       Wda=((a(1)+a(2))+(b(1)+b(2)))*0.5_dp*Sda
+    ELSE
+       Sda=S_det(1)**2
+       Wda=(a(1)+b(1))*Sda
+    END IF
+
     IF(qs_env%dft_control%qs_control%ddapc_restraint)THEN
     Waa=qs_env%et_coupling%order_p
     Wbb=qs_env%dft_control%qs_control%ddapc_restraint_control%ddapc_order_p
