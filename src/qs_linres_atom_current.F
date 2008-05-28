@@ -193,15 +193,12 @@ CONTAINS
           DO ispin = 1, nspins
              jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef = 0.0_dp
              jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef = 0.0_dp
-
              jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef = 0.0_dp
              jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef = 0.0_dp
              jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef = 0.0_dp
              jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef = 0.0_dp
              jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef = 0.0_dp
              jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef = 0.0_dp
-             jrho1_atom_set(iatom)%jrho_vec_rad_h(idir,ispin)%r_coef = 0.0_dp
-             jrho1_atom_set(iatom)%jrho_vec_rad_s(idir,ispin)%r_coef = 0.0_dp
           ENDDO ! ispin
        ENDDO ! iat
     ENDDO ! ikind
@@ -610,7 +607,7 @@ CONTAINS
     INTEGER :: handle, i1, i2, iat, iatom, icg, ikind, ipgf1, ipgf2, ir, &
       iset1, iset2, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, &
       iso2_last, ispin, istat, l, l_iso, lmax12, lmax_expansion, lmin12, m1s, &
-      m2s, max_iso_not0, max_nso, maxl, maxso, mepos, n1s, n2s, natom, &
+      m2s, max_iso_not0, max_nso, maxl, maxso, mepos, n1s, n2s, na, natom, &
       natom_tot, nkind, nr, nset, nspins, num_pe, size1, size2
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
@@ -694,6 +691,7 @@ CONTAINS
             &                 maxso=maxso)
        !
        nr = grid_atom%nr
+       na = grid_atom%ng_sphere
        max_iso_not0 = harmonics%max_iso_not0
        lmax_expansion = indso(1,max_iso_not0)
        !
@@ -862,7 +860,7 @@ CONTAINS
                          ! Allocation radial functions
                          jrho1_atom => jrho1_atom_set(iatom)
                          IF(.NOT.ASSOCIATED(jrho1_atom%jrho_a_h(ispin)%r_coef)) THEN
-                            CALL allocate_jrho_atom_rad(jrho1_atom,ispin,nr,max_iso_not0,error=error)
+                            CALL allocate_jrho_atom_rad(jrho1_atom,ispin,nr,na,max_iso_not0,error=error)
                             is_set_to_0(iatom,ispin) = .TRUE.
                          ELSE
                             IF(.NOT.is_set_to_0(iatom,ispin)) THEN
