@@ -803,18 +803,7 @@ CONTAINS
     chi_tmp(:,:) = chi_sym_tot(:,:)
     CALL diamat_all(chi_tmp,eig)
     chi_iso   = (eig(1)+ eig(2)+eig(3))/3.0_dp
-    IF    (ABS(eig(3)-chi_iso).GE.ABS(eig(1)-chi_iso).AND.&
-         & ABS(eig(3)-chi_iso).GE.ABS(eig(2)-chi_iso)) THEN
-       chi_aniso =  eig(3)-(eig(2)+eig(1))/2.0_dp
-    ELSEIF(ABS(eig(2)-chi_iso).GE.ABS(eig(3)-chi_iso).AND.&
-         & ABS(eig(2)-chi_iso).GE.ABS(eig(1)-chi_iso)) THEN
-       chi_aniso =  eig(2)-(eig(3)+eig(1))/2.0_dp
-    ELSEIF(ABS(eig(1)-chi_iso).GE.ABS(eig(3)-chi_iso).AND.&
-         & ABS(eig(1)-chi_iso).GE.ABS(eig(2)-chi_iso)) THEN
-       chi_aniso =  eig(1)-(eig(3)+eig(2))/2.0_dp
-    ELSE
-       CALL stop_program(routineP,"Error in chi_aniso.")
-    ENDIF
+    chi_aniso =  eig(3)-(eig(2)+eig(1))/2.0_dp
     !
     IF(output_unit > 0) THEN
        WRITE(output_unit,'(T2,A,E24.16)') 'CheckSum Chi =',&
@@ -924,18 +913,7 @@ CONTAINS
              shift_sym_tot(:,:) = 0.5_dp * (chemical_shift_tot(:,:,ir) + TRANSPOSE(chemical_shift_tot(:,:,ir)))
              CALL  diamat_all(shift_sym_tot,eig)
              shift_iso   = (eig(1) + eig(2) + eig(3)) / 3.0_dp
-             IF    (ABS(eig(3)-shift_iso).GE.ABS(eig(1)-shift_iso).AND.&
-                  & ABS(eig(3)-shift_iso).GE.ABS(eig(2)-shift_iso)) THEN
-                shift_aniso =  eig(3)-(eig(2)+eig(1))/2.0_dp
-             ELSEIF(ABS(eig(2)-shift_iso).GE.ABS(eig(3)-shift_iso).AND.&
-                  & ABS(eig(2)-shift_iso).GE.ABS(eig(1)-shift_iso)) THEN
-                shift_aniso =  eig(2)-(eig(3)+eig(1))/2.0_dp
-             ELSEIF(ABS(eig(1)-shift_iso).GE.ABS(eig(3)-shift_iso).AND.&
-                  & ABS(eig(1)-shift_iso).GE.ABS(eig(2)-shift_iso)) THEN
-                shift_aniso =  eig(1)-(eig(3)+eig(2))/2.0_dp
-             ELSE
-                CALL stop_program(routineP,"Error in shift_aniso.")
-             ENDIF
+             shift_aniso =  eig(3)-(eig(2)+eig(1))/2.0_dp
 
              WRITE(unit_atoms,'(T2,I5,A,2X,A2,2X,3f15.6)') iatom,TRIM(name),element_symbol,rpos(1:3)
              !
