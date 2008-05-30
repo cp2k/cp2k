@@ -72,6 +72,8 @@ MODULE wfn_fitting_types
     TYPE(cp_fm_type), POINTER                :: P
     TYPE(cp_fm_type), POINTER                :: A
     TYPE(cp_fm_type), POINTER                :: B
+    TYPE(cp_fm_type), POINTER                :: work_orb_orb
+    TYPE(cp_fm_type), POINTER                :: work_aux_orb
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: lambda
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -84,9 +86,13 @@ MODULE wfn_fitting_types
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: work_nmo_nmo1
     TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: R_schur_R_t
+    TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: work_nmo_nmo2
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: work_aux_nmo
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: work_aux_nmo2
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: H
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -171,6 +177,8 @@ MODULE wfn_fitting_types
     CALL cp_fm_create(wfn_fitting_env%P,fm_struct_aux_orb,name="mixed_overlap",error=error)
     CALL cp_fm_create(wfn_fitting_env%A,fm_struct_aux_orb,name="work_A",error=error)
     CALL cp_fm_create(wfn_fitting_env%B,fm_struct_orb_orb,name="work_B",error=error)
+    CALL cp_fm_create(wfn_fitting_env%work_orb_orb,fm_struct_orb_orb,name="work_orb_orb",error=error)
+    CALL cp_fm_create(wfn_fitting_env%work_aux_orb,fm_struct_aux_orb,name="work_aux_orb",error=error)
 
     CALL cp_fm_create(wfn_fitting_env%work_aux_aux,fm_struct_aux_aux,name="work_aux_aux",error=error)
 
@@ -184,6 +192,8 @@ MODULE wfn_fitting_types
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(wfn_fitting_env%work_nmo_nmo1(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(wfn_fitting_env%R_schur_R_t(nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(wfn_fitting_env%work_nmo_nmo2(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(wfn_fitting_env%eigvals_lambda(nspins),STAT=istat)
@@ -196,6 +206,9 @@ MODULE wfn_fitting_types
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(wfn_fitting_env%work_aux_nmo(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(wfn_fitting_env%work_aux_nmo2(nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
 
 
 
@@ -223,6 +236,7 @@ MODULE wfn_fitting_types
 
       CALL cp_fm_create(wfn_fitting_env%work_orb_nmo(ispin)%matrix,fm_struct_orb_nmo,name="work_orb_nmo",error=error)
       CALL cp_fm_create(wfn_fitting_env%work_nmo_nmo1(ispin)%matrix,fm_struct_nmo_nmo,name="work_nmo_nmo1",error=error)
+      CALL cp_fm_create(wfn_fitting_env%R_schur_R_t(ispin)%matrix,fm_struct_nmo_nmo,name="R_schur_R_t",error=error)
       CALL cp_fm_create(wfn_fitting_env%work_nmo_nmo2(ispin)%matrix,fm_struct_nmo_nmo,name="work_nmo_nmo2",error=error)
       CALL cp_fm_create(wfn_fitting_env%lambda(ispin)%matrix,fm_struct_nmo_nmo,name="lambda",error=error)
       CALL cp_fm_create(wfn_fitting_env%lambda_inv_sqrt(ispin)%matrix,fm_struct_nmo_nmo,name="lambda_inv_sqrt",error=error)
@@ -231,6 +245,7 @@ MODULE wfn_fitting_types
       CALL cp_fm_create(wfn_fitting_env%H(ispin)%matrix,fm_struct_aux_nmo,name="H",error=error)
       CALL cp_fm_create(wfn_fitting_env%M(ispin)%matrix,fm_struct_nmo_nmo,name="M",error=error)
       CALL cp_fm_create(wfn_fitting_env%work_aux_nmo(ispin)%matrix,fm_struct_aux_nmo,name="work_aux_nmo",error=error)
+      CALL cp_fm_create(wfn_fitting_env%work_aux_nmo2(ispin)%matrix,fm_struct_aux_nmo,name="work_aux_nmo2",error=error)
       ALLOCATE(wfn_fitting_env%eigvals_lambda(ispin)%eigvals, STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(nmo), STAT=istat)
@@ -272,7 +287,9 @@ MODULE wfn_fitting_types
     CALL cp_fm_release(wfn_fitting_env%P, error=error)
     CALL cp_fm_release(wfn_fitting_env%A, error=error)
     CALL cp_fm_release(wfn_fitting_env%B, error=error)
+    CALL cp_fm_release(wfn_fitting_env%work_orb_orb, error=error)
     CALL cp_fm_release(wfn_fitting_env%work_aux_aux, error=error)
+    CALL cp_fm_release(wfn_fitting_env%work_aux_orb, error=error)
     DO ispin = 1,SIZE(wfn_fitting_env%lambda)
       CALL cp_fm_release(wfn_fitting_env%lambda(ispin)%matrix, error=error)
       CALL cp_fm_release(wfn_fitting_env%lambda_inv_sqrt(ispin)%matrix, error=error)
@@ -282,8 +299,10 @@ MODULE wfn_fitting_types
       CALL cp_fm_release(wfn_fitting_env%M(ispin)%matrix, error=error)
       CALL cp_fm_release(wfn_fitting_env%work_orb_nmo(ispin)%matrix, error=error)
       CALL cp_fm_release(wfn_fitting_env%work_nmo_nmo1(ispin)%matrix, error=error)
+      CALL cp_fm_release(wfn_fitting_env%R_schur_R_t(ispin)%matrix, error=error)
       CALL cp_fm_release(wfn_fitting_env%work_nmo_nmo2(ispin)%matrix, error=error)
       CALL cp_fm_release(wfn_fitting_env%work_aux_nmo(ispin)%matrix, error=error)
+      CALL cp_fm_release(wfn_fitting_env%work_aux_nmo2(ispin)%matrix, error=error)
       DEALLOCATE(wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(wfn_fitting_env%eigvals_lambda(ispin)%eigvals,STAT=istat)
@@ -298,9 +317,11 @@ MODULE wfn_fitting_types
     DEALLOCATE(wfn_fitting_env%K,STAT=istat)
     DEALLOCATE(wfn_fitting_env%work_orb_nmo,STAT=istat)
     DEALLOCATE(wfn_fitting_env%work_nmo_nmo1,STAT=istat)
+    DEALLOCATE(wfn_fitting_env%R_schur_R_t,STAT=istat)
     DEALLOCATE(wfn_fitting_env%work_nmo_nmo2,STAT=istat)
     DEALLOCATE(wfn_fitting_env%eigvals_lambda,STAT=istat)
     DEALLOCATE(wfn_fitting_env%work_aux_nmo,STAT=istat)
+    DEALLOCATE(wfn_fitting_env%work_aux_nmo2,STAT=istat)
     DEALLOCATE(wfn_fitting_env, STAT=istat)
   END SUBROUTINE wfn_fitting_env_release
 

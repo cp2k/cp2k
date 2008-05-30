@@ -150,7 +150,7 @@ MODULE qs_ks_methods
                                              timestop
   USE virial_types,                    ONLY: virial_type
   USE wfn_fitting_methods,             ONLY: fit_mo_coeffs,&
-                                             merge_ks_times_mo_coeff
+                                             merge_mo_derivs
   USE wfn_fitting_types,               ONLY: wfn_fitting_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
@@ -318,7 +318,7 @@ CONTAINS
     TYPE(becke_constraint_type), POINTER     :: becke
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs
+      POINTER                                :: mo_derivs, mo_derivs_aux_fit
     TYPE(cp_fm_type), POINTER                :: hc_tmp, mo_coeff, &
                                                 mo_coeff_aux_fit
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1224,18 +1224,20 @@ CONTAINS
              CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
              CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
                                           mo_derivs(ispin)%matrix, k,error=error)
+
+             ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
+             scaling_factor=2.0_dp*occupation_numbers
+             CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
+
              IF( dft_control%do_wfn_fitting) THEN
                CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mos,error=error)
                CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
                CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
                CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
-               CALL merge_ks_times_mo_coeff(ispin, qs_env%wfn_fitting_env, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
-                                            qs_env%matrix_ks_aux_fit, error)
+               CALL get_qs_env(qs_env,mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
+               CALL merge_mo_derivs(ispin, qs_env%wfn_fitting_env, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
+                                    mo_derivs_aux_fit, qs_env%matrix_ks_aux_fit, scaling_factor, error)
              END IF
-             
-             ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
-             scaling_factor=2.0_dp*occupation_numbers
-             CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
              DEALLOCATE(scaling_factor)
 
              IF (dft_control%restricted) THEN

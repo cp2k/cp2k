@@ -12,7 +12,8 @@ MODULE qs_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_types,                     ONLY: cp_fm_p_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -52,7 +53,8 @@ MODULE qs_force
                                              qs_ks_update_qs_env
   USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_mo_types,                     ONLY: mo_set_p_type,&
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type,&
                                              mo_set_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
@@ -74,6 +76,8 @@ MODULE qs_force
                                              timestop
   USE virial_types,                    ONLY: virial_get,&
                                              virial_type
+  USE wfn_fitting_methods,             ONLY: calc_mixed_overlap_force
+  USE wfn_fitting_types,               ONLY: wfn_fitting_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -116,6 +120,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -132,13 +137,17 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, matrix_w
+      POINTER                                :: matrix_ks, matrix_s, &
+                                                matrix_s_aux_fit, &
+                                                matrix_s_aux_fit_vs_orb, &
+                                                matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_energy_type), POINTER           :: scp_energy_loc
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(scp_force_type), POINTER            :: scp_force( : )
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(virial_type), POINTER               :: virial
+    TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
@@ -159,6 +168,8 @@ CONTAINS
     NULLIFY (rho)
     NULLIFY (scf_control)
     NULLIFY ( scp_env, scp_force )
+    NULLIFY (wfn_fitting_env)
+    NULLIFY (matrix_s_aux_fit_vs_orb)
 
     harris_flag = qs_env%use_harris
     CALL get_qs_env(qs_env=qs_env,&
@@ -217,7 +228,7 @@ CONTAINS
     END IF
     CALL zero_qs_force(force)
 
-    CALL qs_energies(qs_env,globenv,error=error)
+    CALL qs_energies(qs_env,globenv,calc_forces=.TRUE.,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
                     ks_env=ks_env,&
@@ -325,6 +336,24 @@ CONTAINS
                                qs_env=qs_env,&
                                calculate_forces=.TRUE.,error=error)
 
+      ! *** Add forces resulting from wavefunction fitting
+
+      IF (dft_control%do_wfn_fitting ) THEN
+        CALL get_qs_env(qs_env=qs_env,&
+                        matrix_s_aux_fit=matrix_s_aux_fit,&
+                        matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
+                        mos=mos,&
+                        wfn_fitting_env=wfn_fitting_env,&
+                        error=error)
+        DO ispin=1,nspin
+          mo_set => mos(ispin)%mo_set
+          CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff) 
+
+          CALL calc_mixed_overlap_force(qs_env, para_env, ispin, wfn_fitting_env, mo_coeff,  &
+                                        matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, error)
+        END DO
+      END IF 
+
       ! *** compute forces from SCP.  First get the scp_env
       IF ( dft_control%scp ) THEN
          CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
@@ -340,6 +369,7 @@ CONTAINS
       !  *** replicate forces ***
       DO ikind=1,SIZE(force)
         CALL mp_sum(force(ikind)%overlap,para_env%group)
+        CALL mp_sum(force(ikind)%overlap_wfn_fit,para_env%group)
         CALL mp_sum(force(ikind)%kinetic,para_env%group)
         CALL mp_sum(force(ikind)%gth_ppl,para_env%group)
         CALL mp_sum(force(ikind)%gth_ppnl,para_env%group)
@@ -361,6 +391,7 @@ CONTAINS
                                   force(ikind)%all_potential(:,:) +&
                                   force(ikind)%kinetic(:,:) +&
                                   force(ikind)%overlap(:,:) +&
+                                  force(ikind)%overlap_wfn_fit(:,:) +&
                                   force(ikind)%rho_core(:,:) +&
                                   force(ikind)%rho_elec(:,:) +&
                                   force(ikind)%vhxc_atom(:,:) +&
@@ -560,6 +591,7 @@ CONTAINS
              i = atom_of_kind(iatom)
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
+                  iatom,ikind,"overlap_wfn_fit",qs_force(ikind)%overlap_wfn_fit(1:3,i),&
                   iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
                   iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
                   iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
@@ -578,6 +610,7 @@ CONTAINS
              i = atom_of_kind(iatom)
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
+                  iatom,ikind,"overlap_wfn_fit",qs_force(ikind)%overlap_wfn_fit(1:3,i),&
                   iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
                   iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
                   iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
@@ -610,6 +643,7 @@ CONTAINS
              i = atom_of_kind(iatom)
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind,"        overlap",qs_force(ikind)%overlap(1:3,i),&
+                  iatom,ikind,"overlap_wfn_fit",qs_force(ikind)%overlap_wfn_fit(1:3,i),&
                   iatom,ikind,"        kinetic",qs_force(ikind)%kinetic(1:3,i),&
                   iatom,ikind,"        gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
                   iatom,ikind,"       gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
@@ -629,6 +663,7 @@ CONTAINS
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind,"  all_potential",qs_force(ikind)%all_potential(1:3,i),&
                   iatom,ikind,"        overlap",qs_force(ikind)%overlap(1:3,i),&
+                  iatom,ikind,"overlap_wfn_fit",qs_force(ikind)%overlap_wfn_fit(1:3,i),&
                   iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
                   iatom,ikind,"      repulsive",qs_force(ikind)%repulsive(1:3,i),&
                   iatom,ikind,"     dispersion",qs_force(ikind)%dispersion(1:3,i),&

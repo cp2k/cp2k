@@ -297,7 +297,8 @@ MODULE qs_environment_types
                                                              sbc_ppnl,sac_oce,&
                                                              sbc_oce,sab_2c,&
                                                              sac_3c,sbc_3c,sab_all,sab_scp,&
-                                                             sab_aux_fit, sab_aux_fit_vs_orb
+                                                             sab_aux_fit, sab_aux_fit_vs_orb,&
+                                                             sab_aux_fit_asymm
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(harris_env_type), POINTER                        :: harris_env
@@ -377,7 +378,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
-                        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_vs_orb,&
+                        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
                         sab_all,qmmm,qmmm_periodic,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sab_scp,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         particle_set,energy,force,harris_env,&
@@ -408,6 +409,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: mos, mos_aux_fit
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sab_aux_fit, &
+                                                sab_aux_fit_asymm, &
                                                 sab_aux_fit_vs_orb, sab_all
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), &
@@ -542,6 +544,7 @@ CONTAINS
     IF (PRESENT(neighbor_list_id)) neighbor_list_id=qs_env%neighbor_list_id
     IF (PRESENT(sab_orb)) sab_orb => qs_env%sab_orb
     IF (PRESENT(sab_aux_fit)) sab_aux_fit => qs_env%sab_aux_fit
+    IF (PRESENT(sab_aux_fit_asymm)) sab_aux_fit_asymm => qs_env%sab_aux_fit_asymm
     IF (PRESENT(sab_aux_fit_vs_orb)) sab_aux_fit_vs_orb => qs_env%sab_aux_fit_vs_orb
     IF (PRESENT(sab_all)) sab_all => qs_env%sab_all
     IF (PRESENT(sab_scp)) sab_scp => qs_env%sab_scp
@@ -678,6 +681,7 @@ CONTAINS
     NULLIFY (qs_env%mos_aux_fit)
     NULLIFY (qs_env%sab_orb)
     NULLIFY (qs_env%sab_aux_fit)
+    NULLIFY (qs_env%sab_aux_fit_asymm)
     NULLIFY (qs_env%sab_aux_fit_vs_orb)
     NULLIFY (qs_env%sab_scp)
     NULLIFY (qs_env%sab_all)
@@ -777,7 +781,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell, &
                         dft_control,mos,mos_aux_fit,qmmm,qmmm_periodic,&
-                        sab_orb,sab_aux_fit, sab_aux_fit_vs_orb,sab_all,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
+                        sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,sab_all,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,sab_scp,&
                         energy,force,harris_env,&
                         matrix_h,matrix_ks,matrix_ks_aux_fit, matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,&
@@ -803,8 +807,9 @@ CONTAINS
       OPTIONAL, POINTER                      :: mos, mos_aux_fit
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
-      sab_orb, sab_aux_fit, sab_aux_fit_vs_orb, sab_all, sac_erfc, sac_ppl, &
-      sac_ppnl, sbc_ppnl, sac_oce, sbc_oce, sab_2c, sac_3c, sbc_3c, sab_scp
+      sab_orb, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, &
+      sac_erfc, sac_ppl, sac_ppnl, sbc_ppnl, sac_oce, sbc_oce, sab_2c, &
+      sac_3c, sbc_3c, sab_scp
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
@@ -922,6 +927,7 @@ CONTAINS
     IF (PRESENT(neighbor_list_id)) qs_env%neighbor_list_id=neighbor_list_id
     IF (PRESENT(sab_orb)) qs_env%sab_orb => sab_orb
     IF (PRESENT(sab_aux_fit)) qs_env%sab_aux_fit => sab_aux_fit
+    IF (PRESENT(sab_aux_fit_asymm)) qs_env%sab_aux_fit_asymm => sab_aux_fit_asymm
     IF (PRESENT(sab_aux_fit_vs_orb)) qs_env%sab_aux_fit_vs_orb => sab_aux_fit_vs_orb
     IF (PRESENT(sab_scp)) qs_env%sab_scp => sab_scp
     IF (PRESENT(sab_all)) qs_env%sab_all => sab_all
@@ -1272,6 +1278,14 @@ CONTAINS
                      qs_env%sab_aux_fit(i)%neighbor_list_set)
              END DO
              DEALLOCATE(qs_env%sab_aux_fit,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%sab_aux_fit_asymm)) THEN
+             DO i=1,SIZE(qs_env%sab_aux_fit_asymm)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sab_aux_fit_asymm(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sab_aux_fit_asymm,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           IF (ASSOCIATED(qs_env%sab_aux_fit_vs_orb)) THEN

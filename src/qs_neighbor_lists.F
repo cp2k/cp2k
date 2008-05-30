@@ -176,8 +176,8 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_2c, sab_all, &
-      sab_aux_fit, sab_aux_fit_vs_orb, sab_orb, sab_scp, sac_3c, sac_oce, &
-      sac_ppl, sac_ppnl, sbc_3c, sbc_oce, sbc_ppnl
+      sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_orb, sab_scp, &
+      sac_3c, sac_oce, sac_ppl, sac_ppnl, sbc_3c, sbc_oce, sbc_ppnl
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -262,6 +262,7 @@ CONTAINS
                     sab_orb=sab_orb,&
                     sab_aux_fit=sab_aux_fit,&
                     sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
+                    sab_aux_fit_asymm=sab_aux_fit_asymm,&
                     sac_ppl=sac_ppl,&
                     sac_ppnl=sac_ppnl,&
                     sbc_ppnl=sbc_ppnl,&
@@ -680,6 +681,14 @@ CONTAINS
                                   name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL",&
                                   l3c_oce=paw_atom_present,&
                                   l3c_rho0=rho0_present,mic=mic)
+        CALL build_neighbor_lists(sab_aux_fit_asymm,atom,cell,r_skin,maxatom_local,&
+                                  print_subcell_grid,output_unit,&
+                                  aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,&
+                                  name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL_ASYMM",&
+                                  l3c_oce=paw_atom_present,&
+                                  l3c_rho0=rho0_present,mic=mic,&
+                                  symmetric=.FALSE.)
+
       END IF
 
       IF (molecule_only) THEN
@@ -697,12 +706,14 @@ CONTAINS
                                   l3c_oce=paw_atom_present,&
                                   l3c_rho0=rho0_present,mic=mic,&
                                   symmetric=.FALSE.)
+        
       END IF
 
       ! Put the generated neighbor lists into the QS environment
 
       CALL set_qs_env(qs_env=qs_env,sab_aux_fit=sab_aux_fit,error=error)
       CALL set_qs_env(qs_env=qs_env,sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,error=error)
+      CALL set_qs_env(qs_env=qs_env,sab_aux_fit_asymm=sab_aux_fit_asymm,error=error)
     END IF
 
 
