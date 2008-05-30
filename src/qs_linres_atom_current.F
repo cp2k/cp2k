@@ -1195,7 +1195,7 @@ CONTAINS
       last_jatom, nat, natom, nkind, nlist, nnode, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, new_atom_b
+    LOGICAL                                  :: failure, new_atom_b, oce_present
     REAL(dp)                                 :: rab(3)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1218,6 +1218,7 @@ CONTAINS
 
 !
 !
+    failure = .FALSE.
 
     NULLIFY(sac_oce, sbc_oce, oce, &
          &  atomic_kind,atomic_kind_set,&
@@ -1234,9 +1235,9 @@ CONTAINS
                     oce=oce,&
                     &error=error)
 
+    oce_present = ASSOCIATED(sac_oce)
+
     CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(sac_oce),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(sbc_oce),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(oce),cp_failure_level,routineP,error,failure)
 
     nkind = SIZE(atomic_kind_set,1)
@@ -1272,11 +1273,12 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
             &               natom=nat,&
             &               atom_list=atom_list)
-       DO iat = 1,nat
-          iatom = atom_list(iat)
-          CALL retrieve_sac_list(oce%voce,sac_oce,iatom,ikind,nkind,error=error)
-       ENDDO
-
+       IF(oce_present) THEN
+          DO iat = 1,nat
+             iatom = atom_list(iat)
+             CALL retrieve_sac_list(oce%voce,sac_oce,iatom,ikind,nkind,error=error)
+          ENDDO
+       ENDIF
     ENDDO
 
     DO ikind=1,nkind
