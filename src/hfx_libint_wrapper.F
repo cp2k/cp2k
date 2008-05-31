@@ -1141,7 +1141,8 @@ MODULE hfx_libint_wrapper
 
     failure = .FALSE.
     CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                           " This compiler does not support interfacing to libint." ,error,failure)
+                           " This CP2K executable has not been linked against the library libint, required for HFX.", &
+                             error,failure)
 
   END SUBROUTINE initialize_libint
 
@@ -1158,7 +1159,8 @@ MODULE hfx_libint_wrapper
 
     failure = .FALSE.
     CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                           " This compiler does not support interfacing to libint." ,error,failure)
+                           " This CP2K executable has not been linked against the library libint, required for HFX.", &
+                             error,failure)
 
   END SUBROUTINE initialize_libderiv
 
