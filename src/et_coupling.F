@@ -279,7 +279,7 @@ CONTAINS
        WRITE(iw,'(T3,A,T60,(3X,F12.6))') 'Final target value of constraint B:',Wbb
        WRITE(iw,*)
        WRITE(iw,'(T3,A,T60,(3X,F12.6))')&
-            'Diabatic electronic coupling matrix element(mHartree):',W_mat(1,2)*1000.0_dp       
+            'Diabatic electronic coupling matrix element(mHartree):',ABS(W_mat(1,2)*1000.0_dp)       
        
     ENDIF
 
