@@ -189,6 +189,9 @@ CONTAINS
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: p_psi1, psi1
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: p_psi0, psi1_D, psi1_p, &
+                                                psi1_rxp, rxp_psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
@@ -227,7 +230,7 @@ CONTAINS
     NULLIFY(rho_rspace,rho_gspace,logger,current_section,density_matrix0,density_matrix,&
          &  density_matrix_ii,density_matrix_iii,cell,dft_control,mos,rho_struct,particle_set,&
          &  pw_env,auxbas_rs_pool,auxbas_pw_pool,pw_pools,shift_pw_gspace,para_env,center_list,&
-         &  mo_coeff,psi0_fk,fm_work1,psi_a_iB,psi1,p_psi1)
+         &  mo_coeff,psi0_fk,fm_work1,psi_a_iB,psi1,p_psi1,psi1_p,psi1_D,psi1_rxp)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -235,8 +238,11 @@ CONTAINS
     !
     !
     CALL get_current_env(current_env=current_env,&
-                         center_list=center_list,&
-                         error=error)
+         &               center_list=center_list,&
+         &               psi1_rxp=psi1_rxp,&
+         &               psi1_D=psi1_D,&
+         &               psi1_p=psi1_p,&
+         &               error=error)
     !
     !
     CALL get_qs_env(qs_env=qs_env,&
@@ -261,14 +267,41 @@ CONTAINS
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, p_psi1, name=routineP//":p_psi1",error=error)
     !
     !
-    ALLOCATE(density_matrix0(nspins),density_matrix(nspins),density_matrix_ii(nspins),&
-         &   density_matrix_iii(nspins))
+    ALLOCATE(density_matrix0(nspins),density_matrix(nspins),&
+         &   density_matrix_ii(nspins),density_matrix_iii(nspins),&
+         &   STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ispin = 1,nspins
+       !
+       !density_matrix0
        NULLIFY(density_matrix0(ispin)%matrix)
+       CALL replicate_matrix_structure(current_env%op_rmd_ao(1)%matrix, &
+            &                          density_matrix0(ispin)%matrix,"density_matrix0"//&
+            &                          "-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+            &                          target_symmetry="none",error=error)
+       !
+       !density_matrix
        NULLIFY(density_matrix(ispin)%matrix)
+       CALL replicate_matrix_structure(current_env%op_rmd_ao(1)%matrix, &
+            &                          density_matrix(ispin)%matrix,"density_matrix"//&
+            &                          "-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+            &                          target_symmetry="none",error=error)
+       !
+       !density_matrix_ii
        NULLIFY(density_matrix_ii(ispin)%matrix)
+       CALL replicate_matrix_structure(current_env%op_rmd_ao(1)%matrix, &
+            &                          density_matrix_ii(ispin)%matrix,"density_matrix_ii"//&
+            &                          "-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+            &                          target_symmetry="none",error=error)
+       !
+       !density_matrix_iii
        NULLIFY(density_matrix_iii(ispin)%matrix)
+       CALL replicate_matrix_structure(current_env%op_rmd_ao(1)%matrix, &
+            &                          density_matrix_iii(ispin)%matrix,"density_matrix_iii"//&
+            &                          "-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+            &                          target_symmetry="none",error=error)
     ENDDO
+    !
 
     current_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES%CURRENT",&
          &                                        error=error)
@@ -285,9 +318,9 @@ CONTAINS
        ENDIF
        !
        ! Allocate grids for the calculation of jrho and the shift
-       ALLOCATE(shift_pw_gspace(3,dft_control%nspins),STAT=istat)
+       ALLOCATE(shift_pw_gspace(3,nspins),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DO ispin = 1,dft_control%nspins
+       DO ispin = 1,nspins
           DO idir = 1,3
              CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
                   &                  use_data=COMPLEXDATA1D,&
@@ -323,7 +356,6 @@ CONTAINS
           ENDIF
           !
           ! Build the first density matrix
-          density_matrix0(ispin)%matrix => current_env%jp0_ao(ispin)%matrix
           CALL set_matrix(density_matrix0(ispin)%matrix,0.0_dp)
           CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix0(ispin)%matrix ,&
                &                  matrix_v=psi0_fk,matrix_g=psi0_fk,&
@@ -331,7 +363,7 @@ CONTAINS
        ENDDO
        !
        ! Lets go!
-       DO ispin = 1,dft_control%nspins
+       DO ispin = 1,nspins
           CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
           CALL cp_fm_set_all(p_psi1(ispin)%matrix,0.0_dp,error=error)
        ENDDO
@@ -384,10 +416,10 @@ CONTAINS
              ! Copy the vector in the full matrix psi1
              DO j = center_list(ispin)%array(1,istate),center_list(ispin)%array(1,istate+1)-1
                 jstate = center_list(ispin)%array(2,j)
-                CALL cp_fm_get_submatrix(current_env%psi1_p(ispin,iiB)%matrix,&
+                CALL cp_fm_get_submatrix(psi1_p(ispin,iiB)%matrix,&
                      &                   vecbuf(iiB)%array,1,jstate,nao,1,&
                      &                   transpose=.TRUE.,error=error)
-                CALL cp_fm_get_submatrix(current_env%psi1_p(ispin,iiiB)%matrix,&
+                CALL cp_fm_get_submatrix(psi1_p(ispin,iiiB)%matrix,&
                      &                   vecbuf(iiiB)%array,1,jstate,nao,1,&
                      &                   transpose=.TRUE.,error=error)
                 DO iao = 1,nao
@@ -404,12 +436,12 @@ CONTAINS
           !
           ! contribution from the response psi1_rxp
           CALL cp_fm_scale_and_add(-1.0_dp,psi_a_iB,1.0_dp,&
-               &                   current_env%psi1_rxp(ispin,iB)%matrix,&
+               &                   psi1_rxp(ispin,iB)%matrix,&
                &                   error=error)
           IF(current_env%full) THEN
              ! contribution from the response psi1_D
              CALL  cp_fm_scale_and_add(1.0_dp,psi_a_iB,-1.0_dp,&
-                  &                    current_env%psi1_D(ispin,iB)%matrix,&
+                  &                    psi1_D(ispin,iB)%matrix,&
                   &                    error=error)
           ENDIF
           !
@@ -424,24 +456,21 @@ CONTAINS
           ENDIF
           !
           ! Build the first density matrix
-          density_matrix(ispin)%matrix => current_env%jp1_ao(ispin)%matrix
           CALL set_matrix(density_matrix(ispin)%matrix ,0.0_dp)
           CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix(ispin)%matrix ,&
                &                  matrix_v=psi0_fk,matrix_g=psi_a_iB,&
                &                  ncol=homo,alpha=alpha,error=error)
           !
           ! Build the second density matrix
-          density_matrix_iii(ispin)%matrix => current_env%jp2_ao(1,ispin)%matrix
           CALL set_matrix(density_matrix_iii(ispin)%matrix,0.0_dp)
           CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix ,&
-               &                  matrix_v=psi0_fk,matrix_g=current_env%psi1_p(ispin,iiiB)%matrix,&
+               &                  matrix_v=psi0_fk,matrix_g=psi1_p(ispin,iiiB)%matrix,&
                &                  ncol=homo,alpha=alpha,error=error)
           !
           ! Build the third density matrix
-          density_matrix_ii(ispin)%matrix => current_env%jp2_ao(2,ispin)%matrix
           CALL set_matrix(density_matrix_ii(ispin)%matrix ,0.0_dp)
           CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix ,&
-               &                  matrix_v=psi0_fk,matrix_g=current_env%psi1_p(ispin,iiB)%matrix,&
+               &                  matrix_v=psi0_fk,matrix_g=psi1_p(ispin,iiB)%matrix,&
                &                  ncol=homo,alpha=alpha,error=error)
           DO idir3=1,3
              ! set to zero for the calculation of the shift
@@ -573,7 +602,7 @@ CONTAINS
        !
        !
        CALL pw_pool_give_back_pw(auxbas_pw_pool,pw_gspace_work%pw,error=error)
-       DO ispin = 1,dft_control%nspins
+       DO ispin = 1,nspins
           DO idir = 1,3
              CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,error=error)
           ENDDO
@@ -584,14 +613,14 @@ CONTAINS
        !
        !
        DO ispin = 1,nspins
-          NULLIFY(density_matrix0(ispin)%matrix)
-          NULLIFY(density_matrix(ispin)%matrix)
-          NULLIFY(density_matrix_ii(ispin)%matrix)
-          NULLIFY(density_matrix_iii(ispin)%matrix)
+          CALL deallocate_matrix(density_matrix0(ispin)%matrix,error=error)
+          CALL deallocate_matrix(density_matrix(ispin)%matrix,error=error)
+          CALL deallocate_matrix(density_matrix_ii(ispin)%matrix,error=error)
+          CALL deallocate_matrix(density_matrix_iii(ispin)%matrix,error=error)
        ENDDO
        DEALLOCATE(density_matrix0,density_matrix,density_matrix_ii,density_matrix_iii,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ENDIF  !  failure
+    ENDIF !  failure
     !
     ! Finalize
     CALL timestop(0.0_dp,handle)

@@ -203,9 +203,9 @@ CONTAINS
     !
     ! operator p
     DO idir = 1,3
-       CALL cp_fm_set_all(psi1_p(1,idir)%matrix,0.0_dp,error=error)
-    ENDDO
-    DO idir = 1,3
+       DO ispin = 1,nspins
+          CALL cp_fm_set_all(psi1_p(ispin,idir)%matrix,0.0_dp,error=error)
+       ENDDO
        IF(.NOT.current_env%simple_done(idir)) THEN
           IF(output_unit>0) THEN
              WRITE(output_unit,"(T10,A)") "Response to the perturbation operator P_"//ACHAR(idir+119)
@@ -266,10 +266,9 @@ CONTAINS
     !
     ! operator rxp
     DO idir = 1,3
-       CALL cp_fm_set_all(psi1_rxp(1,idir)%matrix,0.0_dp,error=error)
-    ENDDO
-    
-    DO idir = 1,3
+       DO ispin = 1,nspins
+          CALL cp_fm_set_all(psi1_rxp(ispin,idir)%matrix,0.0_dp,error=error)
+       ENDDO
        IF(.NOT.current_env%simple_done(idir+3)) THEN
           IF(output_unit>0) THEN
              WRITE(output_unit,"(T10,A)") "Response to the perturbation operator L_"//ACHAR(idir+119)
@@ -1055,46 +1054,6 @@ CONTAINS
        CALL set_matrix(current_env%op_rmd_ao(idir)%matrix,0.0_dp)
     ENDDO
     !
-    ! Current density matrix in x y and z:
-    !
-    !jp0_ao
-    ALLOCATE(current_env%jp0_ao(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DO ispin = 1,nspins
-       NULLIFY(current_env%jp0_ao(ispin)%matrix)
-       CALL replicate_matrix_structure(current_env%op_rmd_ao(1)%matrix, &
-            &                          current_env%jp0_ao(ispin)%matrix,"current_env%jp0_ao"//&
-            &                          "-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-            &                          target_symmetry="none",error=error)
-       CALL set_matrix(current_env%jp0_ao(ispin)%matrix,0.0_dp)
-    ENDDO
-    !
-    !jp1_ao
-    ALLOCATE(current_env%jp1_ao(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DO ispin = 1,nspins
-       NULLIFY(current_env%jp1_ao(ispin)%matrix)
-       CALL replicate_matrix_structure(current_env%op_rmd_ao(1)%matrix, &
-            &                          current_env%jp1_ao(ispin)%matrix,"current_env%jp1_ao"//&
-            &                          "-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-            &                          target_symmetry="none",error=error)
-       CALL set_matrix(current_env%jp1_ao(ispin)%matrix,0.0_dp)
-    ENDDO
-    !
-    !jp2_ao
-    ALLOCATE(current_env%jp2_ao(2,nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DO idir = 1,2
-       DO ispin = 1,nspins
-          NULLIFY(current_env%jp2_ao(idir,ispin)%matrix)
-          CALL replicate_matrix_structure(current_env%op_rmd_ao(1)%matrix, &
-               &                          current_env%jp2_ao(idir,ispin)%matrix,"current_env%jp2_ao"//&
-               &                          "-"//TRIM(ADJUSTL(cp_to_string(idir)))//&
-               &                          "-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-               &                          target_symmetry="none",error=error)
-       ENDDO
-    ENDDO
-    !
     ! If the current density on the grid needs to be stored
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
     ALLOCATE(current_env%jrho1_set(3),STAT=istat)
@@ -1116,7 +1075,6 @@ CONTAINS
                &                 current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw,&
                &                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
           CALL pw_zero(current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw)
-             
           CALL pw_pool_create_pw(auxbas_pw_pool,&
                &                 current_env%jrho1_set(idir)%rho%rho_g(ispin)%pw,&
                &                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
@@ -1163,7 +1121,6 @@ CONTAINS
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          &                            "PRINT%PROGRAM_RUN_INFO",error=error)
-    
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE current_env_init
@@ -1267,32 +1224,6 @@ CONTAINS
           !op_rmd_ao
           IF(ASSOCIATED(current_env%op_rmd_ao)) THEN
              CALL deallocate_matrix_set(current_env%op_rmd_ao,error=error)
-          END IF
-          !jp0_ao
-          IF(ASSOCIATED(current_env%jp0_ao)) THEN
-             DO i = 1,SIZE(current_env%jp0_ao,1)
-                CALL deallocate_matrix(current_env%jp0_ao(i)%matrix,error=error)
-             END DO
-             DEALLOCATE(current_env%jp0_ao,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          END IF
-          !jp1_ao
-          IF(ASSOCIATED(current_env%jp1_ao)) THEN
-             DO i = 1,SIZE(current_env%jp1_ao,1)
-                CALL deallocate_matrix(current_env%jp1_ao(i)%matrix,error=error)
-             END DO
-             DEALLOCATE(current_env%jp1_ao,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          END IF
-          !jp2_ao
-          IF(ASSOCIATED(current_env%jp2_ao)) THEN
-             DO i = 1,SIZE(current_env%jp2_ao,1)
-                DO j = 1,SIZE(current_env%jp2_ao,2)
-                   CALL deallocate_matrix(current_env%jp2_ao(i,j)%matrix,error=error)
-                END DO
-             END DO
-             DEALLOCATE(current_env%jp2_ao,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           END IF
           ! Current density on the grid
           IF(ASSOCIATED(current_env%jrho1_set)) THEN

@@ -92,8 +92,6 @@ MODULE qs_linres_types
 !>                    one for each psi1_D_j vector
 !> \param chemical_shift the tensor for each atom
 !> \param chi_tensor the susceptibility tensor
-!> \param jp 1_ao :      current density matrices. 
-!> \param jp 2_ao :      density matrices used to compute the r-dependent terms
 !> \param jrho 1_set   : current density on the global grid, if gapw this is only the soft part
 !> \param jrho 1_atom_set : current density on the local atomic grids (only if gapw)
 !> \author MI 
@@ -113,8 +111,7 @@ MODULE qs_linres_types
      TYPE(cp_fm_p_type),      DIMENSION(:,:), POINTER :: psi1_p,psi1_rxp,psi1_D,p_psi0,rxp_psi0
      TYPE(jrho_atom_type),    DIMENSION(:  ), POINTER :: jrho1_atom_set
      TYPE(qs_rho_p_type),     DIMENSION(:  ), POINTER :: jrho1_set
-     TYPE(real_matrix_p_type),DIMENSION(:  ), POINTER :: op_p_ao,op_rmd_ao,jp0_ao,jp1_ao
-     TYPE(real_matrix_p_type),DIMENSION(:,:), POINTER :: jp2_ao
+     TYPE(real_matrix_p_type),DIMENSION(:  ), POINTER :: op_p_ao,op_rmd_ao
   END TYPE current_env_type
 
   TYPE nmr_env_type
@@ -309,9 +306,6 @@ CONTAINS
        NULLIFY(current_env%jrho1_set)
        NULLIFY(current_env%op_p_ao)
        NULLIFY(current_env%op_rmd_ao)
-       NULLIFY(current_env%jp2_ao)
-       NULLIFY(current_env%jp0_ao)
-       NULLIFY(current_env%jp1_ao)
     END IF
 
   END SUBROUTINE current_env_create
@@ -374,8 +368,8 @@ CONTAINS
   SUBROUTINE get_current_env(current_env,simple_done,simple_converged,full_done,ref_count,nao,&
        &                 nstates,gauge,list_cubes,statetrueindex,gauge_name,basisfun_center,&
        &                 nbr_center,center_list,centers_set,ao_mo_fm_pools,psi1_p,psi1_rxp,psi1_D,&
-       &                 p_psi0,rxp_psi0,jrho1_atom_set,jrho1_set,op_p_ao,op_rmd_ao,jp2_ao,&
-       &                 jp0_ao,jp1_ao,chi_tensor,chi_tensor_loc,error)
+       &                 p_psi0,rxp_psi0,jrho1_atom_set,jrho1_set,op_p_ao,op_rmd_ao,&
+       &                 chi_tensor,chi_tensor_loc,error)
     
     TYPE(current_env_type), OPTIONAL         :: current_env
     LOGICAL, OPTIONAL                        :: simple_done(6), &
@@ -406,10 +400,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: jrho1_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), OPTIONAL, POINTER     :: jp2_ao
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: jp0_ao, jp1_ao
     REAL(dp), INTENT(OUT), OPTIONAL          :: chi_tensor(3,3,2), &
                                                 chi_tensor_loc(3,3,2)
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -453,9 +443,6 @@ CONTAINS
        IF(PRESENT(jrho1_set       )) jrho1_set             => current_env%jrho1_set
        IF(PRESENT(op_rmd_ao       )) op_rmd_ao             => current_env%op_rmd_ao
        IF(PRESENT(op_p_ao         )) op_p_ao               => current_env%op_p_ao
-       IF(PRESENT(jp2_ao          )) jp2_ao                => current_env%jp2_ao
-       IF(PRESENT(jp1_ao          )) jp1_ao                => current_env%jp1_ao
-       IF(PRESENT(jp0_ao          )) jp0_ao                => current_env%jp0_ao
     ENDIF
 
   END SUBROUTINE get_current_env
