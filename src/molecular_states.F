@@ -9,6 +9,7 @@
 ! *****************************************************************************
 MODULE molecular_states
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE bibliography,                    ONLY: cite_reference,Hunt2003
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -102,6 +103,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+
+    CALL cite_reference(Hunt2003)
 
     failure = .FALSE.
     NULLIFY(logger)

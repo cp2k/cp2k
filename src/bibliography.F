@@ -49,7 +49,7 @@ MODULE bibliography
              Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, Aguado2003,&
              Essmann1995,Ewald1921,Darden1993, Tersoff1988, Tosi1964a, Tosi1964b,&
              Yamada2000,Dudarev1997,Dudarev1998,Dewar1977,Dewar1985,Rocha2006,&
-             Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008
+             Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003
 
 CONTAINS
 
@@ -1232,6 +1232,26 @@ CONTAINS
           "UT ISI:000071716800040",&
           "ER"),&
           DOI="10.1103/PhysRevB.57.1505")
+
+     CALL add_reference(key=Hunt2003,ISI_record=s2a(&
+          "PT J",&
+          "AU Hunt, P",&
+          "   Sprik, M",&
+          "   Vuilleumier, R",&
+          "TI Thermal versus electronic broadening in the density of states of liquid",&
+          "   water",&
+          "SO CHEMICAL PHYSICS LETTERS",&
+          "SN 0009-2614",&
+          "PD JUL 17",&
+          "PY 2003",&
+          "VL 376",&
+          "IS 1-2",&
+          "BP 68",&
+          "EP 74",&
+          "UT ISI:000184315600011",&
+          "ER"),&
+          DOI="10.1016/S0009-2614(03)00954-0")
+
 
    END SUBROUTINE add_all_references
 

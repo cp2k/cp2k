@@ -17,7 +17,7 @@ MODULE input_cp2k_dft
        Perdew1981, Perdew1996, Porezag1995, Repasky2002, Rocha2006, &
        Seifert1996, Stewart1989, Stewart2007, Thiel1992, VandeVondele2003, &
        VandeVondele2005a, VandeVondele2005b, Vosko1980, Weber2008, Zhang1998, &
-       Zhechkov2005
+       Zhechkov2005, Hunt2003
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -1285,6 +1285,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"MOLECULAR_STATES",&
             description="Controls printing of molecular states (requires LOCALIZATION keyword)", &
             print_level=high_print_level,filename=" ",&
+            citations=(/Hunt2003/),&
             error=error)
 
        CALL cp_print_key_section_create(print_key2,"cubes",&
