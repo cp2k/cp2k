@@ -44,7 +44,7 @@ MODULE qs_loc_molecules
 CONTAINS
 
 ! *****************************************************************************
-!> \brief maps wfc's to molecules
+!> \brief maps wfc's to molecules and also prints molecular dipoles
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling

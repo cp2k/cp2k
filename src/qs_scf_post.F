@@ -411,9 +411,9 @@ CPSourceFileRef,&
                    CALL qs_loc_driver(qs_env,qs_loc_env,loc_print_key,myspin=ispin,&
                         ext_mo_coeff=mo_localized,error=error)
 
-                   ! Compute the molecular dipoles if required
+                   ! maps wfc to molecules, and compute the molecular dipoles if required
                    IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION/MOLECULAR_DIPOLES",&
-                       error=error),cp_p_file)) THEN
+                       error=error),cp_p_file) .OR. p_molstates) THEN
                       loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error) 
                       CALL wfc_to_molecule(qs_loc_env, loc_print_key, scenter, molecule_set, error)
                    END IF
