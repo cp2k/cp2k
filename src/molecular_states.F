@@ -9,7 +9,8 @@
 ! *****************************************************************************
 MODULE molecular_states
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE bibliography,                    ONLY: cite_reference,Hunt2003
+  USE bibliography,                    ONLY: Hunt2003,&
+                                             cite_reference
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -37,6 +38,7 @@ MODULE molecular_states
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_maxloc
   USE molecule_types_new,              ONLY: molecule_type
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_type
   USE pw_types,                        ONLY: pw_p_type
@@ -69,7 +71,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
        mo_coeff, mo_eigenvalues, Hks, matrix_S, qs_env, wf_r, wf_g,&
-       force_env_section, error)
+       force_env_section, particles, error)
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
@@ -79,8 +81,10 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type), INTENT(INOUT)           :: wf_r, wf_g
     TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: i, imol, iproc, isos, j, k, &
                                                 ncol_global, nproc, &
@@ -224,9 +228,6 @@ CONTAINS
        CALL cp_fm_gemm('N','N',nrow_global,ns,ns,1.0_dp, &
             b,e_vectors,0.0_dp,rot_e_vectors,error=error)
 
-       DEALLOCATE ( evals,  STAT = isos )
-       IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
-            "eval", ns )
 
        ! compute Eq. 6 from P. Hunt et al. (CPL 376, p. 68-74)
        CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ns, &
@@ -249,6 +250,7 @@ CONTAINS
 
        IF ( BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
             "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error),cp_p_file) ) THEN
+
           DO i=1,ns
              j=ind(i)
 
@@ -263,19 +265,22 @@ CONTAINS
                   wf_g, atomic_kind_set,cell,dft_control,particle_set, &
                   pw_env, error = error )
 
-             WRITE(filename,'(a9,I2.2,a1,I3.3)')"MOLECULE_",imol,"_",j
+             WRITE(filename,'(a9,I2.2,a1,I3.3)')"MOLECULE_",imol,"_",i
+             WRITE(title,'(A,I0,A,I0,A,F16.8)') "Molecular Eigenstate ",i," of ",ns,". Energy [a.u.] = ",evals(i)
              unit_nr=cp_print_key_unit_nr(logger,force_env_section,&
                   "DFT%PRINT%MOLECULAR_STATES%CUBES",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-             CALL pw_to_cube(wf_r%pw,unit_nr,para_env%ionode,filename,&
+             CALL pw_to_cube(wf_r%pw,unit_nr,para_env%ionode,particles=particles,title=title,&
                   stride=section_get_ivals(force_env_section,&
                   "DFT%PRINT%MOLECULAR_STATES%CUBES%STRIDE",error=error), error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,force_env_section,&
                   "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error)
-             IF (output_unit>0) WRITE(output_unit,*) filename
           END DO
        ENDIF
 
+       DEALLOCATE ( evals,  STAT = isos )
+       IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
+            "eval", ns )
        CALL cp_fm_release ( b ,error=error)
        CALL cp_fm_release ( c ,error=error)
        CALL cp_fm_release ( d ,error=error)
