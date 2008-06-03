@@ -190,8 +190,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: p_psi1, psi1
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: p_psi0, psi1_D, psi1_p, &
-                                                psi1_rxp, rxp_psi0
+      POINTER                                :: psi1_D, psi1_p, psi1_rxp
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct

@@ -95,7 +95,6 @@ MODULE qs_linres_current_utils
   USE qs_rho_types,                    ONLY: qs_rho_retain
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             deallocate_matrix,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
@@ -1134,7 +1133,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, idir, ispin, istat, j
+    INTEGER                                  :: i, idir, ispin, istat
     LOGICAL                                  :: failure
 
     failure=.FALSE.

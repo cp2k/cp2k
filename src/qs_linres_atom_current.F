@@ -1195,7 +1195,8 @@ CONTAINS
       last_jatom, nat, natom, nkind, nlist, nnode, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, new_atom_b, oce_present
+    LOGICAL                                  :: failure, new_atom_b, &
+                                                oce_present
     REAL(dp)                                 :: rab(3)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1218,6 +1219,7 @@ CONTAINS
 
 !
 !
+
     failure = .FALSE.
 
     NULLIFY(sac_oce, sbc_oce, oce, &
