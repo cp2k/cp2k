@@ -1396,7 +1396,6 @@ END SUBROUTINE qs_scf_print_summary
                 CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
                      qs_ot_env = scf_env%qs_ot_env,error=error)
              CASE(ot_precond_full_all,ot_precond_full_single_inverse)
-                CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure)
                 ! this will rotate the MOs to be eigen states, which is not compatible with rotation
                 do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
                 CPPrecondition(.NOT.do_rotation,cp_failure_level,routineP,error,failure)
@@ -1405,10 +1404,17 @@ END SUBROUTINE qs_scf_print_summary
                    CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
                         para_env=mo_coeff%matrix_struct%para_env, &
                         do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix,error=error)
-                   CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
+                   IF (has_unit_metric) THEN
+                     CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
+                        scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                        matrix_ks(ispin)%matrix,mo_coeff=mo_coeff,&
+                        energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                   ELSE
+                     CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
                         scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                         matrix_ks(ispin)%matrix,matrix_s(1)%matrix,matrix_s(1)%matrix,&
                         mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                   END IF
                 ENDDO
                 CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
                      qs_ot_env = scf_env%qs_ot_env,error=error)
@@ -1423,12 +1429,18 @@ END SUBROUTINE qs_scf_print_summary
                 CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
                      qs_ot_env = scf_env%qs_ot_env,error=error)
              CASE(ot_precond_s_inverse,ot_precond_sparse_diag,ot_precond_full_single)
-                CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure)
                 CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
-                CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
+                IF (has_unit_metric) THEN
+                  CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
+                     scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                     matrix_ks(1)%matrix,mo_coeff=mo_coeff,&
+                     energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                ELSE
+                  CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
                      scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                      matrix_ks(1)%matrix,matrix_s(1)%matrix,matrix_s(1)%matrix,&
                      mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                END IF
                 CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
                      qs_ot_env = scf_env%qs_ot_env,error=error)
                 DO ispin=1,SIZE(scf_env%qs_ot_env)
