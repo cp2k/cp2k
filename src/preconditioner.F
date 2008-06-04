@@ -167,8 +167,8 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
     TYPE(preconditioner_type)                :: preconditioner_env
     INTEGER                                  :: precon_type
     TYPE(real_matrix_type), POINTER          :: matrix_h
-    TYPE(real_matrix_type), POINTER, OPTIONAL:: matrix_s
-    TYPE(real_matrix_type), POINTER, OPTIONAL:: matrix_t
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: matrix_s, matrix_t
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     REAL(KIND=dp)                            :: energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -285,7 +285,8 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
       POINTER                                :: ev_h0
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h
-    TYPE(real_matrix_type), POINTER, OPTIONAL:: matrix_s
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: matrix_s
     REAL(KIND=dp)                            :: energy_gap
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1361,8 +1362,9 @@ SUBROUTINE make_sparse_diag_ortho(preconditioner_env, matrix_h, energy_homo, ene
     REAL(KIND=dp)                            :: energy_homo, energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: iblock_col_h, iblock_row, n, nblocks, i
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_s, block_pre
+    INTEGER                                  :: i, iblock_col_h, iblock_row, &
+                                                n, nblocks
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_pre, block_s
     TYPE(real_block_node_type), POINTER      :: block_node_h
 
 !----
@@ -1419,8 +1421,9 @@ SUBROUTINE make_sparse_first_order_ortho(preconditioner_env, matrix_h, &
     REAL(KIND=dp)                            :: energy_homo, energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: iblock_col_h, iblock_col_s, &
-                                                iblock_row, i, k, n, nblocks
+    INTEGER                                  :: i, iblock_col_h, &
+                                                iblock_col_s, iblock_row, k, &
+                                                n, nblocks
     INTEGER, DIMENSION(:), POINTER           :: first_row, last_row, offset
     REAL(KIND=dp), DIMENSION(:), POINTER     :: block_buffer
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_pre, block_s, &
