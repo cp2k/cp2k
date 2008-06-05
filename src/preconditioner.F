@@ -26,14 +26,9 @@ MODULE preconditioner
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_diag,&
-                                             cp_fm_get_info,&
-                                             cp_fm_init_random,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
+  USE cp_fm_types,                     ONLY: &
+       cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_init_random, &
+       cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
@@ -221,7 +216,8 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
        CALL make_full_single(preconditioner_env, preconditioner_env%fm,&
                           matrix_h, matrix_s, energy_homo, energy_gap ,error=error)
     ELSE
-       CALL stop_program("make preconditioner","Type for S=1 not implemented")
+       CALL make_full_single_ortho(preconditioner_env, preconditioner_env%fm,&
+                          matrix_h, energy_homo, energy_gap ,error=error)
     END IF
   CASE (ot_precond_s_inverse)
     preconditioner_env%in_use=ot_precond_s_inverse
@@ -254,7 +250,8 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
        CALL make_full_single_inverse(preconditioner_env,mo_coeff,matrix_h, matrix_s, &
                        eigenvalues_ot, energy_gap,error=error)
     ELSE
-       CALL stop_program("make preconditioner","Type for S=1 not implemented")
+       CALL make_full_single_inverse_ortho(preconditioner_env,mo_coeff,matrix_h, &
+                       eigenvalues_ot, energy_gap,error=error)
     END IF
   CASE (ot_precond_full_all)
     preconditioner_env%in_use=ot_precond_full_all
@@ -262,7 +259,8 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
        CALL make_full_all(preconditioner_env,mo_coeff,matrix_h, matrix_s, &
                         eigenvalues_ot, energy_gap,error=error)
     ELSE
-       CALL stop_program("make preconditioner","Type for S=1 not implemented")
+       CALL make_full_all_ortho(preconditioner_env,mo_coeff,matrix_h, &
+                        eigenvalues_ot, energy_gap,error=error)
     END IF
   CASE DEFAULT
     CALL stop_program("make preconditioner","Type not implemented")
@@ -958,7 +956,6 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
     ! get H added to the shift
     CALL copy_sm_to_fm(matrix_h,matrix_tmp,error=error)
     CALL cp_fm_scale_and_add(1.0_dp,preconditioner_env%fm,1.0_dp,matrix_tmp,error=error)
-    CALL copy_sm_to_fm(matrix_s,matrix_tmp,error=error)
 
     ! preconditioner shift, we target the middle of the occupied spectrum, and taking into account the error_estimate
     ! write(6,*) "Error estimate = ",error_estimate
@@ -1519,7 +1516,277 @@ SUBROUTINE make_sparse_first_order_ortho(preconditioner_env, matrix_h, &
   DEALLOCATE(offset,block_buffer)
 
 END SUBROUTINE make_sparse_first_order_ortho
+! *****************************************************************************
+SUBROUTINE make_full_single_ortho(preconditioner_env, fm, matrix_h, &
+                       energy_homo, energy_gap , error)
 
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: fm
+    TYPE(real_matrix_type), POINTER          :: matrix_h
+    REAL(KIND=dp)                            :: energy_homo, energy_gap
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: i, n
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: evals
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: fm_h, fm_s
+
+  NULLIFY(fm_h,fm_s,fm_struct_tmp,evals)
+
+  IF (ASSOCIATED(fm)) THEN
+     CALL cp_fm_release(fm,error=error)
+  ENDIF
+  CALL get_matrix_info(matrix_h,nrow=n)
+  ALLOCATE(evals(n))
+
+  CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
+                             context=preconditioner_env%ctxt, &
+                             para_env=preconditioner_env%para_env,error=error)
+  CALL cp_fm_create(fm,fm_struct_tmp, name="preconditioner",error=error)
+  CALL cp_fm_create(fm_h,fm_struct_tmp, name="fm_h",error=error)
+  CALL cp_fm_create(fm_s,fm_struct_tmp, name="fm_s",error=error)
+  CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+  CALL copy_sm_to_fm(matrix_h,fm_h,error=error)
+  CALL cp_fm_syevd(fm_h,fm,evals,error=error)
+  DO i=1,n
+        evals(i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
+  ENDDO
+  CALL cp_fm_to_fm(fm,fm_h,error=error)
+  CALL cp_fm_column_scale(fm,evals)
+  CALL cp_fm_gemm('N','T',n,n,n,1.0_dp,fm,fm_h,0.0_dp,fm_s,error=error)
+  CALL cp_fm_to_fm(fm_s,fm,error=error)
+
+  DEALLOCATE(evals)
+  CALL cp_fm_release(fm_h,error=error)
+  CALL cp_fm_release(fm_s,error=error)
+
+END SUBROUTINE make_full_single_ortho
+! *****************************************************************************
+SUBROUTINE make_full_single_inverse_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals, energy_gap,error)
+
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: matrix_c0
+    TYPE(real_matrix_type), POINTER          :: matrix_h
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_evals
+    REAL(KIND=dp)                            :: energy_gap
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    REAL(KIND=dp), PARAMETER                 :: eval_shift = 5.0_dp , &
+                                                fudge_factor = 2.0_dp 
+
+    INTEGER                                  :: k, n
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: error_estimate, &
+                                                preconditioner_shift
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_shift, diag, evals
+    TYPE(cp_error_type)                      :: sub_error
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: matrix_hc0, matrix_s1, &
+                                                matrix_sc0, matrix_tmp, &
+                                                matrix_tmp2
+
+! arbitrary upshift of the occupied evals
+! fudge factor for taking the error estimate into account
+
+    CALL cp_fm_get_info(matrix_c0,nrow_global=n,ncol_global=k,error=error)
+
+    IF (ASSOCIATED(preconditioner_env%fm)) CALL cp_fm_release(preconditioner_env%fm,error=error)
+    CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=n,ncol_global=n, &
+                             context=preconditioner_env%ctxt, &
+                             para_env=preconditioner_env%para_env,error=error)
+    CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp,name="preconditioner_env%fm",error=error)
+    CALL cp_fm_create(matrix_tmp,fm_struct_tmp, name="preconditioner matrix_tmp",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+    ! get the error estimate
+    CALL cp_fm_create(matrix_sc0,matrix_c0%matrix_struct,name="sc0",error=error)
+    CALL cp_fm_to_fm(matrix_c0,matrix_sc0,error=error)
+    CALL cp_fm_create(matrix_hc0,matrix_c0%matrix_struct,name="hc0",error=error)
+    CALL cp_sm_fm_multiply(matrix_h,matrix_c0,matrix_hc0,k,error=error)
+
+    CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=k,ncol_global=k, &
+                                context=preconditioner_env%ctxt, &
+                                para_env=preconditioner_env%para_env,error=error)
+    CALL cp_fm_create(matrix_s1,fm_struct_tmp,name="matrix_s1",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+    ! since we only use diagonal elements this is a bit of a waste
+    CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_hc0,matrix_hc0,0.0_dp,matrix_s1,error=error)
+    ALLOCATE(diag(k))
+    CALL cp_fm_get_diag(matrix_s1,diag,error=error)
+    error_estimate=MAXVAL(SQRT(ABS(diag-c0_evals**2)))
+    DEALLOCATE(diag)
+    CALL cp_fm_release(matrix_s1,error=error)
+    CALL cp_fm_release(matrix_hc0,error=error)
+
+    ! shift up the occupied subspace eigenvalues
+    ALLOCATE(c0_shift(k))
+    c0_shift=SQRT(-(c0_evals-c0_evals(k))+eval_shift)
+    CALL cp_fm_column_scale(matrix_sc0,c0_shift)
+    CALL cp_fm_gemm('N','T',n,n,k,1.0_dp,matrix_sc0,matrix_sc0,0.0_dp,preconditioner_env%fm,error=error)
+    CALL cp_fm_release(matrix_sc0,error=error)
+    DEALLOCATE(c0_shift)
+
+    ! get H added to the shift
+    CALL copy_sm_to_fm(matrix_h,matrix_tmp,error=error)
+    CALL cp_fm_scale_and_add(1.0_dp,preconditioner_env%fm,1.0_dp,matrix_tmp,error=error)
+
+    ! preconditioner shift, we target the middle of the occupied spectrum, and taking into account the error_estimate
+    ! write(6,*) "Error estimate = ",error_estimate
+    preconditioner_shift=-(MINVAL(c0_evals)+ MAXVAL(c0_evals))/2.0_dp + &
+                           error_estimate*fudge_factor
+    CALL cp_fm_set_all(matrix_tmp,alpha=0._dp,beta=1._dp,error=error)
+    CALL cp_fm_scale_and_add(1.0_dp,preconditioner_env%fm,preconditioner_shift,matrix_tmp,error=error)
+    ! check evals
+    IF (.FALSE.) THEN
+       CALL cp_fm_to_fm(preconditioner_env%fm,matrix_tmp,error=error)
+       CALL cp_fm_create(matrix_tmp2,matrix_tmp%matrix_struct,name="matrix_tmp2",error=error)
+       ALLOCATE(evals(n))
+       CALL cp_fm_syevd(matrix_tmp,matrix_tmp2,evals,error)
+       CALL cp_fm_release(matrix_tmp2,error=error)
+       WRITE(6,*) "evals ",evals
+       DEALLOCATE(evals)
+    ENDIF
+
+    ! the preconditioner ought now to be symmetric positive definite (provided C0 & system are OK)
+    ! we do catch the error and try to fix things
+    CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
+    CALL cp_fm_cholesky_decompose(preconditioner_env%fm,error=sub_error)
+    failure = .FALSE. ; CALL cp_error_check(sub_error,failure)
+    CALL cp_error_dealloc_ref(sub_error)
+
+    ! check if we need to replace the preconditioner by something simple
+    ! just to keep going
+    IF (failure) THEN
+       ! just the unit matrix
+       CALL cp_fm_set_all(preconditioner_env%fm,alpha=0._dp,beta=1._dp,error=error)
+    ENDIF
+
+    ! we need to bring it in the final shape (i.e. full matrix, explicit inverse)
+    CALL cp_fm_cholesky_invert(preconditioner_env%fm,error=error)
+    CALL cp_fm_upper_to_full(preconditioner_env%fm,matrix_tmp,error=error)
+    CALL cp_fm_release(matrix_tmp,error=error)
+
+END SUBROUTINE make_full_single_inverse_ortho
+! *****************************************************************************
+SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals, energy_gap, error)
+
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: matrix_c0
+    TYPE(real_matrix_type), POINTER          :: matrix_h
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_evals
+    REAL(KIND=dp)                            :: energy_gap
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    REAL(KIND=dp), PARAMETER                 :: fudge_factor = 0.25_dp, &
+                                                lambda_base = 10.0_dp
+
+    INTEGER                                  :: k, n
+    REAL(KIND=dp)                            :: error_estimate, lambda
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: diag, norms, shifted_evals
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: matrix_hc0, matrix_left, &
+                                                matrix_pre, matrix_s1, &
+                                                matrix_s2, matrix_sc0, &
+                                                matrix_tmp
+
+    IF (ASSOCIATED(preconditioner_env%fm)) CALL cp_fm_release(preconditioner_env%fm,error)
+    CALL cp_fm_get_info(matrix_c0,nrow_global=n,ncol_global=k,error=error)
+    CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=n,ncol_global=n, &
+                             context=preconditioner_env%ctxt, &
+                             para_env=preconditioner_env%para_env,error=error)
+    CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp,name="preconditioner_env%fm",error=error)
+    matrix_pre=>preconditioner_env%fm
+    CALL cp_fm_create(matrix_tmp,fm_struct_tmp,name="matrix_tmp",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+    ALLOCATE(preconditioner_env%full_evals(n))
+    ALLOCATE(preconditioner_env%occ_evals(k))
+
+    ! 1) Construct a new H matrix, which has the current C0 as eigenvectors,
+    !    possibly shifted by an amount lambda,
+    !    and the same spectrum as the original H matrix in the space orthogonal to the C0
+    !    with P=C0 C0 ^ T
+    !    (1 - PS)^T H (1-PS) + (PS)^T (H - lambda S ) (PS)
+    !    we exploit that the C0 are already the ritz states of H
+    CALL cp_fm_create(matrix_sc0,matrix_c0%matrix_struct,name="sc0",error=error)
+    CALL cp_fm_to_fm(matrix_c0,matrix_sc0,error=error)
+    CALL cp_fm_create(matrix_hc0,matrix_c0%matrix_struct,name="hc0",error=error)
+    CALL cp_sm_fm_multiply(matrix_h,matrix_c0,matrix_hc0,k,error=error)
+
+       ! An aside, try to estimate the error on the ritz values, we'll need it later on
+       CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=k,ncol_global=k, &
+                                context=preconditioner_env%ctxt, &
+                                para_env=preconditioner_env%para_env,error=error)
+       CALL cp_fm_create(matrix_s1,fm_struct_tmp,name="matrix_s1",error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+       ! since we only use diagonal elements this is a bit of a waste
+       CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_hc0,matrix_hc0,0.0_dp,matrix_s1,error=error)
+       ALLOCATE(diag(k))
+       CALL cp_fm_get_diag(matrix_s1,diag,error=error)
+       error_estimate=MAXVAL(SQRT(ABS(diag-c0_evals**2)))
+       DEALLOCATE(diag)
+       CALL cp_fm_release(matrix_s1,error=error)
+       ! we'll only use the energy gap, if our estimate of the error on the eigenvalues
+       ! is small enough. A large error combined with a small energy gap would otherwise lead to 
+       ! an aggressive but bad preconditioner. Only when the error is small (MD), we can precondition
+       ! aggressively
+       preconditioner_env%energy_gap= MAX(energy_gap,error_estimate*fudge_factor)
+
+    CALL copy_sm_to_fm(matrix_h,matrix_tmp,error=error)
+    CALL cp_fm_upper_to_full(matrix_tmp,matrix_pre,error=error)
+    ! tmp = H ( 1 - PS )
+    CALL cp_fm_gemm('N','T',n,n,k,-1.0_dp,matrix_hc0,matrix_sc0,1.0_dp,matrix_tmp,error=error)
+
+    CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=k,ncol_global=n, &
+                             context=preconditioner_env%ctxt, &
+                             para_env=preconditioner_env%para_env,error=error)
+    CALL cp_fm_create(matrix_left,fm_struct_tmp,name="matrix_left",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+    CALL cp_fm_gemm('T','N',k,n,n,1.0_dp,matrix_c0,matrix_tmp,0.0_dp,matrix_left,error=error)
+    ! tmp = (1 - PS)^T H (1-PS)
+    CALL cp_fm_gemm('N','N',n,n,k,-1.0_dp,matrix_sc0,matrix_left,1.0_dp,matrix_tmp,error=error)
+    CALL cp_fm_release(matrix_left,error=error)
+
+    ALLOCATE(shifted_evals(k))
+    lambda = lambda_base + error_estimate
+    shifted_evals=c0_evals - lambda
+    CALL cp_fm_to_fm(matrix_sc0,matrix_hc0,error=error)
+    CALL cp_fm_column_scale(matrix_hc0,shifted_evals)
+    CALL cp_fm_gemm('N','T',n,n,k,1.0_dp,matrix_hc0,matrix_sc0,1.0_dp,matrix_tmp,error=error)
+
+    ! 2) diagonalize this operator
+    CALL cp_fm_syevd(matrix_tmp,matrix_pre,preconditioner_env%full_evals,error=error)
+
+    ! test that the subspace remained conserved
+    IF (.FALSE.) THEN
+        CALL cp_fm_to_fm(matrix_pre,matrix_tmp,error=error)
+        CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=k,ncol_global=k, &
+                             context=preconditioner_env%ctxt, &
+                             para_env=preconditioner_env%para_env,error=error)
+        CALL cp_fm_create(matrix_s1,fm_struct_tmp,name="matrix_s1",error=error)
+        CALL cp_fm_create(matrix_s2,fm_struct_tmp,name="matrix_s2",error=error)
+        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+        ALLOCATE(norms(k))
+        CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_sc0,matrix_tmp,0.0_dp,matrix_s1,error=error)
+        CALL cp_fm_syevd(matrix_s1,matrix_s2,norms,error=error)
+        WRITE(6,*) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms)-1.0_dp))
+        DEALLOCATE(norms)
+        CALL cp_fm_release(matrix_s1,error=error)
+        CALL cp_fm_release(matrix_s2,error=error)
+    ENDIF
+
+    ! 3) replace the lowest k evals and evecs with what they should be
+    preconditioner_env%occ_evals=c0_evals
+    ! notice, this choice causes the preconditioner to be constant when applied to sc0 (see apply_full_all)
+    preconditioner_env%full_evals(1:k)=c0_evals 
+    CALL cp_fm_to_fm(matrix_c0,matrix_pre,k,1,1)
+
+    CALL cp_fm_release(matrix_sc0,error=error)
+    CALL cp_fm_release(matrix_hc0,error=error)
+    CALL cp_fm_release(matrix_tmp,error=error)
+    DEALLOCATE(shifted_evals)
+
+END SUBROUTINE make_full_all_ortho
 ! *****************************************************************************
 END MODULE preconditioner
 
