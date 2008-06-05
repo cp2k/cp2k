@@ -1030,10 +1030,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_jrho_coeff(jrho1_atom,nsotot,error)
+  SUBROUTINE allocate_jrho_coeff(jrho1_atom_set,iatom,nsotot,error)
   
-    TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-    INTEGER, INTENT(IN)                      :: nsotot
+    TYPE(jrho_atom_type), DIMENSION(:), &
+      POINTER                                :: jrho1_atom_set
+    INTEGER, INTENT(IN)                      :: iatom, nsotot
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_coeff', &
@@ -1044,33 +1045,33 @@ CONTAINS
 
     CALL timeset(routineN,"I"," ",handle)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom_set),cp_failure_level,routineP,error,failure)
     IF(.NOT.failure) THEN
-       DO i = 1,SIZE(jrho1_atom%cjc0_h,1)
-          ALLOCATE(jrho1_atom%cjc0_h(i)%r_coef(nsotot,nsotot),STAT=istat)
+       DO i = 1,SIZE(jrho1_atom_set(iatom)%cjc0_h,1)
+          ALLOCATE(jrho1_atom_set(iatom)%cjc0_h(i)%r_coef(nsotot,nsotot),STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(jrho1_atom%cjc0_s(i)%r_coef(nsotot,nsotot),STAT=istat)
+          ALLOCATE(jrho1_atom_set(iatom)%cjc0_s(i)%r_coef(nsotot,nsotot),STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(jrho1_atom%cjc_h(i)%r_coef(nsotot,nsotot),STAT=istat)
+          ALLOCATE(jrho1_atom_set(iatom)%cjc_h(i)%r_coef(nsotot,nsotot),STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(jrho1_atom%cjc_s(i)%r_coef(nsotot,nsotot),STAT=istat)
+          ALLOCATE(jrho1_atom_set(iatom)%cjc_s(i)%r_coef(nsotot,nsotot),STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(jrho1_atom%cjc_ii_h(i)%r_coef(nsotot,nsotot),STAT=istat)
+          ALLOCATE(jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef(nsotot,nsotot),STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(jrho1_atom%cjc_ii_s(i)%r_coef(nsotot,nsotot),STAT=istat)
+          ALLOCATE(jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef(nsotot,nsotot),STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(jrho1_atom%cjc_iii_h(i)%r_coef(nsotot,nsotot),STAT=istat)
+          ALLOCATE(jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef(nsotot,nsotot),STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(jrho1_atom%cjc_iii_s(i)%r_coef(nsotot,nsotot),STAT=istat)
+          ALLOCATE(jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef(nsotot,nsotot),STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          jrho1_atom%cjc0_h(i)%r_coef = 0.0_dp
-          jrho1_atom%cjc0_s(i)%r_coef = 0.0_dp
-          jrho1_atom%cjc_h(i)%r_coef = 0.0_dp
-          jrho1_atom%cjc_s(i)%r_coef = 0.0_dp
-          jrho1_atom%cjc_ii_h(i)%r_coef = 0.0_dp
-          jrho1_atom%cjc_ii_s(i)%r_coef = 0.0_dp
-          jrho1_atom%cjc_iii_h(i)%r_coef = 0.0_dp
-          jrho1_atom%cjc_iii_s(i)%r_coef = 0.0_dp
+          jrho1_atom_set(iatom)%cjc0_h(i)%r_coef = 0.0_dp
+          jrho1_atom_set(iatom)%cjc0_s(i)%r_coef = 0.0_dp
+          jrho1_atom_set(iatom)%cjc_h(i)%r_coef = 0.0_dp
+          jrho1_atom_set(iatom)%cjc_s(i)%r_coef = 0.0_dp
+          jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef = 0.0_dp
+          jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef = 0.0_dp
+          jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef = 0.0_dp
+          jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef = 0.0_dp
        ENDDO
     ENDIF
     CALL timestop(0.0_dp,handle)
@@ -1078,9 +1079,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_jrho_coeff(jrho1_atom,error)
+  SUBROUTINE deallocate_jrho_coeff(jrho1_atom_set,iatom,error)
   
-    TYPE(jrho_atom_type), POINTER            :: jrho1_atom
+    TYPE(jrho_atom_type), DIMENSION(:), &
+      POINTER                                :: jrho1_atom_set
+    INTEGER, INTENT(IN)                      :: iatom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_jrho_coeff', &
@@ -1091,24 +1094,24 @@ CONTAINS
 
     CALL timeset(routineN,"I"," ",handle)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(jrho1_atom_set),cp_failure_level,routineP,error,failure)
     IF(.NOT.failure) THEN
-       DO i = 1,SIZE(jrho1_atom%cjc0_h,1)
-          DEALLOCATE(jrho1_atom%cjc0_h(i)%r_coef,STAT=istat)
+       DO i = 1,SIZE(jrho1_atom_set(iatom)%cjc0_h,1)
+          DEALLOCATE(jrho1_atom_set(iatom)%cjc0_h(i)%r_coef,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(jrho1_atom%cjc0_s(i)%r_coef,STAT=istat)
+          DEALLOCATE(jrho1_atom_set(iatom)%cjc0_s(i)%r_coef,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(jrho1_atom%cjc_h(i)%r_coef,STAT=istat)
+          DEALLOCATE(jrho1_atom_set(iatom)%cjc_h(i)%r_coef,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(jrho1_atom%cjc_s(i)%r_coef,STAT=istat)
+          DEALLOCATE(jrho1_atom_set(iatom)%cjc_s(i)%r_coef,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(jrho1_atom%cjc_ii_h(i)%r_coef,STAT=istat)
+          DEALLOCATE(jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(jrho1_atom%cjc_ii_s(i)%r_coef,STAT=istat)
+          DEALLOCATE(jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(jrho1_atom%cjc_iii_h(i)%r_coef,STAT=istat)
+          DEALLOCATE(jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(jrho1_atom%cjc_iii_s(i)%r_coef,STAT=istat)
+          DEALLOCATE(jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        ENDDO
     ENDIF
@@ -1292,32 +1295,32 @@ CONTAINS
              NULLIFY(jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef)
              NULLIFY(jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef)
 
-             IF(paw_atom) THEN
-                ALLOCATE(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef(1:nsotot,1:nsotot),&
-                     &   STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                ALLOCATE(jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef(1:nsotot,1:nsotot),&
-                     &   STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                ALLOCATE(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef(1:nsotot,1:nsotot),&
-                     &   STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                ALLOCATE(jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef(1:nsotot,1:nsotot),&
-                     &   STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                ALLOCATE(jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef(1:nsotot,1:nsotot),&
-                     &   STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                ALLOCATE(jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef(1:nsotot,1:nsotot),&
-                     &   STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                ALLOCATE(jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef(1:nsotot,1:nsotot),&
-                     &   STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                ALLOCATE(jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef(1:nsotot,1:nsotot),&
-                     &   STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-             ENDIF
+             !IF(paw_atom) THEN
+                !ALLOCATE(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef(1:nsotot,1:nsotot),&
+                !     &   STAT=istat)
+                !CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                !ALLOCATE(jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef(1:nsotot,1:nsotot),&
+                !     &   STAT=istat)
+                !CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                !ALLOCATE(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef(1:nsotot,1:nsotot),&
+                !     &   STAT=istat)
+                !CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                !ALLOCATE(jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef(1:nsotot,1:nsotot),&
+                !     &   STAT=istat)
+                !CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                !ALLOCATE(jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef(1:nsotot,1:nsotot),&
+                !     &   STAT=istat)
+                !CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                !ALLOCATE(jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef(1:nsotot,1:nsotot),&
+                !     &   STAT=istat)
+                !CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                !ALLOCATE(jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef(1:nsotot,1:nsotot),&
+                !     &   STAT=istat)
+                !CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                !ALLOCATE(jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef(1:nsotot,1:nsotot),&
+                !     &   STAT=istat)
+                !CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+             !ENDIF
 
           ENDDO ! ispin
 

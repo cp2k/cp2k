@@ -41,6 +41,7 @@ MODULE qs_linres_atom_current
                                              set_vecp,&
                                              set_vecp_rev
   USE qs_linres_types,                 ONLY: allocate_jrho_atom_rad,&
+                                             allocate_jrho_coeff,&
                                              current_env_type,&
                                              get_current_env,&
                                              jrho_atom_type,&
@@ -101,19 +102,22 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom_coeff', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iab, iat, iatom, ii, iii, ikind, ilist, inode, isgfa, &
-      isgfb, ispin, istat, jatom, jkind, katom, kkind, kneighbor, last_jatom, &
-      last_katom, max_gau, max_nsgf, maxso, maxsoc, nat, natom, nkind, nlist, &
-      nnode, nnode_c, nset, nsetc, nsgfa, nsgfb, nsoctot, nspins
+    INTEGER :: bo(2), handle, iab, iat, iatom, ii, iii, ikind, ilist, inode, &
+      isgfa, isgfb, ispin, istat, jatom, jkind, katom, kkind, kneighbor, &
+      last_jatom, last_katom, max_gau, max_nsgf, maxso, maxsoc, mepos, nat, &
+      natom, nkind, nlist, nnode, nnode_c, nset, nsetc, nsgfa, nsgfb, &
+      nsoctot, nspins, num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, new_atom_b, &
-                                                new_atom_c, paw_atom
+    LOGICAL                                  :: failure, is_not_associated, &
+                                                new_atom_b, new_atom_c, &
+                                                paw_atom
     REAL(dp)                                 :: hard_radius_a, hard_radius_b, &
                                                 hard_radius_c, rab(3), rbc(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: PC
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_coeff_hh_a, C_coeff_hh_b, &
-                                                C_coeff_ss_a, C_coeff_ss_b
+                                                C_coeff_ss_a, C_coeff_ss_b, &
+                                                tmp_coeff, zero_coeff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -142,7 +146,7 @@ CONTAINS
          &  jrho1_atom_set,oce,reduced_3c_oce,jp0_block,jp_block,jp_ii_block,&
          &  jp_ii_block,jp_RARnu,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,&
          &  C_coeff_ss_b,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
-         &  sab_orb_neighbor_node,para_env)
+         &  sab_orb_neighbor_node,para_env,zero_coeff,tmp_coeff)
     !
     CALL get_qs_env(qs_env=qs_env,&
          &          atomic_kind_set=atomic_kind_set,&
@@ -191,14 +195,16 @@ CONTAINS
        DO iat = 1,nat
           iatom = atom_list(iat)
           DO ispin = 1, nspins
-             jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef = 0.0_dp
-             jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef = 0.0_dp
-             jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef = 0.0_dp
-             jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef = 0.0_dp
-             jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef = 0.0_dp
-             jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef = 0.0_dp
-             jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef = 0.0_dp
-             jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef = 0.0_dp
+             IF(ASSOCIATED(jrho1_atom_set(iatom)%cjc0_h(1)%r_coef)) THEN
+                jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef = 0.0_dp
+                jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef = 0.0_dp
+                jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef = 0.0_dp
+                jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef = 0.0_dp
+                jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef = 0.0_dp
+                jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef = 0.0_dp
+                jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef = 0.0_dp
+                jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef = 0.0_dp
+             ENDIF
           ENDDO ! ispin
        ENDDO ! iat
     ENDDO ! ikind
@@ -327,6 +333,10 @@ CONTAINS
                          new_atom_c = .FALSE.
                          CYCLE
                       END IF
+                      !
+                      IF(.NOT.ASSOCIATED(jrho1_atom_set(katom)%cjc0_h(1)%r_coef)) THEN
+                         CALL allocate_jrho_coeff(jrho1_atom_set,katom,nsoctot,error)
+                      ENDIF
                       !
                       ! Compute the modified Qai matrix as
                       ! mQai_\mu\nu = Qai_\mu\nu - Qbi_\mu\nu * (R_A-R_\nu)_ii 
@@ -475,20 +485,89 @@ CONTAINS
     ENDDO ! ikind
     !
     ! parallel sum up 
-    DO iatom = 1,natom
-       DO ispin = 1,nspins
-          IF(ASSOCIATED(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef)) THEN
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef,para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef,para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef,para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef,para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef,para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef,para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef,para_env%group)
-             CALL mp_sum(jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef,para_env%group)
+    DO ikind = 1 ,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+            &               orb_basis_set=orb_basis_set,&
+            &               atom_list=atom_list,&
+            &               natom=nat,&
+            &               paw_atom=paw_atom)
+       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+            &                 nset=nsetc,maxso=maxsoc)
+       nsoctot = maxsoc*nsetc
+       !
+       IF(.NOT. paw_atom) CYCLE
+       !
+       num_pe = para_env%num_pe
+       mepos  = para_env%mepos
+       bo = get_limit(nat,num_pe,mepos)
+       !
+       ALLOCATE(zero_coeff(nsoctot,nsoctot),STAT=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO iat = 1,nat
+          iatom = atom_list(iat)
+          is_not_associated = .NOT.ASSOCIATED(jrho1_atom_set(iatom)%cjc0_h(1)%r_coef)
+          !
+          IF(iat.GE.bo(1).AND.iat.LE.bo(2).AND.is_not_associated) THEN
+             CALL allocate_jrho_coeff(jrho1_atom_set,iatom,nsoctot,error)
           ENDIF
-       ENDDO
-    ENDDO
+          !
+          DO ispin = 1, nspins
+             !
+             tmp_coeff => jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef
+             IF(is_not_associated) THEN
+                zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
+             ENDIF
+             CALL mp_sum(tmp_coeff,para_env%group)
+             !
+             tmp_coeff => jrho1_atom_set(iatom)%cjc0_s(ispin)%r_coef
+             IF(is_not_associated) THEN
+                zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
+             ENDIF
+             CALL mp_sum(tmp_coeff,para_env%group)
+             !
+             tmp_coeff => jrho1_atom_set(iatom)%cjc_h(ispin)%r_coef
+             IF(is_not_associated) THEN
+                zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
+             ENDIF
+             !
+             CALL mp_sum(tmp_coeff,para_env%group)
+             tmp_coeff => jrho1_atom_set(iatom)%cjc_s(ispin)%r_coef
+             IF(is_not_associated) THEN
+                zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
+             ENDIF
+             CALL mp_sum(tmp_coeff,para_env%group)
+             !
+             tmp_coeff => jrho1_atom_set(iatom)%cjc_ii_h(ispin)%r_coef
+             IF(is_not_associated) THEN
+                zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
+             ENDIF
+             CALL mp_sum(tmp_coeff,para_env%group)
+             !
+             tmp_coeff => jrho1_atom_set(iatom)%cjc_ii_s(ispin)%r_coef
+             IF(is_not_associated) THEN
+                zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
+             ENDIF
+             CALL mp_sum(tmp_coeff,para_env%group)
+             !
+             tmp_coeff => jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef
+             IF(is_not_associated) THEN
+                zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
+             ENDIF
+             CALL mp_sum(tmp_coeff,para_env%group)
+             !
+             tmp_coeff => jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef
+             IF(is_not_associated) THEN
+                zero_coeff = 0.0_dp; tmp_coeff => zero_coeff
+             ENDIF
+             CALL mp_sum(tmp_coeff,para_env%group)
+          ENDDO ! ispin
+       ENDDO ! iat
+       !
+       DEALLOCATE(zero_coeff,STAT=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       !
+    ENDDO ! ikind
     !
     ! clean up
     DEALLOCATE(PC,jp0_block,jp_block,jp_ii_block,jp_iii_block,jp_RARnu,STAT=istat)
@@ -604,6 +683,9 @@ CONTAINS
        num_pe = para_env%num_pe
        mepos  = para_env%mepos
        bo = get_limit(natom,num_pe,mepos)
+
+!write(*,*) 'bo',bo,para_env%num_pe,para_env%mepos
+
        !
        my_CG => harmonics%my_CG
        my_CG_dxyz_asym => harmonics%my_CG_dxyz_asym
@@ -708,6 +790,10 @@ CONTAINS
                          ! P_\alpha\alpha'
                          cjc0_h_block = HUGE(1.0_dp)
                          cjc0_s_block = HUGE(1.0_dp)
+
+
+!write(*,*) associated(jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef),bo,para_env%num_pe,para_env%mepos
+
                          !
                          ! Hard term
                          coeff => jrho1_atom_set(iatom)%cjc0_h(ispin)%r_coef
