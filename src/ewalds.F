@@ -351,12 +351,12 @@ CONTAINS
 !>      none
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE ewald_print ( iw, cell, e_gspace, e_self, e_neut, e_bonded )
+  SUBROUTINE ewald_print ( iw, cell, pot_nonbond, e_gspace, e_self, e_neut, e_bonded )
 
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cell_type), INTENT(IN)              :: cell
-    REAL(KIND=dp), INTENT(IN)                :: e_gspace, e_self, e_neut, &
-                                                e_bonded
+    REAL(KIND=dp), INTENT(IN)                :: pot_nonbond, e_gspace, &
+                                                e_self, e_neut, e_bonded
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_print', &
       routineP = moduleN//':'//routineN
@@ -367,14 +367,16 @@ CONTAINS
     IF (iw>0) THEN
        WRITE ( iw, '( A, A )' ) ' *********************************', &
             '**********************************************'
-       WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' INITIAL GSPACE ENERGY', &
+       WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' INITIAL GSPACE ENERGY', &
             units % e_label, '= ', e_gspace
-       WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' SELF ENERGY CORRECTION', &
+       WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' INITIAL NONBONDED ENERGY', &
+            units % e_label, '= ', pot_nonbond
+       WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' SELF ENERGY CORRECTION', &
             units % e_label, '= ', e_self
-       WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' NEUT. BACKGROUND', units % e_label, &
-            '= ', e_neut / cell % deth
-       WRITE ( iw, '( A, A, T35, A, T66, E15.7 )' ) ' BONDED CORRECTION', units % e_label, &
-            '= ', e_bonded
+       WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' NEUT. BACKGROUND',&
+            units % e_label, '= ', e_neut / cell % deth
+       WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' BONDED CORRECTION',&
+            units % e_label,'= ', e_bonded
        WRITE ( iw, '( A, A )' ) ' *********************************', &
             '**********************************************'
     END IF

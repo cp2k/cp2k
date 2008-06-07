@@ -79,7 +79,7 @@ MODULE fist_environment_types
   TYPE fist_environment_type
     PRIVATE
     INTEGER                                      :: id_nr, ref_count
-    LOGICAL                                      :: qmmm, first_time
+    LOGICAL                                      :: qmmm
     LOGICAL                                      :: shell_model, shell_model_ad
     TYPE (qmmm_env_mm_type), POINTER             :: qmmm_env
     TYPE (cell_type), POINTER                    :: cell
@@ -135,7 +135,7 @@ CONTAINS
        local_particles, local_molecules, molecule_kind_set, molecule_set, cell,&
        cell_ref, ewald_env, fist_nonbond_env, thermo, para_env, subsys, qmmm,&
        qmmm_env, input, shell_model, shell_model_ad, shell_particle_set,&
-       core_particle_set, first_time, multipoles, results, error )
+       core_particle_set, multipoles, results, error )
 
     TYPE(fist_environment_type), INTENT(IN)  :: fist_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -166,7 +166,6 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: shell_model, shell_model_ad
     TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
                                                 core_particle_set( : )
-    LOGICAL, OPTIONAL                        :: first_time
     TYPE(multipole_type), OPTIONAL, POINTER  :: multipoles
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -187,7 +186,6 @@ CONTAINS
     CPPrecondition(ASSOCIATED(fist_env%subsys),cp_failure_level,routineP,error,failure)
 
     IF ( PRESENT ( input ) ) input => fist_env%input
-    IF ( PRESENT ( first_time ) ) first_time = fist_env % first_time
     IF ( PRESENT ( qmmm ) ) qmmm = fist_env % qmmm
     IF ( PRESENT ( qmmm_env )) qmmm_env => fist_env % qmmm_env
     IF ( PRESENT ( cell ) ) cell => fist_env % cell
@@ -244,7 +242,6 @@ CONTAINS
     NULLIFY (fist_env%fist_nonbond_env)
     NULLIFY (fist_env%subsys)
     fist_env % qmmm = .FALSE.
-    fist_env % first_time = .TRUE.
     fist_env % shell_model = .FALSE.
     fist_env % shell_model_ad = .FALSE.
     CALL qmmm_env_mm_create(fist_env%qmmm_env, error)
@@ -269,7 +266,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
-                           input, shell_model, shell_model_ad, first_time, error )
+                           input, shell_model, shell_model_ad, error )
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(atomic_kind_type), OPTIONAL, &
@@ -295,8 +292,7 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
-    LOGICAL, OPTIONAL                        :: shell_model, shell_model_ad, &
-                                                first_time
+    LOGICAL, OPTIONAL                        :: shell_model, shell_model_ad
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_fist_env', &
@@ -311,7 +307,6 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (PRESENT(first_time)) fist_env%first_time = first_time
     IF (PRESENT(qmmm)) fist_env%qmmm = qmmm
     IF (PRESENT(qmmm_env)) THEN
        CALL qmmm_env_mm_retain(qmmm_env, error)

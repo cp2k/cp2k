@@ -36,8 +36,7 @@ MODULE fist_force
   USE f77_blas
   USE fist_energy_types,               ONLY: fist_energy_type
   USE fist_environment_types,          ONLY: fist_environment_type,&
-                                             get_fist_env,&
-                                             set_fist_env
+                                             get_fist_env
   USE fist_intra_force,                ONLY: force_intra_control
   USE fist_neighbor_list_control,      ONLY: list_control
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
@@ -116,10 +115,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ewald_type, handle, i, ii, ikind, iparticle_kind, &
-      iparticle_local, iw, j, natoms, nlocal_particles, node, nparticle_kind, &
-      nparticle_local, nshell, stat
+      iparticle_local, iw, iw2, j, natoms, nlocal_particles, node, &
+      nparticle_kind, nparticle_local, nshell, stat
     LOGICAL                                  :: do_multipoles, failure, &
-                                                first_time, shell_model_ad, &
+                                                shell_model_ad, &
                                                 shell_present, use_virial
     REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, &
       pot_manybody, pot_nonbond, pot_onef, pot_shell, pot_torsion, &
@@ -149,7 +148,7 @@ CONTAINS
       POINTER                                :: core_particle_set, &
                                                 particle_set, &
                                                 shell_particle_set
-    TYPE(section_vals_type), POINTER         :: fist_section, print_section
+    TYPE(section_vals_type), POINTER         :: mm_section, print_section
     TYPE(shell_kind_type), POINTER           :: shell
 
     CALL timeset(routineN,'I','',handle)
@@ -159,11 +158,13 @@ CONTAINS
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     NULLIFY(atomic_kind,atomic_kind_set,cell,ewald_pw,ewald_env,&
-         fist_nonbond_env,fist_section,local_molecules,local_particles,&
+         fist_nonbond_env,mm_section,local_molecules,local_particles,&
          molecule_kind_set,molecule_set,particle_set, print_section,&
          shell, shell_particle_set, core_particle_set, thermo, multipoles)
-    fist_section => section_vals_get_subs_vals(force_env_section,"MM",error=error)
-    iw = cp_print_key_unit_nr(logger,fist_section,"PRINT%DERIVATIVES",&
+    mm_section => section_vals_get_subs_vals(force_env_section,"MM",error=error)
+    iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%DERIVATIVES",&
+         extension=".mmLog",error=error)
+    iw2= cp_print_key_unit_nr(logger,mm_section,"POISSON%EWALD%PRINT%PROGRAM_RUN_INFO",&
          extension=".mmLog",error=error)
 
     CALL get_fist_env ( fist_env, ewald_pw = ewald_pw, ewald_env = ewald_env, &
@@ -173,7 +174,7 @@ CONTAINS
          molecule_kind_set = molecule_kind_set,  &
          fist_nonbond_env = fist_nonbond_env, cell = cell, & 
          shell_model=shell_present, shell_model_ad=shell_model_ad, &
-         first_time=first_time, multipoles=multipoles, error=error)
+         multipoles=multipoles, error=error)
 
     CALL ewald_env_get (ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles,&
          error=error)
@@ -322,18 +323,18 @@ CONTAINS
              ELSE
                 CALL ewald_multipole_evaluate(ewald_env, ewald_pw, fist_nonbond_env, cell, &
                      particle_set, local_particles, vg_coulomb, pot_nonbond, thermo%e_neut,&
-                     thermo%e_self, multipoles%task, do_forces=.TRUE., do_stress=.TRUE.,&
-                     do_efield=.FALSE., charges=multipoles%charges,&
-                     dipoles=multipoles%dipoles, quadrupoles=multipoles%quadrupoles, &
-                     forces_local=fg_coulomb, forces_glob=f_nonbond, pv_local=pv_g, &
-                     pv_glob=pv_nonbond, error=error)
+                     thermo%e_self, multipoles%task, do_forces=.TRUE., do_stress=use_virial,&
+                     do_efield=.FALSE., charges=multipoles%charges,dipoles=multipoles%dipoles,&
+                     quadrupoles=multipoles%quadrupoles,forces_local=fg_coulomb,&
+                     forces_glob=f_nonbond, pv_local=pv_g,pv_glob=pv_nonbond,iw=iw2,&
+                     do_debug=.TRUE.,error=error)
              END IF
           CASE DEFAULT
              CALL stop_program ( "fist_force_control","Multipole Ewalds PME-SPME NYI!" )
           END SELECT
-          ! WARNING!
-          ! Teodoro Laino: to be implemented...
-          ! The bonded corrections for multipole is at the moment missing..
+          ! Bonded Correction for Multipoles
+          ! FIX ME FIX ME FIX ME!!!
+          ! To be implemented
        END IF
     ELSE
        ! Get g-space non-bonded forces:
@@ -349,7 +350,8 @@ CONTAINS
                 CALL stop_program ( "fist_force_control","ewald and shell model NYI" )
              ELSE
                 CALL ewald_evaluate ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set, &
-                     local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial, error=error)
+                     local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial, &
+                     error=error)
              END IF
           CASE ( do_ewald_pme )
              ! Parallelisation over grids --> allocate all atoms
@@ -414,9 +416,8 @@ CONTAINS
                   particle_set, ewald_env, thermo%e_bonded, pv_bc=pv_bc , cell=cell,&
                   use_virial=use_virial, error=error)
           END IF
-          IF ( first_time) THEN
-             CALL ewald_print ( iw , cell, vg_coulomb, thermo%e_self, thermo%e_neut, thermo%e_bonded)
-          ENDIF
+          CALL ewald_print (iw2, cell, pot_nonbond, vg_coulomb, thermo%e_self, thermo%e_neut,&
+               thermo%e_bonded)
        ELSE
           IF (use_virial) THEN
              pv_g  = 0.0_dp
@@ -764,7 +765,7 @@ CONTAINS
     END IF
 
     ! print properties if requested
-    print_section => section_vals_get_subs_vals(fist_section,"PRINT",error=error)
+    print_section => section_vals_get_subs_vals(mm_section,"PRINT",error=error)
     CALL print_fist(fist_env, print_section, atomic_kind_set, particle_set, cell, error)
 
     ! deallocating all local variables
@@ -786,12 +787,8 @@ CONTAINS
        DEALLOCATE ( fshell_nonbond, STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF (first_time) THEN
-       first_time = .FALSE.
-       CALL set_fist_env(fist_env, first_time=first_time, error=error)
-    END IF
-    CALL cp_print_key_finished_output(iw,logger,fist_section,&
-         "PRINT%DERIVATIVES",error=error)
+    CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%DERIVATIVES",error=error)
+    CALL cp_print_key_finished_output(iw2,logger,mm_section,"POISSON%EWALD%PRINT%PROGRAM_RUN_INFO",error=error)
     CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE fist_force_control

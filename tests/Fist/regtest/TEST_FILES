@@ -61,7 +61,16 @@ TNF2.inp                  7
 # isolated system 
 H+.inp                   11 
 ef.inp                   11
-#
 h2o-32-g3x3-mult.inp      2
+# multipoles
+1atom_multipole.inp                 11
+multipole_charge.inp                11
+multipole_charge_check.inp          11
+multipole_charge_dipole.inp         11
+multipole_charge_quadrupole.inp     11
+multipole_dipole.inp                11
+multipole_dipole_quadrupole.inp     11
+multipole_quadrupole.inp            11
+multipole_zero.inp                  11
 # @INCLUDE regtest
 deca_ala_include.inp      2

@@ -137,6 +137,7 @@ OBJECTS_GENERIC =\
  ewald_spline_util.o\
  ewalds.o\
  ewalds_multipole.o\
+ ewalds_multipole_debug.o\
  extended_system_dynamics.o\
  extended_system_init.o\
  extended_system_mapping.o\

@@ -1,0 +1,54 @@
+&FORCE_EVAL
+  METHOD Fist
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM O
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          atoms O O
+          EPSILON 0.0
+          SIGMA 1.0
+          RCUT 15.0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        &MULTIPOLES
+          MAX_MULTIPOLE_EXPANSION QUADRUPOLE
+        &END
+        EWALD_TYPE ewald
+        ALPHA 0.1
+        GMAX 71
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 20. 20. 20.
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    O                   0.000   0.000   0.000  
+    &END COORD
+    &MULTIPOLES
+       &DIPOLES
+  10.5 2.0 3.0
+       &END
+    &END
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END
+  &END SUBSYS
+  &PRINT
+    &FORCES
+    &END
+  &END
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL

@@ -1,0 +1,80 @@
+
+&FORCE_EVAL
+  METHOD Fist
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM O
+#        CHARGE -0.8476
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          atoms O O
+          EPSILON 78.198
+          SIGMA 3.166
+          RCUT 11.4
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        &MULTIPOLES
+          MAX_MULTIPOLE_EXPANSION QUADRUPOLE
+        &END
+        EWALD_TYPE ewald
+        ALPHA .5
+        GMAX 21
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 9.865 9.865 9.865
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    O                  -4.583   5.333   1.560   H2O
+    O                  -0.083   4.218   0.070   H2O
+    O                  -1.488   2.692   4.125   H2O
+    O                  -2.461  -2.548  -6.136   H2O
+    O                   4.032   0.161   2.183   H2O
+    O                   2.950  -3.497  -1.006   H2O
+    O                  -2.890  -4.797  -2.735   H2O
+    O                  -0.553   0.922  -3.731   H2O
+    O                   4.179   4.017   4.278   H2O
+    O                   5.739   1.425   3.944   H2O
+    O                   0.988  -0.760  -5.445   H2O
+    O                  -0.748   1.985   1.249   H2O
+    O                   4.127  -0.234  -3.149   H2O
+    O                  -2.473   2.768  -1.395   H2O
+    O                  -0.124  -2.116   2.404   H2O
+    O                   0.728   2.823  -2.190   H2O
+    O                   4.256  -5.427  -2.644   H2O
+    O                  -3.178  -0.508  -4.227   H2O
+    O                  -1.449   5.300  -4.805   H2O
+    O                   3.354   2.192  -1.755   H2O
+    O                   1.773  -4.018   1.769   H2O
+    O                   1.526   1.384   2.712   H2O
+    O                   2.711  -2.398  -4.253   H2O
+    O                   6.933   0.093  -1.393   H2O
+    O                  -5.605  -2.549   3.151   H2O
+    O                   0.821  -4.406   6.516   H2O
+    O                   1.577   3.933   3.762   H2O
+    O                  -2.111  -3.741  -0.219   H2O
+    O                   0.926  -1.961  -2.063   H2O
+    O                   4.531  -1.030  -0.547   H2O
+    O                  -0.740  -1.262  -0.029   H2O
+    O                   3.655   3.021   0.988   H2O
+    &END COORD
+  &END SUBSYS
+  &PRINT
+    &FORCES
+    &END
+  &END
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL

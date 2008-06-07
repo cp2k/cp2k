@@ -363,9 +363,6 @@ CONTAINS
                   message="Multipole code works at the moment only with standard EWALD sums.", &
                   error=error, error_level=cp_failure_level)
           END SELECT
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Multipoles code not yet working!", &
-               error=error, error_level=cp_failure_level)
        END IF
 
        iw=cp_print_key_unit_nr(logger,ewald_section,"PRINT%PROGRAM_RUN_INFO",&

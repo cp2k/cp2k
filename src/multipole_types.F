@@ -142,7 +142,7 @@ CONTAINS
                 CALL section_vals_val_get(work_section,"_DEFAULT_KEYWORD_",i_rep_val=iparticle, r_vals=work, error=error)
                 DO i = 1, 3
                    DO j = 1, 3
-                      ind2 = (MIN(i,j)-1)*3+MAX(i,j)
+                      ind2 = 3*(MIN(i,j)-1)-(MIN(i,j)*(MIN(i,j)-1))/2+MAX(i,j)
                       multipoles%quadrupoles(i,j,iparticle) = work(ind2)
                    END DO
                 END DO
