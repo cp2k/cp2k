@@ -365,10 +365,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, dir, handle, i, &
-                                                iatom, ierr, ikind, ithread, &
-                                                j, natom, npme, nthread, tp(3)
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, lb
+    INTEGER                                  :: atom_a, handle, i, iatom, &
+                                                ierr, ikind, ithread, j, &
+                                                natom, npme, nthread
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
@@ -432,11 +432,6 @@ CONTAINS
       DO iatom = 1, natom
          atom_a = atom_list(iatom)
          ra(:) = pbc(particle_set(atom_a)%r,cell)
-         DO dir = 1,3 
-            tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_rho%npts(dir))
-            tp(dir) = MODULO ( tp(dir), rs_rho%npts(dir) )
-            tp(dir) = tp(dir) + rs_rho%lb(dir)
-         END DO
          IF(rs_rho%parallel .AND. .NOT. rs_rho%distributed) THEN
             ! replicated realspace grid, split the atoms up between procs
             IF (MODULO(natom,rs_rho%group_size) == rs_rho % my_pos ) THEN
@@ -1078,11 +1073,16 @@ CONTAINS
 
             IF (.NOT. ALL (rs_rho(igrid_level)%rs_grid%perd == 1)) THEN
                DO dir = 1,3
-                     ! bounds of local grid (i.e. removing the 'wings')
+                     ! bounds of local grid (i.e. removing the 'wings'), if periodic
                      tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_rho(igrid_level)%rs_grid%npts(dir))
                      tp(dir) = MODULO ( tp(dir), rs_rho(igrid_level)%rs_grid%npts(dir) )
-                     lb(dir) = rs_rho(igrid_level)%rs_grid%lb_local ( dir ) + rs_rho(igrid_level)%rs_grid%border
-                     ub(dir) = rs_rho(igrid_level)%rs_grid%ub_local ( dir ) - rs_rho(igrid_level)%rs_grid%border
+                     IF (rs_rho(igrid_level)%rs_grid%perd(dir) .NE. 1) THEN
+                        lb(dir) = rs_rho(igrid_level)%rs_grid%lb_local ( dir ) + rs_rho(igrid_level)%rs_grid%border
+                        ub(dir) = rs_rho(igrid_level)%rs_grid%ub_local ( dir ) - rs_rho(igrid_level)%rs_grid%border
+                     ELSE
+                        lb(dir) = rs_rho(igrid_level)%rs_grid%lb_local ( dir ) 
+                        ub(dir) = rs_rho(igrid_level)%rs_grid%ub_local ( dir ) 
+                     ENDIF
                      ! distributed grid, only map if it is local to the grid
                      location(dir)=tp(dir)+rs_rho(igrid_level)%rs_grid%lb(dir)
                ENDDO
@@ -1090,10 +1090,6 @@ CONTAINS
                     lb(2)<=location(2) .AND. location(2)<=ub(2) .AND. &
                     lb(3)<=location(3) .AND. location(3)<=ub(3)) THEN
                   map_it_here=.TRUE.
-                  ! this slice can still be on many CPUs. only one should do the point.
-                  ! this should be changed as group_dim is going to!
-                  !IF (MODULO(offset,rs_rho(igrid_level)%rs_grid%group_dim ( 2 )) == &
-                  !     rs_rho(igrid_level)%rs_grid%group_coor (2 )) map_it_here=.TRUE.
                ENDIF
             ELSE
                ! not distributed, just a round-robin distribution over the full set of CPUs

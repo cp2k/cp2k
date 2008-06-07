@@ -1,0 +1,70 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    &MGRID
+      CUTOFF 50
+      NGRIDS 1
+      &RS_GRID
+         DISTRIBUTION_TYPE DISTRIBUTED
+      &END
+    &END MGRID
+      &POISSON
+        PERIODIC NONE
+        POISSON_SOLVER ANALYTIC 
+      &END
+    &QS
+      ! EPS_DEFAULT 1.0E-16
+      METHOD GPW
+    &END QS
+    &SCF
+      &OT on
+       PRECONDITIONER FULL_ALL
+      &END OT
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC 
+      MAX_SCF 1
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+       &SCREENING
+         EPS_SCHWARZ 1.0E-14
+         EPS_BOX -1.0E-8
+         SCREEN_ON_INITIAL_P FALSE 
+       &END
+       &INTERACTION_POTENTIAL
+         POTENTIAL_TYPE COULOMB 
+       &END
+       &MEMORY
+         MAX_MEMORY 100
+       &END
+       PW_HFX TRUE
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 25.0 25.0 25.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+H   0.0          0.0         0.0 
+H   0.0          0.0         0.8 
+    &END
+    &KIND H
+      POTENTIAL GTH-PBE-q1
+      &BASIS
+         1
+         1  0  0  1  1
+               0.5          1.0
+      &END
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O
+  PRINT_LEVEL MEDIUM 
+  RUN_TYPE ENERGY 
+&END GLOBAL
