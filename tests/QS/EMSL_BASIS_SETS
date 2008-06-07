@@ -6081,13 +6081,7 @@ Ar pc-1
           0.17015000          1.00000000
   1  2  2  1  1
           0.65000000          1.00000000
- Error !
- Current line nr.  1 :
-  pc-2  EMSL  Basis Set Exchange Library  6/6/08 12:13 AM
- Failed to parse p as a known quantum number
-EM pc-2
-  1
-  1  0  0  0  0
+# pc-2  EMSL  Basis Set Exchange Library  6/6/08 12:13 AM
 # Elements                             References
 # --------                             ----------
 # H C N O F: Frank Jensen, Polarization consistent basis sets: Principles, J. Chem. Phys. 115, 9113 (2001).
