@@ -1,4 +1,4 @@
-30
+29
 Total energy:!3
 POTENTIAL ENERGY!4
 Total energy \[eV\]:!4
@@ -28,7 +28,6 @@ Total electronic charge (G-space):!6
 Total electronic charge (R-space):!5
 Total spin density (R-space)           :!6
 Heat of formation \[kcal/mol\]:!5
-PW exchange energy!5
 #
 # these are the tests the can be selected for regtesting. 
 # do regtest will grep for test_grep (first column) and look if the numeric value
