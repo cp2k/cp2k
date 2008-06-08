@@ -71,11 +71,10 @@ MODULE force_env_methods
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_retain
   USE input_constants,                 ONLY: &
-       do_stress_analytical, do_stress_diagonal_anal, &
+       debug_run, do_stress_analytical, do_stress_diagonal_anal, &
        do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
        dump_xmol, mix_coupled, mix_generic, mix_linear_combination, &
-       mix_minimum, mix_restrained, qs_debug_run, use_bazant_eip, &
-       use_lenosky_eip
+       mix_minimum, mix_restrained, use_bazant_eip, use_lenosky_eip
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_retain,&
@@ -471,7 +470,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            force_env%in_use=use_qs_force
            force_env%qs_env => qs_env
            CALL qs_env_retain(qs_env,error=error)
-           IF (force_env%globenv%run_type_id == qs_debug_run) THEN
+           IF (force_env%globenv%run_type_id == debug_run) THEN
               CALL section_vals_val_get(root_section,"DEBUG%DEBUG_PRESSURE",&
                    l_val=virial_in_use,error=error)
               CALL virial_create(force_env%virial, error=error)

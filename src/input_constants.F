@@ -165,7 +165,7 @@ MODULE input_constants
                                 geo_opt_run=5,&
                                 mon_car_run=6,&
                                 electronic_spectra_run=7,&
-                                qs_debug_run=8,&
+                                debug_run=8,&
                                 bsse_run=9,&
                                 linear_response_run=10,&
                                 pint_run=11,&
@@ -205,7 +205,7 @@ MODULE input_constants
           geo_opt_run,&
           mon_car_run,&
           electronic_spectra_run,&
-          qs_debug_run,&
+          debug_run,&
           bsse_run,&
           linear_response_run,&
           pint_run,&

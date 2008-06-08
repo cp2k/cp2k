@@ -23,7 +23,7 @@ MODULE qs_numerical_pressure
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: qs_debug_run
+  USE input_constants,                 ONLY: debug_run
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE qs_energy,                       ONLY: qs_energies
@@ -162,7 +162,7 @@ MODULE qs_numerical_pressure
              END DO
           END DO
        END DO
-       IF (globenv%run_type_id.EQ.qs_debug_run) THEN
+       IF (globenv%run_type_id.EQ.debug_run) THEN
            IF (para_env%ionode) THEN
                WRITE (UNIT=iw,FMT="((T34,A))") "Numerical pv_virial"
                WRITE (UNIT=iw,FMT="((T34,3F16.10))") (virial%pv_virial(i,1:3), i=1,3)

@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name charmm.pot
+      parm_file_name sample_pot/charmm.pot
       parmtype CHM
       &CHARGE
         ATOM CE2
@@ -14,13 +14,13 @@
         CHARGE 0.21
       &END CHARGE
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
         EWALD_TYPE ewald
         ALPHA .44
         GMAX 23
       &END EWALD
-    &END POISSON_MM
+    &END POISSON
   &END MM
   &SUBSYS
     &CELL

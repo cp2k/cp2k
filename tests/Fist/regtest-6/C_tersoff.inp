@@ -1,7 +1,6 @@
 &GLOBAL
   PROJECT md1
   RUN_TYPE md
-  #RUN_TYPE debug
 &END GLOBAL
 &MOTION
   &MD

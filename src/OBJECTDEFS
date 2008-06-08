@@ -37,6 +37,7 @@ OBJECTS_GENERIC =\
  constraint_fxd.o\
  constraint_util.o\
  convert_units.o\
+ cp2k_debug.o\
  cp2k_info.o\
  cp2k_runs.o\
  cp2k_units.o\
@@ -154,12 +155,10 @@ OBJECTS_GENERIC =\
  farming_methods.o\
  farming_types.o\
  fft_tools.o\
- fist_debug.o\
  fist_energy_types.o\
  fist_environment.o\
  fist_environment_types.o\
  fist_force.o\
- fist_force_numer.o\
  fist_intra_force.o\
  fist_main.o\
  fist_neighbor_list_control.o\
@@ -396,7 +395,6 @@ OBJECTS_GENERIC =\
  qs_conductivity.o\
  qs_core_energies.o\
  qs_core_hamiltonian.o\
- qs_debug.o\
  qs_dftb_coulomb.o\
  qs_dftb_dispersion.o\
  qs_dftb_matrices.o\

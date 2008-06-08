@@ -8,6 +8,7 @@ MODULE cp2k_runs
 
   USE bsse,                            ONLY: do_bsse_calculation
   USE cell_opt,                        ONLY: cp_cell_opt
+  USE cp2k_debug,                      ONLY: cp2k_debug_energy_and_forces
   USE cp2k_info,                       ONLY: enable_color_tags
   USE cp_files,                        ONLY: close_file,&
                                              get_unit_number,&
@@ -52,7 +53,6 @@ MODULE cp2k_runs
                                              init_farming_env,&
                                              job_finished,&
                                              job_running
-  USE fist_debug,                      ONLY: fist_debug_control => debug_control
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
@@ -62,10 +62,11 @@ MODULE cp2k_runs
                                              globenv_release,&
                                              globenv_retain
   USE input_constants,                 ONLY: &
-       bsse_run, cell_opt_run, do_band, do_cp2k, do_ep, do_farming, do_fist, &
-       do_kg, do_mixed, do_qmmm, do_qs, do_test, electronic_spectra_run, &
-       energy_force_run, energy_run, geo_opt_run, linear_response_run, &
-       mol_dyn_run, mon_car_run, none_run, pint_run, qs_debug_run, vib_anal
+       bsse_run, cell_opt_run, debug_run, do_band, do_cp2k, do_ep, &
+       do_farming, do_fist, do_kg, do_mixed, do_qmmm, do_qs, do_test, &
+       electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, &
+       linear_response_run, mol_dyn_run, mon_car_run, none_run, pint_run, &
+       vib_anal
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
                                              create_cp2k_root_section,&
                                              create_global_section
@@ -93,7 +94,6 @@ MODULE cp2k_runs
        mp_environ, mp_recv, mp_send, mp_sum, mp_sync
   USE neb_methods,                     ONLY: neb
   USE pint_methods,                    ONLY: do_pint_run
-  USE qs_debug,                        ONLY: qs_debug_energy_and_forces
   USE qs_linres_module,                ONLY: linres_calculation
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE reference_manager,               ONLY: print_all_references,&
@@ -348,12 +348,10 @@ CPSourceFileRef,&
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                                               error=suberror)
              CALL linres_calculation(force_env, error=suberror)
-          CASE (qs_debug_run)
+          CASE (debug_run)
              SELECT CASE(method_name_id)
-             CASE(do_qs, do_qmmm, do_ep)
-                CALL qs_debug_energy_and_forces(force_env, error=suberror)
-             CASE(do_fist)
-                CALL fist_debug_control(force_env,  error=suberror)
+             CASE(do_qs, do_qmmm, do_ep, do_fist)
+                CALL cp2k_debug_energy_and_forces(force_env, error=suberror)
              CASE DEFAULT
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Debug run available only with QS, FIST, and QMMM program "//&

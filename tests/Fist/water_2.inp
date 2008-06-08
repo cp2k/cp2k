@@ -14,14 +14,14 @@
         CHARGE 0.4238
       &END CHARGE
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
         EWALD_TYPE spme
         ALPHA .44
-        GMAX 24
+        GMAX 34
         O_SPLINE 6
       &END EWALD
-    &END POISSON_MM
+    &END POISSON
   &END MM
   &SUBSYS
     &CELL
@@ -47,3 +47,5 @@
     TEMPERATURE 298
   &END MD
 &END MOTION
+&DEBUG
+&END

@@ -1,7 +1,6 @@
 &GLOBAL
   PROJECT silicon
   RUN_TYPE md
-  #RUN_TYPE debug
 &END GLOBAL
 &MOTION
   &MD

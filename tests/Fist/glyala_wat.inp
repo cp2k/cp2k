@@ -3,16 +3,16 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name sample_pot/glyala_wat.pot
+      parm_file_name sample_pot/charmm.pot
       parmtype CHM
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
         EWALD_TYPE ewald
         ALPHA .36
         GMAX 29
       &END EWALD
-    &END POISSON_MM
+    &END POISSON
   &END MM
   &SUBSYS
     &CELL
@@ -40,3 +40,5 @@
     TEMPERATURE 298
   &END MD
 &END MOTION
+&DEBUG
+&END

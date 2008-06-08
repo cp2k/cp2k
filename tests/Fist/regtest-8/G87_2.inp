@@ -53,8 +53,6 @@
   PROGRAM CP2K
   PROJECT ttt
   RUN_TYPE md
-  #RUN_TYPE debug
-  #TRACE
 &END GLOBAL
 &MOTION
   &MD

@@ -19,7 +19,7 @@
 !>              et to .FALSE., otherwise the QS energies are spuriously used [TdK].
 !> \author Teodoro Laino
 ! *****************************************************************************
-MODULE qs_debug
+MODULE cp2k_debug
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -38,19 +38,19 @@ MODULE qs_debug
 
   IMPLICIT NONE
   PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_debug'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_debug'
 
-  PUBLIC :: qs_debug_energy_and_forces
+  PUBLIC :: cp2k_debug_energy_and_forces
   REAL(KIND=dp), PRIVATE, PARAMETER :: MaxErr = 5.0_dp
 
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE qs_debug_energy_and_forces(force_env, error)
+  SUBROUTINE cp2k_debug_energy_and_forces(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_debug_energy_and_forces', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_debug_energy_and_forces', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip, iseq, iw, j, k, stat
@@ -181,6 +181,6 @@ CONTAINS
             "DEBUG%PROGRAM_RUN_INFO", error=error)
     END IF
 100 FORMAT(I5,F15.9," ( ",F7.2," ) ",F15.9," ( ",F7.2," ) ",F15.9," ( ",F7.2," ) ")
-  END SUBROUTINE qs_debug_energy_and_forces
+  END SUBROUTINE cp2k_debug_energy_and_forces
 
-END MODULE qs_debug
+END MODULE cp2k_debug

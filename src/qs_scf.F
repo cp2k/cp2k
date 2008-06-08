@@ -82,12 +82,12 @@ MODULE qs_scf
                                              harris_energy_correction,&
                                              harris_postprocessing
   USE input_constants,                 ONLY: &
-       core_guess, densities_guess, general_roks, high_spin_roks, &
+       core_guess, debug_run, densities_guess, general_roks, high_spin_roks, &
        history_guess, ot_precond_full_all, ot_precond_full_kinetic, &
        ot_precond_full_single, ot_precond_full_single_inverse, &
        ot_precond_none, ot_precond_s_inverse, ot_precond_sparse_diag, &
        ot_precond_sparse_firstorder, outer_scf_none, outer_scf_scp, &
-       qs_debug_run, restart_guess
+       restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -568,7 +568,7 @@ CONTAINS
              END IF
 
              CALL section_vals_val_get(harris_section, "HARRIS_ENERGY",l_val=harris_energy,error=error)
-             IF ((globenv%run_type_id == qs_debug_run) .OR. (harris_energy)) THEN
+             IF ((globenv%run_type_id == debug_run) .OR. (harris_energy)) THEN
                 energy%total = harris_env%harris_energy%Eharris
              END IF
           END IF
