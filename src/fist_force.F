@@ -65,7 +65,6 @@ MODULE fist_force
   USE pme,                             ONLY: pme_evaluate
   USE shell_potential_types,           ONLY: shell_kind_type
   USE spme,                            ONLY: spme_evaluate
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -614,8 +613,9 @@ CONTAINS
           END DO
 
        ELSEIF(shell_present .AND. .NOT. shell_model_ad)THEN
-          ! not yet implemented
-          CALL stop_program ( "fist_force_control","non adiabatic shell-model NYI" )
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Non adiabatic shell-model not implemented.",&
+               error=error, error_level=cp_failure_level)
        ELSE
           DO i = 1, natoms
              particle_set ( i )%f ( 1 ) = f_total ( 1, i ) + fg_coulomb ( 1, i )
@@ -654,8 +654,9 @@ CONTAINS
              core_particle_set(i)%f(3) = fcore_total(3,i) 
           END DO
        ELSEIF(shell_present .AND. .NOT. shell_model_ad) THEN
-          ! not yet implemented
-          CALL stop_program ( "fist_force_control","non adiabatic shell-model NYI" )
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Non adiabatic shell-model not implemented.",&
+               error=error, error_level=cp_failure_level)
        ELSE
           DO i = 1, natoms
              particle_set ( i )%f ( 1 ) = f_total ( 1, i )
