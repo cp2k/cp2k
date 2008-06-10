@@ -374,7 +374,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ibc, iblock, istat, katom, kkind, kkneighbor, &
-      kneighbor, nblock_kkind, nkind, nneighbor, nneighbor_old, num
+      kneighbor, nblock_kkind, nkind, nneighbor, nneighbor_old
     INTEGER, DIMENSION(3)                    :: cell_c
     INTEGER, DIMENSION(:), POINTER           :: index_atom
     LOGICAL                                  :: add_node, paw_atom
@@ -396,7 +396,6 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    num = logger%para_env%mepos + 300
 
     NULLIFY(index_atom, rac_tmp, rac2_tmp, rbc_tmp, rbc2_tmp)
     nneighbor_old = 0
