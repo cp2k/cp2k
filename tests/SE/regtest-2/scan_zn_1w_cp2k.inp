@@ -1,0 +1,97 @@
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    CHARGE 2
+    MULTIPLICITY 1
+    &QS
+      &SE
+      &END
+      METHOD PM6
+      EXTRAPOLATION ASPC
+      EXTRAPOLATION_ORDER 3
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 50
+      MIXING 0.2
+      SCF_GUESS atomic
+      &OUTER_SCF
+	EPS_SCF 1.0E-6
+	MAX_SCF 4
+      &END OUTER_SCF
+      &OT ON
+	MINIMIZER DIIS
+	N_DIIS 7
+	PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+      &PRINT
+         &RESTART OFF
+         &END
+         &RESTART_HISTORY OFF
+         &END
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  
+  &SUBSYS
+    &TOPOLOGY
+      CONNECTIVITY OFF
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/ref_geos.xyz
+    &END TOPOLOGY
+    &CELL
+      ABC  15.0 15.0 15.0
+      UNIT ANGSTROM
+    &END CELL
+    
+    &KIND H
+      BASIS_SET TZV2P-GTH-q1
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET TZV2P-GTH-q6
+      POTENTIAL GTH-PBE-q6
+    &END KIND
+    &KIND Zn
+      BASIS_SET TZV-GTH-q12-confined
+      POTENTIAL GTH-PBE-q12
+    &END KIND
+    
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT ZN_1W_SCAN
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    STEPS       5
+    TIMESTEP    0.5
+    TEMPERATURE 0.0
+    ENSEMBLE REFTRAJ
+    &REFTRAJ
+      TRAJ_FILE_NAME ../sample_xyz/ref_geos.xyz
+      EVAL_ENERGY_FORCES T
+    &END
+  &END
+  &PRINT
+   &TRAJECTORY OFF
+   &END
+   &VELOCITIES OFF
+   &END
+   &FORCES OFF
+   &END
+   &RESTART_HISTORY OFF
+   &END
+   &RESTART OFF
+   &END
+  &END
+&END MOTION
+

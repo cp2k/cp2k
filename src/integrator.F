@@ -1190,6 +1190,7 @@ CONTAINS
     CHARACTER(LEN=10)                        :: AA
     INTEGER                                  :: cell_itimes, I, nparticle, &
                                                 Nread, stat, trj_itimes
+    INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, init, my_end
     REAL(KIND=dp)                            :: cell_time, h(3,3), trj_epot, &
                                                 trj_time, vol
@@ -1231,7 +1232,15 @@ CONTAINS
        READ(reftraj_env%info%traj_parser%input_line,FMT="(I8)") nread
        CPPostcondition(nread==nparticle,cp_failure_level,routineP,error,failure)
        CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
-       READ(reftraj_env%info%traj_parser%input_line,FMT="(T6,I8,T23,F12.3,T41,F20.10)")trj_itimes, trj_time, trj_epot
+       trj_itimes = HUGE(0)
+       READ(reftraj_env%info%traj_parser%input_line,FMT="(T6,I8,T23,F12.3,T41,F20.10)",&
+            ERR=999)trj_itimes, trj_time, trj_epot
+999    IF (trj_itimes==HUGE(0)) THEN
+          CALL get_md_env(md_env, itimes=itimes, error=error)
+          trj_itimes = itimes
+          trj_time   = 0.0_dp
+          trj_epot   = 0.0_dp
+       END IF       
        DO i = 1,nread-1
           CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
           READ(reftraj_env%info%traj_parser%input_line,*) AA,pos(1:3,i)
