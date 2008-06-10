@@ -391,3 +391,6 @@ water_3_dist.inp
 water_3_g3x3.inp
 water_hbonds_dist.inp
 water_intern.inp
+# bug fix 1/r tensors
+multipole_dipole_quadrupole.inp
+multipole_quadrupole.inp

@@ -289,8 +289,10 @@ CONTAINS
                    f(0)  = erfc(alpha*r)*ir
                    tmp   = EXP(-alpha**2*rab2)*invsqpi
                 END IF
+                fac = 1.0_dp
                 DO i = 1, 5
-                   f(i) = irab2*(f(i-1)+ tmp*((2.0_dp*alpha**2)**i)/(alpha*REAL(2*i-1,KIND=dp)))
+                   fac  = fac*REAL(2*i-1,KIND=dp)
+                   f(i) = irab2*(f(i-1)+ tmp*((2.0_dp*alpha**2)**i)/(fac*alpha))
                 END DO
                 ! Compute the Tensor components
                 eval_forces = .FALSE.
@@ -614,12 +616,12 @@ CONTAINS
                    ! Forces on particle i (locally b)
                    IF (do_forces) THEN
                       DO k = 1, 3
-                         fr(k) = fr(k) -  ch_j *(tij_ab(k,1)*dp_i(1)+&
-                                                 tij_ab(k,2)*dp_i(2)+&
-                                                 tij_ab(k,3)*dp_i(3))&
-                                       +  ch_i *(tij_ab(k,1)*dp_i(1)+&
-                                                 tij_ab(k,2)*dp_i(2)+&
-                                                 tij_ab(k,3)*dp_i(3))
+                         fr(k) = fr(k) -  ch_j *(tij_ab(1,k)*dp_i(1)+&
+                                                 tij_ab(2,k)*dp_i(2)+&
+                                                 tij_ab(3,k)*dp_i(3))&
+                                       +  ch_i *(tij_ab(1,k)*dp_j(1)+&
+                                                 tij_ab(2,k)*dp_j(2)+&
+                                                 tij_ab(3,k)*dp_j(3))
                       END DO                      
                    END IF
                 END IF
@@ -1470,7 +1472,7 @@ CONTAINS
                 IF (do_efield1) THEN
                    tmp(1:3) = 0.0_dp
                    IF (ANY(task(2,:))) THEN
-                      tmp(1:3) = -DOT_PRODUCT(dipoles(:,iparticle),pw_grid%g(:,gpt))*pw_grid%g(:,gpt)
+                      tmp(1:3) = DOT_PRODUCT(dipoles(:,iparticle),pw_grid%g(:,gpt))*pw_grid%g(:,gpt)
                    END IF
                    efield1(1,iparticle) = efield1(1,iparticle) - gauss * (REAL(summe_f1(1,gpt) * CONJG(summe_ef(gpt)))+tmp(1))
                    efield1(2,iparticle) = efield1(2,iparticle) - gauss * (REAL(summe_f1(2,gpt) * CONJG(summe_ef(gpt)))+tmp(2))
@@ -1653,7 +1655,7 @@ CONTAINS
     atm_factor = CMPLX (0.0_dp, 0.0_dp,KIND=dp)
     IF (ANY(task(2,:))) THEN
        ! Dipole
-       atm_factor = dipoles(:,iparticle) * CMPLX(0.0_dp, 1.0_dp, KIND=dp)
+       atm_factor = dipoles(:,iparticle) * CMPLX(0.0_dp, -1.0_dp, KIND=dp)
     END IF
     IF (ANY(task(3,:))) THEN
        ! Quadrupole
