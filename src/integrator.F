@@ -1191,7 +1191,7 @@ CONTAINS
     INTEGER                                  :: cell_itimes, I, nparticle, &
                                                 Nread, stat, trj_itimes
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, init, my_end
+    LOGICAL                                  :: failure, init, my_end, test_ok
     REAL(KIND=dp)                            :: cell_time, h(3,3), trj_epot, &
                                                 trj_time, vol
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1208,7 +1208,6 @@ CONTAINS
       POINTER                                :: simpar
 
     failure = .FALSE.
-
     NULLIFY(reftraj_env, particle_set, particles, force_env, subsys, simpar, para_env, cell)
     CALL get_md_env(md_env=md_env, init=init, reftraj=reftraj_env, force_env=force_env,&
          para_env=para_env, simpar=simpar, error=error)
@@ -1232,15 +1231,17 @@ CONTAINS
        READ(reftraj_env%info%traj_parser%input_line,FMT="(I8)") nread
        CPPostcondition(nread==nparticle,cp_failure_level,routineP,error,failure)
        CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
-       trj_itimes = HUGE(0)
+       test_ok = .FALSE.
        READ(reftraj_env%info%traj_parser%input_line,FMT="(T6,I8,T23,F12.3,T41,F20.10)",&
             ERR=999)trj_itimes, trj_time, trj_epot
-999    IF (trj_itimes==HUGE(0)) THEN
+       test_ok = .TRUE.
+999    IF (.NOT.test_ok) THEN
+          ! Handling properly the error when reading the title of an XYZ
           CALL get_md_env(md_env, itimes=itimes, error=error)
           trj_itimes = itimes
           trj_time   = 0.0_dp
           trj_epot   = 0.0_dp
-       END IF       
+       END IF
        DO i = 1,nread-1
           CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
           READ(reftraj_env%info%traj_parser%input_line,*) AA,pos(1:3,i)
@@ -1323,7 +1324,6 @@ CPSourceFileRef,&
     IF(reftraj_env%info%variable_volume)THEN
        CALL parser_get_next_line(reftraj_env%info%cell_parser,(reftraj_env%info%stride-1),error=error)
     END IF
-    
   END SUBROUTINE reftraj
 
 ! *****************************************************************************
