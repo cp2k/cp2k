@@ -394,3 +394,8 @@ water_intern.inp
 # bug fix 1/r tensors
 multipole_dipole_quadrupole.inp
 multipole_quadrupole.inp
+# numerics
+multipole_ch_dip_qu.dbg_f.inp
+multipole_ch_qu.dbg_f.inp
+multipole_ch_qu.dbg_f_real.inp
+multipole_ch_qu.dbg_f_rec.inp

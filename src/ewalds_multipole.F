@@ -49,6 +49,7 @@ MODULE ewalds_multipole
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   LOGICAL, PRIVATE, PARAMETER :: debug_r_space    =.FALSE.
   LOGICAL, PRIVATE, PARAMETER :: debug_g_space    =.FALSE.
+  LOGICAL, PRIVATE, PARAMETER :: debug_e_field    =.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewalds_multipole'
 
   PUBLIC :: ewald_multipole_evaluate
@@ -106,13 +107,23 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,'I','',handle)
     CPPostcondition(ASSOCIATED(nonbond_env),cp_failure_level,routineP,error,failure)
-    check_debug  = (debug_this_module.OR.debug_r_space.OR.debug_g_space).EQV.debug_this_module
+    check_debug  = (debug_this_module.OR.debug_r_space.OR.debug_g_space.OR.debug_e_field).EQV.debug_this_module
     CPPostcondition(check_debug,cp_failure_level,routineP,error,failure)
     ! Debugging this module
     IF (debug_this_module.AND.do_debug) THEN
-       CALL debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
-            particle_set, local_particles, iw, debug_r_space, error)
-       STOP "Debug Multipole Requested!"
+       ! Debug specifically real space part
+       IF (debug_r_space) THEN
+          CALL debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
+               particle_set, local_particles, iw, debug_r_space, error)
+          STOP "Debug Multipole Requested:  Real Part!"
+       END IF
+       ! Debug electric fields and gradients
+       IF (debug_e_field) THEN
+          CALL debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env,&
+               cell, particle_set, local_particles, charges, dipoles, quadrupoles,&
+               task, iw, error)
+          STOP "Debug Multipole Requested:  POT+EFIELDS+GRAD!"
+       END IF
     END IF
 
     ! Setup the tasks (needed to skip useless parts in the real-space term)
@@ -1272,20 +1283,18 @@ CONTAINS
     COMPLEX(KIND=dp)                         :: atm_factor, atm_factor_st(3), &
                                                 cnjg_fac, fac, summe_tmp
     COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:)                           :: summe_ef
+      DIMENSION(:)                           :: summe_ef, summe_f1
     COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: summe_f1, summe_f2, summe_st
+      DIMENSION(:, :)                        :: summe_f2, summe_st
     INTEGER :: gpt, group, handle, i, icc, iparticle, iparticle_kind, &
       iparticle_local, j, lp, mp, nnodes, node, np, nparticle_kind, &
       nparticle_local, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bds
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2, failure
-    REAL(KIND=dp)                            :: alpha, denom, dipole_t(3), &
-                                                e_igdotr, eps0, factor, &
-                                                flops, four_alpha_sq, gauss, &
-                                                pref, tmp(9)
-    REAL(KIND=dp), DIMENSION(3)              :: vec
+    REAL(KIND=dp) :: alpha, denom, dipole_t(3), e_igdotr, eps0, factor, &
+      flops, four_alpha_sq, gauss, pref, q_t, tmp, trq_t
+    REAL(KIND=dp), DIMENSION(3)              :: tmp_v, vec
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: rho0
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
@@ -1328,7 +1337,7 @@ CONTAINS
     END IF
     ! Electric Field
     IF (do_efield1) THEN
-       ALLOCATE (summe_f1(3,1:pw_grid%ngpts_cut), stat=stat)
+       ALLOCATE (summe_f1(1:pw_grid%ngpts_cut), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        summe_f1 = CMPLX (0.0_dp, 0.0_dp,KIND=dp)
     END IF
@@ -1342,6 +1351,8 @@ CONTAINS
     ! Defining four_alpha_sq
     four_alpha_sq = 4.0_dp * alpha **2
     dipole_t      = 0.0_dp
+    q_t           = 0.0_dp
+    trq_t         = 0.0_dp
     ! Zero node count
     node = 0
     DO iparticle_kind = 1, nparticle_kind
@@ -1353,9 +1364,17 @@ CONTAINS
           CALL structure_factor_evaluate (vec, pw_grid%npts, exp_igr%lb, &
                exp_igr%ex(:,node), exp_igr%ey(:,node), exp_igr%ez(:,node))
 
-          ! Computing the total dipole (if any)
+          ! Computing the total charge, dipole and quadrupole trace (if any)
+          IF (ANY(task(1,:))) THEN
+             q_t      = q_t      + charges(  iparticle)
+          END IF
           IF (ANY(task(2,:))) THEN
              dipole_t = dipole_t + dipoles(:,iparticle)
+          END IF
+          IF (ANY(task(3,:))) THEN
+             trq_t    = trq_t    + quadrupoles(1,1,iparticle)+&
+                                   quadrupoles(2,2,iparticle)+&
+                                   quadrupoles(3,3,iparticle)
           END IF
        END DO
     END DO
@@ -1394,22 +1413,16 @@ CONTAINS
              IF (do_efield) THEN
                 ! Electric field
                 IF (do_efield1) THEN
-                   icc = 0
-                   DO i = 1,3
-                      icc = icc + 1
-                      atm_factor =  pw_grid%g(i,gpt) * CMPLX(0.0_dp, 1.0_dp, KIND=dp)
-                      summe_f1(icc,gpt) = summe_f1(icc,gpt) + atm_factor*summe_tmp
-                   END DO
+                   atm_factor = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
+                   summe_f1(gpt) = summe_f1(gpt) + atm_factor*summe_tmp
                 END IF
                 ! Electric field gradient
                 IF (do_efield2) THEN
                    icc = 0
                    DO i = 1,3
-                      DO j =1,3
-                         icc = icc + 1
-                         atm_factor = pw_grid%g(j,gpt)*pw_grid%g(i,gpt)
-                         summe_f2(icc,gpt) = summe_f2(icc,gpt) + atm_factor*summe_tmp
-                      END DO
+                      icc = icc + 1
+                      atm_factor = pw_grid%g(i,gpt)
+                      summe_f2(icc,gpt) = summe_f2(icc,gpt) + atm_factor*summe_tmp
                    END DO
                 END IF
              END IF
@@ -1437,8 +1450,9 @@ CONTAINS
        np = np + bds(1,3)
 
        IF (pw_grid%gsq(gpt) == 0.0_dp) THEN
-          ! G=0 vector for dipoles
-          energy = energy + (1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t,dipole_t)
+          ! G=0 vector for dipole-dipole and charge-quadrupole
+          energy = energy + (1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t,dipole_t)&
+                          - (1.0_dp/9.0_dp)*q_t*trq_t
           CYCLE
        END IF
        gauss  = (rho0(lp,mp,np) * pw_grid%vol)**2 / pw_grid%gsq(gpt)
@@ -1466,17 +1480,18 @@ CONTAINS
              IF (do_efield) THEN
                 ! Potential
                 IF (do_efield0) THEN
-                   efield0(  iparticle) = efield0(  iparticle) + gauss *  REAL(fac * CONJG(summe_ef(gpt))) 
+                   efield0(  iparticle) = efield0(  iparticle) + gauss *  REAL(fac*CONJG(summe_ef(gpt)),KIND=dp) 
                 END IF
                 ! Electric field
                 IF (do_efield1) THEN
-                   tmp(1:3) = 0.0_dp
+                   tmp = 0.0_dp
                    IF (ANY(task(2,:))) THEN
-                      tmp(1:3) = DOT_PRODUCT(dipoles(:,iparticle),pw_grid%g(:,gpt))*pw_grid%g(:,gpt)
+                      tmp = DOT_PRODUCT(dipoles(:,iparticle),pw_grid%g(:,gpt))
                    END IF
-                   efield1(1,iparticle) = efield1(1,iparticle) - gauss * (REAL(summe_f1(1,gpt) * CONJG(summe_ef(gpt)))+tmp(1))
-                   efield1(2,iparticle) = efield1(2,iparticle) - gauss * (REAL(summe_f1(2,gpt) * CONJG(summe_ef(gpt)))+tmp(2))
-                   efield1(3,iparticle) = efield1(3,iparticle) - gauss * (REAL(summe_f1(3,gpt) * CONJG(summe_ef(gpt)))+tmp(3))
+                   tmp = tmp + REAL(summe_f1(gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+                   efield1(1,iparticle) = efield1(1,iparticle) - gauss * tmp*pw_grid%g(1,gpt)
+                   efield1(2,iparticle) = efield1(2,iparticle) - gauss * tmp*pw_grid%g(2,gpt)
+                   efield1(3,iparticle) = efield1(3,iparticle) - gauss * tmp*pw_grid%g(3,gpt)
                 END IF
                 ! Electric field gradient
                 IF (do_efield2) THEN
@@ -1491,22 +1506,18 @@ CONTAINS
                          END DO
                       END DO
                    END IF
-                   icc = 0
                    DO i = 1,3
-                      DO j = 1,3
-                         icc = icc + 1
-                         tmp(icc) = tmp(icc) * pw_grid%g(j,gpt) * pw_grid%g(i,gpt)
-                      END DO
+                      tmp_v(i) = tmp * pw_grid%g(i,gpt) + REAL(summe_f2(i,gpt)*CONJG(summe_ef(gpt)),KIND=dp)
                    END DO
-                   efield2(1,iparticle) = efield2(1,iparticle) + gauss * (REAL(summe_f2(1,gpt) * CONJG(summe_ef(gpt)))+tmp(1))
-                   efield2(2,iparticle) = efield2(2,iparticle) + gauss * (REAL(summe_f2(2,gpt) * CONJG(summe_ef(gpt)))+tmp(2))
-                   efield2(3,iparticle) = efield2(3,iparticle) + gauss * (REAL(summe_f2(3,gpt) * CONJG(summe_ef(gpt)))+tmp(3))
-                   efield2(4,iparticle) = efield2(4,iparticle) + gauss * (REAL(summe_f2(4,gpt) * CONJG(summe_ef(gpt)))+tmp(4))
-                   efield2(5,iparticle) = efield2(5,iparticle) + gauss * (REAL(summe_f2(5,gpt) * CONJG(summe_ef(gpt)))+tmp(5))
-                   efield2(6,iparticle) = efield2(6,iparticle) + gauss * (REAL(summe_f2(6,gpt) * CONJG(summe_ef(gpt)))+tmp(6))
-                   efield2(7,iparticle) = efield2(7,iparticle) + gauss * (REAL(summe_f2(7,gpt) * CONJG(summe_ef(gpt)))+tmp(7))
-                   efield2(8,iparticle) = efield2(8,iparticle) + gauss * (REAL(summe_f2(8,gpt) * CONJG(summe_ef(gpt)))+tmp(8))
-                   efield2(9,iparticle) = efield2(9,iparticle) + gauss * (REAL(summe_f2(9,gpt) * CONJG(summe_ef(gpt)))+tmp(9))
+                   efield2(1,iparticle) = efield2(1,iparticle) + gauss * tmp_v(1) * pw_grid%g(1,gpt)
+                   efield2(2,iparticle) = efield2(2,iparticle) + gauss * tmp_v(1) * pw_grid%g(2,gpt)
+                   efield2(3,iparticle) = efield2(3,iparticle) + gauss * tmp_v(1) * pw_grid%g(3,gpt)
+                   efield2(4,iparticle) = efield2(4,iparticle) + gauss * tmp_v(2) * pw_grid%g(1,gpt)
+                   efield2(5,iparticle) = efield2(5,iparticle) + gauss * tmp_v(2) * pw_grid%g(2,gpt)
+                   efield2(6,iparticle) = efield2(6,iparticle) + gauss * tmp_v(2) * pw_grid%g(3,gpt)
+                   efield2(7,iparticle) = efield2(7,iparticle) + gauss * tmp_v(3) * pw_grid%g(1,gpt)
+                   efield2(8,iparticle) = efield2(8,iparticle) + gauss * tmp_v(3) * pw_grid%g(2,gpt)
+                   efield2(9,iparticle) = efield2(9,iparticle) + gauss * tmp_v(3) * pw_grid%g(3,gpt)
                 END IF
              END IF
           END DO
@@ -1527,15 +1538,15 @@ CONTAINS
           pv(3,2) = pv(3,2) - factor*(         2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(2,gpt)*denom)
           pv(3,3) = pv(3,3) + factor*(1.0_dp - 2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(3,gpt)*denom)
           ! The second one can be written in the following way
-          pv(1,1) = pv(1,1) + 2.0_dp * gauss * pw_grid%g(1,gpt) * REAL(summe_st(1,gpt) * CONJG(summe_ef(gpt)))
-          pv(1,2) = pv(1,2) + 2.0_dp * gauss * pw_grid%g(1,gpt) * REAL(summe_st(2,gpt) * CONJG(summe_ef(gpt)))
-          pv(1,3) = pv(1,3) + 2.0_dp * gauss * pw_grid%g(1,gpt) * REAL(summe_st(3,gpt) * CONJG(summe_ef(gpt)))
-          pv(2,1) = pv(2,1) + 2.0_dp * gauss * pw_grid%g(2,gpt) * REAL(summe_st(1,gpt) * CONJG(summe_ef(gpt)))
-          pv(2,2) = pv(2,2) + 2.0_dp * gauss * pw_grid%g(2,gpt) * REAL(summe_st(2,gpt) * CONJG(summe_ef(gpt)))
-          pv(2,3) = pv(2,3) + 2.0_dp * gauss * pw_grid%g(2,gpt) * REAL(summe_st(3,gpt) * CONJG(summe_ef(gpt)))
-          pv(3,1) = pv(3,1) + 2.0_dp * gauss * pw_grid%g(3,gpt) * REAL(summe_st(1,gpt) * CONJG(summe_ef(gpt)))
-          pv(3,2) = pv(3,2) + 2.0_dp * gauss * pw_grid%g(3,gpt) * REAL(summe_st(2,gpt) * CONJG(summe_ef(gpt)))
-          pv(3,3) = pv(3,3) + 2.0_dp * gauss * pw_grid%g(3,gpt) * REAL(summe_st(3,gpt) * CONJG(summe_ef(gpt)))
+          pv(1,1) = pv(1,1) + 2.0_dp * gauss * pw_grid%g(1,gpt) * REAL(summe_st(1,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv(1,2) = pv(1,2) + 2.0_dp * gauss * pw_grid%g(1,gpt) * REAL(summe_st(2,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv(1,3) = pv(1,3) + 2.0_dp * gauss * pw_grid%g(1,gpt) * REAL(summe_st(3,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv(2,1) = pv(2,1) + 2.0_dp * gauss * pw_grid%g(2,gpt) * REAL(summe_st(1,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv(2,2) = pv(2,2) + 2.0_dp * gauss * pw_grid%g(2,gpt) * REAL(summe_st(2,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv(2,3) = pv(2,3) + 2.0_dp * gauss * pw_grid%g(2,gpt) * REAL(summe_st(3,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv(3,1) = pv(3,1) + 2.0_dp * gauss * pw_grid%g(3,gpt) * REAL(summe_st(1,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv(3,2) = pv(3,2) + 2.0_dp * gauss * pw_grid%g(3,gpt) * REAL(summe_st(2,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
+          pv(3,3) = pv(3,3) + 2.0_dp * gauss * pw_grid%g(3,gpt) * REAL(summe_st(3,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
        END IF
     END DO
 
@@ -1754,10 +1765,10 @@ CONTAINS
                    efield0(  iparticle) = efield0(  iparticle) + (f23**2)*(alpha**3)*invfoureps0/SQRT(pi) * qu_trace
                 END IF
                 ! Electric field
-                IF (do_efield1) THEN
-                   efield1(1,iparticle) = efield1(1,iparticle) + (2.0_dp/SQRT(pi))*f23*alpha**3*charges(iparticle)
-                   efield1(5,iparticle) = efield1(5,iparticle) + (2.0_dp/SQRT(pi))*f23*alpha**3*charges(iparticle)
-                   efield1(9,iparticle) = efield1(9,iparticle) + (2.0_dp/SQRT(pi))*f23*alpha**3*charges(iparticle)
+                IF (do_efield2) THEN
+                   efield2(1,iparticle) = efield2(1,iparticle) + (2.0_dp/SQRT(pi))*f23*alpha**3*charges(iparticle)
+                   efield2(5,iparticle) = efield2(5,iparticle) + (2.0_dp/SQRT(pi))*f23*alpha**3*charges(iparticle)
+                   efield2(9,iparticle) = efield2(9,iparticle) + (2.0_dp/SQRT(pi))*f23*alpha**3*charges(iparticle)
                 END IF
              END IF
           END IF

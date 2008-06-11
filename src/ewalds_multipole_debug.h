@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief  Debug routines for multipoles 
+!> \brief  Interfaces for MULTIPOLES debug routines
 !> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 !> \date   05.2008
 ! *****************************************************************************
@@ -36,4 +36,34 @@ INTERFACE
     TYPE(cp_error_type), INTENT(inout)       :: error
 
   END SUBROUTINE debug_ewald_multipoles
+END INTERFACE
+
+INTERFACE
+  SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,&
+       particle_set, local_particles, charges, dipoles, quadrupoles, task, iw, error)
+    USE cell_types,                      ONLY: cell_type
+    USE distribution_1d_types,           ONLY: distribution_1d_type
+    USE ewald_environment_types,         ONLY: ewald_environment_type
+    USE ewald_pw_types,                  ONLY: ewald_pw_type
+    USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
+    USE kinds,                           ONLY: dp
+    USE particle_types,                  ONLY: particle_type
+#include "cp_common_uses.h"
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_type), POINTER             :: particle_set(:)
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    REAL(KIND=dp), DIMENSION(:), &
+         INTENT(IN), OPTIONAL                :: charges
+    REAL(KIND=dp), DIMENSION(:, :), &
+         INTENT(IN), OPTIONAL                :: dipoles
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+         INTENT(IN), OPTIONAL                :: quadrupoles
+    LOGICAL, DIMENSION(3), INTENT(IN)        :: task
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+  END SUBROUTINE debug_ewald_multipoles_fields
 END INTERFACE
