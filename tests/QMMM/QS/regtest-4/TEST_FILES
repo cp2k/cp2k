@@ -4,12 +4,13 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #Periodic calculation
-crys_per_qmmm.inp 1
-crys_per_qmmm_anal.inp 1 
-crys_per_qmmm_spln.inp 1
+crys_per_qmmm.inp       1
+crys_per_qmmm_anal.inp  1 
+crys_per_qmmm_spln.inp  1
 # none calculation + periodic -> switch off periodic
-crys_per_qmmm_none.inp 1
+crys_per_qmmm_none.inp  1
 # check zero of the potential for charged QM systems
-acn-qmmm-re.inp 1
+acn-qmmm-re.inp         1
 # check a qm/mm nasty topology 
-acn-conn-1.inp  1
+acn-conn-1.inp          1
+wat_nacl.inp           11

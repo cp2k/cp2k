@@ -28,6 +28,7 @@ MODULE topology_util
                                              charmm_map,&
                                              gromos_map
   USE periodic_table,                  ONLY: ptable
+  USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE string_table,                    ONLY: str2id
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
@@ -77,11 +78,15 @@ CONTAINS
 !> \par History
 !>      Teodoro Laino 09.2006 - Rewritten with a graph matching algorithm
 ! *****************************************************************************
-  SUBROUTINE topology_reorder_atoms(topology,para_env,subsys_section,error)
+  SUBROUTINE topology_reorder_atoms(topology,para_env,qmmm,qmmm_env_mm,subsys_section,force_env_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: subsys_section
+    LOGICAL, INTENT(in), OPTIONAL            :: qmmm
+    TYPE(qmmm_env_mm_type), INTENT(INOUT), &
+      OPTIONAL, POINTER                      :: qmmm_env_mm
+    TYPE(section_vals_type), POINTER         :: subsys_section, &
+                                                force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_reorder_atoms', &
@@ -93,14 +98,17 @@ CONTAINS
                                                 tlabel_atmname(:), &
                                                 tlabel_molname(:), &
                                                 tlabel_resname(:)
-    INTEGER :: handle, i, iatm, iindex, imol, imol_ref, iref, iund, iw, j, &
-      location, max_mol_num, n, n_rep, natom, natom_loc, old_hash, old_mol, &
-      output_unit, stat, unique_mol
+    INTEGER :: handle, i, iatm, iindex, ikind, imol, imol_ref, iref, iund, &
+      iw, j, k, location, max_mol_num, mm_index, n, n_rep, n_var, natom, &
+      natom_loc, nkind, nlinks, old_hash, old_mol, output_unit, qm_index, &
+      stat, unique_mol
+    INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms, qm_atom_index
     INTEGER, POINTER :: atm_map1(:), atm_map2(:), atm_map3(:), &
-      map_atom_type(:), map_mol_hash(:), mol_bnd(:,:), mol_hash(:), &
-      mol_num(:), new_position(:), order(:), tmp_n(:), tmp_v(:), wrk(:)
+      map_atom_type(:), map_mol_hash(:), mm_indexes_n(:), mm_indexes_v(:), &
+      mol_bnd(:,:), mol_hash(:), mol_num(:), new_position(:), order(:), &
+      tmp_n(:), tmp_v(:), wrk(:)
     LOGICAL                                  :: explicit, failure, ionode, &
-                                                matches
+                                                matches, my_qmmm
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tr
     REAL(KIND=dp), POINTER                   :: tatm_charge(:), tatm_mass(:)
     TYPE(array1_list_type), ALLOCATABLE, &
@@ -110,7 +118,9 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(graph_type), DIMENSION(:), POINTER  :: reference_set
     TYPE(section_vals_type), POINTER         :: generate_section, &
-                                                isolated_section
+                                                isolated_section, qm_kinds, &
+                                                qmmm_link_section, &
+                                                qmmm_section
     TYPE(vertex), DIMENSION(:), POINTER      :: reference, unordered
 
     failure = .FALSE.
@@ -126,9 +136,14 @@ CONTAINS
       output_unit = -1
     END IF
     IF (output_unit>0) WRITE(output_unit,'(T2,"REORDER |  ")')
+
+    my_qmmm = .FALSE.
+    IF (PRESENT(qmmm).AND.PRESENT(qmmm_env_mm)) my_qmmm = qmmm
+
     atom_info => topology%atom_info
     conn_info => topology%conn_info    
     natom = topology%natoms
+
     NULLIFY( new_position, reference_set)
     NULLIFY(tlabel_atmname, telement, mol_num, tlabel_molname, tlabel_resname)
     NULLIFY(tr, tatm_charge, tatm_mass, atm_map1, atm_map2, atm_map3)
@@ -386,13 +401,77 @@ CONTAINS
        atom_info%atm_charge(iatm)      = tatm_charge(iatm)
        atom_info%atm_mass(iatm)        = tatm_mass(iatm)
     END DO
+
     ! Let's reorder all the list provided in the input..
     ALLOCATE(wrk(SIZE(new_position)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL sort(new_position, SIZE(new_position), wrk)
 
     ! NOTE: In the future the whole list of possible integers should be updated at this level..
-    ! Let's reorder the atoms wants to be isolated..
+    ! Let's update all the integer lists in the qmmm_env_mm section and in the input sections
+    !       from where qmmm_env_qm will be read.
+    IF (my_qmmm) THEN
+       ! Update the qmmm_env_mm
+       CPPrecondition(SIZE(qmmm_env_mm%qm_atom_index)/=0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ALL(qmmm_env_mm%qm_atom_index /= 0),cp_failure_level,routineP,error,failure)
+       ALLOCATE(qm_atom_index(SIZE(qmmm_env_mm%qm_atom_index)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO iatm=1,SIZE(qmmm_env_mm%qm_atom_index)
+          qm_atom_index(iatm) = wrk(qmmm_env_mm%qm_atom_index(iatm))
+       END DO
+       qmmm_env_mm%qm_atom_index = qm_atom_index
+       CPPostcondition(ALL(qmmm_env_mm%qm_atom_index /= 0),cp_failure_level,routineP,error,failure)
+       DEALLOCATE(qm_atom_index,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Update the qmmm_section: MM_INDEX of the QM_KIND
+       qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
+       qm_kinds => section_vals_get_subs_vals(qmmm_section,"QM_KIND",error=error)
+       CALL section_vals_get(qm_kinds,n_repetition=nkind,error=error)
+       DO ikind=1,nkind
+          CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,n_rep_val=n_var,&
+               error=error)
+          DO k = 1, n_var
+             CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_rep_val=k,&
+                  i_vals=mm_indexes_v,error=error)
+             ALLOCATE(mm_indexes_n(SIZE(mm_indexes_v)),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DO j = 1, SIZE(mm_indexes_v)
+                mm_indexes_n(j) = wrk(mm_indexes_v(j))
+             END DO
+             CALL section_vals_val_set(qm_kinds,"MM_INDEX", i_rep_section=ikind, &
+                                       i_vals_ptr=mm_indexes_n, i_rep_val=k, error=error)
+          END DO
+       END DO
+       ! Handle the link atoms
+       IF (qmmm_env_mm%qmmm_link) THEN
+          ! Update the qmmm_env_mm
+          CPPrecondition(SIZE(qmmm_env_mm%mm_link_atoms)>0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(mm_link_atoms(SIZE(qmmm_env_mm%mm_link_atoms)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO iatm=1,SIZE(qmmm_env_mm%mm_link_atoms)
+             mm_link_atoms(iatm) = wrk(qmmm_env_mm%mm_link_atoms(iatm))
+          END DO
+          qmmm_env_mm%mm_link_atoms = mm_link_atoms
+          CPPostcondition(ALL(qmmm_env_mm%mm_link_atoms /= 0),cp_failure_level,routineP,error,failure)
+          DEALLOCATE(mm_link_atoms,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ! Update the qmmm_section: MM_INDEX,QM_INDEX of the LINK atom list
+          qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
+          CALL section_vals_get(qmmm_link_section,n_repetition=nlinks,error=error)
+          CPPostcondition(nlinks /= 0,cp_failure_level,routineP,error,failure)
+          DO ikind= 1, nlinks
+             CALL section_vals_val_get(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index,error=error)
+             CALL section_vals_val_get(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,error=error)
+             mm_index = wrk(mm_index)
+             qm_index = wrk(qm_index)
+             CALL section_vals_val_set(qmmm_link_section,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,error=error)
+             CALL section_vals_val_set(qmmm_link_section,"QM_INDEX",i_rep_section=ikind,i_val=qm_index,error=error)
+          END DO
+       END IF
+    END IF
+    !
+    !LIST of ISOLATED atoms
+    !
     generate_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE",error=error)
     isolated_section => section_vals_get_subs_vals(generate_section,"ISOLATED_ATOMS",error=error)
     CALL section_vals_get(isolated_section, explicit=explicit, error=error)

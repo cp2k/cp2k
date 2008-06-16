@@ -419,7 +419,8 @@ CONTAINS
           ! If we generate connectivity we can save memory reordering the molecules
           ! in this case once a first connectivity has been created we match according
           ! molecule names provided in the PDB and reorder the connectivity according to that.
-          CALL topology_reorder_atoms(topology,para_env,subsys_section,error)
+          CALL topology_reorder_atoms(topology,para_env,qmmm,qmmm_env,subsys_section,&
+                                      force_env_section,error=error)
           CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
           CALL topology_generate_bond(topology,para_env,subsys_section,force_env_section,error)
        END IF
