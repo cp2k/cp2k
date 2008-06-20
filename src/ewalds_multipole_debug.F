@@ -695,7 +695,11 @@ CONTAINS
 
 END SUBROUTINE debug_ewald_multipoles
 
-
+! *****************************************************************************
+!> \brief  Routine to debug potential, field and electric field gradients
+!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
+!> \date   05.2008
+! *****************************************************************************
 SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,&
      particle_set, local_particles, charges, dipoles, quadrupoles, task, iw, error )
   USE cell_types,                      ONLY: cell_type
@@ -718,11 +722,11 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
   TYPE(particle_type), POINTER             :: particle_set(:)
   TYPE(distribution_1d_type), POINTER      :: local_particles
   REAL(KIND=dp), DIMENSION(:), &
-       INTENT(IN), OPTIONAL                :: charges
+       POINTER, OPTIONAL                   :: charges
   REAL(KIND=dp), DIMENSION(:, :), &
-       INTENT(IN), OPTIONAL                :: dipoles
+       POINTER, OPTIONAL                   :: dipoles
   REAL(KIND=dp), DIMENSION(:, :, :), &
-       INTENT(IN), OPTIONAL                :: quadrupoles
+       POINTER, OPTIONAL                   :: quadrupoles
   LOGICAL, DIMENSION(3), INTENT(IN)        :: task
   INTEGER, INTENT(IN)                      :: iw
   TYPE(cp_error_type), INTENT(inout)       :: error
@@ -730,17 +734,16 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
   CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles_fields', &
       routineP = "ewalds_multipole_debug"//':'//routineN
 
-  REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: lcharges, efield0
-  REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)&
-                                           :: ldipoles
-  REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)&
-                                           :: lquadrupoles
+  REAL(KIND=dp), POINTER, DIMENSION(:)     :: lcharges, efield0
+  REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: ldipoles
+  REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: lquadrupoles
   REAL(KIND=dp)                            :: dq, dr, energy_local, energy_glob, e_neut,&
        e_self, pv_local(3,3), pv_glob(3,3), ene(2), pot
   REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE&
                                            :: forces_local, forces_glob, efield1, efield2
   INTEGER :: nparticles,i,k
   
+  NULLIFY(lcharges, ldipoles, lquadrupoles)
   nparticles = SIZE(particle_set)
   nparticle_local = 0
   DO iparticle_kind=1,SIZE(local_particles%n_el)

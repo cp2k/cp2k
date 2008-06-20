@@ -77,12 +77,12 @@ CONTAINS
     LOGICAL, DIMENSION(3), INTENT(IN)        :: task
     LOGICAL, INTENT(IN)                      :: do_forces, do_stress, &
                                                 do_efield
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(IN), OPTIONAL                   :: charges
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN), OPTIONAL                   :: dipoles
+      OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(IN), OPTIONAL                   :: quadrupoles
+      OPTIONAL, POINTER                      :: quadrupoles
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: forces_local, forces_glob
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -190,12 +190,12 @@ CONTAINS
     LOGICAL, DIMENSION(3, 3), INTENT(IN)     :: task
     LOGICAL, INTENT(IN)                      :: do_forces, do_efield, &
                                                 do_stress
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(IN), OPTIONAL                   :: charges
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN), OPTIONAL                   :: dipoles
+      OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(IN), OPTIONAL                   :: quadrupoles
+      OPTIONAL, POINTER                      :: quadrupoles
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: forces, pv
     REAL(KIND=dp), DIMENSION(:), &
@@ -213,8 +213,8 @@ CONTAINS
                                                 jkind, k, nkinds, npairs
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: do_efield0, do_efield1, &
-                                                do_efield2, eval_forces, &
-                                                failure
+                                                do_efield2, failure, &
+                                                force_eval
     REAL(KIND=dp) :: alpha, ch_i, ch_j, ef0_i, ef0_j, eloc, eps0, fac, &
       fac_ij, invsqpi, ir, irab2, ptens11, ptens12, ptens13, ptens21, &
       ptens22, ptens23, ptens31, ptens32, ptens33, r, rab2, rab2_max, rcut, &
@@ -306,18 +306,21 @@ CONTAINS
                    f(i) = irab2*(f(i-1)+ tmp*((2.0_dp*alpha**2)**i)/(fac*alpha))
                 END DO
                 ! Compute the Tensor components
-                eval_forces = .FALSE.
+                force_eval = .FALSE.
                 IF (task(1,1)) THEN
                    tij         = f(0)*fac_ij
-                   eval_forces = do_forces
+                   force_eval = do_forces.OR.do_efield
+                   IF (task(2,2))                   force_eval = force_eval.OR.do_efield0  
                 END IF
-                IF (task(1,2).OR.eval_forces) THEN
-                   eval_forces = .FALSE.
+                IF (task(1,2).OR.force_eval) THEN
+                   force_eval = .FALSE.
                    tij_a    = - rab*f(1)*fac_ij
-                   IF (task(1,2)) eval_forces = do_forces
+                   IF (task(1,2))                   force_eval = do_forces
+                   IF (task(1,1))                   force_eval = force_eval.OR.do_efield2
+                   IF (task(3,3))                   force_eval = force_eval.OR.do_efield0
                 END IF
-                IF ((task(2,2).OR.ANY(task(3,:))).OR.eval_forces) THEN
-                   eval_forces = .FALSE.
+                IF (task(2,2).OR.task(3,1).OR.force_eval) THEN
+                   force_eval = .FALSE.
                    DO b = 1,3
                       DO a = 1,3
                          tmp = rab(a)*rab(b)*fac_ij
@@ -325,10 +328,12 @@ CONTAINS
                          IF (a==b) tij_ab(a,b) = tij_ab(a,b) - f(1)*fac_ij
                       END DO
                    END DO
-                   IF (task(2,2).OR.ANY(task(3,:))) eval_forces = do_forces
+                   IF (task(2,2).OR.ANY(task(3,:))) force_eval = do_forces
+                   IF (task(2,2))                   force_eval = force_eval.OR.do_efield2
+                   IF (task(3,3))                   force_eval = force_eval.OR.do_efield1
                 END IF
-                IF (ANY(task(3,2:3)).OR.eval_forces) THEN
-                   eval_forces = .FALSE.
+                IF (task(3,2).OR.force_eval) THEN
+                   force_eval = .FALSE.
                    DO c = 1, 3
                       DO b = 1, 3
                          DO a = 1, 3
@@ -341,10 +346,10 @@ CONTAINS
                          END DO
                       END DO
                    END DO
-                   IF (ANY(task(3,2:3))) eval_forces = do_forces
+                   IF (task(3,2)) force_eval = do_forces
                 END IF
-                IF (task(3,3).OR.eval_forces) THEN
-                   eval_forces = .FALSE.
+                IF (task(3,3).OR.force_eval) THEN
+                   force_eval = .FALSE.
                    DO d = 1, 3
                       DO c = 1, 3
                          DO b = 1, 3
@@ -372,10 +377,10 @@ CONTAINS
                          END DO
                       END DO
                    END DO
-                   IF (task(3,3)) eval_forces = do_forces
+                   IF (task(3,3)) force_eval = do_forces
                 END IF
-                IF (eval_forces) THEN
-                   eval_forces = .FALSE.
+                IF (force_eval) THEN
+                   force_eval = .FALSE.
                    DO e = 1, 3
                       DO d = 1, 3
                          DO c = 1, 3
@@ -438,12 +443,24 @@ CONTAINS
                 ef1_i = 0.0_dp
                 ef2_j = 0.0_dp
                 ef2_i = 0.0_dp
-                ch_j  = charges(atom_a)
-                ch_i  = charges(atom_b)
-                dp_j  = dipoles(:,atom_a)
-                dp_i  = dipoles(:,atom_b)
-                qp_j  = quadrupoles(:,:,atom_a)
-                qp_i  = quadrupoles(:,:,atom_b)
+                ch_j  = HUGE(0.0_dp)
+                ch_i  = HUGE(0.0_dp)
+                dp_j  = HUGE(0.0_dp)
+                dp_i  = HUGE(0.0_dp)
+                qp_j  = HUGE(0.0_dp)
+                qp_i  = HUGE(0.0_dp)
+                IF (ANY(task(1,:))) THEN
+                   ch_j  = charges(atom_a)
+                   ch_i  = charges(atom_b)
+                END IF
+                IF (ANY(task(2,:))) THEN
+                   dp_j  = dipoles(:,atom_a)
+                   dp_i  = dipoles(:,atom_b)
+                END IF
+                IF (ANY(task(3,:))) THEN
+                   qp_j  = quadrupoles(:,:,atom_a)
+                   qp_i  = quadrupoles(:,:,atom_b)
+                END IF
                 IF (task(1,1)) THEN
                    ! Charge - Charge
                    eloc = eloc + ch_i*tij*ch_j
@@ -1263,12 +1280,12 @@ CONTAINS
     LOGICAL, DIMENSION(3, 3), INTENT(IN)     :: task
     LOGICAL, INTENT(IN)                      :: do_forces, do_efield, &
                                                 do_stress
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(IN), OPTIONAL                   :: charges
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN), OPTIONAL                   :: dipoles
+      OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(IN), OPTIONAL                   :: quadrupoles
+      OPTIONAL, POINTER                      :: quadrupoles
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: forces, pv
     REAL(KIND=dp), DIMENSION(:), &
@@ -1599,12 +1616,12 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: gpt
     INTEGER                                  :: iparticle
     LOGICAL, DIMENSION(3, 3), INTENT(IN)     :: task
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(IN), OPTIONAL                   :: charges
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN), OPTIONAL                   :: dipoles
+      OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(IN), OPTIONAL                   :: quadrupoles
+      OPTIONAL, POINTER                      :: quadrupoles
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_factor', &
@@ -1653,9 +1670,9 @@ CONTAINS
     INTEGER                                  :: iparticle
     LOGICAL, DIMENSION(3, 3), INTENT(IN)     :: task
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN), OPTIONAL                   :: dipoles
+      OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(IN), OPTIONAL                   :: quadrupoles
+      OPTIONAL, POINTER                      :: quadrupoles
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_factor_stress', &
@@ -1699,12 +1716,12 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: e_self, e_neut
     LOGICAL, DIMENSION(3, 3), INTENT(IN)     :: task
     LOGICAL, INTENT(IN)                      :: do_efield
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(IN), OPTIONAL                   :: charges
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN), OPTIONAL                   :: dipoles
+      OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(IN), OPTIONAL                   :: quadrupoles
+      OPTIONAL, POINTER                      :: quadrupoles
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT), OPTIONAL                :: efield0
     REAL(KIND=dp), DIMENSION(:, :), &

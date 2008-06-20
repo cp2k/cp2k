@@ -56,11 +56,11 @@ INTERFACE
     TYPE(particle_type), POINTER             :: particle_set(:)
     TYPE(distribution_1d_type), POINTER      :: local_particles
     REAL(KIND=dp), DIMENSION(:), &
-         INTENT(IN), OPTIONAL                :: charges
+         POINTER, OPTIONAL                   :: charges
     REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(IN), OPTIONAL                :: dipoles
+         POINTER, OPTIONAL                   :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
-         INTENT(IN), OPTIONAL                :: quadrupoles
+         POINTER, OPTIONAL                   :: quadrupoles
     LOGICAL, DIMENSION(3), INTENT(IN)        :: task
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error

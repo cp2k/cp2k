@@ -92,6 +92,9 @@ CONTAINS
        multipoles%id_nr=last_multipole_id_nr
        multipoles%ref_count=1
        multipoles%task = .FALSE.
+       NULLIFY(multipoles%charges)
+       NULLIFY(multipoles%dipoles)
+       NULLIFY(multipoles%quadrupoles)
        SELECT CASE(max_multipole)
        CASE(do_multipole_charge)
           multipoles%task(1:1) = .TRUE.
