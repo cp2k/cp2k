@@ -86,8 +86,8 @@ MODULE qs_scf
        history_guess, ot_precond_full_all, ot_precond_full_kinetic, &
        ot_precond_full_single, ot_precond_full_single_inverse, &
        ot_precond_none, ot_precond_s_inverse, ot_precond_sparse_diag, &
-       ot_precond_sparse_firstorder, outer_scf_none, outer_scf_scp, &
-       restart_guess
+       ot_precond_sparse_firstorder, ot_precond_sparse_kinetic, &
+       outer_scf_none, outer_scf_scp, restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -1354,7 +1354,8 @@ END SUBROUTINE qs_scf_print_summary
                DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
              CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse, &
-                  ot_precond_sparse_diag,ot_precond_sparse_firstorder) ! these are 'independent'
+                  ot_precond_sparse_diag,ot_precond_sparse_kinetic,&
+                  ot_precond_sparse_firstorder) ! these are 'independent'
                 ! do nothing
              CASE DEFAULT
               CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)

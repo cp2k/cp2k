@@ -17,6 +17,7 @@ MODULE preconditioner
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
+                                             cp_fm_trace,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
@@ -39,7 +40,8 @@ MODULE preconditioner
        lr_precond_full_all, lr_precond_h0_inverse, lr_precond_s_inverse, &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_s_inverse, &
-       ot_precond_sparse_diag, ot_precond_sparse_firstorder
+       ot_precond_sparse_diag, ot_precond_sparse_firstorder, &
+       ot_precond_sparse_kinetic
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
@@ -77,7 +79,7 @@ MODULE preconditioner
 ! *****************************************************************************
   TYPE preconditioner_type
 !    PRIVATE
-       TYPE(real_matrix_type),    POINTER :: sparse_matrix
+       TYPE(real_matrix_type),    POINTER :: sparse_matrix,sparse_matrix_inner
        TYPE(cp_fm_type), POINTER :: fm
        TYPE(cp_para_env_type),  POINTER   :: para_env
        TYPE(cp_blacs_env_type), POINTER   :: ctxt
@@ -110,6 +112,7 @@ SUBROUTINE init_preconditioner(preconditioner_env,para_env,blacs_env, error)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
    NULLIFY(preconditioner_env%sparse_matrix)
+   NULLIFY(preconditioner_env%sparse_matrix_inner)
    NULLIFY(preconditioner_env%fm)
    NULLIFY(preconditioner_env%occ_evals)
    NULLIFY(preconditioner_env%full_evals)
@@ -130,6 +133,10 @@ SUBROUTINE destroy_preconditioner(preconditioner_env, error)
    IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
       CALL deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
       NULLIFY(preconditioner_env%sparse_matrix)
+   ENDIF
+   IF (ASSOCIATED(preconditioner_env%sparse_matrix_inner)) THEN
+      CALL deallocate_matrix(preconditioner_env%sparse_matrix_inner,error=error)
+      NULLIFY(preconditioner_env%sparse_matrix_inner)
    ENDIF
 
    IF (ASSOCIATED(preconditioner_env%fm)) THEN
@@ -244,6 +251,12 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
     ELSE
        CALL stop_program("make preconditioner","Type for S=1 not implemented")
     END IF
+  CASE(ot_precond_sparse_kinetic)
+     preconditioner_env%in_use=ot_precond_sparse_kinetic
+     CALL make_sparse_kinetic(preconditioner_env, preconditioner_env%sparse_matrix,&
+                              matrix_t, matrix_s, energy_homo, energy_gap ,error=error)
+     CALL make_diag_inner_precond(preconditioner_env, preconditioner_env%sparse_matrix,&
+                                  preconditioner_env%sparse_matrix_inner, error=error)
   CASE (ot_precond_full_single_inverse)
     preconditioner_env%in_use=ot_precond_full_single_inverse
     IF ( PRESENT(matrix_s) ) THEN
@@ -480,15 +493,17 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out, error
 
   SELECT CASE (preconditioner_env%in_use)
   CASE (0)
-    CALL stop_program("apply preconditioner","No preconditioner in use")
+     CALL stop_program("apply preconditioner","No preconditioner in use")
   CASE (ot_precond_sparse_diag,ot_precond_sparse_firstorder)
-    CALL apply_sparse_diag(preconditioner_env, matrix_in, matrix_out,error=error)
+     CALL apply_sparse_diag(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE (ot_precond_full_single,ot_precond_s_inverse,ot_precond_full_kinetic,ot_precond_full_single_inverse)
-      CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
+     CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE (ot_precond_full_all)
-    CALL apply_full_all(preconditioner_env, matrix_in, matrix_out,error=error)
+     CALL apply_full_all(preconditioner_env, matrix_in, matrix_out,error=error)
+  CASE(ot_precond_sparse_kinetic)
+     CALL apply_solve_lin_system(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE DEFAULT
-    CALL stop_program("apply preconditioner","implemented")
+     CALL stop_program("apply preconditioner","implemented")
   END SELECT
 
   CALL timestop(0.0_dp,handle)
@@ -1788,5 +1803,225 @@ SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals
 
 END SUBROUTINE make_full_all_ortho
 ! *****************************************************************************
+
+  SUBROUTINE make_diag_inner_precond(preconditioner_env, sm, sm_inner, error)
+    !
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(real_matrix_type), POINTER          :: sm, sm_inner
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_diag_inner_precond', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iblock_col_h, iblock_row, &
+                                                info, istat, liwork, lwork, &
+                                                n, nblocks
+    INTEGER, DIMENSION(:), POINTER           :: iwork
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals, work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: block_evec
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_buf1, block_h, block_pre
+    TYPE(real_block_node_type), POINTER      :: block_node_h
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(sm),cp_failure_level,routineP,error,failure)
+
+    IF(ASSOCIATED(sm_inner)) THEN
+       CALL deallocate_matrix(sm_inner,error=error)
+       NULLIFY(sm_inner)
+    ENDIF
+
+    CALL Replicate_matrix(sm,sm_inner,"PRECONDITIONER_INNER",.FALSE.,error=error)
+    CALL get_matrix_info(sm,nblock_row=nblocks)
+    DO iblock_row=1,nblocks
+       block_node_h => first_block_node(sm,iblock_row)
+       DO WHILE (ASSOCIATED(block_node_h))
+          IF (.NOT.ASSOCIATED(block_node_h)) CALL stop_program("qs preconditioner", ".NOT.ASSOCIATED")
+
+          CALL get_block_node(block_node=block_node_h,&
+                              block_col=iblock_col_h,&
+                              BLOCK=block_h)
+
+          IF (iblock_col_h .EQ. iblock_row) THEN
+             n = SIZE(block_h,1)
+             ALLOCATE(block_pre(n,n),block_evec(n,n),block_buf1(n,n),evals(n))
+             lwork=1+6*n+2*n**2+50
+             liwork=5*n+3
+             ALLOCATE(work(lwork),iwork(liwork),STAT=istat)
+             IF (istat.NE.0) CALL stop_memory("use preconditioner","work")
+
+             !
+             ! A simple block diagonal preconditoner
+             block_evec(:,:) = block_h(:,:)
+             CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
+                         iwork(1), liwork, info)
+             IF (info.ne.0) CALL stop_program("preconditioner","DSYEVD H")
+             block_pre(:,:)=0.0_dp
+             DO i=1,n
+                IF(evals(i).lt.1e-10_dp) CALL stop_program("preconditioner","evals(i).lt.1e-10_dp")
+                block_pre(i,i)=1.0_dp/evals(i)
+             ENDDO
+             CALL DGEMM('N','N',n,n,n,1.0_dp,block_evec(1,1),n,block_pre(1,1),n, &
+                        0.0_dp,block_buf1(1,1),n)
+             CALL DGEMM('N','T',n,n,n,1.0_dp,block_buf1(1,1),n,block_evec(1,1),n, &
+                        0.0_dp,block_pre(1,1),n)
+             !
+             ! add the block
+             CALL add_block_node(matrix=sm_inner,&
+                                 block_row=iblock_row,&
+                                 block_col=iblock_col_h,&
+                                 BLOCK=block_pre,error=error)
+
+             DEALLOCATE(block_pre,block_evec,block_buf1,evals,work,iwork)
+
+          ENDIF
+          block_node_h => next_block_node(block_node_h)
+       ENDDO
+    ENDDO
+  END SUBROUTINE make_diag_inner_precond
+
+  SUBROUTINE apply_solve_lin_system(preconditioner_env, matrix_in, matrix_out, error)
+    !
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_solve_lin_system', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: max_iter = 200, &
+                                                restart_every = 50
+    REAL(dp), PARAMETER                      :: eps = 1.0e-2_dp
+
+    INTEGER                                  :: iter, m, n
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: alpha, beta, residual_ot, &
+                                                tr_pAp, tr_rr, tr_sr_new, &
+                                                tr_sr_old
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: Ap, p, r, s
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(preconditioner_env%sparse_matrix),cp_failure_level,routineP,error,failure)
+    !
+    CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=m,error=error)
+    CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=n,ncol_global=m,&
+                             context=preconditioner_env%ctxt, &
+                             para_env=preconditioner_env%para_env,error=error)
+    CALL cp_fm_create(r ,fm_struct_tmp,name="solve_r" ,error=error)
+    CALL cp_fm_create(p ,fm_struct_tmp,name="solve_p" ,error=error)
+    CALL cp_fm_create(s ,fm_struct_tmp,name="solve_s" ,error=error)
+    CALL cp_fm_create(Ap,fm_struct_tmp,name="solve_Ap",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+    CALL cp_fm_set_all(p ,0.0_dp,error=error)
+    !
+    ! residual
+    CALL cp_fm_trace(matrix_in,matrix_in,residual_ot,error=error)
+    residual_ot = SQRT(residual_ot/(REAL(n,dp)*REAL(m,dp)))
+    !
+    ! r = b-A*x
+    CALL cp_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_out,r,m,error=error)
+    CALL cp_fm_scale_and_add(-1.0_dp,r,1.0_dp,matrix_in,error=error)
+    CALL cp_fm_trace(r,r,tr_rr,error=error)
+    !WRITE(*,'(A,I4,E10.2)') 'Tr(r''*r)/sqrt(n*m)',0,SQRT(tr_rr/(REAL(n,dp)*REAL(m,dp)))
+    !WRITE(*,'(A,I4,E10.2)') 'residual_ot',0,residual_ot
+    !
+    ! let's go!
+    DO iter = 1,max_iter
+       !
+       ! s = M * r
+       IF(ASSOCIATED(preconditioner_env%sparse_matrix_inner)) THEN
+          CALL cp_sm_fm_multiply(preconditioner_env%sparse_matrix_inner,r,s,m,error=error)
+       ELSE
+          CALL cp_fm_to_fm(r,s,error=error)
+       ENDIF
+       CALL cp_fm_trace(s,r,tr_sr_new,error=error)
+       !
+       ! beta (this might be better when O(N) beta=(s_k,r_k-r_{k-1})/(s_{k-1},r_{k-1}))
+       IF(iter.EQ.1) THEN
+          beta = 0.0_dp
+       ELSE
+          beta = tr_sr_new/tr_sr_old
+       ENDIF
+       !
+       ! p = r + beta * p
+       CALL cp_fm_scale_and_add(beta,p,1.0_dp,s,error=error)
+       !
+       ! Ap = A * p
+       CALL cp_sm_fm_multiply(preconditioner_env%sparse_matrix,p,Ap,m,error=error)
+       CALL cp_fm_trace(Ap,p,tr_pAp,error=error)
+       !
+       ! alpha = Tr(s_k'*r_k)/Tr(p_k'*Ap_k)
+       alpha = tr_sr_new/tr_pAp
+       !
+       ! x = x + alpha * p
+       CALL cp_fm_scale_and_add(1.0_dp,matrix_out,alpha,p,error=error)
+       !
+       ! r = r - alpha * Ap or r = b - A * x
+       IF(MOD(iter,restart_every).EQ.0) THEN
+          CALL cp_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_out,r,m,error=error)
+          CALL cp_fm_scale_and_add(-1.0_dp,r,1.0_dp,matrix_in,error=error)
+       ELSE
+          CALL cp_fm_scale_and_add(1.0_dp,r,-alpha,Ap,error=error)
+       ENDIF
+       tr_sr_old = tr_sr_new
+       !
+       ! printing
+       !IF(MOD(iter,10).EQ.0) THEN
+       !   WRITE(*,'(A,I4,E10.2,2(A,E10.2))') 'Tr(s''*r)/sqrt(n*m)',iter,&
+       !        & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp))),' res/res_ot',&
+       !        & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot,&
+       !        & ' residual_ot',residual_ot
+       !ENDIF
+       !
+       ! exit
+       IF(SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot.LT.eps) EXIT
+       !
+    ENDDO
+    !
+    IF(iter.GT.max_iter) THEN
+       !WRITE(*,'(A,I4,A,E10.2)') 'didnt converged in',max_iter,' ||r||_f/sqrt(n*m)',&
+       !     & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot
+       CALL stop_program("apply_solve_lin_system","increase max_iter")
+    ELSE
+       !WRITE(*,'(A,I4,2(A,E10.2))') 'converged in',iter,' ||r||_f/sqrt(n*m)',&
+       !     & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp))),' res/res_ot',&
+       !     & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot,&
+       !     & ' residual_ot',residual_ot
+    ENDIF
+    !
+    CALL cp_fm_release(r ,error=error)
+    CALL cp_fm_release(p ,error=error)
+    CALL cp_fm_release(s ,error=error)
+    CALL cp_fm_release(Ap,error=error)
+  END SUBROUTINE apply_solve_lin_system
+
+  SUBROUTINE make_sparse_kinetic(preconditioner_env, sm, matrix_t, matrix_s, &
+       &                         energy_homo, energy_gap, error)
+    !
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(real_matrix_type), POINTER          :: sm, matrix_t, matrix_s
+    REAL(KIND=dp), INTENT(IN)                :: energy_homo, energy_gap
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_sparse_kinetic', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: n
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: shift
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(matrix_t),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
+    ! some infos
+    CALL get_matrix_info(matrix_t,nrow=n)
+    ! allocate
+    CALL Replicate_matrix(matrix_t,sm,"PRECONDITIONER",.TRUE.,error=error)
+    ! M = T - epsilon * S
+    shift=MAX(-energy_homo,energy_gap)
+    CALL add_matrices(sm,1.0_dp,matrix_t,shift,matrix_s)
+  END SUBROUTINE make_sparse_kinetic
+
 END MODULE preconditioner
 

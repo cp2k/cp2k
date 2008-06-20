@@ -29,7 +29,7 @@ MODULE qs_ot_scf
        ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
        ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-       ot_precond_sparse_diag
+       ot_precond_sparse_diag, ot_precond_sparse_kinetic
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -193,6 +193,8 @@ CONTAINS
        qs_ot_env(1)%settings%preconditioner_name="FULL_S_INVERSE"
     CASE(ot_precond_sparse_diag)
        qs_ot_env(1)%settings%preconditioner_name="SPARSE_DIAG"
+    CASE(ot_precond_sparse_kinetic)
+       qs_ot_env(1)%settings%preconditioner_name="SPARSE_KINETIC"
     CASE DEFAULT
        CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
     END SELECT
@@ -242,6 +244,8 @@ CONTAINS
        CASE ("SPARSE_DIAG")
           WRITE(output_unit,'(A)')  &
                "  preconditioner : SPARSE_DIAG    : diagonal atomic block diagonalization"
+       CASE ("SPARSE_KINETIC")
+          WRITE(output_unit,'(A)') "  preconditioner : SPARSE_KINETIC      : sparse linear solver for T + eS"
        CASE ("NONE")
           WRITE(output_unit,'(A)') "  preconditioner : NONE  "
        CASE DEFAULT

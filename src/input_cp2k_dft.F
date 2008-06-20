@@ -4665,7 +4665,8 @@ CONTAINS
             "Properly preconditioned minimization can be orders of magnitude faster than doing nothing.",&
             usage="PRECONDITIONER FULL_ALL",&
             default_i_val=ot_precond_full_kinetic,&
-            enum_c_vals=s2a("FULL_ALL","FULL_SINGLE_INVERSE","FULL_SINGLE","FULL_KINETIC","FULL_S_INVERSE","SPARSE_DIAG","NONE"),&
+            enum_c_vals=s2a("FULL_ALL","FULL_SINGLE_INVERSE","FULL_SINGLE","FULL_KINETIC","FULL_S_INVERSE",&
+            "SPARSE_DIAG","SPARSE_KINETIC","NONE"),&
             enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "//&
             "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "//&
             "This preconditioner is recommended for almost all systems, except very large systems where "//&
@@ -4678,10 +4679,11 @@ CONTAINS
             "use for very large systems.",&
             "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.",&
             "Only based on atomic blocks, very cheap in construction but quite poor.",&
+            "Toward -sparse- linear solver for T-eS.",&
             "skip preconditioning"),&
             enum_i_vals=(/ot_precond_full_all,ot_precond_full_single_inverse,ot_precond_full_single, &
             ot_precond_full_kinetic,ot_precond_s_inverse,&
-            ot_precond_sparse_diag,ot_precond_none/),&
+            ot_precond_sparse_diag,ot_precond_sparse_kinetic,ot_precond_none/),&
             citations=(/VandeVondele2003/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)

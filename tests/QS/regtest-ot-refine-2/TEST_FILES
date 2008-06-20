@@ -11,3 +11,5 @@ o2_ot_chol_1.inp 1
 o2_ot_chol_diis_1.inp 1
 o2_ot_lwdn_1.inp 1
 o2_ot_lwdn_diis_1.inp 1
+h2o_ot_sparse_kinetic_1.inp 1
+o2_ot_sparse_kinetic_1.inp 1
