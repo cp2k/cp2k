@@ -399,3 +399,8 @@ multipole_ch_dip_qu.dbg_f.inp
 multipole_ch_qu.dbg_f.inp
 multipole_ch_qu.dbg_f_real.inp
 multipole_ch_qu.dbg_f_rec.inp
+# bug fixes
+multipole_ch_dip_qu.dbg_f.inp
+multipole_ch_qu.dbg_f.inp
+multipole_ch_qu.dbg_f_real.inp
+multipole_ch_qu.dbg_f_rec.inp
