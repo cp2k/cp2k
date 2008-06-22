@@ -8,6 +8,7 @@
 !> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
 ! *****************************************************************************
 MODULE ewalds_multipole
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE bibliography,                    ONLY: Aguado2003,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_type
@@ -27,6 +28,7 @@ MODULE ewalds_multipole
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type,&
                                              pos_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: matvec_3x3
@@ -57,15 +59,19 @@ MODULE ewalds_multipole
 CONTAINS
 
 ! *****************************************************************************
-!> \brief computes the potential and the force for a lattice sum of multipoles
+!> \brief  Computes the potential and the force for a lattice sum of multipoles
 !>      (up to quadrupole)
+!> \par    Note 
+!>         atomic_kind_set and force_env_section are between the arguments only
+!>         for debug purpose (therefore optional) and can be avoided when this
+!>         function is called in other part of the program
 !> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
 ! *****************************************************************************
   RECURSIVE SUBROUTINE ewald_multipole_evaluate(ewald_env, ewald_pw, nonbond_env,&
        cell, particle_set, local_particles, energy_local, energy_glob, e_neut, e_self,&
        task, do_forces, do_stress, do_efield, charges, dipoles, quadrupoles,&
        forces_local, forces_glob, pv_local, pv_glob, efield0, efield1, efield2,&
-       iw, do_debug, error )
+       iw, do_debug, atomic_kind_set, force_env_section, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
@@ -84,31 +90,43 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: quadrupoles
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: forces_local, forces_glob
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT), OPTIONAL                :: pv_local, pv_glob
+      INTENT(INOUT), OPTIONAL                :: forces_local, forces_glob, &
+                                                pv_local, pv_glob
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(OUT), OPTIONAL                  :: efield0
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: efield1, efield2
     INTEGER, INTENT(IN)                      :: iw
     LOGICAL, INTENT(IN)                      :: do_debug
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: atomic_kind_set
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j
-    LOGICAL                                  :: check_debug, do_task(3), &
+    INTEGER                                  :: handle, i, j, size1, size2, &
+                                                stat
+    LOGICAL                                  :: check_debug, check_efield, &
+                                                check_forces, do_task(3), &
                                                 failure
     LOGICAL, DIMENSION(3, 3)                 :: my_task
     REAL(KIND=dp)                            :: e_rspace
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0_lr, efield0_sr
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1_lr, efield1_sr, &
+                                                efield2_lr, efield2_sr
 
     failure = .FALSE.
     CALL timeset(routineN,'I','',handle)
     CPPostcondition(ASSOCIATED(nonbond_env),cp_failure_level,routineP,error,failure)
     check_debug  = (debug_this_module.OR.debug_r_space.OR.debug_g_space.OR.debug_e_field).EQV.debug_this_module
     CPPostcondition(check_debug,cp_failure_level,routineP,error,failure)
+    check_forces = do_forces.EQV.(PRESENT(forces_local).AND.PRESENT(forces_glob))
+    CPPostcondition(check_forces,cp_failure_level,routineP,error,failure)
+    check_efield = do_efield.EQV.(PRESENT(efield0).OR.PRESENT(efield1).OR.PRESENT(efield2))
+    CPPostcondition(check_efield,cp_failure_level,routineP,error,failure)
     ! Debugging this module
     IF (debug_this_module.AND.do_debug) THEN
        ! Debug specifically real space part
@@ -119,9 +137,11 @@ CONTAINS
        END IF
        ! Debug electric fields and gradients
        IF (debug_e_field) THEN
+          CPPostcondition(PRESENT(atomic_kind_set),cp_failure_level,routineP,error,failure)
+          CPPostcondition(PRESENT(force_env_section),cp_failure_level,routineP,error,failure)
           CALL debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env,&
                cell, particle_set, local_particles, charges, dipoles, quadrupoles,&
-               task, iw, error)
+               task, iw, atomic_kind_set, force_env_section, error)
           STOP "Debug Multipole Requested:  POT+EFIELDS+GRAD!"
        END IF
     END IF
@@ -147,31 +167,90 @@ CONTAINS
        END DO
     END DO
 
+    ! Allocate arrays for the evaluation of the potential, fields and electrostatic field gradients
+    NULLIFY(efield0_sr, efield0_lr, efield1_sr, efield1_lr, efield2_sr, efield2_lr)
+    IF (do_efield) THEN
+       IF (PRESENT(efield0)) THEN
+          size1 = SIZE(efield0)
+          ALLOCATE (efield0_sr(size1), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE (efield0_lr(size1), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          efield0_sr = 0.0_dp
+          efield0_lr = 0.0_dp
+       END IF
+       IF (PRESENT(efield1)) THEN
+          size1 = SIZE(efield1,1)
+          size2 = SIZE(efield1,2)
+          ALLOCATE (efield1_sr(size1,size2), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE (efield1_lr(size1,size2), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          efield1_sr = 0.0_dp
+          efield1_lr = 0.0_dp
+       END IF
+       IF (PRESENT(efield2)) THEN
+          size1 = SIZE(efield2,1)
+          size2 = SIZE(efield2,2)
+          ALLOCATE (efield2_sr(size1,size2), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE (efield2_lr(size1,size2), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          efield2_sr = 0.0_dp
+          efield2_lr = 0.0_dp
+       END IF
+    END IF
+
     e_rspace = 0.0_dp
     IF (.NOT.debug_g_space) THEN
        ! Compute the Real Space (Short-Range) part of the Ewald sum
        CALL ewald_multipole_SR (nonbond_env, ewald_env, cell, e_rspace, my_task,&
             do_forces, do_efield, do_stress, charges, dipoles, quadrupoles, forces_glob,&
-            pv_glob, efield0, efield1, efield2, error)
+            pv_glob, efield0_sr, efield1_sr, efield2_sr, error)
        energy_glob = energy_glob + e_rspace
     END IF
 
     e_neut = 0.0_dp
     e_self = 0.0_dp
     IF (.NOT.debug_r_space) THEN
-       ! Self-Interactions corrections
-       CALL ewald_multipole_self (ewald_env, local_particles, e_self, e_neut, my_task,&
-            do_efield, charges, dipoles, quadrupoles, efield0, efield1, efield2, error)
-
        ! Compute the Reciprocal Space (Long-Range) part of the Ewald sum
        CALL ewald_multipole_LR(ewald_env, ewald_pw, cell, particle_set, &
             local_particles, energy_local, my_task, do_forces, do_efield, do_stress,&
-            charges, dipoles, quadrupoles, forces_local, pv_local, efield0, efield1,&
-            efield2, error)
+            charges, dipoles, quadrupoles, forces_local, pv_local, efield0_lr, efield1_lr,&
+            efield2_lr, error)
+
+       ! Self-Interactions corrections
+       CALL ewald_multipole_self (ewald_env, local_particles, e_self, e_neut, my_task,&
+            do_efield, charges, dipoles, quadrupoles, efield0_lr, efield1_lr, efield2_lr, error)
     END IF
 
     ! Print some info about energetics
     CALL ewald_multipole_print (iw, cell, energy_local, energy_glob, e_rspace, e_self, e_neut)
+
+    ! Gather the components of the potential, fields and electrostatic field gradients
+    IF (do_efield) THEN
+       IF (PRESENT(efield0)) THEN
+          efield0 = efield0_sr + efield0_lr
+          DEALLOCATE (efield0_sr, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (efield0_lr, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (PRESENT(efield1)) THEN
+          efield1 = efield1_sr + efield1_lr
+          DEALLOCATE (efield1_sr, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (efield1_lr, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (PRESENT(efield2)) THEN
+          efield2 = efield2_sr + efield2_lr
+          DEALLOCATE (efield2_sr, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (efield2_lr, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE ewald_multipole_evaluate
   
@@ -198,10 +277,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: quadrupoles
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: forces, pv
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT), OPTIONAL                :: efield0
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT), OPTIONAL                :: efield1, efield2
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1, efield2
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_SR', &
@@ -237,12 +314,9 @@ CONTAINS
     CALL timeset ( routineN, handle )
     CALL cite_reference(Aguado2003)
     NULLIFY(nonbonded,r_last_update, r_last_update_pbc)
-    do_efield0 = do_efield.AND.PRESENT(efield0)
-    do_efield1 = do_efield.AND.PRESENT(efield1)
-    do_efield2 = do_efield.AND.PRESENT(efield2)
-    IF (do_efield0) efield0 = 0.0_dp
-    IF (do_efield1) efield1 = 0.0_dp
-    IF (do_efield2) efield2 = 0.0_dp
+    do_efield0 = do_efield.AND.ASSOCIATED(efield0)
+    do_efield1 = do_efield.AND.ASSOCIATED(efield1)
+    do_efield2 = do_efield.AND.ASSOCIATED(efield2)
     IF (do_stress) THEN 
        ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
        ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
@@ -309,16 +383,16 @@ CONTAINS
                 force_eval = .FALSE.
                 IF (task(1,1)) THEN
                    tij         = f(0)*fac_ij
-                   force_eval = do_forces.OR.do_efield
-                   IF (task(2,2))                   force_eval = force_eval.OR.do_efield0  
+                                                 force_eval = do_forces .OR.do_efield1
                 END IF
+                IF (task(2,2))                   force_eval = force_eval.OR.do_efield0  
                 IF (task(1,2).OR.force_eval) THEN
                    force_eval = .FALSE.
                    tij_a    = - rab*f(1)*fac_ij
-                   IF (task(1,2))                   force_eval = do_forces
-                   IF (task(1,1))                   force_eval = force_eval.OR.do_efield2
-                   IF (task(3,3))                   force_eval = force_eval.OR.do_efield0
+                   IF (task(1,2))                force_eval = do_forces
                 END IF
+                IF (task(1,1))                   force_eval = force_eval.OR.do_efield2
+                IF (task(3,3))                   force_eval = force_eval.OR.do_efield0
                 IF (task(2,2).OR.task(3,1).OR.force_eval) THEN
                    force_eval = .FALSE.
                    DO b = 1,3
@@ -328,10 +402,10 @@ CONTAINS
                          IF (a==b) tij_ab(a,b) = tij_ab(a,b) - f(1)*fac_ij
                       END DO
                    END DO
-                   IF (task(2,2).OR.ANY(task(3,:))) force_eval = do_forces
-                   IF (task(2,2))                   force_eval = force_eval.OR.do_efield2
-                   IF (task(3,3))                   force_eval = force_eval.OR.do_efield1
+                   IF (task(2,2).OR.task(3,1))   force_eval = do_forces
                 END IF
+                IF (task(2,2))                   force_eval = force_eval.OR.do_efield2
+                IF (task(3,3))                   force_eval = force_eval.OR.do_efield1
                 IF (task(3,2).OR.force_eval) THEN
                    force_eval = .FALSE.
                    DO c = 1, 3
@@ -346,7 +420,7 @@ CONTAINS
                          END DO
                       END DO
                    END DO
-                   IF (task(3,2)) force_eval = do_forces
+                   IF (task(3,2))                force_eval = do_forces
                 END IF
                 IF (task(3,3).OR.force_eval) THEN
                    force_eval = .FALSE.
@@ -377,7 +451,7 @@ CONTAINS
                          END DO
                       END DO
                    END DO
-                   IF (task(3,3)) force_eval = do_forces
+                   IF (task(3,3))                force_eval = do_forces
                 END IF
                 IF (force_eval) THEN
                    force_eval = .FALSE.
@@ -481,12 +555,12 @@ CONTAINS
                       ! Electric field
                       IF (do_efield1) THEN
                          ef1_i(1) = ef1_i(1) - tij_a(1) * ch_j
-                         ef1_i(2) = ef1_i(2) - tij_a(1) * ch_j
-                         ef1_i(3) = ef1_i(3) - tij_a(1) * ch_j
+                         ef1_i(2) = ef1_i(2) - tij_a(2) * ch_j
+                         ef1_i(3) = ef1_i(3) - tij_a(3) * ch_j
 
                          ef1_j(1) = ef1_j(1) + tij_a(1) * ch_i
-                         ef1_j(2) = ef1_j(2) + tij_a(1) * ch_i
-                         ef1_j(3) = ef1_j(3) + tij_a(1) * ch_i
+                         ef1_j(2) = ef1_j(2) + tij_a(2) * ch_i
+                         ef1_j(3) = ef1_j(3) + tij_a(3) * ch_i
                       END IF
                       ! Electric field gradient
                       IF (do_efield2) THEN
@@ -500,15 +574,15 @@ CONTAINS
                          ef2_i(2,3) = ef2_i(2,3) - tij_ab(2,3) * ch_j
                          ef2_i(3,3) = ef2_i(3,3) - tij_ab(3,3) * ch_j
 
-                         ef2_j(1,1) = ef2_j(1,1) + tij_ab(1,1) * ch_i
-                         ef2_j(2,1) = ef2_j(2,1) + tij_ab(2,1) * ch_i
-                         ef2_j(3,1) = ef2_j(3,1) + tij_ab(3,1) * ch_i
-                         ef2_j(1,2) = ef2_j(1,2) + tij_ab(1,2) * ch_i
-                         ef2_j(2,2) = ef2_j(2,2) + tij_ab(2,2) * ch_i
-                         ef2_j(3,2) = ef2_j(3,2) + tij_ab(3,2) * ch_i
-                         ef2_j(1,3) = ef2_j(1,3) + tij_ab(1,3) * ch_i
-                         ef2_j(2,3) = ef2_j(2,3) + tij_ab(2,3) * ch_i
-                         ef2_j(3,3) = ef2_j(3,3) + tij_ab(3,3) * ch_i
+                         ef2_j(1,1) = ef2_j(1,1) - tij_ab(1,1) * ch_i
+                         ef2_j(2,1) = ef2_j(2,1) - tij_ab(2,1) * ch_i
+                         ef2_j(3,1) = ef2_j(3,1) - tij_ab(3,1) * ch_i
+                         ef2_j(1,2) = ef2_j(1,2) - tij_ab(1,2) * ch_i
+                         ef2_j(2,2) = ef2_j(2,2) - tij_ab(2,2) * ch_i
+                         ef2_j(3,2) = ef2_j(3,2) - tij_ab(3,2) * ch_i
+                         ef2_j(1,3) = ef2_j(1,3) - tij_ab(1,3) * ch_i
+                         ef2_j(2,3) = ef2_j(2,3) - tij_ab(2,3) * ch_i
+                         ef2_j(3,3) = ef2_j(3,3) - tij_ab(3,3) * ch_i
                       END IF
                    END IF
                 END IF
@@ -542,13 +616,13 @@ CONTAINS
                    IF (do_efield) THEN
                       ! Potential
                       IF (do_efield0) THEN
-                         ef0_i = ef0_i - tij_a(1)*dp_j(1)+&
-                                         tij_a(2)*dp_j(2)+&
-                                         tij_a(3)*dp_j(3)
+                         ef0_i = ef0_i - (tij_a(1)*dp_j(1)+&
+                                          tij_a(2)*dp_j(2)+&
+                                          tij_a(3)*dp_j(3))
 
-                         ef0_j = ef0_j + tij_a(1)*dp_i(1)+&
-                                         tij_a(2)*dp_i(2)+&
-                                         tij_a(3)*dp_i(3)
+                         ef0_j = ef0_j + (tij_a(1)*dp_i(1)+&
+                                          tij_a(2)*dp_i(2)+&
+                                          tij_a(3)*dp_i(3))
                       END IF
                       ! Electric field
                       IF (do_efield1) THEN
@@ -562,13 +636,13 @@ CONTAINS
                                                 tij_ab(2,3)*dp_j(2)+&
                                                 tij_ab(3,3)*dp_j(3))
 
-                         ef1_j(1) = ef1_j(1) - (tij_ab(1,1)*dp_i(1)+&
+                         ef1_j(1) = ef1_j(1) + (tij_ab(1,1)*dp_i(1)+&
                                                 tij_ab(2,1)*dp_i(2)+&
                                                 tij_ab(3,1)*dp_i(3)) 
-                         ef1_j(2) = ef1_j(2) - (tij_ab(1,2)*dp_i(1)+&
+                         ef1_j(2) = ef1_j(2) + (tij_ab(1,2)*dp_i(1)+&
                                                 tij_ab(2,2)*dp_i(2)+&
                                                 tij_ab(3,2)*dp_i(3))
-                         ef1_j(3) = ef1_j(3) - (tij_ab(1,3)*dp_i(1)+&
+                         ef1_j(3) = ef1_j(3) + (tij_ab(1,3)*dp_i(1)+&
                                                 tij_ab(2,3)*dp_i(2)+&
                                                 tij_ab(3,3)*dp_i(3))
                       END IF
@@ -798,7 +872,7 @@ CONTAINS
                                               tij_ab(2,3)*qp_j(2,3)+&
                                               tij_ab(3,3)*qp_j(3,3)) 
 
-                         ef0_j = ef0_j - fac*(tij_ab(1,1)*qp_i(1,1)+&
+                         ef0_j = ef0_j + fac*(tij_ab(1,1)*qp_i(1,1)+&
                                               tij_ab(2,1)*qp_i(2,1)+&
                                               tij_ab(3,1)*qp_i(3,1)+&
                                               tij_ab(1,2)*qp_i(1,2)+&
@@ -913,7 +987,7 @@ CONTAINS
                                          tij_abcd(1,3,2,3)*qp_j(1,3)+&
                                          tij_abcd(2,3,2,3)*qp_j(2,3)+&
                                          tij_abcd(3,3,2,3)*qp_j(3,3)) 
-                         tmp23 =   fac *(tij_abcd(1,1,3,3)*qp_j(1,1)+&
+                         tmp33 =   fac *(tij_abcd(1,1,3,3)*qp_j(1,1)+&
                                          tij_abcd(2,1,3,3)*qp_j(2,1)+&
                                          tij_abcd(3,1,3,3)*qp_j(3,1)+&
                                          tij_abcd(1,2,3,3)*qp_j(1,2)+&
@@ -924,14 +998,14 @@ CONTAINS
                                          tij_abcd(3,3,3,3)*qp_j(3,3)) 
 
                          ef2_i(1,1) = ef2_i(1,1) - tmp11
-                         ef2_i(1,2) = ef2_i(1,2) - tmp12 
-                         ef2_i(1,3) = ef2_i(1,3) - tmp13   
-                         ef2_i(2,1) = ef2_i(2,1) - tmp12          
-                         ef2_i(2,2) = ef2_i(2,2) - tmp22      
-                         ef2_i(2,3) = ef2_i(2,3) - tmp23      
+                         ef2_i(1,2) = ef2_i(1,2) - tmp12
+                         ef2_i(1,3) = ef2_i(1,3) - tmp13
+                         ef2_i(2,1) = ef2_i(2,1) - tmp12
+                         ef2_i(2,2) = ef2_i(2,2) - tmp22
+                         ef2_i(2,3) = ef2_i(2,3) - tmp23
                          ef2_i(3,1) = ef2_i(3,1) - tmp13
                          ef2_i(3,2) = ef2_i(3,2) - tmp23
-                         ef2_i(3,3) = ef2_i(3,3) - tmp33                   
+                         ef2_i(3,3) = ef2_i(3,3) - tmp33
 
                          tmp11 =   fac *(tij_abcd(1,1,1,1)*qp_i(1,1)+&
                                          tij_abcd(2,1,1,1)*qp_i(2,1)+&
@@ -978,7 +1052,7 @@ CONTAINS
                                          tij_abcd(1,3,2,3)*qp_i(1,3)+&
                                          tij_abcd(2,3,2,3)*qp_i(2,3)+&
                                          tij_abcd(3,3,2,3)*qp_i(3,3)) 
-                         tmp23 =   fac *(tij_abcd(1,1,3,3)*qp_i(1,1)+&
+                         tmp33 =   fac *(tij_abcd(1,1,3,3)*qp_i(1,1)+&
                                          tij_abcd(2,1,3,3)*qp_i(2,1)+&
                                          tij_abcd(3,1,3,3)*qp_i(3,1)+&
                                          tij_abcd(1,2,3,3)*qp_i(1,2)+&
@@ -989,14 +1063,14 @@ CONTAINS
                                          tij_abcd(3,3,3,3)*qp_i(3,3)) 
 
                          ef2_j(1,1) = ef2_j(1,1) - tmp11
-                         ef2_j(1,2) = ef2_j(1,2) - tmp12 
-                         ef2_j(1,3) = ef2_j(1,3) - tmp13   
-                         ef2_j(2,1) = ef2_j(2,1) - tmp12          
-                         ef2_j(2,2) = ef2_j(2,2) - tmp22      
-                         ef2_j(2,3) = ef2_j(2,3) - tmp23      
+                         ef2_j(1,2) = ef2_j(1,2) - tmp12
+                         ef2_j(1,3) = ef2_j(1,3) - tmp13
+                         ef2_j(2,1) = ef2_j(2,1) - tmp12
+                         ef2_j(2,2) = ef2_j(2,2) - tmp22
+                         ef2_j(2,3) = ef2_j(2,3) - tmp23
                          ef2_j(3,1) = ef2_j(3,1) - tmp13
                          ef2_j(3,2) = ef2_j(3,2) - tmp23
-                         ef2_j(3,3) = ef2_j(3,3) - tmp33                   
+                         ef2_j(3,3) = ef2_j(3,3) - tmp33
                       END IF
                    END IF
                 END IF
@@ -1288,10 +1362,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: quadrupoles
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: forces, pv
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT), OPTIONAL                :: efield0
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT), OPTIONAL                :: efield1, efield2
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1, efield2
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_LR', &
@@ -1300,17 +1372,19 @@ CONTAINS
     COMPLEX(KIND=dp)                         :: atm_factor, atm_factor_st(3), &
                                                 cnjg_fac, fac, summe_tmp
     COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:)                           :: summe_ef, summe_f1
+      DIMENSION(:)                           :: summe_ef
     COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: summe_f2, summe_st
-    INTEGER :: gpt, group, handle, i, icc, iparticle, iparticle_kind, &
+      DIMENSION(:, :)                        :: summe_st
+    INTEGER :: gpt, group, handle, i, iparticle, iparticle_kind, &
       iparticle_local, j, lp, mp, nnodes, node, np, nparticle_kind, &
       nparticle_local, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bds
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2, failure
-    REAL(KIND=dp) :: alpha, denom, dipole_t(3), e_igdotr, eps0, factor, &
-      flops, four_alpha_sq, gauss, pref, q_t, tmp, trq_t
+    REAL(KIND=dp)                            :: alpha, denom, dipole_t(3), &
+                                                eps0, factor, flops, &
+                                                four_alpha_sq, gauss, pref, &
+                                                q_t, tmp, trq_t
     REAL(KIND=dp), DIMENSION(3)              :: tmp_v, vec
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: rho0
@@ -1323,9 +1397,9 @@ CONTAINS
     CALL timeset ( routineN, 'E', 'Mflops', handle )
     CALL cite_reference(Aguado2003)
     flops = 0.0_dp
-    do_efield0 = do_efield.AND.PRESENT(efield0)
-    do_efield1 = do_efield.AND.PRESENT(efield1)
-    do_efield2 = do_efield.AND.PRESENT(efield2)
+    do_efield0 = do_efield.AND.ASSOCIATED(efield0)
+    do_efield1 = do_efield.AND.ASSOCIATED(efield1)
+    do_efield2 = do_efield.AND.ASSOCIATED(efield2)
 
     ! Gathering data from the ewald environment
     CALL ewald_env_get (ewald_env, alpha=alpha, eps0=eps0, group=group, error=error)
@@ -1351,18 +1425,6 @@ CONTAINS
        ALLOCATE (summe_st(3,1:pw_grid%ngpts_cut), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        summe_st = CMPLX (0.0_dp, 0.0_dp,KIND=dp)
-    END IF
-    ! Electric Field
-    IF (do_efield1) THEN
-       ALLOCATE (summe_f1(1:pw_grid%ngpts_cut), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       summe_f1 = CMPLX (0.0_dp, 0.0_dp,KIND=dp)
-    END IF
-    ! Electric field gradient
-    IF (do_efield2) THEN
-       ALLOCATE (summe_f2(3,1:pw_grid%ngpts_cut), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       summe_f2 = CMPLX (0.0_dp, 0.0_dp,KIND=dp)
     END IF
 
     ! Defining four_alpha_sq
@@ -1425,35 +1487,17 @@ CONTAINS
                      dipoles, quadrupoles, error)
                 summe_st(1:3,gpt) = summe_st(1:3,gpt) + atm_factor_st(1:3) *summe_tmp
              END IF
-
-             ! Precompute pseudo-density for electric field calculation
-             IF (do_efield) THEN
-                ! Electric field
-                IF (do_efield1) THEN
-                   atm_factor = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
-                   summe_f1(gpt) = summe_f1(gpt) + atm_factor*summe_tmp
-                END IF
-                ! Electric field gradient
-                IF (do_efield2) THEN
-                   icc = 0
-                   DO i = 1,3
-                      icc = icc + 1
-                      atm_factor = pw_grid%g(i,gpt)
-                      summe_f2(icc,gpt) = summe_f2(icc,gpt) + atm_factor*summe_tmp
-                   END DO
-                END IF
-             END IF
           END DO
        END DO
     END DO
     flops = flops + 13.0_dp*(pw_grid%ngpts_cut*10.0_dp&
                   +          pw_grid%ngpts_cut*node*20.0_dp)
 
+                    CALL mp_sum (     q_t, group)
                     CALL mp_sum (dipole_t, group)
+                    CALL mp_sum (   trq_t, group)
                     CALL mp_sum (summe_ef, group)
     IF (do_stress)  CALL mp_sum (summe_st, group)
-    IF (do_efield1) CALL mp_sum (summe_f1, group)
-    IF (do_efield2) CALL mp_sum (summe_f2, group)
 
     ! Looping over the positive g-vectors
     DO gpt = 1, pw_grid%ngpts_cut
@@ -1489,8 +1533,10 @@ CONTAINS
              IF (do_forces) THEN
                 CALL get_atom_factor(atm_factor, pw_grid, gpt, iparticle, task, charges,&
                      dipoles, quadrupoles, error)
-                e_igdotr = AIMAG(summe_ef(gpt) * (cnjg_fac * CONJG(atm_factor)))
-                forces(:,node) = forces(:,node) + gauss * e_igdotr * pw_grid%g(:,gpt)
+                tmp      = gauss * AIMAG(summe_ef(gpt) * (cnjg_fac * CONJG(atm_factor)))
+                forces(1,node) = forces(1,node) + tmp * pw_grid%g(1,gpt)
+                forces(2,node) = forces(2,node) + tmp * pw_grid%g(2,gpt)
+                forces(3,node) = forces(3,node) + tmp * pw_grid%g(3,gpt)
              END IF
 
              ! Electric field
@@ -1505,10 +1551,10 @@ CONTAINS
                    IF (ANY(task(2,:))) THEN
                       tmp = DOT_PRODUCT(dipoles(:,iparticle),pw_grid%g(:,gpt))
                    END IF
-                   tmp = tmp + REAL(summe_f1(gpt) * CONJG(summe_ef(gpt)),KIND=dp)
-                   efield1(1,iparticle) = efield1(1,iparticle) - gauss * tmp*pw_grid%g(1,gpt)
-                   efield1(2,iparticle) = efield1(2,iparticle) - gauss * tmp*pw_grid%g(2,gpt)
-                   efield1(3,iparticle) = efield1(3,iparticle) - gauss * tmp*pw_grid%g(3,gpt)
+                   tmp = (AIMAG(fac*CONJG(summe_ef(gpt)))-tmp)*gauss
+                   efield1(1,iparticle) = efield1(1,iparticle) - tmp * pw_grid%g(1,gpt)
+                   efield1(2,iparticle) = efield1(2,iparticle) - tmp * pw_grid%g(2,gpt)
+                   efield1(3,iparticle) = efield1(3,iparticle) - tmp * pw_grid%g(3,gpt)
                 END IF
                 ! Electric field gradient
                 IF (do_efield2) THEN
@@ -1519,22 +1565,23 @@ CONTAINS
                    IF (ANY(task(3,:))) THEN
                       DO i = 1,3
                          DO j = 1,3
-                            tmp = tmp + quadrupoles(j,i,iparticle)*pw_grid%g(j,gpt)*pw_grid%g(i,gpt)
+                            tmp = tmp + 1.0_dp/3.0_dp*quadrupoles(j,i,iparticle)*pw_grid%g(j,gpt)*pw_grid%g(i,gpt)
                          END DO
                       END DO
                    END IF
-                   DO i = 1,3
-                      tmp_v(i) = tmp * pw_grid%g(i,gpt) + REAL(summe_f2(i,gpt)*CONJG(summe_ef(gpt)),KIND=dp)
-                   END DO
-                   efield2(1,iparticle) = efield2(1,iparticle) + gauss * tmp_v(1) * pw_grid%g(1,gpt)
-                   efield2(2,iparticle) = efield2(2,iparticle) + gauss * tmp_v(1) * pw_grid%g(2,gpt)
-                   efield2(3,iparticle) = efield2(3,iparticle) + gauss * tmp_v(1) * pw_grid%g(3,gpt)
-                   efield2(4,iparticle) = efield2(4,iparticle) + gauss * tmp_v(2) * pw_grid%g(1,gpt)
-                   efield2(5,iparticle) = efield2(5,iparticle) + gauss * tmp_v(2) * pw_grid%g(2,gpt)
-                   efield2(6,iparticle) = efield2(6,iparticle) + gauss * tmp_v(2) * pw_grid%g(3,gpt)
-                   efield2(7,iparticle) = efield2(7,iparticle) + gauss * tmp_v(3) * pw_grid%g(1,gpt)
-                   efield2(8,iparticle) = efield2(8,iparticle) + gauss * tmp_v(3) * pw_grid%g(2,gpt)
-                   efield2(9,iparticle) = efield2(9,iparticle) + gauss * tmp_v(3) * pw_grid%g(3,gpt)
+                   tmp_v(1) = (tmp + REAL(fac*CONJG(summe_ef(gpt)),KIND=dp))*pw_grid%g(1,gpt)*gauss
+                   tmp_v(2) = (tmp + REAL(fac*CONJG(summe_ef(gpt)),KIND=dp))*pw_grid%g(2,gpt)*gauss
+                   tmp_v(3) = (tmp + REAL(fac*CONJG(summe_ef(gpt)),KIND=dp))*pw_grid%g(3,gpt)*gauss
+
+                   efield2(1,iparticle) = efield2(1,iparticle) + tmp_v(1) * pw_grid%g(1,gpt)
+                   efield2(2,iparticle) = efield2(2,iparticle) + tmp_v(1) * pw_grid%g(2,gpt)
+                   efield2(3,iparticle) = efield2(3,iparticle) + tmp_v(1) * pw_grid%g(3,gpt)
+                   efield2(4,iparticle) = efield2(4,iparticle) + tmp_v(2) * pw_grid%g(1,gpt)
+                   efield2(5,iparticle) = efield2(5,iparticle) + tmp_v(2) * pw_grid%g(2,gpt)
+                   efield2(6,iparticle) = efield2(6,iparticle) + tmp_v(2) * pw_grid%g(3,gpt)
+                   efield2(7,iparticle) = efield2(7,iparticle) + tmp_v(3) * pw_grid%g(1,gpt)
+                   efield2(8,iparticle) = efield2(8,iparticle) + tmp_v(3) * pw_grid%g(2,gpt)
+                   efield2(9,iparticle) = efield2(9,iparticle) + tmp_v(3) * pw_grid%g(3,gpt)
                 END IF
              END IF
           END DO
@@ -1589,13 +1636,9 @@ CONTAINS
     END IF
     IF (do_efield1) THEN
        efield1 = 2.0_dp * efield1 * pref
-       DEALLOCATE (summe_f1, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (do_efield2) THEN
        efield2 = 2.0_dp * efield2 * pref
-       DEALLOCATE (summe_f2, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     flops = flops * 1.0E-6_dp
@@ -1722,10 +1765,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: quadrupoles
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT), OPTIONAL                :: efield0
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT), OPTIONAL                :: efield1, efield2
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1, efield2
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_self', &
@@ -1740,20 +1781,25 @@ CONTAINS
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2
     REAL(KIND=dp) :: alpha, ch_qu_self, ch_qu_self_tmp, dipole_self, eps0, &
-      invfoureps0, q, q_self, q_sum, qu_qu_self, qu_trace
+      fac1, fac2, fac3, fac4, invfoureps0, q, q_self, q_sum, qu_qu_self, &
+      qu_trace
 
     CALL ewald_env_get ( ewald_env, ewald_type=ewald_type, eps0=eps0, alpha=alpha,&
          group=group, error=error)
 
-    do_efield0 = do_efield.AND.PRESENT(efield0)
-    do_efield1 = do_efield.AND.PRESENT(efield1)
-    do_efield2 = do_efield.AND.PRESENT(efield2)
+    do_efield0 = do_efield.AND.ASSOCIATED(efield0)
+    do_efield1 = do_efield.AND.ASSOCIATED(efield1)
+    do_efield2 = do_efield.AND.ASSOCIATED(efield2)
     q_self      = 0.0_dp
     q_sum       = 0.0_dp
     dipole_self = 0.0_dp
     ch_qu_self  = 0.0_dp
     qu_qu_self  = 0.0_dp
-    invfoureps0 = 1.0_dp / (4.0_dp *  pi * eps0)
+    invfoureps0 = 1.0_dp/(4.0_dp*pi*eps0)
+    fac1        = 2.0_dp*alpha*invfoureps0/SQRT(pi)
+    fac2        = (f23**2)*(alpha**3)*invfoureps0/SQRT(pi)
+    fac3        = (2.0_dp/SQRT(pi))*f23*alpha**3
+    fac4        = (4.0_dp/SQRT(pi))*f415*alpha**5
     DO iparticle_kind=1,SIZE(local_particles%n_el)
        nparticle_local = local_particles%n_el(iparticle_kind)
        DO iparticle_local=1,nparticle_local
@@ -1765,7 +1811,7 @@ CONTAINS
              q_sum  = q_sum  + q
              ! Potential energy
              IF (do_efield0) THEN
-                efield0(  iparticle) = efield0(  iparticle) - q*alpha*invfoureps0/SQRT(pi)
+                efield0(  iparticle) = efield0(  iparticle) - q*fac1
              END IF
 
              IF (task(1,3)) THEN
@@ -1773,20 +1819,21 @@ CONTAINS
                 ch_qu_self_tmp = 0.0_dp
                 qu_trace = 0.0_dp
                 DO i = 1,3
-                   ch_qu_self_tmp = ch_qu_self_tmp + quadrupoles(i,i,iparticle) * charges(iparticle)
-                   qu_trace       = qu_trace + quadrupoles(i,i,iparticle)
+                   ch_qu_self_tmp = ch_qu_self_tmp + quadrupoles(i,i,iparticle) * q
+                   qu_trace       = qu_trace       + quadrupoles(i,i,iparticle)
                 END DO
                 ch_qu_self = ch_qu_self + ch_qu_self_tmp
                 ! Potential energy
                 IF (do_efield0) THEN
-                   efield0(  iparticle) = efield0(  iparticle) + (f23**2)*(alpha**3)*invfoureps0/SQRT(pi) * qu_trace
+                   efield0(  iparticle) = efield0(  iparticle) + fac2 * qu_trace
                 END IF
                 ! Electric field
-                IF (do_efield2) THEN
-                   efield2(1,iparticle) = efield2(1,iparticle) + (2.0_dp/SQRT(pi))*f23*alpha**3*charges(iparticle)
-                   efield2(5,iparticle) = efield2(5,iparticle) + (2.0_dp/SQRT(pi))*f23*alpha**3*charges(iparticle)
-                   efield2(9,iparticle) = efield2(9,iparticle) + (2.0_dp/SQRT(pi))*f23*alpha**3*charges(iparticle)
-                END IF
+!TL                IF (do_efield2) THEN
+!TL                   tmp = fac3*q
+!TL                   efield2(1,iparticle) = efield2(1,iparticle) + tmp
+!TL                   efield2(5,iparticle) = efield2(5,iparticle) + tmp
+!TL                   efield2(9,iparticle) = efield2(9,iparticle) + tmp
+!TL                END IF
              END IF
           END IF
           IF (ANY(task(2,:))) THEN
@@ -1794,12 +1841,12 @@ CONTAINS
              DO i = 1,3
                 dipole_self = dipole_self + dipoles(i,iparticle)**2
              END DO
-             ! Electric field
-             IF (do_efield1) THEN
-                efield1(1,iparticle) = efield1(1,iparticle) - (2.0_dp/SQRT(pi))*f23*alpha**3*dipoles(1,iparticle)
-                efield1(2,iparticle) = efield1(2,iparticle) - (2.0_dp/SQRT(pi))*f23*alpha**3*dipoles(2,iparticle)
-                efield1(3,iparticle) = efield1(3,iparticle) - (2.0_dp/SQRT(pi))*f23*alpha**3*dipoles(3,iparticle)
-             END IF
+!TL             ! Electric field - Correction to get the right energy
+!TL             IF (do_efield1) THEN
+!TL                efield1(1,iparticle) = efield1(1,iparticle) + fac3*dipoles(1,iparticle)
+!TL                efield1(2,iparticle) = efield1(2,iparticle) + fac3*dipoles(2,iparticle)
+!TL                efield1(3,iparticle) = efield1(3,iparticle) + fac3*dipoles(3,iparticle)
+!TL             END IF
           END IF
           IF (ANY(task(3,:))) THEN
              ! Quadrupole - Quadrupole
@@ -1809,17 +1856,17 @@ CONTAINS
                 END DO
              END DO
              ! Electric field gradient
-             IF (do_efield2) THEN
-                efield2(1,iparticle) = efield2(1,iparticle) - (4.0_dp/SQRT(pi))*f415*alpha**5*quadrupoles(1,1,iparticle)
-                efield2(2,iparticle) = efield2(2,iparticle) - (4.0_dp/SQRT(pi))*f415*alpha**5*quadrupoles(2,1,iparticle)
-                efield2(3,iparticle) = efield2(3,iparticle) - (4.0_dp/SQRT(pi))*f415*alpha**5*quadrupoles(3,1,iparticle)
-                efield2(4,iparticle) = efield2(4,iparticle) - (4.0_dp/SQRT(pi))*f415*alpha**5*quadrupoles(1,2,iparticle)
-                efield2(5,iparticle) = efield2(5,iparticle) - (4.0_dp/SQRT(pi))*f415*alpha**5*quadrupoles(2,2,iparticle)
-                efield2(6,iparticle) = efield2(6,iparticle) - (4.0_dp/SQRT(pi))*f415*alpha**5*quadrupoles(3,2,iparticle)
-                efield2(7,iparticle) = efield2(7,iparticle) - (4.0_dp/SQRT(pi))*f415*alpha**5*quadrupoles(1,3,iparticle)
-                efield2(8,iparticle) = efield2(8,iparticle) - (4.0_dp/SQRT(pi))*f415*alpha**5*quadrupoles(2,3,iparticle)
-                efield2(9,iparticle) = efield2(9,iparticle) - (4.0_dp/SQRT(pi))*f415*alpha**5*quadrupoles(3,3,iparticle)
-             END IF
+!TL             IF (do_efield2) THEN
+!TL                efield2(1,iparticle) = efield2(1,iparticle) - fac4*quadrupoles(1,1,iparticle)
+!TL                efield2(2,iparticle) = efield2(2,iparticle) - fac4*quadrupoles(2,1,iparticle)
+!TL                efield2(3,iparticle) = efield2(3,iparticle) - fac4*quadrupoles(3,1,iparticle)
+!TL                efield2(4,iparticle) = efield2(4,iparticle) - fac4*quadrupoles(1,2,iparticle)
+!TL                efield2(5,iparticle) = efield2(5,iparticle) - fac4*quadrupoles(2,2,iparticle)
+!TL                efield2(6,iparticle) = efield2(6,iparticle) - fac4*quadrupoles(3,2,iparticle)
+!TL                efield2(7,iparticle) = efield2(7,iparticle) - fac4*quadrupoles(1,3,iparticle)
+!TL                efield2(8,iparticle) = efield2(8,iparticle) - fac4*quadrupoles(2,3,iparticle)
+!TL                efield2(9,iparticle) = efield2(9,iparticle) - fac4*quadrupoles(3,3,iparticle)
+!TL             END IF
           END IF
        END DO
     END DO
@@ -1831,8 +1878,23 @@ CONTAINS
     CALL mp_sum (qu_qu_self, group)
 
     e_self = -(q_self+f23*(dipole_self-f23*ch_qu_self+f415*qu_qu_self*alpha**2)*alpha**2)*alpha*invfoureps0/SQRT(pi)
-    e_neut = -q_sum**2 * pi * invfoureps0/(2.0_dp * alpha ** 2)
+    fac1   = pi*invfoureps0/(2.0_dp * alpha ** 2)
+    e_neut = -q_sum**2 * fac1
 
+    ! Correcting Potential for the neutralizing background charge
+    DO iparticle_kind=1,SIZE(local_particles%n_el)
+       nparticle_local = local_particles%n_el(iparticle_kind)
+       DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          IF (ANY(task(1,:))) THEN
+             q = charges(iparticle)
+             ! Potential energy
+             IF (do_efield0) THEN
+                efield0(  iparticle) = efield0(  iparticle) - 2.0_dp*q_sum*q*fac1
+             END IF
+          END IF
+       END DO
+    END DO
   END SUBROUTINE ewald_multipole_self
 
 ! *****************************************************************************
