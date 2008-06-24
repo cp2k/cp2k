@@ -13,3 +13,15 @@ o2_ot_lwdn_1.inp 1
 o2_ot_lwdn_diis_1.inp 1
 h2o_ot_sparse_kinetic_1.inp 1
 o2_ot_sparse_kinetic_1.inp 1
+h2o_ot_precond_1.inp 1
+h2o_ot_precond_2.inp 1
+h2o_ot_precond_3.inp 1
+no_ot_precond_1.inp 1
+no_ot_precond_2.inp 1
+no_ot_precond_3.inp 1
+h2o_ot_precond_4.inp 1
+h2o_ot_precond_5.inp 1
+h2o_ot_precond_6.inp 1
+no_ot_precond_4.inp 1
+no_ot_precond_5.inp 1
+no_ot_precond_6.inp 1

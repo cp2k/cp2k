@@ -4689,6 +4689,19 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="PRECOND_SOLVER",&
+            description="How the preconditioner is applied to the residual.",&
+            usage="PRECOND_SOLVER DIRECT",&
+            default_i_val=ot_precond_solver_default,&
+            enum_c_vals=s2a( "DEFAULT", "DIRECT", "INVERSE_CHOLESKY"),&
+            enum_desc=s2a("the default","Cholesky decomposition followed by triangular solve "//&
+            "(at the moment only for FULL_KINETIC)",&
+            "Cholesky decomposition followed by explicit inversion (at the moment only for FULL_KINETIC)"),&
+            enum_i_vals=(/ot_precond_solver_default,ot_precond_solver_direct,ot_precond_solver_inv_chol/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="ENERGY_GAP",&
             description="Should be an estimate for the energy gap [a.u.] (HOMO-LUMO) and is used in preconditioning, "//&
             "especially effective with the FULL_ALL preconditioner, in which case it should be an underestimate "//&

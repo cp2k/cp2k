@@ -29,7 +29,9 @@ MODULE qs_ot_scf
        ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
        ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-       ot_precond_sparse_diag, ot_precond_sparse_kinetic
+       ot_precond_solver_default, ot_precond_solver_direct, &
+       ot_precond_solver_inv_chol, ot_precond_sparse_diag, &
+       ot_precond_sparse_kinetic
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -177,6 +179,19 @@ CONTAINS
     CASE DEFAULT
        CALL stop_program("READ OTSCF LS","VALUE UNKNOWN")
     END SELECT
+
+    CALL section_vals_val_get(ot_section,"PRECOND_SOLVER",i_val=qs_ot_env(1)%settings%precond_solver_type,error=error)
+    SELECT CASE(qs_ot_env(1)%settings%precond_solver_type)
+    CASE(ot_precond_solver_default)
+       qs_ot_env(1)%settings%precond_solver_name="DEFAULT"
+    CASE(ot_precond_solver_inv_chol)
+       qs_ot_env(1)%settings%precond_solver_name="INVERSE_CHOLESKY"
+    CASE(ot_precond_solver_direct)
+       qs_ot_env(1)%settings%precond_solver_name="DIRECT"
+    CASE DEFAULT
+       CALL stop_program("READ OTSCF SOLVER","VALUE UNKNOWN")
+    END SELECT
+
     CALL section_vals_val_get(ot_section,"PRECONDITIONER",i_val=qs_ot_env(1)%settings%preconditioner_type,error=error)
     SELECT CASE(qs_ot_env(1)%settings%preconditioner_type)
     CASE(ot_precond_none)
@@ -251,6 +266,9 @@ CONTAINS
        CASE DEFAULT
           WRITE(output_unit,'(3A)') "  preconditioner : ",qs_ot_env(1)%settings%preconditioner_name," : UNKNOWN"
        END SELECT
+
+       WRITE(output_unit,'(A)') "  precond_solver : "//TRIM(qs_ot_env(1)%settings%precond_solver_name)
+
        IF (qs_ot_env(1)%settings%OT_METHOD .EQ."SD".OR.qs_ot_env(1)%settings%OT_METHOD.EQ."CG") THEN
           SELECT CASE (qs_ot_env(1)%settings%line_search_method)
           CASE ("2PNT")

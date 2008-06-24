@@ -40,8 +40,9 @@ MODULE preconditioner
        lr_precond_full_all, lr_precond_h0_inverse, lr_precond_s_inverse, &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_s_inverse, &
-       ot_precond_sparse_diag, ot_precond_sparse_firstorder, &
-       ot_precond_sparse_kinetic
+       ot_precond_solver_default, ot_precond_solver_direct, &
+       ot_precond_solver_inv_chol, ot_precond_sparse_diag, &
+       ot_precond_sparse_firstorder, ot_precond_sparse_kinetic
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
@@ -83,7 +84,7 @@ MODULE preconditioner
        TYPE(cp_fm_type), POINTER :: fm
        TYPE(cp_para_env_type),  POINTER   :: para_env
        TYPE(cp_blacs_env_type), POINTER   :: ctxt
-       INTEGER :: in_use
+       INTEGER :: in_use, solver
        REAL(KIND = dp), DIMENSION(:), POINTER :: occ_evals,full_evals
        REAL(KIND = dp) :: energy_gap
   END TYPE preconditioner_type
@@ -117,6 +118,7 @@ SUBROUTINE init_preconditioner(preconditioner_env,para_env,blacs_env, error)
    NULLIFY(preconditioner_env%occ_evals)
    NULLIFY(preconditioner_env%full_evals)
    preconditioner_env%in_use=0
+   preconditioner_env%solver=ot_precond_solver_default
    preconditioner_env%para_env => para_env
    preconditioner_env%ctxt     => blacs_env
    CALL cp_para_env_retain(preconditioner_env%para_env,error=error)
@@ -163,11 +165,11 @@ END SUBROUTINE destroy_preconditioner
 ! might overwrite matrix_h, matrix_t
 
 ! *****************************************************************************
-SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h, matrix_s, &
+SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_type, matrix_h, matrix_s, &
                                       matrix_t,mo_coeff, energy_gap ,error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
-    INTEGER                                  :: precon_type
+    INTEGER, INTENT(IN)                      :: precon_type, solver_type
     TYPE(real_matrix_type), POINTER          :: matrix_h
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: matrix_s, matrix_t
@@ -178,7 +180,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
     CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner_single', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, k
+    INTEGER                                  :: handle, k, my_solver_type
     REAL(KIND=dp)                            :: energy_homo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues_ot
 
@@ -206,77 +208,122 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
   ELSE
      energy_homo=0.0_dp
   ENDIF
-
+  !
+  !
+  my_solver_type = solver_type
   SELECT CASE (precon_type)
   CASE (ot_precond_sparse_diag)
-    preconditioner_env%in_use=ot_precond_sparse_diag
-    IF ( PRESENT(matrix_s) ) THEN
-       CALL make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
+     preconditioner_env%in_use=ot_precond_sparse_diag
+     IF(my_solver_type.NE.ot_precond_solver_default) THEN
+        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
+     ENDIF
+     IF ( PRESENT(matrix_s) ) THEN
+        CALL make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
                               energy_homo, energy_gap ,error=error)
-    ELSE
-       CALL make_sparse_diag_ortho(preconditioner_env, matrix_h, &
+     ELSE
+        CALL make_sparse_diag_ortho(preconditioner_env, matrix_h, &
                               energy_homo, energy_gap ,error=error)
-    END IF
+     END IF
   CASE (ot_precond_full_single)
-    preconditioner_env%in_use=ot_precond_full_single
-    IF ( PRESENT(matrix_s) ) THEN
-       CALL make_full_single(preconditioner_env, preconditioner_env%fm,&
-                          matrix_h, matrix_s, energy_homo, energy_gap ,error=error)
-    ELSE
-       CALL make_full_single_ortho(preconditioner_env, preconditioner_env%fm,&
-                          matrix_h, energy_homo, energy_gap ,error=error)
-    END IF
+     preconditioner_env%in_use=ot_precond_full_single
+     IF(my_solver_type.NE.ot_precond_solver_default) THEN
+        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
+     ENDIF
+     IF ( PRESENT(matrix_s) ) THEN
+        CALL make_full_single(preconditioner_env, preconditioner_env%fm,&
+                              matrix_h, matrix_s, energy_homo, energy_gap ,error=error)
+     ELSE
+        CALL make_full_single_ortho(preconditioner_env, preconditioner_env%fm,&
+                              matrix_h, energy_homo, energy_gap ,error=error)
+     END IF
   CASE (ot_precond_s_inverse)
-    preconditioner_env%in_use=ot_precond_s_inverse
-    IF ( PRESENT(matrix_s) ) THEN
-       CALL make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
-                                             energy_homo, energy_gap ,error=error)
-    ELSE
-       CALL stop_program("make preconditioner","Type for S=1 not implemented")
-    END IF
+     preconditioner_env%in_use=ot_precond_s_inverse
+     IF(my_solver_type.NE.ot_precond_solver_default) THEN
+        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
+     ENDIF
+     IF ( PRESENT(matrix_s) ) THEN
+        CALL make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
+                                 energy_homo, energy_gap ,error=error)
+     ELSE
+        CALL stop_program("make preconditioner","Type for S=1 not implemented")
+     END IF
   CASE (ot_precond_sparse_firstorder)
-    preconditioner_env%in_use=ot_precond_sparse_firstorder
-    IF ( PRESENT(matrix_s) ) THEN
-       CALL make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
-                                                 energy_homo, energy_gap ,error=error)
-    ELSE
-       CALL make_sparse_first_order_ortho(preconditioner_env, matrix_h, &
-                                                 energy_homo, energy_gap ,error=error)
-    END IF
+     preconditioner_env%in_use=ot_precond_sparse_firstorder
+     IF(my_solver_type.NE.ot_precond_solver_default) THEN
+        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
+     ENDIF
+     IF ( PRESENT(matrix_s) ) THEN
+        CALL make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
+                                     energy_homo, energy_gap ,error=error)
+     ELSE
+        CALL make_sparse_first_order_ortho(preconditioner_env, matrix_h, &
+                                           energy_homo, energy_gap ,error=error)
+     END IF
   CASE (ot_precond_full_kinetic)
-    preconditioner_env%in_use=ot_precond_full_kinetic
-    IF ( PRESENT(matrix_s) .AND. PRESENT(matrix_t) ) THEN
-       CALL make_full_kinetic(preconditioner_env, preconditioner_env%fm,&
-                          matrix_t, matrix_s, energy_homo, energy_gap ,error=error)
-    ELSE
-       CALL stop_program("make preconditioner","Type for S=1 not implemented")
-    END IF
+     preconditioner_env%in_use=ot_precond_full_kinetic
+
+     IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
+     IF ( PRESENT(matrix_s) .AND. PRESENT(matrix_t) ) THEN
+        CALL make_full_kinetic(preconditioner_env, preconditioner_env%fm,&
+             &                 matrix_t, matrix_s, energy_homo, energy_gap, &
+             &                 error=error)
+     ELSE
+        CALL stop_program("make preconditioner","Type for S=1 not implemented")
+     ENDIF
+  CASE (ot_precond_full_single_inverse)
+     preconditioner_env%in_use=ot_precond_full_single_inverse
+     IF(my_solver_type.NE.ot_precond_solver_default) THEN
+        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
+     ENDIF
+     IF ( PRESENT(matrix_s) ) THEN
+        CALL make_full_single_inverse(preconditioner_env,mo_coeff,matrix_h, matrix_s, &
+                                      eigenvalues_ot, energy_gap,error=error)
+     ELSE
+        CALL make_full_single_inverse_ortho(preconditioner_env,mo_coeff,matrix_h, &
+                                            eigenvalues_ot, energy_gap,error=error)
+     END IF
+  CASE (ot_precond_full_all)
+     preconditioner_env%in_use=ot_precond_full_all
+     IF(my_solver_type.NE.ot_precond_solver_default) THEN
+        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
+     ENDIF
+     IF ( PRESENT(matrix_s) ) THEN
+        CALL make_full_all(preconditioner_env,mo_coeff,matrix_h, matrix_s, &
+                           eigenvalues_ot, energy_gap,error=error)
+     ELSE
+        CALL make_full_all_ortho(preconditioner_env,mo_coeff,matrix_h, &
+                                 eigenvalues_ot, energy_gap,error=error)
+     END IF
   CASE(ot_precond_sparse_kinetic)
      preconditioner_env%in_use=ot_precond_sparse_kinetic
+     IF(my_solver_type.NE.ot_precond_solver_default) THEN
+        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
+     ENDIF
      CALL make_sparse_kinetic(preconditioner_env, preconditioner_env%sparse_matrix,&
                               matrix_t, matrix_s, energy_homo, energy_gap ,error=error)
      CALL make_diag_inner_precond(preconditioner_env, preconditioner_env%sparse_matrix,&
                                   preconditioner_env%sparse_matrix_inner, error=error)
-  CASE (ot_precond_full_single_inverse)
-    preconditioner_env%in_use=ot_precond_full_single_inverse
-    IF ( PRESENT(matrix_s) ) THEN
-       CALL make_full_single_inverse(preconditioner_env,mo_coeff,matrix_h, matrix_s, &
-                       eigenvalues_ot, energy_gap,error=error)
-    ELSE
-       CALL make_full_single_inverse_ortho(preconditioner_env,mo_coeff,matrix_h, &
-                       eigenvalues_ot, energy_gap,error=error)
-    END IF
-  CASE (ot_precond_full_all)
-    preconditioner_env%in_use=ot_precond_full_all
-    IF ( PRESENT(matrix_s) ) THEN
-       CALL make_full_all(preconditioner_env,mo_coeff,matrix_h, matrix_s, &
-                        eigenvalues_ot, energy_gap,error=error)
-    ELSE
-       CALL make_full_all_ortho(preconditioner_env,mo_coeff,matrix_h, &
-                        eigenvalues_ot, energy_gap,error=error)
-    END IF
   CASE DEFAULT
-    CALL stop_program("make preconditioner","Type not implemented")
+     CALL stop_program("make preconditioner","Type not implemented")
+  END SELECT
+  !
+  ! here comes the solver
+  SELECT CASE(my_solver_type)
+  CASE (ot_precond_solver_inv_chol)
+     !
+     ! compute the full inverse
+     preconditioner_env%solver=ot_precond_solver_inv_chol
+     CALL make_full_inverse_cholesky(preconditioner_env, preconditioner_env%fm, error=error)
+  CASE (ot_precond_solver_direct)
+     !
+     ! prepare for the direct solver
+     preconditioner_env%solver=ot_precond_solver_direct
+     CALL cp_fm_cholesky_decompose(preconditioner_env%fm, error=error)
+  CASE (ot_precond_solver_default)
+     preconditioner_env%solver=ot_precond_solver_default
+  CASE DEFAULT
+     !
+     CALL stop_program("make preconditioner","doesnt know this type of solver")
   END SELECT
 
   DEALLOCATE(eigenvalues_ot)
@@ -496,12 +543,21 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out, error
      CALL stop_program("apply preconditioner","No preconditioner in use")
   CASE (ot_precond_sparse_diag,ot_precond_sparse_firstorder)
      CALL apply_sparse_diag(preconditioner_env, matrix_in, matrix_out,error=error)
-  CASE (ot_precond_full_single,ot_precond_s_inverse,ot_precond_full_kinetic,ot_precond_full_single_inverse)
+  CASE (ot_precond_full_single,ot_precond_s_inverse,ot_precond_full_single_inverse)
      CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE (ot_precond_full_all)
      CALL apply_full_all(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE(ot_precond_sparse_kinetic)
-     CALL apply_solve_lin_system(preconditioner_env, matrix_in, matrix_out,error=error)
+     CALL apply_solve_lin_system(preconditioner_env, matrix_in, matrix_out, error=error)
+  CASE(ot_precond_full_kinetic)
+     SELECT CASE (preconditioner_env%solver)
+     CASE(ot_precond_solver_inv_chol)
+        CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
+     CASE(ot_precond_solver_direct)
+        CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out,error=error)        
+     CASE DEFAULT
+        CALL stop_program("apply preconditioner","solver not implemented")
+     END SELECT
   CASE DEFAULT
      CALL stop_program("apply preconditioner","implemented")
   END SELECT
@@ -885,6 +941,25 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
   CALL cp_fm_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
                   matrix_in,0.0_dp,matrix_out,error=error)
 END SUBROUTINE apply_full_single
+
+SUBROUTINE apply_full_direct(preconditioner_env, matrix_in, matrix_out,error)
+
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: k, n
+    TYPE(cp_fm_type), POINTER                :: work
+
+  CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k,error=error)
+  CALL cp_fm_create(work,matrix_in%matrix_struct,name="apply_full_single",error=error)
+  CALL cp_fm_cholesky_restore(matrix_in,k,preconditioner_env%fm,work,&
+       &                      "SOLVE",transa="T",error=error)
+  CALL cp_fm_cholesky_restore(work,k,preconditioner_env%fm,matrix_out,&
+       &                      "SOLVE",transa="N",error=error)
+  CALL cp_fm_release(work,error=error)
+    
+END SUBROUTINE apply_full_direct
 
 ! *****************************************************************************
 !> \brief generates a preconditioner by cholesky inverting H-lambda S+(SC)shifts(SC)^T
@@ -1330,7 +1405,6 @@ SUBROUTINE make_full_kinetic(preconditioner_env, fm, matrix_t, matrix_s, &
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: shift
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: fm_work
 
 ! ---
 
@@ -1339,7 +1413,7 @@ SUBROUTINE make_full_kinetic(preconditioner_env, fm, matrix_t, matrix_s, &
   CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
 ! ---
 
-  NULLIFY(fm_struct_tmp,fm_work)
+  NULLIFY(fm_struct_tmp)
 
   IF (ASSOCIATED(fm)) THEN
      CALL cp_fm_release(fm,error=error)
@@ -1350,19 +1424,41 @@ SUBROUTINE make_full_kinetic(preconditioner_env, fm, matrix_t, matrix_s, &
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env,error=error)
   CALL cp_fm_create(fm,fm_struct_tmp, name="preconditioner",error=error)
-  CALL cp_fm_create(fm_work,fm_struct_tmp, name="preconditioner_work",error=error)
   CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
   shift=MAX(-energy_homo,energy_gap)
   CALL add_matrices(matrix_t,1.0_dp,matrix_t,shift,matrix_s)
-
   CALL copy_sm_to_fm(matrix_t,fm,error=error)
+
+END SUBROUTINE make_full_kinetic
+
+! *****************************************************************************
+SUBROUTINE make_full_inverse_cholesky(preconditioner_env, fm, error)
+
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: fm
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_full_inverse_cholesky', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_fm_type), POINTER                :: fm_work
+
+  failure = .FALSE.
+  CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
+
+  NULLIFY(fm_work)
+    
+  CALL cp_fm_create(fm_work,fm%matrix_struct,name="fm_work",error=error)
+
   CALL cp_fm_cholesky_decompose(fm,error=error)
   CALL cp_fm_cholesky_invert(fm,error=error)
   CALL cp_fm_upper_to_full(fm,fm_work,error=error)
+
   CALL cp_fm_release(fm_work,error=error)
 
-END SUBROUTINE make_full_kinetic
+END SUBROUTINE make_full_inverse_cholesky
 
 ! *****************************************************************************
 ! Preconditioners for orthogonal basis sets

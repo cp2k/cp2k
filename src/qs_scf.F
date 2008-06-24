@@ -1407,14 +1407,20 @@ END SUBROUTINE qs_scf_print_summary
                         do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix,error=error)
                    IF (has_unit_metric) THEN
                      CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
-                        scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                        matrix_ks(ispin)%matrix,mo_coeff=mo_coeff,&
-                        energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                          scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                          scf_env%qs_ot_env(1)%settings%precond_solver_type, &
+                          matrix_h=matrix_ks(ispin)%matrix, &
+                          mo_coeff=mo_coeff, &
+                          energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
                    ELSE
                      CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
-                        scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                        matrix_ks(ispin)%matrix,matrix_s(1)%matrix,matrix_s(1)%matrix,&
-                        mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                          scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                          scf_env%qs_ot_env(1)%settings%precond_solver_type, &
+                          matrix_h=matrix_ks(ispin)%matrix, &
+                          matrix_s=matrix_s(1)%matrix, &
+                          matrix_t=matrix_s(1)%matrix, &
+                          mo_coeff=mo_coeff,&
+                          energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
                    END IF
                 ENDDO
                 CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
@@ -1434,11 +1440,13 @@ END SUBROUTINE qs_scf_print_summary
                 IF (has_unit_metric) THEN
                   CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
                      scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                     scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                      matrix_ks(1)%matrix,mo_coeff=mo_coeff,&
                      energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
                 ELSE
                   CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
                      scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                     scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                      matrix_ks(1)%matrix,matrix_s(1)%matrix,matrix_s(1)%matrix,&
                      mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
                 END IF
@@ -1478,6 +1486,7 @@ END SUBROUTINE qs_scf_print_summary
                         do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix,error=error)
                    CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
                         scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                        scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                         matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
                         qs_env%kinetic(1)%matrix, &
                         mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
@@ -1503,6 +1512,7 @@ END SUBROUTINE qs_scf_print_summary
                 CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
                 CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
                      scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                     scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                      matrix_ks(1)%matrix,matrix_s(1)%matrix,&
                      qs_env%kinetic(1)%matrix, &
                      mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)

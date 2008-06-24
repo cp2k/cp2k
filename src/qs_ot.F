@@ -51,7 +51,8 @@ MODULE qs_ot
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE f77_blas
-  USE input_constants,                 ONLY: ot_precond_full_kinetic
+  USE input_constants,                 ONLY: ot_precond_full_kinetic,&
+                                             ot_precond_solver_inv_chol
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: apply_preconditioner,&
                                              preconditioner_type
@@ -102,6 +103,8 @@ MODULE qs_ot
      CHARACTER(LEN=4)  :: line_search_method
      CHARACTER(LEN=20) :: preconditioner_name
      INTEGER           :: preconditioner_type
+     CHARACTER(LEN=20) :: precond_solver_name
+     INTEGER           :: precond_solver_type
      LOGICAL           :: safer_diis
      REAL(KIND = dp)   :: ds_min
      REAL(KIND = dp)   :: energy_gap
@@ -230,7 +233,9 @@ CONTAINS
     settings%ot_algorithm="TOD"
     settings%diis_m=7
     settings%preconditioner_name="FULL_KINETIC"
-    settings%preconditioner_type= ot_precond_full_kinetic
+    settings%preconditioner_type=ot_precond_full_kinetic
+    settings%precond_solver_name="CHOLESKY_INVERSE"
+    settings%precond_solver_type=ot_precond_solver_inv_chol
     settings%line_search_method="2PNT"
     settings%ds_min=0.15_dp
     settings%safer_diis=.TRUE.

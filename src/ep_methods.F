@@ -73,7 +73,8 @@ MODULE ep_methods
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_ep,&
                                              do_qs,&
-                                             ot_precond_full_kinetic
+                                             ot_precond_full_kinetic,&
+                                             ot_precond_solver_default
   USE input_cp2k,                      ONLY: create_cp2k_input_reading
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_get_subs_vals,&
@@ -1780,6 +1781,7 @@ CONTAINS
             blacs_env=blacs_env,error=error)
        CALL make_preconditioner(ep_env%precond(ispin)%preconditioner,&
             ot_precond_full_kinetic,&
+            ot_precond_solver_default,&
             ep_env%main_qs_env%matrix_ks(ispin)%matrix,&
             ep_env%main_qs_env%matrix_s(1)%matrix,&
             ep_env%main_qs_env%kinetic(1)%matrix,&

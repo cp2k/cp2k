@@ -39,6 +39,7 @@ MODULE xas_tp_scf
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: core_guess,&
                                              ot_precond_full_kinetic,&
+                                             ot_precond_solver_default,&
                                              xas_dscf,&
                                              xas_scf_general,&
                                              xas_tp_xfh,&
@@ -780,7 +781,9 @@ CONTAINS
        CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
        CALL make_preconditioner(preconditioner, &
             precon_type=ot_precond_full_kinetic, &
-            matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix,&
+            solver_type=ot_precond_solver_default, &
+            matrix_h=matrix_ks(1)%matrix, &
+            matrix_s=matrix_s(1)%matrix,&
             matrix_t=qs_env%kinetic(1)%matrix, &
             mo_coeff=mo_coeff,energy_gap=0.2_dp,error=error)
 
