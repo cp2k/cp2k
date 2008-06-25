@@ -4695,8 +4695,9 @@ CONTAINS
             default_i_val=ot_precond_solver_default,&
             enum_c_vals=s2a( "DEFAULT", "DIRECT", "INVERSE_CHOLESKY"),&
             enum_desc=s2a("the default","Cholesky decomposition followed by triangular solve "//&
-            "(at the moment only for FULL_KINETIC)",&
-            "Cholesky decomposition followed by explicit inversion (at the moment only for FULL_KINETIC)"),&
+            "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)",&
+            "Cholesky decomposition followed by explicit inversion "//&
+            "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"),&
             enum_i_vals=(/ot_precond_solver_default,ot_precond_solver_direct,ot_precond_solver_inv_chol/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)

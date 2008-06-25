@@ -16,7 +16,6 @@ MODULE preconditioner
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
-                                             cp_fm_symm,&
                                              cp_fm_trace,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -180,7 +179,9 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
     CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner_single', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, k, my_solver_type
+    INTEGER                                  :: handle, istat, k, &
+                                                my_solver_type
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: energy_homo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues_ot
 
@@ -190,7 +191,8 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
 
   CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
 
-  ALLOCATE(eigenvalues_ot(k))
+  ALLOCATE(eigenvalues_ot(k),STAT=istat)
+  CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   ! XXXXXXXXXXXXXXXX do not touch the initial MOs, could be harmful for either
   !                  the case of non-equivalent MOs but also for the derivate
@@ -238,9 +240,10 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
      END IF
   CASE (ot_precond_s_inverse)
      preconditioner_env%in_use=ot_precond_s_inverse
-     IF(my_solver_type.NE.ot_precond_solver_default) THEN
-        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
-     ENDIF
+     !IF(my_solver_type.NE.ot_precond_solver_default) THEN
+     !   CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
+     !ENDIF
+     IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
      IF ( PRESENT(matrix_s) ) THEN
         CALL make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
                                  energy_homo, energy_gap ,error=error)
@@ -261,7 +264,6 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
      END IF
   CASE (ot_precond_full_kinetic)
      preconditioner_env%in_use=ot_precond_full_kinetic
-
      IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
      IF ( PRESENT(matrix_s) .AND. PRESENT(matrix_t) ) THEN
         CALL make_full_kinetic(preconditioner_env, preconditioner_env%fm,&
@@ -272,9 +274,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
      ENDIF
   CASE (ot_precond_full_single_inverse)
      preconditioner_env%in_use=ot_precond_full_single_inverse
-     IF(my_solver_type.NE.ot_precond_solver_default) THEN
-        CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
-     ENDIF
+     IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
      IF ( PRESENT(matrix_s) ) THEN
         CALL make_full_single_inverse(preconditioner_env,mo_coeff,matrix_h, matrix_s, &
                                       eigenvalues_ot, energy_gap,error=error)
@@ -313,7 +313,8 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
      !
      ! compute the full inverse
      preconditioner_env%solver=ot_precond_solver_inv_chol
-     CALL make_full_inverse_cholesky(preconditioner_env, preconditioner_env%fm, error=error)
+     CALL make_full_inverse_cholesky(preconditioner_env, preconditioner_env%fm, matrix_s, &
+          &                          error=error)
   CASE (ot_precond_solver_direct)
      !
      ! prepare for the direct solver
@@ -326,7 +327,8 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
      CALL stop_program("make preconditioner","doesnt know this type of solver")
   END SELECT
 
-  DEALLOCATE(eigenvalues_ot)
+  DEALLOCATE(eigenvalues_ot,STAT=istat)
+  CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   CALL timestop(0.0_dp,handle)
 
@@ -543,13 +545,13 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out, error
      CALL stop_program("apply preconditioner","No preconditioner in use")
   CASE (ot_precond_sparse_diag,ot_precond_sparse_firstorder)
      CALL apply_sparse_diag(preconditioner_env, matrix_in, matrix_out,error=error)
-  CASE (ot_precond_full_single,ot_precond_s_inverse,ot_precond_full_single_inverse)
+  CASE (ot_precond_full_single)
      CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE (ot_precond_full_all)
      CALL apply_full_all(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE(ot_precond_sparse_kinetic)
      CALL apply_solve_lin_system(preconditioner_env, matrix_in, matrix_out, error=error)
-  CASE(ot_precond_full_kinetic)
+  CASE(ot_precond_full_kinetic,ot_precond_full_single_inverse,ot_precond_s_inverse)
      SELECT CASE (preconditioner_env%solver)
      CASE(ot_precond_solver_inv_chol)
         CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
@@ -983,11 +985,9 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
                                                 fudge_factor = 2.0_dp 
 
     INTEGER                                  :: k, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: error_estimate, &
                                                 preconditioner_shift
     REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_shift, diag, evals
-    TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: matrix_hc0, matrix_s1, &
                                                 matrix_sc0, matrix_shc0, &
@@ -1065,24 +1065,6 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
        DEALLOCATE(evals)
     ENDIF
 
-    ! the preconditioner ought now to be symmetric positive definite (provided C0 & system are OK)
-    ! we do catch the error and try to fix things
-    CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
-    CALL cp_fm_cholesky_decompose(preconditioner_env%fm,error=sub_error)
-    failure = .FALSE. ; CALL cp_error_check(sub_error,failure)
-    CALL cp_error_dealloc_ref(sub_error)
-
-    ! check if we need to replace the preconditioner by something simple
-    ! just to keep going
-    IF (failure) THEN
-       ! just the inverse of the overlap matrix right now    
-       CALL copy_sm_to_fm(matrix_s,preconditioner_env%fm,error=error)
-       CALL cp_fm_cholesky_decompose(preconditioner_env%fm,error=error)
-    ENDIF
-
-    ! we need to bring it in the final shape (i.e. full matrix, explicit inverse)
-    CALL cp_fm_cholesky_invert(preconditioner_env%fm,error=error)
-    CALL cp_fm_upper_to_full(preconditioner_env%fm,matrix_tmp,error=error)
     CALL cp_fm_release(matrix_tmp,error=error)
 
 END SUBROUTINE make_full_single_inverse
@@ -1332,25 +1314,6 @@ SUBROUTINE make_full_single(preconditioner_env, fm, matrix_h, matrix_s, &
 END SUBROUTINE make_full_single
 
 ! different types of preconditioner come here
-! only inv(S)
-! a full matrix preconditioner
-! *****************************************************************************
-SUBROUTINE apply_full_s_inverse(preconditioner_env, matrix_in, matrix_out, error)
-
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: k, n
-
-!----
-
-  CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k,error=error)
-  CALL cp_fm_symm('L','U',n,k,1.0_dp,preconditioner_env%fm, &
-                        matrix_in, &
-                        0.0_dp,matrix_out,error=error)
-
-END SUBROUTINE apply_full_s_inverse
 ! *****************************************************************************
 SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
                                energy_homo, energy_gap, error)
@@ -1362,12 +1325,10 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
 
     INTEGER                                  :: n
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: fm_work
 
 ! ---
-! ---
 
-  NULLIFY(fm_struct_tmp,fm_work)
+  NULLIFY(fm_struct_tmp)
 
   IF (ASSOCIATED(preconditioner_env%fm)) THEN
      CALL cp_fm_release(preconditioner_env%fm,error=error)
@@ -1378,13 +1339,9 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env,error=error)
   CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp, name="preconditioner",error=error)
-  CALL cp_fm_create(fm_work,fm_struct_tmp, name="preconditioner_work",error=error)
   CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
   CALL copy_sm_to_fm(matrix_s,preconditioner_env%fm,error=error)
-  CALL cp_fm_cholesky_decompose(preconditioner_env%fm,error=error)
-  CALL cp_fm_upper_to_full(preconditioner_env%fm,fm_work,error=error) ! symmetrizing makes the apply_ up to 50 percent faster
-  CALL cp_fm_release(fm_work,error=error)
 
 END SUBROUTINE make_full_s_inverse
 
@@ -1432,33 +1389,51 @@ SUBROUTINE make_full_kinetic(preconditioner_env, fm, matrix_t, matrix_s, &
 
 END SUBROUTINE make_full_kinetic
 
-! *****************************************************************************
-SUBROUTINE make_full_inverse_cholesky(preconditioner_env, fm, error)
-
+  SUBROUTINE make_full_inverse_cholesky(preconditioner_env, fm, matrix_s, error)
+    
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: fm
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: matrix_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_inverse_cholesky', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_fm_type), POINTER                :: fm_work
 
-  failure = .FALSE.
-  CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
 
-  NULLIFY(fm_work)
-    
-  CALL cp_fm_create(fm_work,fm%matrix_struct,name="fm_work",error=error)
+    NULLIFY(fm_work)
 
-  CALL cp_fm_cholesky_decompose(fm,error=error)
-  CALL cp_fm_cholesky_invert(fm,error=error)
-  CALL cp_fm_upper_to_full(fm,fm_work,error=error)
+    CALL cp_fm_create(fm_work,fm%matrix_struct,name="fm_work",error=error)
+    !
+    ! compute the inverse of SPD matrix fm using the Cholesky factorization
+    CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
+    CALL cp_fm_cholesky_decompose(fm,error=sub_error)
+    failure = .FALSE.
+    CALL cp_error_check(sub_error,failure)
+    CALL cp_error_dealloc_ref(sub_error)
+    !
+    ! if fm not SPD we go with the overlap matrix
+    IF (failure) THEN
+       !
+       ! just the overlap matrix
+       IF(PRESENT(matrix_s)) THEN
+          CALL copy_sm_to_fm(matrix_s,fm,error=error)
+          CALL cp_fm_cholesky_decompose(fm,error=error)
+       ELSE
+          CALL cp_fm_set_all(fm,alpha=0._dp,beta=1._dp,error=error)
+       ENDIF
+    ENDIF
+    CALL cp_fm_cholesky_invert(fm,error=error)
+    CALL cp_fm_upper_to_full(fm,fm_work,error=error)
+    CALL cp_fm_release(fm_work,error=error)
 
-  CALL cp_fm_release(fm_work,error=error)
-
-END SUBROUTINE make_full_inverse_cholesky
+  END SUBROUTINE make_full_inverse_cholesky
 
 ! *****************************************************************************
 ! Preconditioners for orthogonal basis sets
@@ -1687,11 +1662,9 @@ SUBROUTINE make_full_single_inverse_ortho(preconditioner_env, matrix_c0, matrix_
                                                 fudge_factor = 2.0_dp 
 
     INTEGER                                  :: k, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: error_estimate, &
                                                 preconditioner_shift
     REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_shift, diag, evals
-    TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: matrix_hc0, matrix_s1, &
                                                 matrix_sc0, matrix_tmp, &
@@ -1759,23 +1732,6 @@ SUBROUTINE make_full_single_inverse_ortho(preconditioner_env, matrix_c0, matrix_
        DEALLOCATE(evals)
     ENDIF
 
-    ! the preconditioner ought now to be symmetric positive definite (provided C0 & system are OK)
-    ! we do catch the error and try to fix things
-    CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
-    CALL cp_fm_cholesky_decompose(preconditioner_env%fm,error=sub_error)
-    failure = .FALSE. ; CALL cp_error_check(sub_error,failure)
-    CALL cp_error_dealloc_ref(sub_error)
-
-    ! check if we need to replace the preconditioner by something simple
-    ! just to keep going
-    IF (failure) THEN
-       ! just the unit matrix
-       CALL cp_fm_set_all(preconditioner_env%fm,alpha=0._dp,beta=1._dp,error=error)
-    ENDIF
-
-    ! we need to bring it in the final shape (i.e. full matrix, explicit inverse)
-    CALL cp_fm_cholesky_invert(preconditioner_env%fm,error=error)
-    CALL cp_fm_upper_to_full(preconditioner_env%fm,matrix_tmp,error=error)
     CALL cp_fm_release(matrix_tmp,error=error)
 
 END SUBROUTINE make_full_single_inverse_ortho
