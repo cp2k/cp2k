@@ -187,6 +187,8 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
 
 !----
 
+    failure=.FALSE.
+
   CALL timeset(routineN,"I","",handle)
 
   CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
