@@ -162,8 +162,8 @@ CONTAINS
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
                motion_section,keys(ikey),error=error),cp_p_file)) THEN
 
-             ires = cp_print_key_unit_nr(logger,motion_section,TRIM(keys(ikey)),&
-                  extension=".restart",  do_backup=(ikey==2), error=error)
+             ires = cp_print_key_unit_nr(logger,motion_section,TRIM(keys(ikey)), extension=".restart",&
+                                         file_position="REWIND", do_backup=(ikey==2), error=error)
 
              IF (ires>0) THEN
                 CALL write_restart_header(ires, error)
