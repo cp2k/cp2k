@@ -10,6 +10,7 @@
 !> \author Manuel Guidon
 ! *****************************************************************************
 MODULE input_cp2k_hfx
+  USE bibliography,                    ONLY: Guidon2008
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -60,6 +61,7 @@ CONTAINS
        CALL section_create(section,"HF",&
             description="Sets up the Hartree-Fock parameters if requested ",&
             n_keywords=5, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
+            citations=(/Guidon2008/),&
             error=error)
 
        NULLIFY(keyword, print_key, subsection)
@@ -146,6 +148,7 @@ CONTAINS
        CALL section_create(section,"LOAD_BALANCE",&
             description="Sets up interaction potential if requested ",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=(/guidon2008/),&
             error=error)
 
        NULLIFY(keyword)
@@ -241,6 +244,7 @@ CONTAINS
        CALL section_create(section,"INTERACTION_POTENTIAL",&
             description="Sets up interaction potential if requested ",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=(/guidon2008/),&
             error=error)
 
        NULLIFY(keyword)
@@ -326,6 +330,7 @@ CONTAINS
        CALL section_create(section,"SCREENING",&
             description="Sets up screening parameters if requested ",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/guidon2008/),&
             error=error)
 
        NULLIFY(keyword)
@@ -440,6 +445,7 @@ CONTAINS
        CALL section_create(section,"PERIODIC",&
             description="Sets up periodic boundary condition parameters if requested ",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=(/guidon2008/),&
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(&
@@ -488,6 +494,7 @@ CONTAINS
        CALL section_create(section,"MEMORY",&
             description="Sets up memory parameters for the storage of the ERI's if requested ",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=(/guidon2008/),&
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(&

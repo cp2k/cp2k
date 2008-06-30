@@ -49,7 +49,7 @@ MODULE bibliography
              Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, Aguado2003,&
              Essmann1995,Ewald1921,Darden1993, Tersoff1988, Tosi1964a, Tosi1964b,&
              Yamada2000,Dudarev1997,Dudarev1998,Dewar1977,Dewar1985,Rocha2006,&
-             Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003
+             Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003,Guidon2008
 
 CONTAINS
 
@@ -1252,6 +1252,28 @@ CONTAINS
           "ER"),&
           DOI="10.1016/S0009-2614(03)00954-0")
 
+     CALL add_reference(key=Guidon2008,ISI_record=s2a(&
+          "PT J",&
+          "AU Guidon, M",&
+          "   Schiffmann, F",&
+          "   Hutter, J",&
+          "   VandeVondele, J",&
+          "AF Guidon, Manuel",&
+          "   Schiffmann, Florian",&
+          "   Hutter, Juerg",&
+          "   VandeVondele, Joost",&
+          "TI Ab initio molecular dynamics using hybrid density functionals",&
+          "SO JOURNAL OF CHEMICAL PHYSICS",&
+          "SN 0021-9606",&
+          "PD JUN 7",&
+          "PY 2008",&
+          "VL 128",&
+          "IS 21",&
+          "AR 214104",&
+          "DI ARTN 214104",&
+          "UT ISI:000256527500005",&
+          "ER"),&
+          DOI="10.1063/1.2931945")
 
    END SUBROUTINE add_all_references
 

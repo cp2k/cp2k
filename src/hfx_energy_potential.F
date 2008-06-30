@@ -13,6 +13,8 @@ MODULE hfx_energy_potential
   
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE bibliography,                    ONLY: cite_reference,&
+                                             guidon2008
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -207,6 +209,8 @@ MODULE hfx_energy_potential
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
+
+    CALL cite_reference(Guidon2008)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, error=error)
 

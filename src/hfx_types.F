@@ -15,6 +15,8 @@ MODULE hfx_types
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE bibliography,                    ONLY: cite_reference,&
+                                             guidon2008
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
@@ -309,6 +311,7 @@ MODULE hfx_types
 !$  INTEGER                                  :: omp_get_max_threads
 
     failure = .FALSE.
+    CALL cite_reference(Guidon2008)
     !! There might be 2 hf sections
     CALL section_vals_get(hfx_section,n_repetition=n_rep_hf,error=error)
   
