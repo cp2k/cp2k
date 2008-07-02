@@ -83,8 +83,8 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
-    TYPE(qmmm_env_mm_type), INTENT(INOUT), &
-      OPTIONAL, POINTER                      :: qmmm_env_mm
+    TYPE(qmmm_env_mm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env_mm
     TYPE(section_vals_type), POINTER         :: subsys_section, &
                                                 force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
