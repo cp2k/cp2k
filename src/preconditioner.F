@@ -321,8 +321,9 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
      !
      ! prepare for the direct solver
      preconditioner_env%solver=ot_precond_solver_direct
-     CALL cp_fm_cholesky_decompose(preconditioner_env%fm, error=error)
-  CASE (ot_precond_solver_default)
+     CALL make_full_fact_cholesky(preconditioner_env, preconditioner_env%fm, matrix_s, &
+          &                       energy_homo, energy_gap, error)
+   CASE (ot_precond_solver_default)
      preconditioner_env%solver=ot_precond_solver_default
   CASE DEFAULT
      !
@@ -1437,6 +1438,46 @@ END SUBROUTINE make_full_kinetic
 
   END SUBROUTINE make_full_inverse_cholesky
 
+  SUBROUTINE make_full_fact_cholesky(preconditioner_env, fm, matrix_s, &
+                                     energy_homo, energy_gap, error)
+
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: fm
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: matrix_s
+    REAL(KIND=dp)                            :: energy_homo, energy_gap
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_full_fact_cholesky', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: sub_error
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
+    !
+    ! compute the inverse of SPD matrix fm using the Cholesky factorization
+    CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
+    CALL cp_fm_cholesky_decompose(fm,error=sub_error)
+    failure = .FALSE.
+    CALL cp_error_check(sub_error,failure)
+    CALL cp_error_dealloc_ref(sub_error)
+    !
+    ! if fm not SPD we go with the overlap matrix
+    IF (failure) THEN
+       !
+       ! just the overlap matrix
+       IF(PRESENT(matrix_s)) THEN
+          CALL copy_sm_to_fm(matrix_s,fm,error=error)
+          CALL cp_fm_cholesky_decompose(fm,error=error)
+       ELSE
+          CALL cp_fm_set_all(fm,alpha=0._dp,beta=1._dp,error=error)
+       ENDIF
+    ENDIF
+
+  END SUBROUTINE make_full_fact_cholesky
+
 ! *****************************************************************************
 ! Preconditioners for orthogonal basis sets
 ! *****************************************************************************
@@ -1947,13 +1988,14 @@ END SUBROUTINE make_full_all_ortho
                                                 restart_every = 50
     REAL(dp), PARAMETER                      :: eps = 1.0e-2_dp
 
-    INTEGER                                  :: iter, m, n
+    INTEGER                                  :: iter, m, n, output_unit
     LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha, beta, residual_ot, &
                                                 tr_pAp, tr_rr, tr_sr_new, &
                                                 tr_sr_old
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: Ap, p, r, s
+    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(preconditioner_env%sparse_matrix),cp_failure_level,routineP,error,failure)
@@ -1969,6 +2011,9 @@ END SUBROUTINE make_full_all_ortho
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
     CALL cp_fm_set_all(p ,0.0_dp,error=error)
     !
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_unit_nr(logger)
+    !
     ! residual
     CALL cp_fm_trace(matrix_in,matrix_in,residual_ot,error=error)
     residual_ot = SQRT(residual_ot/(REAL(n,dp)*REAL(m,dp)))
@@ -1977,8 +2022,10 @@ END SUBROUTINE make_full_all_ortho
     CALL cp_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_out,r,m,error=error)
     CALL cp_fm_scale_and_add(-1.0_dp,r,1.0_dp,matrix_in,error=error)
     CALL cp_fm_trace(r,r,tr_rr,error=error)
-    !WRITE(*,'(A,I4,E10.2)') 'Tr(r''*r)/sqrt(n*m)',0,SQRT(tr_rr/(REAL(n,dp)*REAL(m,dp)))
-    !WRITE(*,'(A,I4,E10.2)') 'residual_ot',0,residual_ot
+    IF(output_unit>0) THEN
+       WRITE(output_unit,'(A,I3,2(A,E12.5))') 'apply_solve_lin_system:',0,': ||r_ls||=',&
+            & SQRT(tr_rr/(REAL(n,dp)*REAL(m,dp))),' ||r_ot||=',residual_ot
+    ENDIF
     !
     ! let's go!
     DO iter = 1,max_iter
@@ -2021,27 +2068,24 @@ END SUBROUTINE make_full_all_ortho
        tr_sr_old = tr_sr_new
        !
        ! printing
-       !IF(MOD(iter,10).EQ.0) THEN
-       !   WRITE(*,'(A,I4,E10.2,2(A,E10.2))') 'Tr(s''*r)/sqrt(n*m)',iter,&
-       !        & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp))),' res/res_ot',&
-       !        & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot,&
-       !        & ' residual_ot',residual_ot
-       !ENDIF
+       IF(MOD(iter,10).EQ.0.AND.output_unit>0) THEN
+          WRITE(output_unit,'(A,I3,2(A,E12.5))') 'apply_solve_lin_system:',iter,': ||r_ls||=',&
+               & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp))),' ||r_ls||/||r_ot||=',&
+               & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot
+       ENDIF
        !
        ! exit
        IF(SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot.LT.eps) EXIT
        !
     ENDDO
     !
+    IF(output_unit>0) THEN
+       WRITE(output_unit,'(A,I3,2(A,E12.5))') 'apply_solve_lin_system:',iter,': ||r_ls||=',&
+            & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp))),' ||r_ls||/||r_ot||=',&
+            & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot
+    ENDIF
     IF(iter.GT.max_iter) THEN
-       !WRITE(*,'(A,I4,A,E10.2)') 'didnt converged in',max_iter,' ||r||_f/sqrt(n*m)',&
-       !     & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot
        CALL stop_program("apply_solve_lin_system","increase max_iter")
-    ELSE
-       !WRITE(*,'(A,I4,2(A,E10.2))') 'converged in',iter,' ||r||_f/sqrt(n*m)',&
-       !     & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp))),' res/res_ot',&
-       !     & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot,&
-       !     & ' residual_ot',residual_ot
     ENDIF
     !
     CALL cp_fm_release(r ,error=error)
