@@ -168,7 +168,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER :: first_atom, iatom, ikind, imol, istat, last_atom, natom_read, &
-      nkind, nmol, nmolecule, nmolkind, npart, total_mass
+      nkind, nmol, nmolecule, nmolkind, npart
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: com(3), mass, mass_mol, tol, &
                                                 x, y, z
@@ -224,7 +224,8 @@ CPSourceFileRef,&
       READ(msd%ref0_unit,*,ERR=999,END=998) natom_read
       CPPostcondition(natom_read==reftraj%natom,cp_failure_level,routineP,error,failure)
       READ(msd%ref0_unit,'(A)',ERR=999,END=998) title
-      total_mass = 0.0_dp
+      msd%total_mass = 0.0_dp
+      msd%ref0_com = 0.0_dp
       DO iatom = 1,natom_read
           READ(msd%ref0_unit,*,ERR=999,END=998)  AA, x, y, z 
           name=TRIM(particle_set(iatom)%atomic_kind%element_symbol)
@@ -237,16 +238,18 @@ CPSourceFileRef,&
           msd%ref0_pos(2,iatom) = y
           msd%ref0_pos(3,iatom) = z
           mass = particle_set(iatom)%atomic_kind%mass
-          msd%ref0_com(1) = x * mass 
-          msd%ref0_com(2) = y * mass 
-          msd%ref0_com(3) = z * mass 
-          total_mass = total_mass + mass
+          msd%ref0_com(1) = msd%ref0_com(1) + x * mass 
+          msd%ref0_com(2) = msd%ref0_com(2) + y * mass 
+          msd%ref0_com(3) = msd%ref0_com(3) + z * mass 
+          msd%total_mass = msd%total_mass + mass
       END DO
+      msd%ref0_com = msd%ref0_com / msd%total_mass
 
     END IF
     CALL close_file(unit_number=msd%ref0_unit)
 
     CALL mp_bcast(msd%ref0_pos,para_env%source,para_env%group)
+    CALL mp_bcast(msd%ref0_com,para_env%source,para_env%group)
   
     CALL section_vals_val_get(msd_section,"MSD_PER_KIND",l_val=msd%msd_kind,error=error)
     CALL section_vals_val_get(msd_section,"MSD_PER_MOLKIND",l_val=msd%msd_molecule,error=error)
@@ -348,7 +351,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: com(3), diff2_com(4), dr2, &
                                                 dx, dy, dz, mass, mass_mol, &
-                                                msd_mkind(4)
+                                                msd_mkind(4), rcom(3)
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -384,6 +387,30 @@ CPSourceFileRef,&
       reftraj%msd%val_msd_kind = 0.0_dp
       reftraj%msd%num_disp_atom =  0
       reftraj%msd%disp_atom_dr =  0.0_dp
+! compute com
+      rcom = 0.0_dp
+      DO ikind=1,atomic_kinds%n_els
+          atomic_kind => atomic_kinds%els(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               atom_list=atom_list,&
+                               natom=natom_kind, mass=mass)
+          bo = get_limit(natom_kind,num_pe,mepos)
+          DO iatom = bo(1), bo(2)
+             atom = atom_list(iatom)
+             rcom(1) = rcom(1) + particle_set(atom)%r(1)*mass
+             rcom(2) = rcom(2) + particle_set(atom)%r(2)*mass
+             rcom(3) = rcom(3) + particle_set(atom)%r(3)*mass
+          END DO
+      END DO
+      CALL mp_sum(rcom,para_env%group)
+      rcom = rcom / reftraj%msd%total_mass
+      reftraj%msd%drcom (1) = rcom(1) - reftraj%msd%ref0_com(1) 
+      reftraj%msd%drcom (2) = rcom(2) - reftraj%msd%ref0_com(2) 
+      reftraj%msd%drcom (3) = rcom(3) - reftraj%msd%ref0_com(3) 
+!      IF(para_env%ionode) WRITE(6,'(A,T50,3f10.5)') ' COM displacement (dx,dy,dz) [angstrom]:  ', &
+!                         drcom(1)*angstrom,drcom(2)*angstrom,drcom(3)*angstrom
+! compute_com
+
       DO ikind=1,atomic_kinds%n_els
           atomic_kind => atomic_kinds%els(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -392,9 +419,12 @@ CPSourceFileRef,&
           bo = get_limit(natom_kind,num_pe,mepos)
           DO iatom = bo(1), bo(2) 
             atom = atom_list(iatom)
-            dx =  particle_set(atom)%r(1)-reftraj%msd%ref0_pos(1,atom)
-            dy =  particle_set(atom)%r(2)-reftraj%msd%ref0_pos(2,atom)
-            dz =  particle_set(atom)%r(3)-reftraj%msd%ref0_pos(3,atom)
+            dx =  particle_set(atom)%r(1)-reftraj%msd%ref0_pos(1,atom) - &
+                  reftraj%msd%drcom(1)
+            dy =  particle_set(atom)%r(2)-reftraj%msd%ref0_pos(2,atom) - &
+                  reftraj%msd%drcom(2)
+            dz =  particle_set(atom)%r(3)-reftraj%msd%ref0_pos(3,atom) - &
+                  reftraj%msd%drcom(3)
             dr2 = dx*dx +  dy*dy + dz*dz
 
             reftraj%msd%val_msd_kind(1,ikind) = reftraj%msd%val_msd_kind(1,ikind) + dx*dx 
@@ -569,10 +599,10 @@ CPSourceFileRef,&
             IF(first_entry) THEN
                first_entry = .FALSE.
             END IF
-            WRITE(UNIT=out_msd,FMT="(I8, F12.3, I10)") reftraj%itimes, &
-                   reftraj%time*femtoseconds, reftraj%msd%num_disp_atom
+            WRITE(UNIT=out_msd,FMT="(A,T7,I8, A, T29, F12.3, A, T50, I10)") "# i = ", reftraj%itimes, "  time (fs) = ",&
+                   reftraj%time*femtoseconds, "  nat = ", reftraj%msd%num_disp_atom
             DO iat = 1,SIZE(reftraj%msd%disp_atom_dr,2)
-               IF(reftraj%msd%disp_atom_dr(1,iat) > 0.0_dp) THEN
+               IF(ABS(reftraj%msd%disp_atom_dr(1,iat)) > 0.0_dp) THEN
                  WRITE(UNIT=out_msd,FMT="(I8, 3F20.10)") iat,& !reftraj%msd%disp_atom_index(iat),&
                       reftraj%msd%disp_atom_dr(1,iat)*angstrom, &
                       reftraj%msd%disp_atom_dr(2,iat)*angstrom,&

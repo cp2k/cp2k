@@ -49,7 +49,7 @@ MODULE reftraj_types
      LOGICAL                                  :: disp_atom, msd_kind, msd_molecule, msd_region
      INTEGER                                  :: num_disp_atom, ref0_unit
      INTEGER, POINTER, DIMENSION(:)           :: disp_atom_index
-     REAL(KIND=dp)                            :: disp_atom_tol, ref0_com(3)
+     REAL(KIND=dp)                            :: disp_atom_tol, drcom(3), ref0_com(3), total_mass
      REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: disp_atom_dr
      REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: ref0_pos
      REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: ref0_com_molecule 

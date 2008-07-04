@@ -263,7 +263,7 @@ CONTAINS
       CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
                              homo,lfomo,maxocc,nelectron,&
                              mo_uocc,&
-                             smear=smear)
+                             smear=smear, error=error)
       CALL set_mo_set(mo_set=mo_set,&
                       homo=homo,lfomo=lfomo,&
                       uniform_occupation=mo_uocc,error=error)
@@ -342,7 +342,7 @@ CONTAINS
     IF (smear /= 0.0_dp) THEN
       CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
                              homo,lfomo,maxocc,nelectron,&
-                             mo_uocc, smear=smear)
+                             mo_uocc, smear=smear, error=error)
       CALL set_mo_set(mo_set=mo_set,&
                       homo=homo,lfomo=lfomo,&
                       uniform_occupation=mo_uocc,error=error)

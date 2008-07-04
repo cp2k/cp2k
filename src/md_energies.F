@@ -60,7 +60,8 @@ MODULE md_energies
                                              write_trajectory
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_structure_data
-  USE physcon,                         ONLY: femtoseconds,&
+  USE physcon,                         ONLY: angstrom,&
+                                             femtoseconds,&
                                              kelvin
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE reftraj_types,                   ONLY: reftraj_type
@@ -567,6 +568,14 @@ CONTAINS
                   ADJUSTL(unit%angl_label), '= ', averages%aveal, averages%avebe, &
                   averages%avega
           END IF
+          IF(simpar%ensemble==reftraj_ensemble) THEN
+             IF(reftraj%info%msd) THEN
+IF (reftraj%msd%msd_kind) &
+                 WRITE(iw,'(/,A,T50,3f10.5)') ' COM displacement (dx,dy,dz) [angstrom]:  ', &
+                          reftraj%msd%drcom(1)*angstrom,reftraj%msd%drcom(2)*angstrom,reftraj%msd%drcom(3)*angstrom
+             END IF
+           END IF
+
           WRITE ( iw, '( A,A )' ) ' **************************************', &
                '*****************************************'
           WRITE ( iw, '( )' )

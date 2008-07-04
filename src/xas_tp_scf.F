@@ -404,7 +404,7 @@ CONTAINS
 
              IF(xas_control%smear/=0.0_dp) THEN
                 CALL xas_smearing(mos(ispin)%mo_set,xas_control,&
-                     dft_control%xas_estate,ispin,ionode,error=error)
+                     dft_control%xas_estate,ispin,error=error)
              END IF
 
              CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
@@ -507,19 +507,31 @@ CONTAINS
   END SUBROUTINE xas_do_tp_scf
 
 ! *****************************************************************************
-  SUBROUTINE xas_smearing(mo_set,xas_control,estate,ispin,ionode,error)
+  SUBROUTINE xas_smearing(mo_set,xas_control,estate,ispin,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(xas_control_type)                   :: xas_control
     INTEGER, INTENT(IN)                      :: estate, ispin
-    LOGICAL, INTENT(IN)                      :: ionode
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: homo, imin, imo, lfomo, &
-                                                nelectron, nmo, nomo
+                                                nelectron, nmo, nomo, &
+                                                output_unit
+    LOGICAL                                  :: ionode
     REAL(dp)                                 :: e1, e2, edelta, edist, nelec, &
                                                 nelec0, occ_estate, smear
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, occupation
+    TYPE(cp_logger_type), POINTER            :: logger
+
+!  ----------------------------------------------------------------
+
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+       output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+       output_unit = -1
+    END IF
 
     CALL get_mo_set(mo_set,eigenvalues=eigenvalues,&
          occupation_numbers=occupation,nelectron=nelectron,nmo=nmo)
@@ -561,7 +573,7 @@ CONTAINS
     END DO
 
     IF(e2 > eigenvalues(nmo)) THEN
-       IF(ionode) WRITE(6,*) "WARNING might be too few states for the smearing !"
+       IF(ionode) WRITE(output_unit,*) "WARNING might be too few states for the smearing !"
     END IF
     DO imo=nmo,nomo,-1
        IF (eigenvalues(imo) < e2) THEN
@@ -605,7 +617,7 @@ CONTAINS
              nelec = nelec + occupation(imo)
           END DO
           IF(nelec/=nelec0 .AND. ionode)&
-               WRITE(6,*) "WARNING different number of electrons !", nelec, nelec0
+             WRITE(output_unit,*) "WARNING different number of electrons !", nelec, nelec0
        END IF
     END IF
 

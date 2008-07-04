@@ -334,7 +334,7 @@ CONTAINS
     nelectron = mo_set%nelectron
     mo_uocc = .TRUE.
     CALL set_mo_occupation(mo_set%occupation_numbers,mo_set%eigenvalues,&
-                           homo,lfomo,maxocc,nelectron,mo_uocc)
+                           homo,lfomo,maxocc,nelectron,mo_uocc,error=error)
 
     mo_set%homo = homo
     mo_set%lfomo = lfomo

@@ -211,7 +211,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
     CALL set_mo_occupation(mo_set%occupation_numbers,&
          mo_set%eigenvalues,mo_set%homo,mo_set%lfomo,&
-         mo_set%maxocc,mo_set%nelectron, uocc=mo_set%uniform_occupation)
+         mo_set%maxocc,mo_set%nelectron, uocc=mo_set%uniform_occupation,error=error)
 
     CALL fm_pool_create_fm(fm_pool,mo_set%mo_coeff,&
          name=name,error=error)
@@ -358,7 +358,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_mo_occupation(occupation,eigenvalues,homo,lfomo,maxocc,nelectron,&
-       uocc,smear)
+       uocc,smear,error)
 
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation, eigenvalues
     INTEGER, INTENT(OUT)                     :: homo, lfomo
@@ -366,13 +366,26 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nelectron
     LOGICAL, INTENT(INOUT)                   :: uocc
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: smear
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_mo_occupation', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: imo, nmo, nomo
+    INTEGER                                  :: imo, nmo, nomo, output_unit
+    LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
                                                 my_smear, nelec
+    TYPE(cp_logger_type), POINTER            :: logger
+
+!   ---------------------------------------------------------------------------
+
+    logger =>cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+       output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+       output_unit = -1
+    END IF
 
     my_smear = 0.0_dp
     IF(PRESENT(smear)) my_smear = smear
@@ -404,7 +417,9 @@ CONTAINS
 
        !     *** Find the highest fractional occupied (non-zero) MO which will be the HOMO ***
        IF(e2 > eigenvalues(nmo)) THEN
-          WRITE(6,*) "WARNING might be too few states for the smearing !"
+          IF(ionode) THEN
+            WRITE(output_unit,*) "WARNING might be too few states for the smearing !"
+          END IF
        END IF
        DO imo=nmo,nomo,-1
           IF (eigenvalues(imo) < e2) THEN
