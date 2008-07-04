@@ -244,10 +244,10 @@ CPSourceFileRef,&
           msd%total_mass = msd%total_mass + mass
       END DO
       msd%ref0_com = msd%ref0_com / msd%total_mass
-
     END IF
     CALL close_file(unit_number=msd%ref0_unit)
 
+    CALL mp_bcast(msd%total_mass,para_env%source,para_env%group)
     CALL mp_bcast(msd%ref0_pos,para_env%source,para_env%group)
     CALL mp_bcast(msd%ref0_com,para_env%source,para_env%group)
   
