@@ -52,6 +52,7 @@ MODULE ewalds_multipole
   LOGICAL, PRIVATE, PARAMETER :: debug_r_space    =.FALSE.
   LOGICAL, PRIVATE, PARAMETER :: debug_g_space    =.FALSE.
   LOGICAL, PRIVATE, PARAMETER :: debug_e_field    =.FALSE.
+  LOGICAL, PRIVATE, PARAMETER :: debug_e_field_en =.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewalds_multipole'
 
   PUBLIC :: ewald_multipole_evaluate
@@ -121,7 +122,8 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,'I','',handle)
     CPPostcondition(ASSOCIATED(nonbond_env),cp_failure_level,routineP,error,failure)
-    check_debug  = (debug_this_module.OR.debug_r_space.OR.debug_g_space.OR.debug_e_field).EQV.debug_this_module
+    check_debug  = (debug_this_module.OR.debug_r_space.OR.debug_g_space.OR.debug_e_field.OR.debug_e_field_en)&
+         .EQV.debug_this_module
     CPPostcondition(check_debug,cp_failure_level,routineP,error,failure)
     check_forces = do_forces.EQV.(PRESENT(forces_local).AND.PRESENT(forces_glob))
     CPPostcondition(check_forces,cp_failure_level,routineP,error,failure)
@@ -135,7 +137,7 @@ CONTAINS
                particle_set, local_particles, iw, debug_r_space, error)
           STOP "Debug Multipole Requested:  Real Part!"
        END IF
-       ! Debug electric fields and gradients
+       ! Debug electric fields and gradients as pure derivatives
        IF (debug_e_field) THEN
           CPPostcondition(PRESENT(atomic_kind_set),cp_failure_level,routineP,error,failure)
           CPPostcondition(PRESENT(force_env_section),cp_failure_level,routineP,error,failure)
@@ -143,6 +145,14 @@ CONTAINS
                cell, particle_set, local_particles, charges, dipoles, quadrupoles,&
                task, iw, atomic_kind_set, force_env_section, error)
           STOP "Debug Multipole Requested:  POT+EFIELDS+GRAD!"
+       END IF
+       ! Debug the potential, electric fields and electric fields gradient in oder
+       ! to retrieve the correct energy
+       IF (debug_e_field_en) THEN
+          CALL debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env,&
+               cell, particle_set, local_particles, charges, dipoles, quadrupoles,&
+               task, iw, error)
+          STOP "Debug Multipole Requested:  POT+EFIELDS+GRAD to give the correct energy!!" 
        END IF
     END IF
 
@@ -1514,6 +1524,36 @@ CONTAINS
           ! G=0 vector for dipole-dipole and charge-quadrupole
           energy = energy + (1.0_dp/6.0_dp)*DOT_PRODUCT(dipole_t,dipole_t)&
                           - (1.0_dp/9.0_dp)*q_t*trq_t
+          IF (debug_e_field_en.OR.(.NOT.debug_this_module)) THEN
+             ! This term is important and may give problems if one is debugging
+             ! VS finite differences since it comes from a residual integral in
+             ! the complex plane (cannot be reproduced with finite differences)
+             node = 0
+             DO iparticle_kind = 1, nparticle_kind
+                nparticle_local = local_particles%n_el(iparticle_kind)
+                DO iparticle_local=1,nparticle_local
+                   node = node + 1
+                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                   ! Corrections for G=0 to potential, field
+                   IF (do_efield) THEN
+                      ! Potential
+                      IF (do_efield0) THEN
+                         efield0(    iparticle) = efield0(    iparticle) - (1.0_dp/(18.0_dp))*trq_t
+                      END IF
+                      ! Electrostatic field
+                      IF (do_efield1) THEN
+                         efield1(1:3,iparticle) = efield1(1:3,iparticle) - (1.0_dp/6.0_dp)*(dipole_t(1:3)-dipoles(:,iparticle))
+                      END IF
+                      ! Electrostatic field gradients
+                      IF (do_efield2) THEN
+                         efield2(1,iparticle) = efield2(1,iparticle) - (1.0_dp/(18.0_dp))*(q_t-charges(  iparticle))
+                         efield2(5,iparticle) = efield2(5,iparticle) - (1.0_dp/(18.0_dp))*(q_t-charges(  iparticle))
+                         efield2(9,iparticle) = efield2(9,iparticle) - (1.0_dp/(18.0_dp))*(q_t-charges(  iparticle))
+                      END IF
+                   END IF
+                END DO
+             END DO
+          END IF
           CYCLE
        END IF
        gauss  = (rho0(lp,mp,np) * pw_grid%vol)**2 / pw_grid%gsq(gpt)
@@ -1827,13 +1867,6 @@ CONTAINS
                 IF (do_efield0) THEN
                    efield0(  iparticle) = efield0(  iparticle) + fac2 * qu_trace
                 END IF
-                ! Electric field
-!TL                IF (do_efield2) THEN
-!TL                   tmp = fac3*q
-!TL                   efield2(1,iparticle) = efield2(1,iparticle) + tmp
-!TL                   efield2(5,iparticle) = efield2(5,iparticle) + tmp
-!TL                   efield2(9,iparticle) = efield2(9,iparticle) + tmp
-!TL                END IF
              END IF
           END IF
           IF (ANY(task(2,:))) THEN
@@ -1841,12 +1874,6 @@ CONTAINS
              DO i = 1,3
                 dipole_self = dipole_self + dipoles(i,iparticle)**2
              END DO
-!TL             ! Electric field - Correction to get the right energy
-!TL             IF (do_efield1) THEN
-!TL                efield1(1,iparticle) = efield1(1,iparticle) + fac3*dipoles(1,iparticle)
-!TL                efield1(2,iparticle) = efield1(2,iparticle) + fac3*dipoles(2,iparticle)
-!TL                efield1(3,iparticle) = efield1(3,iparticle) + fac3*dipoles(3,iparticle)
-!TL             END IF
           END IF
           IF (ANY(task(3,:))) THEN
              ! Quadrupole - Quadrupole
@@ -1855,18 +1882,6 @@ CONTAINS
                    qu_qu_self = qu_qu_self + quadrupoles(j,i,iparticle)**2
                 END DO
              END DO
-             ! Electric field gradient
-!TL             IF (do_efield2) THEN
-!TL                efield2(1,iparticle) = efield2(1,iparticle) - fac4*quadrupoles(1,1,iparticle)
-!TL                efield2(2,iparticle) = efield2(2,iparticle) - fac4*quadrupoles(2,1,iparticle)
-!TL                efield2(3,iparticle) = efield2(3,iparticle) - fac4*quadrupoles(3,1,iparticle)
-!TL                efield2(4,iparticle) = efield2(4,iparticle) - fac4*quadrupoles(1,2,iparticle)
-!TL                efield2(5,iparticle) = efield2(5,iparticle) - fac4*quadrupoles(2,2,iparticle)
-!TL                efield2(6,iparticle) = efield2(6,iparticle) - fac4*quadrupoles(3,2,iparticle)
-!TL                efield2(7,iparticle) = efield2(7,iparticle) - fac4*quadrupoles(1,3,iparticle)
-!TL                efield2(8,iparticle) = efield2(8,iparticle) - fac4*quadrupoles(2,3,iparticle)
-!TL                efield2(9,iparticle) = efield2(9,iparticle) - fac4*quadrupoles(3,3,iparticle)
-!TL             END IF
           END IF
        END DO
     END DO

@@ -888,3 +888,126 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
                           " ERROR:      ",RESHAPE(efield2n,(/9/))-efield2(:,i)
   END DO
 END SUBROUTINE debug_ewald_multipoles_fields
+
+! *****************************************************************************
+!> \brief  Routine to debug potential, field and electric field gradients
+!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
+!> \date   05.2008
+! *****************************************************************************
+SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell,&
+     particle_set, local_particles, charges, dipoles, quadrupoles, task, iw, &
+     error )
+  USE cell_types,                      ONLY: cell_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE ewald_environment_types,         ONLY: ewald_environment_type
+  USE ewald_pw_types,                  ONLY: ewald_pw_type
+  USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
+                                             neighbor_kind_pairs_type
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
+                                             fist_nonbond_env_type,&
+                                             pos_type
+  USE kinds,                           ONLY: dp
+  USE particle_types,                  ONLY: particle_type
+  USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
+  USE fist_neighbor_list_control,      ONLY: list_control
+#include "cp_common_uses.h"
+  TYPE(ewald_environment_type), POINTER    :: ewald_env
+  TYPE(ewald_pw_type), POINTER             :: ewald_pw
+  TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
+  TYPE(cell_type), POINTER                 :: cell
+  TYPE(particle_type), POINTER             :: particle_set(:)
+  TYPE(distribution_1d_type), POINTER      :: local_particles
+  REAL(KIND=dp), DIMENSION(:), &
+       POINTER, OPTIONAL                   :: charges
+  REAL(KIND=dp), DIMENSION(:, :), &
+       POINTER, OPTIONAL                   :: dipoles
+  REAL(KIND=dp), DIMENSION(:, :, :), &
+       POINTER, OPTIONAL                   :: quadrupoles
+  LOGICAL, DIMENSION(3), INTENT(IN)        :: task
+  INTEGER, INTENT(IN)                      :: iw
+  TYPE(cp_error_type), INTENT(inout)       :: error
+  
+  CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles_fields', &
+      routineP = "ewalds_multipole_debug"//':'//routineN
+
+  REAL(KIND=dp), POINTER, DIMENSION(:)     :: efield0
+  REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: ldipoles
+  REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: lquadrupoles
+  REAL(KIND=dp)                            :: dq, dr, energy_local, energy_glob, e_neut,&
+       e_self, pv_local(3,3), pv_glob(3,3), ene(2), pot, coord(3), efield1n(3), tot_ene,&
+       o_tot_ene, enev(3,2), efield2n(3,3), prod
+  REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE&
+                                           :: forces_local, forces_glob, efield1, efield2
+  INTEGER :: nparticles,i,k
+  TYPE(particle_type), POINTER, DIMENSION(:) :: shell_particle_set, core_particle_set
+  TYPE(cp_logger_type), POINTER              :: logger
+
+  NULLIFY(ldipoles, lquadrupoles, shell_particle_set, core_particle_set)
+  NULLIFY(logger)
+  logger => cp_error_get_logger(error)
+
+  nparticles = SIZE(particle_set)
+  nparticle_local = 0
+  DO iparticle_kind=1,SIZE(local_particles%n_el)
+     nparticle_local = nparticle_local + local_particles%n_el(iparticle_kind)
+  END DO
+  ALLOCATE(forces_glob(3,nparticles))
+  ALLOCATE(forces_local(3,nparticle_local))
+  ALLOCATE(efield0(nparticles))
+  ALLOCATE(efield1(3,nparticles))
+  ALLOCATE(efield2(9,nparticles))
+  forces_glob = 0.0_dp
+  forces_local= 0.0_dp
+  efield0     = 0.0_dp
+  efield1     = 0.0_dp
+  efield2     = 0.0_dp
+  pv_local    = 0.0_dp
+  pv_glob     = 0.0_dp
+  energy_glob = 0.0_dp
+  energy_local= 0.0_dp
+  e_neut      = 0.0_dp
+  e_self      = 0.0_dp
+  CALL ewald_multipole_evaluate(ewald_env, ewald_pw, nonbond_env, cell, particle_set,&
+       local_particles, energy_local, energy_glob, e_neut, e_self, task, .TRUE., .TRUE.,&
+       .TRUE., charges, dipoles, quadrupoles, forces_local, forces_glob, pv_local, pv_glob,&
+       efield0, efield1, efield2, iw, do_debug=.FALSE., error=error )
+  o_tot_ene = energy_local + energy_glob + e_neut + e_self
+  WRITE(*,*)"TOTAL ENERGY :: ========>",o_tot_ene
+
+  ! Debug Potential
+  tot_ene = 0.0_dp
+  IF (task(1)) THEN
+     DO i = 1, nparticles
+        tot_ene = tot_ene + 0.5_dp*efield0(i)*charges(i)
+     END DO
+     WRITE(*,*)"ENERGIES: ",o_tot_ene, tot_ene, o_tot_ene-tot_ene
+     WRITE(*,'(/,/,/)')
+  END IF
+
+  ! Debug Field
+  IF (task(2)) THEN
+     DO i = 1, nparticles
+        tot_ene = tot_ene - 0.5_dp*DOT_PRODUCT(efield1(:,i),dipoles(:,i))
+     END DO
+     WRITE(*,*)"ENERGIES: ",o_tot_ene, tot_ene, o_tot_ene-tot_ene
+     WRITE(*,'(/,/,/)')
+  END IF
+
+ ! Debug Field Gradient
+  IF (task(3)) THEN
+     DO i = 1, nparticles
+        ind  = 0
+        prod = 0.0_dp
+        DO j = 1,3
+           DO k = 1,3
+              ind = ind + 1
+              prod = prod + efield2(ind,i)*quadrupoles(j,k,i)
+           END DO
+        END DO
+        tot_ene = tot_ene - 0.5_dp*(1.0_dp/3.0_dp)*prod
+     END DO
+     WRITE(*,*)"ENERGIES: ",o_tot_ene, tot_ene, o_tot_ene-tot_ene
+     WRITE(*,'(/,/,/)')
+  END IF
+
+END SUBROUTINE debug_ewald_multipoles_fields2
