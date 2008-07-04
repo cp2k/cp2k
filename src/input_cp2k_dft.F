@@ -1031,7 +1031,7 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"MO_CUBES",&
-            description="Controls the printing of cubes of the molecular orbitals (squared).", &
+            description="Controls the printing of cubes of the molecular orbitals.", &
             print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
@@ -1041,8 +1041,10 @@ CONTAINS
             usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="write_cube",&
-            description="If the cube file should be written. If false, the eigenvalues are still computed.",&
+            description="If the MO cube file should be written. If false, the eigenvalues are still computed."//&
+                        " Can also be useful in combination with STM calculations",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1058,6 +1060,18 @@ CONTAINS
             default_i_val=1, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="STM_BIAS",&
+            description="Bias energy for scanning tunneling microscopy (STM) image generation."//&
+                        "Orbital densities are summed according to the bias energy."//&
+                        "For negative values, states in the range ]HOMO+bias,HOMO] are summed,"//&
+                        "While positive values sum states in the range [LUMO,LUMO+bias[."//&
+                        "Notice that the bias is not with respect to the Fermi energy, and zero biases are skipped."//&
+                        "If postive biases are used, sufficiently many LUMOs (see NLUMO) should be computed.",&
+            n_var=-1,type_of_var=real_t, default_r_vals=(/0.0_dp/), unit_str='eV', error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
