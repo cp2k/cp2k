@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT H2O-rks-otcg
+  PROJECT H2O-uks-otcg
   PRINT_LEVEL low
   RUN_TYPE GEO_OPT
 &END GLOBAL
@@ -14,9 +14,11 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
+    LSD
+    MULTIPLICITY 1
     BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
     POTENTIAL_FILE_NAME ../GTH_POTENTIALS
-    PLUS_U_METHOD mulliken_charges
+    PLUS_U_METHOD mulliken
     &MGRID
       CUTOFF 200
     &END MGRID
@@ -41,7 +43,7 @@
       &PRINT
         &RESTART
           &EACH
-            MD 1 
+            GEO_OPT 1
             QS_SCF 30
           &END
           ADD_LAST NUMERIC
@@ -52,7 +54,7 @@
       SCF_GUESS restart
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
@@ -68,14 +70,14 @@
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH
-      POTENTIAL GTH-PBE-q1
+      POTENTIAL GTH-PADE-q1
     &END KIND
     &KIND O
       BASIS_SET DZVP-GTH
-      POTENTIAL GTH-PBE-q6
+      POTENTIAL GTH-PADE-q6
       &DFT_PLUS_U
         L 1
-        U_MINUS_J [eV] 2.0
+        U_MINUS_J 0.08
       &END DFT_PLUS_U
     &END KIND
     &PRINT

@@ -16,9 +16,14 @@
   &DFT
     BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
     POTENTIAL_FILE_NAME ../GTH_POTENTIALS
+    PLUS_U_METHOD mulliken_charges
     &MGRID
       CUTOFF 200
     &END MGRID
+    &PRINT
+      &DFT_CONTROL_PARAMETERS
+      &END DFT_CONTROL_PARAMETERS
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-8
       MAP_CONSISTENT
@@ -70,7 +75,7 @@
       POTENTIAL GTH-PBE-q6
       &DFT_PLUS_U
         L 1
-       U_MINUS_J [eV] 2.0
+        U_MINUS_J [eV] 2.0
       &END DFT_PLUS_U
     &END KIND
     &PRINT

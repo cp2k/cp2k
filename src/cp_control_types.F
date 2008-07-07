@@ -268,7 +268,8 @@ MODULE cp_control_types
                                           sic_method_id,&
                                           ref_count,&
                                           id_nr,&
-                                          xas_estate
+                                          xas_estate,&
+                                          plus_u_method_id
      INTEGER                           :: sic_list_id
      REAL(KIND=dp)                     :: sic_scaling_a,&
                                           sic_scaling_b

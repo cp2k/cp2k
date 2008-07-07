@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-
 ! *****************************************************************************
 !> \brief   Add the DFT+U contribution to the Hamiltonian matrix
 !> \details The implemented methods refers to:\n
@@ -25,6 +24,21 @@ MODULE dft_plus_u
                                              Dudarev1998,&
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_ger,&
+                                             cp_fm_upper_to_full
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_release,&
+                                             cp_fm_type
+  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
+                                             copy_sm_to_fm,&
+                                             cp_sm_fm_multiply
+  USE input_constants,                 ONLY: plus_u_lowdin,&
+                                             plus_u_mulliken,&
+                                             plus_u_mulliken_charges
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
@@ -33,12 +47,11 @@ MODULE dft_plus_u
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_types,             ONLY: first_block_node,&
-                                             get_block_node,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type
+  USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE sparse_matrix_types,             ONLY: &
+       create_dbm_from_sm, deallocate_matrix, first_block_node, &
+       get_block_node, next_block_node, real_block_node_type, &
+       real_matrix_p_type, real_matrix_type, set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -52,7 +65,6 @@ MODULE dft_plus_u
   PUBLIC :: plus_u
 
 CONTAINS
-
 ! *****************************************************************************
 !> \brief         Add the DFT+U contribution to the Hamiltonian matrix.\n
 !>                Wrapper routine for all "+U" methods
@@ -74,7 +86,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'plus_u', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, orthonormal_basis
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -82,20 +94,1169 @@ CONTAINS
     CALL cite_reference(Dudarev1997)
     CALL cite_reference(Dudarev1998)
 
-    ! There is yet no need for a method keyword, since this is the first DFT+U
-    ! method implemented
+    ! Later we could save here some time, if the method in use has this property
+    ! which then has to be figured out here
 
-    ! SELECT CASE (dft_plus_u_method_id)
-    ! CASE (1)
-        CALL plus_u_mulliken(qs_env,matrix_h,matrix_w,error)
-    ! END SELECT
+    orthonormal_basis = .FALSE.
+
+    ! Select DFT+U method
+
+    SELECT CASE (qs_env%dft_control%plus_u_method_id)
+    CASE (plus_u_lowdin)
+      IF (orthonormal_basis) THEN
+        ! For an orthonormal basis the Lowdin method and the Mulliken method
+        ! are equivalent
+        CALL mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,error)
+      ELSE
+        CALL lowdin(qs_env,matrix_h,matrix_w,error)
+      END IF
+    CASE (plus_u_mulliken)
+      CALL mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,error)
+    CASE (plus_u_mulliken_charges)
+      CALL mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,error)
+    CASE DEFAULT
+      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                     "Invalid DFT+U method requested",only_ionode=.TRUE.)
+    END SELECT
 
   END SUBROUTINE plus_u
 
 ! *****************************************************************************
 !> \brief         Add a DFT+U contribution to the Hamiltonian matrix\n
+!>                using a method based on Lowdin charges
+!>                \f[Q = S^{1/2} P S^{1/2}\f]
+!>                where \b P and \b S are the density and the
+!>                overlap matrix, respectively.
+!> \details
+!>  \f{eqnarray*}
+!>   E^{\rm DFT+U} & = & E^{\rm DFT} +  E^{\rm U}\\\
+!>                 & = & E^{\rm DFT} +  \frac{1}{2}(U - J)\sum_\mu (q_\mu - q_\mu^2)\\[1ex]
+!>   V_{\mu\nu}^{\rm DFT+U} & = & V_{\mu\nu}^{\rm DFT} + V_{\mu\nu}^{\rm U}\\\
+!>                          & = & \frac{\partial E^{\rm DFT}}
+!>                                     {\partial P_{\mu\nu}} +
+!>                                \frac{\partial E^{\rm U}}
+!>                                     {\partial P_{\mu\nu}}\\\
+!>                          & = & H_{\mu\nu} +
+!>                                \frac{\partial E^{\rm U}}{\partial q_\mu}
+!>                                \frac{\partial q_\mu}{\partial P_{\mu\nu}}\\\
+!>  \f}
+!> \param[in]     qs_env Quickstep environment
+!> \param[in,out] matrix_h Hamiltonian matrices for each spin
+!> \param[in,out] matrix_w Energy weighted density matrices for each spin
+!> \param[in]     error environment
+!> \author        Matthias Krack (MK)
+!> \date          02.07.2008
+!> \version       1.0
+! *****************************************************************************
+  SUBROUTINE lowdin(qs_env,matrix_h,matrix_w,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_h, matrix_w
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'lowdin', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, handle, i, iatom, ikind, iset, isgf, ishell, ispin, j, &
+      jset, jsgf, jshell, l_of_dft_plus_u, maxnset, maxshell, n, natom, &
+      natom_of_kind, nkind, nsb, nset, nsgf, nspin, sgfa, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
+    LOGICAL                                  :: dft_plus_u_atom, failure, &
+                                                fm_work1_local_alloc, &
+                                                fm_work2_local_alloc, &
+                                                just_energy
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind
+    REAL(KIND=dp)                            :: fspin, trq, trq2, u_minus_j, v
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: q_matrix
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: q_block, v_block
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind, kind_a
+    TYPE(cp_fm_struct_type), POINTER         :: fmstruct
+    TYPE(cp_fm_type), POINTER                :: fm_s_half, fm_work1, fm_work2
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p, matrix_s
+    TYPE(real_matrix_type), POINTER          :: sm_h, sm_p, sm_q, sm_s, sm_v, &
+                                                sm_w
+
+    CALL timeset(routineN,"I","",handle)
+
+    NULLIFY (atom_list)
+    NULLIFY (atomic_kind)
+    NULLIFY (atomic_kind_set)
+    NULLIFY (dft_control)
+    NULLIFY (energy)
+    NULLIFY (first_sgf)
+    NULLIFY (fm_s_half)
+    NULLIFY (fm_work1)
+    NULLIFY (fm_work2)
+    NULLIFY (fmstruct)
+    NULLIFY (matrix_p)
+    NULLIFY (matrix_s)
+    NULLIFY (l)
+    NULLIFY (last_sgf)
+    NULLIFY (nshell)
+    NULLIFY (orb_basis_set)
+    NULLIFY (particle_set)
+    NULLIFY (q_block)
+    NULLIFY (rho)
+    NULLIFY (scf_env)
+    NULLIFY (sm_h)
+    NULLIFY (sm_p)
+    NULLIFY (sm_q)
+    NULLIFY (sm_s)
+    NULLIFY (sm_v)
+    NULLIFY (sm_w)
+    NULLIFY (v_block)
+
+    failure = .FALSE.
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    dft_control=dft_control,&
+                    energy=energy,&
+                    matrix_s=matrix_s,&
+                    particle_set=particle_set,&
+                    rho=rho,&
+                    scf_env=scf_env,&
+                    error=error)
+
+    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(energy),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+
+    sm_s => matrix_s(1)%matrix ! Overlap matrix in sparse format
+    matrix_p => rho%rho_ao     ! Density matrices in sparse format
+
+    energy%dft_plus_u = 0.0_dp
+
+    nspin = dft_control%nspins
+
+    IF (nspin == 2) THEN
+      fspin = 1.0_dp
+    ELSE
+      fspin = 0.5_dp
+    END IF
+
+    ! Get the total number of atoms, contracted spherical Gaussian basis
+    ! functions, and atomic kinds
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxnset=maxnset,&
+                             maxshell=maxshell,&
+                             natom=natom,&
+                             nsgf=nsgf)
+
+    nkind = SIZE(atomic_kind_set)
+
+    ALLOCATE (is_plus_u_kind(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    is_plus_u_kind(:) = .FALSE.
+
+    ALLOCATE (first_sgf_atom(natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    first_sgf_atom(:) = 0
+
+    CALL get_particle_set(particle_set=particle_set,&
+                          first_sgf=first_sgf_atom)
+
+    IF (PRESENT(matrix_h).OR.PRESENT(matrix_w)) THEN
+      just_energy  = .FALSE.
+    ELSE
+      just_energy = .TRUE.
+    END IF
+
+    ! Retrieve S^(1/2) from the SCF environment
+
+    fm_s_half => scf_env%s_half
+    CPPrecondition(ASSOCIATED(fm_s_half),cp_failure_level,routineP,error,failure)
+
+    ! Try to retrieve (full) work matrices from the SCF environment and reuse
+    ! them, if available
+
+    fm_work1_local_alloc = .FALSE.
+    fm_work2_local_alloc = .FALSE.
+
+    IF (ASSOCIATED(scf_env%scf_work1)) THEN
+      IF (ASSOCIATED(scf_env%scf_work1(1)%matrix)) THEN
+        fm_work1 => scf_env%scf_work1(1)%matrix
+      END IF
+    END IF
+
+    fm_work2 => scf_env%scf_work2
+
+    IF ((.NOT.ASSOCIATED(fm_work1)).OR.&
+        (.NOT.ASSOCIATED(fm_work2))) THEN
+      CALL cp_fm_struct_create(fmstruct=fmstruct,&
+                               para_env=qs_env%para_env,&
+                               context=qs_env%blacs_env,&
+                               nrow_global=nsgf,&
+                               ncol_global=nsgf,&
+                               error=error)
+      IF (.NOT.ASSOCIATED(fm_work1)) THEN
+        CALL cp_fm_create(matrix=fm_work1,&
+                          matrix_struct=fmstruct,&
+                          name="FULL WORK MATRIX 1",&
+                          error=error)
+        fm_work1_local_alloc = .TRUE.
+      END IF
+      IF (.NOT.ASSOCIATED(fm_work2)) THEN
+        CALL cp_fm_create(matrix=fm_work2,&
+                          matrix_struct=fmstruct,&
+                          name="FULL WORK MATRIX 2",&
+                          error=error)
+        fm_work2_local_alloc = .TRUE.
+      END IF
+      CALL cp_fm_struct_release(fmstruct=fmstruct,error=error)
+    END IF
+
+    ! Create local block diagonal matrices
+
+    CALL create_dbm_from_sm(dbm=sm_q,&
+                            sm=sm_s,&
+                            matrix_name="SPARSE Q MATRIX",&
+                            copy_in=.FALSE.,&
+                            error=error)
+
+    CALL create_dbm_from_sm(dbm=sm_v,&
+                            sm=sm_s,&
+                            matrix_name="SPARSE V MATRIX",&
+                            copy_in=.FALSE.,&
+                            error=error)
+
+    ! Loop over all spins
+
+    DO ispin=1,nspin
+
+      IF (PRESENT(matrix_h)) THEN
+        ! Hamiltonian matrix for spin ispin in sparse format
+        sm_h => matrix_h(ispin)%matrix
+      ELSE
+        NULLIFY (sm_h)
+      END IF
+
+      IF (PRESENT(matrix_w)) THEN
+        ! Energy weighted density matrix for spin ispin in sparse format
+        sm_w => matrix_w(ispin)%matrix
+      ELSE
+        NULLIFY (sm_w)
+      END IF
+
+      sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
+
+      CALL set_matrix(matrix=sm_q,value=0.0_dp)
+      CALL set_matrix(matrix=sm_v,value=0.0_dp)
+
+      ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
+
+      CALL cp_sm_fm_multiply(sm_p,fm_s_half,fm_work1,nsgf,error=error)
+      CALL cp_fm_gemm(transa="N",&
+                      transb="N",&
+                      m=nsgf,&
+                      n=nsgf,&
+                      k=nsgf,&
+                      alpha=1.0_dp,&
+                      matrix_a=fm_s_half,&
+                      matrix_b=fm_work1,&
+                      beta=0.0_dp,&
+                      matrix_c=fm_work2,&
+                      error=error)
+
+      ! Copy occupation matrix to sparse matrix format, finally we are only
+      ! interested in the diagonal (atomic) blocks, i.e. the previous full
+      ! matrix product is not the most efficient choice, anyway.
+
+      CALL copy_fm_to_sm(fm=fm_work2,real_matrix=sm_q)
+
+      ! E[DFT+U] = E[DFT] + E[U]
+      !          = E[DFT] + (U - J)*(Tr(q) - Tr(q*q))/2
+
+      ! V(i,j)[DFT+U] = V(i,j)[DFT] + V(i,j)[U]
+      !               = dE[DFT]/dP(i,j) + dE[U]/dP(i,j)
+      !               = dE[DFT]/dP(i,j) + (dE(U)/dq)*(dq/dP(i,j))
+
+      ! Loop over all atomic kinds
+
+      DO ikind=1,nkind
+
+        atomic_kind => atomic_kind_set(ikind)
+
+        ! Load the required atomic kind data
+
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             atom_list=atom_list,&
+                             dft_plus_u_atom=dft_plus_u_atom,&
+                             l_of_dft_plus_u=l_of_dft_plus_u,&
+                             natom=natom_of_kind,&
+                             orb_basis_set=orb_basis_set,&
+                             u_minus_j=u_minus_j)
+
+        ! Check, if the atoms of this atomic kind need a DFT+U correction
+
+        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+        IF (.NOT.dft_plus_u_atom) CYCLE
+        IF (l_of_dft_plus_u < 0) CYCLE
+        IF (u_minus_j == 0.0_dp) CYCLE
+
+        is_plus_u_kind(ikind) = .TRUE.
+
+        ! Load the required Gaussian basis set data
+
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               first_sgf=first_sgf,&
+                               l=l,&
+                               last_sgf=last_sgf,&
+                               nset=nset,&
+                               nshell=nshell)
+
+        ! Count the relevant shell blocks of this atomic kind
+
+        nsb = 0
+        DO iset=1,nset
+          DO ishell=1,nshell(iset)
+            IF (l(ishell,iset) == l_of_dft_plus_u) nsb = nsb + 1
+          END DO
+        END DO
+
+        n = nsb*(2*l_of_dft_plus_u + 1)
+
+        ALLOCATE (q_matrix(n,n),STAT=stat)
+        CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+        q_matrix(:,:) = 0.0_dp
+
+        ! Loop over all atoms of the current atomic kind
+
+        DO iatom=1,natom_of_kind
+
+          atom_a = atom_list(iatom)
+
+          ! Get diagonal block
+
+          CALL get_block_node(matrix=sm_q,&
+                              block_row=atom_a,&
+                              block_col=atom_a,&
+                              block=q_block)
+
+          IF (.NOT.ASSOCIATED(q_block)) CYCLE
+
+            ! Calculate energy contribution to E(U)
+
+! Begin: Off-diagonal blocks include
+          q_matrix(:,:) = 0.0_dp
+
+          i = 0
+          DO iset=1,nset
+            DO ishell=1,nshell(iset)
+              IF (l(ishell,iset) /= l_of_dft_plus_u) CYCLE
+              DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+                i = i + 1
+                j = 0
+                DO jset=1,nset
+                  DO jshell=1,nshell(jset)
+                    IF (l(jshell,jset) /= l_of_dft_plus_u) CYCLE
+                    DO jsgf=first_sgf(jshell,jset),last_sgf(jshell,jset)
+                      j = j + 1
+                      q_matrix(i,j) = q_block(isgf,jsgf)
+                    END DO ! next contracted spherical Gaussian function "jsgf"
+                  END DO ! next shell "jshell"
+                END DO ! next shell set "jset"
+              END DO ! next contracted spherical Gaussian function "isgf"
+            END DO ! next shell "ishell"
+          END DO ! next shell set "iset"
+
+          trq = 0.0_dp
+          trq2 = 0.0_dp
+
+          DO i=1,n
+            trq = trq + q_matrix(i,i)
+!DBG        WRITE (*,"(I6,20F10.6)") i,q_matrix(i,:)
+            DO j=1,n
+              trq2 = trq2 + q_matrix(i,j)*q_matrix(j,i)
+            END DO
+          END DO
+
+          trq = fspin*trq
+          trq2 = fspin*fspin*trq2
+!DBG      WRITE (*,*) trq,trq2,trq - trq2
+
+          ! Calculate energy contribution to E(U)
+
+          energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
+
+          ! Calculate potential V(U) = dE(U)/dq
+
+          IF (.NOT.just_energy) THEN
+
+            CALL get_block_node(matrix=sm_v,&
+                                block_row=atom_a,&
+                                block_col=atom_a,&
+                                block=v_block)
+            CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
+
+            DO iset=1,nset
+              DO ishell=1,nshell(iset)
+                IF (l(ishell,iset) /= l_of_dft_plus_u) CYCLE
+                DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+                  DO jset=1,nset
+                    DO jshell=1,nshell(jset)
+                      IF (l(jshell,jset) /= l_of_dft_plus_u) CYCLE
+                      DO jsgf=first_sgf(jshell,jset),last_sgf(jshell,jset)
+                        IF (isgf == jsgf) THEN
+                          v_block(isgf,isgf) = u_minus_j*(0.5_dp - fspin*q_block(isgf,isgf))
+                        ELSE
+                          v_block(isgf,jsgf) = -u_minus_j*fspin*q_block(jsgf,isgf)
+                        END IF
+                      END DO ! next contracted spherical Gaussian function "jsgf"
+                    END DO ! next shell "jshell"
+                  END DO ! next shell set "jset"
+                END DO ! next contracted spherical Gaussian function "isgf"
+              END DO ! next shell "ishell"
+            END DO ! next shell set "iset"
+
+          END IF ! not just energy
+
+        END DO ! next atom "iatom" of atomic kind "ikind"
+
+        IF (ALLOCATED(q_matrix)) THEN
+          DEALLOCATE (q_matrix,STAT=stat)
+          CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+        END IF
+! End: Off-diagonal blocks included
+
+! Begin: Only diagonal blocks
+!MK            DO iset=1,nset
+!MK              DO ishell=1,nshell(iset)
+!MK                IF (l(ishell,iset) /= l_of_dft_plus_u) CYCLE
+!MK                trq = 0.0_dp
+!MK                trq2 = 0.0_dp
+!MK                DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+!MK                  trq = trq + q_block(isgf,isgf)
+!MK                  DO jsgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+!MK                    trq2 = trq2 + q_block(isgf,jsgf)*q_block(jsgf,isgf)
+!MK                  END DO ! next contracted spherical Gaussian function "jsgf"
+!MK                END DO ! next contracted spherical Gaussian function "isgf"
+!MK                trq = fspin*trq
+!MK                trq2 = fspin*fspin*trq2
+!MK!DBG            WRITE (*,*) trq,trq2,trq - trq2
+!MK                energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
+!MK              END DO ! next shell "ishell"
+!MK            END DO ! next shell set "iset"
+
+!MK            ! Calculate potential V(U) = dE(U)/dq
+
+!MK            IF (.NOT.just_energy) THEN
+!MK              CALL get_block_node(matrix=sm_v,&
+!MK                                  block_row=atom_a,&
+!MK                                  block_col=atom_a,&
+!MK                                  block=v_block)
+!MK              DO iset=1,nset
+!MK                DO ishell=1,nshell(iset)
+!MK                  IF (l(ishell,iset) /= l_of_dft_plus_u) CYCLE
+!MK                  DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+!MK                    DO jsgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+!MK                      IF (isgf == jsgf) THEN 
+!MK                        v_block(isgf,isgf) = u_minus_j*(0.5_dp - fspin*q_block(isgf,isgf))
+!MK                      ELSE
+!MK                        v_block(isgf,jsgf) = -u_minus_j*fspin*q_block(jsgf,isgf)
+!MK                      END IF
+!MK                    END DO ! next contracted spherical Gaussian function "jsgf"
+!MK                  END DO ! next contracted spherical Gaussian function "isgf"
+!MK                END DO ! next shell "ishell"
+!MK              END DO ! next shell set "iset"
+
+!MK            END IF ! not just energy
+
+!MK          END IF ! this process is the owner of the sparse matrix block?
+
+!MK        END DO ! next atom "iatom" of atomic kind "ikind"
+! End: Only diagonal blocks
+
+      END DO ! next atomic kind "ikind"
+
+      ! Scatter DFT+U potential matrix
+
+      DO ikind=1,nkind
+        IF (is_plus_u_kind(ikind)) THEN
+          kind_a => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=kind_a,&
+                               atom_list=atom_list,&
+                               natom=natom_of_kind)
+          DO iatom=1,natom_of_kind
+            atom_a = atom_list(iatom)
+            CALL get_block_node(matrix=sm_v,&
+                                block_row=atom_a,&
+                                block_col=atom_a,&
+                                block=v_block)
+            CALL mp_sum(v_block,qs_env%para_env%group)
+          END DO
+        END IF
+      END DO
+
+      ! Add V(i,j)[U] to V(i,j)[DFT]
+
+      IF (ASSOCIATED(sm_h)) THEN
+
+        CALL copy_sm_to_fm(real_matrix=sm_h,fm=fm_work1,error=error)
+        CALL cp_fm_upper_to_full(matrix=fm_work1,work=fm_work2,error=error)
+
+        DO ikind=1,nkind
+
+          IF (.NOT.is_plus_u_kind(ikind)) CYCLE
+
+          kind_a => atomic_kind_set(ikind)
+
+          CALL get_atomic_kind(atomic_kind=kind_a,&
+                               atom_list=atom_list,&
+                               natom=natom_of_kind)
+
+          DO iatom=1,natom_of_kind
+            atom_a = atom_list(iatom)
+            CALL get_block_node(matrix=sm_v,&
+                                block_row=atom_a,&
+                                block_col=atom_a,&
+                                block=v_block)
+            sgfa = first_sgf_atom(atom_a) - 1
+            DO isgf=1,SIZE(v_block,1)
+              DO jsgf=1,SIZE(v_block,2)
+                IF (v_block(isgf,jsgf) /= 0.0_dp) THEN
+                  v = v_block(isgf,jsgf)
+                  CALL cp_fm_ger(v,fm_s_half,1,sgfa+isgf,fm_s_half,1,sgfa+jsgf,&
+                                 fm_work1,error)
+                END IF
+              END DO
+            END DO
+          END DO ! next atom "iatom" of atomic kind "ikind"
+
+        END DO ! Next atomic kind "ikind"
+
+        CALL copy_fm_to_sm(fm=fm_work1,real_matrix=sm_h)
+
+      END IF ! An update of the Hamiltonian matrix is requested
+
+      ! Calculate the contribution (non-Pulay part) to the derivatives
+      ! w.r.t. the nuclear positions
+
+      IF (ASSOCIATED(sm_w)) THEN
+
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                       "Forces are not yet fully implemented for DFT+U method LOWDIN",&
+                       only_ionode=.TRUE.)
+
+      END IF ! W matrix update requested
+
+    END DO ! next spin "ispin"
+
+    ! Collect the energy contributions from all processes
+
+    CALL mp_sum(energy%dft_plus_u,qs_env%para_env%group)
+
+    CALL cp_assert(energy%dft_plus_u >= 0.0_dp,cp_warning_level,&
+                   cp_assertion_failed,routineP,&
+                   "DFT+U energy contibution is negative possibly due "//&
+                   "to unphysical Lowdin charges. Check your input, "//&
+                   "if this warning persists or try a different method!",&
+                   only_ionode=.TRUE.)
+
+    ! Release (local) full matrices
+
+    NULLIFY (fm_s_half)
+    IF (fm_work1_local_alloc) THEN
+      CALL cp_fm_release(matrix=fm_work1,error=error)
+    END IF
+    IF (fm_work2_local_alloc) THEN
+      CALL cp_fm_release(matrix=fm_work2,error=error)
+    END IF
+
+    ! Release (local) sparse matrices
+
+    CALL deallocate_matrix(matrix=sm_q,error=error)
+    CALL deallocate_matrix(matrix=sm_v,error=error)
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE lowdin
+
+! *****************************************************************************
+!> \brief         Add a DFT+U contribution to the Hamiltonian matrix\n
+!>                using a method based on the Mulliken population analysis
+!>                \f[Q_{\mu\nu} = P_{\mu\nu} S_{\mu\nu}\f]
+!>                where \b P and \b S are the density and the
+!>                overlap matrix, respectively.
+!> \details
+!>  \f{eqnarray*}
+!>   E^{\rm DFT+U} & = & E^{\rm DFT} + E^{\rm U}\\\
+!>                 & = & E^{\rm DFT} + \frac{1}{2}\sum_A(U_A - J_A)(Tr(q_A) - Tr(q^2_A))\\[1ex]
+!>   V_{\mu\nu}^{\rm DFT+U} & = & V_{\mu\nu}^{\rm DFT} + V_{\mu\nu}^{\rm U}\\\
+!>                          & = & \frac{\partial E^{\rm DFT}}
+!>                                     {\partial P_{\mu\nu}} +
+!>                                \frac{\partial E^{\rm U}}
+!>                                     {\partial P_{\mu\nu}}\\\
+!>                          & = & H_{\mu\nu} + \sum_A
+!>                                \frac{\partial E^{\rm U}}{\partial q_A}
+!>                                \frac{\partial q_A}{\partial P_{\mu\nu}}\\\
+!>  \f}
+!> \param[in]     qs_env Quickstep environment
+!> \param[in,out] matrix_h Hamiltonian matrices for each spin
+!> \param[in,out] matrix_w Energy weighted density matrices for each spin
+!> \param[in]     error environment
+!> \author        Matthias Krack (MK)
+!> \date          03.07.2008
+!> \version       1.0
+! *****************************************************************************
+  SUBROUTINE mulliken(qs_env,orthonormal_basis,matrix_h,matrix_w,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: orthonormal_basis
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_h, matrix_w
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, handle, i, iatom, ikind, iset, isgf, ishell, ispin, j, &
+      jset, jsgf, jshell, l_of_dft_plus_u, maxnset, maxshell, n, natom, &
+      natom_of_kind, nkind, nsb, nset, nsgf, nspin, stat
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
+    LOGICAL                                  :: dft_plus_u_atom, failure, &
+                                                just_energy
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind
+    REAL(KIND=dp)                            :: fspin, trq, trq2, u_minus_j
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: q_matrix
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block, q_block, &
+                                                s_block, v_block, w_block
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind, kind_a
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p, matrix_s
+    TYPE(real_matrix_type), POINTER          :: sm_h, sm_p, sm_q, sm_s, sm_v, &
+                                                sm_w
+
+    CALL timeset(routineN,"I","",handle)
+
+    NULLIFY (atom_list)
+    NULLIFY (atomic_kind)
+    NULLIFY (atomic_kind_set)
+    NULLIFY (dft_control)
+    NULLIFY (energy)
+    NULLIFY (first_sgf)
+    NULLIFY (h_block)
+    NULLIFY (matrix_p)
+    NULLIFY (matrix_s)
+    NULLIFY (l)
+    NULLIFY (last_sgf)
+    NULLIFY (nshell)
+    NULLIFY (orb_basis_set)
+    NULLIFY (p_block)
+    NULLIFY (particle_set)
+    NULLIFY (q_block)
+    NULLIFY (rho)
+    NULLIFY (s_block)
+    NULLIFY (sm_h)
+    NULLIFY (sm_p)
+    NULLIFY (sm_q)
+    NULLIFY (sm_s)
+    NULLIFY (sm_v)
+    NULLIFY (sm_w)
+    NULLIFY (v_block)
+    NULLIFY (w_block)
+
+    failure = .FALSE.
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    dft_control=dft_control,&
+                    energy=energy,&
+                    particle_set=particle_set,&
+                    rho=rho,&
+                    error=error)
+
+    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(energy),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+
+    IF (orthonormal_basis) THEN
+      NULLIFY (sm_s)
+    ELSE
+      ! Get overlap matrix in sparse format
+      CALL get_qs_env(qs_env=qs_env,&
+                      matrix_s=matrix_s,&
+                      error=error)
+      CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
+      sm_s => matrix_s(1)%matrix
+    END IF
+
+    ! Get density matrices in sparse format
+
+    matrix_p => rho%rho_ao
+
+    energy%dft_plus_u = 0.0_dp
+
+    nspin = dft_control%nspins
+
+    IF (nspin == 2) THEN
+      fspin = 1.0_dp
+    ELSE
+      fspin = 0.5_dp
+    END IF
+
+    ! Get the total number of atoms, contracted spherical Gaussian basis
+    ! functions, and atomic kinds
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxnset=maxnset,&
+                             maxshell=maxshell,&
+                             natom=natom,&
+                             nsgf=nsgf)
+
+    nkind = SIZE(atomic_kind_set)
+
+    ALLOCATE (is_plus_u_kind(nkind),STAT=stat)
+    CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+    is_plus_u_kind(:) = .FALSE.
+
+    IF (PRESENT(matrix_h).OR.PRESENT(matrix_w)) THEN
+      just_energy = .FALSE.
+    ELSE
+      just_energy = .TRUE.
+    END IF
+
+    ! Loop over all spins
+
+    DO ispin=1,nspin
+
+      IF (PRESENT(matrix_h)) THEN
+        ! Hamiltonian matrix for spin ispin in sparse format
+        sm_h => matrix_h(ispin)%matrix
+      ELSE
+        NULLIFY (sm_h)
+      END IF
+
+      IF (PRESENT(matrix_w)) THEN
+        ! Energy weighted density matrix for spin ispin in sparse format
+        sm_w => matrix_w(ispin)%matrix
+      ELSE
+        NULLIFY (sm_w)
+      END IF
+
+      ! Get density matrix for spin ispin in sparse format
+      sm_p => matrix_p(ispin)%matrix
+
+      IF (.NOT.ASSOCIATED(sm_q)) THEN
+        CALL create_dbm_from_sm(dbm=sm_q,&
+                                sm=sm_p,&
+                                matrix_name="SPARSE Q MATRIX",&
+                                copy_in=.FALSE.,&
+                                error=error)
+      END IF
+      CALL set_matrix(matrix=sm_q,value=0.0_dp)
+
+      IF (.NOT.ASSOCIATED(sm_v)) THEN
+        CALL create_dbm_from_sm(dbm=sm_v,&
+                                sm=sm_p,&
+                                matrix_name="SPARSE V MATRIX",&
+                                copy_in=.FALSE.,&
+                                error=error)
+      END IF
+      CALL set_matrix(matrix=sm_v,value=0.0_dp)
+
+      DO iatom=1,natom
+
+        CALL get_block_node(matrix=sm_p,&
+                            block_row=iatom,&
+                            block_col=iatom,&
+                            block=p_block)
+
+        IF (.NOT.ASSOCIATED(p_block)) CYCLE
+
+        CALL get_block_node(matrix=sm_q,&
+                            block_row=iatom,&
+                            block_col=iatom,&
+                            block=q_block)
+        CPPostcondition(ASSOCIATED(q_block),cp_failure_level,routineP,error,failure)
+
+        IF (orthonormal_basis) THEN
+          DO isgf=1,SIZE(q_block,1)
+            q_block(isgf,isgf) = p_block(isgf,isgf)
+          END DO
+        ELSE
+          CALL get_block_node(matrix=sm_s,&
+                              block_row=iatom,&
+                              block_col=iatom,&
+                              block=s_block)
+          CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
+          DO jsgf=1,SIZE(p_block,2)
+            DO isgf=1,SIZE(p_block,1)
+              q_block(isgf,jsgf) = p_block(isgf,jsgf)*s_block(isgf,jsgf)
+            END DO
+          END DO
+
+        END IF ! orthonormal basis set
+
+      END DO ! next atom "iatom"
+
+      ! E[DFT+U] = E[DFT] + E[U]
+      !          = E[DFT] + (U - J)*(Tr(q) - Tr(q*q))/2
+
+      ! V(i,j)[DFT+U] = V(i,j)[DFT] + V(i,j)[U]
+      !               = dE[DFT]/dP(i,j) + dE[U]/dP(i,j)
+      !               = dE[DFT]/dP(i,j) + (dE(U)/dq)*(dq/dP(i,j))
+
+      ! Loop over all atomic kinds
+
+      DO ikind=1,nkind
+
+        atomic_kind => atomic_kind_set(ikind)
+
+        ! Load the required atomic kind data
+
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             atom_list=atom_list,&
+                             dft_plus_u_atom=dft_plus_u_atom,&
+                             l_of_dft_plus_u=l_of_dft_plus_u,&
+                             natom=natom_of_kind,&
+                             orb_basis_set=orb_basis_set,&
+                             u_minus_j=u_minus_j)
+
+        ! Check, if the atoms of this atomic kind need a DFT+U correction
+
+        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+        IF (.NOT.dft_plus_u_atom) CYCLE
+        IF (l_of_dft_plus_u < 0) CYCLE
+        IF (u_minus_j == 0.0_dp) CYCLE
+
+        is_plus_u_kind(ikind) = .TRUE.
+
+        ! Load the required Gaussian basis set data
+
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               first_sgf=first_sgf,&
+                               l=l,&
+                               last_sgf=last_sgf,&
+                               nset=nset,&
+                               nshell=nshell)
+
+        ! Count the relevant shell blocks of this atomic kind
+
+        nsb = 0
+        DO iset=1,nset
+          DO ishell=1,nshell(iset)
+            IF (l(ishell,iset) == l_of_dft_plus_u) nsb = nsb + 1
+          END DO
+        END DO
+
+        n = nsb*(2*l_of_dft_plus_u + 1)
+
+        ALLOCATE (q_matrix(n,n),STAT=stat)
+        CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+        q_matrix(:,:) = 0.0_dp
+
+        ! Loop over all atoms of the current atomic kind
+
+        DO iatom=1,natom_of_kind
+
+          atom_a = atom_list(iatom)
+
+          ! Get diagonal block
+
+          CALL get_block_node(matrix=sm_q,&
+                              block_row=atom_a,&
+                              block_col=atom_a,&
+                              block=q_block)
+
+          IF (.NOT.ASSOCIATED(q_block)) CYCLE
+
+          ! Calculate energy contribution to E(U)
+
+! Begin: Off-diagonal blocks include
+          q_matrix(:,:) = 0.0_dp
+
+          i = 0
+          DO iset=1,nset
+            DO ishell=1,nshell(iset)
+              IF (l(ishell,iset) /= l_of_dft_plus_u) CYCLE
+              DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+                i = i + 1
+                j = 0
+                DO jset=1,nset
+                  DO jshell=1,nshell(jset)
+                    IF (l(jshell,jset) /= l_of_dft_plus_u) CYCLE
+                    DO jsgf=first_sgf(jshell,jset),last_sgf(jshell,jset)
+                      j = j + 1
+                      q_matrix(i,j) = q_block(isgf,jsgf)
+                    END DO ! next contracted spherical Gaussian function "jsgf"
+                  END DO ! next shell "jshell"
+                END DO ! next shell set "jset"
+              END DO ! next contracted spherical Gaussian function "isgf"
+            END DO ! next shell "ishell"
+          END DO ! next shell set "iset"
+
+          trq = 0.0_dp
+          trq2 = 0.0_dp
+
+          DO i=1,n
+            trq = trq + q_matrix(i,i)
+!DBG        WRITE (*,"(I6,20F10.6)") i,q_matrix(i,:)
+            DO j=1,n
+              trq2 = trq2 + q_matrix(i,j)*q_matrix(j,i)
+            END DO
+          END DO
+
+          trq = fspin*trq
+          trq2 = fspin*fspin*trq2
+!DBG      WRITE (*,*) trq,trq2,trq - trq2
+
+          ! Calculate energy contribution to E(U)
+
+          energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
+
+          ! Calculate potential V(U) = dE(U)/dq
+
+          IF (.NOT.just_energy) THEN
+
+            CALL get_block_node(matrix=sm_v,&
+                                block_row=atom_a,&
+                                block_col=atom_a,&
+                                block=v_block)
+            CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
+
+            DO iset=1,nset
+              DO ishell=1,nshell(iset)
+                IF (l(ishell,iset) /= l_of_dft_plus_u) CYCLE
+                DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+                  DO jset=1,nset
+                    DO jshell=1,nshell(jset)
+                      IF (l(jshell,jset) /= l_of_dft_plus_u) CYCLE
+                      DO jsgf=first_sgf(jshell,jset),last_sgf(jshell,jset)
+                        IF (isgf == jsgf) THEN
+                          v_block(isgf,isgf) = u_minus_j*(0.5_dp - fspin*q_block(isgf,isgf))
+                        ELSE
+                          v_block(isgf,jsgf) = -u_minus_j*fspin*q_block(jsgf,isgf)
+                        END IF
+                      END DO ! next contracted spherical Gaussian function "jsgf"
+                    END DO ! next shell "jshell"
+                  END DO ! next shell set "jset"
+                END DO ! next contracted spherical Gaussian function "isgf"
+              END DO ! next shell "ishell"
+            END DO ! next shell set "iset"
+
+          END IF ! not just energy
+
+        END DO ! next atom "iatom" of atomic kind "ikind"
+
+        IF (ALLOCATED(q_matrix)) THEN
+          DEALLOCATE (q_matrix,STAT=stat)
+          CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+        END IF
+! End: Off-diagonal blocks included
+
+! Begin: Only diagonal blocks
+!MK          DO iset=1,nset
+!MK            DO ishell=1,nshell(iset)
+!MK              IF (l(ishell,iset) /= l_of_dft_plus_u) CYCLE
+!MK              trq = 0.0_dp
+!MK              trq2 = 0.0_dp
+!MK              DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+!MK                trq = trq + q_block(isgf,isgf)
+!MK                DO jsgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+!MK                  trq2 = trq2 + q_block(isgf,jsgf)*q_block(jsgf,isgf)
+!MK                END DO ! next contracted spherical Gaussian function "jsgf"
+!MK              END DO ! next contracted spherical Gaussian function "isgf"
+!MK              trq = fspin*trq
+!MK              trq2 = fspin*fspin*trq2
+!MK!DBG             WRITE (*,*) trq,trq2,trq - trq2
+!MK              energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
+!MK            END DO ! next shell "ishell"
+!MK          END DO ! next shell set "iset"
+
+!MK          ! Calculate potential V(U) = dE(U)/dq
+
+!MK          IF (.NOT.just_energy) THEN
+
+!MK            CALL get_block_node(matrix=sm_v,&
+!MK                                block_row=atom_a,&
+!MK                                block_col=atom_a,&
+!MK                                block=v_block)
+!MK            CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
+
+!MK            DO iset=1,nset
+!MK              DO ishell=1,nshell(iset)
+!MK                IF (l(ishell,iset) /= l_of_dft_plus_u) CYCLE
+!MK                DO isgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+!MK                  DO jsgf=first_sgf(ishell,iset),last_sgf(ishell,iset)
+!MK                    IF (isgf == jsgf) THEN
+!MK                      v_block(isgf,isgf) = u_minus_j*(0.5_dp - fspin*q_block(isgf,isgf))
+!MK                    ELSE
+!MK                      v_block(isgf,jsgf) = -u_minus_j*fspin*q_block(jsgf,isgf)
+!MK                    END IF
+!MK                  END DO ! next contracted spherical Gaussian function "jsgf"
+!MK                END DO ! next contracted spherical Gaussian function "isgf"
+!MK              END DO ! next shell "ishell"
+!MK            END DO ! next shell set "iset"
+
+!MK          END IF ! not just energy
+
+!MK        END DO ! next atom "iatom" of atomic kind "ikind"
+! End: Only diagonal blocks
+
+      END DO ! next atomic kind "ikind"
+
+      ! Add V(i,j)[U] to V(i,j)[DFT]
+
+      IF (ASSOCIATED(sm_h)) THEN
+
+        DO ikind=1,nkind
+
+          IF (.NOT.is_plus_u_kind(ikind)) CYCLE
+
+          kind_a => atomic_kind_set(ikind)
+
+          CALL get_atomic_kind(atomic_kind=kind_a,&
+                               atom_list=atom_list,&
+                               natom=natom_of_kind)
+
+          DO iatom=1,natom_of_kind
+
+            atom_a = atom_list(iatom)
+
+            CALL get_block_node(matrix=sm_h,&
+                                block_row=atom_a,&
+                                block_col=atom_a,&
+                                block=h_block)
+
+            IF (.NOT.ASSOCIATED(h_block)) CYCLE
+
+            CALL get_block_node(matrix=sm_v,&
+                                block_row=atom_a,&
+                                block_col=atom_a,&
+                                block=v_block)
+            CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
+
+            IF (orthonormal_basis) THEN
+              DO isgf=1,SIZE(h_block,1)
+                h_block(isgf,isgf) = h_block(isgf,isgf) + v_block(isgf,isgf)
+              END DO
+            ELSE
+              CALL get_block_node(matrix=sm_s,&
+                                  block_row=atom_a,&
+                                  block_col=atom_a,&
+                                  block=s_block)
+              CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
+              DO jsgf=1,SIZE(h_block,2)
+                DO isgf=1,SIZE(h_block,1)
+                  h_block(isgf,jsgf) = h_block(isgf,jsgf) + v_block(isgf,jsgf)*s_block(isgf,jsgf)
+                END DO
+              END DO
+            END IF ! orthonormal basis set
+
+          END DO ! next atom "iatom" of atomic kind "ikind"
+
+        END DO ! Next atomic kind "ikind"
+
+      END IF ! An update of the Hamiltonian matrix is requested
+
+      ! Calculate the contribution (non-Pulay part) to the derivatives
+      ! w.r.t. the nuclear positions, which requires an update of the
+      ! energy weighted density W.
+
+      IF (ASSOCIATED(sm_w).AND.(.NOT.orthonormal_basis)) THEN
+
+        DO ikind=1,nkind
+
+          IF (.NOT.is_plus_u_kind(ikind)) CYCLE
+
+          kind_a => atomic_kind_set(ikind)
+
+          CALL get_atomic_kind(atomic_kind=kind_a,&
+                               atom_list=atom_list,&
+                               natom=natom_of_kind)
+
+          DO iatom=1,natom_of_kind
+
+            atom_a = atom_list(iatom)
+
+            CALL get_block_node(matrix=sm_p,&
+                                block_row=atom_a,&
+                                block_col=atom_a,&
+                                block=p_block)
+
+            IF (.NOT.ASSOCIATED(p_block)) CYCLE
+
+            CALL get_block_node(matrix=sm_v,&
+                                block_row=atom_a,&
+                                block_col=atom_a,&
+                                block=v_block)
+            CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
+
+            CALL get_block_node(matrix=sm_w,&
+                                block_row=atom_a,&
+                                block_col=atom_a,&
+                                block=w_block)
+            CPPostcondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
+
+            DO jsgf=1,SIZE(w_block,2)
+              DO isgf=1,SIZE(w_block,1)
+                w_block(isgf,jsgf) = w_block(isgf,jsgf) + v_block(isgf,jsgf)*p_block(isgf,jsgf)
+              END DO
+            END DO
+
+          END DO ! next atom "iatom" of atomic kind "ikind"
+
+        END DO ! Next atomic kind "ikind"
+
+      END IF ! W matrix update requested
+
+    END DO ! next spin "ispin"
+
+    ! Collect the energy contributions from all processes
+
+    CALL mp_sum(energy%dft_plus_u,qs_env%para_env%group)
+
+    CALL cp_assert(energy%dft_plus_u >= 0.0_dp,cp_warning_level,&
+                   cp_assertion_failed,routineP,&
+                   "DFT+U energy contibution is negative possibly due "//&
+                   "to unphysical Mulliken charges. Check your input, "//&
+                   "if this warning persists or try a different method!",&
+                   only_ionode=.TRUE.)
+
+    CALL deallocate_matrix(matrix=sm_q,error=error)
+    CALL deallocate_matrix(matrix=sm_v,error=error)
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE mulliken
+
+! *****************************************************************************
+!> \brief         Add a DFT+U contribution to the Hamiltonian matrix\n
 !>                using a method based on Mulliken charges
-!>                \f[q_\mu = \sum_\nu P_{\mu\nu} S_{\nu\mu}\f]
+!>                \f[q_\mu = \sum_\nu \frac{1}{2}(P_{\mu\nu} S_{\nu\mu} +
+!>                                                S_{\mu\nu} P_{\nu\mu})
+!>                         = \sum_\nu P_{\mu\nu} S_{\nu\mu}\f]
 !>                where \b P and \b S are the density and the
 !>                overlap matrix, respectively.
 !> \details
@@ -123,24 +1284,25 @@ CONTAINS
 !> \note          The use of any full matrices was avoided. Thus no ScaLAPACK
 !>                calls are performed
 ! *****************************************************************************
-  SUBROUTINE plus_u_mulliken(qs_env,matrix_h,matrix_w,error)
+  SUBROUTINE mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: orthonormal_basis
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_w
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'plus_u_mulliken', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken_charges', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom, handle, iatom, ikind, iset, isgf, ishell, ispin, jatom, &
-      jsgf, katom, l_of_dft_plus_u, natom, natom_kind, nkind, nset, nsgf, &
-      nspin, sgf, stat
+    INTEGER :: atom_a, handle, iatom, ikind, iset, isgf, ishell, ispin, &
+      jatom, jsgf, katom, l_of_dft_plus_u, natom, natom_of_kind, nkind, nset, &
+      nsgf, nspin, sgf, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
     LOGICAL                                  :: dft_plus_u_atom, failure, &
-                                                just_energy, orthonormal_basis
+                                                just_energy
     REAL(KIND=dp)                            :: fspin, q, u_minus_j, v
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dEdq, trps
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block, s_block, &
@@ -159,8 +1321,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(real_matrix_type), POINTER          :: sm_h, sm_p, sm_s, sm_w
-
-! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -196,7 +1356,6 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
                     energy=energy,&
-                    matrix_s=matrix_s,&
                     particle_set=particle_set,&
                     rho=rho,&
                     error=error)
@@ -204,12 +1363,23 @@ CONTAINS
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(energy),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
 
-    sm_s => matrix_s(1)%matrix ! Overlap matrix in sparse format
-    matrix_p => rho%rho_ao     ! Density matrices in sparse format
+    IF (orthonormal_basis) THEN
+      NULLIFY (sm_s)
+    ELSE
+      ! Get overlap matrix in sparse format
+      CALL get_qs_env(qs_env=qs_env,&
+                      matrix_s=matrix_s,&
+                      error=error)
+      CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
+      sm_s => matrix_s(1)%matrix
+    END IF
+
+    ! Get density matrices in sparse format
+
+    matrix_p => rho%rho_ao
 
     energy%dft_plus_u = 0.0_dp
 
@@ -220,10 +1390,6 @@ CONTAINS
     ELSE
       fspin = 0.5_dp
     END IF
-
-    ! Later we could save here some time, if the method in use has this property
-
-    orthonormal_basis = .FALSE.
 
     ! Get the total number of atoms, contracted spherical Gaussian basis
     ! functions, and atomic kinds
@@ -238,20 +1404,20 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     first_sgf_atom(:) = 0
 
+    CALL get_particle_set(particle_set=particle_set,&
+                          first_sgf=first_sgf_atom)
+
     ALLOCATE (trps(nsgf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     trps(:) = 0.0_dp
 
     IF (PRESENT(matrix_h).OR.PRESENT(matrix_w)) THEN
       ALLOCATE (dEdq(nsgf),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
       just_energy  = .FALSE.
     ELSE
       just_energy = .TRUE.
     END IF
-
-    CALL get_particle_set(particle_set=particle_set,&
-                          first_sgf=first_sgf_atom)
 
     ! Loop over all spins
 
@@ -290,14 +1456,13 @@ CONTAINS
                               block_col=iatom,&
                               block=p_block)
 
-          CPPostcondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
-
-          sgf = first_sgf_atom(iatom)
-
-          DO isgf=1,SIZE(p_block,1)
-            trps(sgf) = trps(sgf) + p_block(isgf,isgf)
-            sgf = sgf + 1
-          END DO
+          IF (ASSOCIATED(p_block)) THEN
+            sgf = first_sgf_atom(iatom)
+            DO isgf=1,SIZE(p_block,1)
+              trps(sgf) = trps(sgf) + p_block(isgf,isgf)
+              sgf = sgf + 1
+            END DO
+          END IF
 
         ELSE
 
@@ -309,15 +1474,14 @@ CONTAINS
             CALL get_block_node(block_node=p_block_node,&
                                 block_col=jatom,&
                                 block=p_block)
+            CPPostcondition((jatom >= iatom),cp_failure_level,routineP,error,failure)
 
             ! Request katom just to check for a consistent sparse matrix pattern
 
             CALL get_block_node(block_node=s_block_node,&
                                 block_col=katom,&
                                 block=s_block)
-
-            CPPostcondition(jatom==katom,cp_failure_level,routineP,error,failure)
-            CPPostcondition(jatom>=iatom,cp_failure_level,routineP,error,failure)
+            CPPostcondition((katom == jatom),cp_failure_level,routineP,error,failure)
 
             sgf = first_sgf_atom(jatom)
             DO jsgf=1,SIZE(p_block,2)
@@ -369,7 +1533,7 @@ CONTAINS
                              atom_list=atom_list,&
                              dft_plus_u_atom=dft_plus_u_atom,&
                              l_of_dft_plus_u=l_of_dft_plus_u,&
-                             natom=natom_kind,&
+                             natom=natom_of_kind,&
                              orb_basis_set=orb_basis_set,&
                              u_minus_j=u_minus_j)
 
@@ -391,22 +1555,22 @@ CONTAINS
 
         ! Loop over all atoms of the current atomic kind
 
-        DO iatom=1,natom_kind
+        DO iatom=1,natom_of_kind
 
-          atom = atom_list(iatom)
+          atom_a = atom_list(iatom)
 
           ! Get diagonal block
 
-          CALL get_block_node(matrix=sm_s,&
-                              block_row=atom,&
-                              block_col=atom,&
-                              block=s_block)
+          CALL get_block_node(matrix=sm_p,&
+                              block_row=atom_a,&
+                              block_col=atom_a,&
+                              block=p_block)
 
           ! Calculate E(U) and dE(U)/dq
 
-          IF (ASSOCIATED(s_block)) THEN
+          IF (ASSOCIATED(p_block)) THEN
 
-            sgf = first_sgf_atom(atom)
+            sgf = first_sgf_atom(atom_a)
 
             DO iset=1,nset
               DO ishell=1,nshell(iset)
@@ -436,7 +1600,7 @@ CONTAINS
         CALL mp_sum(dEdq,qs_env%para_env%group)
       END IF
 
-      ! Add V(i,j)[U] to V(i,j)[DFT
+      ! Add V(i,j)[U] to V(i,j)[DFT]
 
       IF (ASSOCIATED(sm_h)) THEN
 
@@ -451,14 +1615,13 @@ CONTAINS
                                 block_col=iatom,&
                                 block=h_block)
 
-            CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
-
-            sgf = first_sgf_atom(iatom)
-
-            DO isgf=1,SIZE(h_block,1)
-              h_block(isgf,isgf) = h_block(isgf,isgf) + dEdq(sgf)
-              sgf = sgf + 1
-            END DO
+            IF (ASSOCIATED(h_block)) THEN
+              sgf = first_sgf_atom(iatom)
+              DO isgf=1,SIZE(h_block,1)
+                h_block(isgf,isgf) = h_block(isgf,isgf) + dEdq(sgf)
+                sgf = sgf + 1
+              END DO
+            END IF
 
           ELSE
 
@@ -470,15 +1633,16 @@ CONTAINS
               CALL get_block_node(block_node=h_block_node,&
                                   block_col=jatom,&
                                   block=h_block)
+              CPPostcondition((jatom >= iatom),cp_failure_level,routineP,error,failure)
 
               ! Request katom just to check for consistent sparse matrix pattern
 
               CALL get_block_node(block_node=s_block_node,&
                                   block_col=katom,&
                                   block=s_block)
+              CPPostcondition((katom == jatom),cp_failure_level,routineP,error,failure)
 
-              CPPostcondition(jatom==katom,cp_failure_level,routineP,error,failure)
-              CPPostcondition(jatom>=iatom,cp_failure_level,routineP,error,failure)
+              ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
 
               sgf = first_sgf_atom(iatom)
 
@@ -531,15 +1695,16 @@ CONTAINS
             CALL get_block_node(block_node=p_block_node,&
                                 block_col=jatom,&
                                 block=p_block)
+            CPPostcondition((jatom >= iatom),cp_failure_level,routineP,error,failure)
 
             ! Request katom just to check for consistent sparse matrix patterns
 
             CALL get_block_node(block_node=w_block_node,&
                                 block_col=katom,&
                                 block=w_block)
+            CPPostcondition((katom == jatom),cp_failure_level,routineP,error,failure)
 
-            CPPostcondition(jatom==katom,cp_failure_level,routineP,error,failure)
-            CPPostcondition(jatom>=iatom,cp_failure_level,routineP,error,failure)
+            ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
 
             sgf = first_sgf_atom(iatom)
 
@@ -584,14 +1749,20 @@ CONTAINS
                    cp_assertion_failed,routineP,&
                    "DFT+U energy contibution is negative possibly due "//&
                    "to unphysical Mulliken charges. Check your input, "//&
-                   "if this warning persists!",&
-                   error,failure)
+                   "if this warning persists or try a different method!",&
+                   only_ionode=.TRUE.)
 
-    DEALLOCATE (first_sgf_atom,STAT=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    ! Release local work storage
 
-    DEALLOCATE (trps,STAT=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    IF (ALLOCATED(first_sgf_atom)) THEN
+      DEALLOCATE (first_sgf_atom,STAT=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+
+    IF (ALLOCATED(trps)) THEN
+      DEALLOCATE (trps,STAT=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
 
     IF (ALLOCATED(dEdq)) THEN
       DEALLOCATE (dEdq,STAT=stat)
@@ -600,6 +1771,6 @@ CONTAINS
 
    CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE plus_u_mulliken
+  END SUBROUTINE mulliken_charges
 
 END MODULE dft_plus_u

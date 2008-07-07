@@ -16,7 +16,7 @@
   &DFT
     BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
     POTENTIAL_FILE_NAME ../GTH_POTENTIALS
-    PLUS_U_METHOD mulliken_charges
+    PLUS_U_METHOD mulliken
     &MGRID
       CUTOFF 200
     &END MGRID

@@ -46,7 +46,8 @@ MODULE cp_fm_basic_linalg
             cp_fm_gemm, &                  ! multiply two matrices
             cp_fm_lu_decompose,&           ! computes determinant (and lu decomp)
             cp_fm_invert,&                 ! computes the inverse and determinant 
-            cp_fm_frobenius_norm           ! frobenius norm
+            cp_fm_frobenius_norm,&         ! frobenius norm
+            cp_fm_ger                      ! rank 1 operation
 
 CONTAINS
 
@@ -337,28 +338,27 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_symm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, lda, ldb, ldc, &
-                                                mypcol, myprow, npcol, nprow
+    INTEGER                                  :: handle, lda, ldb, ldc, npcol, &
+                                                nprow
     INTEGER, DIMENSION(9)                    :: desca, descb, descc
     REAL(KIND=dp)                            :: flops
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-!   ---------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","Gflops",handle)
 
     context => matrix_a%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
+
+    nprow = context%num_pe(1)
+    npcol = context%num_pe(2)
 
     a => matrix_a%local_data
     b => matrix_b%local_data
     c => matrix_c%local_data
 
-    flops=(2.0E-9_dp*m*m*n)/(nprow*npcol)
+    flops = (2.0E-9_dp*m*m*n)/(nprow*npcol)
 #if defined(__SCALAPACK)
 
     desca(:) = matrix_a%matrix_struct%descriptor(:)
@@ -411,6 +411,76 @@ CPSourceFileRef,&
     norm = SQRT(norm)
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_fm_frobenius_norm
+
+! *****************************************************************************
+!> \brief   performs a rank 1 operation: A = alpha*X*Y' + A
+!> \details Wrapper routine: check the LAPACK and ScaLAPACK documentation for
+!>          details.
+!> \author  Matthias Krack
+!> \date    07.03.2008
+! *****************************************************************************
+  SUBROUTINE cp_fm_ger(alpha,vector_x,ix,jx,vector_y,iy,jy,matrix_a,error)
+
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    TYPE(cp_fm_type), POINTER                :: vector_x
+    INTEGER, INTENT(IN)                      :: ix, jx
+    TYPE(cp_fm_type), POINTER                :: vector_y
+    INTEGER, INTENT(IN)                      :: iy, jy
+    TYPE(cp_fm_type), POINTER                :: matrix_a
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_ger', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ia, incx, incy, ja, &
+                                                lda, m, n, npcol, nprow
+    INTEGER, DIMENSION(9)                    :: desca, descx, descy
+    REAL(KIND=dp)                            :: flops
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, x, y
+    TYPE(cp_blacs_env_type), POINTER         :: context
+
+! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","GFlops",handle)
+
+    context => matrix_a%matrix_struct%context
+
+    nprow = context%num_pe(1)
+    npcol = context%num_pe(2)
+
+    m = matrix_a%matrix_struct%nrow_global
+    n = matrix_a%matrix_struct%ncol_global
+
+    ia = 1
+    ja = 1
+
+    incx = 1
+    incy = 1
+
+    a => matrix_a%local_data
+    x => vector_x%local_data
+    y => vector_y%local_data
+
+    flops = 2.0E-9_dp*m*n/(nprow*npcol)
+#if defined(__SCALAPACK)
+
+    desca(:) = matrix_a%matrix_struct%descriptor(:)
+    descx(:) = vector_x%matrix_struct%descriptor(:)
+    descy(:) = vector_y%matrix_struct%descriptor(:)
+
+    CALL pdger(m,n,alpha,x(1,1),ix,jx,descx,incx,y(1,1),iy,jy,descy,incy,&
+               a(1,1),ia,ja,desca)
+
+#else
+
+    lda = SIZE(a,1)
+
+    CALL dger(m,n,alpha,x(ix,jx),incx,y(iy,jy),incy,a(ia,ja),lda)
+
+#endif
+    CALL timestop(flops,handle)
+
+  END SUBROUTINE cp_fm_ger
 
 ! *****************************************************************************
 !> \brief performs a rank-k update of a symmetric matrix_c

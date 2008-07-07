@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT H2O-rks-otcg
+  PROJECT H2O-rks-diag
   PRINT_LEVEL low
   RUN_TYPE GEO_OPT
 &END GLOBAL
@@ -16,7 +16,7 @@
   &DFT
     BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
     POTENTIAL_FILE_NAME ../GTH_POTENTIALS
-    PLUS_U_METHOD mulliken_charges
+    PLUS_U_METHOD mulliken
     &MGRID
       CUTOFF 200
     &END MGRID
@@ -31,10 +31,10 @@
     &SCF
       EPS_SCF 1.0E-5
       MAX_SCF 30
-      &OT ON
+      &OT OFF
         MINIMIZER cg
       &END OT
-      &OUTER_SCF ON
+      &OUTER_SCF OFF
         EPS_SCF 1.0E-5
         MAX_SCF 10
       &END OUTER_SCF
@@ -49,7 +49,7 @@
           BACKUP_COPIES 0
         &END RESTART
       &END PRINT
-      SCF_GUESS restart
+      SCF_GUESS atomic
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE

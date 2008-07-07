@@ -448,10 +448,6 @@ CONTAINS
 
     ! Build matrix**exponent with eigenvector quenching
 
-    p = 0.5_dp*exponent
-
-    n_dependent = 0
-
     DO icol_global=1,ncol_global
 
       IF (eigenvalues(icol_global) < threshold) THEN

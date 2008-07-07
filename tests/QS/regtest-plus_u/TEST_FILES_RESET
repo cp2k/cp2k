@@ -25,3 +25,8 @@ H2O-rks-diag.inp
 H2O-rks-otcg.inp
 H2O-uks-diag.inp
 H2O-uks-otcg.inp
+# Mulliken
+H2O-rks-diag.inp
+H2O-rks-otcg.inp
+H2O-uks-diag.inp
+H2O-uks-otcg.inp

@@ -657,4 +657,10 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC ::  do_wfn_fit_basis_set=1
 
+  ! Define DFT+U method identifier codes
+
+  INTEGER, PARAMETER, PUBLIC :: plus_u_lowdin=1,&
+                                plus_u_mulliken=2,&
+                                plus_u_mulliken_charges=3
+
 END MODULE input_constants

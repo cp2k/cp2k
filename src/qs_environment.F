@@ -494,6 +494,7 @@ CONTAINS
        END IF
     END IF
 
+    ! DFT+U
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              dft_plus_u_atom_present=dft_control%dft_plus_u)
 

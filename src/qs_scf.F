@@ -87,7 +87,7 @@ MODULE qs_scf
        ot_precond_full_single, ot_precond_full_single_inverse, &
        ot_precond_none, ot_precond_s_inverse, ot_precond_sparse_diag, &
        ot_precond_sparse_firstorder, ot_precond_sparse_kinetic, &
-       outer_scf_none, outer_scf_scp, restart_guess
+       outer_scf_none, outer_scf_scp, plus_u_lowdin, restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -1559,10 +1559,8 @@ END SUBROUTINE qs_scf_print_summary
     INTEGER                                  :: handle, homo, i, ispin, iw, &
                                                 nao, ndep, nelectron_spin, &
                                                 output_unit
-    LOGICAL                                  :: failure, &
-                                                gth_potential_present, &
-                                                id_equal, &
-                                                my_transition_potential
+    LOGICAL :: failure, gth_potential_present, id_equal, &
+      my_transition_potential, s_minus_half_available
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1588,6 +1586,8 @@ END SUBROUTINE qs_scf_print_summary
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
     para_env=>qs_env%para_env
+
+    s_minus_half_available = .FALSE.
 
     CALL scf_env_check_i_alloc(scf_env=scf_env, qs_env=qs_env,&
          error=error)
@@ -1654,10 +1654,11 @@ END SUBROUTINE qs_scf_print_summary
         scf_env%method /= special_diag_method_nr ) THEN
        CALL copy_sm_to_fm(matrix_s(1)%matrix,scf_env%ortho,error=error)
        IF (scf_control%use_cholesky) THEN
-         CALL cp_fm_cholesky_decompose(scf_env%ortho,error=error)
+          CALL cp_fm_cholesky_decompose(scf_env%ortho,error=error)
        ELSE
          CALL cp_fm_power(scf_env%ortho,scf_env%scf_work2,-0.5_dp,&
                           scf_control%eps_eigval,ndep,error=error)
+         s_minus_half_available = .TRUE.
        END IF
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",error=error),cp_p_file)) THEN
@@ -1667,7 +1668,23 @@ END SUBROUTINE qs_scf_print_summary
           CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                "DFT%PRINT%AO_MATRICES/ORTHO", error=error)
        END IF
-    ENDIF
+    END IF
+
+    ! DFT+U methods based on Lowdin charges need S^(1/2)
+
+    IF (dft_control%dft_plus_u) THEN
+      IF (dft_control%plus_u_method_id == plus_u_lowdin) THEN
+        IF (s_minus_half_available) THEN
+          CALL cp_sm_fm_multiply(matrix_s(1)%matrix,scf_env%ortho,scf_env%s_half,&
+                                 nao,error=error)
+        ELSE
+          CALL copy_sm_to_fm(matrix_s(1)%matrix,scf_env%s_half,error=error)
+          CALL cp_fm_power(scf_env%s_half,scf_env%scf_work2,0.5_dp,&
+                           scf_control%eps_eigval,ndep,error=error)
+        END IF
+      END IF
+    END IF
+
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
                extension=".scfLog",error=error)
     IF (output_unit > 0) THEN
@@ -1897,7 +1914,8 @@ END SUBROUTINE qs_scf_print_summary
 
     IF ((.NOT.ASSOCIATED(scf_env%scf_work1)).OR.&
         (.NOT.ASSOCIATED(scf_env%scf_work2)).OR.&
-        (.NOT.ASSOCIATED(scf_env%ortho))) THEN
+        (.NOT.ASSOCIATED(scf_env%ortho)).OR.&
+        (.NOT.ASSOCIATED(scf_env%s_half))) THEN
 
        ao_mo_fmstruct => fm_pool_get_el_struct(ao_mo_fm_pools(1)%pool,&
             error=error)
@@ -1910,7 +1928,7 @@ END SUBROUTINE qs_scf_print_summary
             template_fmstruct=ao_mo_fmstruct, error=error)
 
        IF (.NOT.ASSOCIATED(scf_env%scf_work1)) THEN
-          IF (scf_env%method/=ot_method_nr) THEN
+          IF (scf_env%method /= ot_method_nr) THEN
              ALLOCATE(scf_env%scf_work1(dft_control%nspins), stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
@@ -1942,6 +1960,24 @@ END SUBROUTINE qs_scf_print_summary
                "WORK_MATRIX-2",&
                error=error)
        END IF
+       IF (dft_control%dft_plus_u) THEN
+         IF (dft_control%plus_u_method_id == plus_u_lowdin) THEN
+           IF (.NOT.ASSOCIATED(scf_env%scf_work2)) THEN
+             CALL cp_fm_create(scf_env%scf_work2,&
+                               matrix_struct=ao_ao_fmstruct,&
+                               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+                               "WORK_MATRIX-2",&
+                               error=error)
+           END IF
+           IF (.NOT.ASSOCIATED(scf_env%s_half)) THEN
+             CALL cp_fm_create(scf_env%s_half,&
+                               matrix_struct=ao_ao_fmstruct,&
+                               name="S**(1/2) MATRIX",&
+                               error=error)
+           END IF
+         END IF
+       END IF
+
        CALL cp_fm_struct_release(ao_ao_fmstruct,error=error)
 
     END IF
@@ -2003,6 +2039,7 @@ END SUBROUTINE qs_scf_print_summary
        ALLOCATE(scf_env%outer_scf%energy(nhistory),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE scf_env_check_i_alloc

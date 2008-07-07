@@ -330,6 +330,27 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword,&
+                        name="PLUS_U_METHOD",&
+                        description="Method employed for the calculation of the DFT+U contributuion",&
+                        required=.FALSE.,&
+                        repeats=.FALSE.,&
+                        enum_c_vals=s2a("LOWDIN","MULLIKEN","MULLIKEN_CHARGES"),&
+                        enum_i_vals=(/plus_u_lowdin,plus_u_mulliken,plus_u_mulliken_charges/),&
+                        enum_desc=s2a("Method based on Lowdin population analysis "//&
+                                      "(computationally expensive, since the diagonalization of the"//&
+                                      " overlap matrix is required, but possibly more robust than Mulliken)",&
+                                      "Method based on Mulliken population analysis "//&
+                                      "(computationally cheap method due to minor overhead)",&
+                                      "Method based on Mulliken orbital charges "//&
+                                      "(only the trace of PS is considered)"),&
+                        n_var=1,&
+                        default_i_val=plus_u_mulliken,&
+                        usage="METHOD LOWDIN",&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     NULLIFY(subsection)
     CALL create_scf_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
@@ -4889,9 +4910,9 @@ CONTAINS
             description="Type of the orbitas that are excited for the xas spectra calculation",&
             usage="STATE_TYPE 1S",&
             default_i_val=xas_1s_type,&
-            enum_c_vals=s2a( "1S", "2S"),&
-            enum_desc=s2a("1s orbitals", "2s orbitals"),&
-            enum_i_vals=(/xas_1s_type,xas_2s_type/),&
+            enum_c_vals=s2a("1S","2S","2P"),&
+            enum_desc=s2a("1s orbitals","2s orbitals","2p orbitals"),&
+            enum_i_vals=(/xas_1s_type,xas_2s_type,xas_2p_type/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

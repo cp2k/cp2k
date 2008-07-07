@@ -21,7 +21,8 @@ MODULE cp_control_utils
   USE f77_blas
   USE input_constants
   USE input_cp2k_check,                ONLY: xc_functionals_expand
-  USE input_cp2k_dft,                  ONLY: create_qs_section
+  USE input_cp2k_dft,                  ONLY: create_dft_section,&
+                                             create_qs_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&
@@ -181,7 +182,11 @@ CPSourceFileRef,&
     dft_control%sic_scaling_b = 1.0_dp
 
     dft_control%xas_estate    = -1
+
+    ! DFT+U
     dft_control%dft_plus_u    = .FALSE.
+    CALL section_vals_val_get(dft_section,"PLUS_U_METHOD",i_val=method_id,error=error)
+    dft_control%plus_u_method_id = method_id
 
     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
          c_val=basis_set_file_name , error=error)
@@ -684,6 +689,9 @@ CPSourceFileRef,&
                                                 density_smooth_cut_range, &
                                                 gradient_cut, tau_cut
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(enumeration_type), POINTER          :: enum
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section, &
                                                 xc_section
 
@@ -789,8 +797,15 @@ CPSourceFileRef,&
        WRITE ( output_unit, '( A, T61, A )' ) &
             " DFT| XC derivatives ",ADJUSTR(tmpStr)
        IF (dft_control%dft_plus_u) THEN
+         NULLIFY (enum,keyword,section)
+         CALL create_dft_section(section,error=error)
+         keyword => section_get_keyword(section,"PLUS_U_METHOD",error=error)
+         CALL keyword_get(keyword,enum=enum,error=error)
+         WRITE (UNIT=output_unit,FMT="(T2,A,T41,A40)")&
+           "DFT+U| Method",ADJUSTR(TRIM(enum_i2c(enum,dft_control%plus_u_method_id,error=error)))
          WRITE (UNIT=output_unit,FMT="(T2,A)")&
-           "DFT| A DFT+U correction is applied (check atomic kind information for details)"
+           "DFT+U| Check atomic kind information for details"
+         CALL section_release(section,error=error)
        END IF
 
        xc_fun_section => section_vals_get_subs_vals(xc_section,&
