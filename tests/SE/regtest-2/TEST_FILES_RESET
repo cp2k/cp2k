@@ -114,3 +114,6 @@ O2-ROKS-PM6.inp
 Pt-cis-2xpet3Cl2.inp
 Pt-cis-2xpet3Cl2-si.inp
 Pt-cis-2xpet3Cl2-si-noc.inp
+# new taper function
+md.inp
+scan_zn_1w_cp2k.inp

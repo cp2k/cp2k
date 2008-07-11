@@ -85,7 +85,7 @@ MODULE semi_empirical_types
 ! *****************************************************************************
   TYPE taper_type
      LOGICAL                               :: apply_taper
-     REAL(KIND=dp)                         :: r0, al
+     REAL(KIND=dp)                         :: r0, rscale
   END TYPE taper_type
 
 ! *****************************************************************************
@@ -405,8 +405,8 @@ CONTAINS
     IF (range > EPSILON(0.0_dp)) THEN
        taper%apply_taper = .TRUE.
        CPPrecondition(range>0.0_dp,cp_failure_level,routineP,error,failure)
-       taper%r0 = rc - 0.5_dp * range
-       taper%al = 24._dp/range
+       taper%r0     = rc - 20.0_dp * range
+       taper%rscale = 1.0_dp/range
     ELSE
        taper%apply_taper = .FALSE.
     END IF

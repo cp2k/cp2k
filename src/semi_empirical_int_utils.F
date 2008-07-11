@@ -45,15 +45,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'taper_eval', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: dr, ep
+    REAL(KIND=dp)                            :: dr
 
     ft = 1._dp
     IF (taper%apply_taper) THEN
-       dr = -taper%al*(rij-taper%r0)
-       IF ( dr < 20._dp ) THEN
-          ep = EXP(dr)
-          ft = ep/(1._dp+ep)
-       END IF
+       dr = taper%rscale*(rij-taper%r0)
+       ft = 0.5_dp*(1.0_dp-TANH(dr))
     END IF
   END FUNCTION taper_eval
   
@@ -69,15 +66,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dtaper_eval', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: dr, ep
+    REAL(KIND=dp)                            :: dr
 
     dft = 0.0_dp
     IF (taper%apply_taper) THEN
-       dr = -taper%al*(rij-taper%r0)
-       IF ( dr < 20._dp ) THEN
-          ep = EXP(dr)
-          dft = 1._dp/(1._dp+ep)**2 * ep * (-taper%al)
-       END IF
+       dr  = taper%rscale*(rij-taper%r0)
+       dft = -0.5_dp*(1.0_dp-TANH(dr)**2)*taper%rscale
     END IF
   END FUNCTION dtaper_eval
 

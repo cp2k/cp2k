@@ -63,3 +63,4 @@ stp5.inp               3
 stp6.inp               3
 #Reftraj standard XYZ
 scan_zn_1w_cp2k.inp    3
+zn_1w_debug.inp        3

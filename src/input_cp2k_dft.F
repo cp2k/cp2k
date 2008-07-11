@@ -1914,7 +1914,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="do_ewald",&
             description="Use Ewald type method instead of direct sum for Coulomb interaction",&
-            usage="DO_EWALD",default_l_val=.FALSE., error=error)
+            usage="DO_EWALD",default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2084,15 +2084,16 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RC_RANGE",&
-            description="Range of cutoff switch function (tapering)",&
-            usage="RC_RANGE {real} ",unit_str="bohr",default_r_val=8._dp, error=error)
+            description="Range of cutoff switch function (tapering): 0.5*(1-TANH((r-r0)/RC_RANGE)), "//&
+            "where r0=RC_COULOMB-20*RC_RANGE. ",&
+            usage="RC_RANGE {real} ",unit_str="bohr",default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DO_EWALD",&
             description="Use an Ewald type method for the calculation of the "//&
                         "Coulomb energy",&
-            usage="DO_EWALD",default_l_val=.FALSE., error=error)
+            usage="DO_EWALD",default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
