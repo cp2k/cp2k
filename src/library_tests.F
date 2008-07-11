@@ -18,7 +18,7 @@ MODULE library_tests
   USE cell_types,                      ONLY: cell_create,&
                                              cell_release,&
                                              cell_type,&
-                                             get_hinv
+                                             init_cell
   USE cg_test,                         ONLY: clebsch_gordon_test
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
@@ -712,7 +712,7 @@ CONTAINS
     CALL cell_create(box,error=error)
     box % hmat = RESHAPE ( (/20.0_dp,0.0_dp,0.0_dp,0.0_dp,20.0_dp,0.0_dp,&
          0.0_dp,0.0_dp,20.0_dp/), (/3,3/) )
-    CALL get_hinv ( box )
+    CALL init_cell ( box )
 
     ! .. grid type and pw_grid
     NULLIFY(grid)
@@ -807,7 +807,7 @@ CONTAINS
     CALL cell_create(box,error=error)
     box % hmat = RESHAPE ( (/10.0_dp,0.0_dp,0.0_dp,0.0_dp,8.0_dp,0.0_dp,&
          0.0_dp,0.0_dp,7.0_dp/), (/3,3/) )
-    CALL get_hinv ( box )
+    CALL init_cell ( box )
 
     !..set fft lib
     CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &

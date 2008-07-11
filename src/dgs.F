@@ -13,7 +13,7 @@ MODULE dgs
                                              cell_release,&
                                              cell_type,&
                                              get_cell_param,&
-                                             get_hinv
+                                             init_cell
   USE f77_blas
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
@@ -239,7 +239,7 @@ SUBROUTINE dg_find_basis( npts, box, unit_box )
      unit_box % hmat ( :, i ) = box % hmat ( :, i ) / REAL ( npts ( : ),KIND=dp)
   END DO
 
-  CALL get_hinv ( unit_box )
+  CALL init_cell ( unit_box )
 
 END SUBROUTINE dg_find_basis
 
@@ -256,7 +256,7 @@ SUBROUTINE dg_set_cell (npts, unit_box, box )
   box % hmat ( :, 2 ) = unit_box % hmat ( :, 2 ) * npts ( 2 )
   box % hmat ( :, 3 ) = unit_box % hmat ( :, 3 ) * npts ( 3 )
 
-  CALL get_hinv ( box )
+  CALL init_cell ( box )
 
 END SUBROUTINE dg_set_cell
 

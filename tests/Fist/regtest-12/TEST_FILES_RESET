@@ -50,3 +50,11 @@ water_3_g3x3_ext.inp
 water_3_g3x3_fxd.inp
 water_3_rg3x3_ext.inp
 water_massive.inp
+#  
+argon_opt_cell.inp
+#  
+argon_opt_cell_md.inp
+#  
+Si_tersoff.inp
+#  
+nptf_ortho.inp

@@ -25,7 +25,7 @@
                                                gopt_new_error_create,&
                                                gopt_new_error_release
     USE cell_types,                      ONLY: cell_type,&
-                                               get_hinv,&
+                                               init_cell,&
                                                real_to_scaled,&
                                                scaled_to_real,&
                                                write_cell
@@ -196,7 +196,7 @@ CPSourceFileRef,&
              cell%hmat(j,i) = x(idg)
           END DO
        END DO
-       CALL get_hinv(cell)
+       CALL init_cell(cell)
        CALL force_env_set_cell(gopt_env%force_env, cell, error)
 
        ! Converting into reals

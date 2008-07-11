@@ -14,7 +14,7 @@ MODULE qs_numerical_pressure
                                              cell_create,&
                                              cell_release,&
                                              cell_type,&
-                                             get_hinv,&
+                                             init_cell,&
                                              real_to_scaled,&
                                              scaled_to_real
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -108,7 +108,7 @@ MODULE qs_numerical_pressure
              IF ( virial%pv_diagonal .AND. ip /= iq ) CYCLE
              DO k = 1, 2
                 cell%hmat(ip,iq) = cell_local%hmat(ip,iq)  - (-1.0_dp)**k * Dx
-                CALL get_hinv( cell )
+                CALL init_cell( cell )
                 iseq = 0
                 !
                 ! Then scale positions.
@@ -137,7 +137,7 @@ MODULE qs_numerical_pressure
                 ! reset cell
                 cell%hmat(ip,iq) = cell_local%hmat(ip,iq)
              END DO
-             CALL get_hinv( cell )
+             CALL init_cell( cell )
              numer_stress(ip,iq) = (numer_energy(1) - numer_energy(2) ) / (2.0_dp*Dx)
           END DO
        END DO
@@ -150,7 +150,7 @@ MODULE qs_numerical_pressure
           iseq = iseq + 1
           particles(ip)%r = pos_ref(iseq,:)
        END DO
-       CALL get_hinv ( cell )
+       CALL init_cell ( cell )
 
        ! computing pv_test
        virial%pv_virial = 0.0_dp

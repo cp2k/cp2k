@@ -75,7 +75,7 @@ MODULE cell_types
    END TYPE cell_p_type
 
 ! *** Public subroutines ***
-  PUBLIC :: get_cell, get_cell_param, get_hinv, init_cell, read_cell,&
+  PUBLIC :: get_cell, get_cell_param, init_cell, read_cell,&
             write_cell, cell_create, cell_retain, cell_release,&
             cell_clone, compare_cells, parse_cell_line, set_cell_param
 
@@ -295,34 +295,12 @@ CONTAINS
     cell%hmat(:,1)=cell%hmat(:,1)*cell_length(1)
     cell%hmat(:,2)=cell%hmat(:,2)*cell_length(2)
     cell%hmat(:,3)=cell%hmat(:,3)*cell_length(3)
-    CALL get_hinv(cell)
+    CALL init_cell(cell)
+
   END SUBROUTINE set_cell_param
 
 ! *****************************************************************************
-!> \brief   Calculate the inverse of the h matrix.
-!> \author  MK
-!> \date    16.01.2002
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE get_hinv(cell)
-    TYPE(cell_type), POINTER                 :: cell
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_hinv', &
-      routineP = moduleN//':'//routineN
-
-    cell%deth = ABS(det_3x3(cell%hmat))
-
-    IF (cell%deth < 1.0E-10_dp) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "An invalid set of cell vectors was specified. "//&
-                        "The determinant det(h) is too small")
-    END IF
-    cell%h_inv = inv_3x3(cell%hmat)
-
-  END SUBROUTINE get_hinv
-
-! *****************************************************************************
-!> \brief   Initialise a simulation cell.
+!> \brief   Initialise/readjust a simulation cell after hmat has been changed
 !> \author  MK
 !> \date    16.01.2002
 !> \version 1.0
@@ -343,15 +321,13 @@ CONTAINS
     IF (PRESENT(hmat)) cell%hmat(:,:) = hmat(:,:)
     IF (PRESENT(periodic)) cell%perd(:) = periodic(:)
 
-    !   *** Calculate the absolute value of the determinant of the matrix h ***
-    cell%deth = ABS ( det_3x3(cell%hmat) )
+    cell%deth = ABS(det_3x3(cell%hmat))
 
     IF (cell%deth < 1.0E-10_dp) THEN
-      CALL stop_program(routineP,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "An invalid set of cell vectors was specified. "//&
                         "The determinant det(h) is too small")
     END IF
-
     cell%h_inv = inv_3x3(cell%hmat)
 
     cell%orthorhombic = .FALSE.

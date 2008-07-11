@@ -26,7 +26,7 @@ MODULE integrator
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
-                                             get_hinv,&
+                                             init_cell,&
                                              parse_cell_line
   USE constraint,                      ONLY: rattle_control,&
                                              shake_control,&
@@ -1077,7 +1077,7 @@ CONTAINS
     eps_0 =  npt ( 1, 1 ) % eps
 
     ! Update the inverse
-    CALL get_hinv ( cell )
+    CALL init_cell ( cell )
 
     ! Broadcast the new particle positions and deallocate the pos components of temporary
     CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
@@ -1305,7 +1305,7 @@ CPSourceFileRef,&
        cell%hmat(1:3,1) = h(1:3,1)
        cell%hmat(1:3,2) = h(1:3,2)
        cell%hmat(1:3,3) = h(1:3,3)
-       CALL get_hinv(cell)
+       CALL init_cell(cell)
        CALL force_env_set_cell(force_env, cell, error)
     END IF
     
@@ -1537,8 +1537,8 @@ CPSourceFileRef,&
     ! Update h_mat
     cell % hmat ( 1, 1 ) = cell % hmat ( 1, 1 ) * scale_r(1) * scale_r(1)
 
-    ! Update the inverse
-    CALL get_hinv ( cell )
+    ! Update the cell
+    CALL init_cell ( cell )
 
     ! Broadcast the new particle positions and deallocate the pos component of temporary
     CALL update_dealloc_tmp (tmp, particle_set, shell_particle_set, &
@@ -1818,7 +1818,7 @@ CPSourceFileRef,&
     cell % hmat ( 1, 1 ) = cell % hmat ( 1, 1 ) * scale_r(1) * scale_r(1)
 
     ! Update the inverse
-    CALL get_hinv ( cell )
+    CALL init_cell ( cell )
 
     ! Broadcast the new particle positions and deallocate the pos components of temporary
     CALL update_dealloc_tmp (tmp,particle_set, shell_particle_set, &
@@ -2118,7 +2118,7 @@ CPSourceFileRef,&
 
     cell % hmat = MATMUL_3x3 ( u, uh )
     ! Update the inverse
-    CALL get_hinv ( cell )
+    CALL init_cell ( cell )
 
     ! Broadcast the new particle positions and deallocate the pos components of temporary
     CALL update_dealloc_tmp (tmp,particle_set, shell_particle_set, &
