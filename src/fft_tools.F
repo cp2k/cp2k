@@ -44,9 +44,26 @@ MODULE fft_tools
 #endif
 
   ! Types for the pool of scratch data needed in FFT routines
+  ! keep the subroutine "is_equal" up-to-date
+  ! needs a default initialization
+  TYPE fft_scratch_sizes
+     INTEGER                              :: nx=0, ny=0, nz=0
+     INTEGER                              :: lmax=0, mmax=0, nmax=0
+     INTEGER                              :: mx1=0, mx2=0, mx3=0
+     INTEGER                              :: my1=0, my2=0, my3=0
+     INTEGER                              :: mz1=0, mz2=0, mz3=0
+     INTEGER                              :: mcz1=0, mcz2=0, mcy3=0
+     INTEGER                              :: lg=0, mg=0
+     INTEGER                              :: nbx=0, nbz=0
+     INTEGER                              :: nmray=0, nyzray=0
+     INTEGER                              :: gs_group=0, rs_group=0
+     INTEGER, DIMENSION(2)                :: g_pos=0, r_pos=0, r_dim=0
+     INTEGER                              :: numtask=0
+  END TYPE fft_scratch_sizes
+
   TYPE fft_scratch_type
      INTEGER                              :: fft_scratch_id
-     INTEGER                              :: fft_type
+     INTEGER                              :: tf_type
      LOGICAL                              :: in_use
      INTEGER                              :: group
      INTEGER, DIMENSION(3)                :: nfft
@@ -78,27 +95,13 @@ MODULE fft_tools
                                           :: ss, tt
      INTEGER, DIMENSION(:,:), POINTER     :: pgrid
      INTEGER, DIMENSION(:), POINTER       :: xcor, zcor
+     TYPE(fft_scratch_sizes)              :: sizes
   END TYPE fft_scratch_type
 
   TYPE fft_scratch_pool_type
      TYPE(fft_scratch_type),POINTER       :: fft_scratch
      TYPE(fft_scratch_pool_type),POINTER  :: fft_scratch_next
   END TYPE fft_scratch_pool_type
-
-  TYPE fft_scratch_sizes
-     INTEGER                              :: nx, ny, nz
-     INTEGER                              :: lmax, mmax, nmax
-     INTEGER                              :: mx1, mx2, mx3
-     INTEGER                              :: my1, my2, my3
-     INTEGER                              :: mz1, mz2, mz3
-     INTEGER                              :: mcz1, mcz2, mcy3
-     INTEGER                              :: lg, mg
-     INTEGER                              :: nbx, nbz
-     INTEGER                              :: nmray, nyzray
-     INTEGER                              :: gs_group, rs_group
-     INTEGER, DIMENSION(2)                :: g_pos, r_pos, r_dim
-     INTEGER                              :: numtask
-  END TYPE fft_scratch_sizes
 
   INTEGER, SAVE                           :: init_fft_pool = 0
   TYPE(fft_scratch_pool_type),POINTER,SAVE:: fft_scratch_first
@@ -365,7 +368,7 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
 
   sign = fsign
 #if defined(__FFTSGL)
-  CALL get_fft_scratch(fft_scratch,fft_type=400,n=n,error=error)
+  CALL get_fft_scratch(fft_scratch,tf_type=400,n=n,error=error)
   zoptr => fft_scratch%zoptr
 
   zoptr(:,:,:) = zin(:,:,:)
@@ -570,7 +573,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
     IF ( r_dim ( 1 ) == 1 ) THEN
       CALL stop_program ( "fft3d", "This processor distribution is not supported" )
     END IF
-    CALL get_fft_scratch(fft_scratch,fft_type=300,n=n,fft_sizes=fft_scratch_size,error=error)
+    CALL get_fft_scratch(fft_scratch,tf_type=300,n=n,fft_sizes=fft_scratch_size,error=error)
 
     IF ( sign == FWFFT ) THEN
       ! cin -> gin
@@ -771,7 +774,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
     ! direction x
     !
 
-    CALL get_fft_scratch(fft_scratch,fft_type=200,n=n,fft_sizes=fft_scratch_size,error=error)
+    CALL get_fft_scratch(fft_scratch,tf_type=200,n=n,fft_sizes=fft_scratch_size,error=error)
 
     sbuf => fft_scratch%r1buf
     tbuf => fft_scratch%tbuf
@@ -1054,7 +1057,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
     ! First case; two stages of communication
     !
 
-    CALL get_fft_scratch(fft_scratch,fft_type=100,n=n,fft_sizes=fft_scratch_size,error=error)
+    CALL get_fft_scratch(fft_scratch,tf_type=100,n=n,fft_sizes=fft_scratch_size,error=error)
 
     IF ( sign == FWFFT ) THEN
       ! Stage 1 -> 3
@@ -1251,7 +1254,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
     ! Second case; one stage of communication
     !
 
-    CALL get_fft_scratch(fft_scratch,fft_type=101,n=n,fft_sizes=fft_scratch_size,error=error)
+    CALL get_fft_scratch(fft_scratch,tf_type=101,n=n,fft_sizes=fft_scratch_size,error=error)
 
     IF ( sign == FWFFT ) THEN
       ! Stage 1 -> 3
@@ -2660,10 +2663,10 @@ SUBROUTINE release_fft_scratch_pool(error)
 
 END SUBROUTINE release_fft_scratch_pool
 
-SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
+SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
-    INTEGER, INTENT(IN)                      :: fft_type
+    INTEGER, INTENT(IN)                      :: tf_type
     INTEGER, DIMENSION(:), INTENT(IN)        :: n
     TYPE(fft_scratch_sizes), INTENT(IN), &
       OPTIONAL                               :: fft_sizes
@@ -2675,7 +2678,7 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
     INTEGER :: DIM(2), ierr, lg, lmax, m1, m2, mcy3, mcz1, mcz2, mg, mmax, &
       mx1, mx2, my1, my3, mz1, mz2, mz3, nbx, nbz, nm, nmax, nmray, nn, np, &
       nx, ny, nyzray, nz, pos(2)
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: equal, failure
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                 fft_scratch_last, &
                                                 fft_scratch_new
@@ -2690,7 +2693,7 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
         fft_scratch_current => fft_scratch_current%fft_scratch_next
         CYCLE
       END IF
-      IF(fft_type /= fft_scratch_current%fft_scratch%fft_type) THEN
+      IF(tf_type /= fft_scratch_current%fft_scratch%tf_type) THEN
         fft_scratch_last => fft_scratch_current
         fft_scratch_current => fft_scratch_current%fft_scratch_next
         CYCLE
@@ -2707,6 +2710,12 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
           CYCLE
         END IF
       END IF
+      CALL is_equal(fft_sizes,fft_scratch_current%fft_scratch%sizes,equal)
+      IF(.NOT. equal) THEN
+          fft_scratch_last => fft_scratch_current
+          fft_scratch_current => fft_scratch_current%fft_scratch_next
+          CYCLE
+      ENDIF
       ! Success 
       fft_scratch => fft_scratch_current%fft_scratch
       fft_scratch_current%fft_scratch%in_use = .TRUE.
@@ -2750,7 +2759,9 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
       fft_scratch_new%fft_scratch%inr=0
       fft_scratch_new%fft_scratch%rsratio=1._dp
 
-      SELECT CASE (fft_type)
+      fft_scratch_new%fft_scratch%sizes=fft_sizes
+
+      SELECT CASE (tf_type)
         CASE DEFAULT
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
         CASE (100)    ! fft3d_pb: full cube distribution
@@ -2879,14 +2890,14 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
           nm = nmray*mx2
           IF ( alltoall_sgl ) THEN
-            ALLOCATE ( fft_scratch_new%fft_scratch%ss(nmax,0:np-1),STAT=ierr)
+            ALLOCATE ( fft_scratch_new%fft_scratch%ss(nm,0:np-1),STAT=ierr)
             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-            ALLOCATE ( fft_scratch_new%fft_scratch%tt(nmax,0:np-1),STAT=ierr)
+            ALLOCATE ( fft_scratch_new%fft_scratch%tt(nm,0:np-1),STAT=ierr)
             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
           ELSE
-            ALLOCATE ( fft_scratch_new%fft_scratch%qq(nmax,0:np-1),STAT=ierr)
+            ALLOCATE ( fft_scratch_new%fft_scratch%qq(nm,0:np-1),STAT=ierr)
             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-            ALLOCATE ( fft_scratch_new%fft_scratch%rr(nmax,0:np-1),STAT=ierr)
+            ALLOCATE ( fft_scratch_new%fft_scratch%rr(nm,0:np-1),STAT=ierr)
             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
           END IF
           ALLOCATE ( fft_scratch_new%fft_scratch%pgrid(0:m1-1,0:m2-1),STAT=ierr)
@@ -2929,7 +2940,7 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
       fft_scratch_new%fft_scratch%in_use=.TRUE.
       fft_scratch_new%fft_scratch%nfft = n
       fft_scratch_last%fft_scratch_next => fft_scratch_new
-      fft_scratch_new%fft_scratch%fft_type = fft_type
+      fft_scratch_new%fft_scratch%tf_type = tf_type
       fft_scratch => fft_scratch_new%fft_scratch
       EXIT
 
@@ -3016,6 +3027,57 @@ SUBROUTINE sparse_alltoall ( rs, scount, sreq, rq, rcount, rreq, group )
     CALL mp_sync ( group )
 
 END SUBROUTINE sparse_alltoall
+! *****************************************************************************
+!
+! test data structures for equality. It is assumed that if they are different for one mpi task
+! they are different for all (??)
+!
+SUBROUTINE is_equal(fft_size_1,fft_size_2,equal)
+    TYPE(fft_scratch_sizes)                  :: fft_size_1, fft_size_2
+    LOGICAL                                  :: equal
+
+  equal=.TRUE.
+
+  equal=equal.AND.fft_size_1%nx==fft_size_2%nx
+  equal=equal.AND.fft_size_1%ny==fft_size_2%ny
+  equal=equal.AND.fft_size_1%nz==fft_size_2%nz
+
+  equal=equal.AND.fft_size_1%lmax==fft_size_2%lmax
+  equal=equal.AND.fft_size_1%mmax==fft_size_2%mmax
+  equal=equal.AND.fft_size_1%nmax==fft_size_2%nmax
+
+  equal=equal.AND.fft_size_1%mx1==fft_size_2%mx1
+  equal=equal.AND.fft_size_1%mx2==fft_size_2%mx2
+  equal=equal.AND.fft_size_1%mx3==fft_size_2%mx3
+
+  equal=equal.AND.fft_size_1%my1==fft_size_2%my1
+  equal=equal.AND.fft_size_1%my2==fft_size_2%my2
+  equal=equal.AND.fft_size_1%my3==fft_size_2%my3
+
+  equal=equal.AND.fft_size_1%mcz1==fft_size_2%mcz1
+  equal=equal.AND.fft_size_1%mcz2==fft_size_2%mcz2
+  equal=equal.AND.fft_size_1%mcy3==fft_size_2%mcy3
+
+  equal=equal.AND.fft_size_1%lg==fft_size_2%lg
+  equal=equal.AND.fft_size_1%mg==fft_size_2%mg
+
+  equal=equal.AND.fft_size_1%nbx==fft_size_2%nbx
+  equal=equal.AND.fft_size_1%nbz==fft_size_2%nbz
+
+  equal=equal.AND.fft_size_1%nmray==fft_size_2%nmray
+  equal=equal.AND.fft_size_1%nyzray==fft_size_2%nyzray
+
+  equal=equal.AND.fft_size_1%gs_group==fft_size_2%gs_group
+  equal=equal.AND.fft_size_1%rs_group==fft_size_2%rs_group
+
+  equal=equal.AND.ALL(fft_size_1%g_pos==fft_size_2%g_pos)
+  equal=equal.AND.ALL(fft_size_1%r_pos==fft_size_2%r_pos)
+  equal=equal.AND.ALL(fft_size_1%r_dim==fft_size_2%r_dim)
+
+  equal=equal.AND.fft_size_1%numtask==fft_size_2%numtask
+
+END SUBROUTINE
+
 ! *****************************************************************************
 
 END MODULE fft_tools
