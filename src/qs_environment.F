@@ -687,7 +687,7 @@ CONTAINS
           CALL ewald_pw_release(ewald_pw,error=error)
        END IF
        ! Taper function
-       CALL taper_create(taper, 2._dp*se_control%rc_coulomb, se_control%rc_range, error)
+       CALL taper_create(taper, se_control%rc_coulomb, se_control%rc_range, error)
        CALL set_qs_env(qs_env, taper=taper, error=error)
        ! Store integral environment
        NULLIFY(se_store_int_env)

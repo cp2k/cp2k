@@ -117,3 +117,6 @@ Pt-cis-2xpet3Cl2-si-noc.inp
 # new taper function
 md.inp
 scan_zn_1w_cp2k.inp
+# new taper
+md.inp
+scan_zn_1w_cp2k.inp

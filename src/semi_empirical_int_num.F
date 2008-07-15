@@ -248,17 +248,17 @@ CONTAINS
        CALL terep_d_num (sepi, sepj, rij, rep, longrange, error=error )
     END IF
 
-    ! Tapering function
-    IF (.NOT.longrange) THEN
-       ft = taper_eval(taper, rij, error)
-       rep(:) = ft*rep(:)
-    END IF
-
     ! Evaluate only the shortrange part of the integral if requested
     IF ( shortrange ) THEN
        CALL terep_num(sepi, sepj, rij, rep_lr, taper, shortrange=.FALSE.,&
                       do_longrange=.TRUE., error=error)
        rep = rep - rep_lr
+    END IF
+
+    ! Tapering function
+    IF (.NOT.longrange) THEN
+       ft = taper_eval(taper, rij, error)
+       rep(:) = ft*rep(:)
     END IF
 
   END SUBROUTINE terep_num
@@ -724,18 +724,6 @@ CONTAINS
        CALL nucint_d_num(sepi, sepj, rij, core, itype, longrange, error=error)
     END IF
 
-    ! Tapering function
-    IF (.NOT.longrange) THEN
-       ft = 1.0_dp
-       IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
-       IF (l_ssss) THEN
-          ssss = ft*ssss
-       END IF
-       IF (l_core) THEN
-          core(:,:) = ft*core(:,:)
-       END IF
-    END IF
-
     ! Modify integrals in case of short-range request (compute the LR part and subtract from the integral)
     IF (shortrange) THEN
        IF (l_ssss) THEN
@@ -747,6 +735,18 @@ CONTAINS
           CALL nucint_num(sepi, sepj, rij, core=core_lr, itype=itype, taper=taper, shortrange=.FALSE., &
                do_longrange=.TRUE., error=error)
           core = core - core_lr
+       END IF
+    END IF
+
+    ! Tapering function
+    IF (.NOT.longrange) THEN
+       ft = 1.0_dp
+       IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
+       IF (l_ssss) THEN
+          ssss = ft*ssss
+       END IF
+       IF (l_core) THEN
+          core(:,:) = ft*core(:,:)
        END IF
     END IF
 

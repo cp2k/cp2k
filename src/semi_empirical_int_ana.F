@@ -148,7 +148,7 @@ CONTAINS
        
        CALL dnucint_ana(sepi,sepj,rij,core=core,dcore=dcore,itype=itype,taper=taper,&
             shortrange=shortrange,lgrad=lgrad,error=error)
-      
+
        ! Copy parameters over to arrays for do loop.
        last_orbital(1)  = sepi%natorb
        last_orbital(2)  = sepj%natorb
@@ -790,15 +790,30 @@ CONTAINS
        END IF
     END IF
 
+    ! Modify integrals in case of short-range request
+    IF (shortrange) THEN
+       IF (l_ssss) THEN
+          CALL dnucint_ana( sepi, sepj, rij, ssss=ssss_lr, dssss=dssss_lr, itype=itype,&
+               taper=taper, shortrange=.FALSE., do_longrange=.TRUE., lgrad=lgrad, error=error )
+                      ssss =  ssss -  ssss_lr
+          IF (lgrad) dssss = dssss - dssss_lr
+       END IF
+       IF (l_core) THEN
+          CALL dnucint_ana( sepi, sepj, rij, core=core_lr, dcore=dcore_lr, itype=itype,&
+               taper=taper, shortrange=.FALSE., do_longrange=.TRUE., lgrad=lgrad, error=error )
+                      core =  core -  core_lr
+          IF (lgrad) dcore = dcore - dcore_lr
+       END IF
+    END IF
+
+    ! Tapering function
     IF (.NOT.longrange) THEN
-       ! Tapering function
        ft = 1.0_dp
        dft= 0.0_dp
        IF (itype/=do_method_pchg) THEN
           ft = taper_eval (taper, rij, error)
           dft= dtaper_eval (taper, rij, error)
        END IF
-
        IF (lgrad) THEN
           IF (l_core) THEN
              dcore(:,:) = ft*dcore(:,:)+dft*core(:,:)
@@ -812,22 +827,6 @@ CONTAINS
        END IF
        IF (l_ssss) THEN
           ssss       = ft*ssss
-       END IF
-    END IF
-
-    ! Modify integrals in case of short-range request
-    IF ( shortrange ) THEN
-       IF (l_ssss) THEN
-          CALL dnucint_ana( sepi, sepj, rij, ssss=ssss_lr, dssss=dssss_lr, itype=itype,&
-               taper=taper, shortrange=.FALSE., do_longrange=.TRUE., lgrad=lgrad, error=error )
-                      ssss =  ssss -  ssss_lr
-          IF (lgrad) dssss = dssss - dssss_lr
-       END IF
-       IF (l_core) THEN
-          CALL dnucint_ana( sepi, sepj, rij, core=core_lr, dcore=dcore_lr, itype=itype,&
-               taper=taper, shortrange=.FALSE., do_longrange=.TRUE., lgrad=lgrad, error=error )
-                      core =  core -  core_lr
-          IF (lgrad) dcore = dcore - dcore_lr
        END IF
     END IF
 
@@ -1385,22 +1384,22 @@ CONTAINS
        END IF
     END IF
 
+    IF (shortrange) THEN
+       CALL dterep_ana ( sepi, sepj, rij, rep_lr, rep_d_lr, taper, shortrange=.FALSE.,&
+            do_longrange=.TRUE., lgrad=lgrad, error=error)
+       ! Correct Integral and Derivatives values
+                   rep  =   rep -   rep_lr
+       IF (lgrad) rep_d = rep_d - rep_d_lr
+    END IF
+
     ! Tapering function
     IF (.NOT.longrange) THEN
-       ft = taper_eval(taper,rij,error)
+       ft =  taper_eval(taper,rij,error)
        dft= dtaper_eval(taper,rij,error)
        IF (lgrad) THEN
           rep_d(:) = dft*rep(:)+ft*rep_d(:)
        END IF
        rep(:) = ft*rep(:)
-    END IF
-
-    IF ( shortrange ) THEN
-       CALL dterep_ana ( sepi, sepj, rij, rep_lr, rep_d_lr, taper, shortrange=.FALSE.,&
-            do_longrange=.TRUE., lgrad=lgrad, error=error)
-       ! Correct Integral and Derivatives values
-                   rep  =   rep -  rep_lr
-       IF (lgrad) rep_d = rep_d - rep_d_lr
     END IF
 
     ! Possibly debug 2el 2cent integrals and derivatives
