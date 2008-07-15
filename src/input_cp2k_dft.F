@@ -4143,17 +4143,11 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(&
-            keyword=keyword,&
-            name="cutoff",&
-            description="The cutoff (from the highest grid to the lowest)",&
-            usage="cutoff 300",&
-            default_r_val=cp_unit_to_cp2k(value=280.0_dp,&
-            unit_str="Ry",&
-            error=error),&
-            n_var=-1,&
-            unit_str="Ry",&
-            error=error)
+       CALL keyword_create(keyword=keyword, name="cutoff",&
+            description="The cutoff of the finest grid level. Default value for "//&
+            "SE or DFTB calculation is 1.0 [Ry].",&
+            usage="cutoff 300",default_r_val=cp_unit_to_cp2k(value=280.0_dp,&
+            unit_str="Ry",error=error), n_var=1, unit_str="Ry", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4198,8 +4192,8 @@ CONTAINS
        CALL keyword_create(keyword,name="MULTIGRID_CUTOFF",&
             variants=(/"CUTOFF_LIST"/),&
             description="List of cutoff values to set up multigrids manually",&
-            usage="MULTIGRID_CUTOFF 200.0 100.0 ",&
-            n_var=-1,type_of_var=real_t,repeats=.TRUE.,error=error)
+            usage="MULTIGRID_CUTOFF 200.0 100.0 ", n_var=-1, type_of_var=real_t,&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

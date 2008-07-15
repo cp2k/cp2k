@@ -150,7 +150,8 @@ MODULE qs_scf
                                              eigensolver,&
                                              scf_env_density_mixing,&
                                              simple_eigensolver
-  USE qs_scf_post,                     ONLY: scf_post_calculation
+  USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
+  USE qs_scf_post_se,                  ONLY: scf_post_calculation_se
   USE qs_scf_types,                    ONLY: ao_mixing_nr,&
                                              general_diag_method_nr,&
                                              no_mixing_nr,&
@@ -296,10 +297,14 @@ CONTAINS
          END IF
 
          ! *** compute properties that depend on the converged wavefunction
-         IF ( .NOT. ( should_stop .OR. dft_control%qs_control%semi_empirical .OR. &
-                      dft_control%qs_control%dftb ) ) THEN
-                CALL scf_post_calculation(dft_section, scf_env, qs_env, error)
-  
+         IF (.NOT.(should_stop)) THEN
+            IF     (dft_control%qs_control%semi_empirical) THEN
+               CALL scf_post_calculation_se (dft_section, scf_env, qs_env, error)
+            ELSEIF (dft_control%qs_control%dftb) THEN
+               ! Do Nothing
+            ELSE
+               CALL scf_post_calculation_gpw(dft_section, scf_env, qs_env, error)
+            END IF
          END IF
 
        END IF

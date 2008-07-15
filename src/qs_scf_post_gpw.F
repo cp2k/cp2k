@@ -4,12 +4,12 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Does all kind of post scf calculations
+!> \brief Does all kind of post scf calculations for GPW/GAPW
 !> \par History
 !>      Started as a copy from the relevant part of qs_scf
 !> \author Joost VandeVondele (10.2003)
 ! *****************************************************************************
-MODULE qs_scf_post
+MODULE qs_scf_post_gpw
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
@@ -139,12 +139,14 @@ MODULE qs_scf_post
   IMPLICIT NONE
   PRIVATE
 
-  ! Local type
-! *****************************************************************************
-
   ! Global parameters
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post'
-  PUBLIC :: scf_post_calculation
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_gpw'
+  PUBLIC :: scf_post_calculation_gpw,&
+            qs_scf_post_occ_cubes,&
+            qs_scf_post_unocc_cubes,&
+            qs_scf_post_moments,&
+            qs_scf_post_efg,&
+            stm_cubes
 
 CONTAINS
 
@@ -166,14 +168,14 @@ CONTAINS
 !>              started splitting out different subroutines
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE scf_post_calculation(dft_section, scf_env,qs_env,error)
+  SUBROUTINE scf_post_calculation_gpw(dft_section, scf_env,qs_env,error)
 
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, homo, ispin, n, n_mo(2), nao, nelectron, nhomo, nlumo, &
@@ -199,13 +201,12 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos, mos_aux_fit
+      POINTER                                :: mos
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(preconditioner_type), POINTER       :: preconditioner
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: wf_g, wf_r
-    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -230,7 +231,7 @@ CONTAINS
     NULLIFY(dft_control, pw_env, auxbas_pw_pool, pw_pools, mos, rho, &
          mo_coeff, ks_rmpv, matrix_s, qs_loc_env, scf_control, &
          unoccupied_orbs, mo_eigenvalues, unoccupied_evals, fm_struct_tmp, &
-         molecule_set, rho_core, tddfpt_control, subsys, particles, input, &
+         molecule_set, tddfpt_control, subsys, particles, input, &
          print_key)
 
     logger => cp_error_get_logger(error)
@@ -245,9 +246,8 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s, &
-            input=input, subsys=subsys,rho_core=rho_core,tddfpt_control=tddfpt_control,&
-            mos_aux_fit=mos_aux_fit, error=error)
-       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+            input=input, subsys=subsys, tddfpt_control=tddfpt_control, pw_env=pw_env,&
+            error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 
        ! Compute Atomic Charges
@@ -563,7 +563,10 @@ CPSourceFileRef,&
        CALL qs_scf_post_xray(input, dft_section, logger, qs_env, ionode, output_unit, error)
        
        ! Calculation of Electric Field Gradients
-       CALL qs_scf_post_efg(input, logger, qs_env, dft_control, error)
+       CALL qs_scf_post_efg(input, logger, qs_env, error)
+
+       ! Calculation of ET
+       CALL qs_scf_post_et(input, qs_env, dft_control, error)
        
        ! Calculation of EPR Hyperfine Coupling Tensors
        CALL qs_scf_post_epr(input, logger, qs_env, error)
@@ -575,7 +578,7 @@ CPSourceFileRef,&
     
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE scf_post_calculation
+  END SUBROUTINE scf_post_calculation_gpw
 
 ! *****************************************************************************
 !> \brief computes a simple approximation to the tunneling current for STM
@@ -608,7 +611,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=80)                        :: filename, title
-    INTEGER                                  :: handle, homo, ibias, ispin, &
+    INTEGER                                  :: handle, ibias, ispin, &
                                                 istates, nstates, &
                                                 state_start, unit_nr
     LOGICAL                                  :: failure
@@ -1195,21 +1198,16 @@ CPSourceFileRef,&
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_scf_post_efg(input, logger, qs_env, dft_control, error)
+  SUBROUTINE qs_scf_post_efg(input, logger, qs_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_efg', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, stat
-    LOGICAL                                  :: do_et
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: my_mos
-    TYPE(section_vals_type), POINTER         :: et_section, print_key
+    TYPE(section_vals_type), POINTER         :: print_key
 
     print_key => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT",&
@@ -1218,6 +1216,29 @@ CPSourceFileRef,&
               cp_p_file)) THEN
        CALL qs_efg_calc(qs_env=qs_env,error=error)
     END IF
+
+  END SUBROUTINE qs_scf_post_efg
+
+! *****************************************************************************
+!> \brief Computes the Electron Transfer Coupling matrix element
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
+  SUBROUTINE qs_scf_post_et(input, qs_env, dft_control, error)
+    TYPE(section_vals_type), POINTER         :: input
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_et', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin, stat
+    LOGICAL                                  :: do_et
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: my_mos
+    TYPE(section_vals_type), POINTER         :: et_section
 
     do_et=.FALSE.
     et_section =>  section_vals_get_subs_vals(input,"PROPERTIES%ET_COUPLING",&
@@ -1242,7 +1263,7 @@ CPSourceFileRef,&
        END IF
     END IF    
 
-  END SUBROUTINE qs_scf_post_efg
+  END SUBROUTINE qs_scf_post_et
 
 ! *****************************************************************************
 !> \brief computes the condition number of the overlap matrix and 
@@ -1760,4 +1781,4 @@ CPSourceFileRef,&
     CALL timestop(handle)
   END SUBROUTINE write_available_results
 
-END MODULE
+END MODULE qs_scf_post_gpw

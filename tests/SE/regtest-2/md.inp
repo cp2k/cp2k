@@ -1,6 +1,9 @@
 &FORCE_EVAL
   METHOD QS
   &DFT
+    &MGRID
+      CUTOFF 100
+    &END
     &QS
       METHOD PM3
       &SE

@@ -250,7 +250,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: igrid_level, ngrid_level, stat
-    LOGICAL                                  :: failure, multigrid_set
+    LOGICAL                                  :: explicit, failure, &
+                                                multigrid_set
     REAL(dp)                                 :: cutoff
     REAL(dp), DIMENSION(:), POINTER          :: cutofflist
     TYPE(section_vals_type), POINTER         :: mgrid_section
@@ -259,29 +260,25 @@ CPSourceFileRef,&
     NULLIFY(mgrid_section, cutofflist)
     mgrid_section => section_vals_get_subs_vals(dft_section,"MGRID",error=error)
 
+    CALL section_vals_get(mgrid_section, explicit=explicit, error=error)
     CALL section_vals_val_get(mgrid_section,"NGRIDS",i_val=ngrid_level,error=error)
     CALL section_vals_val_get(mgrid_section,"MULTIGRID_SET",l_val=multigrid_set,error=error)
-    IF ( qs_control%semi_empirical .OR. qs_control%dftb ) THEN
-       ngrid_level = 1
+    CALL section_vals_val_get(mgrid_section,"CUTOFF",r_val=cutoff,error=error)
+    CALL section_vals_val_get(mgrid_section,"PROGRESSION_FACTOR",r_val=qs_control%progression_factor,error=error)
+    CALL section_vals_val_get(mgrid_section,"COMMENSURATE",l_val=qs_control%commensurate_mgrids,error=error)
+    CALL section_vals_val_get(mgrid_section,"REALSPACE",l_val=qs_control%realspace_mgrids,error=error)
+    CALL section_vals_val_get(mgrid_section,"REL_CUTOFF",r_val=qs_control%relative_cutoff,error=error)
+
+    ! For SE and DFTB possibly override with new defaults 
+    IF (qs_control%semi_empirical .OR. qs_control%dftb) THEN
+       ngrid_level   = 1
        multigrid_set = .FALSE.
+       IF (.NOT.explicit) cutoff = 1.0_dp
     END IF
 
     ALLOCATE(qs_control%e_cutoff(ngrid_level),STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL section_vals_val_get(mgrid_section,"CUTOFF",r_val=cutoff,error=error)
-    qs_control%cutoff = MAX(0.01_dp,cutoff)
-    CALL section_vals_val_get(mgrid_section,"PROGRESSION_FACTOR",&
-                 r_val=qs_control%progression_factor,error=error)
-    CALL section_vals_val_get(mgrid_section,"COMMENSURATE",&
-                 l_val=qs_control%commensurate_mgrids,error=error)
-    CALL section_vals_val_get(mgrid_section,"REALSPACE",&
-                 l_val=qs_control%realspace_mgrids,error=error)
-    CALL section_vals_val_get(mgrid_section,"REL_CUTOFF",&
-                 r_val=qs_control%relative_cutoff,error=error)
-
-    IF ( qs_control%semi_empirical .OR. qs_control%dftb ) THEN
-      qs_control%cutoff = 1._dp
-    END IF
+    qs_control%cutoff = cutoff
 
     IF(multigrid_set) THEN
       ! Read the values from input

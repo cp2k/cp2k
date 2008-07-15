@@ -56,6 +56,7 @@ Fist/regtest-8
 FE/regtest-1
 Fist/regtest-10
 Pimd
+QS/regtest-all-electron
 Fist/regtest-2
 QS/regtest-ot-refine-3
 QS
@@ -71,4 +72,4 @@ QS/regtest-plus_u
 SCP/regtest-scp
 LIBTEST
 QS/regtest-dft-vdw-corr
-QS/regtest-all-electron
+SE/regtest-3
