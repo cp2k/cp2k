@@ -245,7 +245,7 @@ CONTAINS
     TYPE(cell_type), INTENT(IN)              :: cell
     REAL(KIND=dp), DIMENSION(:)              :: weights
 
-    REAL(KIND=dp), DIMENSION(3,3)            :: metric
+    REAL(KIND=dp), DIMENSION(3, 3)           :: metric
 
     metric = 0.0_dp
     CALL dgemm('N','T',3,3,3,1._dp,cell%hmat,3,cell%hmat,3,0.0_dp,metric,3)
@@ -267,15 +267,15 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: max_iter
     REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: sweeps
-    INTEGER, INTENT(IN)                     :: out_each
+    INTEGER, INTENT(IN)                      :: out_each
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rotations', &
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp), POINTER                :: mii( : ), mij( : ), mjj( : )
-    INTEGER                                  :: handle, istat, dim2, idim, istate, jstate, &
-                                                nstate
+    INTEGER                                  :: dim2, handle, idim, istat, &
+                                                istate, jstate, nstate
     REAL(KIND=dp)                            :: ct, st, theta, tolerance
     TYPE(cp_cfm_p_type), DIMENSION(:), &
       POINTER                                :: c_zij
@@ -629,13 +629,14 @@ CONTAINS
     COMPLEX(KIND=dp), PARAMETER              :: cone = (1.0_dp,0.0_dp), &
                                                 czero = (0.0_dp,0.0_dp)
 
-    COMPLEX(KIND=dp), POINTER                :: mii( : ), mij( : ), mjj( : )
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: evals_exp
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: diag_z
-    INTEGER                                  :: dim2, handle, i, icol, idim, irow, &
-                                                istat, ncol_global, ncol_local, &
-                                                nrow_global, nrow_local
+    COMPLEX(KIND=dp), POINTER                :: mii( : ), mij( : ), mjj( : )
+    INTEGER                                  :: dim2, handle, i, icol, idim, &
+                                                irow, istat, ncol_global, &
+                                                ncol_local, nrow_global, &
+                                                nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     REAL(KIND=dp)                            :: maxeval, ra, rb, theta, &
                                                 tolerance, value

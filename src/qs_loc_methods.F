@@ -160,7 +160,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, max_iter, nao, &
-                                                nmoloc, out_each, output_unit, sweeps
+                                                nmoloc, out_each, &
+                                                output_unit, sweeps
     LOGICAL                                  :: converged, ionode
     REAL(dp)                                 :: eps_localization
     TYPE(cp_fm_type), POINTER                :: opvec
@@ -218,8 +219,15 @@ CONTAINS
           ENDIF
        END IF
     CASE ( do_loc_direct )
-       CALL direct_mini( weights, zij_fm_set, vectors, sweeps )
+       IF(.NOT. cell%orthorhombic ) THEN
+           CALL stop_program("qs_localization","non-orthorhombic cell with the selected method NYI")
+       ELSE
+           CALL direct_mini( weights, zij_fm_set, vectors, sweeps )
+       END IF
     CASE( do_loc_l1_norm_sd )
+       IF(.NOT. cell%orthorhombic ) THEN
+           CALL stop_program("qs_localization","non-orthorhombic cell with the selected method NYI")
+       ELSE
        CALL approx_l1_norm_sd(vectors,max_iter,eps_localization,converged,sweeps,error=error)
        ! here we need to set zij for the computation of the centers and spreads
        DO i=1,SIZE ( zij_fm_set, 2 )
@@ -230,6 +238,7 @@ CONTAINS
                   zij_fm_set(j,i)%matrix,error=error)
           ENDDO
        ENDDO
+       END IF
     CASE ( do_loc_none )
        IF (ionode) THEN
           WRITE(output_unit,'(A,I6,A)') " No MOS localization applied "
@@ -396,7 +405,7 @@ CONTAINS
     INTEGER                                  :: idir, istate, jdir, nstates, &
                                                 output_unit, unit_out_s
     LOGICAL                                  :: failure, ionode
-    REAL(dp) :: spread_i, sum_spread_i
+    REAL(dp)                                 :: spread_i, sum_spread_i
     REAL(dp), DIMENSION(3)                   :: c, cpbc, spreadtot
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
     REAL(KIND=dp)                            :: imagpart, realpart
@@ -444,7 +453,7 @@ CONTAINS
        END DO
        cpbc = pbc(c,cell)
        centers (1:3, istate ) = cpbc(1:3)
-       centers (4, istate ) = sqrt(spread_i)
+       centers (4, istate ) = SQRT(spread_i)
        sum_spread_i = sum_spread_i +  centers (4, istate )
        IF (unit_out_s>0) WRITE(unit_out_s,'(I6,3F16.8)') istate, angstrom*centers(4:6,istate)
     ENDDO
@@ -595,8 +604,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_driver', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dim_op, i, imo, imoloc, ir, ispin, istat, istate, j, jstate, l_spin, &
-      lb, loc_method, my_nspins, n_rep, nao, ncubes, nmo, nmosub, s_spin, ub
+    INTEGER :: dim_op, i, imo, imoloc, ir, ispin, istat, istate, j, jstate, &
+      l_spin, lb, loc_method, my_nspins, n_rep, nao, ncubes, nmo, nmosub, &
+      s_spin, ub
     INTEGER, DIMENSION(:), POINTER           :: bounds, list, list_cubes
     LOGICAL                                  :: failure, ionode, &
                                                 list_cubes_setup

@@ -316,8 +316,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dim_op, handle, i, iatom, imo, imoloc, ispin, istat, j, l_spin, lb, &
-      my_nspins, nao, naosub, natoms, nmo, nmosub, nspins, s_spin, ub
+    INTEGER :: dim_op, handle, i, iatom, imo, imoloc, ispin, istat, j, &
+      l_spin, lb, my_nspins, nao, naosub, natoms, nmo, nmosub, nspins, &
+      s_spin, ub
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_occ, occ_imo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupations
@@ -517,20 +518,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_berry_operator', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dim_op, handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
-      istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, &
-      ldwork, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, nseta, nsetb, &
-      nthread, sgfa, sgfb
+    INTEGER :: dim_op, handle, i, iab, iatom, icol, ikind, ilist, inode, &
+      irow, iset, istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, &
+      ldsa, ldsb, ldwork, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, nseta, &
+      nsetb, nthread, sgfa, sgfb
     INTEGER, DIMENSION(3)                    :: perd0
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, new_atom_b, ortho
-    REAL(KIND=dp)                            :: dab, ooLx, ooLy, ooLz, rab2, &
-                                                twopoLx, twopoLy, twopoLz
+    LOGICAL                                  :: failure, new_atom_b
+    REAL(KIND=dp)                            :: dab, kvec(3), rab2, &
+                                                vector_k(3,6)
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
-    REAL(KIND=dp)                            :: kvec(3), vector_k(3,6)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cosab, rpgfa, rpgfb, sinab, &
                                                 sphi_a, sphi_b, work, zeta, &
@@ -599,15 +599,8 @@ CONTAINS
       END DO
     END DO
 
-    ooLx = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )
-    ooLy = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )
-    ooLz = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )
-    twopoLx = twopi*ooLx
-    twopoLy = twopi*ooLy
-    twopoLz = twopi*ooLz
     kvec = 0.0_dp
     vector_k = 0.0_dp
-    ortho = cell%orthorhombic
     vector_k(:,1) = twopi*cell%h_inv(:,1)
     vector_k(:,2) = twopi*cell%h_inv(:,2)
     vector_k(:,3) = twopi*cell%h_inv(:,3)
@@ -685,7 +678,7 @@ CONTAINS
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,cosabt,sinabt,qs_env)&
-!$OMP shared(op_cost,op_sint,ortho,twopoLx,twopoLy,twopoLz)&
+!$OMP shared(op_cost,op_sint)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm_set)&
 !$OMP shared(atomic_kind_set,particle_set,cell)
         ithread = 0

@@ -302,7 +302,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     REAL(dp), DIMENSION(6), OPTIONAL         :: weights
-    INTEGER, OPTIONAL         :: dim_op
+    INTEGER, OPTIONAL                        :: dim_op
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_loc_env', &
@@ -356,7 +356,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     REAL(dp), DIMENSION(6), OPTIONAL         :: weights
-    INTEGER,  OPTIONAL         :: dim_op
+    INTEGER, OPTIONAL                        :: dim_op
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_loc_env', &
