@@ -60,6 +60,7 @@ MODULE qs_loc_control
     INTEGER                              :: set_of_states
     INTEGER, DIMENSION(2,2)              :: lu_bound_states
     INTEGER                              :: max_iter
+    INTEGER                              :: out_each
     REAL(KIND=dp)                        :: eps_localization
     LOGICAL                              :: print_cubes, jacobi_fallback
     LOGICAL                              :: print_centers
@@ -217,6 +218,8 @@ CONTAINS
 
           CALL section_vals_val_get(loc_section,"MAX_ITER",&
                i_val=localized_wfn_control%max_iter,error=error)
+          CALL section_vals_val_get(loc_section,"OUT_ITER_EACH",&
+               i_val=localized_wfn_control%out_each,error=error)
           CALL section_vals_val_get(loc_section,"EPS_LOCALIZATION",&
                r_val=localized_wfn_control%eps_localization,error=error)
           CALL section_vals_val_get(loc_section,"MIN_OR_MAX",&
@@ -395,6 +398,7 @@ CONTAINS
     DO ispin = 1,nspins
        ALLOCATE(localized_wfn_control%centers_set(ispin)%array(6,nmoloc(ispin)), STAT = istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       localized_wfn_control%centers_set(ispin)%array = 0.0_dp
     END DO
 
   END SUBROUTINE set_loc_centers

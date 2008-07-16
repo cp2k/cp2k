@@ -108,6 +108,7 @@ MODULE qs_loc_types
           POINTER                                :: op_sm_set
      
      REAL (KIND = dp)                            :: weights ( 6 )
+     INTEGER                                     :: dim_op
   END TYPE qs_loc_env_new_type
 
 CONTAINS
@@ -282,7 +283,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE get_qs_loc_env(qs_loc_env,cell,local_molecules,localized_wfn_control,&
-       moloc_coeff,op_sm_set,op_fm_set,para_env,particle_set,weights,error)
+       moloc_coeff,op_sm_set,op_fm_set,para_env,particle_set,weights,dim_op,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
@@ -301,6 +302,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     REAL(dp), DIMENSION(6), OPTIONAL         :: weights
+    INTEGER, OPTIONAL         :: dim_op
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_loc_env', &
@@ -322,6 +324,7 @@ CONTAINS
        IF (PRESENT(para_env)) para_env =>  qs_loc_env%para_env
        IF (PRESENT(particle_set)) particle_set =>  qs_loc_env%particle_set
        IF (PRESENT(weights)) weights(1:6)=  qs_loc_env%weights(1:6)
+       IF (PRESENT(dim_op)) dim_op =  qs_loc_env%dim_op
     END IF
 
   END SUBROUTINE get_qs_loc_env
@@ -334,7 +337,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE set_qs_loc_env(qs_loc_env,cell,local_molecules,localized_wfn_control,&
-       moloc_coeff,op_sm_set,op_fm_set,para_env,particle_set,weights,error)
+       moloc_coeff,op_sm_set,op_fm_set,para_env,particle_set,weights,dim_op,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
@@ -353,6 +356,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     REAL(dp), DIMENSION(6), OPTIONAL         :: weights
+    INTEGER,  OPTIONAL         :: dim_op
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_loc_env', &
@@ -398,6 +402,9 @@ CONTAINS
        END IF
        IF(PRESENT(weights)) THEN
           qs_loc_env%weights = weights
+       END IF
+       IF(PRESENT(dim_op)) THEN
+          qs_loc_env%dim_op = dim_op
        END IF
     END IF
 

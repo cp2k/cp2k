@@ -615,6 +615,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="OUT_ITER_EACH",&
+            description="Every how many iterations of the localization algorithm"//&
+            "(Jacobi) the tolerance value is printed out",&
+            usage="OUT_ITER_EACH 100", default_i_val=100, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="EPS_LOCALIZATION",&
             description="Tolerance used in the convergence criterium of the localization methods.",&
             usage="EPS_LOCALIZATION 1.0E-2", default_r_val=1.0E-4_dp, error=error)

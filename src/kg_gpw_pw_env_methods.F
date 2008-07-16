@@ -467,7 +467,7 @@ CONTAINS
       pw_grid_g => pw_pool_g%pw_grid
       ! we can only handle orthorhombic grids at this point
       IF ( .NOT. pw_grid_g%orthorhombic ) THEN
-          CALL stop_program(routineP,"KG_GPW: only orthorhombic grids allowd")
+          CALL stop_program(routineP,"KG_GPW: only orthorhombic grids allowed")
       END IF
 
        ! assign a unique tag to this grid

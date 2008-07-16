@@ -316,7 +316,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iatom, imo, imoloc, ispin, istat, j, l_spin, lb, &
+    INTEGER :: dim_op, handle, i, iatom, imo, imoloc, ispin, istat, j, l_spin, lb, &
       my_nspins, nao, naosub, natoms, nmo, nmosub, nspins, s_spin, ub
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_occ, occ_imo
@@ -430,9 +430,15 @@ CONTAINS
             ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
 
        IF ( localized_wfn_control%operator_type==op_loc_berry )  THEN
-          ALLOCATE ( qs_loc_env % op_sm_set ( 2, 3 ), STAT = istat )
+          IF(qs_loc_env%cell%orthorhombic) THEN
+             dim_op = 3
+          ELSE
+             dim_op = 6
+          END IF
+          CALL set_qs_loc_env(qs_loc_env=qs_loc_env, dim_op=dim_op, error=error)
+          ALLOCATE ( qs_loc_env % op_sm_set ( 2, dim_op ), STAT = istat )
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          DO i=1, SIZE ( qs_loc_env % op_sm_set, 2 )
+          DO i=1, dim_op
              DO j=1, SIZE ( qs_loc_env % op_sm_set, 1 )
                 NULLIFY(qs_loc_env%op_sm_set(j,i)%matrix)
                 CALL replicate_matrix_structure(matrix_s(1)%matrix, &
@@ -446,6 +452,7 @@ CONTAINS
           natoms = SIZE ( qs_loc_env % particle_set, 1 )
           ALLOCATE ( qs_loc_env % op_fm_set ( natoms , 1 ), STAT = istat )
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CALL set_qs_loc_env(qs_loc_env=qs_loc_env, dim_op=natoms, error=error)
           DO ispin = 1, SIZE(qs_loc_env % op_fm_set ,2)
              CALL get_mo_set(mos(ispin)%mo_set,nmo=nmo)
              DO iatom = 1,natoms
@@ -510,7 +517,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_berry_operator', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
+    INTEGER :: dim_op, handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
       istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, &
       ldwork, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, nseta, nsetb, &
       nthread, sgfa, sgfb
@@ -522,7 +529,8 @@ CONTAINS
     LOGICAL                                  :: failure, new_atom_b, ortho
     REAL(KIND=dp)                            :: dab, ooLx, ooLy, ooLz, rab2, &
                                                 twopoLx, twopoLy, twopoLz
-    REAL(KIND=dp), DIMENSION(3)              :: kvec, ra, rab, rb
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
+    REAL(KIND=dp)                            :: kvec(3), vector_k(3,6)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cosab, rpgfa, rpgfb, sinab, &
                                                 sphi_a, sphi_b, work, zeta, &
@@ -578,25 +586,35 @@ CONTAINS
     ALLOCATE(workt(ldwork,ldwork,0:nthread-1))
     workt = 0.0_dp
 
-    ALLOCATE (op_cost(3,0:nthread-1),STAT=istat)
+    CALL get_qs_loc_env(qs_loc_env=qs_loc_env, op_sm_set=op_sm_set, &
+         cell=cell, dim_op=dim_op, error=error)
+    ALLOCATE (op_cost(dim_op,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (op_sint(3,0:nthread-1),STAT=istat)
+    ALLOCATE (op_sint(dim_op,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DO i = 1, 3
+    DO i = 1, dim_op
       DO j=0,nthread-1
         NULLIFY (op_cost(i,j)%block)
         NULLIFY (op_sint(i,j)%block)
       END DO
     END DO
 
-    CALL get_qs_loc_env(qs_loc_env=qs_loc_env,op_sm_set=op_sm_set, cell=cell,error=error)
     ooLx = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )
     ooLy = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )
     ooLz = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )
     twopoLx = twopi*ooLx
     twopoLy = twopi*ooLy
     twopoLz = twopi*ooLz
+    kvec = 0.0_dp
+    vector_k = 0.0_dp
     ortho = cell%orthorhombic
+    vector_k(:,1) = twopi*cell%h_inv(:,1)
+    vector_k(:,2) = twopi*cell%h_inv(:,2)
+    vector_k(:,3) = twopi*cell%h_inv(:,3)
+    vector_k(:,4) = twopi*(cell%h_inv(:,1)+cell%h_inv(:,2))
+    vector_k(:,5) = twopi*(cell%h_inv(:,1)+cell%h_inv(:,3))
+    vector_k(:,6) = twopi*(cell%h_inv(:,2)+cell%h_inv(:,3))
+
 
     ! This operator can be used only for periodic systems
     ! If an isolated system is used the periodicity is overimposed
@@ -722,7 +740,7 @@ CONTAINS
                 icol = iatom
               END IF
 
-              DO i = 1,3
+              DO i = 1,dim_op
                  NULLIFY(op_cos(i)%block)
                  CALL get_block_node(matrix=op_sm_set(1,i)%matrix,&
                                      block_row=irow,&
@@ -753,57 +771,21 @@ CONTAINS
                 IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
 
 !           *** Calculate the primitive overlap integrals ***
-                  IF(ortho)THEN
+                  DO i = 1,dim_op
 
-                    ! x component
-                    kvec = 0.0_dp
-                    kvec(1) = twopoLx
+                    kvec(1:3) = vector_k(1:3,i)
                     cosab = 0.0_dp
                     sinab = 0.0_dp
+                    CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),&
+                                la_min(iset),lb_max(jset),npgfb(jset),zetb(:,jset),&
+                                rpgfb(:,jset),lb_min(jset),&
+                                ra,rb,kvec,cosab,sinab)
 
-                    CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
-                              lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
-                              ra,rb,kvec,cosab,sinab)
-
-                    CALL contract_cossin(op_cos(1)%block,op_sin(1)%block,&
+                    CALL contract_cossin(op_cos(i)%block,op_sin(i)%block,&
                                iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
                                jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
                                cosab,sinab,ldab,work,ldwork)
-
-                    ! y component
-                    kvec = 0.0_dp
-                    kvec(2) = twopoLy
-                    cosab = 0.0_dp
-                    sinab = 0.0_dp
-
-                    CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
-                              lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
-                              ra,rb,kvec,cosab,sinab)
-
-                    CALL contract_cossin(op_cos(2)%block,op_sin(2)%block,&
-                               iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
-                               jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
-                               cosab,sinab,ldab,work,ldwork)
-
-                    ! z component
-                    kvec = 0.0_dp
-                    kvec(3) = twopoLz
-                    cosab = 0.0_dp
-                    sinab = 0.0_dp
-
-                    CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
-                              lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
-                              ra,rb,kvec,cosab,sinab)
-
-                    CALL contract_cossin(op_cos(3)%block,op_sin(3)%block,&
-                               iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
-                               jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
-                               cosab,sinab,ldab,work,ldwork)
-
-                  ELSE
-                    CALL stop_program(routineP,&
-                      "spread calculation with berry phase in non orthorombic cell NYI")
-                  END IF  ! ortho
+                  END DO
 
                 END IF  !  >= dab
 
@@ -828,7 +810,7 @@ CONTAINS
     ! Set back the correct periodicity
     cell%perd(1:3) =  perd0(1:3)
 
-    DO i = 1,3
+    DO i = 1,dim_op
       DO j = 0,nthread-1
          NULLIFY(op_cost(i,j)%block)
          NULLIFY(op_sint(i,j)%block)

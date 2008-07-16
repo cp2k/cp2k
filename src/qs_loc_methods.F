@@ -160,7 +160,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, max_iter, nao, &
-                                                nmoloc, output_unit, sweeps
+                                                nmoloc, out_each, output_unit, sweeps
     LOGICAL                                  :: converged, ionode
     REAL(dp)                                 :: eps_localization
     TYPE(cp_fm_type), POINTER                :: opvec
@@ -191,11 +191,13 @@ CONTAINS
 
     max_iter = qs_loc_env%localized_wfn_control%max_iter
     eps_localization = qs_loc_env%localized_wfn_control%eps_localization
+    out_each = qs_loc_env%localized_wfn_control%out_each
 
     SELECT CASE ( method )
     CASE ( do_loc_jacobi )
        CALL jacobi_rotations ( weights, zij_fm_set, vectors, max_iter=max_iter,&
-            eps_localization=eps_localization, sweeps=sweeps )
+            eps_localization=eps_localization, sweeps=sweeps, &
+            out_each=out_each, error=error )
     CASE ( do_loc_crazy )
        CALL crazy_rotations( weights, zij_fm_set, vectors, max_iter=max_iter, &
             eps_localization=eps_localization, iterations= sweeps ,converged=converged,&
@@ -207,7 +209,8 @@ CONTAINS
                   " Crazy Wannier localization not converged after ",sweeps,&
                   " iterations, switching to jacobi rotations"
              CALL jacobi_rotations ( weights, zij_fm_set, vectors, max_iter=max_iter,&
-                  eps_localization=eps_localization, sweeps=sweeps )            
+                  eps_localization=eps_localization, sweeps=sweeps,&
+                  out_each=out_each, error=error  )            
           ELSE
              IF (output_unit>0) WRITE (output_unit,"(A,I6,A)")&
                   " Crazy Wannier localization not converged after ",sweeps,&
@@ -390,9 +393,10 @@ CONTAINS
 
     CHARACTER(len=default_path_length)       :: file_tmp, iter
     COMPLEX(KIND=dp)                         :: almost_determinant, z
-    INTEGER                                  :: idir, istate, nstates, &
+    INTEGER                                  :: idir, istate, jdir, nstates, &
                                                 output_unit, unit_out_s
     LOGICAL                                  :: failure, ionode
+    REAL(dp) :: spread_i, sum_spread_i
     REAL(dp), DIMENSION(3)                   :: c, cpbc, spreadtot
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
     REAL(KIND=dp)                            :: imagpart, realpart
@@ -419,16 +423,29 @@ CONTAINS
     centers => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
     CPPrecondition(ASSOCIATED(centers),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(centers,2)==nmoloc,cp_failure_level,routineP,error,failure)
+    sum_spread_i  = 0.0_dp
     DO istate=1,nmoloc
-       DO idir=1,3
-          CALL cp_fm_get_element(zij(1,idir)%matrix,istate,istate,realpart)
-          CALL cp_fm_get_element(zij(2,idir)%matrix,istate,istate,imagpart)
-          z=CMPLX(realpart,imagpart,dp)
-          centers (idir+3, istate )=SQRT( -weights ( idir ) * 2.0_dp * LOG ( ABS ( Z ) ) ) / twopi
-          c(idir) = ( cell % hmat ( idir, idir ) / twopi ) * AIMAG ( LOG ( z ) )
-       ENDDO
+       c = 0.0_dp
+       spread_i = 0
+       DO jdir = 1,SIZE(zij,2)
+         CALL cp_fm_get_element(zij(1,jdir)%matrix,istate,istate,realpart)
+         CALL cp_fm_get_element(zij(2,jdir)%matrix,istate,istate,imagpart)
+         z=CMPLX(realpart,imagpart,dp)
+!         centers (idir+3, istate )=&
+!            SQRT( -weights ( idir ) * 2.0_dp * LOG ( ABS ( Z ) ) ) / twopi
+         spread_i =  spread_i -weights ( jdir ) *&
+                     LOG (realpart*realpart+imagpart*imagpart ) / twopi/twopi
+         IF(jdir < 4) THEN
+           DO idir=1,3
+             c(idir) =  c(idir) + &
+                    ( cell % hmat ( idir, jdir ) / twopi ) * AIMAG ( LOG ( z ) )
+           ENDDO
+         END IF
+       END DO
        cpbc = pbc(c,cell)
        centers (1:3, istate ) = cpbc(1:3)
+       centers (4, istate ) = sqrt(spread_i)
+       sum_spread_i = sum_spread_i +  centers (4, istate )
        IF (unit_out_s>0) WRITE(unit_out_s,'(I6,3F16.8)') istate, angstrom*centers(4:6,istate)
     ENDDO
 
@@ -578,7 +595,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_driver', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, imo, imoloc, ir, ispin, istat, istate, j, jstate, l_spin, &
+    INTEGER :: dim_op, i, imo, imoloc, ir, ispin, istat, istate, j, jstate, l_spin, &
       lb, loc_method, my_nspins, n_rep, nao, ncubes, nmo, nmosub, s_spin, ub
     INTEGER, DIMENSION(:), POINTER           :: bounds, list, list_cubes
     LOGICAL                                  :: failure, ionode, &
@@ -609,9 +626,10 @@ CONTAINS
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
 
-    CALL get_qs_loc_env(qs_loc_env=qs_loc_env, localized_wfn_control=localized_wfn_control,&
+    CALL get_qs_loc_env(qs_loc_env=qs_loc_env, &
+         localized_wfn_control=localized_wfn_control,&
          moloc_coeff=moloc_coeff,op_sm_set=op_sm_set, op_fm_set=op_fm_set,cell=cell,&
-         weights=weights, error=error)
+         weights=weights, dim_op=dim_op, error=error)
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,&
          para_env=para_env, mos=mos, error=error)
@@ -643,9 +661,9 @@ CONTAINS
                   error=error)
           END IF
           !
-          ALLOCATE ( op_fm_set( 2, 3 ), STAT = istat )
+          ALLOCATE ( op_fm_set( 2, dim_op), STAT = istat )
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          DO i = 1, SIZE ( op_fm_set, 2 )
+          DO i = 1, dim_op
              DO j = 1, SIZE ( op_fm_set, 1 )
                 NULLIFY(op_fm_set(j,i)%matrix)
                 CALL cp_fm_create (op_fm_set(j,i)%matrix , tmp_fm_struct ,error=error)
@@ -662,7 +680,7 @@ CONTAINS
 
           ! Here we dealloctate op_fm_set
           IF(ASSOCIATED(op_fm_set)) THEN
-             DO i=1,SIZE ( op_fm_set,2)
+             DO i=1,dim_op
                 DO j=1,SIZE ( op_fm_set,1)
                    CALL cp_fm_release(op_fm_set(j,i)%matrix,error=error)
                 END DO
@@ -966,7 +984,7 @@ CONTAINS
           iter=cp_iter_string(logger%iter_info,error=error)
           WRITE(iunit,'(i6,/,a)') nstates,TRIM(iter)
           DO l=1,nstates
-             WRITE(iunit,'(A,6F16.8)') "X", angstrom*center(1:6,l)
+             WRITE(iunit,'(A,4F16.8)') "X", angstrom*center(1:4,l)
           END DO
        END IF
     END IF
