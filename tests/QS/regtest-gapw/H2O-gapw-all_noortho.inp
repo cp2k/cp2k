@@ -1,0 +1,63 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &MGRID
+      CUTOFF 150
+      NGRIDS 1
+    &END MGRID
+    &QS
+      ALPHA0_H 10
+      EPS_GVG 1.0E-6
+      EPS_PGF_ORB 1.0E-6
+      EPSFIT 1.E-4
+      EPSISO 1.0E-12
+      EPSSVD 0.0
+      EPSRHO0 1.E-8
+      LMAXN0 2
+      LMAXN1 6
+      METHOD GAPW
+      QUADRATURE GC_LOG
+      FULL_GAPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-4
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      A 6.0 .2 .0
+      B .0 6.0 .0
+      C -.2 .0 6.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-ALL-PADE
+      LEBEDEV_GRID 50
+      POTENTIAL ALL
+      RADIAL_GRID 50
+      HARD_EXP_RADIUS 1.5117809071370015011
+    &END KIND
+    &KIND O
+      BASIS_SET TZVP-ALL-PADE
+      LEBEDEV_GRID 50
+      POTENTIAL ALL
+      RADIAL_GRID 50
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+
+  PROJECT gapw_all_pade_no
+  PRINT_LEVEL MEDIUM
+&END GLOBAL

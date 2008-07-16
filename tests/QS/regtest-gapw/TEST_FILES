@@ -25,3 +25,7 @@ He2-all.inp        1
 He2-all-md.inp     1
 # new option : stride_xyz
 H2O-gapw-gth-pvh.inp 1
+# localization with non orthorhombic cell
+H2O-gapw-all_noortho.inp  1
+H2O-gapw-all_localize_noortho.inp  23
+H2O-gapw-all_localize_crazy_noortho.inp  23
