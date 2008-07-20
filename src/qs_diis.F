@@ -234,7 +234,7 @@ CONTAINS
 !> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE qs_diis_b_step(diis_buffer,mo_array,kc,sc,delta,error_max,&
-                            diis_step,eps_diis,s_matrix,scf_section,roks,&
+                            diis_step,eps_diis,nmixing,s_matrix,scf_section,roks,&
                             error)
 
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
@@ -247,6 +247,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: error_max
     LOGICAL, INTENT(OUT)                     :: diis_step
     REAL(KIND=dp), INTENT(IN)                :: eps_diis
+    INTEGER, INTENT(IN), OPTIONAL            :: nmixing
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: s_matrix
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -259,8 +260,9 @@ CONTAINS
 
     CHARACTER(LEN=2*default_string_length)   :: message
     INTEGER                                  :: handle, homo, ib, imo, ispin, &
-                                                istat, jb, nao, nb, nb1, nmo, &
-                                                nspin, output_unit
+                                                istat, jb, my_nmixing, nao, &
+                                                nb, nb1, nmo, nspin, &
+                                                output_unit
     LOGICAL                                  :: eigenvectors_discarded, &
                                                 failure, ionode, mo_uocc, &
                                                 my_roks
@@ -287,6 +289,9 @@ CONTAINS
     ELSE
       my_roks = .FALSE.
     END IF
+
+    my_nmixing = 2
+    IF (PRESENT(nmixing)) my_nmixing = nmixing
 
     NULLIFY (c,new_errors,old_errors,parameters,matrix_struct,a,b,occa,occb)
     logger => cp_error_get_logger(error)
@@ -409,7 +414,7 @@ CONTAINS
 
     ! Check, if a DIIS step is appropiate
 
-    diis_step = ((diis_buffer%ncall > 1).AND.(delta < eps_diis))
+    diis_step = ((diis_buffer%ncall >= my_nmixing).AND.(delta < eps_diis))
 
     IF (ionode) THEN
       output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&

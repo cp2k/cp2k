@@ -3466,6 +3466,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="NMIXING",&
+            description="Minimal number of density mixing (should be greater than 0)",&
+            usage="NMIXING 1", default_i_val=2,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(&
             keyword=keyword,&
             name="GSPACE_MIXING",&

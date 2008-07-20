@@ -1,0 +1,37 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &MGRID
+      CUTOFF 50
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      MAX_SCF 2
+      NMIXING 1
+      EPS_DIIS 1.0
+      MIXING 0.4
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 3.0 3.0 3.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    Ar     0.000000  0.000000  0.000000
+    &END COORD
+    &KIND Ar
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q8
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+&END GLOBAL

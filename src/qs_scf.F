@@ -789,8 +789,8 @@ SUBROUTINE qs_scf_loop_do_general_diag(scf_env,mos,rho,matrix_ks,&
    IF (scf_env%iter_count > 1) THEN
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
            scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-           scf_control%eps_diis,s_matrix=matrix_s,scf_section=scf_section,&
-           error=error)
+           scf_control%eps_diis,scf_control%nmixing,s_matrix=matrix_s,&
+           scf_section=scf_section,error=error)
    END IF
 
    do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
@@ -869,7 +869,8 @@ SUBROUTINE qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,scf_control,scf
    IF (scf_env%iter_count > 1) THEN
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
            scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-           scf_control%eps_diis,scf_section=scf_section,error=error)
+           scf_control%eps_diis,scf_control%nmixing,scf_section=scf_section,&
+           error=error)
    END IF
    do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
       ((scf_control%density_guess == core_guess).OR.(scf_env%iter_count > 1)))

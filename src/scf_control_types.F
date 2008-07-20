@@ -104,7 +104,7 @@ MODULE scf_control_types
     REAL(KIND = dp)       :: eps_eigval,eps_scf,eps_scf_hist,level_shift,p_mix,smear,&
                              work_syevx,eps_lumos,eps_diis,eps_jacobi,&
                              jacobi_threshold, gspace_mixing_a, gspace_mixing_b
-    INTEGER               :: max_iter_lumos, max_diis
+    INTEGER               :: nmixing, max_iter_lumos, max_diis
     INTEGER               :: max_scf,nrow_block,max_scf_hist,&
                              ncol_block,maxl,nkind
     LOGICAL               :: gradient_functional,gth_potential_present,&
@@ -163,6 +163,7 @@ CONTAINS
       scf_control%nrow_block = 32
       scf_control%ncol_block = 32
       scf_control%p_mix = 0.4_dp
+      scf_control%nmixing = 2
       scf_control%smear = 0.0_dp
       scf_control%work_syevx = 1.0_dp
       scf_control%use_cholesky = .TRUE.
@@ -346,6 +347,8 @@ CONTAINS
             i_val=scf_control%density_guess,error=error)
        CALL section_vals_val_get(scf_section,"MIXING",&
             r_val=scf_control%p_mix,error=error)
+       CALL section_vals_val_get(scf_section,"NMIXING",&
+            i_val=scf_control%nmixing,error=error)
        CALL section_vals_val_get(scf_section,"GSPACE_MIXING",&
                                  r_vals=r_vals,error=error)
        scf_control%gspace_mixing_a = r_vals(1)
