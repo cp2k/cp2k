@@ -60,8 +60,11 @@ CONTAINS
 
     failure  = .FALSE.
     CALL force_env_get(force_env, cell=cell, error=error)
-    CALL get_cell_param(cell,cell_length,cell_angle,cp_units_rad)
-    CALL set_cell_param(cell,cell_length,cell_angle)
+    ! orthorhombic cells are diagonal, and should stay exactly like this
+    IF (.NOT. cell%orthorhombic) THEN
+      CALL get_cell_param(cell,cell_length,cell_angle,cp_units_rad)
+      CALL set_cell_param(cell,cell_length,cell_angle)
+    ENDIF
     CALL force_env_set_cell(force_env, cell=cell, error=error)
 
   END SUBROUTINE get_ut_cell_matrix
@@ -287,6 +290,13 @@ CPSourceFileRef,&
        norm_c        = SQRT(DOT_PRODUCT(cell%hmat(:,3),cell%hmat(:,3)))
        norm          = DOT_PRODUCT(cell%hmat(1:3,3),gradient(4:6))
        gradient(4:6) = cell%hmat(1:3,3)/norm_c*norm
+       !  retain an exact orthorhombic cell
+       ! (off-diagonal elements must remain zero identically to keep QS fast)
+       IF (cell%orthorhombic) THEN
+          gradient(2) = 0.0_dp
+          gradient(4) = 0.0_dp
+          gradient(5) = 0.0_dp
+       ENDIF
     END IF
     gradient = - gradient
   END SUBROUTINE get_dg_dh
