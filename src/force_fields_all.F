@@ -877,6 +877,7 @@ CPSourceFileRef,&
                    bond_list(j)%bond_kind%id_type = inp_info%bond_kind(k)
                    bond_list(j)%bond_kind%k(:)    = inp_info%bond_k(:,k)
                    bond_list(j)%bond_kind%r0      = inp_info%bond_r0(k)
+                   bond_list(j)%bond_kind%cs      = inp_info%bond_cs(k)
                    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
                         "Multiple Bond declarations: "//TRIM(name_atm_a)//" and "//&
                         TRIM(name_atm_b)//" overwriting! "//&
@@ -1023,6 +1024,7 @@ CPSourceFileRef,&
                    bend_list(j)%bend_kind%id_type = inp_info%bend_kind(k)
                    bend_list(j)%bend_kind%k       = inp_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0  = inp_info%bend_theta0(k)
+                   bend_list(j)%bend_kind%cb      = inp_info%bend_cb(k)
                    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
                         "Multiple Bend declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&

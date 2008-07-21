@@ -365,7 +365,9 @@ MODULE input_constants
                                 do_ff_g96=2,&
                                 do_ff_charmm=3,&
                                 do_ff_harmonic=4,&
-                                do_ff_g87=5
+                                do_ff_g87=5,&
+                                do_ff_morse=6,&
+                                do_ff_cubic=7
   
   INTEGER, PARAMETER, PUBLIC :: do_stress_none=0,&
                                 do_stress_analytical=1,&

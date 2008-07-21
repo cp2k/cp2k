@@ -296,8 +296,9 @@ CPSourceFileRef,&
           CALL reallocate(inp_info%bond_b,1,nbonds)
           CALL reallocate(inp_info%bond_k,1,3,1,nbonds)
           CALL reallocate(inp_info%bond_r0,1,nbonds)
+          CALL reallocate(inp_info%bond_cs,1,nbonds)
           CALL read_bonds_section(inp_info%bond_kind, inp_info%bond_a, inp_info%bond_b, inp_info%bond_k,&
-               inp_info%bond_r0, tmp_section, ntot, error)
+               inp_info%bond_r0, inp_info%bond_cs, tmp_section, ntot, error)
        END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"BEND",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nbends,error=error)
@@ -309,8 +310,9 @@ CPSourceFileRef,&
           CALL reallocate(inp_info%bend_c,1,nbends)
           CALL reallocate(inp_info%bend_k,1,nbends)
           CALL reallocate(inp_info%bend_theta0,1,nbends)
+          CALL reallocate(inp_info%bend_cb,1,nbends)
           CALL read_bends_section(inp_info%bend_kind,inp_info%bend_a, inp_info%bend_b, inp_info%bend_c,&
-               inp_info%bend_k, inp_info%bend_theta0, tmp_section, ntot, error)
+               inp_info%bend_k, inp_info%bend_theta0, inp_info%bend_cb, tmp_section, ntot, error)
        END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"BEND",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nubs,error=error)
@@ -1077,12 +1079,12 @@ CPSourceFileRef,&
 !> \brief Reads the BONDS section
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE read_bonds_section(bond_kind,bond_a, bond_b, bond_k, bond_r0, section, start, error)
+  SUBROUTINE read_bonds_section(bond_kind,bond_a, bond_b, bond_k, bond_r0, bond_cs, section, start, error)
     INTEGER, DIMENSION(:), POINTER           :: bond_kind
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: bond_a, bond_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: bond_k
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: bond_r0
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: bond_r0, bond_cs
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1113,6 +1115,7 @@ CPSourceFileRef,&
           bond_k(k,start+isec) = Kvals(k)
        END DO
        CALL section_vals_val_get(section,"R0",i_rep_section=isec,r_val=bond_r0(start+isec),error=error)
+       CALL section_vals_val_get(section,"CS",i_rep_section=isec,r_val=bond_cs(start+isec),error=error)
     END DO
   END SUBROUTINE read_bonds_section
 
@@ -1120,11 +1123,11 @@ CPSourceFileRef,&
 !> \brief Reads the BENDS section
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE read_bends_section(bend_kind,bend_a, bend_b, bend_c, bend_k, bend_theta0, section, start, error)
+  SUBROUTINE read_bends_section(bend_kind,bend_a, bend_b, bend_c, bend_k, bend_theta0, bend_cb, section, start, error)
     INTEGER, DIMENSION(:), POINTER           :: bend_kind
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: bend_a, bend_b, bend_c
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: bend_k, bend_theta0
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: bend_k, bend_theta0, bend_cb
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1154,6 +1157,7 @@ CPSourceFileRef,&
        CPPostcondition(SIZE(Kvals) == 1, cp_failure_level, routineP, error, failure)
        bend_k(start+isec) = Kvals(1)
        CALL section_vals_val_get(section,"THETA0",i_rep_section=isec,r_val=bend_theta0(start+isec),error=error)
+       CALL section_vals_val_get(section,"CB",i_rep_section=isec,r_val=bend_cb(start+isec),error=error)
     END DO
   END SUBROUTINE read_bends_section
 

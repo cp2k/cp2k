@@ -38,14 +38,14 @@ MODULE force_field_types
 ! *****************************************************************************
   TYPE bond_kind_type
      INTEGER                        :: id_type
-     REAL(KIND = dp)                :: k(3),r0   
+     REAL(KIND = dp)                :: k(3),r0,cs
      INTEGER                        :: kind_number
   END TYPE bond_kind_type
 
 ! *****************************************************************************
   TYPE bend_kind_type
      INTEGER                        :: id_type
-     REAL(KIND = dp)                :: k,theta0
+     REAL(KIND = dp)                :: k,theta0,cb
      INTEGER                        :: kind_number
   END TYPE bend_kind_type
 
@@ -88,12 +88,14 @@ MODULE force_field_types
     CHARACTER (LEN=default_string_length), POINTER :: bond_b(:)
     REAL(KIND=dp), POINTER                         :: bond_k(:,:)
     REAL(KIND=dp), POINTER                         :: bond_r0(:)
+    REAL(KIND=dp), POINTER                         :: bond_cs(:)
     INTEGER, POINTER                               :: bend_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_c(:)
     REAL(KIND=dp), POINTER                         :: bend_k(:)
     REAL(KIND=dp), POINTER                         :: bend_theta0(:)
+    REAL(KIND=dp), POINTER                         :: bend_cb(:)
     INTEGER, POINTER                               :: ub_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_b(:)
@@ -260,6 +262,7 @@ CONTAINS
           bend_kind_set(ikind)%id_type = do_ff_undef
           bend_kind_set(ikind)%k = 0.0_dp
           bend_kind_set(ikind)%theta0 = 0.0_dp
+          bend_kind_set(ikind)%cb = 0.0_dp
           bend_kind_set(ikind)%kind_number = ikind
        END DO
     END IF
@@ -290,6 +293,7 @@ CONTAINS
           bond_kind_set(ikind)%id_type = do_ff_undef
           bond_kind_set(ikind)%k(:) = 0.0_dp
           bond_kind_set(ikind)%r0 = 0.0_dp
+          bond_kind_set(ikind)%cs = 0.0_dp
           bond_kind_set(ikind)%kind_number = ikind
        END DO
     END IF
@@ -546,12 +550,14 @@ SUBROUTINE init_inp_info(inp_info)
   NULLIFY(inp_info%bond_b)
   NULLIFY(inp_info%bond_k)
   NULLIFY(inp_info%bond_r0)
+  NULLIFY(inp_info%bond_cs)
   NULLIFY(inp_info%bend_kind)
   NULLIFY(inp_info%bend_a)
   NULLIFY(inp_info%bend_b)
   NULLIFY(inp_info%bend_c)
   NULLIFY(inp_info%bend_k)
   NULLIFY(inp_info%bend_theta0)
+  NULLIFY(inp_info%bend_cb)
   NULLIFY(inp_info%ub_kind)
   NULLIFY(inp_info%ub_a)
   NULLIFY(inp_info%ub_b)
@@ -913,6 +919,10 @@ SUBROUTINE deallocate_inp_info(inp_info, error)
     DEALLOCATE(inp_info%bond_r0,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
+  IF(ASSOCIATED(inp_info%bond_cs)) THEN
+    DEALLOCATE(inp_info%bond_cs,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
   IF(ASSOCIATED(inp_info%bend_kind)) THEN
     DEALLOCATE(inp_info%bend_kind,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -935,6 +945,10 @@ SUBROUTINE deallocate_inp_info(inp_info, error)
   END IF
   IF(ASSOCIATED(inp_info%bend_theta0)) THEN
     DEALLOCATE(inp_info%bend_theta0,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(inp_info%bend_cb)) THEN
+    DEALLOCATE(inp_info%bend_cb,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(ASSOCIATED(inp_info%ub_kind)) THEN

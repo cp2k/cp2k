@@ -178,6 +178,7 @@ CONTAINS
              CALL force_bonds(bond_list(ibond)%bond_kind%id_type, rij, &
                               bond_list ( ibond ) % bond_kind % r0, &
                               bond_list ( ibond ) % bond_kind % k, &
+                              bond_list ( ibond ) % bond_kind % cs, &
                               energy, fscalar)
              pot_bond = pot_bond + energy
         
@@ -211,7 +212,7 @@ CONTAINS
              rij = pbc(rij,cell)
              k1 = 0.0_dp
              k1(1) = shell_list ( ishell ) % shell_kind % k_spring
-             CALL force_bonds(do_ff_harmonic, rij, 0.0_dp, k1, energy, fscalar)
+             CALL force_bonds(do_ff_harmonic, rij, 0.0_dp, k1, 0.0_dp, energy, fscalar)
              pot_shell = pot_shell + energy
              
              core_particle_set ( index_b )% f(1) = core_particle_set ( index_b ) % f(1)  -rij(1) * fscalar
@@ -229,7 +230,7 @@ CONTAINS
              rij = pbc(rij,cell)
              CALL force_bonds (ub_list(ibend)%ub_kind%id_type, rij, &
                                ub_list(ibend)%ub_kind%r0, &
-                               ub_list(ibend)%ub_kind%k, energy, fscalar)
+                               ub_list(ibend)%ub_kind%k, 0.0_dp, energy, fscalar)
              pot_urey_bradley = pot_urey_bradley + energy
              particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1)  - rij(1) * fscalar
              particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2)  - rij(2) * fscalar
@@ -271,6 +272,7 @@ CONTAINS
                                b12,b32,d12,d32,id12,id32,dist,theta, &
                                bend_list(ibend)%bend_kind%theta0, &
                                bend_list(ibend)%bend_kind%k, &
+                               bend_list(ibend)%bend_kind%cb, &
                                g1,g2,g3,energy,fscalar)
              pot_bend = pot_bend + energy
              particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1) + g1(1) * fscalar

@@ -11,9 +11,11 @@
 MODULE mol_force
 
   USE input_constants,                 ONLY: do_ff_charmm,&
+                                             do_ff_cubic,&
                                              do_ff_g87,&
                                              do_ff_g96,&
                                              do_ff_harmonic,&
+                                             do_ff_morse,&
                                              do_ff_quartic
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
@@ -32,10 +34,10 @@ CONTAINS
 !>      force_bonds_3 uses a quartic form (i.e. 3 force constants)
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE force_bonds ( id_type, rij, r0, k, energy, fscalar )
+  SUBROUTINE force_bonds ( id_type, rij, r0, k, cs, energy, fscalar )
     INTEGER, INTENT(IN)                      :: id_type
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rij
-    REAL(KIND=dp), INTENT(IN)                :: r0, k(3)
+    REAL(KIND=dp), INTENT(IN)                :: r0, k(3), cs
     REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_bonds', &
@@ -52,6 +54,17 @@ CONTAINS
        disp    = dij - r0
        energy  = (f12*k(1) + (f13*k(2)+f14*k(3)*disp)*disp)*disp*disp
        fscalar = ((k(1) + (k(2) + k(3)*disp)*disp)*disp) / dij
+    CASE (do_ff_morse)
+       dij     = SQRT ( DOT_PRODUCT ( rij, rij ) )
+       disp    = dij - r0
+       energy  = k(1)*(  (1-EXP(-k(2)*disp))**2  -1)
+       fscalar = 2*k(1)*k(2)*EXP(-k(2)*disp)*(1-EXP(-k(2)*disp))/dij
+    CASE (do_ff_cubic)
+       dij = SQRT ( DOT_PRODUCT ( rij, rij ) )
+       disp = dij - r0
+       energy  = k(1)*disp**2*(1+cs*disp+7.0_dp/12.0_dp*cs**2*disp**2)
+       fscalar = (2.0_dp*k(1)*disp*(1+cs*disp+7.0_dp/12.0_dp*cs**2*disp**2) + &
+                  k(1)*disp**2*(cs+2.0_dp*7.0_dp/12.0_dp*cs**2*disp))/ dij
     CASE (do_ff_g96)
        ! From GROMOS...
        ! V = (1/4)*Kb*(rij**2 - bij**2)**2
@@ -92,11 +105,11 @@ CONTAINS
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE force_bends (id_type, b12, b32, d12, d32, id12, id32, dist, &
-       theta, theta0, k, g1, g2, g3, energy, fscalar )
+       theta, theta0, k, cb, g1, g2, g3, energy, fscalar )
     INTEGER, INTENT(IN)                      :: id_type
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b12, b32
     REAL(KIND=dp), INTENT(IN)                :: d12, d32, id12, id32, dist, &
-                                                theta, theta0, k
+                                                theta, theta0, k, cb
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: g1, g2, g3
     REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
@@ -117,6 +130,13 @@ CONTAINS
        denom = id12*id12*id32*id32
        energy = k * ( theta - theta0 ) ** 2
        fscalar = 2.0_dp* k *(theta-theta0)/SIN(theta)
+       g1 = (b32*d12*d32-dist*d32*id12*b12)*denom
+       g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom
+       g3 = (b12*d12*d32-dist*id32*d12*b32)*denom
+    CASE (do_ff_cubic)
+       denom = id12*id12*id32*id32
+       energy = k * ( theta - theta0 ) ** 2 * (1.0_dp + cb * (theta-theta0 ))
+       fscalar = (2.0_dp* k *(theta-theta0)* (1.0_dp + cb * (theta-theta0 ))+k * ( theta - theta0 ) ** 2 *cb)/SIN(theta)
        g1 = (b32*d12*d32-dist*d32*id12*b12)*denom
        g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom
        g3 = (b12*d12*d32-dist*id32*d12*b32)*denom

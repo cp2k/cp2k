@@ -555,15 +555,17 @@ CONTAINS
        CALL keyword_create(keyword=keyword, name="KIND",&
             description="Define the kind of bend potential",&
             usage="KIND {HARMONIC,CHARMM,G87,G96}",&
-            enum_c_vals=s2a("HARMONIC","CHARMM","G87","G96"),&
+            enum_c_vals=s2a("HARMONIC","CHARMM","G87","G96","CUBIC"),&
             enum_desc=s2a("Functional Form (HARMONIC/G87): 1/2*K*(THETA-THETA0)^2",&
                           "Functional Form (CHARMM): K*(THETA-THETA0)^2",&
                           "Functional Form (HARMONIC/G87): 1/2*K*(THETA-THETA0)^2",&
-                          "Functional Form (G96): 1/2*K*(COS(THETA)-THETA0)^2"),&
+                          "Functional Form (G96): 1/2*K*(COS(THETA)-THETA0)^2",&
+                          "Functional Form (Cubic): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))"),&
             enum_i_vals=(/ do_ff_harmonic,&
                            do_ff_charmm,&
                            do_ff_g87,&
-                           do_ff_g96/),&
+                           do_ff_g96,&
+                           do_ff_cubic/),&
             default_i_val=do_ff_charmm, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -572,6 +574,13 @@ CONTAINS
             description="Defines the force constant of the potential",&
             usage="K {real}", required=.TRUE., type_of_var=real_t,&
             n_var=1, unit_str="hartree*rad^-2",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CB",&
+            description="Defines the the cubic force constant of the bend",&
+            usage="CB {real}", default_r_val=0.0_dp , type_of_var=real_t,&
+            n_var=1, unit_str="rad^-1",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -664,18 +673,22 @@ CONTAINS
 
        CALL keyword_create(keyword=keyword, name="KIND",&
             description="Define the kind of bond potential.",&
-            usage="KIND {HARMONIC,CHARMM,G87,G96,QUARTIC}",&
-            enum_c_vals=s2a("HARMONIC","CHARMM","G87","G96","QUARTIC"),&
+            usage="KIND HARMONIC",&
+            enum_c_vals=s2a("HARMONIC","CHARMM","G87","G96","QUARTIC","MORSE","CUBIC"),&
             enum_desc=s2a("Functional Form (HARMONIC|G87): 1/2*K*(R-R0)^2",&
                           "Functional Form (CHARMM): K*(R-R0)^2",&
                           "Functional Form (HARMONIC|G87): 1/2*K*(R-R0)^2",&
                           "Functional Form (G96): 1/4*K*(R-R0)^2",&
-                          "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2"),&
+                          "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2",&
+                          "Functional Form (Morse): K1*[(1-exp(-K2*(R-R0)))**2-1])",&
+                          "Functional Form (Cubic): K*(R-R0)**2*(1+cs*(R-R0)+7/12*(cs**2*(R-R0)**2))"),&
             enum_i_vals=(/ do_ff_harmonic,&
                            do_ff_charmm,&
                            do_ff_g87,&
                            do_ff_g96,&
-                           do_ff_quartic/),&
+                           do_ff_quartic, &
+                           do_ff_morse, &
+                           do_ff_cubic/),&
             default_i_val=do_ff_charmm, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -685,6 +698,13 @@ CONTAINS
             " three numbers are expected.",&
             usage="K {real}", required=.TRUE., type_of_var=real_t,&
             n_var=-1, unit_str="hartree*bohr^-2",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CS",&
+            description="Defines the cubic stretch term.",&
+            usage="CS {real}", default_r_val=0.0_dp , type_of_var=real_t,&
+            n_var=1, unit_str="bohr^-1", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
