@@ -789,8 +789,8 @@ CONTAINS
     CHARACTER(LEN=LEN(basis_set_name)+2)     :: bsname2
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
-    INTEGER :: i, ico, ipgf, irep, iset, ishell, lshell, m, maxco, maxl, &
-      maxpgf, maxshell, ncgf, nmin, nset, nsgf, stat, strlen1, strlen2
+    INTEGER :: i, ico, ipgf, irep, iset, ishell, istr, lshell, m, maxco, &
+      maxl, maxpgf, maxshell, ncgf, nmin, nset, nsgf, stat, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, n
     LOGICAL                                  :: failure, found, is_ok, match, &
@@ -913,7 +913,7 @@ CONTAINS
                   CALL parser_get_object(parser,nset,newline=.TRUE.,error=error)
                   IF (PRESENT(basis_section)) THEN
                      irep = irep + 1
-                     WRITE(line_att,*)nset
+                     WRITE(line_att,'(1X,I0)')nset
                      CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                           c_val=TRIM(line_att), error=error) 
                   END IF
@@ -950,7 +950,7 @@ CONTAINS
                      CALL parser_get_object(parser,lmin(iset),error=error)
                      CALL parser_get_object(parser,lmax(iset),error=error)
                      CALL parser_get_object(parser,npgf(iset),error=error)
-                     WRITE(line_att,*)n(1,iset),lmin(iset),lmax(iset),npgf(iset)
+                     WRITE(line_att,'(4(1X,I0))')n(1,iset),lmin(iset),lmax(iset),npgf(iset)
                   END IF
                   maxl = MAX(maxl,lmax(iset))
                   IF (npgf(iset) > maxpgf) THEN
@@ -966,7 +966,8 @@ CONTAINS
                         CALL remove_word(line_att)
                      ELSE
                         CALL parser_get_object(parser,ishell,error=error)
-                        WRITE(line_att(LEN_TRIM(line_att)+1:),*)ishell
+                        istr=LEN_TRIM(line_att)+1
+                        WRITE(line_att(istr:),'(1X,I0)')ishell
                      END IF
                      nshell(iset) = nshell(iset) + ishell
                      IF (nshell(iset) > maxshell) THEN
@@ -990,7 +991,7 @@ CONTAINS
                   ELSE
                      IF (LEN_TRIM(line_att)/=0) CALL stop_program(routineN,moduleN,&
                           __LINE__,&
-                          "Error reading the Potential from input file!!")
+                          "Error reading the Basis from input file!!")
                   END IF
                   DO ipgf=1,npgf(iset)
                      IF (read_from_input) THEN
@@ -1007,7 +1008,7 @@ CONTAINS
                         END DO
                         IF (PRESENT(basis_section)) THEN
                            irep = irep + 1
-                           WRITE(line_att,*)zet(ipgf,iset),(gcc(ipgf,ishell,iset),ishell=1,nshell(iset))
+                           WRITE(line_att,'(100E24.16)')zet(ipgf,iset),(gcc(ipgf,ishell,iset),ishell=1,nshell(iset))
                            CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                                 c_val=TRIM(line_att), error=error) 
                         END IF
@@ -1148,11 +1149,11 @@ CONTAINS
        IF ((match).AND.(PRESENT(basis_section))) THEN
           ! Dump the read basis set in the basis section
           irep = irep + 1
-          WRITE(line_att,*)"         # Basis set name: "//bsname2(:strlen2)//" for symbol: "//symbol2(:strlen1)             
+          WRITE(line_att,'(A)')"         # Basis set name: "//bsname2(:strlen2)//" for symbol: "//symbol2(:strlen1)             
           CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                c_val=TRIM(line_att), error=error)
           irep = irep + 1
-          WRITE(line_att,*)"         # Basis set read from the basis set filename: "//TRIM(basis_set_file_name)
+          WRITE(line_att,'(A)')"         # Basis set read from the basis set filename: "//TRIM(basis_set_file_name)
           CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                c_val=TRIM(line_att), error=error)
        END IF

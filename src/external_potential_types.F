@@ -957,7 +957,7 @@ CONTAINS
                    CALL parser_get_object(parser,elec_conf(l),error=error)
                 END DO
                 irep = irep + 1
-                WRITE(line_att,*)elec_conf
+                WRITE(line_att,'(100(1X,I0))')elec_conf
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                      c_val=TRIM(line_att), error=error)              
              END IF
@@ -984,7 +984,7 @@ CONTAINS
              ELSE
                 CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
                 irep = irep + 1
-                WRITE(line_att,*)r
+                WRITE(line_att,'(E24.16)')r
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                      c_val=TRIM(line_att), error=error)
              END IF
@@ -1008,11 +1008,11 @@ CONTAINS
        ! Dump the potential info the in potential section
        IF (match) THEN
           irep = irep + 1
-          WRITE(line_att,*)"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
+          WRITE(line_att,'(A)')"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
           CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                c_val=TRIM(line_att), error=error)
           irep = irep + 1
-          WRITE(line_att,*)"         # Potential read from the potential filename: "//TRIM(potential_file_name)
+          WRITE(line_att,'(A)')"         # Potential read from the potential filename: "//TRIM(potential_file_name)
           CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                c_val=TRIM(line_att), error=error)
        END IF
@@ -1045,7 +1045,7 @@ CONTAINS
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
-    INTEGER                                  :: i, irep, j, maxlppl, n, &
+    INTEGER                                  :: i, irep, istr, j, maxlppl, n, &
                                                 nalpha_ppl, nmax, strlen1, &
                                                 strlen2
     LOGICAL                                  :: found, is_ok, match, &
@@ -1115,7 +1115,7 @@ CONTAINS
              ELSE
                 CALL parser_get_object(parser,qeff,newline=.TRUE.,error=error)
                 irep = irep + 1
-                WRITE(line_att,*)qeff
+                WRITE(line_att,'(E24.16)')qeff
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                      c_val=TRIM(line_att), error=error)                
              END IF
@@ -1132,7 +1132,7 @@ CONTAINS
              ELSE
                 CALL parser_get_object(parser,alpha,newline=.TRUE.,error=error)
                 irep = irep + 1
-                WRITE(line_att,*)alpha
+                WRITE(line_att,'(E24.16)')alpha
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                      c_val=TRIM(line_att), error=error) 
              END IF
@@ -1150,7 +1150,7 @@ CONTAINS
              ELSE
                 CALL parser_get_object(parser,nalpha_ppl,newline=.TRUE.,error=error)
                 irep = irep + 1
-                WRITE(line_att,*)nalpha_ppl
+                WRITE(line_att,'(1X,I0)')nalpha_ppl
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                      c_val=TRIM(line_att), error=error) 
              END IF
@@ -1174,7 +1174,7 @@ CONTAINS
                       line_att = ""
                       CALL parser_get_object(parser,potential%alpha_ppl(i),newline=.TRUE.,error=error)
                       CALL parser_get_object(parser,n,error=error)
-                      WRITE(line_att,*)potential%alpha_ppl(i),n
+                      WRITE(line_att,'(E24.16,1X,I0)')potential%alpha_ppl(i),n
                    END IF
                    potential%nexp_ppl(i)=n
                    IF (n > nmax) THEN
@@ -1187,7 +1187,8 @@ CONTAINS
                          CALL remove_word(line_att)
                       ELSE
                          CALL parser_get_object(parser,potential%cexp_ppl(i,j),error=error)
-                         WRITE(line_att(LEN_TRIM(line_att)+1:),*)potential%cexp_ppl(i,j)
+                         istr=LEN_TRIM(line_att)+1
+                         WRITE(line_att(istr:),'(100E24.16)')potential%cexp_ppl(i,j)
                       END IF
                       potential%cexp_ppl(i,j) = (2.0_dp*potential%alpha_ppl(i))**(j - 1)*&
                            potential%cexp_ppl(i,j)
@@ -1228,11 +1229,11 @@ CONTAINS
        ! Dump the potential info the in potential section
        IF (match) THEN
           irep = irep + 1
-          WRITE(line_att,*)"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
+          WRITE(line_att,'(A)')"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
           CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                c_val=TRIM(line_att), error=error)
           irep = irep + 1
-          WRITE(line_att,*)"         # Potential read from the potential filename: "//TRIM(potential_file_name)
+          WRITE(line_att,'(A)')"         # Potential read from the potential filename: "//TRIM(potential_file_name)
           CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                c_val=TRIM(line_att), error=error)
        END IF
@@ -1272,7 +1273,7 @@ CONTAINS
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
-    INTEGER :: i, irep, j, l, lppnl, lprj_ppnl_max, maxlppl, n, nppnl, &
+    INTEGER :: i, irep, istr, j, l, lppnl, lprj_ppnl_max, maxlppl, n, nppnl, &
       nprj_ppnl, nprj_ppnl_max, stat, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: failure, found, is_ok, match, &
@@ -1361,7 +1362,7 @@ CONTAINS
                    CALL parser_get_object(parser,elec_conf(l),error=error)
                 END DO
                 irep = irep + 1
-                WRITE(line_att,*)elec_conf
+                WRITE(line_att,'(100(1X,I0))')elec_conf
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                      c_val=TRIM(line_att), error=error)              
              END IF
@@ -1388,8 +1389,9 @@ CONTAINS
                 CALL remove_word(line_att)
              ELSE
                 line_att = ""
-                CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
-                WRITE(line_att(LEN_TRIM(line_att)+1:),*)r
+                CALL parser_get_object(parser,r,newline=.TRUE.,error=error) 
+                istr=LEN_TRIM(line_att)+1
+                WRITE(line_att(istr:),'(E24.16)')r
              END IF
              alpha = 1.0_dp/(2.0_dp*r**2)
 
@@ -1407,7 +1409,8 @@ CONTAINS
                 CALL remove_word(line_att)
              ELSE
                 CALL parser_get_object(parser,n,error=error)
-                WRITE(line_att(LEN_TRIM(line_att)+1:),*)n
+                istr=LEN_TRIM(line_att)+1
+                WRITE(line_att(istr:),'(1X,I0)')n
              END IF
              potential%nexp_ppl = n
              CALL reallocate(potential%cexp_ppl,1,n)
@@ -1418,7 +1421,8 @@ CONTAINS
                    CALL remove_word(line_att)
                 ELSE
                    CALL parser_get_object(parser,potential%cexp_ppl(i),error=error)
-                   WRITE(line_att(LEN_TRIM(line_att)+1:),*)potential%cexp_ppl(i)
+                   istr=LEN_TRIM(line_att)+1
+                   WRITE(line_att(istr:),'(E24.16)')potential%cexp_ppl(i)
                 END IF
                 potential%cexp_ppl(i) = (2.0_dp*potential%alpha_ppl)**(i - 1)*&
                      potential%cexp_ppl(i)
@@ -1451,7 +1455,7 @@ CONTAINS
              ELSE
                 CALL parser_get_object(parser,n,newline=.TRUE.,error=error)
                 irep = irep + 1
-                WRITE(line_att,*)n
+                WRITE(line_att,'(1X,I0)')n
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                      c_val=TRIM(line_att), error=error)
              END IF
@@ -1493,7 +1497,8 @@ CONTAINS
                       line_att =""
                       CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
                       CALL parser_get_object(parser,nprj_ppnl,error=error)
-                      WRITE(line_att(LEN_TRIM(line_att)+1:),*)r, nprj_ppnl
+                      istr=LEN_TRIM(line_att)+1
+                      WRITE(line_att(istr:),'(E24.16,1X,I0)')r, nprj_ppnl
                    END IF
                    IF (r==0.0_dp.AND.nprj_ppnl/=0) THEN 
                       CALL stop_program(routineN,moduleN,&
@@ -1516,11 +1521,12 @@ CONTAINS
                    DO i=1,nprj_ppnl
                       IF (i == 1) THEN
                          IF (read_from_input) THEN
-                            READ(line_att,*)hprj_ppnl(i,i,l)
+                            READ(line_att,'(E24.16)')hprj_ppnl(i,i,l)
                             CALL remove_word(line_att) 
                          ELSE
                             CALL parser_get_object(parser,hprj_ppnl(i,i,l),error=error)
-                            WRITE(line_att(LEN_TRIM(line_att)+1:),*)hprj_ppnl(i,i,l)
+                            istr=LEN_TRIM(line_att)+1
+                            WRITE(line_att(istr:),'(E24.16)')hprj_ppnl(i,i,l)
                          END IF
                       ELSE
                          IF (read_from_input) THEN
@@ -1539,8 +1545,9 @@ CONTAINS
                             CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                                  c_val=TRIM(line_att), error=error)                 
                             line_att =""
-                            CALL parser_get_object(parser,hprj_ppnl(i,i,l),newline=.TRUE.,error=error)
-                            WRITE(line_att(LEN_TRIM(line_att)+1:),*)hprj_ppnl(i,i,l)
+                            CALL parser_get_object(parser,hprj_ppnl(i,i,l),newline=.TRUE.,error=error)  
+                            istr=LEN_TRIM(line_att)+1
+                            WRITE(line_att(istr:),'(E24.16)')hprj_ppnl(i,i,l)
                          END IF
                       END IF
                       DO j=i+1,nprj_ppnl
@@ -1549,7 +1556,8 @@ CONTAINS
                             CALL remove_word(line_att)
                          ELSE
                             CALL parser_get_object(parser,hprj_ppnl(i,j,l),error=error)
-                            WRITE(line_att(LEN_TRIM(line_att)+1:),*)hprj_ppnl(i,j,l)
+                            istr=LEN_TRIM(line_att)+1
+                            WRITE(line_att(istr:),'(E24.16)')hprj_ppnl(i,j,l)
                          END IF
                       END DO
                    END DO
@@ -1602,11 +1610,11 @@ CONTAINS
        ! Dump the potential info the in potential section
        IF (match) THEN
           irep = irep + 1
-          WRITE(line_att,*)"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)             
+          WRITE(line_att,'(A)')"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)             
           CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                c_val=TRIM(line_att), error=error)
           irep = irep + 1
-          WRITE(line_att,*)"         # Potential read from the potential filename: "//TRIM(potential_file_name)
+          WRITE(line_att,'(A)')"         # Potential read from the potential filename: "//TRIM(potential_file_name)
           CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                c_val=TRIM(line_att), error=error)
        END IF
