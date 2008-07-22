@@ -3365,7 +3365,7 @@ CONTAINS
        CALL keyword_create(keyword, name="MAX_ITER_LUMO",&
             variants=(/"MAX_ITER_LUMOS"/),&
             description="The maximum number of iteration for the lumo computation",&
-            usage="MAX_ITER_LUMO 100", default_i_val=2999,error=error)
+            usage="MAX_ITER_LUMO 100", default_i_val=299,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

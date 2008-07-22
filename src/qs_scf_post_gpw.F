@@ -68,7 +68,8 @@ MODULE qs_scf_post_gpw
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom,&
-                                             debye
+                                             debye,&
+                                             evolt
   USE preconditioner,                  ONLY: preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -180,9 +181,9 @@ CONTAINS
 
     INTEGER :: handle, homo, ispin, n, n_mo(2), nao, nelectron, nhomo, nlumo, &
       nlumos, nmo, nmoloc(2), nmos, output_unit
-    LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, failure, ionode, &
-      my_localized_wfn, p_loc, p_molstates, uniform_occ
-    REAL(KIND=dp)                            :: maxocc
+    LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, failure, has_homo, &
+      has_lumo, ionode, my_localized_wfn, p_loc, p_molstates, uniform_occ
+    REAL(KIND=dp)                            :: gap, homo_lumo(2,2), maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, stm_biases
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
@@ -233,6 +234,9 @@ CONTAINS
          unoccupied_orbs, mo_eigenvalues, unoccupied_evals, fm_struct_tmp, &
          molecule_set, tddfpt_control, subsys, particles, input, &
          print_key)
+
+    has_homo=.FALSE.
+    has_lumo=.FALSE.
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -324,6 +328,9 @@ CONTAINS
                 CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
                   para_env=qs_env%para_env,scr=output_unit, ionode=ionode, do_rotation=.TRUE.,&
                   co_rotate=mo_coeff_deriv,error=error)
+
+                has_homo=.TRUE.
+                homo_lumo(ispin,1)=mo_eigenvalues(homo)
 
                 ! Prints the cube files of OCCUPIED ORBITALS
                 CALL qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env,&
@@ -506,6 +513,9 @@ CPSourceFileRef,&
                   unoccupied_evals(ispin)%array, para_env=qs_env%para_env,scr=output_unit, &
                   ionode=ionode,error=error)
 
+             has_lumo=.TRUE.
+             homo_lumo(ispin,2)=unoccupied_evals(ispin)%array(1)
+
              ! Prints the cube files of UNOCCUPIED ORBITALS
              CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env,&
                   unoccupied_orbs, wf_g, wf_r, particles, nlumos, homo, ispin, ionode, error)
@@ -521,6 +531,14 @@ CPSourceFileRef,&
              tddfpt_control%lumos => unoccupied_orbs
           END IF
 
+       ENDIF
+
+       IF (has_homo .AND. has_lumo) THEN
+         IF (ionode) WRITE(output_unit,*) " "
+         DO ispin=1,dft_control%nspins
+             gap = homo_lumo(ispin,2)-homo_lumo(ispin,1)
+             IF (ionode) WRITE(output_unit,'(T2,A,F12.6)') "HOMO - LUMO gap [eV] :",gap*evolt
+         ENDDO
        ENDIF
 
        ! do_stm for the unoccupied states (requires eigenstates at this point)

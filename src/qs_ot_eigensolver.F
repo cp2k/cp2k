@@ -76,11 +76,12 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_eigensolver', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: max_iter_inner_loop = 40
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
-    INTEGER                                  :: handle, ieigensolver, k, n, &
-                                                ortho_k, ortho_space_k, &
-                                                output_unit
+    INTEGER                                  :: handle, ieigensolver, &
+                                                iter_total, k, n, ortho_k, &
+                                                ortho_space_k, output_unit
     LOGICAL                                  :: energy_only, ionode, ortho
     REAL(KIND=dp)                            :: delta, energy
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -105,167 +106,178 @@ CONTAINS
        output_unit = -1
     END IF
 
-    NULLIFY(qs_ot_env,fm_struct_tmp,matrix_s_ortho,matrix_os_ortho, &
-                      matrix_buf1_ortho,matrix_buf2_ortho)
-    ALLOCATE(qs_ot_env(1))
+    iter_total=0
 
-    ALLOCATE(matrix_hc(1))
-    CALL cp_fm_create(matrix_hc(1)%matrix,matrix_c%matrix_struct,error=error)
+    outer_scf: DO 
 
-    CALL cp_fm_get_info(matrix_c, nrow_global=n, ncol_global=k,error=error)
+      NULLIFY(qs_ot_env,fm_struct_tmp,matrix_s_ortho,matrix_os_ortho, &
+                        matrix_buf1_ortho,matrix_buf2_ortho)
+      ALLOCATE(qs_ot_env(1))
 
-    ortho=.FALSE.
-    IF (PRESENT(matrix_orthogonal_space)) ortho=.TRUE.
+      ALLOCATE(matrix_hc(1))
+      CALL cp_fm_create(matrix_hc(1)%matrix,matrix_c%matrix_struct,error=error)
 
-    ! decide settings
-    CALL qs_ot_settings_init(qs_ot_env(1)%settings)
-    ! overwrite defaults
-    qs_ot_env(1)%settings%ds_min=0.10_dp
+      CALL cp_fm_get_info(matrix_c, nrow_global=n, ncol_global=k,error=error)
 
-    IF (ortho) THEN
-       CALL cp_fm_get_info(matrix_orthogonal_space,&
-                                  ncol_global=ortho_space_k,error=error)
-       IF (PRESENT(size_ortho_space)) ortho_space_k=size_ortho_space
-       ortho_k=ortho_space_k+k
-    ELSE
-       ortho_k=k
-    ENDIF
+      ortho=.FALSE.
+      IF (PRESENT(matrix_orthogonal_space)) ortho=.TRUE.
 
-    ! allocate
-! *** SCP
-    CALL qs_ot_allocate(qs_ot_env(1),matrix_c%matrix_struct,ortho_k=ortho_k,error=error)
-! *** SCP
+      ! decide settings
+      CALL qs_ot_settings_init(qs_ot_env(1)%settings)
+      ! overwrite defaults
+      qs_ot_env(1)%settings%ds_min=0.10_dp
 
-    IF (ortho) THEN
-        ! construct an initial guess that is orthogonal to matrix_orthogonal_space
-        CALL cp_fm_create(matrix_s_ortho,matrix_orthogonal_space%matrix_struct,"matrix_s_ortho",error=error)
-
-        CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ortho_space_k, ncol_global=ortho_space_k, &
-                                 para_env=matrix_orthogonal_space%matrix_struct%para_env, &
-                                 context=matrix_orthogonal_space%matrix_struct%context,error=error)
-        CALL cp_fm_create(matrix_os_ortho, fm_struct_tmp,"matrix_os_ortho",error=error)
-        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-
-        CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ortho_space_k, ncol_global=k, &
-                                 para_env=matrix_orthogonal_space%matrix_struct%para_env, &
-                                 context=matrix_orthogonal_space%matrix_struct%context,error=error)
-        CALL cp_fm_create(matrix_buf1_ortho, fm_struct_tmp,"matrix_buf1_ortho",error=error)
-        CALL cp_fm_create(matrix_buf2_ortho, fm_struct_tmp,"matrix_buf2_ortho",error=error)
-        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-
-        CALL cp_sm_fm_multiply(matrix_s,matrix_orthogonal_space, &
-                                matrix_s_ortho,ortho_space_k,error=error)
-
-        CALL cp_fm_gemm('T','N',ortho_space_k,ortho_space_k,n,rone,matrix_s_ortho, &
-                        matrix_s_ortho, rzero,matrix_os_ortho,error=error)
-        CALL cp_fm_cholesky_decompose(matrix_os_ortho,error=error)
-        CALL cp_fm_cholesky_invert(matrix_os_ortho,error=error)
-
-        CALL cp_fm_gemm('T','N',ortho_space_k,k,n,rone,matrix_s_ortho,matrix_c, &
-                        rzero,matrix_buf1_ortho,error=error)
-        CALL cp_fm_symm('L','U',ortho_space_k,k,rone,matrix_os_ortho, &
-                        matrix_buf1_ortho, &
-                        rzero,matrix_buf2_ortho,error=error)
-        CALL cp_fm_gemm('N','N',n,k,ortho_space_k,-rone,matrix_s_ortho, &
-                        matrix_buf2_ortho, &
-                        rone,matrix_c,error=error)
-
-        ! make matrix_c0 an orthogonal basis, matrix_c contains sc0
-        CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0,error=error)
-        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
-                                matrix_c,k,error=error)
-        CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, matrix_c,error=error)
-
-        ! copy sc0 and matrix_s_ortho in qs_ot_env(1)%matrix_sc0
-        CALL cp_fm_to_fm(matrix_s_ortho,qs_ot_env(1)%matrix_sc0,ortho_space_k,1,1)
-        CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_sc0,k,1,ortho_space_k+1)
-
-        CALL cp_fm_release(matrix_buf1_ortho,error=error)
-        CALL cp_fm_release(matrix_buf2_ortho,error=error)
-        CALL cp_fm_release(matrix_os_ortho,error=error)
-        CALL cp_fm_release(matrix_s_ortho,error=error)
-
-    ELSE
-
-    ! set c0,sc0
-       CALL cp_fm_get_info(matrix_c,ncol_global=k,error=error)
-       CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0,error=error)
-       CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
-                               qs_ot_env(1)%matrix_sc0,k,error=error)
-       CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, qs_ot_env(1)%matrix_sc0,error=error)
-    ENDIF
-    ! init
-    CALL qs_ot_init(qs_ot_env(1),error=error)
-    energy_only=qs_ot_env(1)%energy_only
-
-    ! set x
-    CALL cp_fm_set_all(qs_ot_env(1)%matrix_x,0.0_dp,error=error)
-    CALL cp_fm_set_all(qs_ot_env(1)%matrix_sx,0.0_dp,error=error)
-
-    ! get c
-    CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1),error=error)
-    CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1),error=error)
-
-    ! if present preconditioner, use it
-
-    IF (PRESENT(preconditioner) ) THEN
-       IF (ASSOCIATED(preconditioner)) THEN
-         IF (preconditioner_in_use(preconditioner)) THEN
-             CALL qs_ot_new_preconditioner(qs_ot_env(1),preconditioner,error=error)
-         ELSE
-             ! we should presumably make one
-         END IF
-       ENDIF
-    ENDIF
-
-!   *** Eigensolver loop ***
-    CALL cp_fm_get_info(matrix_c,ncol_global=k,error=error)
-    ieigensolver = 0
-    eigensolver_loop: DO
-
-      ieigensolver = ieigensolver + 1
-
-      ! the energy is cHc, the gradient is 2*H*c
-      CALL cp_sm_fm_multiply(matrix_h,matrix_c, &
-                                     matrix_hc(1)%matrix,k,error=error)
-      CALL cp_fm_trace(matrix_c,matrix_hc(1)%matrix,energy,error=error)
-      IF (.NOT. energy_only) THEN
-       CALL cp_fm_scale_and_add(2.0_dp,matrix_hc(1)%matrix,error=error)
+      IF (ortho) THEN
+         CALL cp_fm_get_info(matrix_orthogonal_space,&
+                                    ncol_global=ortho_space_k,error=error)
+         IF (PRESENT(size_ortho_space)) ortho_space_k=size_ortho_space
+         ortho_k=ortho_space_k+k
+      ELSE
+         ortho_k=k
       ENDIF
 
-      qs_ot_env(1)%etotal=energy
-      CALL ot_mini(qs_ot_env,matrix_hc,error=error)
-      delta           =qs_ot_env(1)%delta
-      energy_only     =qs_ot_env(1)%energy_only
+      ! allocate
+      CALL qs_ot_allocate(qs_ot_env(1),matrix_c%matrix_struct,ortho_k=ortho_k,error=error)
 
-      CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_x, &
-                                         qs_ot_env(1)%matrix_sx, k,error=error)
+      IF (ortho) THEN
+          ! construct an initial guess that is orthogonal to matrix_orthogonal_space
+          CALL cp_fm_create(matrix_s_ortho,matrix_orthogonal_space%matrix_struct,"matrix_s_ortho",error=error)
 
+          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ortho_space_k, ncol_global=ortho_space_k, &
+                                   para_env=matrix_orthogonal_space%matrix_struct%para_env, &
+                                   context=matrix_orthogonal_space%matrix_struct%context,error=error)
+          CALL cp_fm_create(matrix_os_ortho, fm_struct_tmp,"matrix_os_ortho",error=error)
+          CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ortho_space_k, ncol_global=k, &
+                                   para_env=matrix_orthogonal_space%matrix_struct%para_env, &
+                                   context=matrix_orthogonal_space%matrix_struct%context,error=error)
+          CALL cp_fm_create(matrix_buf1_ortho, fm_struct_tmp,"matrix_buf1_ortho",error=error)
+          CALL cp_fm_create(matrix_buf2_ortho, fm_struct_tmp,"matrix_buf2_ortho",error=error)
+          CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+          CALL cp_sm_fm_multiply(matrix_s,matrix_orthogonal_space, &
+                                  matrix_s_ortho,ortho_space_k,error=error)
+
+          CALL cp_fm_gemm('T','N',ortho_space_k,ortho_space_k,n,rone,matrix_s_ortho, &
+                          matrix_s_ortho, rzero,matrix_os_ortho,error=error)
+          CALL cp_fm_cholesky_decompose(matrix_os_ortho,error=error)
+          CALL cp_fm_cholesky_invert(matrix_os_ortho,error=error)
+
+          CALL cp_fm_gemm('T','N',ortho_space_k,k,n,rone,matrix_s_ortho,matrix_c, &
+                          rzero,matrix_buf1_ortho,error=error)
+          CALL cp_fm_symm('L','U',ortho_space_k,k,rone,matrix_os_ortho, &
+                          matrix_buf1_ortho, &
+                          rzero,matrix_buf2_ortho,error=error)
+          CALL cp_fm_gemm('N','N',n,k,ortho_space_k,-rone,matrix_s_ortho, &
+                          matrix_buf2_ortho, &
+                          rone,matrix_c,error=error)
+
+          ! make matrix_c0 an orthogonal basis, matrix_c contains sc0
+          CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0,error=error)
+          CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
+                                  matrix_c,k,error=error)
+          CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, matrix_c,error=error)
+
+          ! copy sc0 and matrix_s_ortho in qs_ot_env(1)%matrix_sc0
+          CALL cp_fm_to_fm(matrix_s_ortho,qs_ot_env(1)%matrix_sc0,ortho_space_k,1,1)
+          CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_sc0,k,1,ortho_space_k+1)
+
+          CALL cp_fm_release(matrix_buf1_ortho,error=error)
+          CALL cp_fm_release(matrix_buf2_ortho,error=error)
+          CALL cp_fm_release(matrix_os_ortho,error=error)
+          CALL cp_fm_release(matrix_s_ortho,error=error)
+
+      ELSE
+
+      ! set c0,sc0
+         CALL cp_fm_get_info(matrix_c,ncol_global=k,error=error)
+         CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0,error=error)
+         CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
+                                 qs_ot_env(1)%matrix_sc0,k,error=error)
+         CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, qs_ot_env(1)%matrix_sc0,error=error)
+      ENDIF
+      ! init
+      CALL qs_ot_init(qs_ot_env(1),error=error)
+      energy_only=qs_ot_env(1)%energy_only
+
+      ! set x
+      CALL cp_fm_set_all(qs_ot_env(1)%matrix_x,0.0_dp,error=error)
+      CALL cp_fm_set_all(qs_ot_env(1)%matrix_sx,0.0_dp,error=error)
+
+      ! get c
       CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1),error=error)
       CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1),error=error)
 
+      ! if present preconditioner, use it
+
+      IF (PRESENT(preconditioner) ) THEN
+         IF (ASSOCIATED(preconditioner)) THEN
+           IF (preconditioner_in_use(preconditioner)) THEN
+               CALL qs_ot_new_preconditioner(qs_ot_env(1),preconditioner,error=error)
+           ELSE
+               ! we should presumably make one
+           END IF
+         ENDIF
+      ENDIF
+
+!     *** Eigensolver loop ***
+      CALL cp_fm_get_info(matrix_c,ncol_global=k,error=error)
+      ieigensolver = 0
+      eigensolver_loop: DO
+
+        ieigensolver = ieigensolver + 1
+        iter_total=iter_total+1
+
+        ! the energy is cHc, the gradient is 2*H*c
+        CALL cp_sm_fm_multiply(matrix_h,matrix_c, &
+                                       matrix_hc(1)%matrix,k,error=error)
+        CALL cp_fm_trace(matrix_c,matrix_hc(1)%matrix,energy,error=error)
+        IF (.NOT. energy_only) THEN
+         CALL cp_fm_scale_and_add(2.0_dp,matrix_hc(1)%matrix,error=error)
+        ENDIF
+
+        qs_ot_env(1)%etotal=energy
+        CALL ot_mini(qs_ot_env,matrix_hc,error=error)
+        delta           =qs_ot_env(1)%delta
+        energy_only     =qs_ot_env(1)%energy_only
+
+        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_x, &
+                                           qs_ot_env(1)%matrix_sx, k,error=error)
+
+        CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1),error=error)
+        CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1),error=error)
+
+        ! write(6,*) iter_total,energy,delta
+
+        IF (delta < eps_gradient .OR. iter_total .GE. iter_max .OR. ieigensolver .GE. max_iter_inner_loop ) EXIT eigensolver_loop
+
+      END DO eigensolver_loop
+
+      CALL qs_ot_destroy(qs_ot_env(1),error=error)
+      DEALLOCATE(qs_ot_env)
+      CALL cp_fm_release(matrix_hc(1)%matrix,error=error)
+      DEALLOCATE(matrix_hc)
+
       IF (delta < eps_gradient) THEN
           IF (ionode) THEN
-             WRITE(output_unit,*) " Reached convergence in ",ieigensolver, &
+             WRITE(output_unit,*) " Reached convergence in ",iter_total, &
                                   " iterations "
           ENDIF
-          EXIT eigensolver_loop
+          EXIT outer_scf
       ENDIF
-      IF (ieigensolver .GE. iter_max) THEN
+      IF (iter_total .GE. iter_max) THEN
          IF (ionode) THEN
            WRITE(output_unit,*) "WARNING : did not converge in ot_eigensolver"
-           WRITE(output_unit,*) "number of iterations ",ieigensolver
+           ! assuming all callers use MAX_ITER_LUMO to set the target
+           WRITE(output_unit,*) "number of iterations ",ieigensolver," exceeded MAX_ITER_LUMO"
            WRITE(output_unit,*) "current gradient / target gradient",delta," / ",eps_gradient
          ENDIF
-         EXIT eigensolver_loop
+         EXIT outer_scf
       ENDIF
 
-    END DO eigensolver_loop
 
-    CALL qs_ot_destroy(qs_ot_env(1),error=error)
-    DEALLOCATE(qs_ot_env)
-    CALL cp_fm_release(matrix_hc(1)%matrix,error=error)
-    DEALLOCATE(matrix_hc)
+    ENDDO outer_scf
 
     CALL timestop(0.0_dp,handle)
 
