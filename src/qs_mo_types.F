@@ -780,7 +780,7 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,"I","",handle)
-    logger=>cp_error_get_logger()
+    logger => cp_error_get_logger(error)
 
     nspin = SIZE(mo_array)
     restart_unit = -1

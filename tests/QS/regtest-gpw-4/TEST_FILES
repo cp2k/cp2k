@@ -46,3 +46,6 @@ H.inp                1
 # one (ghost) atom has no basis set associated
 basis_none_1.inp     1
 basis_none_2.inp     1
+# cell opt with a restart
+cell-1.inp           7
+cell-2.inp           7
