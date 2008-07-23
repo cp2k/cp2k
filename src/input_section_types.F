@@ -378,24 +378,23 @@ CONTAINS
     INTEGER                                  :: idepth, ikeyword, iref, isub
     LOGICAL                                  :: failure, has_keywords
 
-! a local stack of info
-
     failure=.FALSE.
     IF (ASSOCIATED(section)) THEN
        local_prefix=TRIM(prefix//"~"//TRIM(section%name))
        CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
        OPEN(unit=179,FILE=TRIM(local_prefix)//".html")
-       WRITE(179,*) "<HTML><BODY>"
-       WRITE(179,*) "<HEAD><TITLE> The CP2K project : input section "//section%name//"</TITLE></HEAD>"
-       WRITE(179,*) '<META NAME="description" content="CP2K">'
-       WRITE(179,*) '<META NAME="keywords" contents="scientific,computing,chemistry,physics,'//&
+       WRITE(179,FMT='(A)') "<HTML><BODY>"
+       WRITE(179,FMT='(A)') "<HEAD><TITLE> The CP2K project : input section "//section%name//"</TITLE></HEAD>"
+       WRITE(179,FMT='(A)') '<META NAME="description" content="CP2K">'
+       WRITE(179,FMT='(A)') &
+            '<META NAME="keywords" contents="scientific,computing,chemistry,physics,'//&
             'documentation,help,manual,Fortran,parallel">'
        color_tag='<font color="#000000">'
        IF (enable_color_tags.AND.section%supported_feature) THEN
           color_tag='<font color="#00CC00">'
        END IF
-       WRITE(179,*) "<H1> Section "//TRIM(color_tag)//section%name//"</font> </H1>"
-       WRITE(179,*) ' <A HREF="index.html">Index of all sections</A>. This section is located at '
+       WRITE(179,FMT='(A)') "<H1> Section "//TRIM(color_tag)//section%name//"</font> </H1>"
+       WRITE(179,FMT='(A)') ' <A HREF="index.html">Index of all sections</A>. This section is located at '
        DO idepth=1,depth
           WRITE(179,FMT='(A)',ADVANCE="NO") '<A HREF="'//TRIM(location(idepth))//'">'//TRIM(name(idepth))//'</A>%'
        ENDDO
@@ -403,68 +402,71 @@ CONTAINS
        name(depth+1)=TRIM(section%name)
        WRITE(179,FMT='(A)') '<A HREF="'//TRIM(location(depth+1))//'">'//TRIM(name(depth+1))//'</A>.'
 
-       WRITE(179,*) '<BR><BR>'//TRIM(section%description)
+       WRITE(179,FMT='(A)') '<BR><BR>'//TRIM(section%description)
 
        IF (ASSOCIATED(section%citations)) THEN
           IF (SIZE(section%citations,1)>1) THEN
-             WRITE(179,*) '<BR><BR> This section cites following references: ' 
+             WRITE(179,FMT='(A)') '<BR><BR> This section cites following references: ' 
           ELSE
-             WRITE(179,*) '<BR><BR> This section cites following reference: ' 
+             WRITE(179,FMT='(A)') '<BR><BR> This section cites following reference: ' 
           ENDIF
           DO iref=1,SIZE(section%citations,1)
-             WRITE(179,'(A,I0,A)') '<A HREF="references.html#reference_',section%citations(iref),'" TITLE="'
+             WRITE(179,FMT='(A,I0,A)') '<A HREF="references.html#reference_',section%citations(iref),'" TITLE="'
              CALL print_reference(section%citations(iref),FORMAT=print_format_journal,unit=179)
-             WRITE(179,'(A)') '">['//TRIM(get_citation_key(section%citations(iref)))//']</A>'
+             WRITE(179,FMT='(A)') '">['//TRIM(get_citation_key(section%citations(iref)))//']</A>'
           ENDDO
        ENDIF
 
-       WRITE(179,*) "<H2> Subsections</H2>"
+       WRITE(179,FMT='(A)') "<H2> Subsections</H2>"
        IF (section%n_subsections>0) THEN
-          WRITE(179,*) "<UL>"
+          WRITE(179,FMT='(A)') "<UL>"
           DO isub=1,section%n_subsections
              color_tag='<font color="#0000FF">'
              IF (enable_color_tags.AND.section%subsections(isub)%section%supported_feature) THEN
                 color_tag='<font color="#00CC00">'
              END IF
-             WRITE(179,*) '<LI><A HREF="'//TRIM(local_prefix)//"~"//TRIM(section%subsections(isub)%section%name)//".html"//'">'// &
+             WRITE(179,FMT='(A)') &
+                  '<LI><A HREF="'//TRIM(local_prefix)//"~"//TRIM(section%subsections(isub)%section%name)//".html"//'">'// &
                   TRIM(color_tag)//TRIM(section%subsections(isub)%section%name)//'</font> </A>'
           END DO
-          WRITE(179,*) "</UL>"
+          WRITE(179,FMT='(A)') "</UL>"
        ELSE
-          WRITE(179,*) "None"
+          WRITE(179,FMT='(A)') "None"
        ENDIF
-       WRITE(179,*) "<H2> Section keywords </H2>"
+       WRITE(179,FMT='(A)') "<H2> Section keywords </H2>"
        has_keywords=ASSOCIATED(section%keywords(-1)%keyword) .OR. &
             ASSOCIATED(section%keywords(0)%keyword) .OR. &
             section%n_keywords>=1
        IF (has_keywords) THEN
-          WRITE(179,*) "<UL>"
+          WRITE(179,FMT='(A)') "<UL>"
           DO ikeyword=-1,section%n_keywords
              IF (ASSOCIATED(section%keywords(ikeyword)%keyword)) THEN
                 color_tag='<font color="#0000FF">'
                 IF (enable_color_tags.AND.section%keywords(ikeyword)%keyword%supported_feature) THEN
                    color_tag='<font color="#00CC00">'
                 END IF
-                WRITE(179,*) '<LI><A HREF="#'//TRIM(section%keywords(ikeyword)%keyword%names(1))//'">'//&
+                WRITE(179,FMT='(A)') &
+                     '<LI><A HREF="#'//TRIM(section%keywords(ikeyword)%keyword%names(1))//'">'//&
                      TRIM(color_tag)//TRIM(section%keywords(ikeyword)%keyword%names(1))//"</font> </A>"
              END IF
           END DO
-          WRITE(179,*) "</UL>"
-          WRITE(179,*) "<H2> Keyword descriptions </H2>"
-          WRITE(179,*) "<TABLE>"
+          WRITE(179,FMT='(A)') "</UL>"
+          WRITE(179,FMT='(A)') "<H2> Keyword descriptions </H2>"
+          WRITE(179,FMT='(A)') "<TABLE>"
           DO ikeyword=-1,section%n_keywords
              IF (ASSOCIATED(section%keywords(ikeyword)%keyword)) THEN
                 CALL keyword_describe_html(section%keywords(ikeyword)%keyword,179,error=error)
              END IF
           END DO
-          WRITE(179,*) "</TABLE>"
+          WRITE(179,FMT='(A)') "</TABLE>"
        ELSE
-          WRITE(179,*) "None"
+          WRITE(179,FMT='(A)') "None"
        ENDIF
-       WRITE(179,*) '<BR><hr>Back to the <A HREF="http://cp2k.berlios.de/index.html">CP2K homepage</A>, '// &
+       WRITE(179,FMT='(A)') &
+            '<BR><hr>Back to the <A HREF="http://cp2k.berlios.de/index.html">CP2K homepage</A>, '// &
             'the latest version of <A HREF="http://cp2k.berlios.de/input/index.html">this manual</A>, '//&
             'or maybe even <A HREF="http://cp2k.berlios.de/input/'//TRIM(location(depth+1))//'">the current section</A>.'
-       WRITE(179,*) "</BODY></HTML>"
+       WRITE(179,FMT='(A)') "</BODY></HTML>"
        CLOSE(unit=179)
        DO isub=1,section%n_subsections
           CALL section_describe_html(section%subsections(isub)%section,TRIM(local_prefix),depth+1,unit_nr,&
@@ -496,14 +498,15 @@ CONTAINS
        IF (enable_color_tags.AND.section%supported_feature) THEN
           color_tag='<font color="#00CC00">'
        END IF
-       WRITE(unit_nr,*) '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//TRIM(color_tag)//TRIM(section%name)//"</font></A>"
+       WRITE(unit_nr,FMT='(A)') &
+            '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//TRIM(color_tag)//TRIM(section%name)//"</font></A>"
        IF (section%n_subsections>0) THEN
-          WRITE(unit_nr,*) "<UL>"
+          WRITE(unit_nr,FMT='(A)') "<UL>"
           DO isub=1,section%n_subsections
              CALL section_describe_index_html(section%subsections(isub)%section,TRIM(local_prefix),unit_nr,&
                   error=error)
           END DO
-          WRITE(unit_nr,*) "</UL>"
+          WRITE(unit_nr,FMT='(A)') "</UL>"
        ENDIF
     ENDIF
   END SUBROUTINE section_describe_index_html

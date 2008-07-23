@@ -802,14 +802,16 @@ CONTAINS
     ENDIF
     IF (ASSOCIATED(keyword%citations)) THEN
        IF (SIZE(keyword%citations,1)>1) THEN
-          WRITE(unit_nr,*) '<BR> This keyword cites following references: '
+          WRITE(unit_nr,FMT='(A)') '<BR> This keyword cites following references: '
        ELSE
-          WRITE(unit_nr,*) '<BR> This keyword cites following reference: '
+          WRITE(unit_nr,FMT='(A)') '<BR> This keyword cites following reference: '
        ENDIF
        DO iref=1,SIZE(keyword%citations,1)
-          WRITE(unit_nr,'(A,I0,A)') '<A HREF="references.html#reference_',keyword%citations(iref),'" TITLE="'
+          WRITE(unit_nr,FMT='(A,I0,A)') &
+               '<A HREF="references.html#reference_',keyword%citations(iref),'" TITLE="'
           CALL print_reference(keyword%citations(iref),FORMAT=print_format_journal,unit=unit_nr)
-          WRITE(179,'(A)') '">[' // TRIM(get_citation_key( keyword%citations(iref) )) // ']</A>'
+          WRITE(179,FMT='(A)') &
+               '">[' // TRIM(get_citation_key( keyword%citations(iref) )) // ']</A>'
        ENDDO
     ENDIF
 
@@ -817,9 +819,6 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE write_keyword_xml(keyword,level,unit_number,error)
-
-    ! Dump a (special) keyword section in XML format (26.01.2006,MK)
-
     TYPE(keyword_type), POINTER              :: keyword
     INTEGER, INTENT(IN)                      :: level, unit_number
     TYPE(cp_error_type), INTENT(INOUT)       :: error

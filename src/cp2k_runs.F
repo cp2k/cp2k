@@ -831,124 +831,121 @@ CPSourceFileRef,&
 
        CALL open_file(unit_number=unit_nr,file_name="index.html",&
             file_action="WRITE", file_status="REPLACE")
-       WRITE(unit_nr,*) "<HTML><BODY><HEAD><TITLE>The cp2k input structure</TITLE>"
-       WRITE(unit_nr,*) "<H1>CP2K input reference</H1>"
-       WRITE(unit_nr,*) "<H2>Version information</H2>"
-       WRITE(unit_nr,*) "This html manual can be generated automatically from a given cp2k executable "// &
-                        "using the --html-manual command line option. The manual describes exactly that version of the code. "//&
-                        "This version has been generated using a cp2k version compiled on "//TRIM(compile_date)//". "//&
-                        "The latest CVS entry found is "//TRIM(compile_lastcvs)//"."
+       WRITE(unit_nr,FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k input structure</TITLE>"
+       WRITE(unit_nr,FMT='(A)') "<H1>CP2K input reference</H1>"
+       WRITE(unit_nr,FMT='(A)') "<H2>Version information</H2>"
+       WRITE(unit_nr,FMT='(A)') &
+            "This html manual can be generated automatically from a given cp2k executable "// &
+            "using the --html-manual command line option. The manual describes exactly that version of the code. "//&
+            "This version has been generated using a cp2k version compiled on "//TRIM(compile_date)//". "//&
+            "The latest CVS entry found is "//TRIM(compile_lastcvs)//"."
 
 
-       WRITE(unit_nr,*) '<H2>Search the online input reference manual</H2>'
-
-       WRITE(unit_nr,*) '<TABLE><TR><TD>'    
+       WRITE(unit_nr,FMT='(A)') '<H2>Search the online input reference manual</H2>'
+       WRITE(unit_nr,FMT='(A)') '<TABLE><TR><TD>'
        ! Yahoo seems to actually search our pages 
+       WRITE(unit_nr,FMT='(A)') ' <!-- START CODE --> '
+       WRITE(unit_nr,FMT='(A)') '         <div id="ysrchForm" style="border:1px solid #7E9DB9;'
+       WRITE(unit_nr,FMT='(A)') '                                background:#FFFFFF;'
+       WRITE(unit_nr,FMT='(A)') '                                width:300px;'
+       WRITE(unit_nr,FMT='(A)') '                                margin:0 auto;'
+       WRITE(unit_nr,FMT='(A)') '                                padding:20px; '
+       WRITE(unit_nr,FMT='(A)') '                                position:relative;'
+       WRITE(unit_nr,FMT='(A)') '                              ">'
+       WRITE(unit_nr,FMT='(A)') &
+            '           <form id="searchBoxForm_undefined" action="http://search.yahoo.com/search" style="padding:0;">'
+       WRITE(unit_nr,FMT='(A)') '                         '
+       WRITE(unit_nr,FMT='(A)') '                         <input name="ei" value="UTF-8" type="hidden">'
+       WRITE(unit_nr,FMT='(A)') &
+            '                         <input name="fr" value="ystg" type="hidden"><div style="padding:0 80px 0 0;zoom:1;">'
+       WRITE(unit_nr,FMT='(A)') '                                         <input type="text" id="searchTerm"'
+       WRITE(unit_nr,FMT='(A)') '                                                 onFocus="this.style.background=''#fff'';"'
+       WRITE(unit_nr,FMT='(A)') &
+            '                                                 onBlur="if(this.value=='''')this.style.background='//&
+            '''#fff url(http://us.i1.yimg.com/us.yimg.com/i/us/sch/gr/horiz_pwrlogo_red2.gif) 3px center  no-repeat''"'
+       WRITE(unit_nr,FMT='(A)') &
+            ' name="p" style=" margin:1px 0; width:100%; border:1px solid #7E9DB9; color:#666666; height:18px; '//&
+            'padding:0px 3px; background:#fff url(http://us.i1.yimg.com/us.yimg.com/i/us/sch/gr/horiz_pwrlogo_red2.gif)'//& 
+            ' 3px center no-repeat; position:relative;">'
+       WRITE(unit_nr,FMT='(A)') ' <input type="submit" id="btn_undefined" value="Search" '
+       WRITE(unit_nr,FMT='(A)') &
+            ' style=" padding-bottom:2px; position:absolute; right:20px; top:20px; margin:0px; height:22px; width:65px; ">'
+       WRITE(unit_nr,FMT='(A)') ' </div><ul style="color:#666666;'
+       WRITE(unit_nr,FMT='(A)') '            font:11px/11px normal Arial, Helvetica, sans-serif;'
+       WRITE(unit_nr,FMT='(A)') '            margin:0;'
+       WRITE(unit_nr,FMT='(A)') '            padding:0;'
+       WRITE(unit_nr,FMT='(A)') '            text-align:left;'
+       WRITE(unit_nr,FMT='(A)') '            list-style-type:none;radios"><li style="display:inline;padding-right:10px;">'
+       WRITE(unit_nr,FMT='(A)') &
+            ' <input name="vs" id="web_radio" value=""    type="radio" style="vertical-align:middle;margin-right:5px; ">'
+       WRITE(unit_nr,FMT='(A)') ' <label for="web_radio" style="vertical-align:middle;">Web</label>'
+       WRITE(unit_nr,FMT='(A)') ' </li><li style="display:inline;padding-right:10px;">'
+       WRITE(unit_nr,FMT='(A)') &
+            ' <input name="vs" id="site_radio" value="cp2k.berlios.de"   checked="checked" type="radio"'//&
+            ' style="vertical-align:middle;margin-right:5px; ">'
+       WRITE(unit_nr,FMT='(A)') ' <label for="site_radio" style="vertical-align:middle;">this Site</label>'
+       WRITE(unit_nr,FMT='(A)') ' </li></ul></form></div>'
+       WRITE(unit_nr,FMT='(A)') ' <!-- END CODE --></TD><TD> '
 
-WRITE(unit_nr,*) ' <!-- START CODE --> '
-WRITE(unit_nr,*) '         <div id="ysrchForm" style="border:1px solid #7E9DB9;'
-WRITE(unit_nr,*) '                                background:#FFFFFF;'
-WRITE(unit_nr,*) '                                width:300px;'
-WRITE(unit_nr,*) '                                margin:0 auto;'
-WRITE(unit_nr,*) '                                padding:20px; '
-WRITE(unit_nr,*) '                                position:relative;'
-WRITE(unit_nr,*) '                              ">'
-WRITE(unit_nr,*) '           <form id="searchBoxForm_undefined" action="http://search.yahoo.com/search" style="padding:0;">'
-WRITE(unit_nr,*) '                         '
-WRITE(unit_nr,*) '                         <input name="ei" value="UTF-8" type="hidden">'
-WRITE(unit_nr,*) '                         <input name="fr" value="ystg" type="hidden"><div style="padding:0 80px 0 0;zoom:1;">'
-WRITE(unit_nr,*) '                                         <input type="text" id="searchTerm"'
-WRITE(unit_nr,*) '                                                 onFocus="this.style.background=''#fff'';"'
-WRITE(unit_nr,*) '                                                 onBlur="if(this.value=='''')this.style.background='//&
-                 '''#fff url(http://us.i1.yimg.com/us.yimg.com/i/us/sch/gr/horiz_pwrlogo_red2.gif) 3px center  no-repeat''"'
-WRITE(unit_nr,*) ' name="p" style=" margin:1px 0; width:100%; border:1px solid #7E9DB9; color:#666666; height:18px; '//&
-                 'padding:0px 3px; background:#fff url(http://us.i1.yimg.com/us.yimg.com/i/us/sch/gr/horiz_pwrlogo_red2.gif)'//& 
-                 ' 3px center no-repeat; position:relative;">'
-WRITE(unit_nr,*) ' <input type="submit" id="btn_undefined" value="Search" '
-WRITE(unit_nr,*) ' style=" padding-bottom:2px; position:absolute; right:20px; top:20px; margin:0px; height:22px; width:65px; ">'
-WRITE(unit_nr,*) ' </div><ul style="color:#666666;'
-WRITE(unit_nr,*) '            font:11px/11px normal Arial, Helvetica, sans-serif;'
-WRITE(unit_nr,*) '            margin:0;'
-WRITE(unit_nr,*) '            padding:0;'
-WRITE(unit_nr,*) '            text-align:left;'
-WRITE(unit_nr,*) '            list-style-type:none;radios"><li style="display:inline;padding-right:10px;">'
-WRITE(unit_nr,*) ' <input name="vs" id="web_radio" value=""    type="radio" style="vertical-align:middle;margin-right:5px; ">'
-WRITE(unit_nr,*) ' <label for="web_radio" style="vertical-align:middle;">Web</label>'
-WRITE(unit_nr,*) ' </li><li style="display:inline;padding-right:10px;">'
-WRITE(unit_nr,*) ' <input name="vs" id="site_radio" value="cp2k.berlios.de"   checked="checked" type="radio"'//&
-                 ' style="vertical-align:middle;margin-right:5px; ">'
-WRITE(unit_nr,*) ' <label for="site_radio" style="vertical-align:middle;">this Site</label>'
-WRITE(unit_nr,*) ' </li></ul></form></div>'
-WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
-       ! google search (does currently not seem to like our input reference manual)
-       !WRITE(unit_nr,*) '<FORM method=GET action="http://www.google.com/search">'
-       !WRITE(unit_nr,*) '<input type=hidden name=ie value=UTF-8><input type=hidden name=oe value=UTF-8>'
-       !WRITE(unit_nr,*) '<TABLE bgcolor="#FFFFFF"><tr><td><A HREF="http://www.google.com/">'
-       !WRITE(unit_nr,*) '<IMG SRC="http://www.google.com/logos/Logo_25wht.gif" border="0" ALT="Google"></A>'
-       !WRITE(unit_nr,*) '</td><td><INPUT TYPE=text name=q size=31 maxlength=255 value="">'
-       !WRITE(unit_nr,*) '<INPUT type=submit name=btnG VALUE="CP2K Input Search">'
-       !WRITE(unit_nr,*) '<font size=-2><input type=hidden name=domains value="cp2k.berlios.de">'
-       !WRITE(unit_nr,*) '<br><input type=radio name=sitesearch value=""> WWW'
-       !WRITE(unit_nr,*) '<input type=radio name=sitesearch value="cp2k.berlios.de" checked>'
-       !WRITE(unit_nr,*) 'cp2k.berlios.de<br></font></td></tr></TABLE></FORM>'
-       WRITE(unit_nr,*) '</TD></TR></TABLE>'
+       WRITE(unit_nr,FMT='(A)') '</TD></TR></TABLE>'
 
-       WRITE(unit_nr,*) '<H2>Journal papers</H2>'
-       WRITE(unit_nr,*) '<A HREF="references.html">List of references</A> cited in the CP2K input manual.'
+       WRITE(unit_nr,FMT='(A)') '<H2>Journal papers</H2>'
+       WRITE(unit_nr,FMT='(A)') '<A HREF="references.html">List of references</A> cited in the CP2K input manual.'
 
        IF (enable_color_tags) THEN
-          WRITE(unit_nr,*) "<H2>Color convention</H2>"
-          WRITE(unit_nr,*) "Sections and Keywords supported in the current released version of cp2k are marked "//&
-                           "with green color. Keywords or Sections specifically designed for the development version or still "//&
-                           "in a development status (not ready for the released version) are marked with black/blue color."
+          WRITE(unit_nr,FMT='(A)') "<H2>Color convention</H2>"
+          WRITE(unit_nr,FMT='(A)') &
+               "Sections and Keywords supported in the current released version of cp2k are marked "//&
+               "with green color. Keywords or Sections specifically designed for the development version or still "//&
+               "in a development status (not ready for the released version) are marked with black/blue color."
        END IF
 
-       WRITE(unit_nr,*) "<H2>Internal Input Preprocessor</H2>"
-       WRITE(unit_nr,*) "Before the input is parsed, the input is run through a very simple internal preprocessor."
-       WRITE(unit_nr,*) "The preprocessor recognizes the following directives independent of capitalization:<BR><DL>"
-       WRITE(unit_nr,*) "<DT><B>@INCLUDE 'filename.inc'</B></DT>"
-       WRITE(unit_nr,*) "<DD>The file referenced by <I>filename.inc</I> is included into the input file and parsed."
-       WRITE(unit_nr,*) "Recursive inclusions are not allowed and the files have to exist in the current working "
-       WRITE(unit_nr,*) "directory. There can be only one @INCLUDE statement per line. Single or double quotes "
-       WRITE(unit_nr,*) "can be used and <B>have</B> to be used if the filename contains blanks.</DD>"
-       WRITE(unit_nr,*) "<DT><B>@SET VAR value</B></DT>"
-       WRITE(unit_nr,*) "<DD>Assigns the text <I>value</I> to the preprocessing variable <I>VAR</I>. <I>value</I> "
-       WRITE(unit_nr,*) "is the text following <I>VAR</I> with the outer whitespace removed. The variable can be "
-       WRITE(unit_nr,*) "recalled with a <I>${VAR}</I> statement. There can be only one @SET statement per line.</DD>"
-       WRITE(unit_nr,*) "<DT><B>${VAR}</B></DT>"
-       WRITE(unit_nr,*) "<DD>Expand the variable <I>VAR</I>. The text <I>${VAR}</I> is replaced with the value assigned "
-       WRITE(unit_nr,*) "to <I>VAR</I> in the last corresponding @SET directive. There can be multiple variables per line. "
-       WRITE(unit_nr,*) "The expansion process is repeated until no more variables are found.</DD>"
-       WRITE(unit_nr,*) "<DT><B>@IF / @ENDIF</B></DT>"
-       WRITE(unit_nr,*) "<DD>Conditional block. The text from the @IF line up to the next line with a valid "
-       WRITE(unit_nr,*) "@ENDIF is skipped, if the expression following @IF resolves to <I>false</I>. "
-       WRITE(unit_nr,*) "Available expressions are lexical comparisons for equality '==' or inequality '/='."
-       WRITE(unit_nr,*) "If none of the two operators are found, a '0' or whitespace resolves to <I>false</I> " 
-       WRITE(unit_nr,*) "while any text resolves to <I>true</I>. @IF/@ENDIF blocks cannot be nested and "
-       WRITE(unit_nr,*) "cannot span across files. There can be only one test (== or /=) per @IF statement.</DD>"
-       WRITE(unit_nr,*) "</DL><P>"
+       WRITE(unit_nr,FMT='(A)') "<H2>Internal Input Preprocessor</H2>"
+       WRITE(unit_nr,FMT='(A)') "Before the input is parsed, the input is run through a very simple internal preprocessor."
+       WRITE(unit_nr,FMT='(A)') "The preprocessor recognizes the following directives independent of capitalization:<BR><DL>"
+       WRITE(unit_nr,FMT='(A)') "<DT><B>@INCLUDE 'filename.inc'</B></DT>"
+       WRITE(unit_nr,FMT='(A)') "<DD>The file referenced by <I>filename.inc</I> is included into the input file and parsed."
+       WRITE(unit_nr,FMT='(A)') "Recursive inclusions are not allowed and the files have to exist in the current working "
+       WRITE(unit_nr,FMT='(A)') "directory. There can be only one @INCLUDE statement per line. Single or double quotes "
+       WRITE(unit_nr,FMT='(A)') "can be used and <B>have</B> to be used if the filename contains blanks.</DD>"
+       WRITE(unit_nr,FMT='(A)') "<DT><B>@SET VAR value</B></DT>"
+       WRITE(unit_nr,FMT='(A)') "<DD>Assigns the text <I>value</I> to the preprocessing variable <I>VAR</I>. <I>value</I> "
+       WRITE(unit_nr,FMT='(A)') "is the text following <I>VAR</I> with the outer whitespace removed. The variable can be "
+       WRITE(unit_nr,FMT='(A)') "recalled with a <I>${VAR}</I> statement. There can be only one @SET statement per line.</DD>"
+       WRITE(unit_nr,FMT='(A)') "<DT><B>${VAR}</B></DT>"
+       WRITE(unit_nr,FMT='(A)') "<DD>Expand the variable <I>VAR</I>. The text <I>${VAR}</I> is replaced with the value assigned "
+       WRITE(unit_nr,FMT='(A)') "to <I>VAR</I> in the last corresponding @SET directive. There can be multiple variables per line. "
+       WRITE(unit_nr,FMT='(A)') "The expansion process is repeated until no more variables are found.</DD>"
+       WRITE(unit_nr,FMT='(A)') "<DT><B>@IF / @ENDIF</B></DT>"
+       WRITE(unit_nr,FMT='(A)') "<DD>Conditional block. The text from the @IF line up to the next line with a valid "
+       WRITE(unit_nr,FMT='(A)') "@ENDIF is skipped, if the expression following @IF resolves to <I>false</I>. "
+       WRITE(unit_nr,FMT='(A)') "Available expressions are lexical comparisons for equality '==' or inequality '/='."
+       WRITE(unit_nr,FMT='(A)') "If none of the two operators are found, a '0' or whitespace resolves to <I>false</I> " 
+       WRITE(unit_nr,FMT='(A)') "while any text resolves to <I>true</I>. @IF/@ENDIF blocks cannot be nested and "
+       WRITE(unit_nr,FMT='(A)') "cannot span across files. There can be only one test (== or /=) per @IF statement.</DD>"
+       WRITE(unit_nr,FMT='(A)') "</DL><P>"
 
-       WRITE(unit_nr,*) "<H2>Input structure</H2>"
-       WRITE(unit_nr,*) "All sections that can be part of a cp2k input file are shown with their allowed nestings. "
-       WRITE(unit_nr,*) "A description of each section, and a list of keywords can be obtained clicking on the links. "
-       WRITE(unit_nr,*) "<BR><UL>"
+       WRITE(unit_nr,FMT='(A)') "<H2>Input structure</H2>"
+       WRITE(unit_nr,FMT='(A)') "All sections that can be part of a cp2k input file are shown with their allowed nestings. "
+       WRITE(unit_nr,FMT='(A)') "A description of each section, and a list of keywords can be obtained clicking on the links. "
+       WRITE(unit_nr,FMT='(A)') "<BR><UL>"
 
        CALL section_describe_index_html(root_section,"InputReference",unit_nr,error=error)
 
-       WRITE(unit_nr,*) '</UL><BR><hr>Back to the <A HREF="http://cp2k.berlios.de/">CP2K homepage</A>'
-       WRITE(unit_nr,*) "</BODY></HTML>"
+       WRITE(unit_nr,FMT='(A)') '</UL><BR><hr>Back to the <A HREF="http://cp2k.berlios.de/">CP2K homepage</A>'
+       WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
 
        CALL close_file(unit_nr)
        CALL section_release(root_section,error=error)
 
        CALL open_file(unit_number=unit_nr,file_name="references.html",&
             file_action="WRITE", file_status="REPLACE")
-       WRITE(unit_nr,*) "<HTML><BODY><HEAD><TITLE>The cp2k literature list</TITLE>"
-       WRITE(unit_nr,*) "<H1>CP2K references</H1>"
-       CALL print_all_references(sorted=.TRUE.,cited_only=.FALSE., &
+       WRITE(unit_nr,FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k literature list</TITLE>"
+       WRITE(unit_nr,FMT='(A)') "<H1>CP2K references</H1>"
+       CALL print_all_references(sorted=.TRUE.,cited_only=.FALSE.,&
                           FORMAT=print_format_html,unit=unit_nr)
-       WRITE(unit_nr,*) '<BR><hr>Back to the <A HREF="http://cp2k.berlios.de/">CP2K homepage</A>'
-       WRITE(unit_nr,*) "</BODY></HTML>"
+       WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="http://cp2k.berlios.de/">CP2K homepage</A>'
+       WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
        CALL close_file(unit_nr)
 
     END IF
@@ -966,18 +963,11 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
     LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: root_section
 
-!   ---------------------------------------------------------------------------
-
     failure = .FALSE.
-
     IF (.NOT.failure) THEN
-
       NULLIFY(root_section)
-
       CALL create_cp2k_root_section(root_section,error=error)
-
       CALL keyword_release(root_section%keywords(0)%keyword,error)
-
       CALL open_file(unit_number=unit_number,&
                      file_name="cp2k_input.xml",&
                      file_action="WRITE",&
@@ -991,8 +981,7 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
         " <COMPILE_LASTCVS>"//TRIM(compile_lastcvs)//"</COMPILE_LASTCVS>"
 
       DO i=1,root_section%n_subsections
-        CALL write_section_xml(root_section%subsections(i)%section,1,&
-                               unit_number,error)
+         CALL write_section_xml(root_section%subsections(i)%section,1,unit_number,error)
       END DO
 
       WRITE (UNIT=unit_number,FMT="(A)") "</CP2K_INPUT>"
@@ -1002,11 +991,11 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
 
       CALL open_file(unit_number=unit_number,file_name="references.html",&
            file_action="WRITE", file_status="REPLACE")
-      WRITE(unit_number,*) "<HTML><BODY><HEAD><TITLE>The cp2k literature list</TITLE>"
-      WRITE(unit_number,*) "<H1>CP2K references</H1>"
+      WRITE(unit_number,FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k literature list</TITLE>"
+      WRITE(unit_number,FMT='(A)') "<H1>CP2K references</H1>"
       CALL print_all_references(sorted=.TRUE.,cited_only=.FALSE., &
                           FORMAT=print_format_html,unit=unit_number)
-      WRITE(unit_number,*) "</BODY></HTML>"
+      WRITE(unit_number,FMT='(A)') "</BODY></HTML>"
     END IF
 
   END SUBROUTINE write_xml_file
