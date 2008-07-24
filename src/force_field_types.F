@@ -46,6 +46,7 @@ MODULE force_field_types
   TYPE bend_kind_type
      INTEGER                        :: id_type
      REAL(KIND = dp)                :: k,theta0,cb
+     REAL(KIND = dp)                :: r012,r032,kbs12,kbs32,kss
      INTEGER                        :: kind_number
   END TYPE bend_kind_type
 
@@ -96,6 +97,7 @@ MODULE force_field_types
     REAL(KIND=dp), POINTER                         :: bend_k(:)
     REAL(KIND=dp), POINTER                         :: bend_theta0(:)
     REAL(KIND=dp), POINTER                         :: bend_cb(:)
+    REAL(KIND=dp), POINTER, DIMENSION(:)           :: bend_r012,bend_r032,bend_kbs12,bend_kbs32,bend_kss
     INTEGER, POINTER                               :: ub_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_b(:)
@@ -263,6 +265,11 @@ CONTAINS
           bend_kind_set(ikind)%k = 0.0_dp
           bend_kind_set(ikind)%theta0 = 0.0_dp
           bend_kind_set(ikind)%cb = 0.0_dp
+          bend_kind_set(ikind)%r012 = 0.0_dp
+          bend_kind_set(ikind)%r032 = 0.0_dp
+          bend_kind_set(ikind)%kbs12 = 0.0_dp
+          bend_kind_set(ikind)%kbs32 = 0.0_dp
+          bend_kind_set(ikind)%kss = 0.0_dp
           bend_kind_set(ikind)%kind_number = ikind
        END DO
     END IF
@@ -558,6 +565,11 @@ SUBROUTINE init_inp_info(inp_info)
   NULLIFY(inp_info%bend_k)
   NULLIFY(inp_info%bend_theta0)
   NULLIFY(inp_info%bend_cb)
+  NULLIFY(inp_info%bend_r012)
+  NULLIFY(inp_info%bend_r032)
+  NULLIFY(inp_info%bend_kbs12)
+  NULLIFY(inp_info%bend_kbs32)
+  NULLIFY(inp_info%bend_kss)
   NULLIFY(inp_info%ub_kind)
   NULLIFY(inp_info%ub_a)
   NULLIFY(inp_info%ub_b)
@@ -949,6 +961,26 @@ SUBROUTINE deallocate_inp_info(inp_info, error)
   END IF
   IF(ASSOCIATED(inp_info%bend_cb)) THEN
     DEALLOCATE(inp_info%bend_cb,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(inp_info%bend_r012)) THEN
+    DEALLOCATE(inp_info%bend_r012,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(inp_info%bend_r032)) THEN
+    DEALLOCATE(inp_info%bend_r032,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(inp_info%bend_kbs12)) THEN
+    DEALLOCATE(inp_info%bend_kbs12,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(inp_info%bend_kbs32)) THEN
+    DEALLOCATE(inp_info%bend_kbs32,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(inp_info%bend_kss)) THEN
+    DEALLOCATE(inp_info%bend_kss,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(ASSOCIATED(inp_info%ub_kind)) THEN

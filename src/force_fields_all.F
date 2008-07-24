@@ -1025,6 +1025,11 @@ CPSourceFileRef,&
                    bend_list(j)%bend_kind%k       = inp_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0  = inp_info%bend_theta0(k)
                    bend_list(j)%bend_kind%cb      = inp_info%bend_cb(k)
+                   bend_list(j)%bend_kind%r012    = inp_info%bend_r012(k)
+                   bend_list(j)%bend_kind%r032    = inp_info%bend_r032(k)
+                   bend_list(j)%bend_kind%kbs12   = inp_info%bend_kbs12(k)
+                   bend_list(j)%bend_kind%kbs32   = inp_info%bend_kbs32(k)
+                   bend_list(j)%bend_kind%kss     = inp_info%bend_kss(k)
                    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
                         "Multiple Bend declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&

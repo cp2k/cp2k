@@ -15,11 +15,14 @@ MODULE mol_force
                                              do_ff_g87,&
                                              do_ff_g96,&
                                              do_ff_harmonic,&
+                                             do_ff_mixed_bend_stretch,&
                                              do_ff_morse,&
                                              do_ff_quartic
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
+
+  IMPLICIT NONE
 
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mol_force'
@@ -30,8 +33,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes the forces from the bonds
-!>      force_bonds_1 is for purely harmonic bonds
-!>      force_bonds_3 uses a quartic form (i.e. 3 force constants)
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE force_bonds ( id_type, rij, r0, k, cs, energy, fscalar )
@@ -93,23 +94,22 @@ CONTAINS
           fscalar = k(1)*disp / dij
        END IF
     CASE DEFAULT
-       CALL stop_program ("mol_force.F","unmatched bond kind")
+       CALL stop_program (routineP,"unmatched bond kind")
     END SELECT
 
   END SUBROUTINE force_bonds
 
 ! *****************************************************************************
 !> \brief Computes the forces from the bends
-!> \par History
-!>      none
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE force_bends (id_type, b12, b32, d12, d32, id12, id32, dist, &
-       theta, theta0, k, cb, g1, g2, g3, energy, fscalar )
+       theta, theta0, k, cb, r012,r032,kbs12,kbs32,kss, g1, g2, g3, energy, fscalar )
     INTEGER, INTENT(IN)                      :: id_type
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b12, b32
     REAL(KIND=dp), INTENT(IN)                :: d12, d32, id12, id32, dist, &
-                                                theta, theta0, k, cb
+                                                theta, theta0, k, cb, r012, &
+                                                r032, kbs12, kbs32, kss
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: g1, g2, g3
     REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
@@ -117,7 +117,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: f12 = 1.0_dp/2.0_dp
 
-    REAL(KIND=dp)                            :: denom
+    REAL(KIND=dp)                            :: denom, disp12, disp32
 
     SELECT CASE (id_type)
     CASE (do_ff_g96)
@@ -140,6 +140,43 @@ CONTAINS
        g1 = (b32*d12*d32-dist*d32*id12*b12)*denom
        g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom
        g3 = (b12*d12*d32-dist*id32*d12*b32)*denom
+    CASE (do_ff_mixed_bend_stretch)
+
+       ! cubic term in theta (do_ff_cubic)
+       energy = k * ( theta - theta0 ) ** 2 * (1.0_dp + cb * (theta-theta0 ))
+       fscalar = (2.0_dp* k *(theta-theta0)* (1.0_dp + cb * (theta-theta0 ))+k * ( theta - theta0 ) ** 2 *cb)/SIN(theta)
+       denom = id12*id12*id32*id32
+       g1 = (b32*d12*d32-dist*d32*id12*b12)*denom*fscalar
+       g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom*fscalar
+       g3 = (b12*d12*d32-dist*id32*d12*b32)*denom*fscalar
+
+       ! stretch-stretch term
+       disp12 = d12 - r012
+       disp32 = d32 - r032
+       energy = energy + kss*disp12*disp32
+       g1 = g1 - kss*disp32*id12*b12
+       g2 = g2 + kss*disp32*id12*b12
+       g3 = g3 - kss*disp12*id32*b32
+       g2 = g2 + kss*disp12*id32*b32
+
+       ! bend-stretch term
+       energy = energy + kbs12*disp12*(theta-theta0) + kbs32*disp32*(theta-theta0)
+  
+       ! bend part
+       fscalar= (kbs12*disp12+kbs32*disp32)/SIN(theta)
+       denom = id12*id12*id32*id32
+       g1 = g1 + (b32*d12*d32-dist*d32*id12*b12)*denom*fscalar
+       g2 = g2 + (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom*fscalar
+       g3 = g3 + (b12*d12*d32-dist*id32*d12*b32)*denom*fscalar
+
+       ! stretch part
+       g1 = g1 - kbs12*(theta-theta0)*id12*b12
+       g2 = g2 + kbs12*(theta-theta0)*id12*b12
+       g3 = g3 - kbs32*(theta-theta0)*id32*b32
+       g2 = g2 + kbs32*(theta-theta0)*id32*b32
+
+       fscalar=1.0_dp
+
     CASE (do_ff_harmonic,do_ff_g87)
        denom = id12*id12*id32*id32
        energy = f12 * k * ( theta - theta0 ) ** 2
@@ -148,7 +185,7 @@ CONTAINS
        g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom
        g3 = (b12*d12*d32-dist*id32*d12*b32)*denom
     CASE DEFAULT
-       CALL stop_program ("mol_force.F","unmatched bend kind")
+       CALL stop_program (routineP,"unmatched bend kind")
     END SELECT
 
   END SUBROUTINE force_bends
@@ -209,13 +246,15 @@ CONTAINS
                  18.0_dp * cosphi * cosphi - 1.0_dp
           fscalar = 192.0_dp * cosphi * cosphi * cosphi * cosphi  * cosphi -  &
                     192.0_dp * cosphi * cosphi * cosphi + 36.0_dp * cosphi
+       CASE DEFAULT
+          CALL stop_program (routineP,"torsion parameter too large")
        END SELECT
        energy = k * ( 1.0_dp + cosphi0 * trig )
 
        ! compute fscalar
        fscalar = -fscalar * cosphi0 * k
     CASE DEFAULT
-       CALL stop_program ("mol_force.F","unmatched torsion kind")
+       CALL stop_program (routineP,"unmatched torsion kind")
     END SELECT
 
     ! compute the gradients
@@ -284,7 +323,7 @@ CONTAINS
        gt2 = ( dist1 * is32 ** 2 - 1.0_dp ) * gt1 - dist2 * is32 ** 2 * gt4
        gt3 = ( dist2 * is32 ** 2 - 1.0_dp ) * gt4 - dist1 * is32 ** 2 * gt1
     CASE DEFAULT
-       CALL stop_program ("mol_force.F","unmatched impr kind")
+       CALL stop_program (routineP,"unmatched impr kind")
     END SELECT
 
   END SUBROUTINE force_imp_torsions

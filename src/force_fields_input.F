@@ -311,8 +311,15 @@ CPSourceFileRef,&
           CALL reallocate(inp_info%bend_k,1,nbends)
           CALL reallocate(inp_info%bend_theta0,1,nbends)
           CALL reallocate(inp_info%bend_cb,1,nbends)
+          CALL reallocate(inp_info%bend_r012,1,nbends)
+          CALL reallocate(inp_info%bend_r032,1,nbends)
+          CALL reallocate(inp_info%bend_kbs12,1,nbends)
+          CALL reallocate(inp_info%bend_kbs32,1,nbends)
+          CALL reallocate(inp_info%bend_kss,1,nbends)
           CALL read_bends_section(inp_info%bend_kind,inp_info%bend_a, inp_info%bend_b, inp_info%bend_c,&
-               inp_info%bend_k, inp_info%bend_theta0, inp_info%bend_cb, tmp_section, ntot, error)
+               inp_info%bend_k, inp_info%bend_theta0, inp_info%bend_cb,&
+               inp_info%bend_r012,inp_info%bend_r032,inp_info%bend_kbs12,inp_info%bend_kbs32,inp_info%bend_kss,&
+               tmp_section, ntot, error)
        END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"BEND",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nubs,error=error)
@@ -1123,11 +1130,15 @@ CPSourceFileRef,&
 !> \brief Reads the BENDS section
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE read_bends_section(bend_kind,bend_a, bend_b, bend_c, bend_k, bend_theta0, bend_cb, section, start, error)
+  SUBROUTINE read_bends_section(bend_kind,bend_a, bend_b, bend_c, bend_k, bend_theta0, bend_cb, &
+                                bend_r012,bend_r032,bend_kbs12,bend_kbs32,bend_kss, section, start, error)
     INTEGER, DIMENSION(:), POINTER           :: bend_kind
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: bend_a, bend_b, bend_c
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: bend_k, bend_theta0, bend_cb
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: bend_k, bend_theta0, bend_cb, &
+                                                bend_r012, bend_r032, &
+                                                bend_kbs12, bend_kbs32, &
+                                                bend_kss
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1158,6 +1169,11 @@ CPSourceFileRef,&
        bend_k(start+isec) = Kvals(1)
        CALL section_vals_val_get(section,"THETA0",i_rep_section=isec,r_val=bend_theta0(start+isec),error=error)
        CALL section_vals_val_get(section,"CB",i_rep_section=isec,r_val=bend_cb(start+isec),error=error)
+       CALL section_vals_val_get(section,"R012",i_rep_section=isec,r_val=bend_r012(start+isec),error=error)
+       CALL section_vals_val_get(section,"R032",i_rep_section=isec,r_val=bend_r032(start+isec),error=error)
+       CALL section_vals_val_get(section,"KBS12",i_rep_section=isec,r_val=bend_kbs12(start+isec),error=error)
+       CALL section_vals_val_get(section,"KBS32",i_rep_section=isec,r_val=bend_kbs32(start+isec),error=error)
+       CALL section_vals_val_get(section,"KSS",i_rep_section=isec,r_val=bend_kss(start+isec),error=error)
     END DO
   END SUBROUTINE read_bends_section
 

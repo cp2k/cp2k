@@ -273,6 +273,11 @@ CONTAINS
                                bend_list(ibend)%bend_kind%theta0, &
                                bend_list(ibend)%bend_kind%k, &
                                bend_list(ibend)%bend_kind%cb, &
+                               bend_list(ibend)%bend_kind%r012, &
+                               bend_list(ibend)%bend_kind%r032, &
+                               bend_list(ibend)%bend_kind%kbs12, &
+                               bend_list(ibend)%bend_kind%kbs32, &
+                               bend_list(ibend)%bend_kind%kss, &
                                g1,g2,g3,energy,fscalar)
              pot_bend = pot_bend + energy
              particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1) + g1(1) * fscalar

@@ -67,3 +67,5 @@ nptf_ortho.inp            2
 # morse and cubic bonded potentials
 bonded-1.inp              2
 bonded-2.inp              2
+# mixed stretch-bend form
+bonded-3.inp              2

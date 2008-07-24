@@ -555,17 +555,20 @@ CONTAINS
        CALL keyword_create(keyword=keyword, name="KIND",&
             description="Define the kind of bend potential",&
             usage="KIND {HARMONIC,CHARMM,G87,G96}",&
-            enum_c_vals=s2a("HARMONIC","CHARMM","G87","G96","CUBIC"),&
+            enum_c_vals=s2a("HARMONIC","CHARMM","G87","G96","CUBIC","MIXED_BEND_STRETCH"),&
             enum_desc=s2a("Functional Form (HARMONIC/G87): 1/2*K*(THETA-THETA0)^2",&
                           "Functional Form (CHARMM): K*(THETA-THETA0)^2",&
                           "Functional Form (HARMONIC/G87): 1/2*K*(THETA-THETA0)^2",&
                           "Functional Form (G96): 1/2*K*(COS(THETA)-THETA0)^2",&
-                          "Functional Form (Cubic): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))"),&
+                          "Functional Form (Cubic): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))",&
+                          "Functional Form (Mixed_Bend_Stretch): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))+"//&
+                             " KSS*(R12-R012)*(R32-R032)+KBS12*(R12-R012)*(THETA-THETA0)+KBS32*(R32-R032)*(THETA-THETA0)"),&
             enum_i_vals=(/ do_ff_harmonic,&
                            do_ff_charmm,&
                            do_ff_g87,&
                            do_ff_g96,&
-                           do_ff_cubic/),&
+                           do_ff_cubic,&
+                           do_ff_mixed_bend_stretch/),&
             default_i_val=do_ff_charmm, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -581,6 +584,37 @@ CONTAINS
             description="Defines the the cubic force constant of the bend",&
             usage="CB {real}", default_r_val=0.0_dp , type_of_var=real_t,&
             n_var=1, unit_str="rad^-1",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="R012",&
+            description="Mixed bend stretch parameter",&
+            usage="CB {real}", default_r_val=0.0_dp , type_of_var=real_t,&
+            n_var=1, unit_str="bohr",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="R032",&
+            description="Mixed bend stretch parameter",&
+            usage="CB {real}", default_r_val=0.0_dp , type_of_var=real_t,&
+            n_var=1, unit_str="bohr",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="KBS12",&
+            description="Mixed bend stretch parameter",&
+            usage="CB {real}", default_r_val=0.0_dp , type_of_var=real_t,&
+            n_var=1, unit_str="hartree*bohr^-1*rad^-1",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="KBS32",&
+            description="Mixed bend stretch parameter",&
+            usage="CB {real}", default_r_val=0.0_dp , type_of_var=real_t,&
+            n_var=1, unit_str="hartree*bohr^-1*rad^-1",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="KSS",&
+            description="Mixed bend stretch parameter",&
+            usage="CB {real}", default_r_val=0.0_dp , type_of_var=real_t,&
+            n_var=1, unit_str="hartree*bohr^-2",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
