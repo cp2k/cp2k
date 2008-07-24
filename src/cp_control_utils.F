@@ -364,16 +364,26 @@ CPSourceFileRef,&
     dftb_parameter => section_vals_get_subs_vals(dftb_section,"PARAMETER", error=error)
 
     ! Setup all defaults values and overwrite input parameters
+    ! EPS_DEFAULT should set the target accuracy in the total energy (~per electron) or a closely related value
     CALL section_vals_val_get(qs_section,"EPS_DEFAULT",r_val=value,error=error)
     tmpsqrt=SQRT(value) ! a trick to work around a NAG 5.1 optimizer bug
-    qs_control%eps_core_charge = value/100.0_dp
-    qs_control%eps_pgf_orb = tmpsqrt
-    qs_control%eps_ppl = value/100.0_dp
-    qs_control%eps_ppnl = value/100.0_dp
-    qs_control%eps_rho_gspace = value
-    qs_control%eps_rho_rspace = value
-    qs_control%eps_gvg_rspace = tmpsqrt
-    qs_control%eps_kg_gpw = tmpsqrt*1000._dp
+
+    ! random choice ?
+    qs_control%eps_core_charge = value/100.0_dp 
+    ! correct if all Gaussians would have the same radius (overlap will be smaller than eps_pgf_orb**2).
+    ! Can be significantly in error if not... requires fully new screening/pairlist procedures
+    qs_control%eps_pgf_orb     = tmpsqrt
+    ! consistent since also a kind of overlap
+    qs_control%eps_ppnl        = qs_control%eps_pgf_orb
+    ! accuracy is basically set by the overlap, this sets an empirical shift
+    qs_control%eps_ppl         = 1.0E-2_dp
+    ! expexted error in the density 
+    qs_control%eps_rho_gspace  = value
+    qs_control%eps_rho_rspace  = value
+    ! error in the gradient, can be the sqrt of the error in the energy, ignored if map_consistent
+    qs_control%eps_gvg_rspace  = tmpsqrt
+    ! ???
+    qs_control%eps_kg_gpw      = tmpsqrt*1000._dp
     !
     CALL section_vals_val_get(qs_section,"EPS_CORE_CHARGE",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN

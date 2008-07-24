@@ -119,3 +119,11 @@ nai-4.inp
 nai-5.inp
 # CODATA 2006
 nai-1.inp
+#  
+kg_gpw_2H2O_llp.inp
+#  
+kg_gpw_2H2O_ppot.inp
+#  
+kg_gpw_2H2O_pbellp_geoch.inp
+#  
+kg_gpw_2H2O_md.inp

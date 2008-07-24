@@ -1540,14 +1540,14 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_PPL",&
-            description="Sets precision of the local part of the pseudo potential.Overrides EPS_DEFAULT/100.0 value",&
-            usage="EPS_PPL real", type_of_var=real_t,&
+            description="Adjusts the precision for the local part of the pseudo potential. ",&
+            usage="EPS_PPL real", type_of_var=real_t, default_r_val=1.0E-2_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_PPNL",&
-            description="Sets precision of the non-local part of the pseudo potential.Overrides EPS_DEFAULT/100.0 value",&
+            description="Sets precision of the non-local part of the pseudo potential. Overrides sqrt(EPS_DEFAULT) value",&
             usage="EPS_PPNL real", type_of_var=real_t,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)

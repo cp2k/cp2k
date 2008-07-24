@@ -83,3 +83,11 @@ OF_gapw_all_lsd_LB.inp
 H2O-gapw-all_localize.inp 
 H2O-gapw-all_localize_crazy.inp 
 H2O-gapw-all_loc_list.inp
+#  
+H2O-gapw-gth.inp
+#  
+H2O-gapwxc-gth.inp
+#  
+H2S-gapw.inp
+#  
+H2O-gapw-gth-pvh.inp

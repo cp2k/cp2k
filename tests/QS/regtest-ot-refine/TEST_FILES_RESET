@@ -63,3 +63,13 @@ o2_ot_refine_1.inp
 o2_ot_refine_2.inp
 o2_ot_refine_diis_1.inp
 o2_ot_refine_diis_2.inp
+#  
+o2_ot_refine_1.inp
+#  
+o2_ot_refine_2.inp
+#  
+o2_ot_refine_diis_1.inp
+#  
+o2_ot_refine_diis_2.inp
+#  
+ethylene_l1_loc.inp
