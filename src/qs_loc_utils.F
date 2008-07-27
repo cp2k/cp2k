@@ -678,7 +678,7 @@ CONTAINS
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,cosabt,sinabt,qs_env)&
-!$OMP shared(op_cost,op_sint)&
+!$OMP shared(op_cost,op_sint,dim_op,vector_k)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm_set)&
 !$OMP shared(atomic_kind_set,particle_set,cell)
         ithread = 0
