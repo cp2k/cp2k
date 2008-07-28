@@ -69,21 +69,22 @@ CONTAINS
 !> \author Giovanni Bussi - ETH Zurich, Lugano 10.2007
 !> \date 09.2007
 ! *****************************************************************************
-  FUNCTION rescaling_factor(kk, sigma, ndeg, taut, rng_stream, error) RESULT(RESULT)
+  FUNCTION rescaling_factor(kk, sigma, ndeg, taut, rng_stream, error) RESULT(my_res)
     REAL(KIND=dp), INTENT(IN)                :: kk, sigma
     INTEGER, INTENT(IN)                      :: ndeg
     REAL(KIND=dp), INTENT(IN)                :: taut
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    REAL(KIND=dp)                            :: RESULT
+    REAL(KIND=dp)                            :: my_res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rescaling_factor', &
       routineP = moduleN//':'//routineN
 
     REAL(KIND=dp)                            :: factor, resample, reverse, rr
 
-    RESULT=0.0_dp
-    IF (kk/=0.0_dp) THEN
+    my_res=0.0_dp
+    ! check that kinetic energy is not too small.. may give numerical problems..
+    IF (kk>=EPSILON(0.0_dp)*10.0_dp**4) THEN
        IF(taut>0.1_dp) THEN
           factor=EXP(-1.0_dp/taut)
        ELSE
@@ -100,7 +101,7 @@ CONTAINS
        resample = kk + (1.0_dp-factor)* (sigma*(sumnoises(ndeg-1, rng_stream, error)+rr**2)/REAL(ndeg,KIND=dp)-kk) &
                      +  2.0_dp*rr*SQRT(kk*sigma/ndeg*(1.0_dp-factor)*factor)
 
-       RESULT = reverse*SQRT(resample/kk)
+       my_res = reverse*SQRT(resample/kk)
     END IF
   END FUNCTION rescaling_factor
 
