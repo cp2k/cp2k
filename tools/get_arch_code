@@ -23,6 +23,8 @@
 
     LANG=C
     LC_MESSAGES=C
+    LC_ALL=C
+    export LANG LC_MESSAGES LC_ALL
 
 ### Load informations for system identification ###
 
@@ -34,13 +36,15 @@
     platform="${ostype}-${osversion}-${osrelease}-${machine}"
     case $platform in
       Darwin-*-*-i386)
-        if [[ -n $FORT_C_NAME ]]; then
+        if [ -n "$FORT_C_NAME" ] 
+        then
           PLATFORM="Darwin-IntelMacintosh-$FORT_C_NAME"
         else
           PLATFORM="Darwin-IntelMacintosh-g95"
         fi;;
       Darwin-*-*-Power\ Macintosh)
-        if [[ -n $FORT_C_NAME ]]; then
+        if [ -n "$FORT_C_NAME" ]
+        then
           PLATFORM="Darwin-PowerMacintosh-$FORT_C_NAME"
         else
           PLATFORM="Darwin-PowerMacintosh-absoft"
@@ -48,7 +52,8 @@
       AIX-*-*-*)
         proc=`lsdev -C -r name | grep proc | tail -1`
         arch=`lsattr -l $proc -a type -F value`
-        if [[ -n $arch ]]; then
+        if [ -n "$arch" ]
+        then
           PLATFORM="AIX-$arch"
         else
           PLATFORM="unknown"
@@ -66,25 +71,34 @@
       CYGWIN*-*-i686)
         PLATFORM="Cygwin-i686-g95";;
       Linux-*-*-i686)
-        if [[ -n $FORT_C_NAME ]]; then
+        if [ -n "$FORT_C_NAME" ]
+        then
           PLATFORM="Linux-i686-$FORT_C_NAME"
-        elif [[ -n $G95 ]]; then
+        elif [ -n "$G95" ] 
+        then
           PLATFORM="Linux-i686-g95"
-        elif [[ -n $PGI ]]; then
+        elif [ -n "$PGI" ] 
+        then
           PLATFORM="Linux-i686-pgi"
-        elif [[ -d /usr/absoft ]]; then
+        elif [ -d /usr/absoft ]
+        then
           PLATFORM="Linux-i686-absoft"
         else
           PLATFORM="Linux-i686"
         fi;;
       Linux-*-*-x86_64)
-        if [[ -n $FORT_C_NAME ]]; then
+        if [ -n "$FORT_C_NAME" ]
+        then
           PLATFORM="Linux-x86-64-$FORT_C_NAME"
-        else
+        elif [ -n "$PGI" ] 
+        then
           PLATFORM="Linux-x86-64-pgi"
+        else
+          PLATFORM="Linux-x86-64-g95"
         fi;;
       Linux-*-*-ia64)
-        if [[ -n $FORT_C_NAME ]]; then
+        if [ -n "$FORT_C_NAME" ]
+        then
           PLATFORM="Linux-ia64-$FORT_C_NAME"
         else
           PLATFORM="Linux-ia64-intel"
