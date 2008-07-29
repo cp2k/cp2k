@@ -83,8 +83,7 @@ CONTAINS
     REAL(KIND=dp)                            :: factor, resample, reverse, rr
 
     my_res=0.0_dp
-    ! check that kinetic energy is not too small.. may give numerical problems..
-    IF (kk>=EPSILON(0.0_dp)*10.0_dp**4) THEN
+    IF (kk >= 0.0_dp) THEN
        IF(taut>0.1_dp) THEN
           factor=EXP(-1.0_dp/taut)
        ELSE
