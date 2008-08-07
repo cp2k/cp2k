@@ -1368,8 +1368,7 @@ CPSourceFileRef,&
            DO k = bo(1,3), bo(2,3)
               DO j = bo(1,2), bo(2,2)
                  DO i = bo(1,1), bo(2,1)
-                    deriv_data(i,j,k)=-deriv_data(i,j,k)/&
-                         MAX(norm_drho(i,j,k),drho_cutoff)
+                    deriv_data(i,j,k) = -deriv_data(i,j,k)/MAX(norm_drho(i,j,k),drho_cutoff)
                  END DO
               END DO
            END DO
@@ -1379,10 +1378,10 @@ CPSourceFileRef,&
            DO k = bo(1,3), bo(2,3)
               DO j = bo(1,2), bo(2,2)
                  DO i = bo(1,1), bo(2,1)
-                    ndr=SQRT(drho(1)%array(i,j,k)**2+&
-                         drho(2)%array(i,j,k)**2+&
-                         drho(3)%array(i,j,k)**2)
-                    deriv_data(i,j,k)=-deriv_data(i,j,k)/MAX(ndr,drho_cutoff)
+                    ndr = SQRT(drho(1)%array(i,j,k)**2 +&
+                               drho(2)%array(i,j,k)**2 +&
+                               drho(3)%array(i,j,k)**2)
+                    deriv_data(i,j,k) = -deriv_data(i,j,k)/MAX(ndr,drho_cutoff)
                  END DO
               END DO
            END DO
@@ -1394,40 +1393,40 @@ CPSourceFileRef,&
            DO k = bo(1,3), bo(2,3)
               DO j = bo(1,2), bo(2,2)
                  DO i = bo(1,1), bo(2,1)
-                    ndr=SQRT((drhoa(1)%array(i,j,k)+drhob(1)%array(i,j,k))**2+&
-                         (drhoa(2)%array(i,j,k)+drhob(2)%array(i,j,k))**2+&
-                         (drhoa(3)%array(i,j,k)+drhob(3)%array(i,j,k))**2)
-                    deriv_data(i,j,k)=-deriv_data(i,j,k)/&
-                         MAX(ndr,drho_cutoff)
+                    ndr = SQRT((drhoa(1)%array(i,j,k) + drhob(1)%array(i,j,k))**2 +&
+                               (drhoa(2)%array(i,j,k) + drhob(2)%array(i,j,k))**2 +&
+                               (drhoa(3)%array(i,j,k) + drhob(3)%array(i,j,k))**2)
+                    deriv_data(i,j,k) = -deriv_data(i,j,k)/MAX(ndr,drho_cutoff)
                  END DO
               END DO
            END DO
         END IF
 
         IF (ASSOCIATED(drho).AND.ASSOCIATED(drho(1)%array)) THEN
-           IF (use_virial) THEN
-              CALL pw_pool_create_pw(pw_pool,virial_pw,use_data=REALDATA3D,&
-                   in_space=REALSPACE,error=error)
-              CALL pw_zero(virial_pw)
-           ENDIF
            CPPrecondition(ASSOCIATED(deriv_data),cp_failure_level,routineP,error,failure)
            IF (use_virial) THEN
+             CALL pw_pool_create_pw(pw_pool,virial_pw,&
+                                    use_data=REALDATA3D,&
+                                    in_space=REALSPACE,&
+                                    error=error)
+             CALL pw_zero(virial_pw)
              DO idir=1,3
-               DO k = bo(1,3), bo(2,3)
-                 DO j = bo(1,2), bo(2,2)
-                   DO i = bo(1,1), bo(2,1)
-                     virial_pw%cr3d(i,j,k)=drho(idir)%array(i,j,k)*&
-                            deriv_data(i,j,k)
+               DO k=bo(1,3),bo(2,3)
+                 DO j=bo(1,2),bo(2,2)
+                   DO i=bo(1,1),bo(2,1)
+                     virial_pw%cr3d(i,j,k) = drho(idir)%array(i,j,k)*deriv_data(i,j,k)
                    END DO
                  END DO
                END DO
                DO jdir=1,idir
                  virial%pv_xc(idir,jdir) = pw_grid%dvol*&
-                   accurate_sum ( virial_pw%cr3d(:,:,:) * drho(jdir)%array(:,:,:) )
+                                           accurate_sum(virial_pw%cr3d(:,:,:)*&
+                                                        drho(jdir)%array(:,:,:))
                  virial%pv_xc(jdir,idir) = virial%pv_xc(idir,jdir)
                END DO
              END DO
-           ENDIF
+             CALL pw_pool_give_back_pw(pw_pool,virial_pw,error=error)
+           END IF ! use_virial
            DO idir=1,3
               CALL pw_create(pw_to_deriv_rho(idir)%pw,pw_grid=pw_grid,&
                    cr3d_ptr=drho(idir)%array,&
@@ -1436,24 +1435,39 @@ CPSourceFileRef,&
               CPPrecondition(ASSOCIATED(drho(idir)%array),cp_failure_level,routineP,error,failure)
               !$omp parallel do default(none) shared(bo,deriv_data,drho,idir,use_virial,virial_pw)&
               !$omp             private(k,j,i)
-              DO k = bo(1,3), bo(2,3)
-                 DO j = bo(1,2), bo(2,2)
-                    DO i = bo(1,1), bo(2,1)
-                       drho(idir)%array(i,j,k)=drho(idir)%array(i,j,k)*&
-                            deriv_data(i,j,k)
+              DO k=bo(1,3),bo(2,3)
+                 DO j=bo(1,2),bo(2,2)
+                    DO i=bo(1,1),bo(2,1)
+                       drho(idir)%array(i,j,k) = drho(idir)%array(i,j,k)*deriv_data(i,j,k)
                     END DO
                  END DO
               END DO
-              NULLIFY(drho(idir)%array)
+              NULLIFY (drho(idir)%array)
            END DO
-           IF (use_virial) THEN
-             CALL pw_pool_give_back_pw(pw_pool,virial_pw,error=error)
-           ENDIF
         ELSE
            IF (use_virial) THEN
-             ! Stress tensor with LSD-GGA not implemented
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-           END IF
+             CALL pw_pool_create_pw(pw_pool,virial_pw,&
+                                    use_data=REALDATA3D,&
+                                    in_space=REALSPACE,&
+                                    error=error)
+             CALL pw_zero(virial_pw)
+             DO idir=1,3
+               DO k=bo(1,3),bo(2,3)
+                 DO j=bo(1,2),bo(2,2)
+                   DO i=bo(1,1),bo(2,1)
+                     my_rho = drhoa(idir)%array(i,j,k) + drhob(idir)%array(i,j,k)
+                     virial_pw%cr3d(i,j,k) = my_rho*deriv_data(i,j,k)
+                   END DO
+                 END DO
+               END DO
+               DO jdir=1,idir
+                 virial%pv_xc(idir,jdir) = pw_grid%dvol*accurate_sum(virial_pw%cr3d(:,:,:)*&
+                                           (drhoa(jdir)%array(:,:,:) + drhob(jdir)%array(:,:,:)))
+                 virial%pv_xc(jdir,idir) = virial%pv_xc(idir,jdir)
+               END DO
+             END DO
+             CALL pw_pool_give_back_pw(pw_pool,virial_pw,error=error)
+           END IF ! use_virial
            DO idir=1,3
               CALL pw_pool_create_pw(pw_pool,pw_to_deriv_rho(idir)%pw,&
                    use_data=REALDATA3D,in_space=REALSPACE,&
@@ -1461,19 +1475,19 @@ CPSourceFileRef,&
               !$omp parallel do default(none) shared(bo,deriv_data,&
               !$omp                pw_to_deriv_rho,drhoa,drhob,idir)&
               !$omp             private(k,j,i,my_rho)
-              DO k = bo(1,3), bo(2,3)
-                 DO j = bo(1,2), bo(2,2)
-                    DO i = bo(1,1), bo(2,1)
-                       my_rho=drhoa(idir)%array(i,j,k)+drhob(idir)%array(i,j,k)
-                       pw_to_deriv_rho(idir)%pw%cr3d(i,j,k)=my_rho*&
-                            deriv_data(i,j,k)
+              DO k=bo(1,3),bo(2,3)
+                 DO j=bo(1,2),bo(2,2)
+                    DO i=bo(1,1),bo(2,1)
+                       my_rho = drhoa(idir)%array(i,j,k) + drhob(idir)%array(i,j,k)
+                       pw_to_deriv_rho(idir)%pw%cr3d(i,j,k) = my_rho*deriv_data(i,j,k)
                     END DO
                  END DO
               END DO
            END DO
         END IF
-  
+
         CALL pw_pool_give_back_cr3d(pw_pool, deriv_att%deriv_data, error=error)
+
      END IF
 
      DO ispin=1,nspins
@@ -1506,9 +1520,8 @@ CPSourceFileRef,&
                  DO k = bo(1,3), bo(2,3)
                     DO j = bo(1,2), bo(2,2)
                        DO i = bo(1,1), bo(2,1)
-                          deriv_data(i,j,k)=&
-                               -deriv_data(i,j,k)/&
-                               MAX(norm_drho_spin(i,j,k),drho_cutoff)
+                          deriv_data(i,j,k) = -deriv_data(i,j,k)/&
+                                              MAX(norm_drho_spin(i,j,k),drho_cutoff)
                        END DO
                     END DO
                  END DO
@@ -1518,16 +1531,38 @@ CPSourceFileRef,&
                  DO k = bo(1,3), bo(2,3)
                     DO j = bo(1,2), bo(2,2)
                        DO i = bo(1,1), bo(2,1)
-                          ndr=SQRT(&
-                               drho_spin(1)%array(i,j,k)**2+&
-                               drho_spin(2)%array(i,j,k)**2+&
-                               drho_spin(3)%array(i,j,k)**2)
-                          deriv_data(i,j,k)=&
-                               -deriv_data(i,j,k)/MAX(ndr,drho_cutoff)
+                          ndr = SQRT(drho_spin(1)%array(i,j,k)**2 +&
+                                     drho_spin(2)%array(i,j,k)**2 +&
+                                     drho_spin(3)%array(i,j,k)**2)
+                          deriv_data(i,j,k) = -deriv_data(i,j,k)/MAX(ndr,drho_cutoff)
                        END DO
                     END DO
                  END DO
               END IF
+
+              IF (use_virial) THEN
+                CALL pw_pool_create_pw(pw_pool,virial_pw,&
+                                       use_data=REALDATA3D,&
+                                       in_space=REALSPACE,&
+                                       error=error)
+                CALL pw_zero(virial_pw)
+                DO idir=1,3
+                  DO k=bo(1,3),bo(2,3)
+                    DO j=bo(1,2),bo(2,2)
+                      DO i=bo(1,1),bo(2,1)
+                        virial_pw%cr3d(i,j,k) = drho_spin(idir)%array(i,j,k)*deriv_data(i,j,k)
+                      END DO
+                    END DO
+                  END DO
+                  DO jdir=1,idir
+                    virial%pv_xc(idir,jdir) = virial%pv_xc(idir,jdir) + pw_grid%dvol*&
+                                              accurate_sum(virial_pw%cr3d(:,:,:)*&
+                                                           drho_spin(jdir)%array(:,:,:))
+                    virial%pv_xc(jdir,idir) = virial%pv_xc(idir,jdir)
+                  END DO
+                END DO
+                CALL pw_pool_give_back_pw(pw_pool,virial_pw,error=error)
+              END IF ! use_virial
 
               vxc_to_deriv(ispin)%pw => tmp_r
               NULLIFY(tmp_r,deriv_att%deriv_data)
@@ -1538,12 +1573,11 @@ CPSourceFileRef,&
                  !$omp parallel do default(none) shared(bo,deriv_data,drho_spin,&
                  !$omp             ispin,idir,vxc_to_deriv,drho_cutoff)&
                  !$omp             private(k,j,i)
-                 DO k = bo(1,3), bo(2,3)
-                    DO j = bo(1,2), bo(2,2)
-                       DO i = bo(1,1), bo(2,1)
-                          drho_spin(idir)%array(i,j,k)=&
-                               vxc_to_deriv(ispin)%pw%cr3d(i,j,k)*&
-                               drho_spin(idir)%array(i,j,k)
+                 DO k=bo(1,3),bo(2,3)
+                    DO j=bo(1,2),bo(2,2)
+                       DO i=bo(1,1),bo(2,1)
+                          drho_spin(idir)%array(i,j,k)= vxc_to_deriv(ispin)%pw%cr3d(i,j,k)*&
+                                                        drho_spin(idir)%array(i,j,k)
                        END DO
                     END DO
                  END DO
@@ -1554,10 +1588,12 @@ CPSourceFileRef,&
                       error=error)
                  NULLIFY(drho_spin(idir)%array)
               END DO
+
               dealloc_pw_to_deriv=.TRUE.
               CALL pw_pool_give_back_pw(pw_pool,vxc_to_deriv(ispin)%pw,error=error)
-           END IF
-        END IF
+           END IF ! deriv_att
+
+        END IF ! LSD
 
         IF (ASSOCIATED(pw_to_deriv_rho(1)%pw)) THEN
            IF (.NOT.ASSOCIATED(pw_to_deriv(1)%pw)) THEN
