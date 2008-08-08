@@ -87,9 +87,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1)                         :: datacode, geocode
-    INTEGER                                  :: handle, hx, hy, hz, iproc, &
+    INTEGER                                  :: handle, iproc, &
                                                 itype_scf, my_per, nproc, nx, &
                                                 ny, nz, stat
+    REAL                                     :: hx, hy, hz
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: ps_wavelet_section
 
@@ -125,6 +126,16 @@ CONTAINS
        CASE (use_perd_none)
           wavelet%geocode="F"
           wavelet%method=WAVELET0D
+          IF(hx.NE.hy)THEN
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                  "Poisson solver for non cubic cells not yet implemented",&
+                  error=error,failure=failure)             
+          END IF
+          IF(hz.NE.hy)THEN
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                  "Poisson solver for non cubic cells not yet implemented",&
+                  error=error,failure=failure)             
+          END IF
        CASE (use_perd_xz)
           wavelet%geocode="S"
           wavelet%method=WAVELET2D
@@ -139,7 +150,6 @@ CONTAINS
        CASE DEFAULT
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
-
        CALL section_vals_val_get(poisson_section,"WAVELET%SCF_TYPE",i_val=itype_scf,error=error)
        wavelet%itype_scf=itype_scf
        wavelet%datacode=datacode
