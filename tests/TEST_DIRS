@@ -73,3 +73,4 @@ SCP/regtest-scp
 LIBTEST
 QS/regtest-dft-vdw-corr
 SE/regtest-3
+QS/regtest-stress

@@ -74,8 +74,7 @@ MODULE qs_force
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE virial_types,                    ONLY: virial_get,&
-                                             virial_type
+  USE virial_types,                    ONLY: virial_type
   USE wfn_fitting_methods,             ONLY: calc_mixed_overlap_force
   USE wfn_fitting_types,               ONLY: wfn_fitting_type
 #include "cp_common_uses.h"
@@ -292,7 +291,7 @@ CONTAINS
 
     END IF
 
-    ! from an eventual mulliken restraint
+    ! from an eventual Mulliken restraint
 
     IF (dft_control%qs_control%mulliken_restraint) THEN
       CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
@@ -309,7 +308,7 @@ CONTAINS
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
     IF (.NOT. harris_flag) THEN ! harris computes the forces differenctly
-      !*** compute core forces (also overwrites matrix_w) ***
+      ! Compute core forces (also overwrites matrix_w)
       IF (dft_control%qs_control%semi_empirical) THEN
         CALL build_se_core_matrix(qs_env=qs_env,para_env=para_env,&
                                   calculate_forces=.TRUE.,error=error)
@@ -331,12 +330,12 @@ CONTAINS
       END IF
       IF ( dft_control%scp ) CALL qs_ks_scp_update ( qs_env, error = error )
 
-      ! *** compute grid-based forces ***
+      ! Compute grid-based forces
       CALL qs_ks_update_qs_env(ks_env=ks_env,&
                                qs_env=qs_env,&
                                calculate_forces=.TRUE.,error=error)
 
-      ! *** Add forces resulting from wavefunction fitting
+      ! Add forces resulting from wavefunction fitting
 
       IF (dft_control%do_wfn_fitting ) THEN
         CALL get_qs_env(qs_env=qs_env,&
@@ -354,7 +353,7 @@ CONTAINS
         END DO
       END IF 
 
-      ! *** compute forces from SCP.  First get the scp_env
+      ! Compute forces from SCP.  First get the scp_env
       IF ( dft_control%scp ) THEN
          CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
          IF ( dft_control%scp_control%dispersion ) THEN
@@ -447,17 +446,14 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%DERIVATIVES",&
            extension=".Log",error=error)
       print_section => section_vals_get_subs_vals(qs_env%input,"DFT%PRINT%DERIVATIVES",error=error)
-      IF(dft_control%qs_control%semi_empirical .AND. obasis) THEN
+      IF (dft_control%qs_control%semi_empirical.AND.obasis) THEN
         CALL write_forces(force,atomic_kind_set,2,output_unit=output_unit,&
              print_section=print_section,error=error)
-      ELSEIF(dft_control%qs_control%dftb .AND. .NOT. obasis) THEN
+      ELSE IF (dft_control%qs_control%dftb.AND.(.NOT.obasis)) THEN
         CALL write_forces(force,atomic_kind_set,4,output_unit=output_unit,&
              print_section=print_section,error=error)
-      ELSEIF(gapw) THEN
+      ELSE IF (gapw) THEN
         CALL write_forces(force,atomic_kind_set,1,output_unit=output_unit,&
-             print_section=print_section,error=error)
-      ELSEIF (virial%pv_availability) THEN
-        CALL write_forces(force,atomic_kind_set,0,virial,output_unit=output_unit,&
              print_section=print_section,error=error)
       ELSE
         CALL write_forces(force,atomic_kind_set,0,output_unit=output_unit,&
@@ -494,16 +490,14 @@ CONTAINS
 !> \date    05.06.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,virial,output_unit,&
-       print_section, error)
+  SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,output_unit,&
+                          print_section, error)
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    INTEGER, INTENT(IN)                      :: ftype
-    TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    INTEGER, INTENT(IN)                      :: output_unit
+    INTEGER, INTENT(IN)                      :: ftype, output_unit
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -518,9 +512,7 @@ CONTAINS
     INTEGER                                  :: i, iatom, ikind, istat, &
                                                 my_ftype, natom, ndigits
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
-    LOGICAL                                  :: virial_present
     REAL(KIND=dp), DIMENSION(3)              :: grand_total
-    REAL(kind=dp), DIMENSION(3, 3)           :: pv_virial
 
 !   ---------------------------------------------------------------------------
 
@@ -540,13 +532,6 @@ CONTAINS
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             atom_of_kind=atom_of_kind,&
             kind_of=kind_of)
-
-       IF (PRESENT(virial)) THEN
-          CALL virial_get(virial, pv_virial=pv_virial,&
-               pv_availability=virial_present)
-       ELSE
-          virial_present=.FALSE.
-       END IF
 
        !   *** Variable precision output of the forces ***
        CALL section_vals_val_get(print_section,"NDIGITS",&
@@ -570,7 +555,7 @@ CONTAINS
        fmtstr5 = "(/T2,A//T3,A)"
 
        WRITE (UNIT=output_unit,FMT=fmtstr1)&
-            "FORCES","Atom","Kind","Component","X","Y","Z"
+         "FORCES [a.u.]","Atom","Kind","Component","X","Y","Z"
 
        grand_total(:) = 0.0_dp
 
@@ -673,11 +658,6 @@ CONTAINS
        END SELECT
 
        WRITE (UNIT=output_unit,FMT=fmtstr3) "Sum of total",grand_total(1:3)
-
-       IF (virial_present) THEN
-          WRITE (UNIT=output_unit,FMT=fmtstr5) "STRESS","pv_virial"
-          WRITE (UNIT=output_unit,FMT=fmtstr4) (pv_virial(i,1:3), i=1,3)
-       END IF
 
        DEALLOCATE (atom_of_kind,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")

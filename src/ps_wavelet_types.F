@@ -87,11 +87,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1)                         :: datacode, geocode
-    INTEGER                                  :: handle, iproc, &
-                                                itype_scf, my_per, nproc, nx, &
-                                                ny, nz, stat
-    REAL                                     :: hx, hy, hz
+    INTEGER                                  :: handle, iproc, itype_scf, &
+                                                my_per, nproc, nx, ny, nz, &
+                                                stat
     LOGICAL                                  :: failure
+    REAL                                     :: hx, hy, hz
     TYPE(section_vals_type), POINTER         :: ps_wavelet_section
 
     CALL timeset(routineN,"I","",handle)

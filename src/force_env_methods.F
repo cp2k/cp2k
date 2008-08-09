@@ -93,6 +93,8 @@ MODULE force_env_methods
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE mathlib,                         ONLY: det_3x3,&
+                                             jacobi
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
   USE metadynamics_types,              ONLY: meta_env_retain,&
@@ -110,6 +112,7 @@ MODULE force_env_methods
   USE particle_types,                  ONLY: particle_type,&
                                              update_particle_set,&
                                              write_particle_coordinates
+  USE physcon,                         ONLY: pascal
   USE qmmm_gpw_energy,                 ONLY: qmmm_el_coupling
   USE qmmm_gpw_forces,                 ONLY: qmmm_forces
   USE qmmm_links_methods,              ONLY: qmmm_added_chrg_coord,&
@@ -194,11 +197,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nat, output_unit, &
+    CHARACTER(LEN=15)                        :: fmtstr3
+    CHARACTER(LEN=16)                        :: fmtstr4
+    CHARACTER(LEN=22)                        :: fmtstr2
+    CHARACTER(LEN=27)                        :: fmtstr5
+    CHARACTER(LEN=31)                        :: fmtstr1
+    INTEGER                                  :: nat, ndigits, output_unit, &
                                                 print_forces, stat
     LOGICAL                                  :: energy_consistency, failure, &
                                                 my_eval, my_skip, need_f
     REAL(kind=dp)                            :: e_pot
+    REAL(KIND=dp), DIMENSION(3)              :: eigval
+    REAL(KIND=dp), DIMENSION(3, 3)           :: eigvec, stress_tensor
     REAL(kind=dp), DIMENSION(:), POINTER     :: pos
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -323,9 +333,62 @@ CONTAINS
           CALL transfer_result_type(res_target=force_env%results,res_source=results,error=error)
        END IF
     END IF
-    ! If the virial is defined but we are not computing forces let's zero the virial for
-    ! consistency
-    IF (virial%pv_availability.AND.(.NOT.need_f)) CALL zero_virial(virial,reset=.FALSE.)
+
+    ! Variable precision output for the stress tensor
+
+    IF (virial%pv_availability) THEN
+      ! If the virial is defined but we are not computing forces let's zero the
+      ! virial for consistency
+      IF (need_f) THEN
+        output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%STRESS_TENSOR",&
+                                           extension=".stress_tensor",error=error)
+        IF (output_unit > 0) THEN
+          CALL force_env_get(force_env,cell=cell,error=error)
+          stress_tensor(:,:) = virial%pv_virial(:,:)/cell%deth*pascal*1.0E-9
+          CALL section_vals_val_get(force_env%force_env_section,"PRINT%STRESS_TENSOR%NDIGITS",&
+                                    i_val=ndigits,error=error)
+          ndigits = MIN(MAX(1,ndigits),20)
+          fmtstr1 = "(/,T2,A,/,/,T13,A1,2(  X,A1))"
+          WRITE (UNIT=fmtstr1(22:23),FMT="(I2)") ndigits + 7
+          fmtstr2 = "(T3,A,T5,3(1X,F  .  ))"
+          WRITE (UNIT=fmtstr2(16:17),FMT="(I2)") ndigits + 7
+          WRITE (UNIT=fmtstr2(19:20),FMT="(I2)") ndigits
+          fmtstr3 = "(/,T3,A,F  .  )"
+          WRITE (UNIT=fmtstr3(10:11),FMT="(I2)") ndigits + 8
+          WRITE (UNIT=fmtstr3(13:14),FMT="(I2)") ndigits
+          WRITE (UNIT=output_unit,FMT=fmtstr1)&
+            "STRESS TENSOR [GPa]","X","Y","Z"
+          WRITE (UNIT=output_unit,FMT=fmtstr2) "X",stress_tensor(1,1:3)
+          WRITE (UNIT=output_unit,FMT=fmtstr2) "Y",stress_tensor(2,1:3)
+          WRITE (UNIT=output_unit,FMT=fmtstr2) "Z",stress_tensor(3,1:3)
+          fmtstr4 = "(/,T3,A,ES  .  )"
+          WRITE (UNIT=fmtstr4(11:12),FMT="(I2)") ndigits + 8
+          WRITE (UNIT=fmtstr4(14:15),FMT="(I2)") ndigits
+          WRITE (UNIT=output_unit,FMT=fmtstr4)&
+            "1/3 Trace(stress tensor): ",(stress_tensor(1,1) +&
+                                          stress_tensor(2,2) +&
+                                          stress_tensor(3,3))/3.0_dp,&
+            "Det(stress tensor)      : ",det_3x3(stress_tensor(:,1),&
+                                                 stress_tensor(:,2),&
+                                                 stress_tensor(:,3))
+          eigval(:) = 0.0_dp
+          eigvec(:,:) = 0.0_dp
+          CALL jacobi(stress_tensor,eigval,eigvec)
+          fmtstr5 = "(/,/,T2,A,/,/,T5,3F  .  ,/)"
+          WRITE (UNIT=fmtstr5(20:21),FMT="(I2)") ndigits + 8
+          WRITE (UNIT=fmtstr5(23:24),FMT="(I2)") ndigits
+          WRITE (UNIT=output_unit,FMT=fmtstr5)&
+            "EIGENVECTORS AND EIGENVALUES OF THE STRESS TENSOR",&
+            eigval(1:3)
+          WRITE (UNIT=output_unit,FMT=fmtstr2) " ",eigvec(1,1:3)
+          WRITE (UNIT=output_unit,FMT=fmtstr2) " ",eigvec(2,1:3)
+          WRITE (UNIT=output_unit,FMT=fmtstr2) " ",eigvec(3,1:3)
+        END IF
+      ELSE
+        CALL zero_virial(virial,reset=.FALSE.)
+      END IF
+    END IF
+
   END SUBROUTINE force_env_calc_energy_force
 
 ! *****************************************************************************

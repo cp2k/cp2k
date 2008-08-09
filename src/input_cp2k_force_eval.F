@@ -275,12 +275,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
 
-    NULLIFY(print_key)
+    NULLIFY (keyword)
+    NULLIFY (print_key)
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+
     IF (.NOT. failure) THEN
        CALL section_create(section,name="print",&
             description="propreties that you want to output and that are common to all methods",&
@@ -308,30 +312,45 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"TOTAL_NUMBERS",&
-            description="controls the printing of the total number of atoms, kinds,...",&
+            description="Controls the printing of the total number of atoms, kinds,...",&
             print_level=medium_print_level, filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"DISTRIBUTION",&
-            description="controls the printing of the distribution of molecules, atoms, ...",&
+            description="Controls the printing of the distribution of molecules, atoms, ...",&
             print_level=medium_print_level, filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"DISTRIBUTION2D",&
-            description="controls the printing of the distribution of matrix blocks,...",&
+            description="Controls the printing of the distribution of matrix blocks,...",&
             print_level=high_print_level, filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"DISTRIBUTION1D",&
-            description="Each node prints out its distribution info...",&
+            description="Each node prints out its distribution info ...",&
             print_level=high_print_level, filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"STRESS_TENSOR",&
+            description="Controls the printing of the stress tensor",&
+            print_level=medium_print_level, filename="__STD_OUT__",error=error)
+       CALL keyword_create(keyword=keyword,&
+                           name="ndigits",&
+                           description="Specifies the number of digits used "//&
+                                       "for printing the stress tensor",&
+                           default_i_val=8,&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
     END IF
+
   END SUBROUTINE create_f_env_print_section
 
 ! *****************************************************************************

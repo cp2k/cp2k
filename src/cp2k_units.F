@@ -11,10 +11,11 @@
 MODULE cp2k_units
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: twopi
+  USE mathconstants,                   ONLY: degree,&
+                                             twopi
   USE physcon,                         ONLY: &
-       a_bohr, bohr, boltzmann, e_charge, evolt, femtoseconds, h_bar, hz, &
-       joule, kcalmol, kjmol, massunit, permittivity, picoseconds, wavenum
+       a_bohr, bar, bohr, e_charge, evolt, femtoseconds, joule, kcalmol, &
+       kelvin, kjmol, massunit, permittivity, picoseconds, wavenumbers
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -83,7 +84,7 @@ SUBROUTINE init_cp2k_units (error)
 ! ps to time AU
   units % ps = 1.0_dp/picoseconds
 ! 1/cm to time AU
-  units % wavenum =  joule * wavenum / hz / h_bar
+  units % wavenum = twopi*wavenumbers
 ! kjoule/mole to energy AU
   units % kj = 1.0_dp / kjmol
 ! kcal/mole to energy AU
@@ -91,17 +92,17 @@ SUBROUTINE init_cp2k_units (error)
 ! EV to energy AU
   units % ev = 1.0_dp / evolt
 ! kelvin to energy AU
-  units % kelvin = boltzmann / joule
+  units % kelvin = 1.0_dp / kelvin
 ! nm to length AU
   units % nm = 10.0_dp * bohr
 ! angstrom to length AU
   units % angstrom = bohr
 ! length AU to angstrom
-  units % bohr = 1.0 / bohr
+  units % bohr = 1.0_dp / bohr
 ! degrees to radians
-  units % degree = twopi / 360.0_dp
-! bar to pressure AU
-  units % bar = joule / ( a_bohr ** 3 * 1.0E+05_dp )
+  units % degree = 1.0_dp / degree
+! AU to pressure bar
+  units % bar = bar
 ! permittivity to AU
   units % eps0 = permittivity * joule * a_bohr / e_charge ** 2
 

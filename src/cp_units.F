@@ -29,10 +29,11 @@ MODULE cp_units
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: radians
+  USE mathconstants,                   ONLY: radians,&
+                                             twopi
   USE physcon,                         ONLY: &
-       a_bohr, bohr, e_mass, evolt, femtoseconds, h_bar, hz, joule, kcalmol, &
-       kelvin, kjmol, massunit, seconds, wavenum
+       atm, bar, bohr, e_mass, evolt, femtoseconds, joule, kcalmol, kelvin, &
+       kjmol, massunit, pascal, picoseconds, seconds, wavenumbers
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE timings,                         ONLY: timeset,&
@@ -729,7 +730,7 @@ CONTAINS
           CASE(cp_units_hartree,cp_units_au)
              res=value
           CASE(cp_units_wavenum)
-             res=wavenum**(-my_power)*value
+             res=wavenumbers**(-my_power)*value
           CASE(cp_units_joule)
              res=joule**(-my_power)*value
           CASE(cp_units_kcalmol)
@@ -774,19 +775,19 @@ CONTAINS
        CASE(cp_ukind_pressure)
           SELECT CASE (basic_unit)
           CASE(cp_units_bar)
-             res=(joule/(a_bohr**3*1.0E+05_dp))**(-my_power)*value
+             res = bar**(-my_power)*value
           CASE(cp_units_atm)
-             res=(joule/(a_bohr**3*1.0E+05_dp))**(-my_power)*(value*1.01325_dp)
+             res = atm**(-my_power)*value
           CASE(cp_units_kbar)
-             res=(joule/(a_bohr**3*1.0E+05_dp))**(-my_power)*(value*1000.0_dp)
+             res = 1.0E+3_dp*bar**(-my_power)*value
           CASE(cp_units_Pa)
-             res=(joule/(a_bohr**3*1.0E+05_dp))**(-my_power)*(value*1.0E-5_dp)
+             res = pascal**(-my_power)*value
           CASE(cp_units_MPa)
-             res=(joule/(a_bohr**3*1.0E+05_dp))**(-my_power)*(value*1.00E1_dp)
+             res = 1.0E+6_dp*pascal**(-my_power)*value
           CASE(cp_units_GPa)
-             res=(joule/(a_bohr**3*1.0E+05_dp))**(-my_power)*(value*1.00E4_dp)
+             res = 1.0E+9_dp*pascal**(-my_power)*value
           CASE(cp_units_au)
-             res=value
+             res = value
           CASE default
              CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                   routineP,"unknown pressure unit:"//TRIM(cp_to_string(basic_unit)),&
@@ -810,11 +811,11 @@ CONTAINS
           CASE(cp_units_fs)
              res=value*femtoseconds**(-my_power)
           CASE(cp_units_ps)
-             res=value*(1000.0_dp*femtoseconds)**(-my_power)
+             res=value*picoseconds**(-my_power)
           CASE(cp_units_au)
              res=value
           CASE(cp_units_wn)
-             res=(joule * wavenum / hz / h_bar)**(my_power)/value
+             res=(twopi*wavenumbers)**(my_power)/value
           CASE default
              CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                   routineP,"unknown time unit:"//TRIM(cp_to_string(basic_unit)),&
