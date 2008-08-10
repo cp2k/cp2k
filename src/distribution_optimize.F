@@ -78,9 +78,9 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: cost_cpu
     INTEGER :: local_rows_pos(nele), local_rows_best(nele), &
       local_cols_pos(nele), local_cols_best(nele)
-    REAL                                     :: random_move, t_initial
-    REAL(kind=dp)                            :: reduction_factor, swap_prob, &
-                                                T, T_in, tol
+    REAL(KIND=dp)                            :: random_move, &
+                                                reduction_factor, swap_prob, &
+                                                T, T_in, t_initial, tol
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(rng_stream_type), POINTER           :: rng_stream
 

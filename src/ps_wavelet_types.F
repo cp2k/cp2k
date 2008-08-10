@@ -91,7 +91,7 @@ CONTAINS
                                                 my_per, nproc, nx, ny, nz, &
                                                 stat
     LOGICAL                                  :: failure
-    REAL                                     :: hx, hy, hz
+    REAL(KIND=dp)                            :: hx, hy, hz
     TYPE(section_vals_type), POINTER         :: ps_wavelet_section
 
     CALL timeset(routineN,"I","",handle)

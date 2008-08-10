@@ -122,7 +122,7 @@ CONTAINS
       nbond_prev, ncon, nsolute, nsolvent, ntype, offset, offset2, stat
     INTEGER, POINTER                         :: ba(:), bb(:), na(:)
     LOGICAL                                  :: do_onfo, failure, found
-    REAL                                     :: ftemp
+    REAL(KIND=dp)                            :: ftemp
     REAL(KIND=dp), POINTER                   :: ac(:), am(:)
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
