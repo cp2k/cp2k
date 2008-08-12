@@ -45,7 +45,7 @@ MODULE colvar_types
             angle_colvar_type,&
             plane_distance_colvar_type,&
             rotation_colvar_type,&
-            ddiff_colvar_type,&
+            dfunct_colvar_type,&
             qparm_colvar_type,&
             hydronium_colvar_type,&
             point_type,&
@@ -61,7 +61,7 @@ MODULE colvar_types
                                 angle_colvar_id           = 4,&
                                 plane_distance_colvar_id  = 5,&
                                 rotation_colvar_id        = 6,&
-                                ddiff_colvar_id           = 7,&
+                                dfunct_colvar_id           = 7,&
                                 qparm_colvar_id           = 8,&
                                 hydronium_colvar_id       = 9
 
@@ -115,9 +115,10 @@ MODULE colvar_types
   END TYPE rotation_colvar_type
 
 ! *****************************************************************************
-  TYPE ddiff_colvar_type
-     INTEGER, DIMENSION(4)         :: i_at_ddiff
-  END TYPE ddiff_colvar_type
+  TYPE dfunct_colvar_type
+     INTEGER, DIMENSION(4)         :: i_at_dfunct
+     REAL(KIND=dp)                 :: coeff
+  END TYPE dfunct_colvar_type
 
 ! *****************************************************************************
   TYPE qparm_colvar_type
@@ -157,7 +158,7 @@ MODULE colvar_types
      TYPE(angle_colvar_type),POINTER          :: angle_param
      TYPE(plane_distance_colvar_type),POINTER :: plane_distance_param
      TYPE(rotation_colvar_type), POINTER      :: rotation_param
-     TYPE(ddiff_colvar_type), POINTER         :: ddiff_param
+     TYPE(dfunct_colvar_type), POINTER        :: dfunct_param
      TYPE(qparm_colvar_type), POINTER         :: qparm_param
      TYPE(hydronium_colvar_type), POINTER     :: hydronium_param
      TYPE(point_type), DIMENSION(:), POINTER  :: points
@@ -184,7 +185,7 @@ MODULE colvar_types
      INTEGER :: ncoord
      INTEGER :: nplane_dist
      INTEGER :: nrot
-     INTEGER :: nddiff
+     INTEGER :: ndfunct
      INTEGER :: nqparm
      INTEGER :: nhydronium
      INTEGER :: nrestraint
@@ -222,7 +223,7 @@ CONTAINS
     NULLIFY(colvar%torsion_param)
     NULLIFY(colvar%plane_distance_param)
     NULLIFY(colvar%rotation_param)
-    NULLIFY(colvar%ddiff_param)
+    NULLIFY(colvar%dfunct_param)
     NULLIFY(colvar%coord_param)
     NULLIFY(colvar%qparm_param)
     NULLIFY(colvar%hydronium_param)
@@ -252,8 +253,8 @@ CONTAINS
        CASE(rotation_colvar_id)
           ALLOCATE(colvar%rotation_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       CASE(ddiff_colvar_id)
-          ALLOCATE(colvar%ddiff_param, stat=stat)
+       CASE(dfunct_colvar_id)
+          ALLOCATE(colvar%dfunct_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(qparm_colvar_id)
           ALLOCATE(colvar%qparm_param, stat=stat)
@@ -471,12 +472,12 @@ CONTAINS
           list(4) = i
           idum = idum + 1
           CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)            
-       CASE(ddiff_colvar_id)
+       CASE(dfunct_colvar_id)
           np = 4
           ! Number of real atoms involved in the colvar
           colvar%n_atom_s= 0
           DO ii=1,4
-             i = colvar%ddiff_param%i_at_ddiff(ii)
+             i = colvar%dfunct_param%i_at_dfunct(ii)
              colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
           ENDDO
           ! Create a List of points...
@@ -485,7 +486,7 @@ CONTAINS
           idum = 0
           DO ii=1, 4
              idum = idum + 1
-             i = colvar%ddiff_param%i_at_ddiff(ii)
+             i = colvar%dfunct_param%i_at_dfunct(ii)
              list(idum) = i
           ENDDO
           CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
@@ -694,8 +695,8 @@ CONTAINS
     CASE(plane_distance_colvar_id)
        DEALLOCATE(colvar%plane_distance_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-    CASE(ddiff_colvar_id)
-       DEALLOCATE(colvar%ddiff_param, stat=stat)
+    CASE(dfunct_colvar_id)
+       DEALLOCATE(colvar%dfunct_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE (rotation_colvar_id)
        DEALLOCATE(colvar%rotation_param, stat=stat)
@@ -804,8 +805,9 @@ CONTAINS
        colvar_out%rotation_param%i_at2_bond1  = colvar_in%rotation_param%i_at2_bond1 + my_offset
        colvar_out%rotation_param%i_at1_bond2  = colvar_in%rotation_param%i_at1_bond2 + my_offset
        colvar_out%rotation_param%i_at2_bond2  = colvar_in%rotation_param%i_at2_bond2 + my_offset
-    CASE(ddiff_colvar_id)
-       colvar_out%ddiff_param%i_at_ddiff   = colvar_in%ddiff_param%i_at_ddiff + my_offset
+    CASE(dfunct_colvar_id)
+       colvar_out%dfunct_param%i_at_dfunct   = colvar_in%dfunct_param%i_at_dfunct + my_offset
+       colvar_out%dfunct_param%coeff         = colvar_in%dfunct_param%coeff
     CASE(qparm_colvar_id)
        colvar_out%qparm_param%n_atoms_to   = colvar_in%qparm_param%n_atoms_to  
        colvar_out%qparm_param%n_atoms_from = colvar_in%qparm_param%n_atoms_from

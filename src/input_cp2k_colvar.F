@@ -132,7 +132,7 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_colvar_ddiff_section(subsection,error)
+       CALL create_colvar_dfunct_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -248,11 +248,11 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE create_colvar_ddiff_section(section,error)
+  SUBROUTINE create_colvar_dfunct_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_ddiff_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dfunct_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -263,8 +263,9 @@ CONTAINS
 
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-       CALL section_create(section,name="distance_difference",&
-            description="Section to define difference between two distances as collective variables.",&
+       CALL section_create(section,name="DISTANCE_FUNCTION",&
+            description="Section to define functions between two distances as collective variables."//&
+            " The function is defined as d1+coeff*d2",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
         
@@ -272,10 +273,17 @@ CONTAINS
 
        CALL keyword_create(keyword, name="ATOMS",&
             variants=(/"POINTS"/),&
-            description="Specifies the indexes of atoms/points for the two bonds d1=(1-2) d2=(3-4)."//&
-            " The difference is defined as d1-d2",&
+            description="Specifies the indexes of atoms/points for the two bonds d1=(1-2) d2=(3-4).",&
             usage="ATOMS {integer} {integer} {integer} {integer}",required=.TRUE.,&
             n_var=4, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="COEFFICIENT",&
+            description="Specifies the coefficient in the function for the constraint."//&
+            " -1.0 has to be used for distance difference, 1.0 for distance addition",&
+            usage="COEFFICIENT {real}",required=.TRUE.,&
+            type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -286,7 +294,7 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE create_colvar_ddiff_section
+  END SUBROUTINE create_colvar_dfunct_section
 
 ! *****************************************************************************
 !> \brief collective variables specifying torsion

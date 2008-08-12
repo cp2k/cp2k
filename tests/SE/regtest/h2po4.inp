@@ -74,10 +74,11 @@
      &END COLVAR
 
      &COLVAR
-       &DISTANCE_DIFFERENCE
+       &DISTANCE_FUNCTION
           # PO - OH distance
           ATOMS 1 3 3 7
-       &END DISTANCE_DIFFERENCE
+          COEFFICIENT -1.0000
+       &END DISTANCE_FUNCTION
        &PRINT
           &PROGRAM_RUN_INFO LOW
             &EACH

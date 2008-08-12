@@ -31,7 +31,7 @@
       UNIT ANGSTROM
     &END CELL
     &COLVAR
-      &DISTANCE_DIFFERENCE
+      &DISTANCE_FUNCTION
         &POINT
           TYPE GEO_CENTER
           ATOMS 4
@@ -51,7 +51,8 @@
         ATOMS 1 2 3 4 
         # distance 1 = ( 4 - 6 )
         # distance 2 = ( 6 - 1 )
-      &END DISTANCE_DIFFERENCE
+        COEFFICIENT -1.0000
+      &END DISTANCE_FUNCTION
     &END COLVAR
     &TOPOLOGY
       COORD_FILE_NAME ../sample_xyz/water_2.xyz

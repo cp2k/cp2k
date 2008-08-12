@@ -17,7 +17,7 @@ MODULE molecule_kind_types
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE colvar_types,                    ONLY: &
-       angle_colvar_id, colvar_counters, coord_colvar_id, ddiff_colvar_id, &
+       angle_colvar_id, colvar_counters, coord_colvar_id, dfunct_colvar_id, &
        dist_colvar_id, hydronium_colvar_id, plane_distance_colvar_id, &
        qparm_colvar_id, rotation_colvar_id, torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -229,7 +229,7 @@ CONTAINS
 
     ncolv%ndist       = 0
     ncolv%nangle      = 0
-    ncolv%nddiff      = 0
+    ncolv%ndfunct      = 0
     ncolv%ntorsion    = 0
     ncolv%ncoord      = 0
     ncolv%nplane_dist = 0
@@ -249,8 +249,8 @@ CONTAINS
              ncolv%nrot = ncolv%nrot + 1
           CASE(dist_colvar_id)
              ncolv%ndist = ncolv%ndist + 1
-          CASE(ddiff_colvar_id)
-             ncolv%nddiff = ncolv%nddiff + 1
+          CASE(dfunct_colvar_id)
+             ncolv%ndfunct = ncolv%ndfunct + 1
           CASE(plane_distance_colvar_id)
              ncolv%nplane_dist = ncolv%nplane_dist + 1
           CASE(torsion_colvar_id)
@@ -267,7 +267,7 @@ CONTAINS
                  ncolv%ntorsion     +&
                  ncolv%ncoord       +&
                  ncolv%nplane_dist  +&
-                 ncolv%nddiff       +&
+                 ncolv%ndfunct      +&
                  ncolv%nrot         +&
                  ncolv%nqparm       +&
                  ncolv%nhydronium

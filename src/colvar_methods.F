@@ -15,7 +15,7 @@ MODULE colvar_methods
   USE cell_types,                      ONLY: cell_type
   USE colvar_types,                    ONLY: &
        angle_colvar_id, colvar_check_points, colvar_create, colvar_setup, &
-       colvar_type, coord_colvar_id, ddiff_colvar_id, dist_colvar_id, &
+       colvar_type, coord_colvar_id, dfunct_colvar_id, dist_colvar_id, &
        eval_point_der, eval_point_pos, hydronium_colvar_id, &
        plane_distance_colvar_id, qparm_colvar_id, rotation_colvar_id, &
        torsion_colvar_id
@@ -95,11 +95,12 @@ CONTAINS
     INTEGER                                  :: handle, iatm, iw, k, kk, &
                                                 n_var, ndim, stat
     INTEGER, DIMENSION(:), POINTER           :: iatms
+    REAL (KIND=dp)                           :: coeff
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(9)                    :: my_subsection
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: angle_section, coordination_section, &
-      ddiff_section, distance_section, hydronium_section, plane_dist_section, &
+      dfunct_section, distance_section, hydronium_section, plane_dist_section, &
       point_section, qparm_section, rotation_section, torsion_section, &
       wrk_section
 
@@ -109,7 +110,7 @@ CONTAINS
     failure=.FALSE.
 
     distance_section     => section_vals_get_subs_vals(colvar_section,"DISTANCE",i_rep_section=icol,error=error)
-    ddiff_section        => section_vals_get_subs_vals(colvar_section,"DISTANCE_DIFFERENCE",&
+    dfunct_section        => section_vals_get_subs_vals(colvar_section,"DISTANCE_FUNCTION",&
          i_rep_section=icol,error=error)
     angle_section        => section_vals_get_subs_vals(colvar_section,"ANGLE",i_rep_section=icol,error=error)
     torsion_section      => section_vals_get_subs_vals(colvar_section,"TORSION",i_rep_section=icol,error=error)
@@ -126,7 +127,7 @@ CONTAINS
     CALL section_vals_get(coordination_section, explicit=my_subsection(4), error=error)
     CALL section_vals_get(plane_dist_section,   explicit=my_subsection(5), error=error)
     CALL section_vals_get(rotation_section,     explicit=my_subsection(6), error=error)
-    CALL section_vals_get(ddiff_section,        explicit=my_subsection(7), error=error)
+    CALL section_vals_get(dfunct_section,        explicit=my_subsection(7), error=error)
     CALL section_vals_get(qparm_section,        explicit=my_subsection(8), error=error)
     CALL section_vals_get(hydronium_section,    explicit=my_subsection(9),error=error)
     ! Only one colvar can be present
@@ -249,11 +250,12 @@ CONTAINS
        CALL section_vals_val_get(rotation_section,"P2_BOND2",i_val=colvar%rotation_param%i_at2_bond2,error=error)
     ELSE IF (my_subsection(7)) THEN
        ! Difference of two distances
-       wrk_section => ddiff_section
-       CALL colvar_create(colvar, ddiff_colvar_id, error)
-       CALL colvar_check_points(colvar, ddiff_section, error)
-       CALL section_vals_val_get(ddiff_section,"ATOMS",i_vals=iatms,error=error)
-       colvar%ddiff_param%i_at_ddiff = iatms
+       wrk_section => dfunct_section
+       CALL colvar_create(colvar, dfunct_colvar_id, error)
+       CALL colvar_check_points(colvar, dfunct_section, error)
+       CALL section_vals_val_get(dfunct_section,"ATOMS",i_vals=iatms,error=error)
+       colvar%dfunct_param%i_at_dfunct = iatms
+       CALL section_vals_val_get(dfunct_section,"COEFFICIENT",r_val=colvar%dfunct_param%coeff,error=error)
     ELSE IF (my_subsection(8)) THEN
        ! Q Parameter
        wrk_section => qparm_section
@@ -320,9 +322,9 @@ CONTAINS
        CASE(angle_colvar_id)
           WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| ANGLE          >>> '//tag,&
                colvar%angle_param%i_at_angle
-       CASE(ddiff_colvar_id)
+       CASE(dfunct_colvar_id)
           WRITE ( iw, '( A,T49,4I8)' )   ' COLVARS| DISTANCE DIFFERENCE  >>> '//tag,&
-               colvar%ddiff_param%i_at_ddiff
+               colvar%dfunct_param%i_at_dfunct
        CASE(plane_distance_colvar_id)
           WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| PLANE DISTANCE - PLANE  >>> '//tag,&
                colvar%plane_distance_param%plane
@@ -446,8 +448,8 @@ CONTAINS
           CALL torsion_colvar(colvar, cell, particles=particles, error=error)
        CASE (angle_colvar_id)
           CALL angle_colvar(colvar, cell, particles=particles, error=error)
-       CASE (ddiff_colvar_id)
-          CALL ddiff_colvar(colvar, cell, particles=particles, error=error)
+       CASE (dfunct_colvar_id)
+          CALL dfunct_colvar(colvar, cell, particles=particles, error=error)
        CASE (plane_distance_colvar_id)
           CALL plane_distance_colvar(colvar,cell, particles=particles, error=error)
        CASE (rotation_colvar_id)
@@ -507,8 +509,8 @@ CONTAINS
           CALL torsion_colvar(colvar,cell,subsys=subsys, no_riemann_sheet_op=.TRUE.,error=error)
        CASE (angle_colvar_id)
           CALL angle_colvar(colvar,cell,subsys=subsys, error=error)
-       CASE (ddiff_colvar_id)
-          CALL ddiff_colvar(colvar,cell,subsys=subsys, error=error)
+       CASE (dfunct_colvar_id)
+          CALL dfunct_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (plane_distance_colvar_id)
           CALL plane_distance_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (rotation_colvar_id)
@@ -764,10 +766,11 @@ CONTAINS
   END SUBROUTINE rotation_colvar
 
 ! *****************************************************************************
-!> \brief evaluates the force due to the difference of two distances
+!> \brief evaluates the force due to the function of two distances
 !> \author Teodoro Laino 02.2006 [created]
+!        modified Florian Schiffmann 08.2008
 ! *****************************************************************************
-  SUBROUTINE ddiff_colvar(colvar,cell,subsys,particles,error)
+  SUBROUTINE dfunct_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
@@ -775,7 +778,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'ddiff_colvar', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dfunct_colvar', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, l
@@ -791,7 +794,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(particles_i)
 
-    CPPrecondition(colvar%type_id==ddiff_colvar_id,cp_failure_level,routineP,error,failure)
+    CPPrecondition(colvar%type_id==dfunct_colvar_id,cp_failure_level,routineP,error,failure)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
@@ -799,8 +802,8 @@ CONTAINS
        CALL cp_subsys_get(subsys,particles=particles_i,error=error)
        my_particles => particles_i%els
     END IF
-    i=colvar%ddiff_param%i_at_ddiff(1)
-    j=colvar%ddiff_param%i_at_ddiff(2)
+    i=colvar%dfunct_param%i_at_dfunct(1)
+    j=colvar%dfunct_param%i_at_dfunct(2)
     ! First bond
     CALL get_coordinates(colvar, i, xpi, my_particles)
     CALL get_coordinates(colvar, j, xpj, my_particles)
@@ -809,8 +812,8 @@ CONTAINS
     xij=MATMUL(cell%hmat,ss)
     r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
     ! Second bond
-    k=colvar%ddiff_param%i_at_ddiff(3)
-    l=colvar%ddiff_param%i_at_ddiff(4)
+    k=colvar%dfunct_param%i_at_dfunct(3)
+    l=colvar%dfunct_param%i_at_dfunct(4)
     CALL get_coordinates(colvar, k, xpk, my_particles)
     CALL get_coordinates(colvar, l, xpl, my_particles)
     ss=MATMUL(cell%h_inv,xpk-xpl)
@@ -818,17 +821,17 @@ CONTAINS
     xkl=MATMUL(cell%hmat,ss)
     r34=SQRT(xkl(1)**2+xkl(2)**2+xkl(3)**2)
     !
-    colvar%ss=r12-r34
+    colvar%ss=r12+colvar%dfunct_param%coeff*r34
     fi(:)= xij/r12
     fj(:)=-xij/r12
-    fk(:)=-xkl/r34
-    fl(:)= xkl/r34
+    fk(:)=colvar%dfunct_param%coeff*xkl/r34
+    fl(:)=-colvar%dfunct_param%coeff*xkl/r34
     CALL put_derivative(colvar, 1, fi)
     CALL put_derivative(colvar, 2, fj)
     CALL put_derivative(colvar, 3, fk)
     CALL put_derivative(colvar, 4, fl)
     
-  END SUBROUTINE ddiff_colvar
+  END SUBROUTINE dfunct_colvar
 
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the distance from the plane collective variable
