@@ -12,10 +12,11 @@ MODULE cp2k_units
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: degree,&
+                                             fourpi,&
                                              twopi
   USE physcon,                         ONLY: &
-       a_bohr, bar, bohr, e_charge, evolt, femtoseconds, joule, kcalmol, &
-       kelvin, kjmol, massunit, permittivity, picoseconds, wavenumbers
+       bar, bohr, evolt, femtoseconds, kcalmol, kelvin, kjmol, massunit, &
+       picoseconds, wavenumbers
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -104,7 +105,7 @@ SUBROUTINE init_cp2k_units (error)
 ! AU to pressure bar
   units % bar = bar
 ! permittivity to AU
-  units % eps0 = permittivity * joule * a_bohr / e_charge ** 2
+  units % eps0 = 1.0_dp / fourpi
 
 END SUBROUTINE init_cp2k_units
 

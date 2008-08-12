@@ -143,3 +143,13 @@ N3dye_vib_bfgs.inp
 N3dye_vib_bfgs2.inp
 #  
 JAC_gen.inp
+# eps0 
+JAC.inp
+JAC_us.inp
+N3dye_vib_bfgs.inp
+JAC_gen.inp
+liquid.inp
+wat125.inp
+H2O-1-GENPOT.inp
+H2O-1-GENPOT-2.inp
+H2OFe-5_75.inp

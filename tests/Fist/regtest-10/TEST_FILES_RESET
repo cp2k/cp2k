@@ -17,3 +17,9 @@ water_2_angvel_zero_002.inp
 # bug fix for torsion metavar
 nh3-meta-3.inp
 nh3-meta-4.inp
+# eps0 
+water_2_angvel_zero_001.inp
+water_2_angvel_zero_002.inp
+nh3-meta-2.inp
+nh3-meta-3.inp
+nh3-meta-4.inp

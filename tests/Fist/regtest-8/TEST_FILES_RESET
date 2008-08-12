@@ -20,3 +20,11 @@ G96.inp
 water_2.inp
 water.inp
 water_vel.inp
+# eps0 
+G87.inp
+G87_2.inp
+G96.inp
+G96_ei_scale.inp
+water.inp
+water_vel.inp
+water_2.inp

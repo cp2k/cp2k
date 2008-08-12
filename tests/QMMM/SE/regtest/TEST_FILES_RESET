@@ -83,3 +83,10 @@ zwitt.inp
 water_3_full.inp
 #numerics after new FOCK matrix construction
 ch2o.inp
+# eps0 
+mol.inp
+h2_dbg_0.inp
+h2_dbg_1.inp
+mol_CSVR_gen1.inp
+mol_CSVR_gen2.inp
+mol_CSVR_gen3.inp

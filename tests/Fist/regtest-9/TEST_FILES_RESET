@@ -31,3 +31,17 @@ H2O-32_NVT_CSVR_massR.inp
 H2O-32_NVT_CSVR_molF.inp
 H2O-32_NVT_CSVR_mol.inp
 H2O-32_NVT_CSVR_molR.inp
+# eps0 
+H2O-32_NVT_CSVR_globF.inp
+H2O-32_NVT_CSVR_glob.inp
+H2O-32_NVT_CSVR_globR.inp
+H2O-32_NVT_CSVR_massF.inp
+H2O-32_NVT_CSVR_mass.inp
+H2O-32_NVT_CSVR_massR.inp
+H2O-32_NVT_CSVR_molF.inp
+H2O-32_NVT_CSVR_mol.inp
+H2O-32_NVT_CSVR_molR.inp
+H2O-32_NPT_CVSR.inp
+H2O-32_NPT_CVSR_R.inp
+H2O-32_NPT_CVSR_NOSE.inp
+H2O-32_NPT_CVSR_NOSE_R.inp

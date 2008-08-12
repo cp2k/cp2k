@@ -70,3 +70,16 @@ water_3_dist_centers3.inp
 water_3_dist_centers.inp
 water_3_dist_g.inp
 water_3_dist_xyz.inp
+# eps0 
+NaCl_fe.inp
+water_3_ddist.inp
+JAC_distr.inp
+H2O-32_PME_distr.inp
+cf_genpot.inp
+water_3_ddist_g.inp
+water_3_dist_g.inp
+water_3_dist_centers.inp
+water_3_dist_centers2.inp
+water_3_dist_centers3.inp
+uo2_buckmorse_nve.inp
+water_3_dist_xyz.inp

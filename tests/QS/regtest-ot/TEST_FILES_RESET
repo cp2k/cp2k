@@ -337,3 +337,5 @@ H2-diffBECKE-ET_coupling.inp
 #  
 sic_energy.inp
 He2_none_full_single.inp
+# eps0 
+sic_ddapc_rt.inp
