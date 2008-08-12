@@ -35,3 +35,5 @@ MC_QS.inp
 GEMC_swap_box1.inp
 #  
 MC_QS.inp
+# numerics after eps0 change
+GEMC_swap_box1.inp
