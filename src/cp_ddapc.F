@@ -12,8 +12,10 @@
 ! *****************************************************************************
 MODULE cp_ddapc
   USE cell_types,                      ONLY: cell_type
-  USE cp_control_types,                ONLY: ddapc_restraint_type
+  USE cp_control_types,                ONLY: ddapc_restraint_type,&
+                                             dft_control_type
   USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
+                                             reset_ch_pulay,&
                                              restraint_functional_force,&
                                              solvation_ddapc_force
   USE cp_ddapc_util,                   ONLY: get_ddapc,&
@@ -27,10 +29,25 @@ MODULE cp_ddapc
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
-  USE pw_methods,                      ONLY: pw_integral_ab
-  USE pw_types,                        ONLY: pw_p_type
+  USE pw_methods,                      ONLY: pw_integral_ab,&
+                                             pw_scale,&
+                                             pw_transfer,&
+                                             pw_zero
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_p_type
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_integrate_potential,          ONLY: integrate_v_rspace
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
+                                             replicate_matrix_structure
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -43,10 +60,141 @@ MODULE cp_ddapc
 
   PUBLIC :: cp_ddapc_apply_CD,&  ! Apply Coupling/Decoupling to Periodic Images
             cp_ddapc_apply_RS,&  ! Apply Restraints/Constraints
-            cp_ddapc_apply_RF    ! Apply an SCRF (Solvation Scheme)
-
+            cp_ddapc_apply_RF,&  ! Apply an SCRF (Solvation Scheme)
+            qs_ks_ddapc
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Set of methods using DDAPC charges
+!> \par History
+!>      08.2005 created [tlaino]
+!>      08.2008 extended to restraint/constraint DDAPC charges [fschiff]
+! *****************************************************************************
+  SUBROUTINE qs_ks_ddapc(qs_env,auxbas_pw_pool,rho_tot_gspace,v_hartree_gspace,&
+       v_spin_ddapc_rest_r,energy,calculate_forces, ks_env, ks_matrix,just_energy,&
+       ddapc_restraint_is_spin,explicit_potential,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_p_type)                          :: rho_tot_gspace, &
+                                                v_hartree_gspace, &
+                                                v_spin_ddapc_rest_r
+    TYPE(qs_energy_type), POINTER            :: energy
+    LOGICAL, INTENT(in)                      :: calculate_forces
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
+    LOGICAL, INTENT(in)                      :: just_energy
+    LOGICAL                                  :: ddapc_restraint_is_spin, &
+                                                explicit_potential
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_ddapc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ddapc_size, handle, i, my_id
+    LOGICAL                                  :: et_coupling_calc, failure
+    REAL(KIND=dp)                            :: ddapc_order_p
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_p_type)                          :: v_spin_ddapc_rest_g
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: rest_mat
+
+    CALL timeset(routineN,"I","",handle)
+    ! In case decouple periodic images and/or apply restraints to charges
+    failure        = .FALSE.
+    logger         => cp_error_get_logger(error)
+    ddapc_restraint_is_spin=.FALSE.
+    et_coupling_calc=.FALSE.
+
+    IF(qs_env%dft_control%qs_control%ddapc_restraint)THEN
+       ddapc_size=SIZE( qs_env%dft_control%qs_control%ddapc_restraint_control )
+       IF(SIZE(energy%ddapc_restraint).NE.ddapc_size)THEN
+          DEALLOCATE(energy%ddapc_restraint)
+          ALLOCATE(energy%ddapc_restraint(ddapc_size))
+       END IF
+
+       DO i=1,SIZE( qs_env%dft_control%qs_control%ddapc_restraint_control )
+          my_id= qs_env%dft_control%qs_control%ddapc_restraint_control(i)%ddapc_restraint_control%density_type
+          IF (my_id==do_spin_density.OR.ddapc_restraint_is_spin) ddapc_restraint_is_spin=.TRUE.
+       END DO
+       et_coupling_calc= qs_env%dft_control%qs_control%et_coupling_calc
+    ENDIF
+
+    explicit_potential=ddapc_restraint_is_spin.OR.et_coupling_calc
+    IF (explicit_potential) THEN
+       CALL pw_pool_create_pw(auxbas_pw_pool,&
+            v_spin_ddapc_rest_g%pw, &
+            use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,error=error)
+       CALL pw_zero(v_spin_ddapc_rest_g%pw)
+       CALL pw_pool_create_pw(auxbas_pw_pool,&
+            v_spin_ddapc_rest_r%pw, &
+            use_data=REALDATA3D,in_space=REALSPACE,error=error)
+    ENDIF
+
+    IF (calculate_forces) CALL reset_ch_pulay(qs_env, error=error)
+
+    ! Decoupling/Recoupling
+    CALL cp_ddapc_apply_CD(qs_env, rho_tot_gspace, energy%hartree, v_hartree_gspace,&
+         calculate_forces, Itype_of_density="FULL DENSITY", error=error)
+    IF(qs_env%dft_control%qs_control%ddapc_restraint)THEN
+       ! Restraints/Constraints
+       DO i=1,ddapc_size
+          NULLIFY(ddapc_restraint_control)
+          ddapc_restraint_control=> qs_env%dft_control%qs_control%ddapc_restraint_control(i)%ddapc_restraint_control
+          
+          CALL cp_ddapc_apply_RS(qs_env, energy%hartree, energy%ddapc_restraint(i), v_hartree_gspace,&
+               v_spin_ddapc_rest_g, i,ddapc_restraint_control,calculate_forces, error)
+       END DO
+    END IF
+    CALL cp_ddapc_apply_RF(qs_env, rho_tot_gspace, energy%hartree, v_hartree_gspace,&
+         calculate_forces, Itype_of_density="FULL DENSITY", error=error)
+
+    ! CJM Copying the real-space Hartree potential to KS_ENV
+    IF ((.NOT. just_energy).OR.et_coupling_calc) THEN
+       CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw)
+       CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol)
+       IF (explicit_potential) THEN
+          CALL pw_transfer(v_spin_ddapc_rest_g%pw,v_spin_ddapc_rest_r%pw)
+          CALL pw_scale(v_spin_ddapc_rest_r%pw,v_spin_ddapc_rest_r%pw%pw_grid%dvol)
+          IF(et_coupling_calc)THEN
+             IF(qs_env%et_coupling%keep_matrix)THEN
+                IF(qs_env%et_coupling%first_run)THEN
+                   NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)                  
+                   CALL replicate_matrix_structure(source=ks_matrix(1)%matrix,&
+                        TARGET=qs_env%et_coupling%rest_mat(1)%matrix,&
+                        target_name="ET_RESTRAINT_MATRIX_B",error=error)
+                   CALL integrate_v_rspace(v_spin_ddapc_rest_r,&
+                        h=qs_env%et_coupling%rest_mat(1),&
+                        qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+                   qs_env%et_coupling%order_p=&
+                        qs_env%dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%ddapc_order_p
+                   qs_env%et_coupling%e1=qs_env%dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%strength
+                   qs_env%et_coupling%keep_matrix=.FALSE.
+                ELSE
+                   NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)                  
+                   CALL replicate_matrix_structure(source=ks_matrix(1)%matrix,&
+                        TARGET=qs_env%et_coupling%rest_mat(2)%matrix,&
+                        target_name="ET_RESTRAINT_MATRIX_B",error=error)
+                   CALL integrate_v_rspace(v_spin_ddapc_rest_r,&
+                        h=qs_env%et_coupling%rest_mat(2),&
+                        qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+                END IF
+             END IF
+          END IF
+       ENDIF
+    ENDIF
+
+    IF (explicit_potential) THEN
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_spin_ddapc_rest_g%pw,error=error)
+    ENDIF
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
+    CALL timestop(0.0_dp, handle)
+
+  END SUBROUTINE qs_ks_ddapc
 
 ! *****************************************************************************
 !> \brief Routine to couple/decouple periodic images with the Bloechl scheme

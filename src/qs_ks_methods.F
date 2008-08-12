@@ -23,7 +23,8 @@ MODULE qs_ks_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: becke_constraint_type,&
                                              dft_control_type
-  USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD
+  USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD,&
+                                             qs_ks_ddapc
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -116,7 +117,6 @@ MODULE qs_ks_methods
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
   USE qs_ks_apply_restraints,          ONLY: qs_ks_becke_restraint,&
-                                             qs_ks_ddapc_restraint,&
                                              qs_ks_mulliken_restraint,&
                                              qs_ks_s2_restraint
   USE qs_ks_atom,                      ONLY: update_ks_atom
@@ -547,8 +547,7 @@ CONTAINS
 !***SCP
 
        ! In case decouple periodic images and/or apply restraints to charges
- 
-       CALL qs_ks_ddapc_restraint(qs_env,auxbas_pw_pool,rho_tot_gspace,v_hartree_gspace,&
+       CALL qs_ks_ddapc(qs_env,auxbas_pw_pool,rho_tot_gspace,v_hartree_gspace,&
             v_spin_ddapc_rest_r,energy,calculate_forces, ks_env, ks_matrix,just_energy,&
             ddapc_restraint_is_spin,explicit_potential,error)
 
