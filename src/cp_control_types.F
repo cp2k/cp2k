@@ -11,6 +11,7 @@ MODULE cp_control_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE f77_blas
+  USE input_constants,                 ONLY: do_full_density
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -133,7 +134,15 @@ MODULE cp_control_types
     INTEGER                         :: natoms
     INTEGER, POINTER, DIMENSION(:)  :: atoms
     REAL(KIND=dp), POINTER, DIMENSION(:)  :: coeff
+    INTEGER                         :: density_type
   END TYPE ddapc_restraint_type
+
+! *****************************************************************************
+! \brief provides a vector of pointers to ddapc_restraint_type
+! *****************************************************************************
+  TYPE ddapc_restraint_p_type
+     TYPE(ddapc_restraint_type),POINTER:: ddapc_restraint_control
+  END TYPE ddapc_restraint_p_type
 
 ! *****************************************************************************
 ! \brief some parameters useful for becke_constraints
@@ -149,6 +158,7 @@ MODULE cp_control_types
     TYPE(pw_p_type)                 :: becke_pot
     LOGICAL                         :: need_pot
     REAL(KIND=dp), POINTER, DIMENSION(:)  :: coeff
+    INTEGER                         :: density_type
  END TYPE becke_constraint_type
 
 ! *****************************************************************************
@@ -206,7 +216,7 @@ MODULE cp_control_types
     REAL(KIND = dp)                               :: cutoff
     REAL(KIND = dp), DIMENSION(:), POINTER        :: e_cutoff
     TYPE (mulliken_restraint_type), POINTER       :: mulliken_restraint_control
-    TYPE (ddapc_restraint_type), POINTER          :: ddapc_restraint_control
+    TYPE (ddapc_restraint_p_type), DIMENSION(:),POINTER :: ddapc_restraint_control
     TYPE (becke_constraint_type), POINTER         :: becke_control
     TYPE (s2_restraint_type), POINTER             :: s2_restraint_control
     TYPE (dftb_control_type),POINTER              :: dftb_control
@@ -299,6 +309,7 @@ MODULE cp_control_types
             pw_grid_option,&
             mulliken_restraint_type,&
             ddapc_restraint_type,&
+            ddapc_restraint_p_type,&
             dftb_control_type,&
             scp_control_type,&
             becke_constraint_type,&
@@ -315,7 +326,8 @@ MODULE cp_control_types
             xas_control_create,&
             tddfpt_control_create,&
             finite_field_control_create,&
-            wfn_fitting_control_create
+            wfn_fitting_control_create,&
+            ddapc_control_create
 
 CONTAINS
 
@@ -415,8 +427,9 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,error,failure)
     ALLOCATE(ddapc_restraint_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)    
 
+    ddapc_restraint_control%density_type=do_full_density
     ddapc_restraint_control%ref_count=1
     ddapc_restraint_control%strength=0.1_dp
     ddapc_restraint_control%ddapc_order_p=0.0_dp
@@ -500,7 +513,9 @@ CONTAINS
     ALLOCATE(becke_control,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+
     becke_control%ref_count=1
+    becke_control%density_type=do_full_density
     becke_control%strength=0.1_dp
     becke_control%becke_order_p=0.0_dp
     becke_control%functional_form=-1
@@ -772,9 +787,9 @@ CONTAINS
        NULLIFY(qs_control%se_control)
        NULLIFY(qs_control%dftb_control)
        NULLIFY(qs_control%becke_control)  
-       
+       NULLIFY(qs_control%ddapc_restraint_control)
+
        CALL mulliken_control_create(qs_control%mulliken_restraint_control,error=error)
-       CALL ddapc_control_create(qs_control%ddapc_restraint_control,error=error)
        CALL becke_control_create(qs_control%becke_control,error=error)
        CALL s2_control_create(qs_control%s2_restraint_control,error=error)
        CALL gapw_control_create(qs_control%gapw_control, error=error)
@@ -791,13 +806,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_control_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(qs_control)) THEN
        CALL mulliken_control_release(qs_control%mulliken_restraint_control,error=error)
-       CALL ddapc_control_release(qs_control%ddapc_restraint_control,error=error)
        CALL s2_control_release(qs_control%s2_restraint_control,error=error)
        CALL se_control_release(qs_control%se_control,error=error)
        CALL dftb_control_release(qs_control%dftb_control,error=error)
@@ -810,6 +824,13 @@ CONTAINS
        IF (ASSOCIATED(qs_control%gapw_control))THEN
           DEALLOCATE(qs_control%gapw_control,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(qs_control%ddapc_restraint_control))THEN
+          DO i = 1 , SIZE(qs_control%ddapc_restraint_control)
+             CALL ddapc_control_release(qs_control%ddapc_restraint_control(i)%ddapc_restraint_control,&
+                       error=error)
+          END DO
+          DEALLOCATE(qs_control%ddapc_restraint_control)
        END IF
        DEALLOCATE(qs_control,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

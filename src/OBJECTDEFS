@@ -420,6 +420,7 @@ OBJECTS_GENERIC =\
  qs_interactions.o\
  qs_kpp1_env_methods.o\
  qs_kpp1_env_types.o\
+ qs_ks_apply_restraints.o\
  qs_ks_atom.o\
  qs_ks_methods.o\
  qs_ks_qmmm_methods.o\

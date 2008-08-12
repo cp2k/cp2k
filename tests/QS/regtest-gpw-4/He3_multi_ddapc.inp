@@ -2,7 +2,6 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    CHARGE +1
     LSD
     &MGRID
       CUTOFF 80
@@ -11,17 +10,37 @@
       EPS_DEFAULT 1.0E-12
       MAP_CONSISTENT
       &DDAPC_RESTRAINT
+        ATOMS   3
+        TARGET -1.0
+        STRENGTH 0.02
+        FUNCTIONAL_FORM CONSTRAINT 
+      &END
+      &DDAPC_RESTRAINT
+        ATOMS   2
+        TARGET  0.0
+        STRENGTH 6.0
+        TYPE_OF_DENSITY FULL
+      &END
+      &DDAPC_RESTRAINT
         ATOMS   1 
         TARGET -1.0
-        STRENGTH 5.0
+        STRENGTH 6.0
         TYPE_OF_DENSITY SPIN
       &END
     &END QS
     &SCF
-      MAX_SCF 7
-      EPS_SCF 1.0E-7
+      MAX_SCF 7 
+      EPS_SCF 5.0E-7
       SCF_GUESS ATOMIC
       &OT
+        PRECONDITIONER FULL_ALL
+        ENERGY_GAP 0.01 
+      &END
+      &OUTER_SCF
+         MAX_SCF 1 
+         EPS_SCF 3.0E-3
+         OPTIMIZER BISECT
+         TYPE DDAPC_CONSTRAINT
       &END
     &END SCF
     &XC
@@ -31,8 +50,10 @@
     &DENSITY_FITTING
     &END  
     &PRINT
-     &MULLIKEN
-     &END
+       &E_DENSITY_CUBE
+       &END
+       &MULLIKEN
+       &END
     &END
   &END DFT
   &SUBSYS
@@ -43,27 +64,24 @@
     &COORD
     He   0.000000   0.0   0.0
     He   0.000000   0.0   3.0
+    He   0.000000   0.0   6.0
     &END COORD
     &KIND He
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q2
     &END KIND
   &END SUBSYS
-  &PROPERTIES
-    &FIT_CHARGE
-    &END
-  &END
 &END FORCE_EVAL
 &GLOBAL
   PROJECT H2O
-  RUN_TYPE MD
-  ! RUN_TYPE ENERGY
+! RUN_TYPE MD
+   RUN_TYPE ENERGY
   PRINT_LEVEL MEDIUM
 &END GLOBAL
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 3
+    STEPS 5
     TIMESTEP 0.4
     TEMPERATURE 300.0
   &END MD

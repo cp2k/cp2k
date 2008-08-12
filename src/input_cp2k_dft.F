@@ -396,8 +396,8 @@ CONTAINS
     CALL section_add_subsection(section,subsection,error=error)
     CALL section_release(subsection,error=error)
 
-    CALL create_density_fitting_section(subsection, error)
-    CALL section_add_subsection(section,subsection,error=error)
+    CALL create_density_fitting_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
     CALL create_xas_section(subsection,error)
@@ -2272,16 +2272,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="TYPE_OF_DENSITY",&
-            description="Specifies the type of density used for the fitting",&
-            usage="TYPE_OF_DENSITY (FULL|SPIN)",&
-            enum_c_vals=s2a("FULL","SPIN"),&
-            enum_i_vals=(/ do_full_density, do_spin_density/),&
-            enum_desc=s2a("Full density","Spin density"),&
-            default_i_val=do_full_density, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic information during the run", &
             print_level=high_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
@@ -2320,8 +2310,18 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"DDAPC_RESTRAINT",&
             description="Use DDAPC charges in a restraint (check code for details)",&
-            n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=7, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
+
+       CALL keyword_create(keyword, name="TYPE_OF_DENSITY",&
+            description="Specifies the type of density used for the fitting",&
+            usage="TYPE_OF_DENSITY (FULL|SPIN)",&
+            enum_c_vals=s2a("FULL","SPIN"),&
+            enum_i_vals=(/ do_full_density, do_spin_density/),&
+            enum_desc=s2a("Full density","Spin density"),&
+            default_i_val=do_full_density, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="STRENGTH",&
             description="force constant of the restraint",&
@@ -2425,6 +2425,16 @@ CONTAINS
             enum_i_vals=(/ do_ddapc_restraint, do_ddapc_constraint/),&
             enum_desc=s2a("Harmonic potential: s*(q-t)**2","Constraint form: s*(q-t)"),&
             default_i_val=do_ddapc_restraint, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TYPE_OF_DENSITY",&
+            description="Specifies the type of density used for the fitting",&
+            usage="TYPE_OF_DENSITY (FULL|SPIN)",&
+            enum_c_vals=s2a("FULL","SPIN"),&
+            enum_i_vals=(/ do_full_density, do_spin_density/),&
+            enum_desc=s2a("Full density","Spin density"),&
+            default_i_val=do_full_density, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -3794,6 +3804,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
@@ -3805,7 +3816,7 @@ CONTAINS
             n_keywords=3, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY (subsection)
+       NULLIFY (subsection,keyword)
 
        CALL create_linres_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -3823,6 +3834,15 @@ CONTAINS
             description="This section is used to print the density derived atomic point charges."//&
             "The fit of the charges is controlled through the DENSITY_FITTING section",&
             print_level=high_print_level,filename="__STD_OUT__",error=error)
+       CALL keyword_create(keyword, name="TYPE_OF_DENSITY",&
+            description="Specifies the type of density used for the fitting",&
+            usage="TYPE_OF_DENSITY (FULL|SPIN)",&
+            enum_c_vals=s2a("FULL","SPIN"),&
+            enum_i_vals=(/ do_full_density, do_spin_density/),&
+            enum_desc=s2a("Full density","Spin density"),&
+            default_i_val=do_full_density, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -5825,7 +5845,8 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,TRIM(ADJUSTL(section_name)),&
-            description="Use DDAPC charges in a restraint (check code for details)",&
+            description="Use DDAPC charges in a restraint (check code for details),"//&
+            " section can be repeated, but only one constraint is possible at the moment.",& 
             n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
@@ -5834,6 +5855,17 @@ CONTAINS
             usage="STRENGTH {real} ",default_r_val=0.1_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="TYPE_OF_DENSITY",&
+            description="Specifies the type of density used for the fitting",&
+            usage="TYPE_OF_DENSITY (FULL|SPIN)",&
+            enum_c_vals=s2a("FULL","SPIN"),&
+            enum_i_vals=(/ do_full_density, do_spin_density/),&
+            enum_desc=s2a("Full density","Spin density"),&
+            default_i_val=do_full_density, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
 
        CALL keyword_create(keyword, name="TARGET",&
             description="target value of the restraint",&

@@ -100,3 +100,5 @@ Ne-BP.inp
 H2O_gpw.inp
 # eps0 
 H2O_gpw.inp
+# numerical noise
+H2O_gpw.inp

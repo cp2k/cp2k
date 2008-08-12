@@ -459,7 +459,7 @@ CONTAINS
        et_ddapc_section =>  section_vals_get_subs_vals(et_coupling_section,"DDAPC_RESTRAINT_A",error=error)
        dft_control%qs_control%et_coupling_calc=.TRUE.
        dft_control%qs_control%ddapc_restraint=.TRUE.
-       CALL  read_ddapc_section(dft_control%qs_control,et_ddapc_section,error)
+       CALL  read_ddapc_section(dft_control%qs_control,ddapc_restraint_section=et_ddapc_section,error=error)
     ENDIF
 
     IF (my_ival==do_et_becke)THEN

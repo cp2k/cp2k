@@ -2,6 +2,8 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
+    &DENSITY_FITTING
+    &END
     LSD
     CHARGE +1
     &MGRID
@@ -15,6 +17,7 @@
         TARGET     0.2
         ATOMS      1
         FUNCTIONAL_FORM CONSTRAINT
+        TYPE_OF_DENSITY SPIN
       &END
       EXTRAPOLATION PS
       EXTRAPOLATION_ORDER 3

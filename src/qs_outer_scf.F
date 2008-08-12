@@ -88,7 +88,7 @@ SUBROUTINE outer_loop_gradient(qs_env, scf_env, error)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_gradient', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ihistory
+    INTEGER                                  :: handle, ihistory, n
     LOGICAL                                  :: failure, is_constraint
     TYPE(becke_constraint_type), POINTER     :: becke_control
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
@@ -116,8 +116,12 @@ SUBROUTINE outer_loop_gradient(qs_env, scf_env, error)
        scf_env%outer_scf%gradient(1,ihistory)=scf_env%iter_delta
     CASE (outer_scf_ddapc_constraint)
        CPPrecondition(dft_control%qs_control%ddapc_restraint,cp_failure_level,routineP,error,failure)
-       ddapc_restraint_control=>dft_control%qs_control%ddapc_restraint_control
-       is_constraint=(ddapc_restraint_control%functional_form==do_ddapc_constraint)
+       DO n=1,SIZE(dft_control%qs_control%ddapc_restraint_control)
+          NULLIFY(ddapc_restraint_control)
+          ddapc_restraint_control=>dft_control%qs_control%ddapc_restraint_control(n)%ddapc_restraint_control
+          is_constraint=(ddapc_restraint_control%functional_form==do_ddapc_constraint)
+          IF(is_constraint)EXIT
+       END DO
        CPPrecondition(is_constraint,cp_failure_level,routineP,error,failure)
 
        scf_env%outer_scf%variables(:,ihistory)=ddapc_restraint_control%strength
@@ -292,8 +296,8 @@ SUBROUTINE outer_loop_update_qs_env(qs_env, scf_env, error)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_update_qs_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ihistory
-    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, ihistory, n
+    LOGICAL                                  :: failure, is_constraint
     TYPE(becke_constraint_type), POINTER     :: becke_control
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -313,7 +317,12 @@ SUBROUTINE outer_loop_update_qs_env(qs_env, scf_env, error)
     CASE (outer_scf_scp)
        ! do nothing
     CASE (outer_scf_ddapc_constraint)
-       ddapc_restraint_control=>dft_control%qs_control%ddapc_restraint_control
+       DO n=1,SIZE(dft_control%qs_control%ddapc_restraint_control)
+          NULLIFY(ddapc_restraint_control)
+          ddapc_restraint_control=>dft_control%qs_control%ddapc_restraint_control(n)%ddapc_restraint_control
+          is_constraint=(ddapc_restraint_control%functional_form==do_ddapc_constraint)
+          IF(is_constraint)EXIT
+       END DO
        ddapc_restraint_control%strength=scf_env%outer_scf%variables(1,ihistory+1)
     CASE (outer_scf_s2_constraint)
        s2_restraint_control=>dft_control%qs_control%s2_restraint_control
@@ -345,14 +354,15 @@ SUBROUTINE outer_loop_extrapolate(qs_env, error)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_extrapolate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ihis, ivec, nhistory, &
-                                                nvariables, nvec, &
+    INTEGER                                  :: handle, ihis, ivec, n, &
+                                                nhistory, nvariables, nvec, &
                                                 outer_scf_ihistory, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, is_constraint
     REAL(kind=dp)                            :: alpha
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: extrapolation
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: outer_scf_history
     TYPE(becke_constraint_type), POINTER     :: becke_control
+    TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(scf_control_type), POINTER          :: scf_control
 
@@ -379,8 +389,14 @@ SUBROUTINE outer_loop_extrapolate(qs_env, error)
     CASE (outer_scf_scp)
          outer_scf_history(1,ivec)=0.0_dp
     CASE (outer_scf_ddapc_constraint)
+       DO n=1,SIZE(dft_control%qs_control%ddapc_restraint_control)
+          NULLIFY(ddapc_restraint_control)
+          ddapc_restraint_control=>dft_control%qs_control%ddapc_restraint_control(n)%ddapc_restraint_control
+          is_constraint=(ddapc_restraint_control%functional_form==do_ddapc_constraint)
+          IF(is_constraint)EXIT
+       END DO
          outer_scf_history(1,ivec)= &
-           dft_control%qs_control%ddapc_restraint_control%strength
+           ddapc_restraint_control%strength
     CASE (outer_scf_s2_constraint)
          outer_scf_history(1,ivec)= &
            dft_control%qs_control%s2_restraint_control%strength
@@ -410,7 +426,7 @@ SUBROUTINE outer_loop_extrapolate(qs_env, error)
     CASE (outer_scf_scp)
            ! nothing
     CASE (outer_scf_ddapc_constraint)
-           dft_control%qs_control%ddapc_restraint_control%strength=extrapolation(1)
+           ddapc_restraint_control%strength=extrapolation(1)
     CASE (outer_scf_s2_constraint)
            dft_control%qs_control%s2_restraint_control%strength=extrapolation(1)
     CASE (outer_scf_becke)

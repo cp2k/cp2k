@@ -130,8 +130,7 @@ CONTAINS
                        cell=cell,&
                        super_cell=super_cell,&
                        error=error)
-       density_fit_section => section_vals_get_subs_vals(qs_env%input,"DFT%DENSITY_FITTING",&
-            error=error)
+       density_fit_section => section_vals_get_subs_vals(qs_env%input,"DFT%DENSITY_FITTING", error=error)
        iw=cp_print_key_unit_nr(logger,density_fit_section,&
             "PROGRAM_RUN_INFO",".FitCharge",error=error)
        IF (iw>0) THEN
@@ -195,11 +194,12 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   RECURSIVE SUBROUTINE get_ddapc(qs_env, calc_force, density_fit_section,&
-       qout1, qout2, out_radii, dq_out, ext_rho_tot_g, Itype_of_density, &
-       iwc, error)
+       density_type,qout1, qout2, out_radii, dq_out, ext_rho_tot_g,&
+       Itype_of_density,iwc, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: calc_force
     TYPE(section_vals_type), POINTER         :: density_fit_section
+    INTEGER, OPTIONAL                        :: density_type
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: qout1, qout2, out_radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -274,7 +274,12 @@ CONTAINS
           CALL pw_transfer(ext_rho_tot_g,rho_tot_g)
           type_of_density=Itype_of_density
        ELSE
-          CALL section_vals_val_get(density_fit_section,"TYPE_OF_DENSITY",i_val=myid,error=error)
+          IF(PRESENT(density_type))THEN
+             myid=density_type
+          ELSE
+             CALL section_vals_val_get(qs_env%input,&
+                                    "PROPERTIES%FIT_CHARGE%TYPE_OF_DENSITY",i_val=myid,error=error)
+          END IF
           SELECT CASE(myid)
           CASE(do_full_density)
              ! Otherwise build the total QS density (electron+nuclei) in G-space

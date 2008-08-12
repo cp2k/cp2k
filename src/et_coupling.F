@@ -32,8 +32,7 @@ MODULE et_coupling
   USE f77_blas
   USE input_constants,                 ONLY: do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_type
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              int_size
@@ -102,8 +101,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
                             "PROPERTIES%ET_COUPLING",error=error)
-    CALL section_vals_val_get(qs_env%input,"DFT%DENSITY_FITTING%TYPE_OF_DENSITY",&
-           i_val=my_id,error=error)
+    my_id=qs_env%dft_control%qs_control%becke_control%density_type
 
     iw=cp_print_key_unit_nr(logger,et_coupling_section,"PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
@@ -228,8 +226,8 @@ CONTAINS
 
     IF(qs_env%dft_control%qs_control%ddapc_restraint)THEN
     Waa=qs_env%et_coupling%order_p
-    Wbb=qs_env%dft_control%qs_control%ddapc_restraint_control%ddapc_order_p
-    strength=qs_env%dft_control%qs_control%ddapc_restraint_control%strength    
+    Wbb=qs_env%dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%ddapc_order_p
+    strength=qs_env%dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%strength    
     END IF
     IF(qs_env%dft_control%qs_control%becke_constraint)THEN
     Waa=qs_env%et_coupling%order_p        

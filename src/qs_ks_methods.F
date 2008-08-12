@@ -23,8 +23,7 @@ MODULE qs_ks_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: becke_constraint_type,&
                                              dft_control_type
-  USE cp_ddapc,                        ONLY: cp_ddapc_apply,&
-                                             cp_ddapc_apply_CD
+  USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -63,10 +62,9 @@ MODULE qs_ks_methods
   USE hfx_derivatives,                 ONLY: derivatives_four_center
   USE hfx_energy_potential,            ONLY: integrate_four_center
   USE input_constants,                 ONLY: &
-       do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, do_spin_density, &
-       sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-       sic_mauri_us, sic_none, use_aux_fit_basis_set, use_orb_basis_set, &
-       xc_none
+       do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, sic_ad, sic_eo, &
+       sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, &
+       sic_none, use_aux_fit_basis_set, use_orb_basis_set, xc_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -117,6 +115,10 @@ MODULE qs_ks_methods
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
+  USE qs_ks_apply_restraints,          ONLY: qs_ks_becke_restraint,&
+                                             qs_ks_ddapc_restraint,&
+                                             qs_ks_mulliken_restraint,&
+                                             qs_ks_s2_restraint
   USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_ks_qmmm_methods,              ONLY: qmmm_calculate_energy,&
                                              qmmm_modify_hartree_pot
@@ -301,17 +303,17 @@ CONTAINS
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: cc_new, cc_old
     INTEGER :: adiabatic_functional, adiabatic_model, handle, ig, ikind, &
-      irep, ispin, k, k2, my_id, n, n_rep_hf, nspins, output_unit, stat
+      irep, ispin, k, k2, n, n_rep_hf, nspins, output_unit, stat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ep, &
-      do_hfx, et_coupling_calc, explicit_potential, failure, gapw, gapw_xc, &
-      ionode, my_diis_step, my_kg_gpw, use_virial
+      do_hfx, explicit_potential, failure, gapw, gapw_xc, ionode, &
+      my_diis_step, my_kg_gpw, use_virial
     REAL(dp) :: a, adiabatic_lambda, adiabatic_omega, &
       adiabatic_rescale_factor, scale_dDFA, scale_ddW0, scale_dEx1, &
       scale_dEx2, total_energy_xc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
-                                                f_mix, inv_vol, &
-                                                mulliken_order_p, s2_order_p
+                                                f_mix, mulliken_order_p, &
+                                                s2_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g2, occupation_numbers, &
                                                 scaling_factor
@@ -329,7 +331,7 @@ CONTAINS
       POINTER                                :: mo_array, mos, mos_aux_fit
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, rho_tot_gspace, &
-      v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_g, v_spin_ddapc_rest_r
+      v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
@@ -346,7 +348,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv, matrix_h, &
                                                 matrix_p_aux_fit, matrix_s, &
-                                                my_rho, rest_mat
+                                                my_rho
     TYPE(scp_energy_type), POINTER           :: scp_energy
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
@@ -545,78 +547,14 @@ CONTAINS
 !***SCP
 
        ! In case decouple periodic images and/or apply restraints to charges
-       ddapc_restraint_is_spin=.FALSE.
-       et_coupling_calc=.FALSE.
-       IF (qs_env%dft_control%qs_control%ddapc_restraint) THEN
-           CALL section_vals_val_get(input,"DFT%DENSITY_FITTING%TYPE_OF_DENSITY",&
-                i_val=my_id,error=error)
-           IF (my_id==do_spin_density) ddapc_restraint_is_spin=.TRUE.
-           et_coupling_calc= qs_env%dft_control%qs_control%et_coupling_calc
-       ENDIF
-
-       explicit_potential=ddapc_restraint_is_spin.OR.et_coupling_calc
-       
-       IF (explicit_potential) THEN
-         CALL pw_pool_create_pw(auxbas_pw_pool,&
-                                 v_spin_ddapc_rest_g%pw, &
-                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,error=error)
-         CALL pw_zero(v_spin_ddapc_rest_g%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool,&
-                                 v_spin_ddapc_rest_r%pw, &
-                                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
-       ENDIF
-
-       CALL cp_ddapc_apply(qs_env,&
-                           rho_tot_gspace,&
-                           energy%hartree,&
-                           energy%ddapc_restraint,&
-                           v_hartree_gspace,&
-                           v_spin_ddapc_rest_g=v_spin_ddapc_rest_g,&
-                           calculate_forces=calculate_forces,&
-                           error=error)
-! CJM Copying the real-space Hartree potential to KS_ENV
-       IF ((.NOT. just_energy).OR.et_coupling_calc) THEN
-          CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw)
-          CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol)
-          IF (explicit_potential) THEN
-             CALL pw_transfer(v_spin_ddapc_rest_g%pw,v_spin_ddapc_rest_r%pw)
-             CALL pw_scale(v_spin_ddapc_rest_r%pw,v_spin_ddapc_rest_r%pw%pw_grid%dvol)
-             IF(et_coupling_calc)THEN
-                IF(qs_env%et_coupling%keep_matrix)THEN
-                   IF(qs_env%et_coupling%first_run)THEN
-                      NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)                  
-                      CALL replicate_matrix_structure(source=ks_matrix(1)%matrix,&
-                           TARGET=qs_env%et_coupling%rest_mat(1)%matrix,&
-                           target_name="ET_RESTRAINT_MATRIX_B",error=error)
-                      CALL integrate_v_rspace(v_spin_ddapc_rest_r,&
-                           h=qs_env%et_coupling%rest_mat(1),&
-                           qs_env=qs_env,calculate_forces=.FALSE.,error=error)
-                      qs_env%et_coupling%order_p=qs_env%dft_control%qs_control%ddapc_restraint_control%ddapc_order_p
-                      qs_env%et_coupling%e1=qs_env%dft_control%qs_control%ddapc_restraint_control%strength
-                      qs_env%et_coupling%keep_matrix=.FALSE.
-                   ELSE
-                      NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)                  
-                      CALL replicate_matrix_structure(source=ks_matrix(1)%matrix,&
-                           TARGET=qs_env%et_coupling%rest_mat(2)%matrix,&
-                           target_name="ET_RESTRAINT_MATRIX_B",error=error)
-                      CALL integrate_v_rspace(v_spin_ddapc_rest_r,&
-                           h=qs_env%et_coupling%rest_mat(2),&
-                           qs_env=qs_env,calculate_forces=.FALSE.,error=error)
-                   END IF
-                END IF
-             END IF
-          ENDIF
-       ENDIF
-
-       IF (explicit_potential) THEN
-            CALL pw_pool_give_back_pw(auxbas_pw_pool,v_spin_ddapc_rest_g%pw,&
-                                         error=error)
-       ENDIF
+ 
+       CALL qs_ks_ddapc_restraint(qs_env,auxbas_pw_pool,rho_tot_gspace,v_hartree_gspace,&
+            v_spin_ddapc_rest_r,energy,calculate_forces, ks_env, ks_matrix,just_energy,&
+            ddapc_restraint_is_spin,explicit_potential,error)
 
        CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,&
             error=error)
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
-            error=error)
+
        
        CALL calc_v_sic_rspace(v_sic_rspace,energy,&
                               qs_env,dft_control,rho,poisson_env,just_energy,&
@@ -625,48 +563,8 @@ CONTAINS
        IF ( gapw ) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c,error=error)
 
        !***** Check if becke potential is needed to constrain charges *****
-       IF(qs_env%dft_control%qs_control%becke_constraint)THEN
-          becke => qs_env%dft_control%qs_control%becke_control
-          IF(becke%need_pot.OR.calculate_forces)THEN
-             CALL pw_pool_create_pw(auxbas_pw_pool,becke%becke_pot%pw,use_data=REALDATA3D,&
-                  in_space=REALSPACE,error=error) 
-             CALL becke_constraint(qs_env,becke_const=becke%becke_pot,calc_pot=.TRUE.,&
-                                   calculate_forces=calculate_forces,error=error)
-             CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol)
-             becke%need_pot=.FALSE.
-          ELSE
-             inv_vol=1.0_dp/becke%becke_pot%pw%pw_grid%dvol
-             CALL pw_scale(becke%becke_pot%pw,inv_vol)
-             CALL becke_constraint(qs_env,becke%becke_pot,calc_pot=.FALSE.,&
-                                   calculate_forces=calculate_forces,error=error)
-             CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol)
-          ENDIF
-
-          IF(qs_env%dft_control%qs_control%et_coupling_calc)THEN
-             IF(qs_env%et_coupling%keep_matrix)THEN
-                IF(qs_env%et_coupling%first_run)THEN
-                   NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)                  
-                   CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                        TARGET=qs_env%et_coupling%rest_mat(1)%matrix,&
-                        target_name="ET_RESTRAINT_MATRIX_A",error=error)
-                   CALL integrate_v_rspace(becke%becke_pot,&
-                        h=qs_env%et_coupling%rest_mat(1),&
-                        qs_env=qs_env,calculate_forces=.FALSE.,error=error)
-                   qs_env%et_coupling%order_p=qs_env%dft_control%qs_control%becke_control%becke_order_p
-                   qs_env%et_coupling%e1=qs_env%dft_control%qs_control%becke_control%strength
-                   qs_env%et_coupling%keep_matrix=.FALSE.
-                ELSE
-                   NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)                  
-                   CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                        TARGET=qs_env%et_coupling%rest_mat(2)%matrix,&
-                        target_name="ET_RESTRAINT_MATRIX_B",error=error)
-                   CALL integrate_v_rspace(becke%becke_pot,&
-                        h=qs_env%et_coupling%rest_mat(2),&
-                        qs_env=qs_env,calculate_forces=.FALSE.,error=error)
-                END IF
-             END IF
-          END IF
-       END IF
+       CALL qs_ks_becke_restraint(qs_env,auxbas_pw_pool,calculate_forces,matrix_s,becke,error)
+       
        ! *** Add the QM/MM potential ***
        IF (qs_env%qmmm) THEN
           output_unit=cp_print_key_unit_nr(logger,input,"QMMM%PRINT%PROGRAM_RUN_INFO",&
@@ -979,7 +877,6 @@ CONTAINS
                      v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
                           +becke%becke_pot%pw%cr3d*qs_env%dft_control%qs_control%becke_control%strength
                   END IF
-
                   ! the electrostatic sic contribution
                   SELECT CASE (dft_control%sic_method_id)
                   CASE (sic_none)
@@ -1135,7 +1032,6 @@ CONTAINS
        IF (calculate_forces.AND.qs_env%dft_control%qs_control%becke_constraint)&
            CALL pw_pool_give_back_pw(auxbas_pw_pool,becke%becke_pot%pw,&
                                         error=error)
-
        IF(my_kg_gpw) THEN
          CPPostcondition(kg_fm_set%ref_count>=1,cp_failure_level,routineP,error,failure)
          CPPostcondition(kg_sub_pw_env%ref_count>=1,cp_failure_level,routineP,error,failure)
@@ -1187,19 +1083,10 @@ CONTAINS
        ENDIF
 !
 
-       energy%mulliken = 0.0_dp
-       IF (dft_control%qs_control%mulliken_restraint) THEN
-           IF (just_energy) THEN
-               CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
-                             para_env,matrix_s(1)%matrix, rho%rho_ao,energy=energy%mulliken, &
-                             order_p=mulliken_order_p)
-           ELSE
-               CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control,&
-                             para_env,matrix_s(1)%matrix,rho%rho_ao,energy=energy%mulliken, &
-                             ks_matrix=ks_matrix, order_p=mulliken_order_p)
-           ENDIF
-       ENDIF
-
+       !Calculation of Mulliken restraint, if requested
+       CALL qs_ks_mulliken_restraint(energy,dft_control,just_energy,para_env,&
+            ks_matrix, matrix_s,rho,mulliken_order_p,error)
+ 
        ! Add DFT+U contribution, if requested
 
        IF (dft_control%dft_plus_u) THEN
@@ -1273,17 +1160,8 @@ CONTAINS
                                   calculate_forces,auxbas_pw_pool,error)
 
        ! adds s2_restraint energy and orbital derivatives
-       IF (dft_control%qs_control%s2_restraint) THEN
-           CPPrecondition(dft_control%nspins == 2,cp_failure_level,routineP,error,failure)
-           CPPrecondition(qs_env%requires_mo_derivs,cp_failure_level,routineP,error,failure)
-           ! forces are not implemented (not difficult, but ... )
-           CPPrecondition(.NOT. calculate_forces, cp_failure_level,routineP,error,failure)
-           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
-           CALL s2_restraint(mo_array, matrix_s, mo_derivs, energy%s2_restraint, &
-                             dft_control%qs_control%s2_restraint_control, just_energy, error)
-       ELSE
-          energy%s2_restraint = 0.0_dp
-       ENDIF
+       CALL qs_ks_s2_restraint(dft_control,qs_env,matrix_s,&
+            mo_array,energy,calculate_forces, just_energy,error)
 
        ! sum all energy terms to obtain the total energy
        energy%total = energy%core_overlap + energy%core_self + &
@@ -1291,7 +1169,7 @@ CONTAINS
             energy%hartree_1c + energy%hartree_2c + energy%hartree_3c +&
             energy%exc + energy%exc1 + energy%ex + &
             energy%qmmm_el + energy%mulliken + &
-            energy%kg_gpw_ekin_mol + energy%ddapc_restraint + energy%s2_restraint +&
+            energy%kg_gpw_ekin_mol + SUM(energy%ddapc_restraint) + energy%s2_restraint +&
             energy%becke + energy%dft_plus_u
        IF( dft_control%do_wfn_fitting ) THEN
          energy%total = energy%total + energy%exc_aux_fit
@@ -1348,9 +1226,12 @@ CONTAINS
                 "Mulliken restraint (order_p,energy) : ",mulliken_order_p,energy%mulliken
           ENDIF
           IF (dft_control%qs_control%ddapc_restraint) THEN
-             ddapc_order_p = dft_control%qs_control%ddapc_restraint_control%ddapc_order_p
-              WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
-                "DDAPC restraint (order_p,energy) : ",ddapc_order_p,energy%ddapc_restraint
+             DO n=1,SIZE( dft_control%qs_control%ddapc_restraint_control)
+                ddapc_order_p = &
+                  dft_control%qs_control%ddapc_restraint_control(n)%ddapc_restraint_control%ddapc_order_p
+                WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
+                     "DDAPC restraint (order_p,energy) : ",ddapc_order_p,energy%ddapc_restraint(n)
+             END DO
           ENDIF
           IF (dft_control%qs_control%s2_restraint) THEN
              s2_order_p = dft_control%qs_control%s2_restraint_control%s2_order_p

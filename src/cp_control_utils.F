@@ -13,9 +13,10 @@ MODULE cp_control_utils
        Stewart1989, Stewart2007, Thiel1992, VandeVondele2005a, &
        VandeVondele2005b, Zhechkov2005, cite_reference
   USE cp_control_types,                ONLY: &
-       dft_control_create, dft_control_type, finite_field_control_create, &
-       qs_control_type, scp_control_create, tddfpt_control_create, &
-       tddfpt_control_type, wfn_fitting_control_create, xas_control_create
+       ddapc_control_create, ddapc_restraint_type, dft_control_create, &
+       dft_control_type, finite_field_control_create, qs_control_type, &
+       scp_control_create, tddfpt_control_create, tddfpt_control_type, &
+       wfn_fitting_control_create, xas_control_create
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
@@ -340,7 +341,7 @@ CPSourceFileRef,&
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: clist
     INTEGER                                  :: itmp, j, jj, k, n_rep, n_var, &
-                                                stat
+                                                nrep, stat
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure, was_present
     REAL(dp)                                 :: tmpsqrt, value
@@ -551,11 +552,10 @@ CPSourceFileRef,&
           END DO
        END DO
     ENDIF
-
-    CALL section_vals_get(ddapc_restraint_section,explicit=qs_control%ddapc_restraint,error=error)
-
+    CALL section_vals_get(ddapc_restraint_section,n_repetition=nrep,explicit=qs_control%ddapc_restraint,error=error)
     IF (qs_control%ddapc_restraint) THEN
-       CALL  read_ddapc_section(qs_control,ddapc_restraint_section,error)
+       ALLOCATE (qs_control%ddapc_restraint_control(nrep))
+       CALL read_ddapc_section(qs_control,qs_section=qs_section,error=error)
     ENDIF
 
     CALL section_vals_get(s2_restraint_section,explicit=qs_control%s2_restraint,error=error)
@@ -868,9 +868,10 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'write_qs_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: igrid_level, ngrid_level, &
+    INTEGER                                  :: i, igrid_level, ngrid_level, &
                                                 output_unit
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
 
     IF (qs_control%semi_empirical) RETURN
     IF (qs_control%dftb) RETURN
@@ -978,25 +979,31 @@ CPSourceFileRef,&
           WRITE (UNIT=output_unit,FMT="(5I8)") qs_control%mulliken_restraint_control%atoms
        END IF
        IF (qs_control%ddapc_restraint) THEN
-          WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
-               "QS| ddapc restraint target", qs_control%ddapc_restraint_control%target
-          WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
-               "QS| ddapc restraint strength", qs_control%ddapc_restraint_control%strength
-          WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
-               "QS| ddapc restraint atoms: ", qs_control%ddapc_restraint_control%natoms
-          WRITE (UNIT=output_unit,FMT="(5I8)") qs_control%ddapc_restraint_control%atoms
-          WRITE (UNIT=output_unit,FMT="(T2,A)") "Coefficients:"
-          WRITE (UNIT=output_unit,FMT="(5F6.2)") qs_control%ddapc_restraint_control%coeff
-          SELECT CASE(qs_control%ddapc_restraint_control%functional_form)
-          CASE (do_ddapc_restraint)
-             WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
-                  "QS| ddapc restraint functional form :","RESTRAINT"
-          CASE (do_ddapc_constraint)
-             WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
-                  "QS| ddapc restraint functional form :","CONSTRAINT"
-          CASE DEFAULT
-             CALL stop_program(routineN,"unknown ddapc restraint")
-          END SELECT
+          DO i=1,SIZE( qs_control%ddapc_restraint_control )
+             ddapc_restraint_control => qs_control%ddapc_restraint_control(i)%ddapc_restraint_control
+             IF(SIZE( qs_control%ddapc_restraint_control ).GT.1)&
+             WRITE (UNIT=output_unit,FMT="(T2,A,T3,I8)")&
+                  "QS| parameters for DDAPC restraint number",i
+             WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+                  "QS| ddapc restraint target", ddapc_restraint_control%target
+             WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+                  "QS| ddapc restraint strength", ddapc_restraint_control%strength
+             WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
+                  "QS| ddapc restraint atoms: ", ddapc_restraint_control%natoms
+             WRITE (UNIT=output_unit,FMT="(5I8)") ddapc_restraint_control%atoms
+             WRITE (UNIT=output_unit,FMT="(T2,A)") "Coefficients:"
+             WRITE (UNIT=output_unit,FMT="(5F6.2)") ddapc_restraint_control%coeff
+             SELECT CASE(ddapc_restraint_control%functional_form)
+             CASE (do_ddapc_restraint)
+                WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
+                     "QS| ddapc restraint functional form :","RESTRAINT"
+             CASE (do_ddapc_constraint)
+                WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
+                     "QS| ddapc restraint functional form :","CONSTRAINT"
+             CASE DEFAULT
+                CALL stop_program(routineN,"unknown ddapc restraint")
+             END SELECT
+          END DO
        END IF
        IF (qs_control%s2_restraint) THEN
           WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
@@ -1134,73 +1141,119 @@ CPSourceFileRef,&
     END SELECT
   END FUNCTION xc_get_routine_label
 
-! *****************************************************************************
-!> \brief reads the input parameters needed for ddapc.
-!> \note
-!>      either reads DFT%QS%DDAPC_RESTRAINT or PROPERTIES%ET_coupling
-!> \author fschiff
-! *****************************************************************************
-  SUBROUTINE read_ddapc_section(qs_control,ddapc_restraint_section,error)
+  ! *****************************************************************************
+  !> \brief reads the input parameters needed for ddapc.
+  !> \note
+  !>      either reads DFT%QS%DDAPC_RESTRAINT or PROPERTIES%ET_coupling
+  !>      if(qs_section is present the DFT part is read, if ddapc_restraint_section
+  !>      is present ET_COUPLING is read. Avoid having both!!!
+  !> \author fschiff
+  ! *****************************************************************************
+  SUBROUTINE read_ddapc_section(qs_control,qs_section,ddapc_restraint_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
-    TYPE(section_vals_type), POINTER         :: ddapc_restraint_section
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: qs_section, &
+                                                ddapc_restraint_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_ddapc_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: j, jj, k, n_rep
+    INTEGER                                  :: i, j, jj, k, n_rep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rtmplist
+    TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
+    TYPE(section_vals_type), POINTER         :: ddapc_section
 
-    CALL section_vals_val_get(ddapc_restraint_section,"STRENGTH", &
-         r_val=qs_control%ddapc_restraint_control%strength,error=error)
-    CALL section_vals_val_get(ddapc_restraint_section,"TARGET", &
-         r_val=qs_control%ddapc_restraint_control%target,error=error)
-    CALL section_vals_val_get(ddapc_restraint_section,"FUNCTIONAL_FORM", &
-         i_val=qs_control%ddapc_restraint_control%functional_form,error=error)
-    CALL section_vals_val_get(ddapc_restraint_section,"ATOMS", &
-         n_rep_val=n_rep,error=error)
-    jj = 0
-    DO k = 1,n_rep
-       CALL section_vals_val_get(ddapc_restraint_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-       DO  j = 1,SIZE(tmplist)
-          jj = jj+1
-       END DO
-    END DO
-    IF (jj<1) CALL stop_program(routineN, "Need at least 1 atom to use ddapc contraints")
-    qs_control%ddapc_restraint_control%natoms=jj
-    IF(ASSOCIATED(qs_control%ddapc_restraint_control%atoms))&
-         DEALLOCATE(qs_control%ddapc_restraint_control%atoms)
-    ALLOCATE(qs_control%ddapc_restraint_control%atoms(qs_control%ddapc_restraint_control%natoms))
-    jj = 0
-    DO k = 1,n_rep
-       CALL section_vals_val_get(ddapc_restraint_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-       DO  j = 1,SIZE(tmplist)
-          jj = jj+1
-          qs_control%ddapc_restraint_control%atoms (jj) = tmplist(j)
-       END DO
-    END DO
+    IF(PRESENT(ddapc_restraint_section))THEN
+       IF(ASSOCIATED(qs_control%ddapc_restraint_control))THEN
+          IF(SIZE(qs_control%ddapc_restraint_control).GE.2)&
+               CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "ET_COUPLING cannot be used in combination with a normal restraint",&
+               error=error,failure=failure)
+       ELSE
+          ddapc_section=> ddapc_restraint_section
+          ALLOCATE(qs_control%ddapc_restraint_control(1))
+       END IF
+    END IF
 
-    IF(ASSOCIATED(qs_control%ddapc_restraint_control%coeff))&
-         DEALLOCATE(qs_control%ddapc_restraint_control%coeff)
-    ALLOCATE(qs_control%ddapc_restraint_control%coeff(qs_control%ddapc_restraint_control%natoms))
-    qs_control%ddapc_restraint_control%coeff=1.0_dp
+    IF(PRESENT(qs_section))THEN
+       NULLIFY(ddapc_section)
+       ddapc_section => section_vals_get_subs_vals(qs_section,&
+            "DDAPC_RESTRAINT",error=error)
+    END IF
 
-    CALL section_vals_val_get(ddapc_restraint_section,"COEFF", &
-         n_rep_val=n_rep,error=error)
-    jj = 0
-    DO k = 1,n_rep
-       CALL section_vals_val_get(ddapc_restraint_section,"COEFF",i_rep_val=k,r_vals=rtmplist, error=error)
-       DO  j = 1,SIZE(rtmplist)
-          jj = jj+1
-          IF (jj>qs_control%ddapc_restraint_control%natoms) &
-               CALL stop_program(routineN, "Need the same number of coeff as there are atoms ")
-          qs_control%ddapc_restraint_control%coeff (jj) = rtmplist(j)
+    DO i=1,SIZE(qs_control%ddapc_restraint_control)
+
+       NULLIFY(qs_control%ddapc_restraint_control(i)%ddapc_restraint_control)
+       CALL ddapc_control_create(qs_control%ddapc_restraint_control(i)%ddapc_restraint_control ,error)
+       ddapc_restraint_control=>qs_control%ddapc_restraint_control(i)%ddapc_restraint_control
+
+       CALL section_vals_val_get(ddapc_section,"STRENGTH",i_rep_section=i, &
+            r_val=ddapc_restraint_control%strength,error=error)
+       CALL section_vals_val_get(ddapc_section,"TARGET",i_rep_section=i, &
+            r_val=ddapc_restraint_control%target,error=error)
+       CALL section_vals_val_get(ddapc_section,"FUNCTIONAL_FORM",i_rep_section=i, &
+            i_val=ddapc_restraint_control%functional_form,error=error)
+       CALL section_vals_val_get(ddapc_section,"ATOMS",i_rep_section=i, &
+            n_rep_val=n_rep,error=error)
+       CALL section_vals_val_get(ddapc_section,"TYPE_OF_DENSITY",i_rep_section=i,&
+            i_val=ddapc_restraint_control%density_type,error=error)
+
+       jj = 0
+       DO k = 1,n_rep
+          CALL section_vals_val_get(ddapc_section,"ATOMS",i_rep_section=i,&
+               i_rep_val=k,i_vals=tmplist, error=error)
+          DO  j = 1,SIZE(tmplist)
+             jj = jj+1
+          END DO
        END DO
+       IF (jj<1) CALL stop_program(routineN, "Need at least 1 atom to use ddapc contraints")
+       ddapc_restraint_control%natoms=jj
+       IF(ASSOCIATED(ddapc_restraint_control%atoms))&
+            DEALLOCATE(ddapc_restraint_control%atoms)
+       ALLOCATE(ddapc_restraint_control%atoms(ddapc_restraint_control%natoms))
+       jj = 0
+       DO k = 1,n_rep
+          CALL section_vals_val_get(ddapc_section,"ATOMS",i_rep_section=i,&
+               i_rep_val=k,i_vals=tmplist, error=error)
+          DO  j = 1,SIZE(tmplist)
+             jj = jj+1
+             ddapc_restraint_control%atoms (jj) = tmplist(j)
+          END DO
+       END DO
+
+       IF(ASSOCIATED(ddapc_restraint_control%coeff))&
+            DEALLOCATE(ddapc_restraint_control%coeff)
+       ALLOCATE(ddapc_restraint_control%coeff(ddapc_restraint_control%natoms))
+       ddapc_restraint_control%coeff=1.0_dp
+
+       CALL section_vals_val_get(ddapc_section,"COEFF",i_rep_section=i, &
+            n_rep_val=n_rep,error=error)
+       jj = 0
+       DO k = 1,n_rep
+          CALL section_vals_val_get(ddapc_section,"COEFF",i_rep_section=i,&
+               i_rep_val=k,r_vals=rtmplist, error=error)
+          DO  j = 1,SIZE(rtmplist)
+             jj = jj+1
+             IF (jj>ddapc_restraint_control%natoms) &
+                  CALL stop_program(routineN, "Need the same number of coeff as there are atoms ")
+             ddapc_restraint_control%coeff (jj) = rtmplist(j)
+          END DO
+       END DO
+       IF (jj<ddapc_restraint_control%natoms .AND. jj.NE.0) &
+            CALL stop_program(routineN, "Need no or the same number of coeff as there are atoms ")
     END DO
-    IF (jj<qs_control%ddapc_restraint_control%natoms .AND. jj.NE.0) &
-         CALL stop_program(routineN, "Need no or the same number of coeff as there are atoms ")
+    k=0
+    DO i=1,SIZE(qs_control%ddapc_restraint_control)
+       IF(qs_control%ddapc_restraint_control(i)%ddapc_restraint_control%functional_form==&
+            do_ddapc_constraint)k=k+1
+    END DO
+    IF(k==2)CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+         "Only a single constraint possible yet, try to use restraints instead ",&
+         error=error,failure=failure)
 
   END SUBROUTINE read_ddapc_section
 
@@ -1225,6 +1278,8 @@ CPSourceFileRef,&
          r_val=qs_control%becke_control%strength,error=error)
     CALL section_vals_val_get(becke_section,"TARGET", &
          r_val=qs_control%becke_control%target,error=error)
+    CALL section_vals_val_get(becke_section,"TYPE_OF_DENSITY",&
+         i_val=qs_control%becke_control%density_type,error=error)
     CALL section_vals_val_get(becke_section,"ATOMS", &
          n_rep_val=n_rep,error=error)
     jj = 0

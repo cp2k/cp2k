@@ -793,7 +793,7 @@ CPSourceFileRef,&
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
        unit_nr=cp_print_key_unit_nr(logger,input,"PROPERTIES%FIT_CHARGE",extension=".Fitcharge",&
             log_filename=.FALSE.,error=error)
-       density_fit_section => section_vals_get_subs_vals(input,"DFT%DENSITY_FITTING",error=error)
+       density_fit_section =>  section_vals_get_subs_vals(input,"DFT%DENSITY_FITTING", error=error)
        CALL get_ddapc(qs_env,.FALSE.,density_fit_section,iwc=unit_nr,error=error)
        CALL cp_print_key_finished_output(unit_nr, logger,input,"PROPERTIES%FIT_CHARGE", error=error)
     END IF

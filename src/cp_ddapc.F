@@ -12,8 +12,8 @@
 ! *****************************************************************************
 MODULE cp_ddapc
   USE cell_types,                      ONLY: cell_type
+  USE cp_control_types,                ONLY: ddapc_restraint_type
   USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
-                                             reset_ch_pulay,&
                                              restraint_functional_force,&
                                              solvation_ddapc_force
   USE cp_ddapc_util,                   ONLY: get_ddapc,&
@@ -24,8 +24,7 @@ MODULE cp_ddapc
   USE f77_blas
   USE input_constants,                 ONLY: do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE pw_methods,                      ONLY: pw_integral_ab
@@ -44,52 +43,10 @@ MODULE cp_ddapc
 
   PUBLIC :: cp_ddapc_apply_CD,&  ! Apply Coupling/Decoupling to Periodic Images
             cp_ddapc_apply_RS,&  ! Apply Restraints/Constraints
-            cp_ddapc_apply_RF,&  ! Apply an SCRF (Solvation Scheme)
-            cp_ddapc_apply
+            cp_ddapc_apply_RF    ! Apply an SCRF (Solvation Scheme)
+
 
 CONTAINS
-
-! *****************************************************************************
-!> \brief Set of routines to use the Bloechl charges for several tasks
-!> \par History
-!>      08.2005 created [tlaino]
-!> \author Teodoro Laino
-! *****************************************************************************
-  SUBROUTINE cp_ddapc_apply(qs_env, rho_tot_gspace, energy, energy_res,&
-       v_hartree_gspace, v_spin_ddapc_rest_g, calculate_forces, error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(pw_p_type)                          :: rho_tot_gspace
-    REAL(KIND=dp), INTENT(INOUT)             :: energy, energy_res
-    TYPE(pw_p_type)                          :: v_hartree_gspace, &
-                                                v_spin_ddapc_rest_g
-    LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    CALL timeset(routineN,"I","",handle)
-    failure        = .FALSE.
-    logger         => cp_error_get_logger(error)
-    IF (.NOT.failure) THEN
-       IF (calculate_forces) CALL reset_ch_pulay(qs_env, error=error)
-       ! Decoupling/Recoupling
-       CALL cp_ddapc_apply_CD(qs_env, rho_tot_gspace, energy, v_hartree_gspace,&
-            calculate_forces, Itype_of_density="FULL DENSITY", error=error)
-       ! Restraints/Constraints
-       CALL cp_ddapc_apply_RS(qs_env, energy, energy_res, v_hartree_gspace, v_spin_ddapc_rest_g, &
-            calculate_forces, error)
-       ! Self Consistent Reaction Field
-       CALL cp_ddapc_apply_RF(qs_env, rho_tot_gspace, energy, v_hartree_gspace,&
-            calculate_forces, Itype_of_density="FULL DENSITY", error=error)
-    END IF
-    CALL timestop(0.0_dp, handle)
-
-  END SUBROUTINE cp_ddapc_apply
 
 ! *****************************************************************************
 !> \brief Routine to couple/decouple periodic images with the Bloechl scheme
@@ -158,7 +115,9 @@ CONTAINS
                        error=error)
        CPPostcondition(ASSOCIATED(qs_env%cp_ddapc_ewald),cp_failure_level,routineP,error,failure)
        poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON", error=error)
-       density_fit_section => section_vals_get_subs_vals(force_env_section,"DFT%DENSITY_FITTING", error=error)
+       
+       density_fit_section =>section_vals_get_subs_vals(force_env_section,"DFT%DENSITY_FITTING", error=error)
+
        IF (qs_env%cp_ddapc_ewald%do_decoupling) THEN
           multipole_section => section_vals_get_subs_vals(poisson_section,"MULTIPOLE", error=error)
        END IF
@@ -242,12 +201,15 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE cp_ddapc_apply_RS(qs_env, energy, energy_res,&
-       v_hartree_gspace, v_spin_ddapc_rest_g, calculate_forces, error)
+       v_hartree_gspace, v_spin_ddapc_rest_g,section_id,&
+       ddapc_restraint_control,calculate_forces, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: energy_res
     TYPE(pw_p_type)                          :: v_hartree_gspace, &
                                                 v_spin_ddapc_rest_g
+    INTEGER                                  :: section_id
+    TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -286,16 +248,18 @@ CONTAINS
                        super_cell=super_cell,&
                        error=error)
 
-       density_fit_section => section_vals_get_subs_vals(force_env_section,"DFT%DENSITY_FITTING", error=error)
-       restraint_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DDAPC_RESTRAINT",error=error)
+       density_fit_section => section_vals_get_subs_vals(force_env_section,"DFT%DENSITY_FITTING",error=error)
+       restraint_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DDAPC_RESTRAINT",&
+                            error=error)
        iw=cp_print_key_unit_nr(logger,restraint_section,"PROGRAM_RUN_INFO",&
             extension=".fitChargeLog",error=error)
        ! First we evaluate the charges at the corresponding SCF STEP
-
+       my_id= ddapc_restraint_control%density_type
        IF (need_f) THEN
           CALL get_ddapc(qs_env,&
                          need_f,&
                          density_fit_section,&
+                         density_type=my_id,&
                          qout1=charges,&
                          out_radii=radii,&
                          dq_out=dq,&
@@ -304,28 +268,29 @@ CONTAINS
           CALL get_ddapc(qs_env,&
                          need_f,&
                          density_fit_section,&
+                         density_type=my_id,&
                          qout1=charges,&
                          out_radii=radii,&
                          error=error)
        END IF
 
        ! Modify the Hartree potential due to the restrain or the v_spin_ddapc_rest_g
-       CALL section_vals_val_get(density_fit_section,"TYPE_OF_DENSITY",i_val=my_id,error=error)
+
 !      
        
        IF ((my_id==do_spin_density).OR.qs_env%dft_control%qs_control%et_coupling_calc) THEN
           CALL restraint_functional_potential(v_spin_ddapc_rest_g, density_fit_section,&
                                            particle_set, qs_env%cp_ddapc_env%AmI, radii, charges, &
-                                           qs_env%dft_control%qs_control%ddapc_restraint_control, energy_res, error)
+                                           ddapc_restraint_control, energy_res, error)
        ELSE
           CALL restraint_functional_potential(v_hartree_gspace, density_fit_section,&
                                            particle_set, qs_env%cp_ddapc_env%AmI, radii, charges, &
-                                           qs_env%dft_control%qs_control%ddapc_restraint_control, energy_res, error)
+                                           ddapc_restraint_control, energy_res,error)
        ENDIF
 
        IF (need_f) THEN
           CALL restraint_functional_force(qs_env,&
-                                          qs_env%dft_control%qs_control%ddapc_restraint_control,&
+                                          ddapc_restraint_control,&
                                           dq,&
                                           charges,&
                                           SIZE(radii),&
