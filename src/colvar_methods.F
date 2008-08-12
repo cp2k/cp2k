@@ -95,14 +95,14 @@ CONTAINS
     INTEGER                                  :: handle, iatm, iw, k, kk, &
                                                 n_var, ndim, stat
     INTEGER, DIMENSION(:), POINTER           :: iatms
-    REAL (KIND=dp)                           :: coeff
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(9)                    :: my_subsection
+    REAL(KIND=dp)                            :: coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: angle_section, coordination_section, &
-      dfunct_section, distance_section, hydronium_section, plane_dist_section, &
-      point_section, qparm_section, rotation_section, torsion_section, &
-      wrk_section
+      dfunct_section, distance_section, hydronium_section, &
+      plane_dist_section, point_section, qparm_section, rotation_section, &
+      torsion_section, wrk_section
 
     NULLIFY(logger, c_kinds, iatms)
     logger => cp_error_get_logger(error)
