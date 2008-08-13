@@ -28,7 +28,8 @@ MODULE ewalds
   USE f77_blas
   USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: fourpi,&
+                                             pi
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -91,7 +92,7 @@ CONTAINS
       iparticle_local, isos, lp, mp, nnodes, node, np, nparticle_kind, &
       nparticle_local
     INTEGER, DIMENSION(:, :), POINTER        :: bds
-    REAL(KIND=dp)                            :: alpha, denom, e_igdotr, eps0, &
+    REAL(KIND=dp)                            :: alpha, denom, e_igdotr, &
                                                 factor, flops, four_alpha_sq, &
                                                 gauss, gsq, pref, q
     REAL(KIND=dp), DIMENSION(3)              :: vec
@@ -112,7 +113,7 @@ CONTAINS
     flops = 0.0_dp
 
     ! pointing
-    CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group ,error=error)
+    CALL ewald_env_get (ewald_env, alpha=alpha, group = group ,error=error)
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_pool, dg = dg )
     CALL dg_get ( dg, dg_rho0=dg_rho0 )
     rho0    => dg_rho0 % density % pw % cr3d
@@ -228,7 +229,7 @@ CONTAINS
     flops = flops + pw_grid % ngpts_cut * 55.0_dp &
          + pw_grid % ngpts_cut * node * 23.0_dp
 
-    pref = 1.0_dp / eps0 / pw_grid % vol
+    pref = fourpi / pw_grid % vol
     vg_coulomb = vg_coulomb * pref
     IF (use_virial) pv_g = pv_g * pref
 
@@ -273,12 +274,12 @@ CONTAINS
                                                 nparticle_kind, &
                                                 nparticle_local
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: alpha, eps0, q, q_self, &
-                                                q_sum, qcore, qshell
+    REAL(KIND=dp)                            :: alpha, q, q_self, q_sum, &
+                                                qcore, qshell
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 
-    CALL ewald_env_get ( ewald_env, ewald_type = ewald_type, eps0 = eps0,&
+    CALL ewald_env_get ( ewald_env, ewald_type = ewald_type, &
          alpha = alpha, group = group ,error=error)
     q_self = 0.0_dp
     q_sum = 0.0_dp
@@ -306,8 +307,8 @@ CONTAINS
     e_neut = 0.0_dp
     e_self = 0.0_dp
     IF ( ewald_type /= do_ewald_none) THEN
-       e_self = -q_self *  alpha / ( 4.0_dp *  eps0 * pi * SQRT ( pi ) )
-       e_neut = -q_sum ** 2 / ( 8.0_dp * eps0 * alpha ** 2 )
+       e_self = -q_self *  alpha / SQRT(pi)
+       e_neut = -q_sum ** 2 * pi / ( 2.0_dp * alpha ** 2 )
     END IF
 
   END SUBROUTINE ewald_self
@@ -331,18 +332,16 @@ CONTAINS
       ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
       pc = 0.3275911_dp
 
-    REAL(KIND=dp)                            :: alpha, arg, e_arg_arg, eps0, &
-                                                erfc_over_rij, erfcf, &
-                                                inv_fourpieps0, tc
+    REAL(KIND=dp)                            :: alpha, arg, e_arg_arg, &
+                                                erfc_over_rij, erfcf, tc
 
-    CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha ,error=error)
-    inv_fourpieps0 = 1.0_dp / ( 4.0_dp * pi * eps0 )
+    CALL ewald_env_get ( ewald_env, alpha = alpha ,error=error)
     arg = alpha * SQRT ( rcutsq )
     e_arg_arg = EXP ( - arg ** 2 )
     tc = 1.0_dp / ( 1.0_dp + pc * arg )
     erfcf = ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1)*tc * e_arg_arg
     erfc_over_rij = erfcf / SQRT ( rcutsq )
-    e_cutoff_coul = inv_fourpieps0 * qi * qj * erfc_over_rij
+    e_cutoff_coul = qi * qj * erfc_over_rij
 
   END FUNCTION ewald_correction
 

@@ -33,13 +33,12 @@ CONTAINS
 !> \author CJM
 ! *****************************************************************************
 SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, length,  &
-                                   tau_nhc, mass, angle, eps0, l_power, t_power, part, box, &
+                                   tau_nhc, mass, angle, l_power, t_power, part, box, &
                                    energy )
 
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: unit_char
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: time, temperature, pressure, &
-                                                length, tau_nhc, mass, angle, &
-                                                eps0
+                                                length, tau_nhc, mass, angle
     INTEGER, INTENT(IN), OPTIONAL            :: l_power, t_power
     TYPE(particle_type), INTENT(INOUT), &
       OPTIONAL                               :: part( : )
@@ -99,10 +98,6 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
 
   IF ( PRESENT ( mass ) ) THEN
    mass = mass * units % mass
-  ENDIF
-
-  IF ( PRESENT ( eps0 ) ) THEN
-   eps0 = units % eps0
   ENDIF
 
   IF ( PRESENT ( tau_nhc ) ) THEN

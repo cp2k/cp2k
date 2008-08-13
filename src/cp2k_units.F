@@ -12,7 +12,6 @@ MODULE cp2k_units
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: degree,&
-                                             fourpi,&
                                              twopi
   USE physcon,                         ONLY: &
        bar, bohr, evolt, femtoseconds, kcalmol, kelvin, kjmol, massunit, &
@@ -37,7 +36,6 @@ MODULE cp2k_units
                       nm, &
                       angstrom, &
                       bohr, &
-                      eps0, &
                       ev
      CHARACTER(LEN=10) :: e_label, l_label, vol_label,  &
                           temp_label, pres_label,       &
@@ -104,8 +102,6 @@ SUBROUTINE init_cp2k_units (error)
   units % degree = 1.0_dp / degree
 ! AU to pressure bar
   units % bar = bar
-! permittivity to AU
-  units % eps0 = 1.0_dp / fourpi
 
 END SUBROUTINE init_cp2k_units
 

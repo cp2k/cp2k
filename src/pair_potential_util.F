@@ -22,7 +22,6 @@ MODULE pair_potential_util
                                              parsef
   USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, ea_type, ft_type, gp_type, gw_type, ip_type, &
        lj_charmm_type, lj_type, not_initialized, pair_potential_pp_type, &
@@ -36,8 +35,7 @@ MODULE pair_potential_util
 
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential_util'
-  REAL(KIND=dp), PARAMETER, PRIVATE    :: ifourpi = 1.0_dp / ( 4.0_dp * pi ),&
-                                          MIN_HICUT_VALUE=1.0E-15_dp,&
+  REAL(KIND=dp), PARAMETER, PRIVATE    :: MIN_HICUT_VALUE=1.0E-15_dp,&
                                           DEFAULT_HICUT_VALUE=1.0E3_dp
 
   PUBLIC :: potential_f
@@ -180,8 +178,7 @@ CONTAINS
     INTEGER                                  :: ewald_type, i, max_id
     LOGICAL                                  :: do_multipoles
     REAL(KIND=dp)                            :: alpha, e_cutoff_coul, &
-                                                energy_cutoff, eps0, f, &
-                                                hicut, rij
+                                                energy_cutoff, f, hicut, rij
 
     rij = SQRT (rijsq)
     hicut = SQRT (potparm%pot(iatom, jatom)%pot%rcutsq )
@@ -210,10 +207,10 @@ CONTAINS
     ENDIF
     ! real-space ewald non-bond energy
     IF ( PRESENT ( ewald_env ) ) THEN
-       CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,&
+       CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,&
             do_multipoles=do_multipoles,error=error)
        IF (.NOT.do_multipoles) THEN
-          f = ifourpi / eps0 * qi * qj
+          f = qi * qj
           e_cutoff_coul = ener_coul ( 0.0_dp, f, hicut, ewald_type, alpha, my_do_14=.FALSE.)
           energy = energy + ener_coul (e_cutoff_coul, f, rij, ewald_type, alpha, my_do_14=.FALSE.)
        END IF

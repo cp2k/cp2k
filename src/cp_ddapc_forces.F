@@ -26,8 +26,10 @@ MODULE cp_ddapc_forces
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi,&
-                                             rootpi
+  USE mathconstants,                   ONLY: fourpi,&
+                                             pi,&
+                                             rootpi,&
+                                             twopi
   USE particle_types,                  ONLY: particle_type
   USE pw_spline_utils,                 ONLY: Eval_d_Interp_Spl3_pbc
   USE pw_types,                        ONLY: pw_type
@@ -83,10 +85,10 @@ CONTAINS
     INTEGER :: handle, ip1, ip2, iparticle1, iparticle2, k1, k2, k3, n_rep, &
       nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, sfact, stat
     LOGICAL                                  :: analyt, failure
-    REAL(KIND=dp)                            :: alpha, eps, eps0, fac, fac2, &
-                                                fac3, fs, galpha, gsq, gsqi, &
-                                                q1t, q2t, r, r2tmp, rcut, &
-                                                rcut2, t1, t2, tol, tol1
+    REAL(KIND=dp)                            :: alpha, eps, fac, fac3, fs, &
+                                                galpha, gsq, gsqi, q1t, q2t, &
+                                                r, r2tmp, rcut, rcut2, t1, &
+                                                t2, tol, tol1
     REAL(KIND=dp), DIMENSION(3)              :: drvec, fvec, gvec, ra, rvec
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, M
     TYPE(unit_convert_type), POINTER         :: units
@@ -109,7 +111,6 @@ CONTAINS
        !
        ! Setting-up parameters for Ewald summation
        !
-       eps0   = units%eps0
        eps    = MIN(ABS(eps),0.5_dp)
        tol    = SQRT(ABS(LOG(eps*rcut)))
        alpha  = SQRT(ABS(LOG(eps*rcut*tol)))/rcut
@@ -127,9 +128,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        d_el = 0.0_dp
        fac    = 1.e0_dp/cell%deth
-       fac2   = 1.0_dp / ( 4.0_dp * pi * eps0 )
        fac3   = fac/8.0_dp
-       fvec   = 2.0_dp * pi / (/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
+       fvec   = twopi / (/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
        !
        DO iparticle1 = 1, SIZE(particle_set)
           ip1 = (iparticle1-1)*SIZE(radii)
@@ -147,7 +147,7 @@ CONTAINS
                 IF (r2tmp<=rcut2) THEN
                    r  = SQRT(r2tmp)
                    t1 = erfc(alpha*r) / r
-                   drvec = ra / r * q1t * q2t * fac2 * sfact
+                   drvec = ra / r * q1t * q2t * sfact
                    t2 = -2.0_dp * alpha * EXP(-alpha*alpha*r*r) / (r*rootpi) - t1/r
                    d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * drvec
                    d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * drvec
@@ -164,7 +164,7 @@ CONTAINS
                       IF (r2tmp<=rcut2) THEN
                          r  = SQRT(r2tmp)
                          t1 = erfc(alpha*r) / r
-                         drvec = ra / r * q1t * q2t * fac2 * sfact
+                         drvec = ra / r * q1t * q2t * sfact
                          t2 = -2.0_dp * alpha * EXP(-alpha*alpha*r*r) / (r*rootpi) - t1/r
                          d_el(1,iparticle1) = d_el(1,iparticle1) - t2 * drvec(1)
                          d_el(2,iparticle1) = d_el(2,iparticle1) - t2 * drvec(2)
@@ -189,14 +189,14 @@ CONTAINS
                          gsq  = DOT_PRODUCT(gvec,gvec)
                          gsqi = fs/gsq
                          t1   = fac * gsqi * EXP(-galpha*gsq)
-                         t2 = -SIN(DOT_PRODUCT(gvec,rvec)) * t1 * q1t * q2t / eps0 * sfact
+                         t2 = -SIN(DOT_PRODUCT(gvec,rvec)) * t1 * q1t * q2t * sfact * fourpi
                          d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * gvec
                          d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * gvec
                       END DO
                    END DO
                 END DO
              ELSE
-                gvec = Eval_d_Interp_Spl3_pbc( rvec, coeff, error ) * q1t * q2t / eps0 * sfact
+                gvec = Eval_d_Interp_Spl3_pbc( rvec, coeff, error ) * q1t * q2t * sfact * fourpi
                 d_el(1:3,iparticle1) = d_el(1:3,iparticle1) -  gvec
                 d_el(1:3,iparticle2) = d_el(1:3,iparticle2) +  gvec
              END IF

@@ -507,3 +507,7 @@ H2O-bloechl.inp
 H2O-bloechl-Spl.inp
 H+solv1.inp
 H2O-solv.inp
+# eps0 removed 
+He2H-bloechl.inp
+H2O-bloechl.inp
+H2O-bloechl-Spl.inp

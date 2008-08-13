@@ -108,8 +108,7 @@ CONTAINS
                                                 shell_center
     INTEGER, DIMENSION(3)                    :: npts
     LOGICAL                                  :: do_shell, failure
-    REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
-                                                inv_fourpi_eps0
+    REAL(KIND=dp)                            :: alpha, dvols, ffa
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
     REAL(KIND=dp), DIMENSION(3)              :: fat
@@ -131,7 +130,7 @@ CONTAINS
     CALL cite_reference(Essmann1995)
 
     !-------------- INITIALISATION ---------------------
-    CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, o_spline = o_spline,&
+    CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline,&
          group = group, error=error)
     CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_pool=rs_pool,&
          poisson_env=poisson_env)
@@ -139,11 +138,9 @@ CONTAINS
     green => poisson_env%green_fft
     grid_spme => pw_pool % pw_grid
 
-    inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
     npart = SIZE ( particle_set )
     
     CALL get_pw_grid_info(grid_spme,npts=npts,dvol=dvols,error=error)
-    dvols = dvols * inv_fourpi_eps0
 
     n = o_spline
     ALLOCATE ( rhos(n,n,n), STAT = stat )
@@ -243,7 +240,6 @@ CONTAINS
 
     CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
     CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
-    vg_coulomb = vg_coulomb * inv_fourpi_eps0
     !---------- END OF ELECTROSTATIC CALCULATION --------
 
     !------------- STRESS TENSOR CALCULATION ------------
@@ -257,7 +253,7 @@ CONTAINS
        END DO
        ffa = ( 1.0_dp / fourpi ) * ( 0.5_dp / alpha ) ** 2
        f_stress = -ffa * f_stress
-       pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
+       pv_g = h_stress + f_stress
     END IF
     !--------END OF STRESS TENSOR CALCULATION -----------
     ! move derivative of potential to real space grid and

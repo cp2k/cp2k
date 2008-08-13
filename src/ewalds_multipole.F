@@ -30,7 +30,8 @@ MODULE ewalds_multipole
                                              pos_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: fourpi,&
+                                             pi
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -302,11 +303,11 @@ CONTAINS
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2, failure, &
                                                 force_eval
-    REAL(KIND=dp) :: alpha, ch_i, ch_j, ef0_i, ef0_j, eloc, eps0, fac, &
-      fac_ij, invsqpi, ir, irab2, ptens11, ptens12, ptens13, ptens21, &
-      ptens22, ptens23, ptens31, ptens32, ptens33, r, rab2, rab2_max, rcut, &
-      tij, tmp, tmp1, tmp11, tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, &
-      tmp32, tmp33, tmp_ij, tmp_ji
+    REAL(KIND=dp) :: alpha, ch_i, ch_j, ef0_i, ef0_j, eloc, fac, fac_ij, ir, &
+      irab2, ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, &
+      ptens32, ptens33, r, rab2, rab2_max, rcut, tij, tmp, tmp1, tmp11, &
+      tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, tmp32, tmp33, tmp_ij, &
+      tmp_ji
     REAL(KIND=dp), DIMENSION(0:5)            :: f
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, dp_i, dp_j, &
                                                 ef1_i, ef1_j, fr, rab, tij_a
@@ -335,12 +336,11 @@ CONTAINS
     ! Get nonbond_env info
     CALL fist_nonbond_env_get (nonbond_env, nonbonded=nonbonded, natom_types = nkinds,&
          r_last_update=r_last_update,r_last_update_pbc=r_last_update_pbc, error=error)
-    CALL ewald_env_get (ewald_env, alpha=alpha, eps0=eps0, rcut=rcut, error=error)
+    CALL ewald_env_get (ewald_env, alpha=alpha, rcut=rcut, error=error)
     rab2_max = rcut**2
     IF (debug_r_space) THEN
        rab2_max = HUGE(0.0_dp)
     END IF
-    invsqpi= 1.0_dp/SQRT(pi)
     ! Starting the force loop
     Lists: DO ilist=1,nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
@@ -382,7 +382,7 @@ CONTAINS
                    tmp   = 0.0_dp
                 ELSE
                    f(0)  = erfc(alpha*r)*ir
-                   tmp   = EXP(-alpha**2*rab2)*invsqpi
+                   tmp   = EXP(-alpha**2*rab2)/SQRT(pi)
                 END IF
                 fac = 1.0_dp
                 DO i = 1, 5
@@ -1392,9 +1392,8 @@ CONTAINS
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2, failure
     REAL(KIND=dp)                            :: alpha, denom, dipole_t(3), &
-                                                eps0, factor, flops, &
-                                                four_alpha_sq, gauss, pref, &
-                                                q_t, tmp, trq_t
+                                                factor, flops, four_alpha_sq, &
+                                                gauss, pref, q_t, tmp, trq_t
     REAL(KIND=dp), DIMENSION(3)              :: tmp_v, vec
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: rho0
@@ -1412,7 +1411,7 @@ CONTAINS
     do_efield2 = do_efield.AND.ASSOCIATED(efield2)
 
     ! Gathering data from the ewald environment
-    CALL ewald_env_get (ewald_env, alpha=alpha, eps0=eps0, group=group, error=error)
+    CALL ewald_env_get (ewald_env, alpha=alpha, group=group, error=error)
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_pool, dg=dg)
     CALL dg_get (dg, dg_rho0=dg_rho0)
     rho0    => dg_rho0%density%pw%cr3d
@@ -1657,7 +1656,7 @@ CONTAINS
     flops = flops + pw_grid%ngpts_cut * 55.0_dp &
                   + pw_grid%ngpts_cut * node * 23.0_dp
 
-    pref   = 1.0_dp/(eps0*pw_grid%vol)
+    pref   = fourpi/pw_grid%vol
     energy = energy * pref
 
     CALL structure_factor_deallocate (exp_igr)
@@ -1820,11 +1819,10 @@ CONTAINS
                                                 nparticle_local
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2
-    REAL(KIND=dp) :: alpha, ch_qu_self, ch_qu_self_tmp, dipole_self, eps0, &
-      fac1, fac2, fac3, fac4, invfoureps0, q, q_self, q_sum, qu_qu_self, &
-      qu_trace
+    REAL(KIND=dp) :: alpha, ch_qu_self, ch_qu_self_tmp, dipole_self, fac1, &
+      fac2, fac3, fac4, q, q_self, q_sum, qu_qu_self, qu_trace
 
-    CALL ewald_env_get ( ewald_env, ewald_type=ewald_type, eps0=eps0, alpha=alpha,&
+    CALL ewald_env_get ( ewald_env, ewald_type=ewald_type, alpha=alpha,&
          group=group, error=error)
 
     do_efield0 = do_efield.AND.ASSOCIATED(efield0)
@@ -1835,9 +1833,8 @@ CONTAINS
     dipole_self = 0.0_dp
     ch_qu_self  = 0.0_dp
     qu_qu_self  = 0.0_dp
-    invfoureps0 = 1.0_dp/(4.0_dp*pi*eps0)
-    fac1        = 2.0_dp*alpha*invfoureps0/SQRT(pi)
-    fac2        = (f23**2)*(alpha**3)*invfoureps0/SQRT(pi)
+    fac1        = 2.0_dp*alpha/SQRT(pi)
+    fac2        = (f23**2)*(alpha**3)/SQRT(pi)
     fac3        = (2.0_dp/SQRT(pi))*f23*alpha**3
     fac4        = (4.0_dp/SQRT(pi))*f415*alpha**5
     DO iparticle_kind=1,SIZE(local_particles%n_el)
@@ -1892,8 +1889,8 @@ CONTAINS
     CALL mp_sum (ch_qu_self, group)
     CALL mp_sum (qu_qu_self, group)
 
-    e_self = -(q_self+f23*(dipole_self-f23*ch_qu_self+f415*qu_qu_self*alpha**2)*alpha**2)*alpha*invfoureps0/SQRT(pi)
-    fac1   = pi*invfoureps0/(2.0_dp * alpha ** 2)
+    e_self = -(q_self+f23*(dipole_self-f23*ch_qu_self+f415*qu_qu_self*alpha**2)*alpha**2)*alpha/SQRT(pi)
+    fac1   = pi/(2.0_dp * alpha ** 2)
     e_neut = -q_sum**2 * fac1
 
     ! Correcting Potential for the neutralizing background charge

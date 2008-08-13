@@ -102,3 +102,5 @@ H2O_gpw.inp
 H2O_gpw.inp
 # numerical noise
 H2O_gpw.inp
+# eps0 removed 
+H2O_gpw.inp

@@ -110,8 +110,7 @@ CONTAINS
                                                 p2
     LOGICAL                                  :: failure, is1_core, is1_shell, &
                                                 is2_core, is2_shell
-    REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
-                                                inv_fourpi_eps0
+    REAL(KIND=dp)                            :: alpha, dvols, ffa
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
     TYPE(cp_rs_pool_type), POINTER           :: rs_pool
@@ -134,8 +133,7 @@ CONTAINS
     NULLIFY( poisson_env, rden, drpot)
     failure = .FALSE.
     CALL cite_reference(Darden1993)
-    CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, &
-         group = group ,error=error)
+    CALL ewald_env_get (ewald_env, alpha=alpha, group = group ,error=error)
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, &
                        pw_small_pool=pw_small_pool, rs_pool=rs_pool,&
                        poisson_env=poisson_env, dg = dg )
@@ -145,7 +143,6 @@ CONTAINS
 
     CALL dg_get ( dg, dg_rho0 = dg_rho0 )
 
-    inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
     npart = SIZE ( particle_set )
 
     CALL structure_factor_init(exp_igr)
@@ -256,7 +253,6 @@ CONTAINS
 
     CALL pw_pool_give_back_pw ( pw_big_pool, phi_r ,error=error)
 
-    vg_coulomb = vg_coulomb * inv_fourpi_eps0
 
     !---------- END OF ELECTROSTATIC CALCULATION --------
 
@@ -271,8 +267,8 @@ CONTAINS
        END DO
        ffa = ( 1.0_dp / fourpi ) * ( 0.5_dp / dg_rho0 % zet ( 1 ) ) ** 2
        f_stress = -ffa * f_stress
-       pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
-    ENDIF
+       pv_g = h_stress + f_stress
+    END IF
 
     !--------END OF STRESS TENSOR CALCULATION -----------
 
@@ -293,7 +289,7 @@ CONTAINS
     ! initialize the forces
     IF ( PRESENT ( fg_coulomb ) ) THEN
        fg_coulomb = 0.0_dp
-       dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
+       dvols = rhos1 % pw % pw_grid % dvol
 
        ipart = 0
        DO
@@ -350,7 +346,7 @@ CONTAINS
     ENDIF
     IF(PRESENT(fgshell_coulomb)) THEN
       fgshell_coulomb = 0.0_dp
-      dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
+      dvols = rhos1 % pw % pw_grid % dvol
 
       ipart = 0
       DO

@@ -26,3 +26,5 @@
 2gly_CI-NEB.inp
 2gly_EB-NEB.inp
 2gly_IT-NEB.inp
+# eps0 removed 
+2gly_B-NEB.inp

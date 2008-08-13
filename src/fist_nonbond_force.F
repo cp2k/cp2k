@@ -532,9 +532,8 @@ CONTAINS
                                                 shell_i_index, shell_j_index
     LOGICAL                                  :: do_shell, i_is_shell, &
                                                 j_is_shell, shell_adiabatic
-    REAL(KIND=dp)                            :: alpha, const, eps0, flops, &
-                                                ifourpieps0, qci, qcj, qsi, &
-                                                qsj
+    REAL(KIND=dp)                            :: alpha, const, flops, qci, &
+                                                qcj, qsi, qsj
     REAL(KIND=dp), DIMENSION(3)              :: fij_com, rci, rcj, rsi, rsj
 
     CALL timeset ( routineN, 'I', 'Mflops', handle )
@@ -544,9 +543,8 @@ CONTAINS
     IF (use_virial) pv_bc = 0.0_dp
     v_bonded_corr = 0.0_dp
     ! Defining the constants
-    CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha, group = group ,error=error)
+    CALL ewald_env_get ( ewald_env, alpha = alpha, group = group ,error=error)
     const = 2.0_dp * alpha / SQRT( pi )
-    ifourpieps0 = 1.0_dp / ( 4.0_dp * pi * eps0 )
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              shell_adiabatic=shell_adiabatic)
@@ -572,10 +570,10 @@ CONTAINS
              IF(i_is_shell) THEN
                 CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr, &
                      core_particle_set, core_particle_set, shell_i_index, shell_j_index,&
-                     .TRUE., alpha, qci, qcj, ifourpieps0, const, pv_bc, use_virial)
+                     .TRUE., alpha, qci, qcj, const, pv_bc, use_virial)
              ELSE
                 CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr, particle_set,&
-                     particle_set, i, j, .TRUE., alpha, qci, qcj, ifourpieps0, const, pv_bc,&
+                     particle_set, i, j, .TRUE., alpha, qci, qcj, const, pv_bc,&
                      use_virial)
              END IF
 
@@ -585,18 +583,18 @@ CONTAINS
                 IF(i_is_shell .AND. j_is_shell) THEN
                    CALL bonded_correct_gaussian_low(rsi, rsj, cell, v_bonded_corr,&
                         shell_particle_set, shell_particle_set, shell_i_index, shell_j_index,&
-                        shell_adiabatic, alpha, qsi, qsj, ifourpieps0, const, pv_bc, use_virial)
+                        shell_adiabatic, alpha, qsi, qsj, const, pv_bc, use_virial)
                 END IF
                 ! shell-model: exclude shell_i-core_j interactions
                 IF(i_is_shell ) THEN
                    IF (j_is_shell) THEN
                       CALL bonded_correct_gaussian_low(rsi, rcj, cell, v_bonded_corr,&
                            shell_particle_set, core_particle_set, shell_i_index, shell_j_index,&
-                           shell_adiabatic, alpha, qsi, qcj, ifourpieps0, const, pv_bc, use_virial)
+                           shell_adiabatic, alpha, qsi, qcj, const, pv_bc, use_virial)
                    ELSE
                       CALL bonded_correct_gaussian_low(rsi, rcj, cell, v_bonded_corr,&
                            shell_particle_set, particle_set, shell_i_index, j, shell_adiabatic,&
-                           alpha, qsi, qcj, ifourpieps0, const, pv_bc,use_virial)
+                           alpha, qsi, qcj, const, pv_bc,use_virial)
                    END IF
                 END IF
                 ! shell-model: exclude shell_j-core_i interactions
@@ -604,11 +602,11 @@ CONTAINS
                    IF (i_is_shell) THEN
                       CALL bonded_correct_gaussian_low(rci, rsj, cell, v_bonded_corr,&
                            core_particle_set, shell_particle_set, shell_i_index, shell_j_index,&
-                           shell_adiabatic, alpha, qci, qsj, ifourpieps0, const, pv_bc, use_virial)
+                           shell_adiabatic, alpha, qci, qsj, const, pv_bc, use_virial)
                    ELSE
                       CALL bonded_correct_gaussian_low(rci, rsj, cell, v_bonded_corr,&
                            particle_set, shell_particle_set, i, shell_j_index, shell_adiabatic,&
-                           alpha, qci, qsj, ifourpieps0, const, pv_bc, use_virial)
+                           alpha, qci, qsj, const, pv_bc, use_virial)
                    END IF
                 END IF
              END IF
@@ -620,12 +618,12 @@ CONTAINS
           IF(i_is_shell ) THEN
              CALL bonded_correct_gaussian_low_sh(rci, rsi, cell, v_bonded_corr,&
                   core_particle_set, shell_particle_set, shell_i_index, shell_adiabatic,&
-                  alpha, qci, qsi, ifourpieps0, const, pv_bc, use_virial)
+                  alpha, qci, qsi, const, pv_bc, use_virial)
           END IF
 
        END DO
     ENDDO
-    v_bonded_corr = v_bonded_corr * ifourpieps0
+
     CALL mp_sum ( v_bonded_corr, group )
 
     flops = flops * 1.0E-6_dp
@@ -641,7 +639,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE bonded_correct_gaussian_low(r1, r2, cell, v_bonded_corr,&
        particle_set1, particle_set2, i, j, shell_adiabatic, alpha, q1, q2, &
-       ifourpieps0, const, pv_bc, use_virial)
+       const, pv_bc, use_virial)
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(INOUT)             :: v_bonded_corr
@@ -649,8 +647,7 @@ CONTAINS
                                                 particle_set2(:)
     INTEGER, INTENT(IN)                      :: i, j
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
-    REAL(KIND=dp), INTENT(IN)                :: alpha, q1, q2, ifourpieps0, &
-                                                const
+    REAL(KIND=dp), INTENT(IN)                :: alpha, q1, q2, const
     REAL(KIND=dp), INTENT(INOUT)             :: pv_bc(3,3)
     LOGICAL, INTENT(IN)                      :: use_virial
 
@@ -681,7 +678,7 @@ CONTAINS
     v_bonded_corr = v_bonded_corr - q1*q2*idij*errf
 
     ! Subtracting the force from the total force
-    fscalar = ifourpieps0 * q1 * q2 * idij**2 * (idij*errf-const*e_arg_arg)
+    fscalar = q1 * q2 * idij**2 * (idij*errf-const*e_arg_arg)
 
     particle_set1(i)%f(1) = particle_set1(i)%f(1) - fscalar*rij(1)
     particle_set1(i)%f(2) = particle_set1(i)%f(2) - fscalar*rij(2)
@@ -715,7 +712,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE bonded_correct_gaussian_low_sh(r1, r2, cell, v_bonded_corr, &
        core_particle_set, shell_particle_set, i, shell_adiabatic, alpha, q1, q2,&
-       ifourpieps0, const, pv_bc, use_virial)
+       const, pv_bc, use_virial)
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(INOUT)             :: v_bonded_corr
@@ -723,8 +720,7 @@ CONTAINS
                                                 shell_particle_set(:)
     INTEGER, INTENT(IN)                      :: i
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
-    REAL(KIND=dp), INTENT(IN)                :: alpha, q1, q2, ifourpieps0, &
-                                                const
+    REAL(KIND=dp), INTENT(IN)                :: alpha, q1, q2, const
     REAL(KIND=dp), INTENT(INOUT)             :: pv_bc(3,3)
     LOGICAL, INTENT(IN)                      :: use_virial
 
@@ -769,7 +765,7 @@ CONTAINS
     v_bonded_corr = v_bonded_corr - q1*q2*efac
     
     ! subtracting the force from the total force
-    fscalar = ifourpieps0 * q1 * q2 * ffac
+    fscalar = q1 * q2 * ffac
     
     core_particle_set(i)%f(1)=core_particle_set(i)%f(1)-fscalar*rij(1)
     core_particle_set(i)%f(2)=core_particle_set(i)%f(2)-fscalar*rij(2)

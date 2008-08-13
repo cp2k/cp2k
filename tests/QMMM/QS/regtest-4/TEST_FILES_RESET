@@ -121,3 +121,6 @@ crys_per_qmmm_spln.inp
 acn-qmmm-re.inp
 acn-conn-1.inp
 wat_nacl.inp
+# eps0 removed 
+crys_per_qmmm_spln.inp
+acn-qmmm-re.inp

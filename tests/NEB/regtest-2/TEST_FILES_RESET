@@ -42,3 +42,8 @@
 2gly_DIIS-SD-NEB.inp
 2gly_DIIS-SD-2.inp
 2gly_DIIS-DNEB.inp
+# eps0 removed 
+2gly_DIIS-NEB.inp
+2gly_DIIS-SD-NEB.inp
+2gly_DIIS-SD-2.inp
+2gly_DIIS-DNEB.inp

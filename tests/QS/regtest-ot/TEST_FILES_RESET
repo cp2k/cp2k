@@ -339,3 +339,6 @@ sic_energy.inp
 He2_none_full_single.inp
 # eps0 
 sic_ddapc_rt.inp
+# eps0 removed 
+He2_ddapc_constraint.inp
+sic_ddapc_rt.inp

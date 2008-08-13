@@ -60,7 +60,6 @@ MODULE ewald_environment_types
     INTEGER   :: ns_max                   ! # grid points for small grid (PME)
     INTEGER   :: o_spline                 ! order of spline (SPME)
     REAL (KIND=dp) :: alpha, rcut         ! ewald alpha and real-space cutoff
-    REAL (KIND=dp) :: eps0                ! permittivity constant
     REAL (KIND=dp) :: epsilon             ! tolerance for small grid (PME)
     TYPE ( cp_para_env_type ), POINTER   :: para_env
     TYPE(section_vals_type), POINTER     :: poisson_section
@@ -101,12 +100,12 @@ CONTAINS
 !>      11/03
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE ewald_env_get( ewald_env, ewald_type, alpha, eps0, epsilon, gmax,&
+  SUBROUTINE ewald_env_get( ewald_env, ewald_type, alpha, epsilon, gmax,&
        ns_max, o_spline, group, para_env, id_nr, poisson_section,&
        rcut, do_multipoles, max_multipole, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
-    REAL(KIND=dp), OPTIONAL                  :: alpha, eps0, epsilon
+    REAL(KIND=dp), OPTIONAL                  :: alpha, epsilon
     INTEGER, OPTIONAL                        :: gmax(3), ns_max, o_spline, &
                                                 group
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -134,7 +133,6 @@ CONTAINS
     IF (PRESENT(max_multipole)) max_multipole = ewald_env%max_multipole
     IF (PRESENT(alpha)) alpha = ewald_env%alpha
     IF (PRESENT(rcut)) rcut = ewald_env%rcut
-    IF (PRESENT(eps0)) eps0 = ewald_env%eps0
     IF (PRESENT(epsilon)) epsilon = ewald_env%epsilon
     IF (PRESENT(gmax)) gmax = ewald_env%gmax
     IF (PRESENT(ns_max)) ns_max = ewald_env%ns_max
@@ -152,12 +150,12 @@ CONTAINS
 !>      11/03
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE ewald_env_set( ewald_env, ewald_type, alpha, eps0, epsilon, gmax, ns_max,&
+  SUBROUTINE ewald_env_set( ewald_env, ewald_type, alpha, epsilon, gmax, ns_max,&
        o_spline, para_env, id_nr, poisson_section, error )
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
-    REAL(KIND=dp), OPTIONAL                  :: alpha, eps0, epsilon
+    REAL(KIND=dp), OPTIONAL                  :: alpha, epsilon
     INTEGER, OPTIONAL                        :: gmax(3), ns_max, o_spline
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
@@ -179,7 +177,6 @@ CONTAINS
        IF (PRESENT(id_nr)) ewald_env%id_nr = id_nr
        IF (PRESENT(ewald_type)) ewald_env%ewald_type = ewald_type
        IF (PRESENT(alpha)) ewald_env%alpha = alpha
-       IF (PRESENT(eps0)) ewald_env%eps0 = eps0
        IF (PRESENT(epsilon)) ewald_env%epsilon = epsilon
        IF (PRESENT(gmax)) ewald_env%gmax = gmax
        IF (PRESENT(ns_max)) ewald_env%ns_max = ns_max
@@ -224,7 +221,6 @@ CONTAINS
        last_ewald_env_id_nr=last_ewald_env_id_nr+1
        ewald_env%id_nr=last_ewald_env_id_nr
        CALL get_cp2k_units(units)
-       ewald_env%eps0 = units%eps0
        NULLIFY(ewald_env%poisson_section)
        CALL cp_para_env_retain(para_env, error=error)
        ewald_env%para_env => para_env

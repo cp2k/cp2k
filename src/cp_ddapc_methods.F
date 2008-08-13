@@ -21,7 +21,9 @@ MODULE cp_ddapc_methods
                                              section_vals_val_set
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: fourpi,&
+                                             pi,&
+                                             twopi
   USE mathlib,                         ONLY: diamat_all,&
                                              invert_matrix
   USE message_passing,                 ONLY: mp_sum
@@ -90,7 +92,7 @@ CONTAINS
        DO ig = s_dim, e_dim
           g2 = rho_tot_g % pw_grid % gsq ( ig )
           IF (g2 > gcut2) EXIT
-          w(ig) = 4.0_dp * pi * (g2 -gcut2)**2/(g2*gcut2)
+          w(ig) =  fourpi*(g2 -gcut2)**2/(g2*gcut2)
        END DO
     END IF
     CALL timestop(0.0_dp, handle)
@@ -547,9 +549,9 @@ CONTAINS
       ip1, ip2, iparticle1, iparticle2, istart_g, k1, k2, k3, n_rep, ndim, &
       nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, sfact, stat
     LOGICAL                                  :: analyt, failure
-    REAL(KIND=dp) :: alpha, eps, eps0, ew_neut, fac, fac2, fac3, fs, g_ewald, &
-      galpha, gsq, gsqi, my_val, r, r2tmp, r_ewald, rc1, rc12, rc2, rc22, &
-      rcut, rcut2, t1, tol, tol1
+    REAL(KIND=dp) :: alpha, eps, ew_neut, fac, fac3, fs, g_ewald, galpha, &
+      gsq, gsqi, my_val, r, r2tmp, r_ewald, rc1, rc12, rc2, rc22, rcut, &
+      rcut2, t1, tol, tol1
     REAL(KIND=dp), DIMENSION(3)              :: fvec, gvec, ra, rvec
     REAL(KIND=dp), DIMENSION(:), POINTER     :: EwM
     TYPE(unit_convert_type), POINTER         :: units
@@ -572,7 +574,6 @@ CONTAINS
        !
        ! Setting-up parameters for Ewald summation
        !
-       eps0   = units%eps0
        eps    = MIN(ABS(eps),0.5_dp)
        tol    = SQRT(ABS(LOG(eps*rcut)))
        alpha  = SQRT(ABS(LOG(eps*rcut*tol)))/rcut
@@ -586,10 +587,9 @@ CONTAINS
        rmax2  = CEILING(rcut/cell%hmat(2,2))
        rmax3  = CEILING(rcut/cell%hmat(3,3))
        fac    = 1.e0_dp/cell%deth
-       fac2   = 1.0_dp / ( 4.0_dp * pi * eps0 )
        fac3   = fac*pi
-       fvec   = 2.0_dp * pi / (/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
-       ew_neut = - fac / ( 4.0_dp * eps0 * alpha ** 2 )
+       fvec   = twopi / (/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
+       ew_neut = - fac * pi / alpha ** 2
        !
        ewmdim = SIZE(particle_set) * (SIZE(particle_set)+1) / 2
        ndim   = SIZE(particle_set) * SIZE(radii)
@@ -660,12 +660,12 @@ CONTAINS
              !
              ! G-EWALD, R-EWALD
              !
-             g_ewald = r_ewald*fac2 + g_ewald/eps0
+             g_ewald = r_ewald + fourpi*g_ewald
              !
              ! Self Contribution
              !
              IF (iparticle1 == iparticle2) THEN
-                g_ewald = g_ewald - alpha/(2.0_dp*eps0*pi*SQRT(pi))
+                g_ewald = g_ewald - 2.0_dp * alpha / SQRT(pi)
              END IF
              !
              IF (iparticle1/=iparticle2) THEN 
