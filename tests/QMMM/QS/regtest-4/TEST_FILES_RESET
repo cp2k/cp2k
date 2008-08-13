@@ -129,3 +129,5 @@ acn-conn-1.inp
 # constant rootpi corrected 
 crys_per_qmmm_spln.inp
 wat_nacl.inp
+# more numerics rootpi
+crys_per_qmmm_anal.inp

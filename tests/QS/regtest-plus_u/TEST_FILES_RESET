@@ -51,3 +51,5 @@ H2O-rks-otcg.inp
 H2O-uks-otcg.inp
 H2O-rks-otcg-mulliken.inp
 H2O-uks-otcg-mulliken.inp
+# more numerics rootpi
+H2O-rks-diag.inp
