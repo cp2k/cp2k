@@ -342,3 +342,5 @@ sic_ddapc_rt.inp
 # eps0 removed 
 He2_ddapc_constraint.inp
 sic_ddapc_rt.inp
+# constant rootpi corrected 
+sic_ddapc_rt.inp

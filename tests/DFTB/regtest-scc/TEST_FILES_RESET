@@ -118,3 +118,9 @@ h2o.inp
 test-lsd.inp
 #
 ch2o-ot4.inp
+# constant rootpi corrected 
+h2o-1.inp
+h2o-2.inp
+h2o-3.inp
+h2o-4.inp
+h2o-5.inp

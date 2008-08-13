@@ -104,3 +104,10 @@ H2O_gpw.inp
 H2O_gpw.inp
 # eps0 removed 
 H2O_gpw.inp
+# constant rootpi corrected 
+CO.inp
+CO_xastpxfh.inp
+CO_xastpxfh_locall.inp
+CO_xastpxfh_150Ry.inp
+H2O_gpw.inp
+Ne-BP.inp

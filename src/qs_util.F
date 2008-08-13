@@ -13,9 +13,9 @@ MODULE qs_util
 
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: dfac,&
-                                             fac,&
-                                             pi
+  USE mathconstants,                   ONLY: &
+       dfac, fac, fourpi, oorootpi, rootpi, sqrt105, sqrt15, sqrt2, sqrt21, &
+       sqrt3, sqrt35, sqrt5, sqrt7, sqrthalf
   USE orbital_pointers,                ONLY: indco,&
                                              nco,&
                                              ncoset,&
@@ -29,79 +29,68 @@ MODULE qs_util
   IMPLICIT NONE
 
   PRIVATE
-  ! *** Global parameters (only in this module)
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_util'
 
-  REAL ( dp ), PARAMETER :: sqrt05 = .70710678118654752440_dp
-  REAL ( dp ), PARAMETER :: sqrt2 = 1.41421356237309504880_dp
-  REAL ( dp ), PARAMETER :: sqrt3 = 1.73205080756887729352_dp
-  REAL ( dp ), PARAMETER :: sqrt5 = 2.23606797749978969640_dp
-  REAL ( dp ), PARAMETER :: sqrt7 = 2.64575131106459059050_dp
-  REAL ( dp ), PARAMETER :: sqrt15 = 3.87298334620741688517_dp
-  REAL ( dp ), PARAMETER :: sqrt21 = 4.58257569495584000658_dp
-  REAL ( dp ), PARAMETER :: sqrt35 = 5.91607978309961604256_dp
-  REAL ( dp ), PARAMETER :: sqrt105 = 10.24695076595959838322_dp
+  !MK sqrt* constants moved to mathconstants
 
-  REAL ( dp ), PARAMETER :: rootpi = 1.77245387556702677717522568_dp
-  REAL ( dp ), PARAMETER :: oorootpi = 1._dp/rootpi
-  REAL ( dp ), PARAMETER ::  s_root1o4pi=0.5_dp*oorootpi
-  REAL ( dp ), PARAMETER :: root4pi=2.0_dp*rootpi
-  REAL ( dp ), PARAMETER ::  s_root3o4pi=sqrt3*s_root1o4pi
-  REAL ( dp ), PARAMETER :: root4pio3=root4pi/sqrt3
-  REAL ( dp ), PARAMETER :: root4pio5=root4pi/sqrt5
-  REAL ( dp ), PARAMETER ::  s_root15o4pi=sqrt15*s_root1o4pi
-  REAL ( dp ), PARAMETER :: root4pio15=root4pi/sqrt15
-  REAL ( dp ), PARAMETER ::  s_root105o4pi=sqrt105*s_root1o4pi
-  REAL ( dp ), PARAMETER :: root4pio105=root4pi/sqrt105
-  REAL ( dp ), PARAMETER ::  s_root1o16pi=0.25_dp*oorootpi
-  REAL ( dp ), PARAMETER :: root16pi=4.0_dp*rootpi
-  REAL ( dp ), PARAMETER ::  s_root5o16pi=sqrt5*s_root1o16pi
-  REAL ( dp ), PARAMETER :: root16pio5=root16pi/sqrt5
-  REAL ( dp ), PARAMETER ::  s_2root5o16pi=2.0_dp*s_root5o16pi
-  REAL ( dp ), PARAMETER :: root16pio5o2=root16pio5*0.5_dp
-  REAL ( dp ), PARAMETER ::  s_3root5o16pi=3.0_dp*s_root5o16pi
-  REAL ( dp ), PARAMETER :: root16pio5o3=root16pio5/3.0_dp
-  REAL ( dp ), PARAMETER ::  s_18root5o16pi=18.0_dp*s_root5o16pi
-  REAL ( dp ), PARAMETER :: root16pio5o18=root16pio5/18.0_dp
-  REAL ( dp ), PARAMETER ::  s_2root7o16pi=2.0_dp*sqrt7*s_root1o16pi
-  REAL ( dp ), PARAMETER :: root16pio7o2=root16pi/sqrt7*0.5_dp
-  REAL ( dp ), PARAMETER ::  s_3root7o16pi=3.0_dp*sqrt7*s_root1o16pi
-  REAL ( dp ), PARAMETER :: root16pio7o3=root16pi/sqrt7/3.0_dp
-  REAL ( dp ), PARAMETER ::  s_root15o16pi=sqrt15*s_root1o16pi
-  REAL ( dp ), PARAMETER :: root16pio15=root16pi/sqrt15
-  REAL ( dp ), PARAMETER ::  s_3root35o16pi=sqrt5*s_3root7o16pi
-  REAL ( dp ), PARAMETER :: root16pio35o3=root16pio7o3/sqrt5
-  REAL ( dp ), PARAMETER ::  s_root105o16pi=0.5_dp*s_root105o4pi
-  REAL ( dp ), PARAMETER ::  root16pio105=root4pio105*2.0_dp
-  REAL ( dp ), PARAMETER ::  s_root1o32pi=0.25_dp*sqrt05*oorootpi
-  REAL ( dp ), PARAMETER ::  root32pi=root16pi*sqrt2
-  REAL ( dp ), PARAMETER ::  s_3root5o32pi=3.0_dp*sqrt5*s_root1o32pi
-  REAL ( dp ), PARAMETER ::  root32pio5o3=root32pi/sqrt5/3.0_dp
-  REAL ( dp ), PARAMETER ::  s_9root5o32pi=9.0_dp*sqrt5*s_root1o32pi
-  REAL ( dp ), PARAMETER ::  root32pio5o9=root32pi/sqrt5/9.0_dp
-  REAL ( dp ), PARAMETER ::  s_12root5o32pi=12.0_dp*sqrt5*s_root1o32pi
-  REAL ( dp ), PARAMETER ::  root32pio5o12=root32pi/sqrt5/12.0_dp
-  REAL ( dp ), PARAMETER ::  s_root21o32pi=sqrt21*s_root1o32pi
-  REAL ( dp ), PARAMETER ::  root32pio21=root32pi/sqrt21
-  REAL ( dp ), PARAMETER ::  s_4root21o32pi=4.0_dp*s_root21o32pi
-  REAL ( dp ), PARAMETER ::  root32pio21o4=root32pio21/4.0_dp
-  REAL ( dp ), PARAMETER ::  s_root35o32pi=sqrt35*s_root1o32pi
-  REAL ( dp ), PARAMETER ::  root32pio35=root32pi/sqrt35
-  REAL ( dp ), PARAMETER ::  s_3root35o32pi=3.0_dp*s_root35o32pi
-  REAL ( dp ), PARAMETER ::  s_9root35o32pi=9.0_dp*s_root35o32pi
-  REAL ( dp ), PARAMETER ::  s_18root35o32pi=18.0_dp*s_root35o32pi
-  REAL ( dp ), PARAMETER ::  s_root1o64pi=0.125_dp*oorootpi
-  REAL ( dp ), PARAMETER ::  s_3root5o64pi=3.0_dp*sqrt5*s_root1o64pi
-  REAL ( dp ), PARAMETER ::  s_18root5o64pi=18.0_dp*sqrt5*s_root1o64pi
-  REAL ( dp ), PARAMETER ::  s_root1o256pi=0.0625_dp*oorootpi
-  REAL ( dp ), PARAMETER ::  s_3root1o256pi=3.0_dp*s_root1o256pi
-  REAL ( dp ), PARAMETER ::  s_9root1o256pi=9.0_dp*s_root1o256pi
-  REAL ( dp ), PARAMETER ::  s_18root1o256pi=18.0_dp*s_root1o256pi
-  REAL ( dp ), PARAMETER ::  s_24root1o256pi=24.0_dp*s_root1o256pi
-  REAL ( dp ), PARAMETER ::  s_72root1o256pi=72.0_dp*s_root1o256pi
-  REAL ( dp ), PARAMETER ::  s_3root35o256pi=3.0_dp*sqrt35*s_root1o256pi
-  REAL ( dp ), PARAMETER ::  s_18root35o256pi=18.0_dp*sqrt35*s_root1o256pi
+  REAL(KIND=dp), PARAMETER ::  s_root1o4pi=0.5_dp*oorootpi
+  REAL(KIND=dp), PARAMETER :: root4pi=2.0_dp*rootpi
+  REAL(KIND=dp), PARAMETER ::  s_root3o4pi=sqrt3*s_root1o4pi
+  REAL(KIND=dp), PARAMETER :: root4pio3=root4pi/sqrt3
+  REAL(KIND=dp), PARAMETER :: root4pio5=root4pi/sqrt5
+  REAL(KIND=dp), PARAMETER ::  s_root15o4pi=sqrt15*s_root1o4pi
+  REAL(KIND=dp), PARAMETER :: root4pio15=root4pi/sqrt15
+  REAL(KIND=dp), PARAMETER ::  s_root105o4pi=sqrt105*s_root1o4pi
+  REAL(KIND=dp), PARAMETER :: root4pio105=root4pi/sqrt105
+  REAL(KIND=dp), PARAMETER ::  s_root1o16pi=0.25_dp*oorootpi
+  REAL(KIND=dp), PARAMETER :: root16pi=4.0_dp*rootpi
+  REAL(KIND=dp), PARAMETER ::  s_root5o16pi=sqrt5*s_root1o16pi
+  REAL(KIND=dp), PARAMETER :: root16pio5=root16pi/sqrt5
+  REAL(KIND=dp), PARAMETER ::  s_2root5o16pi=2.0_dp*s_root5o16pi
+  REAL(KIND=dp), PARAMETER :: root16pio5o2=root16pio5*0.5_dp
+  REAL(KIND=dp), PARAMETER ::  s_3root5o16pi=3.0_dp*s_root5o16pi
+  REAL(KIND=dp), PARAMETER :: root16pio5o3=root16pio5/3.0_dp
+  REAL(KIND=dp), PARAMETER ::  s_18root5o16pi=18.0_dp*s_root5o16pi
+  REAL(KIND=dp), PARAMETER :: root16pio5o18=root16pio5/18.0_dp
+  REAL(KIND=dp), PARAMETER ::  s_2root7o16pi=2.0_dp*sqrt7*s_root1o16pi
+  REAL(KIND=dp), PARAMETER :: root16pio7o2=root16pi/sqrt7*0.5_dp
+  REAL(KIND=dp), PARAMETER ::  s_3root7o16pi=3.0_dp*sqrt7*s_root1o16pi
+  REAL(KIND=dp), PARAMETER :: root16pio7o3=root16pi/sqrt7/3.0_dp
+  REAL(KIND=dp), PARAMETER ::  s_root15o16pi=sqrt15*s_root1o16pi
+  REAL(KIND=dp), PARAMETER :: root16pio15=root16pi/sqrt15
+  REAL(KIND=dp), PARAMETER ::  s_3root35o16pi=sqrt5*s_3root7o16pi
+  REAL(KIND=dp), PARAMETER :: root16pio35o3=root16pio7o3/sqrt5
+  REAL(KIND=dp), PARAMETER ::  s_root105o16pi=0.5_dp*s_root105o4pi
+  REAL(KIND=dp), PARAMETER ::  root16pio105=root4pio105*2.0_dp
+  REAL(KIND=dp), PARAMETER ::  s_root1o32pi=0.25_dp*sqrthalf*oorootpi
+  REAL(KIND=dp), PARAMETER ::  root32pi=root16pi*sqrt2
+  REAL(KIND=dp), PARAMETER ::  s_3root5o32pi=3.0_dp*sqrt5*s_root1o32pi
+  REAL(KIND=dp), PARAMETER ::  root32pio5o3=root32pi/sqrt5/3.0_dp
+  REAL(KIND=dp), PARAMETER ::  s_9root5o32pi=9.0_dp*sqrt5*s_root1o32pi
+  REAL(KIND=dp), PARAMETER ::  root32pio5o9=root32pi/sqrt5/9.0_dp
+  REAL(KIND=dp), PARAMETER ::  s_12root5o32pi=12.0_dp*sqrt5*s_root1o32pi
+  REAL(KIND=dp), PARAMETER ::  root32pio5o12=root32pi/sqrt5/12.0_dp
+  REAL(KIND=dp), PARAMETER ::  s_root21o32pi=sqrt21*s_root1o32pi
+  REAL(KIND=dp), PARAMETER ::  root32pio21=root32pi/sqrt21
+  REAL(KIND=dp), PARAMETER ::  s_4root21o32pi=4.0_dp*s_root21o32pi
+  REAL(KIND=dp), PARAMETER ::  root32pio21o4=root32pio21/4.0_dp
+  REAL(KIND=dp), PARAMETER ::  s_root35o32pi=sqrt35*s_root1o32pi
+  REAL(KIND=dp), PARAMETER ::  root32pio35=root32pi/sqrt35
+  REAL(KIND=dp), PARAMETER ::  s_3root35o32pi=3.0_dp*s_root35o32pi
+  REAL(KIND=dp), PARAMETER ::  s_9root35o32pi=9.0_dp*s_root35o32pi
+  REAL(KIND=dp), PARAMETER ::  s_18root35o32pi=18.0_dp*s_root35o32pi
+  REAL(KIND=dp), PARAMETER ::  s_root1o64pi=0.125_dp*oorootpi
+  REAL(KIND=dp), PARAMETER ::  s_3root5o64pi=3.0_dp*sqrt5*s_root1o64pi
+  REAL(KIND=dp), PARAMETER ::  s_18root5o64pi=18.0_dp*sqrt5*s_root1o64pi
+  REAL(KIND=dp), PARAMETER ::  s_root1o256pi=0.0625_dp*oorootpi
+  REAL(KIND=dp), PARAMETER ::  s_3root1o256pi=3.0_dp*s_root1o256pi
+  REAL(KIND=dp), PARAMETER ::  s_9root1o256pi=9.0_dp*s_root1o256pi
+  REAL(KIND=dp), PARAMETER ::  s_18root1o256pi=18.0_dp*s_root1o256pi
+  REAL(KIND=dp), PARAMETER ::  s_24root1o256pi=24.0_dp*s_root1o256pi
+  REAL(KIND=dp), PARAMETER ::  s_72root1o256pi=72.0_dp*s_root1o256pi
+  REAL(KIND=dp), PARAMETER ::  s_3root35o256pi=3.0_dp*sqrt35*s_root1o256pi
+  REAL(KIND=dp), PARAMETER ::  s_18root35o256pi=18.0_dp*sqrt35*s_root1o256pi
 
   ! *** Public subroutines ***
 
@@ -535,7 +524,7 @@ CONTAINS
                      work(ic1,is2+nsoset(l-1)) + &
                      CPC_co(ic1,ic2+ncoset(l-1))*&
                      orbtramat(l)%c2s(is2,ic2)*& 
-                     SQRT(4.0_dp*pi/dfac(2*l+1)*&
+                     SQRT(fourpi/dfac(2*l+1)*&
                      dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)) 
                 !         write(*,*) 'dfac 1', dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)
              ENDDO
@@ -554,7 +543,7 @@ CONTAINS
                      CPC_so(is1+nsoset(l-1),is2) + &
                      work(ic1+ncoset(l-1),is2)* &
                      orbtramat(l)%c2s(is1,ic1)* &
-                     SQRT(4.0_dp*pi/dfac(2*l+1)*&
+                     SQRT(fourpi/dfac(2*l+1)*&
                      dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
                 !          write(*,*) 'dfac 2', dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)
              ENDDO
@@ -654,7 +643,7 @@ CONTAINS
                 is2 = nsoset(l-1) + iso
                 matsc(is1,ic2) = matsc(is1,ic2) + &
                      matso(is1,is2) * orbtramat(l)%s2c(iso,ico) *&
-                     SQRT((4.0_dp*pi)/dfac(2*l+1)*&
+                     SQRT((fourpi)/dfac(2*l+1)*&
                      dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
              ENDDO ! iso
           ENDDO ! ico
@@ -673,7 +662,7 @@ CONTAINS
                 is1=nsoset(l-1) + iso
                 matco(ic1,ic2) = matco(ic1,ic2) + &
                      matsc(is1,ic2) * orbtramat(l)%s2c(iso,ico) *&
-                     SQRT((4.0_dp*pi)/dfac(2*l+1)*&
+                     SQRT((fourpi)/dfac(2*l+1)*&
                      dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
              ENDDO ! iso
           ENDDO ! ico
@@ -1016,4 +1005,3 @@ CONTAINS
   END SUBROUTINE cart2sph_mat
 
 END MODULE qs_util
-

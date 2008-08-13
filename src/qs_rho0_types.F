@@ -641,7 +641,7 @@ CONTAINS
    mp_rho%Qlm_car_h = 0.0_dp
    mp_rho%Qlm_car_s = 0.0_dp
    IF (.NOT.my_tddft) THEN
-      mp_rho%Qlm_z = -2.0_dp*ROOTPI*Zeff
+      mp_rho%Qlm_z = -2.0_dp*rootpi*Zeff
    ELSE
       mp_rho%Qlm_z = 0.0_dp
    END IF

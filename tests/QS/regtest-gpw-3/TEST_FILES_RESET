@@ -514,3 +514,7 @@ H2O-bloechl-Spl.inp
 # more numerics for eps0 commit
 H2O-solv.inp
 H+solv1.inp
+# constant rootpi corrected 
+He2H-bloechl-md.inp
+H2O-ata.inp
+dynamics.inp

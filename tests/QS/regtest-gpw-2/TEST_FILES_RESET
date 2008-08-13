@@ -452,3 +452,5 @@ H2O-meta_coord_2.inp
 hcn_ts.inp
 #  
 hcn_ts_r.inp
+# constant rootpi corrected 
+hcn_ts_r.inp

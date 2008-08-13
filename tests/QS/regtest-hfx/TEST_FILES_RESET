@@ -137,3 +137,13 @@ CH-hfx-md.inp
 CH-hfx-pbc-md.inp
 #  
 H2O_pw.inp
+# constant rootpi corrected 
+H2O-hfx-1.inp
+H2O-hfx-2.inp
+H2O-hfx-3.inp
+CH-hfx-md.inp
+CH-hfx-md-2.inp
+CH-hfx-pbc-md.inp
+4H2O-disk.inp
+4H2O-mix-disk-ram.inp
+4H2O-mix-disk-ram-on-the-fly.inp

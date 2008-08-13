@@ -91,3 +91,19 @@ H2O-gapwxc-gth.inp
 H2S-gapw.inp
 #  
 H2O-gapw-gth-pvh.inp
+# constant rootpi corrected 
+H2O-gapw-gth.inp
+H2O-gapw-all.inp
+H2O-gapw-all_localize.inp
+H2O-gapw-all_localize_crazy.inp
+H2O-gapw-all_loc_list.inp
+H2O-gapwxc-gth.inp
+H2S-gapw.inp
+HF_gapw_all_LB.inp
+OF_gapw_all_lsd_LB.inp
+He2-all.inp
+He2-all-md.inp
+H2O-gapw-gth-pvh.inp
+H2O-gapw-all_noortho.inp
+H2O-gapw-all_localize_noortho.inp
+H2O-gapw-all_localize_crazy_noortho.inp

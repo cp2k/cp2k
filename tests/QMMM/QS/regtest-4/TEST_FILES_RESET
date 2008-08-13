@@ -126,3 +126,6 @@ crys_per_qmmm_spln.inp
 acn-qmmm-re.inp
 # more numerics for eps0 commit
 acn-conn-1.inp
+# constant rootpi corrected 
+crys_per_qmmm_spln.inp
+wat_nacl.inp
