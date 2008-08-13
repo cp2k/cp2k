@@ -413,7 +413,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"SYMMETRY",&
             description="controls the output of symmetry information",&
-            print_level=medium_print_level, filename="__STD_OUT__",error=error)
+            print_level=debug_print_level+1, filename="__STD_OUT__",error=error)
        CALL keyword_create(keyword, name="MOLECULE",&
             description="Assume the system is an isolated molecule",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
