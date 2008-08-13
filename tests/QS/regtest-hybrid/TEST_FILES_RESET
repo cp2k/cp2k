@@ -240,3 +240,8 @@ H2O-hybrid-b3lyp_shortcut.inp
 H2O-hybrid-pbe0_shortcut.inp
 Ne-hybrid-rcam-b3lyp.inp
 Ne-hybrid-MCY3.inp
+# more numerics NAG compiler
+Li-hybrid-MCY3.inp
+Li-hybrid-rcam-b3lyp.inp
+# more numerics rootpi -> g95 popt
+Li-hybrid-rcam-b3lyp.inp
