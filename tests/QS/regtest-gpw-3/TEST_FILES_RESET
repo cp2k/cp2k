@@ -511,3 +511,6 @@ H2O-solv.inp
 He2H-bloechl.inp
 H2O-bloechl.inp
 H2O-bloechl-Spl.inp
+# more numerics for eps0 commit
+H2O-solv.inp
+H+solv1.inp

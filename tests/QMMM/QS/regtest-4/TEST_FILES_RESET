@@ -124,3 +124,5 @@ wat_nacl.inp
 # eps0 removed 
 crys_per_qmmm_spln.inp
 acn-qmmm-re.inp
+# more numerics for eps0 commit
+acn-conn-1.inp
