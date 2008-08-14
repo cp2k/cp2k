@@ -83,45 +83,65 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword, subsection )
+       CALL keyword_create(keyword, name="E_COUPL",&
+            variants=s2a("QMMM_COUPLING","ECOUPL"),& 
+            description="Specifies the type of the QM - MM electrostatic coupling.",&
+            usage="E_COUPL GAUSS",&
+            enum_c_vals=s2a( "NONE","COULOMB","GAUSS","S-WAVE"),&
+            enum_i_vals=(/ do_qmmm_none, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_swave/),&
+            enum_desc=s2a("Mechanical coupling (i.e. classical point charge based)", &
+                          "Using analytical 1/r potential (Coulomb) - not available for GPW/GAPW",&
+                          "Using fast gaussian expansion of the electrostatic potential (Erf(r/rc)/r)",&
+                          "Using fast gaussian expansion of the s-wave electrostatic potential"),&
+            default_i_val=do_qmmm_none, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
 
        CALL keyword_create(keyword, name="MM_POTENTIAL_FILE_NAME",&
-            description="Name of the file containing the potential expansion in gaussians.",&
+            description="Name of the file containing the potential expansion in gaussians. See the "//&
+                        "USE_GEEP_LIB keyword.",&
             usage="MM_POTENTIAL_FILE_NAME {filename}",&
             default_lc_val="MM_POTENTIAL",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="use_geep_lib",&
+            description=" This keyword enables the use of the internal GEEP library to generate the "//&
+            "gaussian expansion of the MM potential. Using this keyword there's no need to provide "//&
+            "the MM_POTENTIAL_FILENAME. It expects a number from 2 to 15 (the number of gaussian funtions"//&
+            " to be used in the expansion.",&
+            usage="use_geep_lib INTEGER",&
+            default_i_val=0, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        
+       CALL keyword_create(keyword, name="nocompatibility",&
+            description="This keyword disables the compatibility of QM/MM "//&
+            "potential between CPMD and CP2K implementations. The compatibility"//&
+            " is achieved using an MM potential of the form: Erf[x/rc]/x + (1/rc -2/(pi^1/2*rc))*Exp[-(x/rc)^2] ."//&
+            "This keyword has effect only selecting GAUSS E_COUPLING type.",&
+            usage="nocompatibility LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="eps_mm_rspace",&
-            description="Set the threshold g(r) - threshold = 0. Where g(r) is a gaussian function."//&
-            "Standard value set to 1.0E-10_dp",&
+            description="Set the threshold for the collocation of the GEEP gaussian functions."//&
+            "this keyword affects only the GAUSS E_COUPLING.",&
             usage="eps_mm_rspace real",&
             default_r_val=1.0E-10_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
 
-       CALL keyword_create(keyword, name="nocenter",&
-            description="This keyword disables the automatic centering of the qm system every MD step."//&
-            "It centers the system only for the first step. Default .FALSE. (i.e. the QM system is centered every step)",&
-            usage="nocenter LOGICAL",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="nocenter0",&
-            description="This keyword disables the automatic centering of the qm system every MD step "//&
-            " even for the first step. Default .FALSE. (i.e. the QM system is centered every step)",&
-            usage="nocenter LOGICAL",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="nocompatibility",&
-            description="This keyword disables the compatibility of QM/MM "//&
-            "potential between CPMD and CP2K implementations. The compatibility"//&
-            " is achieved using an MM potential of the form: Erf[x/rc]/x + (1/rc -2/(pi^1/2*rc))*Exp[-(x/rc)^2] ."//&
-            "This keyword has effect only selecting GAUSS or GRID QMMM type.",&
-            usage="nocompatibility LOGICAL",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL keyword_create(keyword, name="SPHERICAL_CUTOFF",&
+            description="Set the spherical cutoff for the QMMM electrostatic interaction. "//&
+            "This acts like a charge multiplicative factor dependent on cutoff. For MM atoms "//&
+            "farther than the SPHERICAL_CUTOFF(1) their charge is zero. The switch is performed "//&
+            "with a smooth function: 0.5*(1-TANH((r-[SPH_CUT(1)-20*SPH_CUT(2)])/(SPH_CUT(2)))). "//&
+            "Two values are required: the first one is the distance cutoff. The second one controls "//&
+            "the stiffness of the smoothing.",&
+            usage="SPHERICAL_CUTOFF  <REAL>", default_r_vals=(/-1.0_dp,0.0_dp/), n_var=2,&
+            unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -136,13 +156,20 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="use_geep_lib",&
-            description=" This keyword enables the use of the internal GEEP library to generate the "//&
-            "gaussian expansion of the MM potential. Using this keyword there's no need to provide "//&
-            "the MM_POTENTIAL_FILENAME. It expects a number from 2 to 15 (the number of gaussian funtions"//&
-            " to be used in the expansion.",&
-            usage="use_geep_lib INTEGER",&
-            default_i_val=0, error=error)
+       ! Centering keywords
+       CALL keyword_create(keyword, name="nocenter",&
+            description="This keyword disables the automatic centering of the qm system every MD step."//&
+            "It centers the system only for the first step. Default .FALSE. (i.e. the QM system is centered every step)",&
+            usage="nocenter LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="nocenter0",&
+            description="This keyword disables the automatic centering of the qm system every MD step "//&
+            " even for the first step. Default .FALSE. (i.e. the QM system is centered every step)",&
+            usage="nocenter LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -164,69 +191,11 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
 
-       CALL keyword_create(keyword, name="E_COUPL",&
-            variants=s2a("QMMM_COUPLING","ECOUPL"),& 
-            description="Specifies the type of the QM - MM electrostatic coupling.",&
-            usage="E_COUPL GAUSS",&
-            enum_c_vals=s2a( "NONE","COULOMB","GAUSS","S-WAVE"),&
-            enum_i_vals=(/ do_qmmm_none, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_swave/),&
-            enum_desc=s2a("Mechanical coupling (i.e. classical point charge based)", &
-                          "Using analytical 1/r potential (Coulomb) - not available for GPW/GAPW",&
-                          "Using fast gaussian expansion of the electrostatic potential (Erf(r/rc)/r)",&
-                          "Using fast gaussian expansion of the s-wave electrostatic potential"),&
-            default_i_val=do_qmmm_none, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
-
-       CALL section_create(subsection,name="QM_KIND",&
-            description="Information about the qm kind in the qm/mm scheme",&
-            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-            description="The qm kind",&
-            usage="O",&
-            n_var=1,type_of_var=char_t,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="MM_INDEX",&
-            description="The indexes of the mm atoms that have this kind. This keyword can be repeated several times "//&
-            "(useful if you have to specify many indexes).",&
-            usage="MM_INDEX 1 2",&
-            n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
+       CALL create_qmmm_qm_kinds(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)    
 
-       CALL section_create(subsection,name="MM_KIND",&
-            description="Information about the mm kind in the qm/mm scheme",&
-            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-            description="The mm kind",&
-            usage="O",&
-            n_var=1,type_of_var=char_t,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RADIUS",&
-            description="Specifies the radius of the atomic kinds [angstrom]",&
-            usage="RADIUS real",n_var=1,type_of_var=real_t,&
-            default_r_val=RADIUS_QMMM_DEFAULT,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="CORR_RADIUS",&
-            description="Specifies the correction radius of the atomic kinds [angstrom]."//&
-            " The correction radius is connected to the use of the compatibility keyword.",&
-            usage="RADIUS real",n_var=1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
+       CALL create_qmmm_mm_kinds(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)    
 
@@ -257,10 +226,93 @@ CONTAINS
        CALL create_print_qmmm_section(subsection, error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
-
     END IF
 
   END SUBROUTINE create_qmmm_section
+
+! *****************************************************************************
+!> \brief Input section to create MM kinds sections
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
+  SUBROUTINE create_qmmm_mm_kinds(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_mm_kinds', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL section_create(section,name="MM_KIND",&
+         description="Information about the mm kind in the qm/mm scheme",&
+         n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+         error=error)
+
+    CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+         description="The mm kind",usage="O",n_var=1,type_of_var=char_t,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    
+    CALL keyword_create(keyword, name="RADIUS",&
+         description="Specifies the radius of the atomic kinds [angstrom]",&
+         usage="RADIUS real",n_var=1,type_of_var=real_t,&
+         default_r_val=RADIUS_QMMM_DEFAULT,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="CORR_RADIUS",&
+         description="Specifies the correction radius of the atomic kinds [angstrom]."//&
+         " The correction radius is connected to the use of the compatibility keyword.",&
+         usage="RADIUS real",n_var=1,type_of_var=real_t,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+  END SUBROUTINE create_qmmm_mm_kinds
+
+! *****************************************************************************
+!> \brief Input section to create QM kinds sections
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
+  SUBROUTINE create_qmmm_qm_kinds(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_qm_kinds', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL section_create(section,name="QM_KIND",&
+         description="Information about the qm kind in the qm/mm scheme",&
+         n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+         error=error)
+    
+    CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+         description="The qm kind",usage="O",n_var=1,type_of_var=char_t,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    
+    CALL keyword_create(keyword, name="MM_INDEX",&
+         description="The indexes of the mm atoms that have this kind. This keyword can be"//&
+         " repeated several times (useful if you have to specify many indexes).",&
+         usage="MM_INDEX 1 2",&
+         n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    
+  END SUBROUTINE create_qmmm_qm_kinds
 
 ! *****************************************************************************
 !> \brief Input section to set QM/MM periodic boundary conditions

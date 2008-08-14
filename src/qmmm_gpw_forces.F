@@ -64,6 +64,7 @@ MODULE qmmm_gpw_forces
                                              qmmm_per_pot_type,&
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
+  USE qmmm_util,                       ONLY: spherical_cutoff_factor
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -472,7 +473,7 @@ CONTAINS
          qmmm_env%num_mm_atoms, cube_info, para_env, eps_mm_rspace, auxbas_grid, &
          coarser_grid, qmmm_env%pgfs, qmmm_env%potentials, Forces, aug_pools,    &
          mm_cell, qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%per_potentials,  &
-         iw, qmmm_env%par_scheme, error)
+         iw, qmmm_env%par_scheme, qmmm_env%spherical_cutoff, error)
 
     IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
        CALL qmmm_force_with_gaussian_low(grids, qmmm_env%added_charges%added_particles,&
@@ -481,7 +482,7 @@ CONTAINS
             cube_info, para_env, eps_mm_rspace, auxbas_grid, coarser_grid, qmmm_env%added_charges%pgfs,&
             qmmm_env%added_charges%potentials, Forces_added_charges, aug_pools, mm_cell, &
             qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%per_potentials, iw, qmmm_env%par_scheme,&
-            error)
+            qmmm_env%spherical_cutoff, error)
     END IF
 
     CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
@@ -497,11 +498,11 @@ CONTAINS
 !>      06.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE qmmm_force_with_gaussian_low(grids, mm_particles,&
-       mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-       cube_info, para_env, eps_mm_rspace, auxbas_grid, &
-       coarser_grid, pgfs, potentials, Forces, aug_pools, mm_cell, &
-       dOmmOqm, periodic, per_potentials, iw, par_scheme, error)
+  SUBROUTINE qmmm_force_with_gaussian_low(grids, mm_particles, mm_charges, &
+       mm_el_pot_radius, mm_atom_index, num_mm_atoms, cube_info, para_env, &
+       eps_mm_rspace, auxbas_grid, coarser_grid, pgfs, potentials, Forces, &
+       aug_pools, mm_cell, dOmmOqm, periodic, per_potentials, iw, par_scheme,&
+       qmmm_spherical_cutoff, error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
@@ -526,6 +527,7 @@ CONTAINS
     TYPE(qmmm_per_pot_p_type), &
       DIMENSION(:), POINTER                  :: per_potentials
     INTEGER, INTENT(IN)                      :: iw, par_scheme
+    REAL(KIND=dp), INTENT(IN)                :: qmmm_spherical_cutoff(2)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_force_with_gaussian_low', &
@@ -538,7 +540,8 @@ CONTAINS
                                                 stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha, dvol, height, W
+    REAL(KIND=dp)                            :: alpha, dvol, height, &
+                                                sph_chrg_factor, W
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: xdat, ydat, zdat
     REAL(KIND=dp), DIMENSION(3)              :: force, ra
@@ -566,11 +569,11 @@ CONTAINS
           dvol      = grids(ilevel)%pw%pw_grid%dvol
           bo        = grids(ilevel) % pw % pw_grid % bounds_local
           ALLOCATE (xdat(2,bo(1,1):bo(2,1)), STAT=stat)
- CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (ydat(2,bo(1,2):bo(2,2)), STAT=stat)
- CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (zdat(2,bo(1,3):bo(2,3)), STAT=stat)
- CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
              IF (par_scheme==do_par_atom) THEN
                 myind = myind + 1
@@ -581,7 +584,12 @@ CONTAINS
              ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
              W         =   mm_charges(LIndMM) * height
              force     =   0.0_dp
-             IF (W == 0.0_dp) CYCLE Atoms
+             ! Possible Spherical Cutoff
+             IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN 
+                CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor, error)
+                W = W * sph_chrg_factor
+             END IF
+             IF (ABS(W)<= EPSILON(0.0_dp)) CYCLE Atoms
              CALL integrate_gf_rspace_NoPBC(zetp=alpha,&
                                             rp=ra,&
                                             scale=-1.0_dp,&
@@ -646,6 +654,7 @@ CONTAINS
                                            dOmmOqm=dOmmOqm,&
                                            iw=iw,&
                                            par_scheme=par_scheme,&
+                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
                                            error=error)
     ELSE
        CALL qmmm_forces_with_gaussian_LR  (pgfs=pgfs,&
@@ -664,6 +673,7 @@ CONTAINS
                                            dOmmOqm=dOmmOqm,&
                                            iw=iw,&
                                            par_scheme=par_scheme,&
+                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
                                            error=error)
     END IF
     CALL timestop(0.0_dp,handle2)
@@ -679,9 +689,8 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_forces_with_gaussian_LG  (pgfs,cgrid,num_mm_atoms,mm_charges,mm_atom_index,&
-                                            mm_particles,mm_el_pot_radius,para_env,&
-                                            coarser_grid_level,Forces, per_potentials,&
-                                            aug_pools, mm_cell, dOmmOqm, iw, par_scheme,error)
+       mm_particles,mm_el_pot_radius,para_env, coarser_grid_level,Forces, per_potentials,&
+       aug_pools, mm_cell, dOmmOqm, iw, par_scheme, qmmm_spherical_cutoff, error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: cgrid
@@ -701,6 +710,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: iw, par_scheme
+    REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: qmmm_spherical_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LG', &
@@ -720,9 +730,9 @@ CONTAINS
       dr3i, dvol, e1, e2, e3, f1, f2, f3, fac, ft1, ft2, ft3, g1, g2, g3, h1, &
       h2, h3, p1, p2, p3, q1, q2, q3, qt, r1, r2, r3, rt1, rt2, rt3, rv1, &
       rv2, rv3, s1, s1d, s1o, s2, s2d, s2o, s3, s3d, s3o
-    REAL(KIND=dp) :: s4, s4d, s4o, t1, t1d, t1o, t2, t2d, t2o, t3, t3d, t3o, &
-      t4, t4d, t4o, u1, u2, u3, v1, v1d, v1o, v2, v2d, v2o, v3, v3d, v3o, v4, &
-      v4d, v4o, xd1, xd2, xd3, xs1, xs2, xs3
+    REAL(KIND=dp) :: s4, s4d, s4o, sph_chrg_factor, t1, t1d, t1o, t2, t2d, &
+      t2o, t3, t3d, t3o, t4, t4d, t4o, u1, u2, u3, v1, v1d, v1o, v2, v2d, &
+      v2o, v3, v3d, v3o, v4, v4d, v4o, xd1, xd2, xd3, xs1, xs2, xs3
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: LForces
     REAL(KIND=dp), DIMENSION(3)              :: ra, val, vec
@@ -765,7 +775,12 @@ CONTAINS
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
           qt        =   mm_charges(LIndMM)
-          IF (qt == 0.0_dp) CYCLE Atoms
+          ! Possible Spherical Cutoff
+          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN 
+             CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor, error)
+             qt = qt * sph_chrg_factor
+          END IF
+          IF (ABS(qt)<= EPSILON(0.0_dp)) CYCLE Atoms
           rt1 = ra(1)
           rt2 = ra(2)
           rt3 = ra(3)
@@ -1056,6 +1071,7 @@ CONTAINS
                                             dOmmOqm=dOmmOqm,&
                                             iw=iw,&
                                             par_scheme=par_scheme,&
+                                            qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
                                             error=error)
     END IF
     DEALLOCATE(LForces, stat=stat)
@@ -1072,9 +1088,8 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_forces_with_gaussian_LR  (pgfs,cgrid,num_mm_atoms,mm_charges,mm_atom_index,&
-                                            mm_particles,mm_el_pot_radius,para_env,&
-                                            coarser_grid_level,Forces, potentials,&
-                                            aug_pools, mm_cell, dOmmOqm, iw, par_scheme,error)
+       mm_particles,mm_el_pot_radius,para_env, coarser_grid_level,Forces, potentials,&
+       aug_pools, mm_cell, dOmmOqm, iw, par_scheme, qmmm_spherical_cutoff,error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: cgrid
@@ -1094,6 +1109,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: iw, par_scheme
+    REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: qmmm_spherical_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LR', &
@@ -1106,8 +1122,8 @@ CONTAINS
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: dr1, dr2, dr3, dvol, dx, fac, ft1, ft2, ft3, qt, r, r2, &
-      rd1, rd2, rd3, rt1, rt2, rt3, rv1, rv2, rv3, rx, rx2, Term, xs1, xs2, &
-      xs3
+      rd1, rd2, rd3, rt1, rt2, rt3, rv1, rv2, rv3, rx, rx2, sph_chrg_factor, &
+      Term, xs1, xs2, xs3
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: LForces
     REAL(KIND=dp), DIMENSION(3)              :: ra
@@ -1145,7 +1161,12 @@ CONTAINS
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
           qt        =   mm_charges(LIndMM)
-          IF (qt == 0.0_dp) CYCLE Atoms
+          ! Possible Spherical Cutoff
+          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN 
+             CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor, error)
+             qt = qt * sph_chrg_factor
+          END IF
+          IF (ABS(qt)<= EPSILON(0.0_dp)) CYCLE Atoms
           rt1 = ra(1)
           rt2 = ra(2)
           rt3 = ra(3)
@@ -1221,6 +1242,7 @@ CONTAINS
                                             dOmmOqm=dOmmOqm,&
                                             iw=iw,&
                                             par_scheme=par_scheme,&
+                                            qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
                                             error=error)
     END IF
 
@@ -1494,10 +1516,9 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE debug_qmmm_forces_with_gauss_LG(pgfs,aug_pools, rho, mm_charges, mm_atom_index,&
-                                             mm_particles, mm_el_pot_radius, num_mm_atoms,&
-                                             coarser_grid_level, per_potentials,&
-                                             debug_force, para_env, mm_cell,dOmmOqm,iw,&
-                                             par_scheme,error)
+       mm_particles, mm_el_pot_radius, num_mm_atoms, coarser_grid_level, per_potentials,&
+       debug_force, para_env, mm_cell,dOmmOqm,iw,par_scheme,qmmm_spherical_cutoff,error)
+
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -1517,6 +1538,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: iw, par_scheme
+    REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: qmmm_spherical_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -1562,6 +1584,7 @@ CONTAINS
                                                  mm_cell=mm_cell,&
                                                  dOmmOqm=dOmmOqm,&
                                                  par_scheme=par_scheme,&
+                                                 qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
                                                  error=error)
 
              energy(K) =  pw_integral_ab ( rho, grids(coarser_grid_level)%pw )
@@ -1605,10 +1628,9 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE debug_qmmm_forces_with_gauss_LR(pgfs,aug_pools, rho, mm_charges, mm_atom_index,&
-                                             mm_particles, mm_el_pot_radius, num_mm_atoms,&
-                                             coarser_grid_level, potentials,&
-                                             debug_force, para_env, mm_cell,dOmmOqm,iw,&
-                                             par_scheme, error)
+       mm_particles, mm_el_pot_radius, num_mm_atoms, coarser_grid_level, potentials,&
+       debug_force, para_env, mm_cell,dOmmOqm,iw, par_scheme, qmmm_spherical_cutoff, error)
+
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -1628,6 +1650,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: iw, par_scheme
+    REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: qmmm_spherical_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -1673,6 +1696,7 @@ CONTAINS
                                                  mm_cell=mm_cell,&
                                                  dOmmOqm=dOmmOqm,&
                                                  par_scheme=par_scheme,&
+                                                 qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
                                                  error=error)
 
              energy(K) =  pw_integral_ab ( rho, grids(coarser_grid_level)%pw )

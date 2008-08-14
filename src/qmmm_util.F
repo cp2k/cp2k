@@ -38,7 +38,8 @@ MODULE qmmm_util
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_util'
   PUBLIC :: apply_qmmm_walls_reflective,&
             apply_qmmm_walls,&
-            apply_qmmm_translate
+            apply_qmmm_translate,&
+            spherical_cutoff_factor
 
 CONTAINS
 
@@ -378,5 +379,30 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE apply_qmmm_translate
+
+! *****************************************************************************
+!> \brief Computes a spherical cutoff factor for the QMMM interactions
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2008 created 
+!> \author Teodoro Laino
+! *****************************************************************************
+  SUBROUTINE spherical_cutoff_factor(spherical_cutoff, rij, factor, error)
+    REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: spherical_cutoff
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
+    REAL(KIND=dp), INTENT(OUT)               :: factor
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'spherical_cutoff_factor', &
+      routineP = moduleN//':'//routineN
+
+    REAL(KIND=dp)                            :: r, r0
+
+    r   = SQRT(DOT_PRODUCT(rij,rij))
+    r0  = spherical_cutoff(1)-20.0_dp*spherical_cutoff(2)
+    factor = 0.5_dp*(1.0_dp-TANH((r-r0)/spherical_cutoff(2)))
+
+  END SUBROUTINE spherical_cutoff_factor
 
 END MODULE qmmm_util

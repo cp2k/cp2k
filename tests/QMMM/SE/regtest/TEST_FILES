@@ -23,3 +23,5 @@ zwitt.inp            2
 mol_CSVR_gen1.inp    2
 mol_CSVR_gen2.inp    2
 mol_CSVR_gen3.inp    2
+#Spherical cutoff
+mol_sph_cut.inp      2

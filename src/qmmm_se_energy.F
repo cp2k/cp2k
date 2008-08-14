@@ -31,6 +31,7 @@ MODULE qmmm_se_energy
   USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
+  USE qmmm_util,                       ONLY: spherical_cutoff_factor
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -184,6 +185,7 @@ CONTAINS
                                               itype,&
                                               taper,&
                                               anag,&
+                                              qmmm_env%spherical_cutoff,&
                                               error)
                 ! Possibly added charges
                 IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
@@ -202,6 +204,7 @@ CONTAINS
                                                  itype,&
                                                  taper,&
                                                  anag,&
+                                                 qmmm_env%spherical_cutoff,&
                                                  error)       
                 END IF
              END IF
@@ -232,8 +235,8 @@ CONTAINS
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
   SUBROUTINE build_se_qmmm_matrix_low(h_block_a, se_kind_a, se_kind_mm, potentials,&
-       mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
-       num_mm_atoms, mm_cell, IndQM, enuclear, itype, taper, anag, error)
+       mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
+       mm_cell, IndQM, enuclear, itype, taper, anag, qmmm_spherical_cutoff, error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block_a
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
@@ -250,6 +253,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: itype
     TYPE(taper_type), POINTER                :: taper
     LOGICAL, INTENT(IN)                      :: anag
+    REAL(KIND=dp), INTENT(IN)                :: qmmm_spherical_cutoff(2)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_se_qmmm_matrix_low', &
@@ -257,7 +261,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, i1, i1L, i2, Imm, &
                                                 Imp, IndMM, Ipot, j1, j1L
-    REAL(KIND=dp)                            :: enuc, r, rt1, rt2, rt3
+    REAL(KIND=dp)                            :: enuc, r, rt1, rt2, rt3, &
+                                                sph_chrg_factor
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc, rij
     REAL(KIND=dp), DIMENSION(45)             :: e1b
     TYPE(qmmm_pot_type), POINTER             :: Pot
@@ -277,6 +282,12 @@ CONTAINS
           rt3= r_pbc(3) 
           rij = (/rt1,rt2,rt3/)
           se_kind_mm%zeff = mm_charges(Imm)
+          ! Computes the screening factor for the spherical cutoff (if defined)
+          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN 
+             CALL spherical_cutoff_factor(qmmm_spherical_cutoff, rij, sph_chrg_factor, error)
+             se_kind_mm%zeff = se_kind_mm%zeff * sph_chrg_factor
+          END IF
+          IF (ABS(se_kind_mm%zeff)<=EPSILON(0.0_dp)) CYCLE
           CALL rotnuc (se_kind_a, se_kind_mm, rij, itype=itype, e1b=e1b, anag=anag,&
                shortrange=.FALSE., taper=taper, error=error)
           CALL corecore(se_kind_a, se_kind_mm, rij, itype=itype, enuc=enuc, anag=anag,&

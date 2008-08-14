@@ -487,12 +487,13 @@ CONTAINS
     LOGICAL                                  :: explicit, failure, is_mm, &
                                                 is_qm
     REAL(KIND=dp)                            :: tmp_radius, tmp_radius_c
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp_sph_cut
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(section_vals_type), POINTER         :: cell_section, mm_kinds
 
-    NULLIFY(mm_link_atoms, cell_section)
+    NULLIFY(mm_link_atoms, cell_section, tmp_sph_cut)
     qmmm_link = .FALSE.
     failure   = .FALSE.
     CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
@@ -505,6 +506,20 @@ CONTAINS
             check_for_ref=.FALSE., para_env=para_env, error=error)
        CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type,error=error)
        CALL section_vals_val_get(qmmm_section,"EPS_MM_RSPACE",r_val=eps_mm_rspace,error=error)
+       CALL section_vals_val_get(qmmm_section,"SPHERICAL_CUTOFF",r_vals=tmp_sph_cut,error=error)
+       CPPostcondition(SIZE(tmp_sph_cut)==2,cp_failure_level,routineP,error,failure)
+       qmmm_env%spherical_cutoff = tmp_sph_cut
+       IF (qmmm_env%spherical_cutoff(1)<=0.0_dp) THEN 
+          qmmm_env%spherical_cutoff(2) = 0.0_dp
+       ELSE
+          IF (qmmm_env%spherical_cutoff(2)<=0.0_dp) qmmm_env%spherical_cutoff(2)=EPSILON(0.0_dp)
+          tmp_radius = qmmm_env%spherical_cutoff(1)-20.0_dp*qmmm_env%spherical_cutoff(2)
+          CALL cp_assert(tmp_radius>0.0_dp,cp_failure_level,cp_assertion_failed,routineP,&
+               "SPHERICAL_CUTOFF(1) > 20*SPHERICAL_CUTOFF(1)! Please correct parameters for "//&
+               "the Spherical Cutoff in order to satisfy the previous condition!"//&
+CPSourceFileRef,&
+               error,failure)
+       END IF
        !
        ! Initialization of arrays and core_charge_radius...
        !
@@ -673,13 +688,14 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: n_gd, n_gp, n_lj, n_wl, np
+    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: gd_section, gp_section, &
                                                 lj_section, wl_section
 
-!
-! NONBONDED
-!
-
+    failure = .FALSE.
+    !
+    ! NONBONDED
+    !
     lj_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%LENNARD-JONES",error=error)
     wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%WILLIAMS",error=error)
     gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GOODWIN",error=error)
