@@ -27,29 +27,29 @@ MODULE qs_energy_types
 ! *****************************************************************************
   TYPE qs_energy_type
     REAL(KIND = dp) :: core,&
-                core_overlap,&
-                core_self,&
-                repulsive,&
-                dispersion,& 
-                ex,&
-                exc,&
-                exc_aux_fit,&
-                exc1,&
-                hartree,&
-                hartree_1c,&
-                hartree_2c,&
-                hartree_3c,&
-                e_hartree,& ! contains the hartree energy of electrons only
-                            ! computed if requested
-                kg_gpw_ekin_mol,&
-                qmmm_el,&
-                qmmm_nu,&
-                mulliken,&
-                becke,&
-                s2_restraint,&
-                dft_plus_u,& ! DFT+U energy contribution
-                total
-    REAL(KIND = dp),DIMENSION(:),ALLOCATABLE :: ddapc_restraint
+                       core_overlap,&
+                       core_self,&
+                       repulsive,&
+                       dispersion,& 
+                       ex,&
+                       exc,&
+                       exc_aux_fit,&
+                       exc1,&
+                       hartree,&
+                       hartree_1c,&
+                       hartree_2c,&
+                       hartree_3c,&
+                       e_hartree,& ! contains the hartree energy of electrons only
+                                   ! computed if requested
+                       kg_gpw_ekin_mol,&
+                       qmmm_el,&
+                       qmmm_nu,&
+                       mulliken,&
+                       becke,&
+                       s2_restraint,&
+                       dft_plus_u,& ! DFT+U energy contribution
+                       total
+    REAL(KIND = dp), DIMENSION(:), POINTER :: ddapc_restraint
   END TYPE qs_energy_type
 
   ! Public data types
@@ -81,11 +81,10 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     IF (.NOT.ASSOCIATED(qs_energy)) THEN
       ALLOCATE (qs_energy,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"qs_energy",8*dp_size)
+      NULLIFY (qs_energy%ddapc_restraint)
     END IF
 
     CALL init_qs_energy(qs_energy)
@@ -106,16 +105,16 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(qs_energy)) THEN
-       IF(ALLOCATED(qs_energy%ddapc_restraint))&
-            DEALLOCATE(qs_energy%ddapc_restraint)
-       DEALLOCATE (qs_energy,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"qs_energy")
+      IF (ASSOCIATED(qs_energy%ddapc_restraint)) THEN
+        DEALLOCATE (qs_energy%ddapc_restraint,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineP,"qs_energy%ddapc_restraint")
+      END IF
+      DEALLOCATE (qs_energy,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"qs_energy")
     ELSE
       CALL stop_program(routineP,"The qs_energy pointer is not associated "//&
-                                "and cannot be deallocated")
+                                 "and cannot be deallocated")
     END IF
 
   END SUBROUTINE deallocate_qs_energy
@@ -133,7 +132,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_qs_energy', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
+    INTEGER :: istat
 
     IF (ASSOCIATED(qs_energy)) THEN
       qs_energy%core = 0.0_dp
@@ -154,17 +153,20 @@ CONTAINS
       qs_energy%hartree_3c = 0.0_dp
       qs_energy%kg_gpw_ekin_mol = 0.0_dp
       qs_energy%mulliken = 0.0_dp
-      IF(.NOT.ALLOCATED(qs_energy%ddapc_restraint))THEN
-         ALLOCATE(qs_energy%ddapc_restraint(1))
-         qs_energy%ddapc_restraint = 0.0_dp
-      END IF
       qs_energy%becke = 0.0_dp
       qs_energy%s2_restraint = 0.0_dp
       qs_energy%dft_plus_u = 0.0_dp
       qs_energy%total = 0.0_dp
+      IF (.NOT.ASSOCIATED(qs_energy%ddapc_restraint)) THEN
+        ALLOCATE (qs_energy%ddapc_restraint(1),STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routineP,"qs_energy%ddapc_restraint",dp_size)
+        END IF
+        qs_energy%ddapc_restraint(:) = 0.0_dp
+      END IF
     ELSE
       CALL stop_program(routineP,"The qs_energy pointer is not associated "//&
-                                "and cannot be initialised")
+                                 "and cannot be initialised")
     END IF
 
   END SUBROUTINE init_qs_energy
@@ -181,17 +183,15 @@ CONTAINS
 
     TYPE(qs_energy_type), POINTER            :: qs_energy_in, qs_energy_out
 
-!   ------------------------------------------------------------------------
-
     IF (ASSOCIATED(qs_energy_out)) THEN
       CALL deallocate_qs_energy(qs_energy_out)
     ELSE
-      NULLIFY(qs_energy_out)
+      NULLIFY (qs_energy_out)
     END IF
 
     CALL allocate_qs_energy(qs_energy_out)
 
-    CALL copy_qs_energy(qs_energy_in, qs_energy_out)
+    CALL copy_qs_energy(qs_energy_in,qs_energy_out)
     
   END SUBROUTINE duplicate_qs_energy
 
@@ -204,16 +204,16 @@ CONTAINS
 !>      08.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE copy_qs_energy(qs_energy_in, qs_energy_out)
+  SUBROUTINE copy_qs_energy(qs_energy_in,qs_energy_out)
 
     TYPE(qs_energy_type), POINTER            :: qs_energy_in, qs_energy_out
 
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_qs_energy', &
       routineP = moduleN//':'//routineN
 
-!   ------------------------------------------------------------------------
+    INTEGER :: istat
 
-    IF (ASSOCIATED(qs_energy_in) .AND. ASSOCIATED(qs_energy_out)) THEN
+    IF (ASSOCIATED(qs_energy_in).AND.ASSOCIATED(qs_energy_out)) THEN
       qs_energy_out%core            = qs_energy_in%core
       qs_energy_out%core_overlap    = qs_energy_in%core_overlap
       qs_energy_out%core_self       = qs_energy_in%core_self
@@ -231,15 +231,21 @@ CONTAINS
       qs_energy_out%hartree_3c      = qs_energy_in%hartree_3c
       qs_energy_out%kg_gpw_ekin_mol = qs_energy_in%kg_gpw_ekin_mol
       qs_energy_out%mulliken        = qs_energy_in%mulliken
-      IF(SIZE(qs_energy_in%ddapc_restraint).NE.1)THEN
-         DEALLOCATE(qs_energy_out%ddapc_restraint)
-         ALLOCATE(qs_energy_out%ddapc_restraint(SIZE(qs_energy_in%ddapc_restraint)))
-      END IF
       qs_energy_out%ddapc_restraint = qs_energy_in%ddapc_restraint
       qs_energy_out%becke           = qs_energy_in%becke
       qs_energy_out%s2_restraint    = qs_energy_in%s2_restraint
       qs_energy_out%dft_plus_u      = qs_energy_in%dft_plus_u
       qs_energy_out%total           = qs_energy_in%total
+      IF (SIZE(qs_energy_in%ddapc_restraint) /= 1) THEN
+        DEALLOCATE (qs_energy_out%ddapc_restraint,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineP,"qs_energy%ddapc_restraint")
+        ALLOCATE (qs_energy_out%ddapc_restraint(SIZE(qs_energy_in%ddapc_restraint)),&
+                  STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routineP,"qs_energy%ddapc_restraint",&
+                           SIZE(qs_energy_in%ddapc_restraint)*dp_size)
+        END IF
+      END IF
     ELSE
       CALL stop_program(routineP,"The qs_energy pointer is not associated ")
     END IF
