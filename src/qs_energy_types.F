@@ -132,7 +132,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_qs_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
     IF (ASSOCIATED(qs_energy)) THEN
       qs_energy%core = 0.0_dp
@@ -211,7 +211,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_qs_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
     IF (ASSOCIATED(qs_energy_in).AND.ASSOCIATED(qs_energy_out)) THEN
       qs_energy_out%core            = qs_energy_in%core
