@@ -51,3 +51,6 @@ w2-r2.inp
 w2.inp
 #  
 w2-r2.inp
+# numerics SQRT(pi) -> rootpi and same for oorootpi
+w2.inp
+w2-r2.inp

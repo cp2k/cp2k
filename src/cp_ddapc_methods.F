@@ -22,6 +22,7 @@ MODULE cp_ddapc_methods
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
+                                             oorootpi,&
                                              pi,&
                                              twopi
   USE mathlib,                         ONLY: diamat_all,&
@@ -665,7 +666,7 @@ CONTAINS
              ! Self Contribution
              !
              IF (iparticle1 == iparticle2) THEN
-                g_ewald = g_ewald - 2.0_dp * alpha / SQRT(pi)
+                g_ewald = g_ewald - 2.0_dp * alpha * oorootpi
              END IF
              !
              IF (iparticle1/=iparticle2) THEN 

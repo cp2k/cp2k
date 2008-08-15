@@ -18,7 +18,8 @@ MODULE xc_xwpbe
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: pi,&
+                                             rootpi
   USE mathlib,                         ONLY: expint
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -483,7 +484,7 @@ MODULE xc_xwpbe
       t94 = 0.1e1_dp / t93
       t95 = C * t94
       t97 = f34 * pi
-      t98 = SQRT(pi)
+      t98 = rootpi
       t100 = r6 * C
       t103 = r4 * B
       t105 = r8 * A
@@ -620,7 +621,7 @@ MODULE xc_xwpbe
       t326 = t110 / t111 / t323
       t327 = t326 * t287
       t330 = t97 * t116
-      t334 = SQRT(pi)
+      t334 = rootpi
       t335 = 0.1e1_dp / t334
       t336 = t117 * t335
       t337 = f32 ** 2
@@ -1627,7 +1628,7 @@ MODULE xc_xwpbe
       t94 = C * t93
       t95 = t91 * t94
       t96 = f34 * pi
-      t97 = SQRT(pi)
+      t97 = rootpi
       t99 = r6 * C
       t102 = r4 * B
       t104 = r8 * A
@@ -1879,7 +1880,7 @@ MODULE xc_xwpbe
       t522 = t119 * t348 * t77
       t525 = t504 * t121 - t508 * t511 - 0.2e1_dp / 0.3e1_dp * t514 * t518 - (2._dp  &
       * t118 * t522)
-      t529 = SQRT(pi)
+      t529 = rootpi
       t530 = 0.1e1_dp / t529
       t531 = t123 * t530
       t532 = f32 ** 2
@@ -2842,7 +2843,7 @@ MODULE xc_xwpbe
       t160 = t71 + DD + t74
       t161 = 0.1e1_dp / t160
       t163 = LOG(t75 * t161)
-      t166 = SQRT(pi)
+      t166 = rootpi
       t167 = SQRT(t160)
       t171 = SQRT(A)
       t172 = t171 * f34
@@ -3799,7 +3800,7 @@ MODULE xc_xwpbe
       t94 = C * t93
       t95 = t91 * t94
       t96 = f34 * pi
-      t97 = SQRT(pi)
+      t97 = rootpi
       t99 = r6 * C
       t102 = r4 * B
       t104 = r8 * A
@@ -3979,7 +3980,7 @@ MODULE xc_xwpbe
       t388 = t119 * t218 * t77
       t391 = t370 * t121 - t374 * t377 - 0.2e1_dp / 0.3e1_dp * t380 * t384 - (2._dp  &
       * t118 * t388)
-      t395 = SQRT(pi)
+      t395 = rootpi
       t396 = 0.1e1_dp / t395
       t397 = t123 * t396
       t398 = f32 ** 2
@@ -5594,7 +5595,7 @@ MODULE xc_xwpbe
     REAL(dp), INTENT(IN)                     :: Q, dQrho
     REAL(dp)                                 :: dexerrho
 
-    dexerrho = dQrho*exer(Q)-dQrho*SQRT(pi)/SQRT(Q)
+    dexerrho = dQrho*exer(Q)-dQrho*rootpi/SQRT(Q)
   END FUNCTION dexerrho
 
 ! *****************************************************************************
@@ -5602,7 +5603,7 @@ MODULE xc_xwpbe
     REAL(dp), INTENT(IN)                     :: Q, dQndrho
     REAL(dp)                                 :: dexerndrho
 
-    dexerndrho = dQndrho*exer(Q)-dQndrho*SQRT(pi)/SQRT(Q)
+    dexerndrho = dQndrho*exer(Q)-dQndrho*rootpi/SQRT(Q)
   END FUNCTION dexerndrho
 
 ! *****************************************************************************
@@ -5622,7 +5623,7 @@ MODULE xc_xwpbe
     REAL(dp)                                 :: pi12, Q12
 
     Q12 = SQRT(Q)
-    pi12 = SQRT(pi)
+    pi12 = rootpi
   
     d2exerrhorho = exer(Q)*(d2Qrhorho+dQrho*dQrho) - dQrho*dQrho/(pi12*Q12) + &
                    0.5_dp*dQrho*dQrho/(pi12*Q*Q12)-d2Qrhorho/(pi12*Q12)
@@ -5645,7 +5646,7 @@ MODULE xc_xwpbe
     REAL(dp)                                 :: pi12, Q12
 
     Q12 = SQRT(Q)
-    pi12 = SQRT(pi)
+    pi12 = rootpi
 
     d2exerrhondrho = exer(Q)*(d2Qrhondrho+dQrho*dQndrho) - 1.0_dp/(pi12*Q12)*dQrho*dQndrho & 
                      + 0.5_dp/(pi12*Q12*Q)*dQrho*dQndrho - 1.0_dp/(pi12*Q12)*d2Qrhondrho
@@ -5668,7 +5669,7 @@ MODULE xc_xwpbe
     REAL(dp)                                 :: pi12, Q12
 
     Q12 = SQRT(Q)
-    pi12 = SQRT(pi)
+    pi12 = rootpi
 
     d2exerndrhondrho = exer(Q)*(d2Qndrhondrho+dQndrho*dQndrho) - dQndrho*dQndrho/(pi12*Q12) &
                        + 0.5_dp*dQndrho*dQndrho/(pi12*Q*Q12)-d2Qndrhondrho/(pi12*Q12) 

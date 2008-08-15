@@ -47,3 +47,5 @@
 2gly_DIIS-SD-NEB.inp
 2gly_DIIS-SD-2.inp
 2gly_DIIS-DNEB.inp
+# numerics SQRT(pi) -> rootpi and same for oorootpi
+2gly_DIIS-SD-2.inp

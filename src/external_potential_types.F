@@ -37,7 +37,8 @@ MODULE external_potential_types
                                              dp
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
-                                             pi
+                                             pi,&
+                                             rootpi
   USE mathlib,                         ONLY: symmetrize_matrix
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: co,&
@@ -645,7 +646,7 @@ CONTAINS
           lprj_ppnl = l + 2*lp
           cp = SQRT(2.0_dp**(2.0_dp*REAL(lprj_ppnl,dp) + 3.5_dp)*&
                alpha_ppnl**(REAL(lprj_ppnl,dp) + 1.5_dp)/&
-               (SQRT(pi)*dfac(2*lprj_ppnl + 1)))
+               (rootpi*dfac(2*lprj_ppnl + 1)))
           potential%cprj_ppnl(iprj_ppnl,l) = cp
           DO cx=0,l
              DO cy=0,l-cx

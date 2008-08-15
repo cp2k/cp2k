@@ -413,3 +413,13 @@ H2O-dist-5.inp
 C-sic-1.inp
 #  
 C-sic-2.inp
+# numerics SQRT(pi) -> rootpi and same for oorootpi
+N3-10.inp
+N3-2.inp
+N3-3.inp
+N3-4.inp
+N3-5.inp
+N3-6.inp
+N3-7.inp
+N3-8.inp
+N3-9.inp

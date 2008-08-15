@@ -263,7 +263,7 @@ CONTAINS
 
     IF (do_ewald) THEN
       ! add self charge interaction and background charge contribution
-      gmcharge(:,1) = gmcharge(:,1) - 2._dp*alpha/SQRT(pi)*mcharge(:)
+      gmcharge(:,1) = gmcharge(:,1) - 2._dp*alpha*oorootpi*mcharge(:)
       IF ( ANY (periodic(:)==1) ) THEN
         gmcharge(:,1) = gmcharge(:,1) - pi / alpha**2 / deth
       END IF

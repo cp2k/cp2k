@@ -31,6 +31,7 @@ MODULE ewalds_multipole
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
+                                             oorootpi,&
                                              pi
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
@@ -382,7 +383,7 @@ CONTAINS
                    tmp   = 0.0_dp
                 ELSE
                    f(0)  = erfc(alpha*r)*ir
-                   tmp   = EXP(-alpha**2*rab2)/SQRT(pi)
+                   tmp   = EXP(-alpha**2*rab2)*oorootpi
                 END IF
                 fac = 1.0_dp
                 DO i = 1, 5
@@ -1833,10 +1834,10 @@ CONTAINS
     dipole_self = 0.0_dp
     ch_qu_self  = 0.0_dp
     qu_qu_self  = 0.0_dp
-    fac1        = 2.0_dp*alpha/SQRT(pi)
-    fac2        = (f23**2)*(alpha**3)/SQRT(pi)
-    fac3        = (2.0_dp/SQRT(pi))*f23*alpha**3
-    fac4        = (4.0_dp/SQRT(pi))*f415*alpha**5
+    fac1        = 2.0_dp*alpha*oorootpi
+    fac2        = (f23**2)*(alpha**3)*oorootpi
+    fac3        = (2.0_dp*oorootpi)*f23*alpha**3
+    fac4        = (4.0_dp*oorootpi)*f415*alpha**5
     DO iparticle_kind=1,SIZE(local_particles%n_el)
        nparticle_local = local_particles%n_el(iparticle_kind)
        DO iparticle_local=1,nparticle_local
@@ -1889,7 +1890,7 @@ CONTAINS
     CALL mp_sum (ch_qu_self, group)
     CALL mp_sum (qu_qu_self, group)
 
-    e_self = -(q_self+f23*(dipole_self-f23*ch_qu_self+f415*qu_qu_self*alpha**2)*alpha**2)*alpha/SQRT(pi)
+    e_self = -(q_self+f23*(dipole_self-f23*ch_qu_self+f415*qu_qu_self*alpha**2)*alpha**2)*alpha*oorootpi
     fac1   = pi/(2.0_dp * alpha ** 2)
     e_neut = -q_sum**2 * fac1
 

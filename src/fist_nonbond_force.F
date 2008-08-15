@@ -28,7 +28,7 @@ MODULE fist_nonbond_force
                                              fist_nonbond_env_type,&
                                              pos_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: oorootpi
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
   USE pair_potential_types,            ONLY: nosh_nosh,&
@@ -544,7 +544,7 @@ CONTAINS
     v_bonded_corr = 0.0_dp
     ! Defining the constants
     CALL ewald_env_get ( ewald_env, alpha = alpha, group = group ,error=error)
-    const = 2.0_dp * alpha / SQRT( pi )
+    const = 2.0_dp * alpha * oorootpi
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              shell_adiabatic=shell_adiabatic)

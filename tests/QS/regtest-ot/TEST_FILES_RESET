@@ -344,3 +344,5 @@ He2_ddapc_constraint.inp
 sic_ddapc_rt.inp
 # constant rootpi corrected 
 sic_ddapc_rt.inp
+# numerics SQRT(pi) -> rootpi and same for oorootpi
+sic_ddapc_rt.inp

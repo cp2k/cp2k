@@ -18,7 +18,8 @@ MODULE xc_xbecke88_long_range
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: pi,&
+                                             rootpi
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -344,7 +345,7 @@ CONTAINS
             t22 = SQRT(t21)
             t23 = t22 * t21
             t24 = my_rho * t23
-            t26 = SQRT(pi)
+            t26 = rootpi
             t27 = 0.1e1_dp / t26
             t28 = 0.1e1_dp / omega
             t29 = 0.1e1_dp / t22
@@ -1126,7 +1127,7 @@ CONTAINS
             t22 = SQRT(t21)
             t23 = t22 * t21
             t24 = rho * t23
-            t26 = SQRT(pi)
+            t26 = rootpi
             t27 = 0.1e1_dp / t26
             t28 = 0.1e1_dp / omega
             t29 = 0.1e1_dp / t22

@@ -131,3 +131,7 @@ crys_per_qmmm_spln.inp
 wat_nacl.inp
 # more numerics rootpi
 crys_per_qmmm_anal.inp
+# numerics SQRT(pi) -> rootpi and same for oorootpi
+acn-conn-1.inp
+# numerics SQRT(pi) -> rootpi and same for oorootpi
+acn-qmmm-re.inp

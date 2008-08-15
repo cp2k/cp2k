@@ -29,6 +29,7 @@ MODULE ewalds
   USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
+                                             oorootpi,&
                                              pi
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
@@ -307,7 +308,7 @@ CONTAINS
     e_neut = 0.0_dp
     e_self = 0.0_dp
     IF ( ewald_type /= do_ewald_none) THEN
-       e_self = -q_self *  alpha / SQRT(pi)
+       e_self = -q_self *  alpha * oorootpi
        e_neut = -q_sum ** 2 * pi / ( 2.0_dp * alpha ** 2 )
     END IF
 

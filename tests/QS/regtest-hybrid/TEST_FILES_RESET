@@ -245,3 +245,8 @@ Li-hybrid-MCY3.inp
 Li-hybrid-rcam-b3lyp.inp
 # more numerics rootpi -> g95 popt
 Li-hybrid-rcam-b3lyp.inp
+# numerics SQRT(pi) -> rootpi and same for oorootpi
+Ne-hybrid-MCY3.inp
+Ne-hybrid-rcam-b3lyp.inp
+# numerics SQRT(pi) -> rootpi and same for oorootpi
+Li-hybrid-rcam-b3lyp.inp

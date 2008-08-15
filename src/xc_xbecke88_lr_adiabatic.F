@@ -24,7 +24,8 @@ MODULE xc_xbecke88_lr_adiabatic
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: pi,&
+                                             rootpi
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -499,7 +500,7 @@ CONTAINS
             t41 = SQRT(t40)
             t42 = t41 * t40
             t43 = t4 * t42
-            t44 = SQRT(pi)
+            t44 = rootpi
             t45 = 0.1e1_dp / t44
             t46 = omega * t45
             t47 = 0.1e1_dp / omega
@@ -3312,7 +3313,7 @@ CONTAINS
             t41 = SQRT(t40)
             t42 = t41 * t40
             t43 = t4 * t42
-            t44 = SQRT(pi)
+            t44 = rootpi
             t45 = 0.1e1_dp / t44
             t46 = omega * t45
             t47 = 0.1e1_dp / omega

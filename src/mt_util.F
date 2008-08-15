@@ -14,6 +14,7 @@ MODULE mt_util
                                              MT2D
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
+                                             oorootpi,&
                                              pi
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_methods,                      ONLY: pw_axpy,&
@@ -186,7 +187,7 @@ CONTAINS
              IF(r.GT.1.0E-10_dp) THEN
                 Vloc%cr3d(ii,jj,kk)=erf(alpha*r)/r*fact
              ELSE
-                Vloc%cr3d(ii,jj,kk)=2.0_dp*alpha/SQRT(Pi)*fact
+                Vloc%cr3d(ii,jj,kk)=2.0_dp*alpha*oorootpi*fact
              END IF
              ii = ii + 1
           END DO

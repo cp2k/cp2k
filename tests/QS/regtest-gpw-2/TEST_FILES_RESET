@@ -454,3 +454,5 @@ hcn_ts.inp
 hcn_ts_r.inp
 # constant rootpi corrected 
 hcn_ts_r.inp
+# numerics SQRT(pi) -> rootpi and same for oorootpi
+hcn_ts_r.inp

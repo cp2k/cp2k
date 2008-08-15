@@ -31,3 +31,7 @@
 # more numerics for eps0 commit
 2gly_CI-NEB.inp
 2gly_IT-NEB.inp
+# numerics SQRT(pi) -> rootpi and same for oorootpi
+2gly_B-NEB.inp
+2gly_CI-NEB.inp
+2gly_IT-NEB.inp

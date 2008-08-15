@@ -53,3 +53,7 @@ H2O-rks-otcg-mulliken.inp
 H2O-uks-otcg-mulliken.inp
 # more numerics rootpi
 H2O-rks-diag.inp
+# numerics SQRT(pi) -> rootpi and same for oorootpi
+H2O-rks-diag.inp
+H2O-rks-otcg.inp
+H2O-rks-otcg-mulliken.inp

@@ -13,7 +13,8 @@ MODULE xc_adiabatic_methods
 
   USE input_constants,                 ONLY: do_hfx_potential_coulomb
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: oorootpi,&
+                                             pi
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -96,7 +97,7 @@ MODULE xc_adiabatic_methods
     nelectron = nelec_a + nelec_b
     dfa_energy = energy%exc + energy%exc1
     a = hf_energy(1)
-    b = -c1*2.0_dp*adiabatic_omega/SQRT(PI)*nelectron!-0.23163_dp*2.0_dp*0.2_dp/SQRT(PI)*nelectron
+    b = -c1*2.0_dp*adiabatic_omega*oorootpi*nelectron!-0.23163_dp*2.0_dp*0.2_dp*oorootpi*nelectron
     c = -1.0_dp / adiabatic_lambda -b/(hf_energy(1)-dfa_energy-hf_energy(2))
 
     dExc_da = 1.0_dp
