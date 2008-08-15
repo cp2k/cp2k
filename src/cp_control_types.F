@@ -32,6 +32,7 @@ MODULE cp_control_types
      LOGICAL :: spherical
      LOGICAL :: fullspace
      INTEGER, DIMENSION(2) :: distribution_layout
+     LOGICAL :: blocked
   END TYPE pw_grid_option
 
 ! *****************************************************************************

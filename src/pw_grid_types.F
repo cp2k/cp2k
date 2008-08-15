@@ -35,6 +35,7 @@ MODULE pw_grid_types
   TYPE pw_para_type
      INTEGER :: mode                 ! 0 = local = PW_MODE_LOCAL ; 1 = distributed = PW_MODE_DISTRIBUTED
      LOGICAL :: ray_distribution     ! block or pencil distribution
+     LOGICAL :: blocked              ! block or pencil distribution
      INTEGER :: group                ! MPI group id
      INTEGER :: my_pos               ! Position within group
      INTEGER :: group_size           ! # of Processors in group

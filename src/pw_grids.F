@@ -440,6 +440,7 @@ CONTAINS
     ELSE
        blocking = .TRUE.
     END IF
+    pw_grid % para % blocked = blocking
 
     ! set pointer to possible reference grid
     IF ( PRESENT ( ref_grid ) ) THEN
@@ -641,6 +642,11 @@ CONTAINS
                " processors"
           WRITE ( info, '(A,T71,2I5)' ) &
                " PW_GRID: Real space group dimensions ", pw_grid % para % rs_dims
+          IF ( pw_grid % para % blocked ) THEN
+             WRITE ( info, '(A,T78,A)' ) " PW_GRID: the grid is blocked: ","YES"
+          ELSE
+             WRITE ( info, '(A,T78,A)' ) " PW_GRID: the grid is blocked: "," NO"
+          END IF
           IF ( pw_grid % spherical ) THEN
              WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
                   "spherical cutoff", pw_grid % cutoff, "a.u."

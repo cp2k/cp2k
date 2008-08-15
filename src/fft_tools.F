@@ -1644,7 +1644,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     INTEGER                                  :: cpos( 2 ), handle, icrs, ip, &
                                                 ipr, ir, ix, iz, jj, jx, jy, &
                                                 jz, myx, myz, nmax, np, npx, &
-                                                npz, nx, ny, nz, rs_pos
+                                                npz, nx, nz, rs_pos
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
@@ -1655,19 +1655,17 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
   CALL timeset("yz_to_xz","I","Mcopy",handle)
 
   np = SIZE ( p2p )
-  ny = MAXVAL ( bo ( 2, 2, : ) - bo ( 1, 2, : ) + 1 )
-  nmax = MAX ( (2*ny)/np, 2) * SIZE ( tb ,2 )
-  nx = MAXVAL ( bo ( 2, 1, : ) - bo ( 1, 1, : ) + 1 )
-  nmax = MAX ( nmax, nx*MAXVAL(nray(:)) )
 
   rs_pos = p2p ( my_pos )
 
   IF ( alltoall_sgl ) THEN
     ts => fft_scratch%ss
     tq => fft_scratch%tt
+    nmax = SIZE(tq,1)
   ELSE
     rs => fft_scratch%qq
     rq => fft_scratch%rr
+    nmax = SIZE(rq,1)
   END IF
   npx = dims ( 1 )
   npz = dims ( 2 )
@@ -1811,7 +1809,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     INTEGER                                  :: cpos( 2 ), handle, icrs, ip, &
                                                 ipl, ir, ix, ixx, iz, jj, jx, &
                                                 jy, jz, mp, myx, myz, nmax, &
-                                                np, npx, npz, nx, ny, nz
+                                                np, npx, npz, nx, nz
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
@@ -1822,17 +1820,15 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
   CALL timeset("xz_to_yz","I","Mcopy",handle)
 
   np = SIZE ( p2p )
-  ny = MAXVAL ( bo ( 2, 2, : ) - bo ( 1, 2, : ) + 1 )
-  nmax = MAX ( (2*ny)/np, 2) * SIZE ( sb ,2 )
-  nx = MAXVAL ( bo ( 2, 1, : ) - bo ( 1, 1, : ) + 1 )
-  nmax = MAX ( nmax, nx*MAXVAL(nray(:)) )
 
   IF ( alltoall_sgl ) THEN
     ts => fft_scratch%ss
     tq => fft_scratch%tt
+    nmax = SIZE(tq,1)
   ELSE
     rs => fft_scratch%qq
     rq => fft_scratch%rr
+    nmax = SIZE(rq,1)
   END IF
   npx = dims ( 1 )
   npz = dims ( 2 )

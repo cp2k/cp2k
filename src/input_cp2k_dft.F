@@ -1729,6 +1729,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="PW_GRID_BLOCKED",&
+            description="Expert use only, leave the default..."//&
+                        "Can be used to set the distribution for ray-distributed FFT.",&
+            usage="PW_GRID_BLOCKED",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="EXTRAPOLATION",&
             variants=s2a("INTERPOLATION","WF_INTERPOLATION"),&
             description="Extrapolation strategy for the wavefunction during e.g. MD."//&
