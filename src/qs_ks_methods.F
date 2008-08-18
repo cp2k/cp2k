@@ -304,8 +304,8 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: cc_new, cc_old
     INTEGER :: adiabatic_functional, adiabatic_model, handle, ig, ikind, &
       irep, ispin, k, k2, n, n_rep_hf, nspins, output_unit, stat
-    LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ep, &
-      do_hfx, explicit_potential, failure, gapw, gapw_xc, ionode, &
+    LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
+      do_ep, do_hfx, explicit_potential, failure, gapw, gapw_xc, ionode, &
       my_diis_step, my_kg_gpw, use_virial
     REAL(dp) :: a, adiabatic_lambda, adiabatic_omega, &
       adiabatic_rescale_factor, scale_dDFA, scale_ddW0, scale_dEx1, &
@@ -358,14 +358,11 @@ CONTAINS
     TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
 
     failure=.FALSE.
+    CALL timeset(routineN,'I','',handle)
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
          pw_env, cell, logger, v_rspace_new, v_tau_rspace,&
          input, poisson_env, scf_section,my_rho,becke, v_rspace_new_aux_fit,&
          v_tau_rspace_aux_fit)
-
-    !   -----------------------------------------------------------------------
-
-    CALL timeset(routineN,'I','',handle)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -422,6 +419,12 @@ CONTAINS
     CPPrecondition(rho%rho_r_valid,cp_failure_level,routineP,error,failure)
     CPPrecondition(rho%rho_g_valid,cp_failure_level,routineP,error,failure)
 
+    ! Setup the possible usage of DDAPC charges
+    do_ddapc = qs_env%dft_control%qs_control%ddapc_restraint.OR.&
+               qs_env%cp_ddapc_ewald%do_decoupling.OR.&
+               qs_env%cp_ddapc_ewald%do_qmmm_periodic.OR.&
+               qs_env%cp_ddapc_ewald%do_solvation
+
     ! Check for GAPW method : additional terms for local densities
     gapw    = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
@@ -443,10 +446,9 @@ CONTAINS
                        pw_pools=pw_pools, poisson_env=poisson_env,error=error)
     END IF
 
-! ***  Prepare densities for gapw ***
-
+    ! ***  Prepare densities for gapw ***
     IF(gapw .OR. gapw_xc) THEN
-      CALL prepare_gapw_den(qs_env,do_rho0=(.NOT.gapw_xc),error=error)
+       CALL prepare_gapw_den(qs_env,do_rho0=(.NOT.gapw_xc),error=error)
     ENDIF
 
     IF (.NOT. failure) THEN
@@ -516,7 +518,7 @@ CONTAINS
           CALL pw_zero(v_hartree_gspace%pw)
        END IF
 
-!CJM get the total density in g-space [ions + electrons]
+       !CJM get the total density in g-space [ions + electrons]
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho,error=error)
 
        output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
@@ -525,8 +527,8 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%TOTAL_DENSITIES", error=error)
 
-! CJM getting the Hartree energy and Hartree potential.  Also getting the stress tensor
-! CJM from the Hartree term if needed.  No nuclear force information here
+       ! CJM getting the Hartree energy and Hartree potential.  Also getting the stress tensor
+       ! CJM from the Hartree term if needed.  No nuclear force information here
        IF (use_virial .AND. calculate_forces) THEN
          h_stress(:,:) = 0.0_dp
          CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
@@ -536,29 +538,33 @@ CONTAINS
          CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
                              v_hartree_gspace%pw,error=error)
        END IF
-!***SCP
        IF ( dft_control % scp ) THEN
-         ! Compute the contribution rho_scp * v_hartree_gspace.  v_hartree_gpace is
-         ! potential due to the ions + electrons.  
-! Get the SCP environment
-         CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
-         CALL scp_calculate_gpw_energy ( scp_env, v_hartree_gspace, error )
+          ! Compute the contribution rho_scp * v_hartree_gspace.  v_hartree_gpace is
+          ! potential due to the ions + electrons.  
+          ! Get the SCP environment
+          CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
+          CALL scp_calculate_gpw_energy ( scp_env, v_hartree_gspace, error )
        END IF 
-!***SCP
 
        ! In case decouple periodic images and/or apply restraints to charges
-       ! also transforms the v_hartree_gspace in v_hartree_rspace
-       CALL qs_ks_ddapc(qs_env,auxbas_pw_pool,rho_tot_gspace,v_hartree_gspace,&
-            v_spin_ddapc_rest_r,energy,calculate_forces, ks_env, ks_matrix,just_energy,&
-            ddapc_restraint_is_spin,explicit_potential,error)
+       IF (do_ddapc) THEN
+          CALL qs_ks_ddapc(qs_env, auxbas_pw_pool, rho_tot_gspace, v_hartree_gspace,&
+               v_spin_ddapc_rest_r, energy, calculate_forces, ks_env, ks_matrix,    &
+               just_energy, ddapc_restraint_is_spin, explicit_potential, error)
+       ELSE
+          explicit_potential      = .FALSE.
+          ddapc_restraint_is_spin = .FALSE.
+          IF (.NOT. just_energy) THEN
+             CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw)
+             CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol)
+          END IF
+       END IF
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)
 
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,&
-            error=error)
-
-       
-       CALL calc_v_sic_rspace(v_sic_rspace,energy,&
-                              qs_env,dft_control,rho,poisson_env,just_energy,&
-                              calculate_forces,auxbas_pw_pool,error=error)
+       ! SIC
+       CALL calc_v_sic_rspace(v_sic_rspace,energy,qs_env,dft_control,rho,poisson_env,&
+            just_energy,calculate_forces,auxbas_pw_pool,error=error)
 
        IF ( gapw ) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c,error=error)
 

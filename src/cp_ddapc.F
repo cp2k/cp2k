@@ -66,8 +66,7 @@ MODULE cp_ddapc
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Set of methods using DDAPC charges, modifies ks_env even if nothing 
-!>        ddapc related goes on.
+!> \brief Set of methods using DDAPC charges
 !> \par History
 !>      08.2005 created [tlaino]
 !>      08.2008 extended to restraint/constraint DDAPC charges [fschiff]
@@ -87,14 +86,15 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     LOGICAL, INTENT(in)                      :: just_energy
-    LOGICAL                                  :: ddapc_restraint_is_spin, &
+    LOGICAL, INTENT(OUT)                     :: ddapc_restraint_is_spin, &
                                                 explicit_potential
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_ddapc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ddapc_size, handle, i, my_id
+    INTEGER                                  :: ddapc_size, handle, i, my_id, &
+                                                stat
     LOGICAL                                  :: et_coupling_calc, failure
     REAL(KIND=dp)                            :: ddapc_order_p
     TYPE(cp_logger_type), POINTER            :: logger
@@ -108,14 +108,16 @@ CONTAINS
     ! In case decouple periodic images and/or apply restraints to charges
     failure        = .FALSE.
     logger         => cp_error_get_logger(error)
-    ddapc_restraint_is_spin=.FALSE.
-    et_coupling_calc=.FALSE.
+    ddapc_restraint_is_spin =.FALSE.
+    et_coupling_calc        =.FALSE.
 
     IF(qs_env%dft_control%qs_control%ddapc_restraint)THEN
-       ddapc_size=SIZE( qs_env%dft_control%qs_control%ddapc_restraint_control )
+       ddapc_size=SIZE(qs_env%dft_control%qs_control%ddapc_restraint_control)
        IF(SIZE(energy%ddapc_restraint).NE.ddapc_size)THEN
-          DEALLOCATE(energy%ddapc_restraint)
-          ALLOCATE(energy%ddapc_restraint(ddapc_size))
+          DEALLOCATE(energy%ddapc_restraint,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(energy%ddapc_restraint(ddapc_size),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
        DO i=1,SIZE( qs_env%dft_control%qs_control%ddapc_restraint_control )
@@ -127,12 +129,10 @@ CONTAINS
 
     explicit_potential=ddapc_restraint_is_spin.OR.et_coupling_calc
     IF (explicit_potential) THEN
-       CALL pw_pool_create_pw(auxbas_pw_pool,&
-            v_spin_ddapc_rest_g%pw, &
+       CALL pw_pool_create_pw(auxbas_pw_pool,v_spin_ddapc_rest_g%pw,&
             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,error=error)
        CALL pw_zero(v_spin_ddapc_rest_g%pw)
-       CALL pw_pool_create_pw(auxbas_pw_pool,&
-            v_spin_ddapc_rest_r%pw, &
+       CALL pw_pool_create_pw(auxbas_pw_pool,v_spin_ddapc_rest_r%pw,&
             use_data=REALDATA3D,in_space=REALSPACE,error=error)
     ENDIF
 
@@ -192,7 +192,6 @@ CONTAINS
     IF (explicit_potential) THEN
        CALL pw_pool_give_back_pw(auxbas_pw_pool,v_spin_ddapc_rest_g%pw,error=error)
     ENDIF
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE qs_ks_ddapc
@@ -349,9 +348,9 @@ CONTAINS
 !>      08.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE cp_ddapc_apply_RS(qs_env, energy, energy_res,&
-       v_hartree_gspace, v_spin_ddapc_rest_g,section_id,&
-       ddapc_restraint_control,calculate_forces, error)
+  SUBROUTINE cp_ddapc_apply_RS(qs_env, energy, energy_res,v_hartree_gspace,&
+       v_spin_ddapc_rest_g,section_id,ddapc_restraint_control,calculate_forces,&
+       error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: energy_res
@@ -424,9 +423,6 @@ CONTAINS
        END IF
 
        ! Modify the Hartree potential due to the restrain or the v_spin_ddapc_rest_g
-
-!      
-       
        IF ((my_id==do_spin_density).OR.qs_env%dft_control%qs_control%et_coupling_calc) THEN
           CALL restraint_functional_potential(v_spin_ddapc_rest_g, density_fit_section,&
                                            particle_set, qs_env%cp_ddapc_env%AmI, radii, charges, &
