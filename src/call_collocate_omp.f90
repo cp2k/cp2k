@@ -23,7 +23,13 @@
  CASE(7)
  CALL collocate_core_7(lgrid%r(ig),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
                         map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
+ CASE(8)
+ CALL collocate_core_8(lgrid%r(ig),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                        map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
+ CASE(9)
+ CALL collocate_core_9(lgrid%r(ig),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                        map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
   CASE DEFAULT
- CALL collocate_core_default(lgrid%r(ig),coef_xyz(1),pol_x(0,-cmax),pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+ CALL collocate_core_default(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax),pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
                         map(-cmax,1),sphere_bounds(1),lp,cmax,gridbounds(1,1))
   END SELECT

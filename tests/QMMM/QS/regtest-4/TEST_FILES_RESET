@@ -135,3 +135,9 @@ crys_per_qmmm_anal.inp
 acn-conn-1.inp
 # numerics SQRT(pi) -> rootpi and same for oorootpi
 acn-qmmm-re.inp
+#  
+acn-qmmm-re.inp
+#  
+acn-conn-1.inp
+#  
+acn-conn-1.inp

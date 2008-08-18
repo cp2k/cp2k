@@ -23,6 +23,12 @@
  CASE(7)
  CALL integrate_core_7(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
                         map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
+ CASE(8)
+ CALL integrate_core_8(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                        map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
+ CASE(9)
+ CALL integrate_core_9(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                        map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
   CASE DEFAULT
  CALL integrate_core_default(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax),pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
                         map(-cmax,1),sphere_bounds(1),lp,cmax,gridbounds(1,1))

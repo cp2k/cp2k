@@ -107,3 +107,5 @@ H2O-gapw-gth-pvh.inp
 H2O-gapw-all_noortho.inp
 H2O-gapw-all_localize_noortho.inp
 H2O-gapw-all_localize_crazy_noortho.inp
+#  
+He2-all-md.inp

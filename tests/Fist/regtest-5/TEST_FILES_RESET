@@ -153,3 +153,5 @@ wat125.inp
 H2O-1-GENPOT.inp
 H2O-1-GENPOT-2.inp
 H2OFe-5_75.inp
+#  
+JAC_gen.inp
