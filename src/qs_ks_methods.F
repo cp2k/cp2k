@@ -547,6 +547,7 @@ CONTAINS
 !***SCP
 
        ! In case decouple periodic images and/or apply restraints to charges
+       ! also transforms the v_hartree_gspace in v_hartree_rspace
        CALL qs_ks_ddapc(qs_env,auxbas_pw_pool,rho_tot_gspace,v_hartree_gspace,&
             v_spin_ddapc_rest_r,energy,calculate_forces, ks_env, ks_matrix,just_energy,&
             ddapc_restraint_is_spin,explicit_potential,error)

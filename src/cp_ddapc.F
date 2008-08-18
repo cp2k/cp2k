@@ -66,7 +66,8 @@ MODULE cp_ddapc
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Set of methods using DDAPC charges
+!> \brief Set of methods using DDAPC charges, modifies ks_env even if nothing 
+!>        ddapc related goes on.
 !> \par History
 !>      08.2005 created [tlaino]
 !>      08.2008 extended to restraint/constraint DDAPC charges [fschiff]
