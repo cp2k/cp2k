@@ -316,3 +316,5 @@ H2O-qmmm-gauss-12.inp
 H2O-qmmm-gauss-13.inp
 # more numerics rootpi
 H2O-qmmm-gauss-1.inp
+# more numerics: NAG
+Ar-qmmm.inp

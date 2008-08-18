@@ -356,3 +356,5 @@ H2.inp
 H2O-geoopt.inp
 #  
 H2O-fixed.inp
+# more numerics: NAG
+K2.inp
