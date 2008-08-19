@@ -717,6 +717,12 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="PW_GRID_LAYOUT_ALL",&
+         description="loop overal all PW_GRID_LAYOUTs that are compatible with a given number of CPUs ",&
+         usage="PW_GRID_LAYOUT_ALL",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="PW_GRID_LAYOUT",&
          description="Expert use only, leave the default..."//&
                      "Can be used to set the distribution for ray-distributed FFT.",&

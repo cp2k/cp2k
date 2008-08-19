@@ -61,7 +61,6 @@ MODULE library_tests
                                              m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
-                                             mp_min,&
                                              mp_sum,&
                                              mp_sync
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
@@ -806,13 +805,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: toler = 1.e-11_dp
 
-    INTEGER                                  :: grid_span, i_rep, ig, ip, &
-                                                itmp, n_loop, n_rep, nn
+    INTEGER                                  :: grid_span, i_layout, i_rep, &
+                                                ig, ip, itmp, n_loop, n_rep, &
+                                                nn, p, q
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: layouts
     INTEGER, DIMENSION(2)                    :: distribution_layout
     INTEGER, DIMENSION(3)                    :: no, np
     INTEGER, DIMENSION(:), POINTER           :: i_vals
     LOGICAL                                  :: blocked, is_fullspace, odd, &
-                                                spherical
+                                                pw_grid_layout_all, spherical
     REAL(KIND=dp)                            :: em, et, flops, gsq, perf, t, &
                                                 t_max, t_min, tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: t_end, t_start
@@ -840,125 +841,159 @@ CONTAINS
        ALLOCATE(t_start(N_loop))
        ALLOCATE(t_end(N_loop))
 
-       CALL pw_grid_create ( grid, para_env%group ,error=error)
-
        ! setup of the grids
        CALL section_vals_val_get(pw_transfer_section,"GRID",i_rep_section=i_rep,i_vals=i_vals,error=error )
        np = i_vals
 
-       CALL section_vals_val_get(pw_transfer_section,"PW_GRID_LAYOUT",i_rep_section=i_rep,i_vals=i_vals,error=error)
-       distribution_layout=i_vals
-
        CALL section_vals_val_get(pw_transfer_section,"PW_GRID_BLOCKED",i_rep_section=i_rep,l_val=blocked,error=error )
 
-       CALL section_vals_val_get(pw_transfer_section,"PW_GRID",i_rep_section=i_rep,i_val=itmp,error=error)
+       CALL section_vals_val_get(pw_transfer_section,"PW_GRID_LAYOUT_ALL",i_rep_section=i_rep,&
+            l_val=pw_grid_layout_all,error=error )
 
-       ! from cp_control_utils
-       SELECT CASE (itmp)
-       CASE(do_pwgrid_spherical)
-          spherical = .TRUE.
-          is_fullspace = .FALSE.
-       CASE (do_pwgrid_ns_fullspace)
-          spherical = .FALSE.
-          is_fullspace = .TRUE.
-       CASE (do_pwgrid_ns_halfspace)
-          spherical = .FALSE.
-          is_fullspace = .FALSE.
-       END SELECT
-
-       ! from pw_env_methods
-       IF ( spherical ) THEN
-          grid_span = HALFSPACE
-          spherical = .TRUE.
-          odd = .TRUE.
-       ELSE IF ( is_fullspace ) THEN
-          grid_span = FULLSPACE
-          spherical = .FALSE.
-          odd = .FALSE.
+       ! prepare to loop over all or a specific layout 
+       IF (pw_grid_layout_all) THEN
+          ! count layouts that fit
+          itmp=0
+          ! start from 2, (/1,para_env%num_pe/) is not supported
+          DO p=2,para_env%num_pe
+             q=para_env%num_pe/p
+             IF (p*q==para_env%num_pe) THEN
+                itmp=itmp+1
+             ENDIF
+          ENDDO
+          ! build list
+          ALLOCATE(layouts(2,itmp))
+          itmp=0
+          DO p=2,para_env%num_pe
+             q=para_env%num_pe/p
+             IF (p*q==para_env%num_pe) THEN
+                itmp=itmp+1
+                layouts(:,itmp)=(/p,q/)
+             ENDIF
+          ENDDO
        ELSE
-          grid_span = HALFSPACE
-          spherical = .FALSE.
-          odd = .TRUE.
-       END IF
-
-       ! actual setup
-       CALL pw_grid_setup ( box, grid, grid_span=grid_span, odd=odd, spherical=spherical, &
-                            blocked=blocked, npts=np, fft_usage=.TRUE.,&
-                            rs_dims=distribution_layout, iounit=iw, error=error)
-
-       IF (iw>0) CALL m_flush(iw)
-
-       ! note that the number of grid points might be different from what the user requested (fft-able needed)
-       no = grid % npts
-
-       NULLIFY(ca%pw)
-       NULLIFY(cb%pw)
-       NULLIFY(cc%pw)
-
-       CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
-       CALL pw_create ( cb%pw, grid, COMPLEXDATA3D ,error=error)
-       CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
-
-       ! initialize data
-       CALL pw_zero ( ca%pw )
-       CALL pw_zero ( cb%pw )
-       CALL pw_zero ( cc%pw )
-       ca % pw % in_space = RECIPROCALSPACE
-       nn = SIZE ( ca % pw % cc  )
-       DO ig = 1, nn
-          gsq = grid % gsq ( ig )
-          ca  % pw % cc ( ig ) = EXP ( - gsq )
-       END DO
-
-       flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
-       tstart = m_walltime ( )
-       DO ip = 1, n_loop
-          t_start(ip) = m_walltime()
-          CALL pw_transfer ( ca%pw, cb%pw )
-          CALL pw_transfer ( cb%pw, cc%pw )
-          t_end(ip) = m_walltime()
-       END DO
-       tend = m_walltime ( )
-       t = tend - tstart+threshold
-       IF ( t > 0.0_dp ) THEN
-          perf = REAL ( n_loop,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
-       ELSE
-          perf = 0.0_dp
-       END IF
-
-       em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-       et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-       CALL mp_sum ( et, para_env%group )
-       CALL mp_max ( em, para_env%group )
-       t_min=MINVAL(t_end-t_start)
-       t_max=MAXVAL(t_end-t_start)
-       CALL mp_max ( t_max, para_env%group )
-       CALL mp_min ( t_min, para_env%group )
-
-       IF ( para_env%ionode ) THEN
-          WRITE ( iw, * )
-          WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
-          WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
-          WRITE ( iw, '(A,T67,F14.0)' ) &
-               " Parallel FFT Tests: Performance [Mflops] ", perf
-          WRITE ( iw, '(A,T67,F14.6)' ) " Best time (over all tasks): ", t_min
-          WRITE ( iw, '(A,T67,F14.6)' ) " Worst time (over all tasks): ", t_max
-          IF (iw>0) CALL m_flush(iw)
-       END IF
-
-       ! need debugging ??? 
-       IF ( em > toler .OR. et > toler ) THEN
-          CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
-          CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
+          CALL section_vals_val_get(pw_transfer_section,"PW_GRID_LAYOUT",i_rep_section=i_rep,i_vals=i_vals,error=error)
+          ALLOCATE(layouts(2,1))
+          layouts(:,1)=i_vals
        ENDIF
 
-       ! done with these grids
-       CALL pw_release ( ca%pw ,error=error)
-       CALL pw_release ( cb%pw ,error=error)
-       CALL pw_release ( cc%pw ,error=error)
-       CALL pw_grid_release ( grid ,error=error)
+       DO i_layout=1,SIZE(layouts,2)
 
-       ! timing
+          distribution_layout=layouts(:,i_layout)
+          
+          CALL pw_grid_create ( grid, para_env%group ,error=error)
+
+          CALL section_vals_val_get(pw_transfer_section,"PW_GRID",i_rep_section=i_rep,i_val=itmp,error=error)
+
+          ! from cp_control_utils
+          SELECT CASE (itmp)
+          CASE(do_pwgrid_spherical)
+             spherical = .TRUE.
+             is_fullspace = .FALSE.
+          CASE (do_pwgrid_ns_fullspace)
+             spherical = .FALSE.
+             is_fullspace = .TRUE.
+          CASE (do_pwgrid_ns_halfspace)
+             spherical = .FALSE.
+             is_fullspace = .FALSE.
+          END SELECT
+
+          ! from pw_env_methods
+          IF ( spherical ) THEN
+             grid_span = HALFSPACE
+             spherical = .TRUE.
+             odd = .TRUE.
+          ELSE IF ( is_fullspace ) THEN
+             grid_span = FULLSPACE
+             spherical = .FALSE.
+             odd = .FALSE.
+          ELSE
+             grid_span = HALFSPACE
+             spherical = .FALSE.
+             odd = .TRUE.
+          END IF
+
+          ! actual setup
+          CALL pw_grid_setup ( box, grid, grid_span=grid_span, odd=odd, spherical=spherical, &
+                               blocked=blocked, npts=np, fft_usage=.TRUE.,&
+                               rs_dims=distribution_layout, iounit=iw, error=error)
+
+          IF (iw>0) CALL m_flush(iw)
+
+          ! note that the number of grid points might be different from what the user requested (fft-able needed)
+          no = grid % npts
+
+          NULLIFY(ca%pw)
+          NULLIFY(cb%pw)
+          NULLIFY(cc%pw)
+
+          CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
+          CALL pw_create ( cb%pw, grid, COMPLEXDATA3D ,error=error)
+          CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
+
+          ! initialize data
+          CALL pw_zero ( ca%pw )
+          CALL pw_zero ( cb%pw )
+          CALL pw_zero ( cc%pw )
+          ca % pw % in_space = RECIPROCALSPACE
+          nn = SIZE ( ca % pw % cc  )
+          DO ig = 1, nn
+             gsq = grid % gsq ( ig )
+             ca  % pw % cc ( ig ) = EXP ( - gsq )
+          END DO
+
+          flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
+          tstart = m_walltime ( )
+          DO ip = 1, n_loop
+             CALL mp_sync(para_env%group)
+             t_start(ip) = m_walltime()
+             CALL pw_transfer ( ca%pw, cb%pw )
+             CALL pw_transfer ( cb%pw, cc%pw )
+             CALL mp_sync(para_env%group)
+             t_end(ip) = m_walltime()
+          END DO
+          tend = m_walltime ( )
+          t = tend - tstart+threshold
+          IF ( t > 0.0_dp ) THEN
+             perf = REAL ( n_loop,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
+          ELSE
+             perf = 0.0_dp
+          END IF
+
+          em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+          et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+          CALL mp_sum ( et, para_env%group )
+          CALL mp_max ( em, para_env%group )
+          t_min=MINVAL(t_end-t_start)
+          t_max=MAXVAL(t_end-t_start)
+
+          IF ( para_env%ionode ) THEN
+             WRITE ( iw, * )
+             WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
+             WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
+             WRITE ( iw, '(A,T67,F14.0)' ) &
+                  " Parallel FFT Tests: Performance [Mflops] ", perf
+             WRITE ( iw, '(A,T67,F14.6)' ) " Best time : ", t_min
+             WRITE ( iw, '(A,T67,F14.6)' ) " Worst time: ", t_max
+             IF (iw>0) CALL m_flush(iw)
+          END IF
+
+          ! need debugging ??? 
+          IF ( em > toler .OR. et > toler ) THEN
+             CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
+             CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
+          ENDIF
+
+          ! done with these grids
+          CALL pw_release ( ca%pw ,error=error)
+          CALL pw_release ( cb%pw ,error=error)
+          CALL pw_release ( cc%pw ,error=error)
+          CALL pw_grid_release ( grid ,error=error)
+
+       END DO
+
+       ! local arrays
+       DEALLOCATE(layouts)
        DEALLOCATE(t_start)
        DEALLOCATE(t_end)
 

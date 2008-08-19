@@ -593,15 +593,14 @@ CONTAINS
        IF (info >= 0 ) THEN
           WRITE ( info, '(/,A,T71,I10)' ) &
                " PW_GRID: Information for grid number ", pw_grid %id_nr
+          WRITE ( info, '(" PW_GRID: Cutoff [a.u.]",T71,f10.1)' ) pw_grid % cutoff
           IF ( pw_grid % spherical ) THEN
-             WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
-                  "spherical cutoff", pw_grid % cutoff, "a.u."
+             WRITE ( info, '(A,T78,A)' ) " PW_GRID: spherical cutoff: ","YES"
              WRITE ( info, '(A,T71,I10)' ) " PW_GRID: Grid points within cutoff", &
                   pw_grid % ngpts_cut
+          ELSE
+             WRITE ( info, '(A,T78,A)' ) " PW_GRID: spherical cutoff: "," NO"
           END IF
-          CALL get_pw_grid_info(pw_grid,cutoff=cutoff,error=error)
-          WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
-               "max spherical cutoff", cutoff, "a.u."
           DO i = 1, 3
              WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID:   Bounds ", &
                   i, pw_grid % bounds ( 1, I ), pw_grid % bounds ( 2, I ), &
@@ -647,13 +646,13 @@ CONTAINS
           ELSE
              WRITE ( info, '(A,T78,A)' ) " PW_GRID: the grid is blocked: "," NO"
           END IF
+          WRITE ( info, '(" PW_GRID: Cutoff [a.u.]",T71,f10.1)' ) pw_grid % cutoff
           IF ( pw_grid % spherical ) THEN
-             WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
-                  "spherical cutoff", pw_grid % cutoff, "a.u."
+             WRITE ( info, '(A,T78,A)' ) " PW_GRID: spherical cutoff: ","YES"
              WRITE ( info, '(A,T71,I10)' ) " PW_GRID: Grid points within cutoff", &
                   pw_grid % ngpts_cut
           ELSE
-             WRITE ( info, '(" PW_GRID: Cutoff [a.u.]",T71,f10.1)' ) pw_grid % cutoff
+             WRITE ( info, '(A,T78,A)' ) " PW_GRID: spherical cutoff: "," NO"
           END IF
           DO i = 1, 3
              WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID:   Bounds ", &
