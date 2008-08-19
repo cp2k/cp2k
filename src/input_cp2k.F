@@ -552,12 +552,6 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="pw_fft",&
-         description="Tests the performance of PW calls to FFT routines. Tests are repeated the given number of times.",&
-         usage="pw_fft 10",default_i_val=0,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
     CALL keyword_create(keyword, name="clebsch_gordon",variants=(/"clebsch"/),&
          description="Tests the Clebsch-Gordon Coefficients. "//&
          "Tests are repeated the given number of times.",&
@@ -609,6 +603,10 @@ CONTAINS
 
     NULLIFY(subsection)
     CALL create_rs_pw_transfer_section(subsection,error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+
+    CALL create_pw_transfer_section(subsection,error)
     CALL section_add_subsection(section,subsection,error=error)
     CALL section_release(subsection,error=error)
 
@@ -671,6 +669,72 @@ CONTAINS
     CALL section_release(subsection,error=error)
 
   END SUBROUTINE create_rs_pw_transfer_section
+
+! *****************************************************************************
+!> \brief   creates the rs_pw_transfer section for use in the test section
+!> \author  Joost VandeVondele
+!> \date    2008-03-09
+! *****************************************************************************
+  SUBROUTINE create_pw_transfer_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_pw_transfer_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL section_create(section,name="PW_TRANSFER",&
+         description="Benchmark and test the pw_transfer routines.",&
+         n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+         error=error)
+
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="GRID",&
+         description="Specify the number of grid points (not all grid points are allowed)",&
+         usage="GRID_DIMENSIONS 128 128 128", type_of_var=integer_t, n_var=3,&
+         default_i_vals=(/128,128,128/), error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="N_LOOP",&
+         description="Number of pw_transfers (backward&forward) being timed",&
+         usage="N_LOOP 100",default_i_val=100,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="PW_GRID",&
+         description="What kind of PW_GRID should be employed",&
+         usage="PW_GRID NS-FULLSPACE",&
+         enum_c_vals=s2a("SPHERICAL","NS-FULLSPACE","NS-HALFSPACE"),&
+         enum_desc=s2a("- not tested"," tested"," - not tested"),&
+         enum_i_vals=(/ do_pwgrid_spherical, do_pwgrid_ns_fullspace,do_pwgrid_ns_halfspace/),&
+         default_i_val=do_pwgrid_ns_fullspace, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="PW_GRID_LAYOUT",&
+         description="Expert use only, leave the default..."//&
+                     "Can be used to set the distribution for ray-distributed FFT.",&
+         usage="PW_GRID_LAYOUT",&
+         repeats=.FALSE.,required=.FALSE.,n_var=2,&
+         default_i_vals=(/-1,-1/),&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="PW_GRID_BLOCKED",&
+         description="Expert use only, leave the default..."//&
+                     "Can be used to set the distribution for ray-distributed FFT.",&
+         usage="PW_GRID_BLOCKED",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+  END SUBROUTINE create_pw_transfer_section
 
 ! *****************************************************************************
 !> \brief section to setup debugging parameter

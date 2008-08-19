@@ -769,7 +769,8 @@ CONTAINS
        ENDIF
 
        ! if there is a zero, we try and optimize ourselves
-       IF ( PRODUCT ( pw_grid % para % rs_dims ) == 0 ) THEN
+       ! or if the first index is 1 (which is not supported)
+       IF ( PRODUCT ( pw_grid % para % rs_dims ) == 0 .OR. ALL(pw_grid % para % rs_dims==(/1,np/)) ) THEN
 
           ns = INT ( SQRT ( REAL ( np,KIND=dp) ) )
 
@@ -800,6 +801,7 @@ CONTAINS
           pw_grid % para % rs_dims ( 1 ) = m
           pw_grid % para % rs_dims ( 2 ) = np/m
 
+       ! if it doesn't match the number of CPUs something else ..
        ELSEIF ( PRODUCT ( pw_grid % para % rs_dims ) /= np ) THEN
 
           pw_grid % para % rs_dims = 0

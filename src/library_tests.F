@@ -48,15 +48,20 @@ MODULE library_tests
                                              fft_radix_operations,&
                                              init_fft
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_pwgrid_ns_fullspace,&
+                                             do_pwgrid_ns_halfspace,&
+                                             do_pwgrid_spherical
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime,&
+                                             m_flush,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
+                                             mp_min,&
                                              mp_sum,&
                                              mp_sync
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
@@ -123,7 +128,8 @@ CONTAINS
     INTEGER                                  :: handle, iw
     LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: rs_pw_transfer_section
+    TYPE(section_vals_type), POINTER         :: pw_transfer_section, &
+                                                rs_pw_transfer_section
 
     CALL timeset(routineN,handle)
 
@@ -144,7 +150,7 @@ CONTAINS
     !
     IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw, error=error )
     !
-    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( para_env, iw, globenv, error )
+    ! runtest 4 has been deleted and can be recycled
     !
     IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( error )
     !
@@ -160,6 +166,12 @@ CONTAINS
     CALL section_vals_get(rs_pw_transfer_section,explicit=explicit, error=error)
     IF (explicit) THEN
       CALL rs_pw_transfer_test ( para_env, iw, globenv, rs_pw_transfer_section, error )
+    ENDIF
+
+    pw_transfer_section => section_vals_get_subs_vals(root_section,"TEST%PW_TRANSFER",error=error)
+    CALL section_vals_get(pw_transfer_section,explicit=explicit, error=error)
+    IF (explicit) THEN
+      CALL pw_fft_test ( para_env, iw, globenv, pw_transfer_section, error )
     ENDIF
 
     CALL cp_print_key_finished_output(iw,logger,root_section,"TEST%PROGRAM_RUN_INFO", error=error)
@@ -212,7 +224,6 @@ CONTAINS
     CALL section_vals_val_get(test_section,'copy',i_val=runtest(1),error=error )
     CALL section_vals_val_get(test_section,'matmul',i_val=runtest(2),error=error )
     CALL section_vals_val_get(test_section,'fft',i_val=runtest(3),error=error )
-    CALL section_vals_val_get(test_section,'pw_fft',i_val=runtest(4),error=error )
     CALL section_vals_val_get(test_section,'clebsch_gordon',i_val=runtest(6),error=error )
     CALL section_vals_val_get(test_section,'mpi',i_val=runtest (8),error=error )
     CALL section_vals_val_get(test_section,'rng',i_val=runtest(9),error=error )
@@ -780,288 +791,182 @@ CONTAINS
 !> \brief Tests the performance of PW calls to FFT routines
 !> \par History
 !>      JGH  6-Feb-2001 : Test and performance code
+!>      Made input sensitive [Joost VandeVondele]
 !> \author JGH  1-JAN-2001
 ! *****************************************************************************
-  SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
+  SUBROUTINE pw_fft_test ( para_env, iw, globenv, pw_transfer_section, error )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: pw_transfer_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_fft_test', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: toler = 1.e-11_dp
 
-    INTEGER                                  :: ig, ip, nn, ntim
+    INTEGER                                  :: grid_span, i_rep, ig, ip, &
+                                                itmp, n_loop, n_rep, nn
+    INTEGER, DIMENSION(2)                    :: distribution_layout
     INTEGER, DIMENSION(3)                    :: no, np
-    REAL(KIND=dp)                            :: em, et, flops, gsq, perf, r, &
-                                                t, tend, tim, tstart
+    INTEGER, DIMENSION(:), POINTER           :: i_vals
+    LOGICAL                                  :: blocked, is_fullspace, odd, &
+                                                spherical
+    REAL(KIND=dp)                            :: em, et, flops, gsq, perf, t, &
+                                                t_max, t_min, tend, tstart
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: t_end, t_start
     TYPE(cell_type), POINTER                 :: box
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_p_type)                          :: ca, cb, cc
 
-!..the unit cell
+!..set fft lib
 
+    CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
+         wisdom_file="", para_env=para_env, error=error )
+
+    !..the unit cell (should not really matter, the number of grid points do)
     NULLIFY(box,grid)
     CALL cell_create(box,error=error)
     box % hmat = RESHAPE ( (/10.0_dp,0.0_dp,0.0_dp,0.0_dp,8.0_dp,0.0_dp,&
          0.0_dp,0.0_dp,7.0_dp/), (/3,3/) )
     CALL init_cell ( box )
 
-    !..set fft lib
-    CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
-         wisdom_file="", para_env=para_env, error=error )
+    CALL section_vals_get(pw_transfer_section,n_repetition=n_rep,error=error)
+    DO i_rep=1,n_rep
 
-    ntim = 4
-    tim = 1.0_dp
-    perf = 100.e6_dp
-    r = ( tim * perf / 150.0_dp )  ** 0.33333_dp
-    np ( 1 ) = NINT ( r * 1.5_dp )
-    np ( 2 ) = NINT ( r )
-    np ( 3 ) = NINT ( r * 0.666_dp )
+       ! how often should we do the transfer
+       CALL section_vals_val_get(pw_transfer_section,"N_loop",i_rep_section=i_rep,i_val=N_loop,error=error )
+       ALLOCATE(t_start(N_loop))
+       ALLOCATE(t_end(N_loop))
 
-    !..Test 1
-    CALL pw_grid_create ( grid, para_env%group ,error=error)
-    CALL pw_grid_setup ( box, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE.,&
-         rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
-    no = grid % npts
+       CALL pw_grid_create ( grid, para_env%group ,error=error)
 
-    NULLIFY(ca%pw)
-    NULLIFY(cb%pw)
-    NULLIFY(cc%pw)
+       ! setup of the grids
+       CALL section_vals_val_get(pw_transfer_section,"GRID",i_rep_section=i_rep,i_vals=i_vals,error=error )
+       np = i_vals
 
-    CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
-    CALL pw_create ( cb%pw, grid, COMPLEXDATA3D ,error=error)
-    CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
-    CALL pw_zero ( ca%pw )
-    CALL pw_zero ( cb%pw )
-    CALL pw_zero ( cc%pw )
+       CALL section_vals_val_get(pw_transfer_section,"PW_GRID_LAYOUT",i_rep_section=i_rep,i_vals=i_vals,error=error)
+       distribution_layout=i_vals
 
-    ca % pw % in_space = RECIPROCALSPACE
-    nn = SIZE ( ca % pw % cc  )
-    DO ig = 1, nn
-       gsq = grid % gsq ( ig )
-       ca  % pw % cc ( ig ) = EXP ( - gsq )
-    END DO
+       CALL section_vals_val_get(pw_transfer_section,"PW_GRID_BLOCKED",i_rep_section=i_rep,l_val=blocked,error=error )
 
-    flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
-    tstart = m_cputime ( )
-    DO ip = 1, ntim
-       CALL pw_transfer ( ca%pw, cb%pw )
-       CALL pw_transfer ( cb%pw, cc%pw )
-    END DO
-    tend = m_cputime ( )
-    t = tend - tstart+threshold
-    IF ( t > 0.0_dp ) THEN
-       perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
-    ELSE
-       perf = 0.0_dp
-    END IF
+       CALL section_vals_val_get(pw_transfer_section,"PW_GRID",i_rep_section=i_rep,i_val=itmp,error=error)
 
-    em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-    et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-    CALL mp_sum ( et, para_env%group )
-    CALL mp_max ( em, para_env%group )
+       ! from cp_control_utils
+       SELECT CASE (itmp)
+       CASE(do_pwgrid_spherical)
+          spherical = .TRUE.
+          is_fullspace = .FALSE.
+       CASE (do_pwgrid_ns_fullspace)
+          spherical = .FALSE.
+          is_fullspace = .TRUE.
+       CASE (do_pwgrid_ns_halfspace)
+          spherical = .FALSE.
+          is_fullspace = .FALSE.
+       END SELECT
 
-    IF ( em > toler .OR. et > toler ) THEN
-       CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
-       CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
-    ENDIF
+       ! from pw_env_methods
+       IF ( spherical ) THEN
+          grid_span = HALFSPACE
+          spherical = .TRUE.
+          odd = .TRUE.
+       ELSE IF ( is_fullspace ) THEN
+          grid_span = FULLSPACE
+          spherical = .FALSE.
+          odd = .FALSE.
+       ELSE
+          grid_span = HALFSPACE
+          spherical = .FALSE.
+          odd = .TRUE.
+       END IF
 
-    CALL pw_release ( ca%pw ,error=error)
-    CALL pw_release ( cb%pw ,error=error)
-    CALL pw_release ( cc%pw ,error=error)
+       ! actual setup
+       CALL pw_grid_setup ( box, grid, grid_span=grid_span, odd=odd, spherical=spherical, &
+                            blocked=blocked, npts=np, fft_usage=.TRUE.,&
+                            rs_dims=distribution_layout, iounit=iw, error=error)
 
-    CALL pw_grid_release ( grid ,error=error)
+       IF (iw>0) CALL m_flush(iw)
 
-    IF ( para_env%ionode ) THEN
-       WRITE ( iw, * )
-       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
-       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
-       WRITE ( iw, '(A,T67,F14.0)' ) &
-            " Parallel FFT Tests: Performance [Mflops] ", perf
-       WRITE ( iw, * )
-    END IF
+       ! note that the number of grid points might be different from what the user requested (fft-able needed)
+       no = grid % npts
 
-    !..Test 2
-    CALL pw_grid_create ( grid, para_env%group ,error=error)
-    CALL pw_grid_setup ( box, grid, grid_span=HALFSPACE, npts=np,odd=.TRUE.,fft_usage=.TRUE.,&
-         rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
+       NULLIFY(ca%pw)
+       NULLIFY(cb%pw)
+       NULLIFY(cc%pw)
 
-    no = grid % npts
+       CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
+       CALL pw_create ( cb%pw, grid, COMPLEXDATA3D ,error=error)
+       CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
 
-    CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
-    CALL pw_create ( cb%pw, grid, REALDATA3D ,error=error)
-    CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
-    CALL pw_zero ( ca%pw )
-    CALL pw_zero ( cb%pw )
-    CALL pw_zero ( cc%pw )
+       ! initialize data
+       CALL pw_zero ( ca%pw )
+       CALL pw_zero ( cb%pw )
+       CALL pw_zero ( cc%pw )
+       ca % pw % in_space = RECIPROCALSPACE
+       nn = SIZE ( ca % pw % cc  )
+       DO ig = 1, nn
+          gsq = grid % gsq ( ig )
+          ca  % pw % cc ( ig ) = EXP ( - gsq )
+       END DO
 
-    ca % pw % in_space = RECIPROCALSPACE
-    nn = SIZE ( ca % pw % cc  )
-    DO ig = 1, nn
-       gsq = grid % gsq ( ig )
-       ca  % pw % cc ( ig ) = EXP ( - gsq )
-    END DO
+       flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
+       tstart = m_walltime ( )
+       DO ip = 1, n_loop
+          t_start(ip) = m_walltime()
+          CALL pw_transfer ( ca%pw, cb%pw )
+          CALL pw_transfer ( cb%pw, cc%pw )
+          t_end(ip) = m_walltime()
+       END DO
+       tend = m_walltime ( )
+       t = tend - tstart+threshold
+       IF ( t > 0.0_dp ) THEN
+          perf = REAL ( n_loop,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
+       ELSE
+          perf = 0.0_dp
+       END IF
 
-    flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
-    tstart = m_cputime ( )
-    DO ip = 1, ntim
-       CALL pw_transfer ( ca%pw, cb%pw )
-       CALL pw_transfer ( cb%pw, cc%pw )
-    END DO
-    tend = m_cputime ( )
-    t = tend - tstart+threshold
-    IF ( t > 0.0_dp ) THEN
-       perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
-    ELSE
-       perf = 0.0_dp
-    END IF
+       em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+       et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+       CALL mp_sum ( et, para_env%group )
+       CALL mp_max ( em, para_env%group )
+       t_min=MINVAL(t_end-t_start)
+       t_max=MAXVAL(t_end-t_start)
+       CALL mp_max ( t_max, para_env%group )
+       CALL mp_min ( t_min, para_env%group )
 
-    em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-    et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-    CALL mp_sum ( et, para_env%group )
-    CALL mp_max ( em, para_env%group )
+       IF ( para_env%ionode ) THEN
+          WRITE ( iw, * )
+          WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
+          WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
+          WRITE ( iw, '(A,T67,F14.0)' ) &
+               " Parallel FFT Tests: Performance [Mflops] ", perf
+          WRITE ( iw, '(A,T67,F14.6)' ) " Best time (over all tasks): ", t_min
+          WRITE ( iw, '(A,T67,F14.6)' ) " Worst time (over all tasks): ", t_max
+          IF (iw>0) CALL m_flush(iw)
+       END IF
 
-    IF ( em > toler .OR. et > toler ) THEN
-       CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
-       CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
-    ENDIF
+       ! need debugging ??? 
+       IF ( em > toler .OR. et > toler ) THEN
+          CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
+          CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
+       ENDIF
 
-    CALL pw_release ( ca%pw ,error=error)
-    CALL pw_release ( cb%pw ,error=error)
-    CALL pw_release ( cc%pw ,error=error)
+       ! done with these grids
+       CALL pw_release ( ca%pw ,error=error)
+       CALL pw_release ( cb%pw ,error=error)
+       CALL pw_release ( cc%pw ,error=error)
+       CALL pw_grid_release ( grid ,error=error)
 
-    CALL pw_grid_release ( grid ,error=error)
+       ! timing
+       DEALLOCATE(t_start)
+       DEALLOCATE(t_end)
 
-    IF ( para_env%ionode ) THEN
-       WRITE ( iw, * )
-       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
-       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
-       WRITE ( iw, '(A,T67,F14.0)' ) &
-            " Parallel FFT Tests: Performance [Mflops] ", perf
-       WRITE ( iw, * )
-    END IF
+    ENDDO
 
-    !..Test 3
-    CALL pw_grid_create ( grid, para_env%group, error=error)
-    CALL pw_grid_setup ( box, grid, grid_span=FULLSPACE, npts=np,spherical=.TRUE.,fft_usage=.TRUE.,&
-         rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
-    no = grid % npts
-
-    CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
-    CALL pw_create ( cb%pw, grid, REALDATA3D ,error=error)
-    CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
-    CALL pw_zero ( ca%pw )
-    CALL pw_zero ( cb%pw )
-    CALL pw_zero ( cc%pw )
-
-    ca % pw % in_space = RECIPROCALSPACE
-    nn = SIZE ( ca % pw % cc  )
-    DO ig = 1, nn
-       gsq = grid % gsq ( ig )
-       ca  % pw % cc ( ig ) = EXP ( - gsq )
-    END DO
-
-    flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
-    tstart = m_cputime ( )
-    DO ip = 1, ntim
-       CALL pw_transfer ( ca%pw, cb%pw )
-       CALL pw_transfer ( cb%pw, cc%pw )
-    END DO
-    tend = m_cputime ( )
-    t = tend - tstart+threshold
-    IF ( t > 0.0_dp ) THEN
-       perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
-    ELSE
-       perf = 0.0_dp
-    END IF
-
-    em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-    et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-    CALL mp_sum ( et, para_env%group )
-    CALL mp_max ( em, para_env%group )
-
-    IF ( em > toler .OR. et > toler ) THEN
-       CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
-       CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
-    ENDIF
-
-    CALL pw_release ( ca%pw ,error=error)
-    CALL pw_release ( cb%pw ,error=error)
-    CALL pw_release ( cc%pw ,error=error)
-
-    CALL pw_grid_release ( grid ,error=error)
-
-    IF ( para_env%ionode ) THEN
-       WRITE ( iw, * )
-       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
-       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
-       WRITE ( iw, '(A,T67,F14.0)' ) &
-            " Parallel FFT Tests: Performance [Mflops] ", perf
-       WRITE ( iw, * )
-    END IF
-
-    !..Test 4
-    CALL pw_grid_create ( grid , para_env%group ,error=error)
-    CALL pw_grid_setup ( box, grid, grid_span=HALFSPACE, npts=np, spherical=.TRUE.,odd=.TRUE.,fft_usage=.TRUE.,&
-         rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
-    no = grid % npts
-
-    CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
-    CALL pw_create ( cb%pw, grid, COMPLEXDATA3D ,error=error)
-    CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
-    CALL pw_zero ( ca%pw )
-    CALL pw_zero ( cb%pw )
-    CALL pw_zero ( cc%pw )
-
-    ca % pw % in_space = RECIPROCALSPACE
-    nn = SIZE ( ca % pw % cc  )
-    DO ig = 1, nn
-       gsq = grid % gsq ( ig )
-       ca  % pw % cc ( ig ) = EXP ( - gsq )
-    END DO
-
-    flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
-    tstart = m_cputime ( )
-    DO ip = 1, ntim
-       CALL pw_transfer ( ca%pw, cb%pw )
-       CALL pw_transfer ( cb%pw, cc%pw )
-    END DO
-    tend = m_cputime ( )
-    t = tend - tstart+threshold
-    IF ( t > 0.0_dp ) THEN
-       perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
-    ELSE
-       perf = 0.0_dp
-    END IF
-
-    em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-    et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-    CALL mp_sum ( et, para_env%group )
-    CALL mp_max ( em, para_env%group )
-
-    IF ( em > toler .OR. et > toler ) THEN
-       CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
-       CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
-    ENDIF
-
-    CALL pw_release ( ca%pw ,error=error)
-    CALL pw_release ( cb%pw ,error=error)
-    CALL pw_release ( cc%pw ,error=error)
-
-    CALL pw_grid_release ( grid ,error=error)
-
-    IF ( para_env%ionode ) THEN
-       WRITE ( iw, * )
-       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
-       WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
-       WRITE ( iw, '(A,T67,F14.0)' ) &
-            " Parallel FFT Tests: Performance [Mflops] ", perf
-       WRITE ( iw, * )
-    END IF
+    ! cleanup
     CALL cell_release(box,error=error)
+
   END SUBROUTINE pw_fft_test
 
 ! *****************************************************************************
