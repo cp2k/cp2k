@@ -48,7 +48,7 @@
 
 #include "collocate_fast_6.F"
 
-#elif 
+#else
 
 This is an error, and unknown definition of GRID_CORE (__GRID_CORE) has been used
 
