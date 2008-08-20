@@ -550,34 +550,42 @@ CONTAINS
           EXIT
        CASE ( 1 )
           CALL init_fft ( "FFTSG", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          pool_limit=10,&
                           para_env=para_env, error=error )
           method = "FFTSG  "
        CASE ( 2 )
           CALL init_fft ( "FFTW2", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          pool_limit=10,&
                           para_env=para_env, error=error )
           method = "FFTW2  "
        CASE ( 3 )
           CALL init_fft ( "FFTW3", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          pool_limit=10,&
                           para_env=para_env, error=error )
           method = "FFTW3  "
        CASE ( 4 )
           CALL init_fft ( "FFTESSL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          pool_limit=10,&
                           para_env=para_env, error=error )
           method = "FFTESSL"
        CASE ( 5 )
           CALL init_fft ( "FFTACML", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          pool_limit=10,&
                           para_env=para_env, error=error )
           method = "FFTACML"
        CASE ( 6 )
           CALL init_fft ( "FFTMKL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          pool_limit=10,&
                           para_env=para_env, error=error )
           method = "FFTMKL"
        CASE ( 7 )
           CALL init_fft ( "FFTSCI", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          pool_limit=10,&
                           para_env=para_env, error=error )
           method = "FFTSCI"
        CASE ( 8 )
           CALL init_fft ( "FFTCU", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          pool_limit=10,&
                           para_env=para_env, error=error )
           method = "FFTCU"
        END SELECT
@@ -715,6 +723,7 @@ CONTAINS
 
     !..set fft lib
     CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
+               pool_limit=globenv%fft_pool_scratch_limit,&
          wisdom_file="", para_env=para_env, error=error )
 
     ! .. set cell (should otherwise be irrelevant)
@@ -824,6 +833,7 @@ CONTAINS
 !..set fft lib
 
     CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
+               pool_limit=globenv%fft_pool_scratch_limit,&
          wisdom_file="", para_env=para_env, error=error )
 
     !..the unit cell (should not really matter, the number of grid points do)
@@ -961,9 +971,9 @@ CONTAINS
           END IF
 
           em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
+          CALL mp_max ( em, para_env%group )
           et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
           CALL mp_sum ( et, para_env%group )
-          CALL mp_max ( em, para_env%group )
           t_min=MINVAL(t_end-t_start)
           t_max=MAXVAL(t_end-t_start)
 
@@ -980,6 +990,8 @@ CONTAINS
 
           ! need debugging ??? 
           IF ( em > toler .OR. et > toler ) THEN
+             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+               "The FFT results are not accurate ... starting debug pw_transfer")
              CALL pw_transfer ( ca%pw, cb%pw, .TRUE. )
              CALL pw_transfer ( cb%pw, cc%pw, .TRUE. )
           ENDIF

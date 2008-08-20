@@ -288,6 +288,12 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword,name="FFT_POOL_SCRATCH_LIMIT",&
+         description="Limits the memory usage of the FFT scratch pool, potentially reducing efficiency a bit",&
+         usage="FFT_POOL_SCRATCH_LIMIT <INTEGER>",default_i_val=15,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="ALLTOALL_SGL",&
          description="All-to-all communication (FFT) should use single precision",&
          usage="ALLTOALL_SGL YES",&

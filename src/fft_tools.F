@@ -96,6 +96,7 @@ MODULE fft_tools
      INTEGER, DIMENSION(:,:), POINTER     :: pgrid
      INTEGER, DIMENSION(:), POINTER       :: xcor, zcor
      TYPE(fft_scratch_sizes)              :: sizes
+     INTEGER                              :: last_tick
   END TYPE fft_scratch_type
 
   TYPE fft_scratch_pool_type
@@ -104,6 +105,10 @@ MODULE fft_tools
   END TYPE fft_scratch_pool_type
 
   INTEGER, SAVE                           :: init_fft_pool = 0
+  ! the clock for fft pool. Allows to identify the least recently used scratch
+  INTEGER, SAVE                           :: tick_fft_pool = 0 
+  ! limit the number of scratch pools to fft_pool_scratch_limit.
+  INTEGER, SAVE                           :: fft_pool_scratch_limit=15
   TYPE(fft_scratch_pool_type),POINTER,SAVE:: fft_scratch_first
   ! END of types for the pool of scratch data needed in FFT routines
   
@@ -135,10 +140,11 @@ CONTAINS
 ! *****************************************************************************
 !> \author JGH
 ! *****************************************************************************
-SUBROUTINE init_fft ( fftlib, alltoall, fftsg_sizes, wisdom_file, para_env, error )
+SUBROUTINE init_fft ( fftlib, alltoall, fftsg_sizes, pool_limit, wisdom_file, para_env, error )
 
     CHARACTER(LEN=*), INTENT(IN)             :: fftlib
     LOGICAL, INTENT(IN)                      :: alltoall, fftsg_sizes
+    INTEGER, INTENT(IN)                      :: pool_limit
     CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -152,6 +158,7 @@ SUBROUTINE init_fft ( fftlib, alltoall, fftsg_sizes, wisdom_file, para_env, erro
 
     use_fftsg_sizes = fftsg_sizes
     alltoall_sgl = alltoall
+    fft_pool_scratch_limit = pool_limit
     fft_type = fft_library ( fftlib )
     IF ( fft_type <= 0 ) &
          CALL stop_program ("init_fft","Unknown FFT library: "//TRIM(fftlib))
@@ -2431,6 +2438,7 @@ END SUBROUTINE cube_transpose_6
 
 ! *****************************************************************************
 
+
 SUBROUTINE init_fft_scratch_pool(error)
 
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2485,10 +2493,159 @@ SUBROUTINE init_fft_scratch_pool(error)
   fft_scratch_first%fft_scratch%ins = 0
   fft_scratch_first%fft_scratch%inr = 0
   fft_scratch_first%fft_scratch%rsratio = 1._dp
+  ! this is a very special scratch, it seems, we always keep it 'most - recent' so we will never delete it
+  fft_scratch_first%fft_scratch%last_tick=HUGE(fft_scratch_first%fft_scratch%last_tick)
 
   init_fft_pool = init_fft_pool + 1
 
 END SUBROUTINE init_fft_scratch_pool
+
+SUBROUTINE deallocate_fft_scratch_type(fft_scratch,error)
+    TYPE(fft_scratch_type), INTENT(INOUT)    :: fft_scratch
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fft_scratch_type', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr
+    LOGICAL                                  :: failure
+
+! deallocate structures
+
+    IF(ASSOCIATED(fft_scratch%zoptr)) THEN
+      DEALLOCATE(fft_scratch%zoptr,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%p1buf)) THEN
+      DEALLOCATE(fft_scratch%p1buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%p2buf)) THEN
+      DEALLOCATE(fft_scratch%p2buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%p3buf)) THEN
+      DEALLOCATE(fft_scratch%p3buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%p4buf)) THEN
+      DEALLOCATE(fft_scratch%p4buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%p5buf)) THEN
+      DEALLOCATE(fft_scratch%p5buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%p6buf)) THEN
+      DEALLOCATE(fft_scratch%p6buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%p7buf)) THEN
+      DEALLOCATE(fft_scratch%p7buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%r1buf)) THEN
+      DEALLOCATE(fft_scratch%r1buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%r2buf)) THEN
+      DEALLOCATE(fft_scratch%r2buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%tbuf)) THEN
+      DEALLOCATE(fft_scratch%tbuf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%a1buf)) THEN
+      DEALLOCATE(fft_scratch%a1buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%a2buf)) THEN
+      DEALLOCATE(fft_scratch%a2buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%a3buf)) THEN
+      DEALLOCATE(fft_scratch%a3buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%a4buf)) THEN
+      DEALLOCATE(fft_scratch%a4buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%a5buf)) THEN
+      DEALLOCATE(fft_scratch%a5buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%a6buf)) THEN
+      DEALLOCATE(fft_scratch%a6buf,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%scount)) THEN
+      DEALLOCATE(fft_scratch%scount,fft_scratch%rcount,&
+         fft_scratch%sdispl,fft_scratch%rdispl,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%qq)) THEN
+      DEALLOCATE(fft_scratch%qq,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%rr)) THEN
+      DEALLOCATE(fft_scratch%rr,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%ss)) THEN
+      DEALLOCATE(fft_scratch%ss,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%tt)) THEN
+      DEALLOCATE(fft_scratch%tt,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%pgrid)) THEN
+      DEALLOCATE(fft_scratch%pgrid,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%pgcube)) THEN
+      DEALLOCATE(fft_scratch%pgcube,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%xcor)) THEN
+      DEALLOCATE(fft_scratch%xcor,fft_scratch%zcor,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%strans)) THEN
+      DEALLOCATE(fft_scratch%strans,fft_scratch%rtrans,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      fft_scratch%ins=0
+      fft_scratch%inr=0
+      fft_scratch%rsratio=1._dp
+    END IF
+    IF(ASSOCIATED(fft_scratch%rbuf1)) THEN
+      DEALLOCATE(fft_scratch%rbuf1,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%rbuf2)) THEN
+      DEALLOCATE(fft_scratch%rbuf2,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%rbuf3)) THEN
+      DEALLOCATE(fft_scratch%rbuf3,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%rbuf4)) THEN
+      DEALLOCATE(fft_scratch%rbuf4,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%rbuf5)) THEN
+      DEALLOCATE(fft_scratch%rbuf5,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%rbuf6)) THEN
+      DEALLOCATE(fft_scratch%rbuf6,STAT=ierr)
+      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+END SUBROUTINE deallocate_fft_scratch_type
 
 SUBROUTINE release_fft_scratch_pool(error)
 
@@ -2502,162 +2659,101 @@ SUBROUTINE release_fft_scratch_pool(error)
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch, &
                                                 fft_scratch_current
 
-  FAILURE = .FALSE.
+    FAILURE = .FALSE.
 
-  IF (init_fft_pool == 0) NULLIFY(fft_scratch_first)
+    IF (init_fft_pool == 0) NULLIFY(fft_scratch_first)
 
-  fft_scratch => fft_scratch_first
-  DO 
-    IF (ASSOCIATED(fft_scratch)) THEN
-      fft_scratch_current => fft_scratch
-      fft_scratch => fft_scratch_current%fft_scratch_next
-      NULLIFY(fft_scratch_current%fft_scratch_next)
-      ! deallocate structures
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%zoptr)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%zoptr,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%p1buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%p1buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%p2buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%p2buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%p3buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%p3buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%p4buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%p4buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%p5buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%p5buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%p6buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%p6buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%p7buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%p7buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%r1buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%r1buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%r2buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%r2buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%tbuf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%tbuf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%a1buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%a1buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%a2buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%a2buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%a3buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%a3buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%a4buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%a4buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%a5buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%a5buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%a6buf)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%a6buf,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%scount)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%scount,fft_scratch_current%fft_scratch%rcount,&
-           fft_scratch_current%fft_scratch%sdispl,fft_scratch_current%fft_scratch%rdispl,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%qq)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%qq,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%rr)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%rr,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%ss)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%ss,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%tt)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%tt,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%pgrid)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%pgrid,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%pgcube)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%pgcube,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%xcor)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%xcor,fft_scratch_current%fft_scratch%zcor,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%strans)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%strans,fft_scratch_current%fft_scratch%rtrans,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-        fft_scratch_current%fft_scratch%ins=0
-        fft_scratch_current%fft_scratch%inr=0
-        fft_scratch_current%fft_scratch%rsratio=1._dp
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%rbuf1)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%rbuf1,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%rbuf2)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%rbuf2,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%rbuf3)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%rbuf3,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%rbuf4)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%rbuf4,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%rbuf5)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%rbuf5,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF(ASSOCIATED(fft_scratch_current%fft_scratch%rbuf6)) THEN
-        DEALLOCATE(fft_scratch_current%fft_scratch%rbuf6,STAT=ierr)
-        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      END IF
-      ! end deallocate structures
-      DEALLOCATE(fft_scratch_current%fft_scratch,STAT=ierr)
-      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(fft_scratch_current,STAT=ierr)
-      CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-    ELSE
-      EXIT
-    END IF
-  END DO
+    fft_scratch => fft_scratch_first
+    DO 
+      IF (ASSOCIATED(fft_scratch)) THEN
+        fft_scratch_current => fft_scratch
+        fft_scratch => fft_scratch_current%fft_scratch_next
+        NULLIFY(fft_scratch_current%fft_scratch_next)
 
-  init_fft_pool = 0
+        CALL deallocate_fft_scratch_type(fft_scratch_current%fft_scratch,error)
+
+        DEALLOCATE(fft_scratch_current%fft_scratch,STAT=ierr)
+        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(fft_scratch_current,STAT=ierr)
+        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      ELSE
+        EXIT
+      END IF
+    END DO
+
+    init_fft_pool = 0
 
 END SUBROUTINE release_fft_scratch_pool
+
+SUBROUTINE resize_fft_scratch_pool(error)
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'resize_fft_scratch_pool', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr, last_tick, nscratch
+    LOGICAL                                  :: failure
+    TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
+                                                fft_scratch_old
+
+    failure=.FALSE.
+    nscratch=0
+ 
+    last_tick=HUGE(last_tick)
+    NULLIFY(fft_scratch_old)
+
+    ! start at the global pool, count, and find a deletion candidate
+    fft_scratch_current => fft_scratch_first
+    DO
+       IF (ASSOCIATED(fft_scratch_current)) THEN
+          nscratch=nscratch+1
+          ! is this a candidate for deletion (i.e. least recently used, and not in use)
+          IF (.NOT.fft_scratch_current%fft_scratch%in_use) THEN
+             IF (fft_scratch_current%fft_scratch%last_tick<last_tick) THEN
+                last_tick=fft_scratch_current%fft_scratch%last_tick
+                fft_scratch_old=>fft_scratch_current
+             ENDIF
+          ENDIF
+          fft_scratch_current=>fft_scratch_current%fft_scratch_next
+       ELSE 
+          EXIT
+       ENDIF
+    ENDDO
+
+    ! we should delete a scratch
+    IF (nscratch>fft_pool_scratch_limit) THEN
+       ! note that we never deallocate the first (special) element of the list
+       IF (ASSOCIATED(fft_scratch_old)) THEN
+          fft_scratch_current => fft_scratch_first
+          DO
+             IF (ASSOCIATED(fft_scratch_current)) THEN
+                ! should we delete the next in the list?
+                IF (ASSOCIATED(fft_scratch_current%fft_scratch_next,fft_scratch_old)) THEN
+                   ! fix the linked list 
+                   fft_scratch_current%fft_scratch_next=>fft_scratch_old%fft_scratch_next
+
+                   ! deallocate the element
+                   CALL deallocate_fft_scratch_type(fft_scratch_old%fft_scratch,error)
+                   DEALLOCATE(fft_scratch_old%fft_scratch,STAT=ierr)
+                   CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+                   DEALLOCATE(fft_scratch_old,STAT=ierr)
+                   CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+                   
+                ELSE
+                   fft_scratch_current=>fft_scratch_current%fft_scratch_next
+                ENDIF
+             ELSE
+                EXIT
+             ENDIF
+          ENDDO
+
+       ELSE
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+               "The number of the scratches exceeded the limit, but none could be deallocated")
+       ENDIF
+    ENDIF
+
+END SUBROUTINE resize_fft_scratch_pool
 
 SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
 
@@ -2679,8 +2775,14 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
                                                 fft_scratch_last, &
                                                 fft_scratch_new
 
-  FAILURE = .FALSE.
+  failure = .FALSE.
 
+  ! this is the place to check that the scratch_pool does not grow without limits
+  ! before we add a new scratch check the size of the pool and release some of the list if needed
+  CALL resize_fft_scratch_pool(error)
+
+  ! get the required scratch
+  tick_fft_pool=tick_fft_pool+1
   fft_scratch_current => fft_scratch_first
   DO
     IF (ASSOCIATED(fft_scratch_current)) THEN
@@ -2942,6 +3044,8 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
 
     END IF
   END DO
+
+  fft_scratch%last_tick=tick_fft_pool
 
 END SUBROUTINE get_fft_scratch
 
