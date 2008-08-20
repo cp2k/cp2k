@@ -821,8 +821,9 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: distribution_layout
     INTEGER, DIMENSION(3)                    :: no, np
     INTEGER, DIMENSION(:), POINTER           :: i_vals
-    LOGICAL                                  :: blocked, is_fullspace, odd, &
-                                                pw_grid_layout_all, spherical
+    LOGICAL                                  :: blocked, debug, is_fullspace, &
+                                                odd, pw_grid_layout_all, &
+                                                spherical
     REAL(KIND=dp)                            :: em, et, flops, gsq, perf, t, &
                                                 t_max, t_min, tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: t_end, t_start
@@ -856,6 +857,7 @@ CONTAINS
        np = i_vals
 
        CALL section_vals_val_get(pw_transfer_section,"PW_GRID_BLOCKED",i_rep_section=i_rep,l_val=blocked,error=error )
+       CALL section_vals_val_get(pw_transfer_section,"DEBUG",i_rep_section=i_rep,l_val=debug,error=error )
 
        CALL section_vals_val_get(pw_transfer_section,"PW_GRID_LAYOUT_ALL",i_rep_section=i_rep,&
             l_val=pw_grid_layout_all,error=error )
@@ -957,8 +959,8 @@ CONTAINS
           DO ip = 1, n_loop
              CALL mp_sync(para_env%group)
              t_start(ip) = m_walltime()
-             CALL pw_transfer ( ca%pw, cb%pw )
-             CALL pw_transfer ( cb%pw, cc%pw )
+             CALL pw_transfer ( ca%pw, cb%pw, debug  )
+             CALL pw_transfer ( cb%pw, cc%pw, debug )
              CALL mp_sync(para_env%group)
              t_end(ip) = m_walltime()
           END DO
