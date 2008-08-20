@@ -52,7 +52,7 @@ MODULE fft_tools
      INTEGER                              :: mx1=0, mx2=0, mx3=0
      INTEGER                              :: my1=0, my2=0, my3=0
      INTEGER                              :: mz1=0, mz2=0, mz3=0
-     INTEGER                              :: mcz1=0, mcz2=0, mcy3=0
+     INTEGER                              :: mcz1=0, mcz2=0, mcy3=0, mcx2=0
      INTEGER                              :: lg=0, mg=0
      INTEGER                              :: nbx=0, nbz=0
      INTEGER                              :: nmray=0, nyzray=0
@@ -462,9 +462,9 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       POINTER                                :: pbuf, qbuf, rbuf, sbuf
     COMPLEX(KIND=lp), DIMENSION(:, :, :), &
       POINTER                                :: tbuf
-    INTEGER :: g_pos, handle, ierr, iout, lg, lmax, mcz1, mcz2, mg, mmax, &
-      mx1, mx2, my1, mz2, n1, n2, nmax, numtask, numtask_g, numtask_r, nx, &
-      ny, nz, r_dim(2), r_pos(2), rp, sign
+    INTEGER :: g_pos, handle, ierr, iout, lg, lmax, mcx2, mcz1, mcz2, mg, &
+      mmax, mx1, mx2, my1, mz2, n1, n2, nmax, numtask, numtask_g, numtask_r, &
+      nx, ny, nz, r_dim(2), r_pos(2), rp, sign
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
     LOGICAL                                  :: test
     REAL(KIND=dp)                            :: flops, nf, sum_data
@@ -548,8 +548,10 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
   fft_scratch_size%nbx = n1
   fft_scratch_size%nbz = n2
   mcz1 = MAXVAL ( bo(2,3,:,1) - bo(1,3,:,1) + 1 )
+  mcx2 = MAXVAL ( bo(2,1,:,2) - bo(1,1,:,2) + 1 )
   mcz2 = MAXVAL ( bo(2,3,:,2) - bo(1,3,:,2) + 1 )
   fft_scratch_size%mcz1 = mcz1
+  fft_scratch_size%mcx2 = mcx2
   fft_scratch_size%mcz2 = mcz2
   fft_scratch_size%nmax      = nmax
   fft_scratch_size%nmray     = MAXVAL(nyzray)
@@ -961,10 +963,10 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: abuf, bbuf
-    INTEGER                                  :: handle, lg(2), lz(3), mcy3, &
-                                                mcz1, mcz2, mx1, mx2, mx3, &
-                                                my1, my2, my3, my_pos, mz1, &
-                                                mz2, mz3, np, sign
+    INTEGER                                  :: handle, lg(2), lz(3), mcx2, &
+                                                mcy3, mcz1, mcz2, mx1, mx2, &
+                                                mx3, my1, my2, my3, my_pos, &
+                                                mz1, mz2, mz3, np, sign
     INTEGER, DIMENSION(2)                    :: dim, pos
     LOGICAL                                  :: failure, test
     REAL(KIND=dp)                            :: flops, nx, sum_data
@@ -1048,9 +1050,11 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
   fft_scratch_size%mz2 = mz2
   fft_scratch_size%mz3 = mz3
   mcz1 = MAXVAL ( bo ( 2, 3, :, 1 ) - bo ( 1, 3, :, 1 ) + 1 )
+  mcx2 = MAXVAL ( bo ( 2, 1, :, 2 ) - bo ( 1, 1, :, 2 ) + 1 )
   mcz2 = MAXVAL ( bo ( 2, 3, :, 2 ) - bo ( 1, 3, :, 2 ) + 1 )
   mcy3 = MAXVAL ( bo ( 2, 2, :, 3 ) - bo ( 1, 2, :, 3 ) + 1 )
   fft_scratch_size%mcz1 = mcz1
+  fft_scratch_size%mcx2 = mcx2
   fft_scratch_size%mcz2 = mcz2
   fft_scratch_size%mcy3 = mcy3
   fft_scratch_size%gs_group  = group
@@ -2767,9 +2771,9 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: DIM(2), ierr, lg, lmax, m1, m2, mcy3, mcz1, mcz2, mg, mmax, &
-      mx1, mx2, my1, my3, mz1, mz2, mz3, nbx, nbz, nm, nmax, nmray, nn, np, &
-      nx, ny, nyzray, nz, pos(2)
+    INTEGER :: DIM(2), ierr, lg, lmax, m1, m2, mcx2, mcy3, mcz1, mcz2, mg, &
+      mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, nbx, nbz, nm, nmax, nmray, nn, &
+      np, nx, ny, nyzray, nz, pos(2)
     LOGICAL                                  :: equal, failure
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                 fft_scratch_last, &
@@ -2886,6 +2890,7 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
 
           CALL mp_environ ( nn, dim, pos, fft_sizes%rs_group )
           mcz1   = fft_sizes%mcz1
+          mcx2   = fft_sizes%mcx2
           mcz2   = fft_sizes%mcz2
           mcy3   = fft_sizes%mcy3
           ALLOCATE ( fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2,0:DIM(2)-1),STAT=ierr)
@@ -2960,6 +2965,7 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
           mx2   = fft_sizes%mx2 
           my1   = fft_sizes%my1
           mz2   = fft_sizes%mz2 
+          mcx2  = fft_sizes%mcx2
           lg    = fft_sizes%lg 
           mg    = fft_sizes%mg
           nmax  = fft_sizes%nmax  
@@ -2986,7 +2992,7 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
 #endif
           ALLOCATE ( fft_scratch_new%fft_scratch%p7buf(mg,lg),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-          nm = nmray*mx2
+          nm = nmray*mcx2
           IF ( alltoall_sgl ) THEN
             ALLOCATE ( fft_scratch_new%fft_scratch%ss(nm,0:np-1),STAT=ierr)
             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -3155,6 +3161,7 @@ SUBROUTINE is_equal(fft_size_1,fft_size_2,equal)
   equal=equal.AND.fft_size_1%my3==fft_size_2%my3
 
   equal=equal.AND.fft_size_1%mcz1==fft_size_2%mcz1
+  equal=equal.AND.fft_size_1%mcx2==fft_size_2%mcx2
   equal=equal.AND.fft_size_1%mcz2==fft_size_2%mcz2
   equal=equal.AND.fft_size_1%mcy3==fft_size_2%mcy3
 
