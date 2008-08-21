@@ -44,6 +44,7 @@ MODULE kg_rspw_methods
   USE pw_grid_info,                    ONLY: pw_find_cutoff
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
+                                             do_pw_grid_blocked_false,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_change,&
                                              pw_grid_create,&
@@ -261,7 +262,7 @@ END SUBROUTINE kg_rspw_create
                    cutoff=cutilev,&
                    spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
-                   blocked=.FALSE.,&
+                   blocked=do_pw_grid_blocked_false,&
                    ref_grid=old_pw_grid,&
                    rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
                    iounit=iounit,error=error)
@@ -271,7 +272,7 @@ END SUBROUTINE kg_rspw_create
                    cutoff=cutilev,&
                    spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
-                   blocked=.FALSE.,&
+                   blocked=do_pw_grid_blocked_false,&
                    rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
                    iounit=iounit,error=error)
               old_pw_grid => pw_grid
@@ -281,7 +282,7 @@ END SUBROUTINE kg_rspw_create
                 cutoff=cutilev,&
                 spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                 ncommensurate=ncommensurate,icommensurate=igrid_level,&
-                blocked=.FALSE.,&
+                blocked=do_pw_grid_blocked_false,&
                 ref_grid=old_pw_grid,&
                 rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
                 iounit=iounit,error=error)

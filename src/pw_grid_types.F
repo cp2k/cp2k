@@ -17,11 +17,15 @@ MODULE pw_grid_types
   
   PRIVATE
   PUBLIC :: pw_grid_type, map_pn, pw_para_type
-  PUBLIC :: HALFSPACE, FULLSPACE,PW_MODE_DISTRIBUTED,PW_MODE_LOCAL
 
   ! (only for reciprocal grid:) fill in half or full space
-  INTEGER, PARAMETER :: HALFSPACE = 211, FULLSPACE = 212
-  INTEGER, PARAMETER :: PW_MODE_LOCAL = 0, PW_MODE_DISTRIBUTED=1
+  INTEGER, PARAMETER, PUBLIC :: HALFSPACE = 211, FULLSPACE = 212
+  INTEGER, PARAMETER, PUBLIC :: PW_MODE_LOCAL = 0, PW_MODE_DISTRIBUTED=1
+
+  ! distribution in g-space can be
+  INTEGER, PARAMETER, PUBLIC :: do_pw_grid_blocked_false=0,&
+                        do_pw_grid_blocked_true =1,&
+                        do_pw_grid_blocked_free =2
   
   ! maps to positive and negative g-vectors
 ! *****************************************************************************

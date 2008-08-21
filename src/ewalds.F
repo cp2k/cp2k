@@ -63,8 +63,6 @@ CONTAINS
 !>      Ref.: J.-P. Hansen, Enrico Fermi School, 1985
 !>      Note: Only the positive G-vectors are used in the sum.
 !> \par History
-!>      JGH (28-Feb-2001) : added fft_usage flag to pw_grid_setup and calls to
-!>                          pw_grid_construct
 !>      JGH (21-Feb-2001) : changed name
 !> \author CJM
 ! *****************************************************************************

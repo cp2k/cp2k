@@ -43,12 +43,10 @@ MODULE pw_grids
   USE pw_grid_info,                    ONLY: pw_find_cutoff,&
                                              pw_grid_bounds_from_n,&
                                              pw_grid_init_setup
-  USE pw_grid_types,                   ONLY: FULLSPACE,&
-                                             HALFSPACE,&
-                                             PW_MODE_DISTRIBUTED,&
-                                             PW_MODE_LOCAL,&
-                                             map_pn,&
-                                             pw_grid_type
+  USE pw_grid_types,                   ONLY: &
+       FULLSPACE, HALFSPACE, PW_MODE_DISTRIBUTED, PW_MODE_LOCAL, &
+       do_pw_grid_blocked_false, do_pw_grid_blocked_free, &
+       do_pw_grid_blocked_true, map_pn, pw_grid_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -293,8 +291,8 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: npts
     LOGICAL, INTENT(in), OPTIONAL            :: spherical, odd, fft_usage
-    INTEGER, INTENT(in), OPTIONAL            :: ncommensurate, icommensurate
-    LOGICAL, INTENT(in), OPTIONAL            :: blocked
+    INTEGER, INTENT(in), OPTIONAL            :: ncommensurate, icommensurate, &
+                                                blocked
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
@@ -413,7 +411,7 @@ CONTAINS
 
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    LOGICAL, INTENT(in), OPTIONAL            :: blocked
+    INTEGER, INTENT(in), OPTIONAL            :: blocked
     TYPE(pw_grid_type), INTENT(in), OPTIONAL :: ref_grid
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
@@ -425,7 +423,7 @@ CONTAINS
 
     INTEGER                                  :: allocstat, ires, n(3)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
-    LOGICAL                                  :: blocking, failure
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ecut
 
 !------------------------------------------------------------------------------
@@ -434,13 +432,6 @@ CONTAINS
     CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
     CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    ! default is to allow block usage
-    IF ( PRESENT ( blocked ) ) THEN
-       blocking = blocked
-    ELSE
-       blocking = .TRUE.
-    END IF
-    pw_grid % para % blocked = blocking
 
     ! set pointer to possible reference grid
     IF ( PRESENT ( ref_grid ) ) THEN
@@ -475,7 +466,7 @@ CONTAINS
     END IF
 
     ! Distribute grid
-    CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, &
+    CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocked, &
          rs_dims=rs_dims ,error=error)
 
     ! Allocate the grid fields
@@ -520,7 +511,7 @@ CONTAINS
   END SUBROUTINE pw_grid_setup_internal
 
 ! *****************************************************************************
-  SUBROUTINE create_gvectors(pw_grid,cell,ecut,blocking,ref_grid,error)
+  SUBROUTINE create_gvectors(pw_grid,cell,ecut,blocked,ref_grid,error)
     ! Find the number of grid points
     ! yz_mask counts the number of g-vectors orthogonal to the yz plane
     ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
@@ -529,7 +520,7 @@ CONTAINS
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cell_type), INTENT(IN)              :: cell
     REAL(KIND=dp)                            :: ecut
-    LOGICAL                                  :: blocking
+    INTEGER, OPTIONAL                        :: blocked
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -549,7 +540,7 @@ CONTAINS
     CALL pw_grid_count ( cell % h_inv, pw_grid, ecut, yz_mask )
 
     ! Distribute grid
-    CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking ,error=error)
+    CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocked ,error=error)
 
     ! Allocate the grid fields
     CALL pw_grid_allocate ( pw_grid, pw_grid % ngpts_cut_local, &
@@ -688,12 +679,12 @@ CONTAINS
 !>      JGH (09-Sep-2003) reduce scaling for distribution
 !> \author JGH (22-12-2000)
 ! *****************************************************************************
-  SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims, error)
+  SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocked, rs_dims, error)
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: yz_mask
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
-    LOGICAL, INTENT(IN)                      :: blocking
+    INTEGER, INTENT(IN), OPTIONAL            :: blocked
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -701,14 +692,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_distribute', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: coor( 2 ), gmax, handle, i, &
-                                                i1, i2, ierr, ip, ipl, ipp, &
-                                                j, k, l, lby, lbz, lo( 2 ), &
-                                                m, n, np, ns, nx, ny, nz, &
-                                                rsd( 2 )
+    INTEGER :: blocked_local, coor( 2 ), gmax, handle, i, i1, i2, ierr, ip, &
+      ipl, ipp, j, k, l, lby, lbz, lo( 2 ), m, n, np, ns, nx, ny, nz, rsd( 2 )
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: pemap
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_index
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: blocking, failure
     REAL(KIND=dp)                            :: tfun, tt
 
 !------------------------------------------------------------------------------
@@ -723,6 +711,28 @@ CONTAINS
     IF (PRESENT(rs_dims)) THEN
        pw_grid%para%rs_dims=rs_dims
     END IF
+
+
+    IF (PRESENT(blocked)) THEN
+       blocked_local=blocked
+    ELSE
+       blocked_local=do_pw_grid_blocked_free
+    ENDIF
+
+    ! XXXXXXXXXXXXXXXXXXXX FIXME XXXXXXXXXXXXXXXXXXXXXXXX
+    ! the free choice should be made optimal
+    SELECT CASE(blocked_local)
+    CASE(do_pw_grid_blocked_false)
+      blocking=.FALSE.
+    CASE(do_pw_grid_blocked_true)
+      blocking=.TRUE.
+    CASE(do_pw_grid_blocked_free)
+      blocking=.TRUE.
+    CASE DEFAULT
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
+
+    pw_grid % para % blocked = blocking
 
     IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
 

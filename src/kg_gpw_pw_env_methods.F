@@ -69,6 +69,7 @@ MODULE kg_gpw_pw_env_methods
                                              HALFSPACE,&
                                              PW_MODE_DISTRIBUTED,&
                                              PW_MODE_LOCAL,&
+                                             do_pw_grid_blocked_false,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: create_gvectors,&
                                              pw_grid_create,&
@@ -345,11 +346,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_mol_rebuild', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: auxbas_grid, i, igrid_level, iounit, istat, my_icommensurate, &
-      my_ncommensurate, ncommensurate, ngrid_level, nlowest, nlowest_new, &
-      npts_out(3), npts_tmp(3), nsmax
-    LOGICAL                                  :: blocking, failure, fft, &
-                                                should_output, symmetry
+    INTEGER :: auxbas_grid, blocked_id, i, igrid_level, iounit, istat, &
+      my_icommensurate, my_ncommensurate, ncommensurate, ngrid_level, &
+      nlowest, nlowest_new, npts_out(3), npts_tmp(3), nsmax
+    LOGICAL                                  :: failure, fft, should_output, &
+                                                symmetry
     REAL(dp)                                 :: cutilev, dr_g(3), drmin, &
                                                 ecut, hmat(3,3), rel_cutoff
     REAL(dp), DIMENSION(:), POINTER          :: cutoff
@@ -445,7 +446,7 @@ CONTAINS
      ! some logical variables
       fft = .TRUE.
       symmetry = .TRUE.
-      blocking = .FALSE.
+      blocked_id = do_pw_grid_blocked_false
 
       CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF,error=error)
 
@@ -582,7 +583,7 @@ CONTAINS
 
       npts_out( : ) = pw_grid_mol%npts( : )
 
-      CALL create_gvectors(pw_grid_mol,cell_mol,ecut,blocking,error=error)
+      CALL create_gvectors(pw_grid_mol,cell_mol,ecut,blocked_id,error=error)
 
       pw_grid_mol%vol = ABS( cell_mol%deth )
       pw_grid_mol%dvol = pw_grid_mol%vol / REAL( pw_grid_mol%ngpts,KIND=dp )
@@ -752,7 +753,7 @@ CONTAINS
              CALL stop_program ( "pw_env_mol_rebuild", "Incompatible cutoff schemes" )
            END IF
 
-           CALL create_gvectors(pw_grid_mol,cell_mol,ecut,blocking,ref_grid=ref_pw_grid_mol,error=error)
+           CALL create_gvectors(pw_grid_mol,cell_mol,ecut,blocked_id,ref_grid=ref_pw_grid_mol,error=error)
 
            pw_grid_mol% vol = ABS ( cell_mol% deth )
            pw_grid_mol% dvol = pw_grid_mol% vol / REAL ( pw_grid_mol% ngpts,KIND=dp)

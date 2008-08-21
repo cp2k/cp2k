@@ -73,6 +73,8 @@ MODULE library_tests
                                              write_rng_stream
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
+                                             do_pw_grid_blocked_false,&
+                                             do_pw_grid_blocked_true,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_create,&
                                              pw_grid_release,&
@@ -814,9 +816,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: toler = 1.e-11_dp
 
-    INTEGER                                  :: grid_span, i_layout, i_rep, &
-                                                ig, ip, itmp, n_loop, n_rep, &
-                                                nn, p, q
+    INTEGER                                  :: blocked_id, grid_span, &
+                                                i_layout, i_rep, ig, ip, &
+                                                itmp, n_loop, n_rep, nn, p, q
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: layouts
     INTEGER, DIMENSION(2)                    :: distribution_layout
     INTEGER, DIMENSION(3)                    :: no, np
@@ -925,9 +927,16 @@ CONTAINS
              odd = .TRUE.
           END IF
 
+          ! XXXXX FIXME XXXXX should also allow for free
+          IF (blocked) THEN
+             blocked_id=do_pw_grid_blocked_true
+          ELSE
+             blocked_id=do_pw_grid_blocked_false
+          ENDIF
+
           ! actual setup
           CALL pw_grid_setup ( box, grid, grid_span=grid_span, odd=odd, spherical=spherical, &
-                               blocked=blocked, npts=np, fft_usage=.TRUE.,&
+                               blocked=blocked_id, npts=np, fft_usage=.TRUE.,&
                                rs_dims=distribution_layout, iounit=iw, error=error)
 
           IF (iw>0) CALL m_flush(iw)

@@ -48,6 +48,8 @@ MODULE pw_env_methods
                                              pw_grid_init_setup
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
+                                             do_pw_grid_blocked_false,&
+                                             do_pw_grid_blocked_true,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_change,&
                                              pw_grid_create,&
@@ -144,8 +146,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.01
 
-    INTEGER :: grid_span, handle, i, igrid_level, igrid_zet0_s, ikind, &
-      iounit, ipgf, iset, ishell, jkind, jpgf, jset, jshell, la, lb, &
+    INTEGER :: blocked_id, grid_span, handle, i, igrid_level, igrid_zet0_s, &
+      ikind, iounit, ipgf, iset, ishell, jkind, jpgf, jset, jshell, la, lb, &
       lgrid_level, ncommensurate, ngrid_level, nkind, nseta, nsetb, nsmax, &
       stat
     INTEGER, DIMENSION(3)                    :: higher_grid_layout
@@ -314,6 +316,13 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         odd = .TRUE.
      END IF
 
+     ! XXX FIXME XXX should also allow for free
+     IF (dft_control % qs_control % pw_grid_opt % blocked) THEN
+        blocked_id=do_pw_grid_blocked_true
+     ELSE
+        blocked_id=do_pw_grid_blocked_false
+     ENDIF
+
      DO igrid_level=1,ngrid_level
         CALL pw_grid_create(pw_grid,para_env%group,error=error)
 
@@ -325,7 +334,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                    cutoff=cutilev,&
                    spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
-                   blocked=.FALSE.,&
+                   blocked=do_pw_grid_blocked_false,&
                    ref_grid=old_pw_grid,&
                    rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
                    iounit=iounit,error=error)
@@ -335,7 +344,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                    cutoff=cutilev,&
                    spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
-                   blocked=dft_control % qs_control % pw_grid_opt % blocked,&
+                   blocked=blocked_id,&
                    rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
                    iounit=iounit,error=error)
               old_pw_grid => pw_grid
@@ -345,7 +354,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                 cutoff=cutilev,&
                 spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                 ncommensurate=ncommensurate,icommensurate=igrid_level,&
-                blocked=.FALSE.,&
+                blocked=do_pw_grid_blocked_false,&
                 ref_grid=old_pw_grid,&
                 rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
                 iounit=iounit,error=error)
@@ -656,7 +665,7 @@ END SUBROUTINE pw_env_rebuild
           CALL pw_grid_setup(cell_ref, xc_super_ref_pw_grid, grid_span=grid_span,&
                cutoff=4._dp*cutilev,spherical=spherical,odd=.FALSE., fft_usage=.TRUE., &
                ncommensurate=my_ncommensurate,icommensurate=1,&
-               blocked=.FALSE., rs_dims=(/para_env%num_pe,1/),&
+               blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe,1/),&
                iounit=iounit,error=error)
           super_ref_pw_grid => xc_super_ref_pw_grid
        END IF
@@ -679,7 +688,7 @@ END SUBROUTINE pw_env_rebuild
              CPPrecondition(ALL(nn>no),cp_failure_level,routineP,error,failure)
              CALL pw_grid_setup(cell_ref, mt_super_ref_pw_grid, &
                   cutoff=my_cutilev,spherical=spherical,fft_usage=.TRUE., &
-                  blocked=.FALSE., rs_dims=(/para_env%num_pe,1/),&
+                  blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe,1/),&
                   iounit=iounit,error=error)
              super_ref_pw_grid => mt_super_ref_pw_grid
           END IF
