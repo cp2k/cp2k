@@ -64,6 +64,8 @@ MODULE qs_electric_field_gradient
   USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE util,                            ONLY: get_limit,&
                                              sort
 #include "cp_common_uses.h"
@@ -87,8 +89,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
-    INTEGER :: aint_precond, i, iat, iatom, ij, ikind, istat, j, m, max_iter, &
-      natom, natomkind, nkind, nspins, precond_kind, unit_nr
+    INTEGER :: aint_precond, handle, i, iat, iatom, ij, ikind, istat, j, m, &
+      max_iter, natom, natomkind, nkind, nspins, precond_kind, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: efg_debug, efg_interpolation, &
                                                 failure, gapw, paw_atom, &
@@ -128,6 +130,8 @@ CONTAINS
 
     NULLIFY(atomic_kind_set, dft_control, para_env, particle_set, rho, &
          rho_atom_set, input, dft_section, interp_section)
+
+    CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
 
@@ -424,6 +428,8 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (dvspl,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
 
   END SUBROUTINE qs_efg_calc
 

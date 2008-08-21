@@ -38,8 +38,14 @@ MODULE pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE input_constants,                 ONLY: use_mt
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_constants,                 ONLY: &
+       use_mt, use_wavelet, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
+       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
+       xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, &
+       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -56,7 +62,8 @@ MODULE pw_env_methods
                                              pw_grid_release,&
                                              pw_grid_setup
   USE pw_poisson_methods,              ONLY: pw_poisson_set
-  USE pw_poisson_types,                ONLY: pw_poisson_create
+  USE pw_poisson_types,                ONLY: pw_poisson_create,&
+                                             pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_p_type,&
                                              pw_pool_release,&
@@ -146,16 +153,17 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.01
 
-    INTEGER :: blocked_id, grid_span, handle, i, igrid_level, igrid_zet0_s, &
-      ikind, iounit, ipgf, iset, ishell, jkind, jpgf, jset, jshell, la, lb, &
-      lgrid_level, ncommensurate, ngrid_level, nkind, nseta, nsetb, nsmax, &
-      stat
+    INTEGER :: blocked_id, blocked_id_input, grid_span, handle, i, &
+      igrid_level, igrid_zet0_s, ikind, iounit, ipgf, iset, ishell, jkind, &
+      jpgf, jset, jshell, la, lb, lgrid_level, ncommensurate, ngrid_level, &
+      nkind, nseta, nsetb, nsmax, stat, xc_deriv_method_id, &
+      xc_smooth_method_id
+    INTEGER, DIMENSION(2)                    :: distribution_layout
     INTEGER, DIMENSION(3)                    :: higher_grid_layout
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
-    LOGICAL                                  :: failure, odd, should_output, &
-                                                spherical, uf_grid, &
-                                                use_ref_cell
+    LOGICAL :: efg_present, failure, linres_present, odd, should_output, &
+      spherical, splines_required, uf_grid, use_ref_cell, wavelet_active
     REAL(KIND=dp)                            :: alpha, core_charge, cutilev, &
                                                 max_rpgf0_s, maxradius, &
                                                 my_cut, rel_cutoff, zet0_s, &
@@ -177,6 +185,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                                                 old_pw_grid, pw_grid, &
                                                 super_ref_grid, &
                                                 xc_super_ref_grid
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(realspace_grid_input_type)          :: input_settings
@@ -185,8 +194,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(section_vals_type), POINTER         :: input, poisson_section, &
-                                                print_section, rs_grid_section
+    TYPE(section_vals_type), POINTER :: efg_section, input, linres_section, &
+      poisson_section, print_section, rs_grid_section, xc_section
 
 ! a very small safety factor might be needed for roundoff issues
 ! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
@@ -318,15 +327,81 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
      ! XXX FIXME XXX should also allow for free
      IF (dft_control % qs_control % pw_grid_opt % blocked) THEN
-        blocked_id=do_pw_grid_blocked_true
+        blocked_id_input=do_pw_grid_blocked_true
      ELSE
-        blocked_id=do_pw_grid_blocked_false
+        blocked_id_input=do_pw_grid_blocked_false
      ENDIF
 
+     ! methods that require spline interpolation have to use a plane distributed setup
+     ! find the xc properties (FIXME this could miss other xc sections that operate on the grid ...)
+     CALL get_qs_env(qs_env=qs_env,input=input,error=error)
+     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+     xc_deriv_method_id=section_get_ival(xc_section,"XC_GRID%XC_DERIV",error)
+     xc_smooth_method_id=section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error)
+     splines_required=.FALSE.
+     SELECT CASE(xc_deriv_method_id)
+     CASE(xc_deriv_pw)
+         splines_required=splines_required.OR..FALSE.
+     CASE(xc_deriv_spline2,xc_deriv_spline3,xc_deriv_spline2_smooth, &
+          xc_deriv_spline3_smooth,xc_deriv_nn10_smooth,xc_deriv_nn50_smooth)
+         splines_required=splines_required.OR..TRUE.
+     CASE DEFAULT
+         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     END SELECT
+     SELECT CASE(xc_smooth_method_id)
+     CASE(xc_rho_no_smooth)
+         splines_required=splines_required.OR..FALSE.
+     CASE(xc_rho_spline2_smooth,xc_rho_spline3_smooth,xc_rho_nn10,xc_rho_nn50)
+         splines_required=splines_required.OR..TRUE.
+     CASE DEFAULT
+         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     END SELECT
+     ! EPR, NMR, EFG can require splines. If the linres/EFG section is present we assume it could be on and splines might be used 
+     linres_section => section_vals_get_subs_vals(section_vals=input,&
+                   subsection_name="PROPERTIES%LINRES",&
+                   error=error)
+     CALL section_vals_get(linres_section,explicit=linres_present,error=error)
+     IF (linres_present) THEN
+        splines_required=splines_required.OR..TRUE.
+     ENDIF
+
+     efg_section => section_vals_get_subs_vals(section_vals=input,&
+                   subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT",&
+                   error=error)
+     CALL section_vals_get(efg_section,explicit=efg_present,error=error)
+     IF (efg_present) THEN
+        splines_required=splines_required.OR..TRUE.
+     ENDIF
+     ! the wavelet solver doesn't like ray distributed pw grids either (gives wrong results)
+     IF (section_get_ival(input,"DFT%POISSON%POISSON_SOLVER",error=error)==use_wavelet) THEN
+        wavelet_active=.TRUE.
+     ELSE
+        wavelet_active=.FALSE.
+     ENDIF
+     
      DO igrid_level=1,ngrid_level
         CALL pw_grid_create(pw_grid,para_env%group,error=error)
 
         cutilev = cutoff(igrid_level)
+
+        ! the whole of QS seems to work fine with either blocked/non-blocked distribution in g-space
+        ! the default choice should be made free
+        blocked_id=blocked_id_input
+
+        distribution_layout=dft_control % qs_control % pw_grid_opt % distribution_layout
+
+        ! qmmm does not support a ray distribution 
+        ! FIXME ... check if a plane distributed lower grid is sufficient
+        IF (qs_env%qmmm) THEN
+          distribution_layout = (/para_env%num_pe,1/)            
+        ENDIF
+
+        ! If splines are required
+        ! or if wavelet is used 
+        ! FIXME.... should only be true for the highest grid 
+        IF (splines_required.OR.wavelet_active) THEN
+          distribution_layout = (/para_env%num_pe,1/)            
+        ENDIF
 
         IF (igrid_level == 1) THEN
            IF (ASSOCIATED(old_pw_grid)) THEN
@@ -336,7 +411,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
                    blocked=do_pw_grid_blocked_false,&
                    ref_grid=old_pw_grid,&
-                   rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
+                   rs_dims=distribution_layout,&
                    iounit=iounit,error=error)
               old_pw_grid => pw_grid
            ELSE
@@ -345,7 +420,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                    spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
                    blocked=blocked_id,&
-                   rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
+                   rs_dims=distribution_layout,&
                    iounit=iounit,error=error)
               old_pw_grid => pw_grid
            END IF
@@ -356,7 +431,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                 ncommensurate=ncommensurate,icommensurate=igrid_level,&
                 blocked=do_pw_grid_blocked_false,&
                 ref_grid=old_pw_grid,&
-                rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
+                rs_dims=distribution_layout,&
                 iounit=iounit,error=error)
         END IF
 

@@ -113,6 +113,10 @@ CONTAINS
     hz = pw_grid % dr ( 3 ) 
 
     nproc=PRODUCT(pw_grid % para % rs_dims)
+
+    ! looks like we get wrong results for ray distributed pw_grids
+    CPPrecondition(pw_grid % para % rs_dims(2).EQ.1,cp_failure_level,routineP,error,failure)
+
     iproc=pw_grid % para % rs_mpo
 
     IF (.NOT.failure) THEN
