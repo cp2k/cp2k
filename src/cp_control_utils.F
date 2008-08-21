@@ -466,7 +466,7 @@ CPSourceFileRef,&
 
     CALL section_vals_val_get(qs_section,"PW_GRID_LAYOUT",i_vals=tmplist,error=error)
     qs_control%pw_grid_opt%distribution_layout=tmplist
-    CALL section_vals_val_get(qs_section,"PW_GRID_BLOCKED",l_val=qs_control%pw_grid_opt%blocked,error=error)
+    CALL section_vals_val_get(qs_section,"PW_GRID_BLOCKED",i_val=qs_control%pw_grid_opt%blocked,error=error)
 
     !Integers extrapolation
     CALL section_vals_val_get(qs_section,"EXTRAPOLATION",i_val=qs_control%wf_interpolation_method_nr,error=error)

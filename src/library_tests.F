@@ -73,8 +73,6 @@ MODULE library_tests
                                              write_rng_stream
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
-                                             do_pw_grid_blocked_false,&
-                                             do_pw_grid_blocked_true,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_create,&
                                              pw_grid_release,&
@@ -823,9 +821,8 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: distribution_layout
     INTEGER, DIMENSION(3)                    :: no, np
     INTEGER, DIMENSION(:), POINTER           :: i_vals
-    LOGICAL                                  :: blocked, debug, is_fullspace, &
-                                                odd, pw_grid_layout_all, &
-                                                spherical
+    LOGICAL                                  :: debug, is_fullspace, odd, &
+                                                pw_grid_layout_all, spherical
     REAL(KIND=dp)                            :: em, et, flops, gsq, perf, t, &
                                                 t_max, t_min, tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: t_end, t_start
@@ -858,7 +855,7 @@ CONTAINS
        CALL section_vals_val_get(pw_transfer_section,"GRID",i_rep_section=i_rep,i_vals=i_vals,error=error )
        np = i_vals
 
-       CALL section_vals_val_get(pw_transfer_section,"PW_GRID_BLOCKED",i_rep_section=i_rep,l_val=blocked,error=error )
+       CALL section_vals_val_get(pw_transfer_section,"PW_GRID_BLOCKED",i_rep_section=i_rep,i_val=blocked_id,error=error )
        CALL section_vals_val_get(pw_transfer_section,"DEBUG",i_rep_section=i_rep,l_val=debug,error=error )
 
        CALL section_vals_val_get(pw_transfer_section,"PW_GRID_LAYOUT_ALL",i_rep_section=i_rep,&
@@ -926,13 +923,6 @@ CONTAINS
              spherical = .FALSE.
              odd = .TRUE.
           END IF
-
-          ! XXXXX FIXME XXXXX should also allow for free
-          IF (blocked) THEN
-             blocked_id=do_pw_grid_blocked_true
-          ELSE
-             blocked_id=do_pw_grid_blocked_false
-          ENDIF
 
           ! actual setup
           CALL pw_grid_setup ( box, grid, grid_span=grid_span, odd=odd, spherical=spherical, &

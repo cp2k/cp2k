@@ -55,7 +55,6 @@ MODULE pw_env_methods
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              do_pw_grid_blocked_false,&
-                                             do_pw_grid_blocked_true,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_change,&
                                              pw_grid_create,&
@@ -325,12 +324,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         odd = .TRUE.
      END IF
 
-     ! XXX FIXME XXX should also allow for free
-     IF (dft_control % qs_control % pw_grid_opt % blocked) THEN
-        blocked_id_input=do_pw_grid_blocked_true
-     ELSE
-        blocked_id_input=do_pw_grid_blocked_false
-     ENDIF
+     ! use input suggestion for blocked
+     blocked_id_input=dft_control % qs_control % pw_grid_opt % blocked
 
      ! methods that require spline interpolation have to use a plane distributed setup
      ! find the xc properties (FIXME this could miss other xc sections that operate on the grid ...)
