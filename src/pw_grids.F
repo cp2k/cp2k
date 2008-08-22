@@ -693,11 +693,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: blocked_local, coor( 2 ), gmax, handle, i, i1, i2, ierr, ip, &
-      ipl, ipp, j, k, l, lby, lbz, lo( 2 ), m, n, np, ns, nx, ny, nz, rsd( 2 )
+      ipl, ipp, itmp, j, l, lby, lbz, lo( 2 ), m, n, np, ns, nx, ny, nz, &
+      rsd( 2 )
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: pemap
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_index
     LOGICAL                                  :: blocking, failure
-    REAL(KIND=dp)                            :: tfun, tt
 
 !------------------------------------------------------------------------------
 
@@ -719,20 +719,8 @@ CONTAINS
        blocked_local=do_pw_grid_blocked_free
     ENDIF
 
-    ! XXXXXXXXXXXXXXXXXXXX FIXME XXXXXXXXXXXXXXXXXXXXXXXX
-    ! the free choice should be made optimal
-    SELECT CASE(blocked_local)
-    CASE(do_pw_grid_blocked_false)
-      blocking=.FALSE.
-    CASE(do_pw_grid_blocked_true)
-      blocking=.TRUE.
-    CASE(do_pw_grid_blocked_free)
-      blocking=.TRUE.
-    CASE DEFAULT
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    END SELECT
 
-    pw_grid % para % blocked = blocking
+    pw_grid % para % blocked = .FALSE.
 
     IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
 
@@ -755,68 +743,73 @@ CONTAINS
        nx = pw_grid % npts ( 1 )
        ny = pw_grid % npts ( 2 )
        nz = pw_grid % npts ( 3 )
-
        np = pw_grid % para % group_size
 
 
-       ! capture an input request, if we see any negative number
-       IF ( ANY(pw_grid % para % rs_dims<0) ) THEN
-            ! we go back to the old settings where we had a plane, not a ray distribution
-            IF (ALL(pw_grid % para % rs_dims<0) ) THEN
-                pw_grid % para % rs_dims = (/np,1/)
+       ! The user can specify 2 strictly positive indices => specific layout
+       !                      1 strictly positive index   => the other is fixed by the number of CPUs
+       !                      0 strictly positive indices => fully free distribution
+       ! if fully free or the user request can not be fulfilled, we optimize heuristically ourselves by:
+       !                      1) nx>np -> taking a plane distribution (/np,1/)
+       !                      2) nx<np -> taking the most square distribution
+       ! if blocking is free:
+       !                      1) blocked=.FALSE. for plane distributions
+       !                      2) blocked=.TRUE.  for non-plane distributions
+       IF ( ANY(pw_grid % para % rs_dims<=0) ) THEN
+            IF (ALL(pw_grid % para % rs_dims<=0) ) THEN
+                pw_grid % para % rs_dims = (/0,0/)
             ELSE
-              ! a zero means, have CP2K optimize
-              IF (.NOT. ANY(pw_grid % para % rs_dims==0)) THEN
-                ! just a single negative means that the other number should be such that the CPU count can match
-                IF (pw_grid % para % rs_dims(1)==-1) THEN
-                   pw_grid % para % rs_dims(1)=np/pw_grid % para % rs_dims(2)
-                ELSE
+                IF (pw_grid % para % rs_dims(1)>0) THEN
                    pw_grid % para % rs_dims(2)=np/pw_grid % para % rs_dims(1)
+                ELSE
+                   pw_grid % para % rs_dims(1)=np/pw_grid % para % rs_dims(2)
                 ENDIF
-              ENDIF
             ENDIF
        ENDIF
+       ! reset if the distribution can not be fulfilled
+       IF ( PRODUCT(pw_grid % para % rs_dims) .NE. np ) pw_grid % para % rs_dims= (/0,0/)
+       ! reset if the distribution can not be dealt with (/1,np/)
+       IF ( ALL(pw_grid % para % rs_dims==(/1,np/)) ) pw_grid % para % rs_dims= (/0,0/)
 
-       ! if there is a zero, we try and optimize ourselves
-       ! or if the first index is 1 (which is not supported)
-       IF ( PRODUCT ( pw_grid % para % rs_dims ) == 0 .OR. ALL(pw_grid % para % rs_dims==(/1,np/)) ) THEN
-
-          ns = INT ( SQRT ( REAL ( np,KIND=dp) ) )
-
-          tfun = 1.e20_dp
-          DO i = ns, 2, -1
-             IF ( MOD ( np, i ) == 0 ) THEN
-                j = np/i
-                k = nx*ny - i*(nx/i) * j*(ny/j)
-                IF ( k == 0 ) THEN
-                   tfun = 0.0_dp
-                   m = i
-                ELSE
-                   tt = 1.0_dp - REAL ( k,KIND=dp) / REAL ( np,KIND=dp)
-                   IF ( tt < tfun ) THEN
-                      tfun = tt
-                      m = i
-                   END IF
-                END IF
-             END IF
-          END DO
-          k = ( nx - np*(nx/np)) * ny
-          IF ( k == 0 ) THEN
-             m = np
+       ! if (/0,0/) now, we can optimize it ourselves
+       IF ( ALL(pw_grid % para % rs_dims==(/0,0/)) ) THEN
+          ! only small grids have a chance to be 2d distributed
+          IF (nx<np) THEN
+             ! gives the most square looking distribution
+             CALL mp_dims_create ( np, pw_grid % para % rs_dims )
+             ! we tend to like the first index being smaller than the second
+             IF (pw_grid % para % rs_dims(1)>pw_grid % para % rs_dims(2)) THEN
+                 itmp = pw_grid % para % rs_dims(1)
+                 pw_grid % para % rs_dims(1) = pw_grid % para % rs_dims(2)
+                 pw_grid % para % rs_dims(2) = itmp
+             ENDIF
+             ! but should avoid having the first index 1 in all cases
+             IF (pw_grid % para % rs_dims(1) == 1) THEN
+                 itmp = pw_grid % para % rs_dims(1)
+                 pw_grid % para % rs_dims(1) = pw_grid % para % rs_dims(2)
+                 pw_grid % para % rs_dims(2) = itmp
+             ENDIF
           ELSE
-             tt = 1.0_dp - REAL ( k,KIND=dp) / REAL ( np,KIND=dp)
-             IF ( tt < tfun ) m = np
-          END IF
-          pw_grid % para % rs_dims ( 1 ) = m
-          pw_grid % para % rs_dims ( 2 ) = np/m
+             pw_grid % para % rs_dims = (/np,1/)
+          ENDIF
+       ENDIF
 
-       ! if it doesn't match the number of CPUs something else ..
-       ELSEIF ( PRODUCT ( pw_grid % para % rs_dims ) /= np ) THEN
-
-          pw_grid % para % rs_dims = 0
-          CALL mp_dims_create ( np, pw_grid % para % rs_dims )
-
-       END IF
+       ! now fix the blocking if we have a choice
+       SELECT CASE(blocked_local)
+       CASE(do_pw_grid_blocked_false)
+         blocking=.FALSE.
+       CASE(do_pw_grid_blocked_true)
+         blocking=.TRUE.
+       CASE(do_pw_grid_blocked_free)
+         IF (ALL(pw_grid % para % rs_dims==(/np,1/))) THEN
+            blocking=.FALSE.
+         ELSE
+            blocking=.TRUE.
+         ENDIF
+       CASE DEFAULT
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+       
        !..create group for real space distribution
        CALL mp_cart_create ( pw_grid % para % group, 2, &
             pw_grid % para % rs_dims, &
@@ -954,6 +947,7 @@ CONTAINS
           !  block distribution of g vectors, we do not have a spherical cutoff
           !
 
+          pw_grid % para % blocked = .TRUE.
           pw_grid % para % ray_distribution = .FALSE.
 
           DO ip = 0, np - 1

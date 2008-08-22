@@ -1720,9 +1720,11 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PW_GRID_LAYOUT",&
-            description="Expert use only, leave the default..."//&
-                        "Can be used to set the distribution for ray-distributed FFT.",&
-            usage="PW_GRID_LAYOUT",&
+            description="Force a particular real-space layout for the plane waves grids. "//&
+                        "Numbers <=0 mean that this dimension is free, incorrect layouts will be ignored. "//&
+                        "The default (/-1,-1/) causes CP2K to select a good value, "//&
+                        "i.e. plane distributed for large grids, more general distribution for small grids.",&
+            usage="PW_GRID_LAYOUT 4 16",&
             repeats=.FALSE.,required=.FALSE.,n_var=2,&
             default_i_vals=(/-1,-1/),&
             error=error)
@@ -1730,13 +1732,12 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PW_GRID_BLOCKED",&
-            description="Expert use only, leave the default..."//&
-                        "Can be used to set the distribution in g-space for the pw grids and their FFT.",&
+            description="Can be used to set the distribution in g-space for the pw grids and their FFT.",&
             usage="PW_GRID_BLOCKED FREE",&
             enum_c_vals=s2a("FREE","TRUE","FALSE"),&
-            enum_desc=s2a("CP2K will select the optimal value","blocked","not blocked"),&
+            enum_desc=s2a("CP2K will select an appropriate value","blocked","not blocked"),&
             enum_i_vals=(/do_pw_grid_blocked_free,do_pw_grid_blocked_true,do_pw_grid_blocked_false/),&
-            default_i_val=do_pw_grid_blocked_false, error=error)
+            default_i_val=do_pw_grid_blocked_free, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

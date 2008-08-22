@@ -123,6 +123,8 @@ MODULE fft_tools
   INTEGER, PARAMETER :: FFT_RADIX_CLOSEST = 493, FFT_RADIX_NEXT = 494
   INTEGER, PARAMETER :: FFT_RADIX_ALLOWED = 495, FFT_RADIX_DISALLOWED = 496
   INTEGER, PARAMETER :: FFT_RADIX_NEXT_ODD = 497
+
+  REAL(KIND=dp), PARAMETER :: ratio_sparse_alltoall = 0.5_dp
  
   ! these saved variables are FFT globals
   INTEGER, SAVE :: fft_type = 0
@@ -1750,7 +1752,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
   IF ( alltoall_sgl ) THEN
     CALL mp_alltoall ( ts, scount, sdispl, tq, rcount, rdispl, group )
   ELSE
-    IF ( fft_scratch%rsratio < 0.0_dp ) THEN
+    IF ( fft_scratch%rsratio < ratio_sparse_alltoall  ) THEN
       CALL sparse_alltoall ( rs, scount, sdispl, rq, rcount, rdispl, group )
     ELSE
       CALL mp_alltoall ( rs, scount, sdispl, rq, rcount, rdispl, group )
@@ -1932,7 +1934,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
   IF ( alltoall_sgl ) THEN
     CALL mp_alltoall ( tq, scount, sdispl, ts, rcount, rdispl, group )
   ELSE
-    IF ( fft_scratch%rsratio < 0.0_dp ) THEN
+    IF ( fft_scratch%rsratio < ratio_sparse_alltoall  ) THEN
       CALL sparse_alltoall ( rq, scount, sdispl, rs, rcount, rdispl, group )
     ELSE
       CALL mp_alltoall ( rq, scount, sdispl, rs, rcount, rdispl, group )
