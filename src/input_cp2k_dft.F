@@ -52,7 +52,7 @@ MODULE input_cp2k_dft
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_dft'
 
   PUBLIC :: create_dft_section
-  PUBLIC :: create_bsse_section, create_qs_section
+  PUBLIC :: create_bsse_section, create_qs_section, create_xc_section
   PUBLIC :: create_properties_section, create_scf_section, create_ep_section
   !***
 CONTAINS

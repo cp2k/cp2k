@@ -1,0 +1,459 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2008  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
+!> \brief builds the input structure for the ATOM module
+!> \author jgh
+! *****************************************************************************
+MODULE input_cp2k_atom
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE f77_blas
+  USE input_constants
+  USE input_cp2k_dft,                  ONLY: create_xc_section
+  USE input_keyword_types,             ONLY: keyword_create,&
+                                             keyword_release,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_create,&
+                                             section_release,&
+                                             section_type
+  USE input_val_types,                 ONLY: char_t,&
+                                             integer_t
+  USE kinds,                           ONLY: dp
+  USE string_utilities,                ONLY: s2a
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+  PRIVATE
+
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_atom'
+
+  PUBLIC :: create_atom_section
+
+! *****************************************************************************
+
+CONTAINS
+
+! *****************************************************************************
+!> \brief Creates the input section for the atom code
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author jgh   
+! *****************************************************************************
+  SUBROUTINE create_atom_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="ATOM",&
+            description="Section handling input for atomic calculations.",&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            supported_feature=.FALSE.,error=error)
+       NULLIFY(keyword, subsection)
+       
+       CALL keyword_create(keyword, name="ATOMIC_NUMBER",&
+            description="Specify the atomic number",&
+            default_i_val=1, supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ELEMENT",&
+            description="Specify the element to be calculated",&
+            usage="ELEMENT char",n_var=1,type_of_var=char_t,&
+            default_c_val="H", supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RUN_TYPE",&
+            description="Type of run that you want to perform [ENERGY,...] ",&
+            usage="RUN_TYPE ENERGY",&
+            default_i_val=atom_energy_run,&
+            enum_c_vals=atom_run_type_names,&
+            enum_i_vals=atom_run_type_index,&
+            supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="COULOMB_INTEGRALS",&
+            description="Method to calculate Coulomb integrals",&
+            usage="COULOMB_INTEGRALS analytic",&
+            default_i_val=do_analytic,&
+            enum_c_vals=(/"ANALYTIC                 ",&
+                          "SEMI_ANALYTIC            ",&
+                          "NUMERIC                  "/),&
+            enum_i_vals= (/ do_analytic, do_semi_analytic, do_numeric /),&
+            supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EXCHANGE_INTEGRALS",&
+            description="Method to calculate Exchange integrals",&
+            usage="COULOMB_INTEGRALS analytic",&
+            default_i_val=do_analytic,&
+            enum_c_vals=(/"ANALYTIC                 ",&
+                          "SEMI_ANALYTIC            ",&
+                          "NUMERIC                  "/),&
+            enum_i_vals= (/ do_analytic, do_semi_analytic, do_numeric /),&
+            supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CORE",&
+            description="Specifies the core electrons for a pseudopotential",&
+            usage="CORE 1s2 ... or CORE [Ne]", required=.TRUE., repeats=.FALSE.,&
+            n_var=-1,type_of_var=char_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ELECTRON_CONFIGURATION",&
+            description="Specifies the electron configuration",&
+            usage="ELECTRON_CONFIGURATION [Ne] 3s2 ... ", required=.TRUE., repeats=.TRUE.,&
+            n_var=-1,type_of_var=char_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_ANGULAR_MOMENTUM",&
+            description="Specifies the largest angular momentum calculated [0-3]",&
+            usage="MAX_ANGULAR_MOMENTUM 3", required=.TRUE., repeats=.FALSE.,&
+            default_i_val=-1, supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CALCULATE_STATES",&
+            description="Specifies the number of states calculated per l value",&
+            usage="CALCULATE_STATES  5 5 5 3 ", required=.TRUE., repeats=.FALSE.,&
+            default_i_val=0, n_var=-1,type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_atom_print_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_atom_aebasis_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_atom_ppbasis_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_atom_method_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_optimization_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_atom_section
+
+!--------------------------------------------------------------------------------------------------
+
+! *****************************************************************************
+!> \brief Create the print atom section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author jgh
+! *****************************************************************************
+  SUBROUTINE create_atom_print_section(section,error) 
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_print_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="print",&
+            description="Section of possible print options specific of the ATOM code.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(print_key)
+
+       CALL cp_print_key_section_create(print_key,"PROGRAM_BANNER",&
+            description="Controls the printing of the banner of the ATOM program",&
+            print_level=silent_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"SCF_INFO",&
+            description="Controls the printing of SCF information",&
+            print_level=silent_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+  END SUBROUTINE create_atom_print_section
+
+! *****************************************************************************
+!> \brief Create the all-electron basis section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author jgh
+! *****************************************************************************
+  SUBROUTINE create_atom_aebasis_section(section,error) 
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_aebasis_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="AE_BASIS",&
+            description="Section of basis set information for all-electron calculations.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL atom_basis_section(section,error) 
+
+    END IF
+  END SUBROUTINE create_atom_aebasis_section
+
+! *****************************************************************************
+!> \brief Create the pseudopotential basis section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author jgh
+! *****************************************************************************
+  SUBROUTINE create_atom_ppbasis_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_ppbasis_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="PP_BASIS",&
+            description="Section of basis set information for pseudopotential calculations.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL atom_basis_section(section,error) 
+
+    END IF
+  END SUBROUTINE create_atom_ppbasis_section
+
+! *****************************************************************************
+!> \brief Keywords in the atom basis section
+!> \param section the section to fill
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author jgh
+! *****************************************************************************
+  SUBROUTINE atom_basis_section(section,error) 
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="BASIS_TYPE",&
+            description="Basis set type",&
+            usage="BASIS_TYPE GAUSSIAN",&
+            default_i_val=gaussian,&
+            enum_c_vals=(/"GAUSSIAN                 ",&
+                          "GEOMETRICAL_GTO          ",&
+                          "CONTRACTED_GTO           ",&
+                          "SLATER                   ",&
+                          "NUMERICAL                "/),&
+            enum_i_vals= (/ gaussian, geometrical_gto, contracted_gto, slater, numerical /),&
+            supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NUM_GTO",&
+            description="Number of Gaussian type functions "//&
+              "(l independent, used for GAUSSIAN and GEOMETRICAL basis sets)",&
+            usage="NUM_GTO integer",&
+            default_i_val=-1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="GEOMETRICAL_FACTOR",&
+            description="Geometrical basis: factor C in a*C^k",&
+            usage="GEOMETRICAL_FACTOR real",&
+            default_r_val=0._dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="GEO_START_VALUE",&
+            description="Geometrical basis: starting value a in a*C^k",&
+            usage="GEO_START_VALUE real",&
+            default_r_val=0._dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="QUADRATURE",&
+            description="Algorithm to construct the atomic radial grids",&
+            usage="QUADRATURE GC_SIMPLE",&
+            enum_c_vals=s2a("GC_SIMPLE","GC_TRANSFORMED","GC_LOG"),&
+            enum_i_vals=(/ do_gapw_gcs,do_gapw_gct,do_gapw_log/),&
+            default_i_val=do_gapw_log, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="GRID_POINTS",&
+            description="Number of radial grid points",&
+            usage="GRID_POINTS integer",&
+            default_i_val=400,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE atom_basis_section
+
+! *****************************************************************************
+!> \brief Create the method section for Atom calculations
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author jgh
+! *****************************************************************************
+  SUBROUTINE create_atom_method_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_method_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    NULLIFY(subsection,keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="METHOD",&
+            description="Section of information on method to use.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="METHOD_TYPE",&
+            description="Type of electronic structure method to be used",&
+            usage="METHOD_TYPE KOHN-SHAM",&
+            default_i_val=do_rks_atom,&
+            enum_c_vals=(/"KOHN-SHAM                ",&
+                          "RKS                      ",&
+                          "UKS                      ",&
+                          "HARTREE-FOCK             ",&
+                          "RHF                      ",&
+                          "UHF                      ",&
+                          "ROHF                     "/),&
+            enum_i_vals= (/ do_rks_atom, do_rks_atom, do_uks_atom, do_rhf_atom, &
+                            do_rhf_atom, do_uhf_atom, do_rohf_atom /),&
+            supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_xc_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_atom_method_section
+
+! *****************************************************************************
+!> \brief Create the optimization section for Atom calculations
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author jgh
+! *****************************************************************************
+  SUBROUTINE create_optimization_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_optimization_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="OPTIMIZATION",&
+            description="Section of information on optimization thresholds and algorithms.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="DAMPING",&
+            description="Damping parameter for extrapolation method",&
+            usage="DAMPING 0.4", default_r_val=0.4_dp,&
+            supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_DIIS",&
+            description="Starting DIIS method at convergence to EPS_DIIS",&
+            usage="EPS_DIIS  0.01", default_r_val=0.1_dp,&
+            supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="N_DIIS",&
+            description="Maximum number of DIIS vectors",&
+            usage="N_DIIS  6", default_i_val=5,&
+            supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_optimization_section
+
+
+END MODULE input_cp2k_atom

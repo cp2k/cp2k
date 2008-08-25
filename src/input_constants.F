@@ -21,22 +21,25 @@ MODULE input_constants
                                 id_release_version=1
 
   ! Program Names
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(3), PUBLIC :: program_names=&
-       (/"FARMING   ",&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(4), PUBLIC :: program_names=&
+       (/"ATOM      ",&
+         "FARMING   ",&
          "TEST      ",&
          "CP2K      "/)
 
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(3), PUBLIC :: program_name_desc=&
-       (/"Runs N independent jobs in a single run",&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(4), PUBLIC :: program_name_desc=&
+       (/"Runs single atom calculations          ",&
+         "Runs N independent jobs in a single run",&
          "Do some benchmarking and testing       ",&
          "Runs one of the CP2K package           "/)
          
-  INTEGER, PARAMETER, PUBLIC :: do_farming=1,&
-                                do_test=2,&
-                                do_cp2k=3
+  INTEGER, PARAMETER, PUBLIC :: do_atom=1,&
+                                do_farming=2,&
+                                do_test=3,&
+                                do_cp2k=4
 
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(3) :: program_name_index=&
-       (/do_farming, do_test, do_cp2k/)
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(4) :: program_name_index=&
+       (/do_atom, do_farming, do_test, do_cp2k/)
 
   INTEGER, PARAMETER, PUBLIC :: do_full_density=0,&
                                 do_spin_density=1
@@ -221,6 +224,31 @@ MODULE input_constants
           linear_response_run,&
           vib_anal/)
 
+  ! Run Types of Atom Code
+  INTEGER, PARAMETER, PUBLIC :: atom_no_run=1,&
+                                atom_energy_run=2
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(2), PUBLIC :: atom_run_type_names=&
+       (/"NONE                     ",&
+         "ENERGY                   "/)
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(2) :: atom_run_type_index=&
+       (/ atom_no_run,&
+          atom_energy_run/)
+  ! Integral types in Atom Code
+  INTEGER, PARAMETER, PUBLIC :: do_analytic=1,&
+                                do_semi_analytic=2,&
+                                do_numeric=3
+  ! Basis set type for Atom Code
+  INTEGER, PARAMETER, PUBLIC :: gaussian=1,&
+                                geometrical_gto=2,&
+                                contracted_gto=3,&
+                                slater=4,&
+                                numerical=5
+  ! Method type for Atom Code
+  INTEGER, PARAMETER, PUBLIC :: do_rks_atom=1,&
+                                do_uks_atom=2,&
+                                do_rhf_atom=3,&
+                                do_uhf_atom=4,&
+                                do_rohf_atom=5
   ! BAND
   INTEGER, PARAMETER, PUBLIC :: do_b_neb=0,&
                                 do_it_neb=1,&

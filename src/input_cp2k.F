@@ -21,6 +21,7 @@ MODULE input_cp2k
                                              cp_unit_set_type
   USE f77_blas
   USE input_constants
+  USE input_cp2k_atom,                 ONLY: create_atom_section
   USE input_cp2k_force_eval,           ONLY: create_force_eval_section
   USE input_cp2k_motion,               ONLY: create_motion_section
   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
@@ -154,6 +155,10 @@ CONTAINS
        CALL section_release(section,error=error)
 
        CALL create_vib_section(section,error=error)
+       CALL section_add_subsection(root_section,section,error=error)
+       CALL section_release(section,error=error)
+
+       CALL create_atom_section(section,error=error)
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
     END IF
@@ -317,7 +322,7 @@ CONTAINS
 
     CALL keyword_create(keyword, name="PROGRAM_NAME",&
          variants=(/"PROGRAM"/),&
-         description="Which program should be run to compute forces",&
+         description="Which program should be run",&
          usage="PROGRAM_NAME <STRING>",&
          enum_c_vals=program_names,&
          enum_desc=program_name_desc,&

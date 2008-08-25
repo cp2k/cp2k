@@ -6,6 +6,7 @@
 ! *****************************************************************************
 MODULE cp2k_runs
 
+  USE atom,                            ONLY: atom_code
   USE bsse,                            ONLY: do_bsse_calculation
   USE cell_opt,                        ONLY: cp_cell_opt
   USE cp2k_debug,                      ONLY: cp2k_debug_energy_and_forces
@@ -62,7 +63,7 @@ MODULE cp2k_runs
                                              globenv_release,&
                                              globenv_retain
   USE input_constants,                 ONLY: &
-       bsse_run, cell_opt_run, debug_run, do_band, do_cp2k, do_ep, &
+       bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_ep, &
        do_farming, do_fist, do_kg, do_mixed, do_qmmm, do_qs, do_test, &
        electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, &
        linear_response_run, mol_dyn_run, mon_car_run, none_run, pint_run, &
@@ -264,6 +265,9 @@ CONTAINS
 #endif
 
           SELECT CASE (prog_name_id)
+          CASE (do_atom)
+             globenv%run_type_id = none_run
+             CALL atom_code(root_section,para_env,suberror)
           CASE (do_farming)
              CALL farming_run ( root_section, para_env, suberror )
           CASE(do_cp2k)

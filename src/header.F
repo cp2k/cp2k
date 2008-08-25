@@ -14,7 +14,7 @@ MODULE header
 
   PRIVATE
   PUBLIC :: fist_header, se_header, dftb_header, qs_header, tddfpt_header
-  PUBLIC :: kg_header, qmmm_header
+  PUBLIC :: kg_header, qmmm_header, atom_header, atom_footer
 
 CONTAINS
 
@@ -187,6 +187,37 @@ CONTAINS
          '                                                       '
 
   END SUBROUTINE kg_header
+
+  SUBROUTINE atom_header ( iw )
+    INTEGER                                  :: iw
+
+    WRITE ( iw, '( / )' )
+    WRITE ( iw, '( 14(25x,a,/) )' ) &
+         '  ****  ******  ****   ****   ', &
+         ' **  ** ****** **  ** ******  ', &
+         ' ******   **   **  ** **  **  ', &
+         ' **  **   **    ****  **  **  ', &
+         '                              ', &
+         '    University of Zurich      ', &
+         '           2008               ', &
+         '                              ', &
+         '        Version 0.0           ', &
+         '                                          '
+  END SUBROUTINE atom_header
+  
+  SUBROUTINE atom_footer ( iw )
+    INTEGER                                  :: iw
+
+    WRITE ( iw, '( / )' )
+    WRITE ( iw, '( 14(25x,a,/) )' ) &
+         '    NORMAL TERMINATION OF     ', &
+         '                              ', &
+         '  ****  ******  ****   ****   ', &
+         ' **  ** ****** **  ** ******  ', &
+         ' ******   **   **  ** **  **  ', &
+         ' **  **   **    ****  **  **  '
+
+  END SUBROUTINE atom_footer
 
 END MODULE header
 

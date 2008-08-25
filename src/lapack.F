@@ -27,6 +27,21 @@ MODULE lapack
      END SUBROUTINE ssyev
   END INTERFACE
 
+  INTERFACE lapack_ssygv
+! *****************************************************************************
+     SUBROUTINE ssygv ( itype, jobz, uplo, n, a, lda, b, ldb, w, work, lwork, info )
+       USE kinds, ONLY: dp
+    INTEGER                                  :: itype
+    CHARACTER                                :: jobz, uplo
+    INTEGER                                  :: N, LDA
+    REAL(KIND=dp)                            :: A( LDA, * )
+    INTEGER                                  :: LDB
+    REAL(KIND=dp)                            :: B( LDB, * ), W( * ), WORK( * )
+    INTEGER                                  :: LWORK, INFO
+
+     END SUBROUTINE ssygv
+  END INTERFACE
+
   INTERFACE lapack_chpev
 ! *****************************************************************************
      SUBROUTINE chpev ( jobz, uplo, n, ap, w, z, ldz, work, rwork, info )
@@ -189,6 +204,21 @@ MODULE lapack
     INTEGER                                  :: LWORK, INFO
 
      END SUBROUTINE dsyev
+  END INTERFACE
+
+  INTERFACE lapack_ssygv
+! *****************************************************************************
+     SUBROUTINE dsygv ( itype, jobz, uplo, n, a, lda, b, ldb, w, work, lwork, info )
+       USE kinds, ONLY: dp
+    INTEGER                                  :: itype
+    CHARACTER                                :: jobz, uplo
+    INTEGER                                  :: N, LDA
+    REAL(KIND=dp)                            :: A( LDA, * )
+    INTEGER                                  :: LDB
+    REAL(KIND=dp)                            :: B( LDB, * ), W( * ), WORK( * )
+    INTEGER                                  :: LWORK, INFO
+
+     END SUBROUTINE dsygv
   END INTERFACE
 
   INTERFACE lapack_chpev

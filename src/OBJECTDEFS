@@ -4,13 +4,20 @@ OBJECTS_GENERIC =\
  ai_derivatives.o\
  ai_kinetic.o\
  ai_moments.o\
+ ai_onecenter.o\
  ai_overlap_new.o\
  ai_overlap_ppl.o\
  ai_verfc.o\
+ atom.o\
  atomic_charges.o\
  atomic_kind_list_types.o\
  atomic_kind_types.o\
  atoms_input.o\
+ atom_operators.o\
+ atom_optimization.o\
+ atom_output.o\
+ atom_types.o\
+ atom_utils.o\
  averages_types.o\
  barostat_types.o\
  barostat_utils.o\
@@ -215,6 +222,7 @@ OBJECTS_GENERIC =\
  inpp_methods.o\
  input_constants.o\
  input_cp2k.o\
+ input_cp2k_atom.o\
  input_cp2k_barostats.o\
  input_cp2k_check.o\
  input_cp2k_colvar.o\
@@ -319,10 +327,10 @@ OBJECTS_GENERIC =\
  mol_force.o\
  mol_kind_new_list_types.o\
  mol_new_list_types.o\
+ molsym.o\
  molecular_states.o\
  molecule_kind_types.o\
  molecule_types_new.o\
- molsym.o\
  moments_utils.o\
  motion_utils.o\
  mode_selective.o\
