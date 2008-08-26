@@ -73,7 +73,7 @@
       ADDED_MOS     20
       EMISSION
       &LOCALIZE
-        RANGE 1  7
+        LIST 1..7
       &END
 
     &END

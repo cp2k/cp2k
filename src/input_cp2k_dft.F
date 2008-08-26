@@ -669,13 +669,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RANGE",&
-            description="The lower and upper index of the orbitals to be localized",&
-            usage="RANGE {integer} {integer}",&
-            n_var=2,default_i_vals=(/0,0/),type_of_var=integer_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword,name="LIST",&
             description="Indexes of the wfn to be localized"//&
             "This keyword can be repeated several times"//&
@@ -3966,12 +3959,6 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RANGE",&
-            description="Specifies the starting and the ending index of atoms range.",&
-            usage="RANGE {integer} {integer}", required=.FALSE.,&
-            n_var=2, type_of_var=integer_t, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

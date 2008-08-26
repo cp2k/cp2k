@@ -21,7 +21,7 @@
       FULL_GAPW
     &LOCALIZE
       METHOD DIRECT
-      RANGE 2 5
+      LIST 2..5
     &END
     &END QS
     &SCF

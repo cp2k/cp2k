@@ -22,10 +22,13 @@ MODULE cp_parser_types
                                              cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
-  USE inpp_types,                      ONLY: create_inpp_type,&
+  USE cp_parser_ilist_types,           ONLY: create_ilist_type,&
+                                             ilist_type,&
+                                             release_ilist_type
+  USE cp_parser_inpp_types,            ONLY: create_inpp_type,&
                                              inpp_type,&
                                              release_inpp_type
+  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -80,6 +83,7 @@ MODULE cp_parser_types
      LOGICAL                                        :: first_separator
      TYPE(cp_para_env_type), POINTER                :: para_env
      TYPE(inpp_type), POINTER                       :: inpp
+     TYPE(ilist_type), POINTER                      :: ilist
   END TYPE cp_parser_type
 
 CONTAINS
@@ -132,6 +136,7 @@ CONTAINS
           END IF
           CALL cp_para_env_release(parser%para_env,error=error)
           CALL release_inpp_type(parser%inpp, error)
+          CALL release_ilist_type(parser%ilist, error)
           DEALLOCATE(parser,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
@@ -171,8 +176,6 @@ CONTAINS
     IF (.NOT.failure) THEN
        ALLOCATE(parser,stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
        last_parser_id=last_parser_id+1
        parser%id_nr=last_parser_id
        parser%ref_count=1
@@ -232,7 +235,9 @@ CONTAINS
        parser%icol2=0
        parser%first_separator=.TRUE.
        NULLIFY(parser%inpp)
+       NULLIFY(parser%ilist)
        CALL create_inpp_type(parser%inpp, error)
+       CALL create_ilist_type(parser%ilist, error)
     END IF
   END SUBROUTINE parser_create
 

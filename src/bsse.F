@@ -243,8 +243,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_type
-    INTEGER :: i, isize, j, jj, k, method_name_id, my_targ, n_rep, &
-      num_of_frag, old_size, present_charge, present_multpl, stat
+    INTEGER :: i, isize, j, k, method_name_id, my_targ, n_rep, num_of_frag, &
+      old_size, present_charge, present_multpl, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list, &
                                                 my_conf, tmplist
     LOGICAL                                  :: failure
@@ -287,17 +287,6 @@ CONTAINS
                 CALL section_vals_val_get(n_frags,"LIST", i_rep_section=i, i_vals=tmplist, error=error)
                 CALL reallocate(atom_index,1,isize+SIZE(tmplist))
                 atom_index(isize+1:isize+SIZE(tmplist)) = tmplist
-                isize = SIZE(atom_index)
-             END IF             
-             CALL section_vals_val_get(n_frags,"RANGE", i_rep_section=i, n_rep_val=n_rep, error=error)
-             IF (n_rep /= 0) THEN
-                CALL section_vals_val_get(n_frags,"RANGE", i_rep_section=i, i_vals=tmplist, error=error)
-                CALL reallocate(atom_index,1,isize+tmplist(2)-tmplist(1)+1)
-                jj = 0
-                DO j = tmplist(1), tmplist(2)
-                   jj = jj + 1
-                   atom_index(isize+jj:isize+jj) = j
-                END DO
                 isize = SIZE(atom_index)
              END IF
              my_conf(i) = isize - old_size

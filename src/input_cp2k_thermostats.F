@@ -107,7 +107,7 @@ CONTAINS
           CALL section_add_keyword(section,keyword,error=error)
           CALL keyword_release(keyword,error=error)
 
-          CALL create_region_section(region_section,error=error)
+          CALL create_region_section(region_section,"thermostat",error=error)
           CALL section_add_subsection(section, region_section, error=error)
           CALL section_release(region_section,error=error)
        ELSE
@@ -196,8 +196,9 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE create_region_section(section, error)
+  SUBROUTINE create_region_section(section, label, error)
     TYPE(section_type), POINTER              :: section
+    CHARACTER(LEN=*), INTENT(IN)             :: label
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_region_section', &
@@ -213,7 +214,7 @@ CONTAINS
 
        CALL section_create(section,name="DEFINE_REGION",&
             description="This section provides the possibility to define arbitrary region "//&
-            " on which applying the thermostats.",&
+            " for the "//TRIM(label)//".",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
        
@@ -222,13 +223,6 @@ CONTAINS
             description="Specifies a list of atoms to thermostat.",&
             usage="LIST {integer} {integer} .. {integer}", required=.TRUE.,repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RANGE",&
-            description="Specifies the starting and the ending index of atoms range you wish to thermostat.",&
-            usage="RANGE {integer} {integer}", required=.TRUE.,repeats=.TRUE.,&
-            n_var=2, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

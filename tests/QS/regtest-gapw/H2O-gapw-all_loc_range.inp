@@ -20,7 +20,7 @@
       QUADRATURE GC_LOG
       FULL_GAPW
     &LOCALIZE
-       RANGE  2 5
+       LIST  2..5
     &END
     &END QS
     &SCF

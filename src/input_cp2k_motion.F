@@ -1871,7 +1871,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL create_region_section(subsection,error=error)
+       CALL create_region_section(subsection,"MSD calculation",error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

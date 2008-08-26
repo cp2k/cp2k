@@ -195,9 +195,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_loc_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ir, istat, n_list, n_rep, &
+    INTEGER                                  :: i, ir, n_list, n_rep, &
                                                 n_state, output_unit
-    INTEGER, DIMENSION(:), POINTER           :: bounds, list
+    INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: failure, my_do_xas
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -211,7 +211,7 @@ CONTAINS
     IF(.NOT. failure)  THEN
        CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",l_val=localize,error=error)
        IF(localize) THEN
-          NULLIFY (bounds, list )
+          NULLIFY (list)
           localized_wfn_control%lu_bound_states = 0
           localized_wfn_control%nloc_states     = 0
           n_state = 0
@@ -247,28 +247,6 @@ CONTAINS
              END IF
           END DO ! ir
           IF(n_list/=0) localized_wfn_control%set_of_states=state_loc_list
-
-          ! Range of States
-          CALL section_vals_val_get(loc_section, "RANGE",i_vals=bounds,error=error)
-          IF(bounds(1)>0 .AND. bounds(2)>0) THEN
-             ! We cannot accept both keywords at the same time
-             CPPostcondition(n_list==0,cp_failure_level,routineP,error,failure)
-             localized_wfn_control%set_of_states=state_loc_range
-             localized_wfn_control%lu_bound_states(1,1) = bounds(1)
-             localized_wfn_control%lu_bound_states(2,1) = bounds(2)
-             n_state = localized_wfn_control%lu_bound_states(2,1)-&
-                  localized_wfn_control%lu_bound_states(1,1)+1
-             localized_wfn_control%nloc_states(1) = n_state
-             IF(ASSOCIATED(localized_wfn_control%loc_states))   THEN
-                DEALLOCATE(localized_wfn_control%loc_states,STAT=istat)
-                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             END IF
-             ALLOCATE(localized_wfn_control%loc_states(n_state),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             DO i = 1, n_state
-                localized_wfn_control%loc_states(i) = bounds(1) + (i-1)
-             END DO
-          END IF
 
           ! All States or XAS specific states
           IF(localized_wfn_control%nloc_states(1) == 0)  THEN

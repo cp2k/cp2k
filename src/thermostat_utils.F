@@ -357,17 +357,6 @@ CONTAINS
              END IF
           END DO
        END DO
-       CALL section_vals_val_get(region_sections,"RANGE", i_rep_section=ig,n_rep_val=n_rep, error=error)
-       DO jg = 1, n_rep
-          CALL section_vals_val_get(region_sections,"RANGE", i_rep_section=ig,i_rep_val=jg,i_vals=tmplist, error=error)
-          DO ipart = tmplist(1), tmplist(2)
-             IF (thermolist(ipart)==HUGE(0)) THEN
-                thermolist(ipart) = ig
-             ELSE
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             END IF
-          END DO
-       END DO
        CALL section_vals_val_get(region_sections,"MOLNAME", i_rep_section=ig,n_rep_val=n_rep, error=error)
        DO jg = 1,  n_rep
           CALL section_vals_val_get(region_sections,"MOLNAME", i_rep_section=ig,i_rep_val=jg,c_vals=tmpstringlist, error=error)

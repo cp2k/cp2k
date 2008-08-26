@@ -12,7 +12,7 @@
 !> \author Axel Kohlmeyer [AK] - CMM/UPenn Philadelphia
 !> \date 25.02.2008
 ! *****************************************************************************
-MODULE inpp_types
+MODULE cp_parser_inpp_types
 
   USE kinds,                           ONLY: default_path_length
 #include "cp_common_uses.h"
@@ -40,7 +40,7 @@ MODULE inpp_types
   END TYPE inpp_type
 
   PUBLIC :: inpp_type, create_inpp_type, release_inpp_type
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'inpp_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_inpp_types'
   
 CONTAINS
 
@@ -119,4 +119,4 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE release_inpp_type
 
-END MODULE inpp_types
+END MODULE cp_parser_inpp_types

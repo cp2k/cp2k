@@ -17,12 +17,15 @@
 ! *****************************************************************************
 MODULE cp_parser_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_parser_ilist_methods,         ONLY: ilist_reset,&
+                                             ilist_setup,&
+                                             ilist_update
+  USE cp_parser_inpp_methods,          ONLY: inpp_end_include,&
+                                             inpp_expand_variables,&
+                                             inpp_process_directive
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              max_line_length
   USE f77_blas
-  USE inpp_methods,                    ONLY: inpp_end_include,&
-                                             inpp_expand_variables,&
-                                             inpp_process_directive
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -35,11 +38,9 @@ MODULE cp_parser_methods
 
   PRIVATE :: is_comment
 
-  PUBLIC :: parser_next_token, parser_test_next_token
-  PUBLIC :: parser_get_object, parser_get_real, parser_get_integer,&
-       parser_get_logical, parser_get_string, parser_location,&
-       parser_search_string,parser_get_next_line, parser_skip_space,&
-       parser_read_line, broadcast_input_information
+  PUBLIC :: parser_test_next_token, parser_get_object, parser_location,&
+            parser_search_string,parser_get_next_line, parser_skip_space,&
+            parser_read_line, broadcast_input_information
 
   ! *** Global parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_methods'
@@ -71,11 +72,9 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
-       para_env => parser%para_env
-    END IF
-    IF (.not.failure .AND. para_env%num_pe>1) THEN
+    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
+    para_env => parser%para_env
+    IF (.NOT.failure .AND. para_env%num_pe>1) THEN
        CALL mp_bcast(parser%input_line,para_env%source,para_env%group)
        CALL mp_bcast(parser%input_line_number,para_env%source,para_env%group)
        CALL mp_bcast(parser%icol,para_env%source,para_env%group)
@@ -104,8 +103,7 @@ CONTAINS
 
     IF (nline>0) THEN
        CALL parser_read_line(parser,nline,at_end=my_at_end,error=error)
-       CALL mp_bcast(my_at_end, parser%para_env%source,&
-            parser%para_env%group)
+       CALL mp_bcast(my_at_end, parser%para_env%source,parser%para_env%group)
        IF (PRESENT(at_end)) THEN
           at_end=my_at_end
        ELSE
@@ -143,9 +141,7 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
+    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        res="file:'"//TRIM(parser%input_file_name)//"' line:"//&
             cp_to_string(parser%input_line_number)//" col:"//&
@@ -165,24 +161,19 @@ CONTAINS
 !> \date    02.03.2001
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE parser_skip_space(parser,multiline,error)
+  SUBROUTINE parser_skip_space(parser,error)
     TYPE(cp_parser_type), POINTER            :: parser
-    LOGICAL, INTENT(in), OPTIONAL            :: multiline
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_skip_space', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_continue
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
-    my_continue=.TRUE.
-    IF (PRESENT(multiline)) my_continue=multiline
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
+    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        !     *** Variable input string length (automatic search) ***
   
@@ -217,8 +208,7 @@ CONTAINS
   
           IF (.NOT.is_whitespace(parser%input_line(parser%icol:parser%icol))) THEN
              
-             IF (parser%input_line(parser%icol:parser%icol) == &
-                  parser%continuation_character.and.my_continue) THEN
+             IF (parser%input_line(parser%icol:parser%icol) == parser%continuation_character) THEN
                 DO i=LEN(parser%input_line),1,-1
                    IF (.NOT.is_whitespace(parser%input_line(i:i))) EXIT
                 END DO
@@ -253,6 +243,7 @@ CONTAINS
 !> \author  MK
 !> \date    19.02.2001
 !> \version 1.0
+!> \notes   -) this function MUST be private in this module!
 ! *****************************************************************************
   SUBROUTINE parser_next_token(parser,string_length,error)
     TYPE(cp_parser_type), POINTER            :: parser
@@ -268,9 +259,7 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
+    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        IF (PRESENT(string_length)) THEN
           length = MIN(string_length,max_line_length)
@@ -279,12 +268,11 @@ CONTAINS
        END IF
   
        IF (length > 0) THEN
-  
           !     *** Fixed input string length ***
-  
           CALL cp_assert(parser%icol/=-1,cp_failure_level,cp_assertion_failed,&
                routineP,"Unexpectetly reached EOF "//&
                TRIM(parser_location(parser,error=error)),error,failure)
+
           length=MIN(LEN_TRIM(parser%input_line)-parser%icol1+1,length)
           IF (.NOT.failure) THEN
              parser%icol1 = parser%icol + 1
@@ -294,7 +282,7 @@ CONTAINS
        ELSE
   
           !     *** Variable input string length (automatic search) ***
-  
+
           ! check for EOF
           IF (parser%icol==-1) THEN
              parser%icol1 = 1
@@ -311,11 +299,9 @@ CONTAINS
           DO
   
              !       *** Increment the column counter ***
-  
              parser%icol = parser%icol + 1
   
              !       *** Quick return, if the end of line is found ***
-  
              IF ((parser%icol > len_trim_inputline).OR.&
                   is_comment(parser,parser%input_line(parser%icol:parser%icol))) THEN
                 parser%icol1 = 1
@@ -324,7 +310,6 @@ CONTAINS
              END IF
   
              !       *** Check for input line continuation ***
-  
              IF (parser%input_line(parser%icol:parser%icol) == &
                   parser%continuation_character) THEN
                 DO i=LEN(parser%input_line),1,-1
@@ -348,7 +333,6 @@ CONTAINS
              END IF
              !       *** Ignore all white space and accept only one     ***
              !       *** separator token or a string in quotation marks ***
-  
              IF (is_whitespace(parser%input_line(parser%icol:parser%icol))) THEN
                 CYCLE
              ELSE IF (INDEX(parser%separators,parser%input_line(parser%icol:parser%icol)) > 0) THEN
@@ -415,210 +399,6 @@ CONTAINS
   END SUBROUTINE parser_next_token
 
 ! *****************************************************************************
-!> \brief   Check, if the string object contains an object of type integer.
-!> \author  MK
-!> \date    22.11.1999
-!> \version 1.0
-! *****************************************************************************
-  FUNCTION integer_object(string,error) RESULT(contains_integer_object)
-
-    CHARACTER(LEN=*), INTENT(IN)             :: string
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    LOGICAL                                  :: contains_integer_object
-
-    INTEGER                                  :: i, length
-
-    contains_integer_object = .TRUE.
-
-    length = LEN_TRIM(string)
-
-    IF (length == 0) THEN
-      contains_integer_object = .FALSE.
-      RETURN
-    END IF
-
-    IF ((INDEX("+-",string(1:1)) > 0).AND.(length == 1)) THEN
-      contains_integer_object = .FALSE.
-      RETURN
-    END IF
-
-    IF (INDEX("+-0123456789",string(1:1)) == 0) THEN
-      contains_integer_object = .FALSE.
-      RETURN
-    END IF
-
-    DO i=2,length
-      IF (INDEX("0123456789",string(i:i)) == 0) THEN
-        contains_integer_object = .FALSE.
-        EXIT
-      END IF
-    END DO
-
-  END FUNCTION integer_object
-
-! *****************************************************************************
-!> \brief   Read an integer number.
-!> \author  MK
-!> \date    22.11.1999
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE parser_get_integer(parser,object,lower_to_upper,newline,skip_lines,&
-       string_length, at_end,error)
-    TYPE(cp_parser_type), POINTER            :: parser
-    INTEGER, INTENT(OUT)                     :: object
-    LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
-    INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
-    LOGICAL, INTENT(out), OPTIONAL           :: at_end
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_integer', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: nline
-    LOGICAL                                  :: failure, my_at_end
-
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
-       IF (PRESENT(skip_lines)) THEN
-          nline = skip_lines
-       ELSE
-          nline = 0
-       END IF
-
-       IF (PRESENT(newline)) THEN
-          IF (newline) nline = nline + 1
-       END IF
-
-       CALL parser_get_next_line(parser,nline,at_end=my_at_end,error=error)
-       IF (PRESENT(at_end)) THEN
-          at_end=my_at_end
-          IF (my_at_end) RETURN
-       ELSE IF (my_at_end) THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP, "unexpected EOF "//&
-               TRIM(parser_location(parser,error=error)),error,failure)
-       END IF
-
-       IF (PRESENT(string_length)) THEN
-          CALL parser_next_token(parser,string_length,error=error)
-       ELSE
-          CALL parser_next_token(parser,error=error)
-       END IF
-
-       IF (parser%icol1 > parser%icol2) THEN
-          parser%icol1 = parser%icol
-          parser%icol2 = parser%icol
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP, "An integer type object was expected, "//&
-               "found end of line"// TRIM(parser_location(parser,error=error)),&
-               error,failure)
-       END IF
-    END IF
-    IF (.NOT.failure) THEN
-       IF (integer_object(parser%input_line(parser%icol1:parser%icol2),error=error)) THEN
-          READ (UNIT=parser%input_line(parser%icol1:parser%icol2),FMT=*) object
-       ELSE
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP, "An integer type object was expected, found <"//&
-               parser%input_line(parser%icol1:parser%icol2)//">"//&
-               TRIM(parser_location(parser,error=error)),error,failure)
-       END IF
-    END IF
-  END SUBROUTINE parser_get_integer
-
-! *****************************************************************************
-!> \brief   Read a string representing logical object.
-!> \author  FM
-!> \date    01.04.2003
-!> \par History
-!>      - New version (08.07.2003,MK)
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE parser_get_logical(parser,object,newline,skip_lines,string_length,&
-       at_end,error)
-    TYPE(cp_parser_type), POINTER            :: parser
-    LOGICAL, INTENT(OUT)                     :: object
-    LOGICAL, INTENT(IN), OPTIONAL            :: newline
-    INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
-    LOGICAL, INTENT(out), OPTIONAL           :: at_end
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_logical', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=max_line_length)           :: input_string
-    INTEGER                                  :: input_string_length, nline
-    LOGICAL                                  :: failure, my_at_end
-
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
-       IF (PRESENT(skip_lines)) THEN
-          nline = skip_lines
-       ELSE
-          nline = 0
-       END IF
-
-       IF (PRESENT(newline)) THEN
-          IF (newline) nline = nline + 1
-       END IF
-
-       CALL parser_get_next_line(parser,nline,at_end=my_at_end,error=error)
-       IF (PRESENT(at_end)) THEN
-          at_end=my_at_end
-          IF (my_at_end) RETURN
-       ELSE IF (my_at_end) THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP, "unexpected EOF "//&
-               TRIM(parser_location(parser,error=error)), error,failure)
-       END IF
-
-       IF (PRESENT(string_length)) THEN
-          CALL parser_next_token(parser,string_length,error=error)
-       ELSE
-          CALL parser_next_token(parser,error=error)
-       END IF
-
-       input_string_length = parser%icol2 - parser%icol1 + 1
-
-       IF (input_string_length == 0) THEN
-          parser%icol1 = parser%icol
-          parser%icol2 = parser%icol
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP, "A string representing a logical object was expected, "//&
-               "found end of line"//TRIM(parser_location(parser,error=error)),&
-               error,failure)
-       ELSE
-          input_string=""
-          input_string(:input_string_length) = parser%input_line(parser%icol1:parser%icol2)
-       END IF
-    END IF
-    IF (.NOT.failure) THEN
-       CALL uppercase(input_string)
-
-       SELECT CASE (TRIM(input_string))
-       CASE ("0","F",".F.","FALSE",".FALSE.","N","NO","OFF")
-          object = .FALSE.
-       CASE ("1","T",".T.","TRUE",".TRUE.","Y","YES","ON")
-          object = .TRUE.
-       CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"A string representing a logical object was expected, "//&
-               "found <"//TRIM(input_string)//">"//&
-               TRIM(parser_location(parser,error=error)),error,failure)
-       END SELECT
-    END IF
-
-  END SUBROUTINE parser_get_logical
-
-! *****************************************************************************
 !> \brief   Read the next line from a logical unit "unit" (I/O node only).
 !>          Skip (nline-1) lines and skip also all comment lines.
 !> \author  MK
@@ -640,9 +420,7 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
+    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        IF (PRESENT(at_end)) at_end=.FALSE.
        IF (parser%para_env%mepos==parser%para_env%source) THEN
@@ -717,7 +495,6 @@ CONTAINS
           END DO
 
           !     *** Reset column pointer, if a new line was read ***
-
           IF (nline > 0) parser%icol = 0
 
        END IF
@@ -726,38 +503,166 @@ CONTAINS
   END SUBROUTINE parser_read_line
 
 ! *****************************************************************************
-!> \brief   Read a floating point number.
+!> \brief   Check, if the string object contains an object of type integer.
+!> \author  MK
+!> \date    22.11.1999
+!> \version 1.0
+!> \History Introducing the possibility to parse a range of integers INT1..INT2
+!>          Teodoro Laino [tlaino] - University of Zurich - 08.2008
+! *****************************************************************************
+  RECURSIVE FUNCTION integer_object(string,error) RESULT(contains_integer_object)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: string
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL                                  :: contains_integer_object
+
+    INTEGER                                  :: i, j, length
+
+    contains_integer_object = .TRUE.
+    length = LEN_TRIM(string)
+
+    IF (length == 0) THEN
+      contains_integer_object = .FALSE.
+      RETURN
+    END IF
+
+    IF (INDEX(string(1:length),"..") == 0) THEN
+       IF ((INDEX("+-",string(1:1)) > 0).AND.(length == 1)) THEN
+          contains_integer_object = .FALSE.
+          RETURN
+       END IF
+       
+       IF (INDEX("+-0123456789",string(1:1)) == 0) THEN
+          contains_integer_object = .FALSE.
+          RETURN
+       END IF
+       
+       DO i=2,length
+          IF (INDEX("0123456789",string(i:i)) == 0) THEN
+             contains_integer_object = .FALSE.
+             EXIT
+          END IF
+       END DO
+    ELSE
+       j = INDEX(string(1:length),"..")
+       contains_integer_object = integer_object(string(  1:   j-1),error).AND.&
+                                 integer_object(string(j+2:length),error)
+    END IF
+
+  END FUNCTION integer_object
+
+! *****************************************************************************
+!> \brief   Read an integer number.
 !> \author  MK
 !> \date    22.11.1999
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE parser_get_real(parser,object,lower_to_upper,newline,skip_lines,&
-       string_length,multiline,at_end,error)
+  SUBROUTINE parser_get_integer(parser,object,lower_to_upper,newline,skip_lines,&
+       string_length, at_end, error)
     TYPE(cp_parser_type), POINTER            :: parser
-    REAL(KIND=dp), INTENT(OUT)               :: object
+    INTEGER, INTENT(OUT)                     :: object
     LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
     INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
-    LOGICAL, INTENT(IN), OPTIONAL            :: multiline
     LOGICAL, INTENT(out), OPTIONAL           :: at_end
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_real', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_integer', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=max_line_length), &
-      DIMENSION(2)                           :: string
-    INTEGER                                  :: islash, istat, iz, nline, nz
-    LOGICAL                                  :: failure, my_at_end, &
-                                                my_multiline
-    REAL(KIND=dp), DIMENSION(2)              :: z
+    INTEGER                                  :: nline
+    LOGICAL                                  :: failure, my_at_end
 
     failure=.FALSE.
-    my_multiline=.FALSE.
-    IF (PRESENT(multiline)) my_multiline=multiline
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
+    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
+       IF (PRESENT(skip_lines)) THEN
+          nline = skip_lines
+       ELSE
+          nline = 0
+       END IF
+
+       IF (PRESENT(newline)) THEN
+          IF (newline) nline = nline + 1
+       END IF
+
+       CALL parser_get_next_line(parser,nline,at_end=my_at_end,error=error)
+       IF (PRESENT(at_end)) THEN
+          at_end=my_at_end
+          IF (my_at_end) RETURN
+       ELSE IF (my_at_end) THEN
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP, "unexpected EOF "//&
+               TRIM(parser_location(parser,error=error)),error,failure)
+       END IF
+
+       IF (parser%ilist%in_use) THEN
+          CALL ilist_update(parser%ilist, error)
+       END IF
+       
+       IF (.NOT.parser%ilist%in_use) THEN
+          CALL parser_next_token(parser,string_length=string_length,error=error)
+
+          IF (parser%icol1 > parser%icol2) THEN
+             parser%icol1 = parser%icol
+             parser%icol2 = parser%icol
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                  routineP, "An integer type object was expected, "//&
+                  "found end of line"// TRIM(parser_location(parser,error=error)),&
+                  error,failure)
+          END IF
+          ! Checks for possible lists of integers
+          
+          IF (INDEX(parser%input_line(parser%icol1:parser%icol2),"..")/=0) THEN
+             CALL ilist_setup(parser%ilist, parser%input_line(parser%icol1:parser%icol2), error)
+          END IF
+       END IF
+
+       IF (integer_object(parser%input_line(parser%icol1:parser%icol2),error=error)) THEN
+          IF (parser%ilist%in_use) THEN
+             object = parser%ilist%ipresent
+             CALL ilist_reset(parser%ilist, error)
+          ELSE
+             READ (UNIT=parser%input_line(parser%icol1:parser%icol2),FMT=*) object
+          END IF
+       ELSE
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP, "An integer type object was expected, found <"//&
+               parser%input_line(parser%icol1:parser%icol2)//">"//&
+               TRIM(parser_location(parser,error=error)),error,failure)
+          STOP
+       END IF
     END IF
+  END SUBROUTINE parser_get_integer
+
+! *****************************************************************************
+!> \brief   Read a string representing logical object.
+!> \author  FM
+!> \date    01.04.2003
+!> \par History
+!>      - New version (08.07.2003,MK)
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE parser_get_logical(parser,object,newline,skip_lines,string_length,&
+       at_end,error)
+    TYPE(cp_parser_type), POINTER            :: parser
+    LOGICAL, INTENT(OUT)                     :: object
+    LOGICAL, INTENT(IN), OPTIONAL            :: newline
+    INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
+    LOGICAL, INTENT(out), OPTIONAL           :: at_end
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_logical', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=max_line_length)           :: input_string
+    INTEGER                                  :: input_string_length, nline
+    LOGICAL                                  :: failure, my_at_end
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
+    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.parser%ilist%in_use,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        IF (PRESENT(skip_lines)) THEN
           nline = skip_lines
@@ -779,20 +684,87 @@ CONTAINS
                TRIM(parser_location(parser,error=error)), error,failure)
        END IF
 
-       CALL parser_next_token(parser,string_length,error=error)
+       CALL parser_next_token(parser,string_length=string_length,error=error)
 
-       IF (parser%icol1 > parser%icol2.and.my_multiline) THEN
-          CALL parser_get_next_line(parser,1,at_end=my_at_end,error=error)
-          IF (PRESENT(at_end)) THEN
-             at_end=my_at_end
-             IF (my_at_end) RETURN
-          ELSE IF (my_at_end) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP, "unexpected EOF "//&
-                  TRIM(parser_location(parser,error=error)), error,failure)
-          END IF
-          CALL parser_next_token(parser,string_length,error=error)
+       input_string_length = parser%icol2 - parser%icol1 + 1
+
+       IF (input_string_length == 0) THEN
+          parser%icol1 = parser%icol
+          parser%icol2 = parser%icol
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP, "A string representing a logical object was expected, "//&
+               "found end of line"//TRIM(parser_location(parser,error=error)),&
+               error,failure)
+       ELSE
+          input_string=""
+          input_string(:input_string_length) = parser%input_line(parser%icol1:parser%icol2)
        END IF
+       CALL uppercase(input_string)
+
+       SELECT CASE (TRIM(input_string))
+       CASE ("0","F",".F.","FALSE",".FALSE.","N","NO","OFF")
+          object = .FALSE.
+       CASE ("1","T",".T.","TRUE",".TRUE.","Y","YES","ON")
+          object = .TRUE.
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"A string representing a logical object was expected, "//&
+               "found <"//TRIM(input_string)//">"//&
+               TRIM(parser_location(parser,error=error)),error,failure)
+       END SELECT
+    END IF
+
+  END SUBROUTINE parser_get_logical
+
+! *****************************************************************************
+!> \brief   Read a floating point number.
+!> \author  MK
+!> \date    22.11.1999
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE parser_get_real(parser,object,lower_to_upper,newline,skip_lines,&
+       string_length,at_end,error)
+    TYPE(cp_parser_type), POINTER            :: parser
+    REAL(KIND=dp), INTENT(OUT)               :: object
+    LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
+    INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
+    LOGICAL, INTENT(out), OPTIONAL           :: at_end
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_real', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=max_line_length)           :: string(2)
+    INTEGER                                  :: islash, istat, iz, nline, nz
+    LOGICAL                                  :: failure, my_at_end
+    REAL(KIND=dp)                            :: z(2)
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
+    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.parser%ilist%in_use,cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       IF (PRESENT(skip_lines)) THEN
+          nline = skip_lines
+       ELSE
+          nline = 0
+       END IF
+
+       IF (PRESENT(newline)) THEN
+          IF (newline) nline = nline + 1
+       END IF
+
+       CALL parser_get_next_line(parser,nline,at_end=my_at_end,error=error)
+       IF (PRESENT(at_end)) THEN
+          at_end=my_at_end
+          IF (my_at_end) RETURN
+       ELSE IF (my_at_end) THEN
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP, "unexpected EOF "//&
+               TRIM(parser_location(parser,error=error)), error,failure)
+       END IF
+
+       CALL parser_next_token(parser,string_length=string_length,error=error)
 
        IF (parser%icol1 > parser%icol2) THEN
           parser%icol1 = parser%icol
@@ -801,10 +773,9 @@ CONTAINS
                routineP, "A real type object was expected, found then end of the line "//&
                TRIM(parser_location(parser,error=error)),error,failure)
        END IF
-    END IF
-    IF (.NOT.failure) THEN
-       islash = parser%icol1 + INDEX(parser%input_line(parser%icol1:parser%icol2),"/") - 1
 
+       ! Possibility to have real numbers described in the input as division between two numbers
+       islash = parser%icol1 + INDEX(parser%input_line(parser%icol1:parser%icol2),"/") - 1
        IF (islash > parser%icol1) THEN
           nz = 2
           string(1) = parser%input_line(parser%icol1:islash-1)
@@ -816,12 +787,10 @@ CONTAINS
        END IF
 
        DO iz=1,nz
-
           IF (LEN_TRIM(string(iz)) == 0) THEN
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP, "A real type object was expected, found end of line "//&
+                  routineP, "A real type object was expected, found white spaces! "//&
                   TRIM(parser_location(parser,error=error)),error,failure)
-             ! try harder to find the missing nr?
              RETURN
           END IF
 
@@ -834,11 +803,10 @@ CONTAINS
                   error,failure)
              RETURN
           END IF
-
        END DO
-
        object = z(1)/z(2)
     END IF
+
   END SUBROUTINE parser_get_real
 
 ! *****************************************************************************
@@ -865,9 +833,8 @@ CONTAINS
     object = ""
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
+    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.parser%ilist%in_use,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        IF (PRESENT(skip_lines)) THEN
           nline = skip_lines
@@ -909,8 +876,7 @@ CONTAINS
           object(:input_string_length) = parser%input_line(parser%icol1:parser%icol2)
        END IF
 
-!   *** Convert lowercase to uppercase, if requested ***
-
+       !   *** Convert lowercase to uppercase, if requested ***
        IF (PRESENT(lower_to_upper)) THEN
           IF (lower_to_upper) CALL uppercase(object)
        END IF
@@ -950,14 +916,11 @@ CONTAINS
     IF (PRESENT(begin_line)) begin=begin_line
 
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
+    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        IF (PRESENT(line)) line = ""
 
        !   *** Search for string pattern ***
-
        IF (parser%para_env%mepos==parser%para_env%source) THEN
 
           pattern = string
@@ -969,11 +932,9 @@ CONTAINS
              CALL parser_read_line(parser,1,at_end=at_end,error=error)
 
              !       *** Exit loop, if the end of file is reached ***
-
              IF (at_end) EXIT
 
              !       *** Check the current line for string pattern ***
-
              current_line = parser%input_line
 
              IF (ignore_case) CALL uppercase(current_line)
@@ -1018,7 +979,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Test next input object.
-!>           -  test_result : "EOF": End of file
 !>           -  test_result : "EOL": End of line
 !>           -  test_result : "EOS": End of section
 !>           -  test_result : "FLT": Floating point number
@@ -1028,142 +988,114 @@ CONTAINS
 !> \date    23.11.1999
 !> \version 1.0
 ! *****************************************************************************
-  FUNCTION parser_test_next_token(parser,newline,skip_lines,string_length,error)&
-       RESULT(test_result)
+  FUNCTION parser_test_next_token(parser,string_length,error) RESULT(test_result)
     TYPE(cp_parser_type), POINTER            :: parser
-    LOGICAL, INTENT(IN), OPTIONAL            :: newline
-    INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
+    INTEGER, INTENT(IN), OPTIONAL            :: string_length
     TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(LEN=3)                         :: test_result
 
     CHARACTER(len=*), PARAMETER :: routineN = 'parser_test_next_token', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=max_line_length)           :: old_input_line
-    CHARACTER(LEN=max_line_length), &
-      DIMENSION(2)                           :: string
-    INTEGER :: idot_first, idot_last, iline, islash, istat, iz, nline, nz, &
-      old_icol, old_icol1, old_icol2, old_input_line_number
-    LOGICAL                                  :: at_end, failure
+    CHARACTER(LEN=max_line_length)           :: old_input_line, string(2)
+    INTEGER :: idot2_first, idot_first, idot_last, iline, islash, istat, iz, &
+      nz, old_icol, old_icol1, old_icol2, old_input_line_number
+    LOGICAL                                  :: failure, ilist_in_use
     REAL(KIND=dp)                            :: z
-    TYPE(cp_error_type)                      :: suberror
 
     failure=.FALSE.
     test_result = ""
-    CALL cp_error_init(suberror,template_error=error)
-
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
+    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        !   *** Store current status ***
-
-       old_input_line = parser%input_line
+       old_input_line        = parser%input_line
        old_input_line_number = parser%input_line_number
-       old_icol = parser%icol
+       old_icol  = parser%icol
        old_icol1 = parser%icol1
        old_icol2 = parser%icol2
 
-       IF (PRESENT(skip_lines)) THEN
-          nline = skip_lines
+       ! Handle possible list of integers
+       ilist_in_use = parser%ilist%in_use.AND.(parser%ilist%ipresent<parser%ilist%iend)
+       IF (ilist_in_use) THEN
+          test_result = "INT"
+          RETURN
+       END IF
+
+       ! Otherwise continue normally
+       CALL parser_next_token(parser,string_length=string_length,error=error)
+
+       ! End of line
+       IF (parser%icol1 > parser%icol2) THEN
+          test_result = "EOL"
+          RETURN
+       END IF
+       
+       islash = parser%icol1 + INDEX(parser%input_line(parser%icol1:parser%icol2),"/") - 1
+       IF (islash > parser%icol1) THEN
+          nz = 2
+          string(1) = parser%input_line(parser%icol1:islash-1)
+          string(2) = parser%input_line(islash+1:parser%icol2)
        ELSE
-          nline = 0
+          nz = 1
+          string(1) = parser%input_line(parser%icol1:parser%icol2)
        END IF
-
-       IF (PRESENT(newline)) THEN
-          IF (newline) nline = nline + 1
-       END IF
-
-       CALL parser_get_next_line(parser,nline,at_end=at_end,error=suberror)
-       CALL cp_error_propagate_error(suberror, fromWhere=routineP, error=error, &
-            failure=failure, failure_level=cp_warning_level)
-
-       IF (.NOT.failure) THEN
-          IF (at_end) THEN
-             test_result = "EOF"
-             CALL cp_error_dealloc_ref(suberror)
-             RETURN
+       
+       DO iz=1,nz
+          IF (LEN_TRIM(string(iz)) == 0) THEN
+             test_result = "STR"
+             EXIT
           END IF
-
-          CALL parser_next_token(parser,string_length,error=suberror)
-          CALL cp_error_propagate_error(suberror, fromWhere=routineP, error=error, &
-               failure=failure, failure_level=cp_warning_level)
-       END IF
-       IF (.NOT.failure) THEN
-          IF (parser%icol1 > parser%icol2) THEN
-             test_result = "EOL"
-             CALL cp_error_dealloc_ref(suberror)
-             RETURN
-          END IF
-
-          islash = parser%icol1 + INDEX(parser%input_line(parser%icol1:parser%icol2),"/") - 1
-
-          IF (islash > parser%icol1) THEN
-             nz = 2
-             string(1) = parser%input_line(parser%icol1:islash-1)
-             string(2) = parser%input_line(islash+1:parser%icol2)
-          ELSE
-             nz = 1
-             string(1) = parser%input_line(parser%icol1:parser%icol2)
-          END IF
-
-          DO iz=1,nz
-
-             IF (LEN_TRIM(string(iz)) == 0) THEN
-                test_result = "STR"
-                EXIT
-             END IF
-
-             idot_first = INDEX(string(iz),".")
-
-             IF (idot_first > 0) THEN
-                idot_last = INDEX(string(iz),".",.TRUE.)
-                istat = 0
-                IF (idot_first == idot_last) THEN
-                   READ (UNIT=string(iz),FMT=*,IOSTAT=istat) z
-                ELSE
-                   istat = 1
-                END IF
-                IF (istat /= 0) THEN
-                   test_result = "STR"
-                ELSE
-                   test_result = "FLT"
-                END IF
-             ELSE IF (integer_object(string(iz),error=error)) THEN
-                IF (nz == 1) THEN
-                   test_result = "INT"
-                ELSE
-                   test_result = "FLT"
-                END IF
+          
+          idot_first = INDEX(string(iz),".")
+          idot2_first= INDEX(string(iz),"..")
+          
+          IF ((idot_first>0).AND.(idot2_first==0)) THEN
+             idot_last = INDEX(string(iz),".",.TRUE.)
+             istat = 0
+             IF (idot_first == idot_last) THEN
+                READ (UNIT=string(iz),FMT=*,IOSTAT=istat) z
              ELSE
-                IF (string(iz) == parser%end_section) THEN
-                   test_result = "EOS"
-                ELSE
-                   test_result = "STR"
-                END IF
+                istat = 1
              END IF
-
+             IF (istat /= 0) THEN
+                test_result = "STR"
+             ELSE
+                test_result = "FLT"
+             END IF
+          ELSE IF (integer_object(string(iz),error=error)) THEN
+             IF      (nz == 1)          THEN
+                test_result = "INT"
+             ELSE IF (idot2_first == 0) THEN
+                test_result = "FLT"
+             ELSE
+                test_result = "STR"
+             END IF
+          ELSE
+             IF (string(iz) == parser%end_section) THEN
+                test_result = "EOS"
+             ELSE
+                test_result = "STR"
+             END IF
+          END IF
+       END DO
+    END IF
+    
+    !   *** Reset to old status ***
+    IF (parser%para_env%mepos==parser%para_env%source) THEN
+       IF (parser%input_line_number>old_input_line_number) THEN
+          DO iline=1,parser%input_line_number-old_input_line_number
+             BACKSPACE (parser%input_unit)
           END DO
        END IF
-
-       !   *** Reset to old status ***
-
-       IF (parser%para_env%mepos==parser%para_env%source) THEN
-          IF (parser%input_line_number>old_input_line_number) THEN
-             DO iline=1,parser%input_line_number-old_input_line_number
-                BACKSPACE (parser%input_unit)
-             END DO
-          END IF
-       END IF
-
-       parser%input_line = old_input_line
-       parser%input_line_number = old_input_line_number
-       parser%icol = old_icol
-       parser%icol1 = old_icol1
-       parser%icol2 = old_icol2
     END IF
-    CALL cp_error_dealloc_ref(suberror)
+
+    parser%input_line        = old_input_line
+    parser%input_line_number = old_input_line_number
+    parser%icol  = old_icol
+    parser%icol1 = old_icol1
+    parser%icol2 = old_icol2
+
   END FUNCTION parser_test_next_token
 
 ! *****************************************************************************
@@ -1171,18 +1103,16 @@ CONTAINS
 !> \par History
 !>      02.2008 created, AK
 ! *****************************************************************************
-FUNCTION is_comment(parser,testchar) RESULT(resval)
+  FUNCTION is_comment(parser,testchar) RESULT(resval)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=1), INTENT(IN)             :: testchar
     LOGICAL                                  :: resval
 
-! we're in a private function, and parser has been tested before...
-
-  resval=.FALSE.
-  IF (ANY(parser%comment_character.EQ.testchar)) THEN
-     resval=.TRUE.
-  END IF
-  RETURN
-END FUNCTION is_comment
+    resval=.FALSE.
+    ! we're in a private function, and parser has been tested before...
+    IF (ANY(parser%comment_character.EQ.testchar)) THEN
+       resval=.TRUE.
+    END IF
+  END FUNCTION is_comment
 
 END MODULE cp_parser_methods

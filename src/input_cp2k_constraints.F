@@ -412,13 +412,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RANGE",&
-            description="Specifies the starting and the ending index of atoms range you wish to freeze.",&
-            usage="RANGE {integer} {integer}", required=.TRUE.,repeats=.TRUE.,&
-            n_var=2, type_of_var=integer_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="MOLNAME",&
             variants=(/"SEGNAME"/),&
             description="Specifies the name of the molecule to fix",&

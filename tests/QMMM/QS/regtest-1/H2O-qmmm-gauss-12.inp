@@ -139,7 +139,7 @@
   &CONSTRAINT
     &FIXED_ATOMS
       LIST 1 2 3
-      RANGE 4 6
+      LIST 4..6
     &END FIXED_ATOMS
   &END CONSTRAINT
   &MD

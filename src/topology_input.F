@@ -120,8 +120,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER :: freeze_mm, freeze_qm, icolvar, ig, isize, isize_old, itype, j, &
-      jg, jj, msize, msize_old, n_rep, ncons, nrep, stat
+    INTEGER :: freeze_mm, freeze_qm, icolvar, ig, isize, isize_old, itype, &
+      jg, msize, msize_old, n_rep, ncons, nrep, stat
     INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rlist
@@ -375,23 +375,6 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
               CALL reallocate(cons_info%fixed_k0,1,isize+SIZE(tmplist))
               CALL reallocate(cons_info%fixed_type,1,isize+SIZE(tmplist))
               cons_info%fixed_type(isize+1:isize+SIZE(tmplist)) = itype
-              isize = SIZE(cons_info%fixed_atoms)
-           END DO
-           CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig,&
-                n_rep_val=n_rep, error=error)
-           DO jg = 1, n_rep
-              CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig, &
-                   i_rep_val=jg,i_vals=tmplist, error=error)
-              CALL reallocate(cons_info%fixed_atoms,1,isize+tmplist(2)-tmplist(1)+1)
-              CALL reallocate(cons_info%fixed_type,1,isize+tmplist(2)-tmplist(1)+1)
-              CALL reallocate(cons_info%fixed_restraint,1,isize+tmplist(2)-tmplist(1)+1)
-              CALL reallocate(cons_info%fixed_k0,1,isize+tmplist(2)-tmplist(1)+1)
-              jj = 0
-              DO j = tmplist(1), tmplist(2)
-                 jj = jj + 1
-                 cons_info%fixed_atoms(isize+jj:isize+jj) = j
-                 cons_info%fixed_type(isize+jj:isize+jj)  = itype
-              END DO
               isize = SIZE(cons_info%fixed_atoms)
            END DO
            !Check for restraints

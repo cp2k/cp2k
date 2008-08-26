@@ -179,7 +179,7 @@
          LIST 7 8 9
        &END
        &DEFINE_REGION
-         RANGE 13 96
+         LIST 13..96
        &END
     &END
   &END MD

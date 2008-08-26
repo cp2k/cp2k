@@ -14,11 +14,11 @@
 !> \author Axel Kohlmeyer [AK] - CMM/UPenn Philadelphia
 !> \date 20.02.2008
 ! *****************************************************************************
-MODULE inpp_methods
+MODULE cp_parser_inpp_methods
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_parser_inpp_types,            ONLY: inpp_type
   USE cp_parser_types,                 ONLY: cp_parser_type
-  USE inpp_types,                      ONLY: inpp_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length
   USE machine,                         ONLY: default_output_unit
@@ -31,7 +31,7 @@ MODULE inpp_methods
   IMPLICIT NONE
   
   PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'inpp_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_inpp_methods'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
   INTEGER, PARAMETER, PRIVATE          :: max_message_length = 400
 
@@ -498,4 +498,5 @@ CONTAINS
             i,TRIM(inpp%variable_name(i)),TRIM(inpp%variable_value(i))
     END DO
   END SUBROUTINE inpp_list_variables
-END MODULE inpp_methods
+
+END MODULE cp_parser_inpp_methods

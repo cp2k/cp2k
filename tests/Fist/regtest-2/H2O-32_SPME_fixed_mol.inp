@@ -168,7 +168,7 @@
       ATOMS 1 2 3
     &END G3X3
     &FIXED_ATOMS
-      RANGE 1 48
+      LIST 1..48
     &END
   &END CONSTRAINT
   &MD

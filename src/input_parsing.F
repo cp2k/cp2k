@@ -151,7 +151,7 @@ CONTAINS
        IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN ! reads section params
           keyword => section%keywords(-1)%keyword
           NULLIFY(el)
-          IF (keyword%type_of_var==lchar_t) CALL parser_skip_space(parser,.FALSE.,error=error)
+          IF (keyword%type_of_var==lchar_t) CALL parser_skip_space(parser,error=error)
           CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
                n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
                enum=keyword%enum,unit=keyword%unit,&
@@ -307,7 +307,7 @@ CONTAINS
                       NULLIFY(el)
                       !                 PRINT *,"about to parse keyword ",TRIM(token)," in section ",TRIM(section%name)
                       IF (ik/=0.and.keyword%type_of_var==lchar_t) &
-                           CALL parser_skip_space(parser,.FALSE.,error=error)
+                           CALL parser_skip_space(parser,error=error)
                       CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
                            n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
                            enum=keyword%enum,unit=keyword%unit,&
