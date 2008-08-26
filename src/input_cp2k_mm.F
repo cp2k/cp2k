@@ -47,7 +47,7 @@ MODULE input_cp2k_mm
   PUBLIC :: create_mm_section
   PUBLIC :: create_NONBONDED14_section, create_LJ_section, create_Williams_section, &
             create_Goodwin_section, create_Buck4r_section, create_Buckmorse_section,&
-            create_GENPOT_section
+            create_GENPOT_section, create_neighbor_lists_section
 !***
 CONTAINS
 
@@ -83,6 +83,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
        
+       CALL create_neighbor_lists_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_poisson_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -325,10 +329,6 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
        
-       CALL create_neighbor_lists_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
        CALL create_NONBONDED_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)

@@ -59,18 +59,18 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
-       cell, fist_nonbond_env, para_env, force_env_section,shell_particle_set,&
+       cell, fist_nonbond_env, para_env, mm_section,shell_particle_set,&
        core_particle_set, force_update, error)
 
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
-    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set(:)
+    TYPE(particle_type), POINTER             :: particle_set(:)
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(cell_type), POINTER                 :: cell
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(particle_type), POINTER             :: shell_particle_set( : ), &
-                                                core_particle_set( : )
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set(:), &
+                                                core_particle_set(:)
     LOGICAL, INTENT(IN), OPTIONAL            :: force_update
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -129,12 +129,12 @@ CONTAINS
 
     ! *** Check, if the neighbor lists have to be built or updated ***
     update_neighbor_lists = .FALSE.
-    CALL section_vals_val_get(force_env_section,"MM%FORCEFIELD%NEIGHBOR_LISTS%NEIGHBOR_LISTS_FROM_SCRATCH",&
+    CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%NEIGHBOR_LISTS_FROM_SCRATCH",&
          l_val=build_from_scratch,error=error)
-    CALL section_vals_val_get(force_env_section,"MM%FORCEFIELD%NEIGHBOR_LISTS%GEO_CHECK",&
+    CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%GEO_CHECK",&
          l_val=geo_check,error=error)
     IF (ASSOCIATED(r_last_update)) THEN
-       CALL section_vals_val_get(force_env_section,"MM%FORCEFIELD%NEIGHBOR_LISTS%VERLET_SKIN",&
+       CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
             r_val=verlet_skin,error=error)
        dr2_max = 0.0_dp
        DO iparticle_kind=1,nparticle_kind
@@ -204,7 +204,7 @@ CONTAINS
                                       nonbonded,para_env,&
                                       build_from_scratch=build_from_scratch,&
                                       geo_check=geo_check,&
-                                      force_env_section=force_env_section,&
+                                      mm_section=mm_section,&
                                       pot_type=pot_type,&
                                       error=error)
        
@@ -236,7 +236,7 @@ CONTAINS
                                  last_update=last_update,&
                                  cell_last_update=cell_last_update,error=error)
 
-       output_unit = cp_print_key_unit_nr(logger,force_env_section,"MM%PRINT%NEIGHBOR_LISTS",&
+       output_unit = cp_print_key_unit_nr(logger,mm_section,"PRINT%NEIGHBOR_LISTS",&
             extension=".mmLog",error=error)
        IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,&
@@ -244,8 +244,8 @@ CONTAINS
                REPEAT("*",79),"INSTANTANEOUS        AVERAGES",&
                " LIST UPDATES[steps]","= ",lup,aup,REPEAT("*",79)
        END IF
-       CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-            "MM%PRINT%NEIGHBOR_LISTS",error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,mm_section,&
+            "PRINT%NEIGHBOR_LISTS",error=error)
        DEALLOCATE(pot_type,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF

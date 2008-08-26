@@ -2,6 +2,9 @@
 
   METHOD FIST
   &MM
+    &NEIGHBOR_LISTS
+      VERLET_SKIN 0.0
+    &END
     &FORCEFIELD
       &CHARGE
         ATOM C
@@ -13,9 +16,6 @@
         EMAX_ACCURACY  3.5
         RCUT_NB [bohr] 7.0
       &END SPLINE
-      &NEIGHBOR_LISTS
-        VERLET_SKIN 0.0
-      &END
       MULTIPLE_POTENTIAL
       &NONBONDED
         &TERSOFF

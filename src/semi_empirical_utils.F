@@ -22,6 +22,7 @@ MODULE semi_empirical_utils
                                              do_method_pm6,&
                                              do_method_rm1
   USE kinds,                           ONLY: dp
+  USE semi_empirical_mpole_methods,    ONLY: semi_empirical_mpole_p_setup
   USE semi_empirical_par_utils,        ONLY: get_se_basis,&
                                              setup_1c_2el_int
   USE semi_empirical_parameters,       ONLY: am1_default_parameter,&
@@ -66,7 +67,6 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(sep)) THEN
-
        CALL allocate_sto_basis_set (sep%basis,error)
        nshell = 0
        IF (sep%natorb ==  1) nshell=1
@@ -105,12 +105,9 @@ CONTAINS
 
        DEALLOCATE (symbol,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
     ELSE
-
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer sep is not associated")
-
     END IF
 
   END SUBROUTINE init_se_param
@@ -170,6 +167,9 @@ CPSourceFileRef,&
    
     ! Fill 1 center - 2 electron integrals 
     CALL setup_1c_2el_int(sep, error)
+    
+    ! Fill multipolar expansion of atomic orbitals charge distributions
+    CALL semi_empirical_mpole_p_setup(sep%w_mpole, sep, error)
 
   END SUBROUTINE se_param_set_default
 

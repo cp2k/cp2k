@@ -45,18 +45,15 @@ MODULE qs_local_rho_types
   TYPE local_rho_type
     TYPE(rho_atom_type), DIMENSION(:), POINTER            :: rho_atom_set
     TYPE(rho0_mpole_type), POINTER                        :: rho0_mpole
-    TYPE(rho0_mpole_type), POINTER                        :: nddo_mpole
     TYPE(rho0_atom_type), DIMENSION(:), POINTER           :: rho0_atom_set
     TYPE(rhoz_type),  DIMENSION(:), POINTER               :: rhoz_set
     REAL(dp)                                              :: rhoz_tot
   END TYPE local_rho_type
 
 ! Public Types
-
   PUBLIC ::  local_rho_type, rhoz_type
 
 ! Public Subroutine
-
   PUBLIC :: allocate_rhoz, calculate_rhoz, deallocate_rhoz,&
             get_local_rho, local_rho_set_create, &
             local_rho_set_release, set_local_rho
@@ -73,8 +70,6 @@ MODULE qs_local_rho_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat
-
-!   ---------------------------------------------------------------------------
 
     IF(ASSOCIATED(rhoz_set)) THEN
       CALL deallocate_rhoz(rhoz_set)
@@ -110,8 +105,6 @@ MODULE qs_local_rho_types
     REAL(dp)                                 :: c1, c2, c3, prefactor1, &
                                                 prefactor2, prefactor3, sum
 
-!   ---------------------------------------------------------------------------
-
     nr = grid_atom%nr
     na = grid_atom%ng_sphere
     CALL reallocate(rhoz%r_coef,1,nr)
@@ -141,12 +134,6 @@ MODULE qs_local_rho_types
     rhoz%one_atom=sum*harmonics%slm_int(1)
     rhoz_tot = rhoz_tot + natom*rhoz%one_atom
 
-!  write(*,*) harmonics%slm_int(1), rhoz%one_atom
-! DO ir =1,nr
-!    WRITE(10,'(I5,3(1E30.16))') ir,grid_atom%rad(ir),rhoz%vr_coef(ir),rhoz%r_coef(ir)
-! END DO
-
-! STOP 'erf'
   END SUBROUTINE calculate_rhoz
 
 ! *****************************************************************************
@@ -158,8 +145,6 @@ MODULE qs_local_rho_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, nkind
-
-!   ---------------------------------------------------------------------------
 
     nkind = SIZE(rhoz_set)
 
@@ -182,27 +167,23 @@ MODULE qs_local_rho_types
   END SUBROUTINE  deallocate_rhoz
 
 ! *****************************************************************************
-  SUBROUTINE  get_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,&
-                            rho0_mpole,nddo_mpole,rhoz_set)
+  SUBROUTINE  get_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,rho0_mpole,rhoz_set)
 
     TYPE(local_rho_type), POINTER            :: local_rho_set
     TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_atom_set
     TYPE(rho0_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho0_atom_set
-    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole, nddo_mpole
+    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rhoz_set
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_local_rho', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF (PRESENT(rho_atom_set)) rho_atom_set => local_rho_set%rho_atom_set
     IF (PRESENT(rho0_atom_set)) rho0_atom_set => local_rho_set%rho0_atom_set
     IF (PRESENT(rho0_mpole))  rho0_mpole =>  local_rho_set%rho0_mpole
-    IF (PRESENT(nddo_mpole))  nddo_mpole =>  local_rho_set%nddo_mpole
     IF (PRESENT(rhoz_set))  rhoz_set => local_rho_set%rhoz_set
 
   END SUBROUTINE get_local_rho
@@ -219,8 +200,6 @@ MODULE qs_local_rho_types
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
 
     ALLOCATE(local_rho_set, stat=stat)
@@ -229,7 +208,6 @@ MODULE qs_local_rho_types
     NULLIFY (local_rho_set%rho_atom_set)
     NULLIFY (local_rho_set%rho0_atom_set)
     NULLIFY (local_rho_set%rho0_mpole)
-    NULLIFY (local_rho_set%nddo_mpole)
     NULLIFY (local_rho_set%rhoz_set)
 
   END SUBROUTINE local_rho_set_create
@@ -245,8 +223,6 @@ MODULE qs_local_rho_types
 
     INTEGER                                  :: stat
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(local_rho_set)) THEN
       IF (ASSOCIATED(local_rho_set%rho_atom_set)) THEN
          CALL deallocate_rho_atom_set(local_rho_set%rho_atom_set)
@@ -260,10 +236,6 @@ MODULE qs_local_rho_types
         CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole,error=error)
       END IF
 
-      IF (ASSOCIATED(local_rho_set%nddo_mpole)) THEN
-        CALL deallocate_rho0_mpole(local_rho_set%nddo_mpole,error=error)
-      END IF
-
       IF(ASSOCIATED(local_rho_set%rhoz_set)) THEN
         CALL deallocate_rhoz(local_rho_set%rhoz_set)
       ENDIF
@@ -275,23 +247,21 @@ MODULE qs_local_rho_types
   END SUBROUTINE local_rho_set_release
 
 ! *****************************************************************************
-  SUBROUTINE set_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,&
-                            rho0_mpole,nddo_mpole,rhoz_set, error)
+  SUBROUTINE set_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,rho0_mpole,&
+       rhoz_set, error)
 
     TYPE(local_rho_type), POINTER            :: local_rho_set
     TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_atom_set
     TYPE(rho0_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho0_atom_set
-    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole, nddo_mpole
+    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rhoz_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_local_rho', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (PRESENT(rho_atom_set)) THEN
        IF(ASSOCIATED(local_rho_set%rho_atom_set)) THEN
@@ -312,13 +282,6 @@ MODULE qs_local_rho_types
          CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole,error=error)
        ENDIF
        local_rho_set%rho0_mpole => rho0_mpole
-    END IF
-
-    IF (PRESENT(nddo_mpole)) THEN
-       IF(ASSOCIATED(local_rho_set%nddo_mpole)) THEN
-         CALL deallocate_rho0_mpole(local_rho_set%nddo_mpole,error=error)
-       ENDIF
-       local_rho_set%nddo_mpole => nddo_mpole
     END IF
 
     IF (PRESENT(rhoz_set)) THEN

@@ -24,8 +24,16 @@ MODULE nddo_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
+  USE ewald_pw_types,                  ONLY: ewald_pw_type
+  USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE f77_blas
-  USE input_constants,                 ONLY: do_method_am1,&
+  USE fist_neighbor_list_control,      ONLY: list_control
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
+  USE input_constants,                 ONLY: do_ewald_ewald,&
+                                             do_method_am1,&
                                              do_method_mndo,&
                                              do_method_mndod,&
                                              do_method_pdg,&
@@ -57,6 +65,7 @@ MODULE nddo_methods
                                              drotnuc,&
                                              rotint,&
                                              rotnuc
+  USE semi_empirical_mpole_types,      ONLY: nddo_mpole_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_finalize,&
                                              semi_empirical_si_initialize,&
                                              semi_empirical_si_type
@@ -107,7 +116,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, ncol_global, &
                                                 nspins, output_unit, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: do_ewald, failure
     REAL(KIND=dp)                            :: qmmm_el
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
                                                 scaling_factor
@@ -122,24 +131,23 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p
     TYPE(section_vals_type), POINTER         :: scf_section
+    TYPE(semi_empirical_control_type), &
+      POINTER                                :: se_control
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
 
-    CALL timeset(routineN,"I","",handle)
-    NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env)
-    logger => cp_error_get_logger(error)
     failure=.FALSE.
+    CALL timeset(routineN,"I","",handle)
+    NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env, se_control)
+    logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF ( .NOT. failure ) THEN
+    IF (.NOT.failure) THEN
+       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_h=matrix_h,&
+            para_env=para_env, se_store_int_env=store_int_env, error=error)
 
-       CALL get_qs_env(qs_env=qs_env,&
-                      dft_control=dft_control,&
-                      matrix_h=matrix_h,&
-                      para_env=para_env,&
-                      se_store_int_env=store_int_env,&
-                      error=error)
-
+       se_control  => dft_control%qs_control%se_control
+       do_ewald    =  se_control%do_ewald
        scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
        CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
@@ -153,11 +161,17 @@ CONTAINS
        END DO
 
        CALL semi_empirical_si_initialize(store_int_env, ks_env%s_mstruct_changed, error)
-       CALL build_nddo_fock_matrix_exchange(ks_env,qs_env,ks_matrix,rho,energy,&
-            calculate_forces,just_energy,store_int_env,error)
-       CALL build_nddo_fock_matrix_coulomb (ks_env,qs_env,ks_matrix,rho,energy,&
-            calculate_forces,just_energy,store_int_env,error)
+       CALL build_fock_matrix_exchange(qs_env,ks_matrix,rho,energy,calculate_forces,&
+            just_energy,store_int_env,error)
+       CALL build_fock_matrix_coulomb(qs_env,ks_matrix,rho,energy,calculate_forces,&
+            just_energy,store_int_env,error)
        CALL semi_empirical_si_finalize(store_int_env, ks_env%s_mstruct_changed, error)
+
+       ! Long Range
+       IF (do_ewald) THEN
+          CALL build_fock_matrix_coulomb_lr(qs_env,ks_matrix,rho,energy,calculate_forces,&
+               just_energy,error)
+       END IF
 
        ! QM/MM
        IF (qs_env%qmmm) THEN
@@ -176,12 +190,11 @@ CONTAINS
 
        energy%mulliken = 0.0_dp
        energy%exc      = 0.0_dp
-
-       energy%total = energy%core +&
-                      energy%core_overlap +&
-                      0.5_dp*energy%hartree + &
-                      energy%qmmm_el +&
-                      energy%mulliken
+       energy%total    = energy%core +&
+                         energy%core_overlap +&
+                         0.5_dp*energy%hartree + &
+                         energy%qmmm_el +&
+                         energy%mulliken
 
        output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
             extension=".scfLog",error=error)
@@ -196,6 +209,7 @@ CONTAINS
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%DETAILED_ENERGY", error=error)
+
        ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
@@ -213,9 +227,7 @@ CONTAINS
              CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDDO
        ENDIF
-
     END IF
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE build_nddo_fock_matrix
@@ -293,11 +305,6 @@ CONTAINS
 
        itype    = get_se_type(dft_control%qs_control%method_id)
 
-       IF (do_ewald) THEN
-          !calculate 1/r contribution using Ewald type method
-!deb      CALL nddo_ewald
-       END IF
-
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
@@ -322,63 +329,62 @@ CONTAINS
                    sab_2c_neighbor_list => first_list(sab_2c(iab)%neighbor_list_set)
                 ELSE
                    sab_2c_neighbor_list => next(sab_2c_neighbor_list)
-               END IF
-               CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list,atom=iatom,nnode=nnode)
-               sab_2c_neighbor_node => first_node(sab_2c_neighbor_list)
-
-               DO inode=1,nnode
-                  CALL get_neighbor_node(neighbor_node=sab_2c_neighbor_node,neighbor=jatom,r=rij)
-                  dr1 = DOT_PRODUCT(rij,rij)
-                  IF ( dr1 > rij_threshold ) THEN
-                     SELECT CASE (dft_control%qs_control%method_id)
-                     CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,&
-                          do_method_rm1,do_method_mndod)
-
-                        ! Core-Core energy term
-                        CALL corecore (se_kind_a,se_kind_b,rij,enuc=enuc,itype=itype,anag=anag,&
-                             shortrange=do_ewald, taper=taper, error=error)
-                        enuclear = enuclear + enuc
-
-                        ! Core-Core Derivatives
-                        IF(calculate_forces) THEN
-                           atom_a = atom_of_kind(iatom)
-                           atom_b = atom_of_kind(jatom)
-                           
-                           CALL dcorecore (se_kind_a,se_kind_b,rij,denuc=force_ab,itype=itype,delta=delta,&
-                                anag=anag,shortrange=do_ewald,taper=taper,error=error)
-                           force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
-                           force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + force_ab(:)
-                        END IF
-                     CASE DEFAULT
-                        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                     END SELECT
-                  END IF
-                  sab_2c_neighbor_node => next(sab_2c_neighbor_node)
-               END DO ! inode => jatom(atom B)               
-            END DO ! ilist => iatom(atom A)
-         END DO ! jkind
-      END DO ! ikind
-
-      IF (calculate_forces) THEN 
-         DEALLOCATE(atom_of_kind,stat=stat)
-         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-      END IF
-
-      CALL mp_sum(enuclear,para_env%group)
-      energy%core_overlap = enuclear      
-   END IF
-   
-   CALL timestop(0.0_dp,handle)
- END SUBROUTINE se_core_core_interaction
-
+                END IF
+                CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list,atom=iatom,nnode=nnode)
+                sab_2c_neighbor_node => first_node(sab_2c_neighbor_list)
+                
+                DO inode=1,nnode
+                   CALL get_neighbor_node(neighbor_node=sab_2c_neighbor_node,neighbor=jatom,r=rij)
+                   dr1 = DOT_PRODUCT(rij,rij)
+                   IF ( dr1 > rij_threshold ) THEN
+                      SELECT CASE (dft_control%qs_control%method_id)
+                      CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,&
+                           do_method_rm1,do_method_mndod)
+                         
+                         ! Core-Core energy term
+                         CALL corecore (se_kind_a,se_kind_b,rij,enuc=enuc,itype=itype,anag=anag,&
+                              shortrange=do_ewald, taper=taper, error=error)
+                         enuclear = enuclear + enuc
+                         
+                         ! Core-Core Derivatives
+                         IF(calculate_forces) THEN
+                            atom_a = atom_of_kind(iatom)
+                            atom_b = atom_of_kind(jatom)
+                            
+                            CALL dcorecore (se_kind_a,se_kind_b,rij,denuc=force_ab,itype=itype,delta=delta,&
+                                 anag=anag,shortrange=do_ewald,taper=taper,error=error)
+                            force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
+                            force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + force_ab(:)
+                         END IF
+                      CASE DEFAULT
+                         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                      END SELECT
+                   END IF
+                   sab_2c_neighbor_node => next(sab_2c_neighbor_node)
+                END DO ! inode => jatom(atom B)               
+             END DO ! ilist => iatom(atom A)
+          END DO ! jkind
+       END DO ! ikind
+       
+       IF (calculate_forces) THEN 
+          DEALLOCATE(atom_of_kind,stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       
+       CALL mp_sum(enuclear,para_env%group)
+       energy%core_overlap = enuclear      
+    END IF
+    
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE se_core_core_interaction
+  
 ! *****************************************************************************
 !> \brief Construction of the Coulomb part of the Fock matrix
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE build_nddo_fock_matrix_coulomb (ks_env,qs_env,ks_matrix,rho,energy,&
-       calculate_forces,just_energy,store_int_env,error)
+  SUBROUTINE build_fock_matrix_coulomb (qs_env,ks_matrix,rho,energy,calculate_forces,&
+       just_energy,store_int_env,error)
 
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
@@ -388,8 +394,7 @@ CONTAINS
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'build_nddo_fock_matrix_coulomb', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coulomb', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, iab, iatom, ikind, ilist, inode, &
@@ -426,46 +431,38 @@ CONTAINS
     TYPE(taper_type), POINTER                :: taper
 
     failure=.FALSE.
-    NULLIFY(matrix_p,dft_control,cell,force,particle_set)
-    NULLIFY(diagmat_ks,diagmat_p, se_control,taper)
-
     CALL timeset(routineN,"I","",handle)
-
-    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, taper=taper,&
-         para_env=para_env, error=error)
-
-    ! Parameters
-    se_control => dft_control%qs_control%se_control
-    do_ewald   =  se_control%do_ewald
-    anag       =  se_control%analytical_gradients
-
-    nspins=dft_control%nspins
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
-    
     IF ( .NOT. failure ) THEN
+       NULLIFY(matrix_p,dft_control,cell,force,particle_set)
+       NULLIFY(diagmat_ks,diagmat_p, se_control,taper)
+       
+       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, taper=taper,&
+            para_env=para_env, sab_2c=sab_2c, atomic_kind_set=atomic_kind_set, &
+            particle_set=particle_set, error=error)
+
+       ! Parameters
+       se_control => dft_control%qs_control%se_control
+       do_ewald   =  se_control%do_ewald
+       anag       =  se_control%analytical_gradients
+       
+       nspins=dft_control%nspins
+       CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+       
        CALL allocate_matrix_set(diagmat_ks,nspins,error=error)
        CALL allocate_matrix_set(diagmat_p,nspins,error=error)
        
        matrix_p => rho%rho_ao
-       
-       CALL get_qs_env(qs_env=qs_env,&
-                       sab_2c=sab_2c,&
-                       atomic_kind_set=atomic_kind_set,error=error)
-
        nkind = SIZE(atomic_kind_set)
 
        IF(calculate_forces) THEN
-          CALL get_qs_env(qs_env=qs_env,&
-                          particle_set=particle_set,&
-                          force=force,error=error)
+          CALL get_qs_env(qs_env=qs_env, force=force, error=error)
           natom = SIZE (particle_set)
+          delta = se_control%delta
+          ! Allocate atom index for kind
           ALLOCATE (atom_of_kind(natom),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          delta = se_control%delta
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
        END IF
 
@@ -479,12 +476,6 @@ CONTAINS
        
        ecore2   = 0.0_dp
        itype    = get_se_type(dft_control%qs_control%method_id)
-
-       IF (do_ewald) THEN
-          !calculate 1/r contribution using Ewald type method
-!deb      CALL nddo_ewald
-       END IF
-
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
@@ -509,201 +500,487 @@ CONTAINS
                    sab_2c_neighbor_list => first_list(sab_2c(iab)%neighbor_list_set)
                 ELSE
                    sab_2c_neighbor_list => next(sab_2c_neighbor_list)
-               END IF
-               CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list,atom=iatom, nnode=nnode)
-               sab_2c_neighbor_node => first_node(sab_2c_neighbor_list)
+                END IF
+                CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list,atom=iatom, nnode=nnode)
+                sab_2c_neighbor_node => first_node(sab_2c_neighbor_list)
+ 
+                IF ( nspins >= 1 ) THEN
+                   CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                                       block_row=iatom,&
+                                       block_col=iatom,&
+                                       BLOCK=pa_block_a)
+                   CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
+                   CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                                       block_row=iatom,&
+                                       block_col=iatom,&
+                                       BLOCK=ksa_block_a)
+                   CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
+                   p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = 2.0_dp * pa_block_a
+                END IF
+                IF ( nspins >= 2 ) THEN
+                   CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                                       block_row=iatom,&
+                                       block_col=iatom,&
+                                       BLOCK=pa_block_b)
+                   CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
+                   CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+                                       block_row=iatom,&
+                                       block_col=iatom,&
+                                       BLOCK=ksa_block_b)
+                   CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,error,failure)
+                   check = (SIZE(pa_block_a,1)==SIZE(pa_block_b,1)).AND.(SIZE(pa_block_a,2)==SIZE(pa_block_b,2))
+                   CPPostcondition(check,cp_failure_level,routineP,error,failure)
+                   p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = pa_block_a + pa_block_b
+                END IF
+ 
+                DO inode=1,nnode
+                   CALL get_neighbor_node(neighbor_node=sab_2c_neighbor_node,neighbor=jatom,r=rij)
+ 
+                   dr1 = DOT_PRODUCT(rij,rij)
+                   IF ( dr1 > rij_threshold ) THEN
+ 
+                      IF (iatom <= jatom) THEN
+                         switch = .FALSE.
+                      ELSE
+                         switch = .TRUE.
+                      END IF
+                      IF ( nspins >= 1 ) THEN
+                         CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                                             block_row=jatom,&
+                                             block_col=jatom,&
+                                             BLOCK=pb_block_a)
+                         CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
+                         CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                                             block_row=jatom,&
+                                             block_col=jatom,&
+                                             BLOCK=ksb_block_a)
+                         CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
+                         p_block_tot_b(1:SIZE(pb_block_a,1),1:SIZE(pb_block_a,2)) = 2.0_dp * pb_block_a
+                      END IF
+                      IF ( nspins >= 2 ) THEN
+                         CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                                             block_row=jatom,&
+                                             block_col=jatom,&
+                                             BLOCK=pb_block_b)
+                         CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
+                         CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+                                             block_row=jatom,&
+                                             block_col=jatom,&
+                                             BLOCK=ksb_block_b)
+                         CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,error,failure)
+                         check = (SIZE(pb_block_a,1)==SIZE(pb_block_b,1)).AND.(SIZE(pb_block_a,2)==SIZE(pb_block_b,2))
+                         CPPostcondition(check,cp_failure_level,routineP,error,failure)
+                         p_block_tot_b(1:SIZE(pb_block_a,1),1:SIZE(pb_block_a,2)) = pb_block_a + pb_block_b
+                      END IF
+ 
+                      SELECT CASE (dft_control%qs_control%method_id)
+                      CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
+                            do_method_rm1, do_method_mndod)
+ 
+                         ! One-centre One-electron terms
+                         IF      ( nspins == 1 ) THEN
+                            CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
+                                 pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&
+                                 shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
+                                 error=error)
+                         ELSE IF ( nspins == 2 ) THEN
+                            CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
+                                 pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&
+                                 shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
+                                 error=error)
+ 
+                            CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_b, ksb_block_b,&
+                                 pa_block_b, pb_block_b, ecore=ecore2, itype=itype, anag=anag,&
+                                 shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
+                                 error=error)
+                         END IF
+                         ! Coulomb Terms
+                         IF      ( nspins == 1 ) THEN
+                            CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, ksa_block_a,&
+                                 p_block_tot_b, ksb_block_a, factor=0.5_dp, anag=anag, shortrange=do_ewald, taper=taper,&
+                                 store_int_env=store_int_env, error=error)
+                         ELSE IF ( nspins == 2 ) THEN
+                            CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, ksa_block_a,&
+                                 p_block_tot_b, ksb_block_a, factor=1.0_dp, anag=anag, shortrange=do_ewald, taper=taper,&
+                                 store_int_env=store_int_env, error=error)
+ 
+                            CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_b, ksa_block_b,&
+                                 p_block_tot_b, ksb_block_b, factor=1.0_dp, anag=anag, shortrange=do_ewald, taper=taper,&
+                                 store_int_env=store_int_env, error=error)
+                         END IF
+ 
+                         IF(calculate_forces) THEN
+                            atom_a   = atom_of_kind(iatom)
+                            atom_b   = atom_of_kind(jatom)
+ 
+                            ! Derivatives of the One-centre One-electron terms
+                            force_ab = 0.0_dp
+                            IF      ( nspins == 1 ) THEN
+                               CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_block_a, pb_block_a, itype=itype, anag=anag,&
+                                    shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
+                            ELSE IF ( nspins == 2 ) THEN
+                               CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_block_a, pb_block_a, itype=itype, anag=anag,&
+                                    shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
+ 
+                               CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_block_b, pb_block_b, itype=itype, anag=anag,&
+                                    shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
+                            END IF
+                            force_ab = -force_ab
+                            force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
+                            force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + force_ab(:)
+ 
+                            ! Derivatives of the Coulomb Terms
+                            force_ab = 0._dp
+                            IF      ( nspins == 1 ) THEN
+                               CALL dfock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, p_block_tot_b,&
+                                    factor=0.25_dp, anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta,&
+                                    error=error)
+                            ELSE IF ( nspins == 2 ) THEN
+                               CALL dfock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, p_block_tot_b,&
+                                    factor=0.5_dp, anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta,&
+                                    error=error)
+                               
+                               CALL dfock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_b, p_block_tot_b,&
+                                    factor=0.5_dp, anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta,&
+                                    error=error)
+                            END IF
+                            IF ( switch ) force_ab = -force_ab
+                            force(ikind)%rho_elec(:,atom_a) = force(ikind)%rho_elec(:,atom_a) - force_ab(:)
+                            force(jkind)%rho_elec(:,atom_b) = force(jkind)%rho_elec(:,atom_b) + force_ab(:)
+                         END IF
+                      CASE DEFAULT
+                         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                      END SELECT
+                   END IF
+                   sab_2c_neighbor_node => next(sab_2c_neighbor_node)
+                END DO ! inode => jatom(atom B)
+             END DO ! ilist => iatom(atom A)
+          END DO ! jkind
+       END DO ! ikind
+       
+       DO ispin = 1, nspins
+          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(1)%matrix,.FALSE.,error=error)
+          CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,.TRUE.,para_env,error=error)
+       END DO
+       DEALLOCATE(diagmat_ks,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(diagmat_p,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+       IF (calculate_forces) THEN 
+          DEALLOCATE(atom_of_kind,stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       
+       CALL mp_sum(ecore2,para_env%group)
+       
+       energy%hartree = ecore2 - energy%core
+       DO ispin=1,nspins
+          CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,&
+               para_env=para_env,error=error)
+          energy%hartree=energy%hartree+ecoul
+       END DO
+    END IF
+    
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE build_fock_matrix_coulomb
 
-               CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-               IF ( nspins >= 1 ) THEN
-                  CALL get_block_node(matrix=diagmat_p(1)%matrix,&
-                                      block_row=iatom,&
-                                      block_col=iatom,&
-                                      BLOCK=pa_block_a)
-                  CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
-                  CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
-                                      block_row=iatom,&
-                                      block_col=iatom,&
-                                      BLOCK=ksa_block_a)
-                  CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
-                  p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = 2.0_dp * pa_block_a
-               END IF
-               IF ( nspins >= 2 ) THEN
-                  CALL get_block_node(matrix=diagmat_p(2)%matrix,&
-                                      block_row=iatom,&
-                                      block_col=iatom,&
-                                      BLOCK=pa_block_b)
-                  CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
-                  CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
-                                      block_row=iatom,&
-                                      block_col=iatom,&
-                                      BLOCK=ksa_block_b)
-                  CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,error,failure)
-                  check = (SIZE(pa_block_a,1)==SIZE(pa_block_b,1)).AND.(SIZE(pa_block_a,2)==SIZE(pa_block_b,2))
-                  CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                  p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = pa_block_a + pa_block_b
-               END IF
-
-               DO inode=1,nnode
-                  CALL get_neighbor_node(neighbor_node=sab_2c_neighbor_node,neighbor=jatom,r=rij)
-
-                  dr1 = DOT_PRODUCT(rij,rij)
-                  IF ( dr1 > rij_threshold ) THEN
-
-                     IF (iatom <= jatom) THEN
-                        switch = .FALSE.
-                     ELSE
-                        switch = .TRUE.
-                     END IF
-                     CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                     IF ( nspins >= 1 ) THEN
-                        CALL get_block_node(matrix=diagmat_p(1)%matrix,&
-                                            block_row=jatom,&
-                                            block_col=jatom,&
-                                            BLOCK=pb_block_a)
-                        CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
-                        CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
-                                            block_row=jatom,&
-                                            block_col=jatom,&
-                                            BLOCK=ksb_block_a)
-                        CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
-                        p_block_tot_b(1:SIZE(pb_block_a,1),1:SIZE(pb_block_a,2)) = 2.0_dp * pb_block_a
-                     END IF
-                     IF ( nspins >= 2 ) THEN
-                        CALL get_block_node(matrix=diagmat_p(2)%matrix,&
-                                            block_row=jatom,&
-                                            block_col=jatom,&
-                                            BLOCK=pb_block_b)
-                        CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
-                        CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
-                                            block_row=jatom,&
-                                            block_col=jatom,&
-                                            BLOCK=ksb_block_b)
-                        CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,error,failure)
-                        check = (SIZE(pb_block_a,1)==SIZE(pb_block_b,1)).AND.(SIZE(pb_block_a,2)==SIZE(pb_block_b,2))
-                        CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                        p_block_tot_b(1:SIZE(pb_block_a,1),1:SIZE(pb_block_a,2)) = pb_block_a + pb_block_b
-                     END IF
-
-                     SELECT CASE (dft_control%qs_control%method_id)
-                     CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
-                           do_method_rm1, do_method_mndod)
-
-                        ! One-centre One-electron terms
-                        IF      ( nspins == 1 ) THEN
-                           CALL fock1_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
-                                pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&
-                                shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
-                                error=error)
-                        ELSE IF ( nspins == 2 ) THEN
-                           CALL fock1_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
-                                pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&
-                                shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
-                                error=error)
-
-                           CALL fock1_1el (se_kind_a,se_kind_b,rij, ksa_block_b, ksb_block_b,&
-                                pa_block_b, pb_block_b, ecore=ecore2, itype=itype, anag=anag,&
-                                shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
-                                error=error)
-                        END IF
-                        ! Coulomb Terms
-                        IF      ( nspins == 1 ) THEN
-                           CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, ksa_block_a,&
-                                p_block_tot_b, ksb_block_a, factor=0.5_dp, anag=anag, shortrange=do_ewald, taper=taper,&
-                                store_int_env=store_int_env, error=error)
-                        ELSE IF ( nspins == 2 ) THEN
-                           CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, ksa_block_a,&
-                                p_block_tot_b, ksb_block_a, factor=1.0_dp, anag=anag, shortrange=do_ewald, taper=taper,&
-                                store_int_env=store_int_env, error=error)
-
-                           CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_b, ksa_block_b,&
-                                p_block_tot_b, ksb_block_b, factor=1.0_dp, anag=anag, shortrange=do_ewald, taper=taper,&
-                                store_int_env=store_int_env, error=error)
-                        END IF
-
-                        IF(calculate_forces) THEN
-                           atom_a   = atom_of_kind(iatom)
-                           atom_b   = atom_of_kind(jatom)
-
-                           ! Derivatives of the One-centre One-electron terms
-                           force_ab = 0.0_dp
-                           IF      ( nspins == 1 ) THEN
-                              CALL dfock1_1el (se_kind_a,se_kind_b,rij, pa_block_a, pb_block_a, itype=itype, anag=anag,&
-                                   shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
-                           ELSE IF ( nspins == 2 ) THEN
-                              CALL dfock1_1el (se_kind_a,se_kind_b,rij, pa_block_a, pb_block_a, itype=itype, anag=anag,&
-                                   shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
-
-                              CALL dfock1_1el (se_kind_a,se_kind_b,rij, pa_block_b, pb_block_b, itype=itype, anag=anag,&
-                                   shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
-                           END IF
-                           force_ab = -force_ab
-                           force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
-                           force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + force_ab(:)
-
-                           ! Derivatives of the Coulomb Terms
-                           force_ab = 0._dp
-                           IF      ( nspins == 1 ) THEN
-                              CALL dfock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, p_block_tot_b,&
-                                   factor=0.25_dp, anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta,&
-                                   error=error)
-                           ELSE IF ( nspins == 2 ) THEN
-                              CALL dfock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, p_block_tot_b,&
-                                   factor=0.5_dp, anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta,&
-                                   error=error)
-                              
-                              CALL dfock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_b, p_block_tot_b,&
-                                   factor=0.5_dp, anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta,&
-                                   error=error)
-                           END IF
-                           IF ( switch ) force_ab = -force_ab
-                           force(ikind)%rho_elec(:,atom_a) = force(ikind)%rho_elec(:,atom_a) - force_ab(:)
-                           force(jkind)%rho_elec(:,atom_b) = force(jkind)%rho_elec(:,atom_b) + force_ab(:)
-                        END IF
-                     CASE DEFAULT
-                        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                     END SELECT
-                  END IF
-                  sab_2c_neighbor_node => next(sab_2c_neighbor_node)
-               END DO ! inode => jatom(atom B)
-            END DO ! ilist => iatom(atom A)
-         END DO ! jkind
-      END DO ! ikind
-      
-      DO ispin = 1, nspins
-         CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(1)%matrix,.FALSE.,error=error)
-         CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,.TRUE.,para_env,error=error)
-      END DO
-      DEALLOCATE(diagmat_ks,stat=stat)
-      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(diagmat_p,stat=stat)
-      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-      
-      IF (calculate_forces) THEN 
-         DEALLOCATE(atom_of_kind,stat=stat)
-         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-      END IF
-      
-      CALL mp_sum(ecore2,para_env%group)
-      
-      energy%hartree = ecore2 - energy%core
-      DO ispin=1,nspins
-         CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,&
-              para_env=para_env,error=error)
-         energy%hartree=energy%hartree+ecoul
-      END DO
-   END IF
+! *****************************************************************************
+!> \brief  Long-Range part for SE Coulomb interactions
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   08.2008 [created]
+! *****************************************************************************
+  SUBROUTINE build_fock_matrix_coulomb_lr (qs_env, ks_matrix, rho, energy,&
+       calculate_forces, just_energy, error)
    
-   CALL timestop(0.0_dp,handle)
- END SUBROUTINE build_nddo_fock_matrix_coulomb
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_energy_type), POINTER            :: energy
+    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coulomb_lr', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, atom_b, ewald_type, forces_g_size, handle, iatom, &
+      ikind, ilist, ispin, itype, iw, jatom, natoms, natorb_a, nkind, &
+      nlocal_particles, nparticle_local, nspins, stat
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    LOGICAL                                  :: anag, check, defined, &
+                                                do_ewald, failure
+    LOGICAL, DIMENSION(3)                    :: task
+    REAL(KIND=dp)                            :: e_neut, e_self, ecoul, &
+                                                energy_glob, energy_local
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: forces_g, forces_r
+    REAL(KIND=dp), DIMENSION(3)              :: force_ab
+    REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksa_block_a, ksa_block_b, &
+                                                pa_block_a, pa_block_b
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(fist_nonbond_env_type), POINTER     :: se_nonbond_env
+    TYPE(nddo_mpole_type), POINTER           :: se_nddo_mpole
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: diagmat_ks, diagmat_p, &
+                                                matrix_p
+    TYPE(section_vals_type), POINTER         :: se_section
+    TYPE(semi_empirical_control_type), &
+      POINTER                                :: se_control
+    TYPE(semi_empirical_type), POINTER       :: se_kind_a
+
+    failure=.FALSE.
+    CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    CALL timeset(routineN,"I","",handle)
+    IF ( .NOT. failure ) THEN
+       NULLIFY(matrix_p, dft_control, cell, force,particle_set, diagmat_ks, diagmat_p,&
+            local_particles, se_control, ewald_env, ewald_pw, se_nddo_mpole, se_nonbond_env,&
+            se_section, logger)
+
+       logger => cp_error_get_logger(error)
+       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, para_env=para_env,&
+            atomic_kind_set=atomic_kind_set, particle_set=particle_set, ewald_env=ewald_env,&
+            local_particles=local_particles, ewald_pw=ewald_pw, se_nddo_mpole=se_nddo_mpole,&
+            se_nonbond_env=se_nonbond_env, error=error)
+       
+       nlocal_particles = SUM(local_particles%n_el(:))
+       natoms           = SIZE(particle_set)
+       CALL ewald_env_get (ewald_env, ewald_type=ewald_type, error=error)
+       SELECT CASE(ewald_type)
+       CASE (do_ewald_ewald)
+          forces_g_size= nlocal_particles
+       CASE DEFAULT
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Periodic SE implemented only for standard EWALD sums.", &
+               error=error, error_level=cp_failure_level)
+       END SELECT
+
+       ! Parameters
+       se_section => section_vals_get_subs_vals(qs_env%input,"DFT%QS%SE",error=error)
+       se_control => dft_control%qs_control%se_control
+       do_ewald   =  se_control%do_ewald
+       anag       =  se_control%analytical_gradients
+       
+       nspins=dft_control%nspins
+       CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+       
+       CALL allocate_matrix_set(diagmat_ks,nspins,error=error)
+       CALL allocate_matrix_set(diagmat_p,nspins,error=error)
+       
+       matrix_p => rho%rho_ao
+       nkind = SIZE(atomic_kind_set)
+       DO ispin=1,nspins
+          ! Allocate diagonal block matrices
+          CALL create_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,&
+                                  "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env,error=error)
+          CALL create_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,&
+                                  "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
+       END DO
+       
+       itype    = get_se_type(dft_control%qs_control%method_id)
+       ! Compute the NDDO mpole expansion
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+          CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
+
+          IF (.NOT.defined .OR. natorb_a < 1) CYCLE
+ 
+          nparticle_local = local_particles%n_el(ikind)
+          DO ilist=1, nparticle_local
+             iatom = local_particles%list(ikind)%array(ilist)
+             IF ( nspins >= 1 ) THEN
+                 CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                                    block_row=iatom,&
+                                    block_col=iatom,&
+                                    BLOCK=pa_block_a)
+                CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
+                p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = 2.0_dp * pa_block_a
+             END IF
+             IF ( nspins >= 2 ) THEN
+                CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                                    block_row=iatom,&
+                                    block_col=iatom,&
+                                    BLOCK=pa_block_b)
+                CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
+                check = (SIZE(pa_block_a,1)==SIZE(pa_block_b,1)).AND.(SIZE(pa_block_a,2)==SIZE(pa_block_b,2))
+                CPPostcondition(check,cp_failure_level,routineP,error,failure)
+                p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = pa_block_a + pa_block_b
+             END IF
+             
+             SELECT CASE (dft_control%qs_control%method_id)
+             CASE(do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
+                  do_method_rm1, do_method_mndod)
+                
+                ! One-centre One-electron terms
+                
+                ! Coulomb Terms
+                
+             CASE DEFAULT
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             END SELECT
+          END DO
+       END DO
+
+       ! Perform the Ewald Multipole Summation
+       energy_local = 0.0_dp
+       energy_glob  = 0.0_dp
+       e_neut       = 0.0_dp
+       e_self       = 0.0_dp
+       task         = .TRUE.
+       CALL list_control ( atomic_kind_set, particle_set, local_particles, &
+            cell, se_nonbond_env,para_env, se_section, error=error)
+
+       ! Ewald Multipoles Sum
+       iw = cp_print_key_unit_nr(logger,se_section,"PRINT%EWALD_INFO",extension=".seLog",error=error)
+       IF(calculate_forces) THEN
+          CALL get_qs_env(qs_env=qs_env, force=force, error=error)
+
+          ! Allocate atom index for kind
+          ALLOCATE (atom_of_kind(natoms),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
+
+          ! Allocate and zeroing arrays
+          ALLOCATE ( forces_g(3, forces_g_size), STAT=stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE ( forces_r(3, natoms), STAT=stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          forces_g = 0.0_dp
+          forces_r = 0.0_dp
+
+          CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
+               particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
+               do_forces=.TRUE., do_stress=.FALSE., do_efield=.TRUE., charges=se_nddo_mpole%charge,&
+               dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
+               forces_local=forces_r, forces_glob=forces_g, efield0=se_nddo_mpole%efield0,&
+               efield1=se_nddo_mpole%efield1, efield2=se_nddo_mpole%efield2, iw=iw, &
+               do_debug=.FALSE.,error=error)
+       ELSE
+          CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
+               particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
+               do_forces=.FALSE., do_stress=.FALSE., do_efield=.TRUE., charges=se_nddo_mpole%charge,&
+               dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
+               efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1,&
+               efield2=se_nddo_mpole%efield2, iw=iw, do_debug=.FALSE.,error=error)
+       END IF
+       CALL cp_print_key_finished_output(iw,logger,se_section,"PRINT%EWALD_INFO",error=error)
+
+       ! Modify the KS matrix and possibly compute derivatives
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+          CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
+
+          IF (.NOT.defined .OR. natorb_a < 1) CYCLE
+ 
+          nparticle_local = local_particles%n_el(ikind)
+          DO ilist=1, nparticle_local
+             iatom = local_particles%list(ikind)%array(ilist)
+             IF ( nspins >= 1 ) THEN
+                 CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                                    block_row=iatom,&
+                                    block_col=iatom,&
+                                    BLOCK=pa_block_a)
+                CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
+                CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                                    block_row=iatom,&
+                                    block_col=iatom,&
+                                    BLOCK=ksa_block_a)
+                CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
+                p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = 2.0_dp * pa_block_a
+             END IF
+             IF ( nspins >= 2 ) THEN
+                CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                                    block_row=iatom,&
+                                    block_col=iatom,&
+                                    BLOCK=pa_block_b)
+                CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
+                CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+                                    block_row=iatom,&
+                                    block_col=iatom,&
+                                    BLOCK=ksa_block_b)
+                CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,error,failure)
+                check = (SIZE(pa_block_a,1)==SIZE(pa_block_b,1)).AND.(SIZE(pa_block_a,2)==SIZE(pa_block_b,2))
+                CPPostcondition(check,cp_failure_level,routineP,error,failure)
+                p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = pa_block_a + pa_block_b
+             END IF
+ 
+             SELECT CASE (dft_control%qs_control%method_id)
+             CASE(do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
+                  do_method_rm1, do_method_mndod)
+                
+                ! One-centre One-electron terms
+                
+                ! Coulomb Terms
+                
+                IF(calculate_forces) THEN
+                   atom_a   = atom_of_kind(iatom)
+                   atom_b   = atom_of_kind(jatom)
+                   
+                   ! Derivatives of the One-centre One-electron terms
+                   
+                   
+                   ! Derivatives of the Coulomb Terms
+                   force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
+                END IF
+             CASE DEFAULT
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             END SELECT
+          END DO
+       END DO
+       
+       DO ispin = 1, nspins
+          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(1)%matrix,.FALSE.,error=error)
+          CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,.TRUE.,para_env,error=error)
+       END DO
+       DEALLOCATE(diagmat_ks,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(diagmat_p,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+       IF (calculate_forces) THEN 
+          DEALLOCATE(atom_of_kind,stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(forces_g,stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(forces_r,stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       
+       DO ispin=1,nspins
+          CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,&
+               para_env=para_env,error=error)
+          energy%hartree=energy%hartree+ecoul
+       END DO
+    END IF
+    
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE build_fock_matrix_coulomb_lr
  
 ! *****************************************************************************
 !> \brief Construction of the Exchange part of the Fock matrix
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE build_nddo_fock_matrix_exchange (ks_env,qs_env,ks_matrix,rho,energy,&
-               calculate_forces,just_energy,store_int_env,error)
+  SUBROUTINE build_fock_matrix_exchange (qs_env, ks_matrix, rho, energy, calculate_forces,&
+       just_energy, store_int_env, error)
 
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
@@ -713,8 +990,7 @@ CONTAINS
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'build_nddo_fock_matrix_exchange', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_exchange', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, iab, iatom, icol, ikind, ilist, inode, &
@@ -750,21 +1026,17 @@ CONTAINS
     TYPE(taper_type), POINTER                :: taper
 
     failure=.FALSE.
-    NULLIFY(matrix_p,dft_control,cell,force,particle_set,se_control)
-    NULLIFY(taper)
     CALL timeset(routineN,"I","",handle)
-
-    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
-
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
-         cell=cell,taper=taper,para_env=para_env,error=error)
+    NULLIFY(matrix_p,dft_control,cell,force,particle_set,se_control,taper)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,cell=cell,taper=taper,&
+         para_env=para_env,error=error)
 
     ! set values for tapering function
     se_control => dft_control%qs_control%se_control
     anag       =  se_control%analytical_gradients
 
     nspins=dft_control%nspins
+    CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
 
@@ -823,7 +1095,6 @@ CONTAINS
                       icol = iatom
                       switch = .TRUE.
                    END IF
-                   CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                    IF ( nspins >= 1 ) THEN
                       CALL get_block_node(matrix=ks_matrix(1)%matrix,&
                                           block_row=irow,&
@@ -909,14 +1180,14 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
     
-  END SUBROUTINE build_nddo_fock_matrix_exchange
+  END SUBROUTINE build_fock_matrix_exchange
 
 ! *****************************************************************************
-!> \brief Construction of 1-center 1-electron Fock Matrix
+!> \brief Construction of 2-center 1-electron Fock Matrix
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE fock1_1el (sepi, sepj, rij, ksi_block, ksj_block, pi_block,&
+  SUBROUTINE fock2_1el (sepi, sepj, rij, ksi_block, ksj_block, pi_block,&
        pj_block, ecore, itype, anag, shortrange, taper, store_int_env,&
        error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -932,7 +1203,7 @@ CONTAINS
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fock1_1el', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'fock2_1el', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i1, i1L, i2, j1, j1L
@@ -980,14 +1251,14 @@ CONTAINS
        ecore = ecore + e2a(i2) * pj_block(i1,j1)
     END DO
 
-  END SUBROUTINE fock1_1el
+  END SUBROUTINE fock2_1el
 
 ! *****************************************************************************
-!> \brief Derivatives of 1-center 1-electron Fock Matrix
+!> \brief Derivatives of 2-center 1-electron Fock Matrix
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE dfock1_1el (sepi, sepj, rij, pi_block, pj_block, itype, anag,&
+  SUBROUTINE dfock2_1el (sepi, sepj, rij, pi_block, pj_block, itype, anag,&
        shortrange, taper, force, delta, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
@@ -1001,7 +1272,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: delta
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dfock1_1el', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dfock2_1el', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i1, i1L, i2, j1, j1L
@@ -1042,7 +1313,7 @@ CONTAINS
        force = force - de2a(:,i2) * pj_block(i1,j1)
     END DO
     
-  END SUBROUTINE dfock1_1el
+  END SUBROUTINE dfock2_1el
 
 ! *****************************************************************************
 !> \brief Construction of 1-center 2-electron Fock Matrix

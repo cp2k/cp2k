@@ -24,6 +24,7 @@ MODULE input_cp2k_dft
   USE input_constants
   USE input_cp2k_distribution,         ONLY: create_distribution_section
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
+  USE input_cp2k_mm,                   ONLY: create_neighbor_lists_section
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_cp2k_resp,                 ONLY: create_resp_section
   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
@@ -2110,19 +2111,79 @@ CONTAINS
 
        CALL keyword_create(keyword, name="DO_EWALD",&
             description="Use an Ewald type method for the calculation of the "//&
-                        "Coulomb energy",&
-            usage="DO_EWALD",default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+            "Coulomb energy", usage="DO_EWALD",default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        NULLIFY(subsection)
+       CALL create_neighbor_lists_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_se_memory_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_se_print_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
     END IF
 
   END SUBROUTINE create_se_control_section
+
+! *****************************************************************************
+!> \brief Create the print se section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_se_print_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_se_print_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="print",&
+            description="Section of possible print options in SE code.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"NEIGHBOR_LISTS",&
+            description="Activates the printing of the neighbor lists used"//&
+            " for the periodic SE calculations.", &
+            print_level=high_print_level,filename="",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"SUBCELL",&
+            description="Activates the printing of the subcells used for the"//&
+            "generation of neighbor lists for periodic SE.", &
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"EWALD_INFO",&
+            description="Activates the printing of the information for "//&
+            "Ewald multipole summation in periodic SE.", &
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+  END SUBROUTINE create_se_print_section
 
 ! *****************************************************************************
 !> \brief creates the input section for the se-memory part integral storage

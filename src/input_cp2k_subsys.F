@@ -20,6 +20,7 @@ MODULE input_cp2k_subsys
   USE f77_blas
   USE input_constants
   USE input_cp2k_colvar,               ONLY: create_colvar_section
+  USE input_cp2k_mm,                   ONLY: create_neighbor_lists_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -1174,9 +1175,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection, &
-                                                subsubsection, &
-                                                subsubsubsection
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
 
@@ -1227,18 +1226,6 @@ CONTAINS
             default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
-       CALL cp_print_key_section_create(print_key,"DUMP_PDB",&
-            description="controls the dumping of the PDB at the starting geometry",&
-            print_level=debug_print_level, filename="dump",error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"DUMP_PSF",&
-            description="controls the dumping of the PSF connectivity",&
-            print_level=debug_print_level, filename="dump",error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
 
        CALL keyword_create(keyword, name="USE_G96_VELOCITY",&
             description="Use the velocities in the G96 coordinate files as the starting velocity",&
@@ -1297,8 +1284,159 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       NULLIFY(subsection, subsubsection)
-       CALL section_create(subsection,name="GENERATE",&
+       CALL cp_print_key_section_create(print_key,"DUMP_PDB",&
+            description="controls the dumping of the PDB at the starting geometry",&
+            print_level=debug_print_level, filename="dump",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"DUMP_PSF",&
+            description="controls the dumping of the PSF connectivity",&
+            print_level=debug_print_level, filename="dump",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       NULLIFY(subsection)
+       CALL create_generate_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_molset_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+    END IF
+
+  END SUBROUTINE create_topology_section
+
+! *****************************************************************************
+!> \brief Specify keywords used to setup several molecules with few connectivity files
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] - University of Zurich - 08.2008
+! *****************************************************************************
+  SUBROUTINE create_molset_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_molset_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection, subsubsection
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY(keyword, subsection, subsubsection)
+       CALL section_create(section,name="MOL_SET",&
+            description="Specify the connectivity of a full system specifyin the connectivity"//&
+            " of fragments of the system",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       ! MOLECULES
+       CALL section_create(subsection,name="MOLECULE",&
+            description="Specify information about the connectivity of single molecules",&
+            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="NMOL",&
+            description="number of molecules ",&
+            usage="NMOL {integer}", default_i_val=1,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL connectivity_framework(subsection, do_conn_psf, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       ! MERGE MOLECULES
+       CALL section_create(subsection,name="MERGE_MOLECULES",&
+            description="Enables the creation of connecting bridges (bonds, angles, torsions, impropers)"//&
+            " between the two or more molecules defined with independent connectivity.",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL section_create(subsubsection,name="bonds",&
+            description="Defines new bonds",n_keywords=2, n_subsections=0, repeats=.FALSE.,&
+            required=.TRUE.,error=error)      
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Two integer indexes per line defining the new bond."//&
+            " Indexes must be relative to the full system and not to the single molecules",&
+            repeats=.TRUE.,required=.TRUE.,&
+            usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       CALL section_add_subsection(subsection, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
+
+       CALL section_create(subsubsection,name="angles",&
+            description="Defines new angles",n_keywords=2, n_subsections=0,&
+            repeats=.FALSE., required=.TRUE.,error=error)      
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Three integer indexes per line defining the new angle"//&
+            " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
+            usage="<INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=3, error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       CALL section_add_subsection(subsection, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
+
+       CALL section_create(subsubsection,name="torsions",&
+            description="Defines new torsions",n_keywords=2, n_subsections=0,&
+            repeats=.FALSE., required=.TRUE.,error=error)      
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Four integer indexes per line defining the new torsion"//&
+            " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
+            usage="<INTEGER> <INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=4, error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       CALL section_add_subsection(subsection, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
+
+       CALL section_create(subsubsection,name="impropers",&
+            description="Defines new impropers",n_keywords=2, n_subsections=0,&
+            repeats=.FALSE., required=.TRUE.,error=error)      
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Four integer indexes per line defining the new improper"//&
+            " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
+            usage="<INTEGER> <INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=4, error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       CALL section_add_subsection(subsection, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_molset_section
+
+! *****************************************************************************
+!> \brief Specify keywords used to generate connectivity
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] - University of Zurich - 08.2008
+! *****************************************************************************
+  SUBROUTINE create_generate_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_generate_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY(keyword,subsection)
+       CALL section_create(section,name="GENERATE",&
             description="Setup of keywords controlling the generation of the connectivity",&
             n_keywords=2, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
@@ -1307,7 +1445,7 @@ CONTAINS
             description="Reorder a list of atomic coordinates into order so it can be packed correctly.",&
             usage="REORDER <LOGICAL>",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CREATE_MOLECULES",&
@@ -1316,7 +1454,7 @@ CONTAINS
             " specifications for file types as XYZ, missing of molecules definitions.",&
             usage="CREATE_MOLECULES <LOGICAL>",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BONDPARM",&
@@ -1328,7 +1466,7 @@ CONTAINS
             enum_c_vals=s2a( "COVALENT", "VDW"),&
             enum_i_vals=(/do_bondparm_covalent, do_bondparm_vdw/),&
             default_i_val=do_bondparm_covalent,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BONDPARM_FACTOR",&
@@ -1336,26 +1474,25 @@ CONTAINS
                         "determine wheather there is bonding between "//&
                         "two atoms based on a distance criteria.",&
             usage="bondparm_factor {real}", default_r_val=1.1_dp,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,name="BONDLENGTH_MAX",&
              description="Maximum distance to generate neighbor lists to build connectivity",&
              usage="BONDLENGTH_MAX <real>",default_r_val=cp_unit_to_cp2k(value=3.0_dp,&
              unit_str="angstrom",error=error),unit_str="angstrom",error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,name="BONDLENGTH_MIN",&
              description="Minimum distance to generate neighbor lists to build connectivity",&
              usage="BONDLENGTH_MIN <real>",default_r_val=cp_unit_to_cp2k(value=0.01_dp,&
              unit_str="angstrom",error=error),unit_str="angstrom",error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       NULLIFY(subsubsection)
        ! BONDS
-       CALL section_create(subsubsection,name="BOND",&
+       CALL section_create(subsection,name="BOND",&
             description="Section used to add/remove  bonds in the connectivity."//&
             " Useful for systems with a complex connectivity, difficult to find out automatically.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
@@ -1368,21 +1505,21 @@ CONTAINS
             enum_i_vals=(/do_add,do_remove/),&
             default_i_val=do_add,&
             error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
        
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies two atomic index united by a covalent bond",&
             usage="ATOMS {integer} {integer}", type_of_var=integer_t, n_var=2,&
             required=.TRUE., repeats=.TRUE.,error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)      
        
-       CALL section_add_subsection(subsection, subsubsection, error=error)
-       CALL section_release(subsubsection,error=error)
-       NULLIFY(subsubsection)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        ! ANGLES
-       CALL section_create(subsubsection,name="ANGLE",&
+       CALL section_create(subsection,name="ANGLE",&
             description="Section used to add/remove angles in the connectivity."//&
             " Useful for systems with a complex connectivity, difficult to find out automatically.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
@@ -1395,21 +1532,21 @@ CONTAINS
             enum_i_vals=(/do_add,do_remove/),&
             default_i_val=do_add,&
             error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
        
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies two atomic index united by a covalent bond",&
             usage="ATOMS {integer} {integer} {integer} ", type_of_var=integer_t, n_var=3,&
             required=.TRUE., repeats=.TRUE.,error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)      
        
-       CALL section_add_subsection(subsection, subsubsection, error=error)
-       CALL section_release(subsubsection,error=error)
-       NULLIFY(subsubsection)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        ! TORSIONS
-       CALL section_create(subsubsection,name="TORSION",&
+       CALL section_create(subsection,name="TORSION",&
             description="Section used to add/remove torsion in the connectivity."//&
             " Useful for systems with a complex connectivity, difficult to find out automatically.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
@@ -1422,21 +1559,21 @@ CONTAINS
             enum_i_vals=(/do_add,do_remove/),&
             default_i_val=do_add,&
             error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
        
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies two atomic index united by a covalent bond",&
             usage="ATOMS {integer} {integer} {integer} {integer} ", type_of_var=integer_t, n_var=4,&
             required=.TRUE., repeats=.TRUE.,error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)      
        
-       CALL section_add_subsection(subsection, subsubsection, error=error)
-       CALL section_release(subsubsection,error=error)
-       NULLIFY(subsubsection)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        ! IMPROPERS
-       CALL section_create(subsubsection,name="IMPROPER",&
+       CALL section_create(subsection,name="IMPROPER",&
             description="Section used to add/remove improper in the connectivity."//&
             " Useful for systems with a complex connectivity, difficult to find out automatically.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
@@ -1449,21 +1586,21 @@ CONTAINS
             enum_i_vals=(/do_add,do_remove/),&
             default_i_val=do_add,&
             error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
        
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies two atomic index united by a covalent bond",&
             usage="ATOMS {integer} {integer} {integer} {integer} ", type_of_var=integer_t, n_var=4,&
             required=.TRUE., repeats=.TRUE.,error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)      
        
-       CALL section_add_subsection(subsection, subsubsection, error=error)
-       CALL section_release(subsubsection,error=error)
-       NULLIFY(subsubsection)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        ! ISOLATED ATOMS
-       CALL section_create(subsubsection,name="ISOLATED_ATOMS",&
+       CALL section_create(subsection,name="ISOLATED_ATOMS",&
             description=" This section specifies the  atoms that one considers isolated. Useful when present "//&
             " ions in solution.",n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
@@ -1471,105 +1608,68 @@ CONTAINS
             description="Specifies a list of atomic indexes of the isolated ion",&
             usage="LIST {integer}", type_of_var=integer_t, n_var=-1,&
             required=.TRUE., repeats=.TRUE.,error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(subsection, subsubsection, error=error)
-       CALL section_release(subsubsection,error=error)
-       !
+
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection, subsubsection, subsubsubsection)
-       CALL section_create(subsection,name="MOL_SET",&
-            description="Specify the connectivity of a full system specifyin the connectivity"//&
-            " of fragments of the system",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-
-       CALL section_create(subsubsection,name="MOLECULE",&
-            description="Specify information about the connectivity of single molecules",&
-            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="NMOL",&
-            description="number of molecules ",&
-            usage="NMOL {integer}", default_i_val=1,error=error)
-       CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL connectivity_framework(subsubsection, do_conn_psf, error)
-
-       CALL section_add_subsection(subsection, subsubsection, error=error)
-       CALL section_release(subsubsection,error=error)
-
-       CALL section_create(subsubsection,name="MERGE_MOLECULES",&
-            description="Enables the creation of connecting bridges (bonds, angles, torsions, impropers)"//&
-            " between the two or more molecules defined with independent connectivity.",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-
-       CALL section_create(subsubsubsection,name="bonds",&
-            description="Defines new bonds",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)      
-       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Two integer indexes per line defining the new bond."//&
-            " Indexes must be relative to the full system and not to the single molecules",&
-            repeats=.TRUE.,required=.TRUE.,&
-            usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, error=error)
-       CALL section_add_keyword(subsubsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-       CALL section_add_subsection(subsubsection, subsubsubsection, error=error)
-       CALL section_release(subsubsubsection,error=error)
-
-       CALL section_create(subsubsubsection,name="angles",&
-            description="Defines new angles",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)      
-       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Three integer indexes per line defining the new angle"//&
-            " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
-            usage="<INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=3, error=error)
-       CALL section_add_keyword(subsubsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-       CALL section_add_subsection(subsubsection, subsubsubsection, error=error)
-       CALL section_release(subsubsubsection,error=error)
-
-       CALL section_create(subsubsubsection,name="torsions",&
-            description="Defines new torsions",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)      
-       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Four integer indexes per line defining the new torsion"//&
-            " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
-            usage="<INTEGER> <INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=4, error=error)
-       CALL section_add_keyword(subsubsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-       CALL section_add_subsection(subsubsection, subsubsubsection, error=error)
-       CALL section_release(subsubsubsection,error=error)
-
-       CALL section_create(subsubsubsection,name="impropers",&
-            description="Defines new impropers",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)      
-       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Four integer indexes per line defining the new improper"//&
-            " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
-            usage="<INTEGER> <INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=4, error=error)
-       CALL section_add_keyword(subsubsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-       CALL section_add_subsection(subsubsection, subsubsubsection, error=error)
-       CALL section_release(subsubsubsection,error=error)
-
-       CALL section_add_subsection(subsection, subsubsection, error=error)
-       CALL section_release(subsubsection,error=error)
-
+       ! Neighbor lists keys and printing handling the construction of NL for the connectivity
+       CALL create_neighbor_lists_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_gen_print_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
     END IF
+  END SUBROUTINE create_generate_section
 
-  END SUBROUTINE create_topology_section
+! *****************************************************************************
+!> \brief Create the print gen section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_gen_print_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_gen_print_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="print",&
+            description="Section of possible print options in GENERATE code.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"NEIGHBOR_LISTS",&
+            description="Activates the printing of the neighbor lists used"//&
+            " for generating the connectivity.", &
+            print_level=high_print_level,filename="",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"SUBCELL",&
+            description="Activates the printing of the subcells used for the"//&
+            "generation of neighbor lists for connectivity.", &
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+  END SUBROUTINE create_gen_print_section
 
 ! *****************************************************************************
 !> \brief Specify keywords used to define connectivity 

@@ -8,7 +8,6 @@
 !> \author JGH (14.08.2004)
 ! *****************************************************************************
 MODULE semi_empirical_types
-
   USE basis_set_types,                 ONLY: deallocate_sto_basis_set,&
                                              sto_basis_set_type
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -29,6 +28,8 @@ MODULE semi_empirical_types
   USE physcon,                         ONLY: angstrom,&
                                              evolt,&
                                              kcalmol
+  USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_p_release,&
+                                             semi_empirical_mpole_p_type
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
@@ -39,6 +40,7 @@ MODULE semi_empirical_types
 ! *** Global parameters ***
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_types'
+
 
 ! *****************************************************************************
 !> \brief Semi-empirical type
@@ -78,6 +80,8 @@ MODULE semi_empirical_types
     ! One center - two electron integrals
     REAL(KIND = dp), DIMENSION(:,:),&
          POINTER                           :: w
+    TYPE(semi_empirical_mpole_p_type),&
+         POINTER, DIMENSION(:)             :: w_mpole
   END TYPE semi_empirical_type
 
 ! *****************************************************************************
@@ -146,9 +150,42 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(sep%basis)
     NULLIFY(sep%w)
+    NULLIFY(sep%w_mpole)
     CALL zero_se_param(sep,error)
     
   END SUBROUTINE semi_empirical_create
+
+! *****************************************************************************
+!> \brief Deallocate the semi-empirical type
+! ***************************************************************************** 
+  SUBROUTINE semi_empirical_release(sep, error)
+
+    TYPE(semi_empirical_type), POINTER       :: sep
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (ASSOCIATED(sep)) THEN
+       CALL deallocate_sto_basis_set(sep%basis, error)
+       CALL semi_empirical_mpole_p_release(sep%w_mpole, error)
+       DEALLOCATE (sep%beta,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (sep%sto_exponents,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (sep%zn,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (sep%w,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (sep,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+  END SUBROUTINE semi_empirical_release
 
 ! *****************************************************************************
 !> \brief Zero the whole semi-empirical type
@@ -230,37 +267,6 @@ CONTAINS
     sep%onec2el= 0.0_dp
 
   END SUBROUTINE zero_se_param
-
-! *****************************************************************************
-!> \brief Deallocate the semi-empirical type
-! ***************************************************************************** 
-  SUBROUTINE semi_empirical_release(sep, error)
-
-    TYPE(semi_empirical_type), POINTER       :: sep
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    IF (ASSOCIATED(sep)) THEN
-       CALL deallocate_sto_basis_set(sep%basis, error)
-       DEALLOCATE (sep%beta,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (sep%sto_exponents,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (sep%zn,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (sep%w,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (sep,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-
-  END SUBROUTINE semi_empirical_release
 
 ! *****************************************************************************
 !> \brief Get info from the semi-empirical type

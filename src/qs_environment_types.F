@@ -62,6 +62,8 @@ MODULE qs_environment_types
                                              ewald_pw_retain,&
                                              ewald_pw_type
   USE f77_blas
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
+                                             fist_nonbond_env_type
   USE harris_env_types,                ONLY: harris_env_release,&
                                              harris_env_type
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
@@ -147,6 +149,8 @@ MODULE qs_environment_types
   USE scp_environment_types,           ONLY: scp_env_release,&
                                              scp_env_retain,&
                                              scp_environment_type
+  USE semi_empirical_mpole_types,      ONLY: nddo_mpole_release,&
+                                             nddo_mpole_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_release,&
                                              semi_empirical_si_type
   USE semi_empirical_types,            ONLY: taper_release,&
@@ -319,8 +323,6 @@ MODULE qs_environment_types
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE ( scp_environment_type ), POINTER                :: scp_env
     TYPE(pw_env_type), POINTER                            :: pw_env
-    TYPE(ewald_environment_type),POINTER                  :: ewald_env
-    TYPE(ewald_pw_type),POINTER                           :: ewald_pw
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
     TYPE(pw_p_type), POINTER                              :: rho_core
@@ -353,9 +355,15 @@ MODULE qs_environment_types
     TYPE(task_list_type), POINTER                         :: task_list
     TYPE(task_list_type), POINTER                         :: task_list_aux_fit
     TYPE(task_list_type), POINTER                         :: task_list_soft
+    TYPE(wfn_fitting_type), POINTER                       :: wfn_fitting_env
+    ! Semi-empirical and DFTB types
+    TYPE(ewald_environment_type),POINTER                  :: ewald_env
+    TYPE(ewald_pw_type),POINTER                           :: ewald_pw
+    ! Semi-empirical types
     TYPE(taper_type), POINTER                             :: taper
     TYPE(semi_empirical_si_type),POINTER                  :: se_store_int_env
-    TYPE(wfn_fitting_type), POINTER                       :: wfn_fitting_env
+    TYPE(nddo_mpole_type), POINTER                        :: se_nddo_mpole
+    TYPE(fist_nonbond_env_type), POINTER                  :: se_nonbond_env
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -377,27 +385,20 @@ CONTAINS
 !> \date    23.01.2002
 !> \version 1.0
 ! *****************************************************************************
- SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
-                        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
-                        sab_all,qmmm,qmmm_periodic,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sab_scp,&
-                        sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
-                        particle_set,energy,force,harris_env,&
-                        matrix_h,matrix_ks,matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,&
-                        matrix_s_aux_fit_vs_orb,matrix_w,matrix_dv,gamma_matrix,&
-                        rho, rho_aux_fit,rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
-                        mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,&
-                        kinetic,qs_charges, rho_core, ks_env, ks_qmmm_env,&
-                        wf_history,scf_env,use_harris,&
-                        id_nr,local_particles,local_molecules,&
-                        distribution_2d,molecule_kind_set,molecule_set,&
-                        subsys,oce,rho_atom_set,task_list,task_list_aux_fit,task_list_soft,&
-                        rho0_atom_set,rho0_mpole,nddo_mpole,&
-                        rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
-                        requires_mo_derivs,mo_derivs,mo_derivs_aux_fit,tddfpt_control, &
-                        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
-                        virial,cp_ddapc_env,cp_ddapc_ewald,outer_scf_history, &
-                        outer_scf_ihistory,ep_qs_env,x_data,et_coupling,&
-                        dftb_potential,results,scp_env,taper,se_store_int_env,wfn_fitting_env, error)
+  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
+       dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
+       sab_all,qmmm,qmmm_periodic,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sab_scp,sac_oce,sbc_oce,&
+       sab_2c,sac_3c,sbc_3c,particle_set,energy,force,harris_env,matrix_h,matrix_ks,&
+       matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,matrix_dv,&
+       gamma_matrix, rho, rho_aux_fit,rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
+       mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,kinetic,qs_charges,&
+       rho_core, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr,local_particles,&
+       local_molecules, distribution_2d,molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
+       task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
+       VH_3c_list,rho0_s_rs,rho0_s_gs,requires_mo_derivs,mo_derivs,mo_derivs_aux_fit,tddfpt_control,&
+       neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
+       outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
+       scp_env,taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, wfn_fitting_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -471,7 +472,7 @@ CONTAINS
                                                 task_list_soft
     TYPE(rho0_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho0_atom_set
-    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole, nddo_mpole
+    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rhoz_set
     TYPE(ecoul_1center_type), DIMENSION(:), &
@@ -511,6 +512,9 @@ CONTAINS
     TYPE(taper_type), OPTIONAL, POINTER      :: taper
     TYPE(semi_empirical_si_type), OPTIONAL, &
       POINTER                                :: se_store_int_env
+    TYPE(nddo_mpole_type), OPTIONAL, POINTER :: se_nddo_mpole
+    TYPE(fist_nonbond_env_type), OPTIONAL, &
+      POINTER                                :: se_nonbond_env
     TYPE(wfn_fitting_type), OPTIONAL, &
       POINTER                                :: wfn_fitting_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -601,6 +605,8 @@ CONTAINS
     IF (PRESENT(virial)) virial => qs_env%virial
     IF (PRESENT(taper)) taper => qs_env%taper
     IF (PRESENT(se_store_int_env)) se_store_int_env => qs_env%se_store_int_env
+    IF (PRESENT(se_nddo_mpole)) se_nddo_mpole => qs_env%se_nddo_mpole
+    IF (PRESENT(se_nonbond_env)) se_nonbond_env => qs_env%se_nonbond_env
     IF (PRESENT(wfn_fitting_env)) wfn_fitting_env => qs_env%wfn_fitting_env
 
     IF (PRESENT(rho_atom_set)) &
@@ -609,8 +615,6 @@ CONTAINS
        CALL get_local_rho(qs_env%local_rho_set, rho0_atom_set=rho0_atom_set)
     IF (PRESENT(rho0_mpole)) &
          CALL get_local_rho(qs_env%local_rho_set,  rho0_mpole=rho0_mpole)
-    IF (PRESENT(nddo_mpole)) &
-         CALL get_local_rho(qs_env%local_rho_set,  nddo_mpole=nddo_mpole)
     IF (PRESENT(rhoz_set)) &
          CALL get_local_rho(qs_env%local_rho_set, rhoz_set=rhoz_set)
     IF (PRESENT(ecoul_1c)) &
@@ -748,6 +752,8 @@ CONTAINS
     NULLIFY (qs_env%scp_env)
     NULLIFY (qs_env%taper)
     NULLIFY (qs_env%se_store_int_env)
+    NULLIFY (qs_env%se_nddo_mpole)
+    NULLIFY (qs_env%se_nonbond_env)
     NULLIFY (qs_env%wfn_fitting_env)
     qs_env%outer_scf_ihistory=0
     qs_env%neighbor_list_id=-1
@@ -779,24 +785,19 @@ CONTAINS
 !> \date    23.01.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell, &
-                        dft_control,mos,mos_aux_fit,qmmm,qmmm_periodic,&
-                        sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,sab_all,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
-                        sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,sab_scp,&
-                        energy,force,harris_env,&
-                        matrix_h,matrix_ks,matrix_ks_aux_fit, matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,&
-                        matrix_w,matrix_dv,gamma_matrix,&
-                        pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,rho_aux_fit,rho_buffer,rho_xc,kinetic,&
-                        scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
-                        wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
-                        distribution_2d,input,&
-                        subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
-                        nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,&
-                        requires_mo_derivs,mo_derivs,mo_derivs_aux_fit,neighbor_list_id,&
-                        kg_sub_pw_env,linres_control,xas_env,virial,&
-                        cp_ddapc_env,cp_ddapc_ewald,outer_scf_history,&
-                        outer_scf_ihistory,ep_qs_env,x_data,et_coupling,&
-                        dftb_potential,scp_env,taper,se_store_int_env,wfn_fitting_env,error)
+  SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell,dft_control,&
+       mos,mos_aux_fit,qmmm,qmmm_periodic,sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
+       sab_aux_fit_vs_orb,sab_all,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sac_oce,&
+       sbc_oce,sab_2c,sac_3c,sbc_3c,sab_scp,energy,force,harris_env,matrix_h,matrix_ks,&
+       matrix_ks_aux_fit, matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,&
+       matrix_dv,gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,&
+       rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,qs_charges,rho_core,ks_env,&
+       ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
+       distribution_2d,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
+       rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,requires_mo_derivs,mo_derivs,mo_derivs_aux_fit,&
+       neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
+       outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
+       scp_env,taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,wfn_fitting_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
@@ -850,7 +851,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: rho_atom_set
     TYPE(rho0_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho0_atom_set
-    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole, nddo_mpole
+    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rhoz_set
     REAL(dp), OPTIONAL                       :: rhoz_tot
@@ -887,6 +888,9 @@ CONTAINS
     TYPE(taper_type), OPTIONAL, POINTER      :: taper
     TYPE(semi_empirical_si_type), OPTIONAL, &
       POINTER                                :: se_store_int_env
+    TYPE(nddo_mpole_type), OPTIONAL, POINTER :: se_nddo_mpole
+    TYPE(fist_nonbond_env_type), OPTIONAL, &
+      POINTER                                :: se_nonbond_env
     TYPE(wfn_fitting_type), OPTIONAL, &
       POINTER                                :: wfn_fitting_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1073,9 +1077,6 @@ CONTAINS
     IF (PRESENT(rho0_mpole)) THEN
         CALL set_local_rho(qs_env%local_rho_set,rho0_mpole=rho0_mpole,error=error)
     END IF
-    IF (PRESENT(nddo_mpole)) THEN
-        CALL set_local_rho(qs_env%local_rho_set,nddo_mpole=nddo_mpole,error=error)
-    END IF
     IF (PRESENT(rhoz_set)) THEN
         CALL set_local_rho(qs_env%local_rho_set,rhoz_set=rhoz_set,error=error)
     END IF
@@ -1130,6 +1131,14 @@ CONTAINS
     IF (PRESENT(se_store_int_env)) THEN
        CALL semi_empirical_si_release(qs_env%se_store_int_env,error=error)
        qs_env%se_store_int_env => se_store_int_env
+    END IF
+    IF (PRESENT(se_nddo_mpole)) THEN
+       CALL nddo_mpole_release(qs_env%se_nddo_mpole,error=error)
+       qs_env%se_nddo_mpole => se_nddo_mpole
+    END IF
+    IF (PRESENT(se_nonbond_env)) THEN
+       CALL fist_nonbond_env_release(qs_env%se_nonbond_env,error)
+       qs_env%se_nonbond_env => se_nonbond_env
     END IF
     IF( PRESENT(wfn_fitting_env) ) qs_env%wfn_fitting_env => wfn_fitting_env
   END SUBROUTINE set_qs_env
@@ -1492,6 +1501,12 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qs_env%se_store_int_env)) THEN
              CALL semi_empirical_si_release(qs_env%se_store_int_env, error)
+          END IF
+          IF (ASSOCIATED(qs_env%se_nddo_mpole)) THEN
+             CALL nddo_mpole_release(qs_env%se_nddo_mpole, error)
+          END IF
+          IF (ASSOCIATED(qs_env%se_nonbond_env)) THEN
+             CALL fist_nonbond_env_release(qs_env%se_nonbond_env,error)
           END IF
           IF (ASSOCIATED(qs_env%wfn_fitting_env)) THEN
             CALL wfn_fitting_env_release(qs_env%wfn_fitting_env, error)

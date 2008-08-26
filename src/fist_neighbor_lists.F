@@ -78,7 +78,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_fist_neighbor_lists(atomic_kind_set,particle_set,&
        local_particles,cell,r_max, r_minsq, nonbonded,para_env,&
-       build_from_scratch,geo_check,force_env_section,pot_type,error)
+       build_from_scratch,geo_check,mm_section,pot_type,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -91,7 +91,7 @@ CONTAINS
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: build_from_scratch, geo_check
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: mm_section
     LOGICAL, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: pot_type
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -119,7 +119,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     print_subcell_grid = .FALSE.
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,"MM%PRINT%SUBCELL",&
+    output_unit = cp_print_key_unit_nr(logger,mm_section,"PRINT%SUBCELL",&
          extension=".Log",error=error)
     IF (output_unit > 0)  print_subcell_grid = .TRUE.
 
@@ -189,13 +189,12 @@ CONTAINS
     ! Sort the list according kinds for each cell
     CALL sort_neighbor_lists(nonbonded, nkind, error)
 
-    print_key_path = "MM%PRINT%NEIGHBOR_LISTS"
+    print_key_path = "PRINT%NEIGHBOR_LISTS"
 
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-         print_key_path,error=error),&
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,mm_section,print_key_path,error=error),&
          cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger=logger,&
-            basis_section=force_env_section,&
+            basis_section=mm_section,&
             print_key_path=print_key_path,&
             extension=".out",&
             middle_name="nonbonded_nl",&
@@ -207,7 +206,7 @@ CONTAINS
             "NONBONDED NEIGHBOR LISTS",error)
        CALL cp_print_key_finished_output(unit_nr=iw,&
             logger=logger,&
-            basis_section=force_env_section,&
+            basis_section=mm_section,&
             print_key_path=print_key_path,&
             local=.TRUE.,&
             error=error)
@@ -235,8 +234,8 @@ CONTAINS
 
     CALL cp_print_key_finished_output(unit_nr=output_unit,&
          logger=logger,&
-         basis_section=force_env_section,&
-         print_key_path="MM%PRINT%SUBCELL",&
+         basis_section=mm_section,&
+         print_key_path="PRINT%SUBCELL",&
          error=error)
     CALL timestop(0.0_dp,handle)
 

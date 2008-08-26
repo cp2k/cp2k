@@ -77,6 +77,8 @@ MODULE qs_environment
                                              ewald_pw_release,&
                                              ewald_pw_type
   USE f77_blas
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
+                                             fist_nonbond_env_type
   USE gamma,                           ONLY: init_md_ftable
   USE harris_energy_types,             ONLY: harris_energy_create,&
                                              harris_energy_type
@@ -145,6 +147,8 @@ MODULE qs_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
+  USE semi_empirical_mpole_methods,    ONLY: nddo_mpole_setup
+  USE semi_empirical_mpole_types,      ONLY: nddo_mpole_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_create,&
                                              semi_empirical_si_type
   USE semi_empirical_types,            ONLY: taper_create,&
@@ -358,6 +362,7 @@ CONTAINS
                                                 local_particles
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(fist_nonbond_env_type), POINTER     :: se_nonbond_env
     TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(harris_energy_type), POINTER        :: harris_energy
     TYPE(harris_env_type), POINTER           :: harris_env
@@ -368,6 +373,7 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    TYPE(nddo_mpole_type), POINTER           :: se_nddo_mpole
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_control_type), POINTER           :: qs_control
@@ -643,6 +649,8 @@ CONTAINS
           CALL init_coulomb_local(qs_env,gapw_control,error=error)
        END IF
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
+       NULLIFY(se_store_int_env, se_nddo_mpole, se_nonbond_env)
+       natom = SIZE(particle_set)
        se_section => section_vals_get_subs_vals(qs_section,"SE",error=error)
        se_control => dft_control%qs_control%se_control
        ! Make interaction radius compatible with unit cell
@@ -672,7 +680,7 @@ CONTAINS
           CALL init_se_nlradius(se_control,cell,atomic_kind_set,subsys_section,error)
        END SELECT
        ! check for Ewald
-       IF ( se_control%do_ewald ) THEN
+       IF (se_control%do_ewald) THEN
           CALL ewald_env_create(ewald_env,para_env,error=error)
           poisson_section => section_vals_get_subs_vals(dft_section,"POISSON",error=error)
           CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)
@@ -682,7 +690,14 @@ CONTAINS
           CALL read_ewald_section(ewald_env,ewald_section,error=error)
           CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,&
                print_section=print_section,error=error)
-          CALL set_qs_env(qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
+          ! Setup the nonbond environment (real space part of Ewald)
+          CALL fist_nonbond_env_create(se_nonbond_env, nonbonded14=.FALSE.,&
+               nonbonded=.TRUE., ewald_env=ewald_env, error=error)
+          ! Create and Setup NDDO multipole environment
+          CALL nddo_mpole_setup(se_nddo_mpole, natom, error)
+          CALL set_qs_env(qs_env,ewald_env=ewald_env, ewald_pw=ewald_pw,&
+               se_nonbond_env=se_nonbond_env, se_nddo_mpole=se_nddo_mpole,&
+               error=error)
           CALL ewald_env_release(ewald_env,error=error)
           CALL ewald_pw_release(ewald_pw,error=error)
        END IF
@@ -690,15 +705,12 @@ CONTAINS
        CALL taper_create(taper, se_control%rc_coulomb, se_control%rc_range, error)
        CALL set_qs_env(qs_env, taper=taper, error=error)
        ! Store integral environment
-       NULLIFY(se_store_int_env)
        CALL semi_empirical_si_create(se_store_int_env, se_section, error)
        CALL set_qs_env(qs_env, se_store_int_env=se_store_int_env, error=error)
     ENDIF
 
     !   *** Allocate the MO data types ***
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             nsgf=n_ao,&
-                             nelectron=nelectron)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, nsgf=n_ao, nelectron=nelectron)
 
 
     ! the total number of electrons
