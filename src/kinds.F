@@ -24,7 +24,7 @@ MODULE kinds
   
   PRIVATE
   PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size, int_8, int_4
-  PUBLIC :: default_string_length, default_path_length
+  PUBLIC :: default_string_length, default_path_length, max_line_length
 
 #if __SGL 
   INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND ( 6, 30 )
@@ -49,6 +49,7 @@ MODULE kinds
   INTEGER, PARAMETER :: int_4 = SELECTED_INT_KIND(5)
   INTEGER, PARAMETER :: default_string_length=80
   INTEGER, PARAMETER :: default_path_length=250
+  INTEGER, PARAMETER :: max_line_length = 2*default_path_length
   CHARACTER(LEN=1),PARAMETER, PUBLIC :: default_blank_character(2) = (/" ",CHAR(9)/)
 
 CONTAINS
@@ -59,41 +60,39 @@ CONTAINS
 !>      Adapted by JGH for Cp2k
 !> \author Matthias Krack
 ! *****************************************************************************
-SUBROUTINE print_kind_info ( iw )
-  
+  SUBROUTINE print_kind_info ( iw )
+
     INTEGER, INTENT(IN)                      :: iw
 
-!------------------------------------------------------------------------------
+    WRITE ( iw, '( /, T2, A )' ) 'DATA TYPE INFORMATION:'
 
-  WRITE ( iw, '( /, T2, A )' ) 'DATA TYPE INFORMATION:'
-  
-  WRITE ( iw, '( /,T2,A,T79,A,2(/,T2,A,T75,I6),3(/,T2,A,T67,E14.8) )' ) &
-       'REAL: Data type name:', 'dp', '      Kind value:', KIND ( 0.0_dp ), &
-       '      Precision:', PRECISION ( 0.0_dp ), &
-       '      Smallest non-negligible quantity relative to 1:', &
-       EPSILON ( 0.0_dp ), &
-       '      Smallest positive number:', TINY ( 0.0_dp ), &
-       '      Largest representable number:', HUGE ( 0.0_dp )
-  WRITE ( iw, '( /,T2,A,T79,A,2(/,T2,A,T75,I6),3(/,T2,A,T67,E14.8) )' ) &
-       '      Data type name:', 'sp', '      Kind value:', KIND ( 0.0_sp ), &
-       '      Precision:', PRECISION ( 0.0_sp ), &
-       '      Smallest non-negligible quantity relative to 1:', &
-       EPSILON ( 0.0_sp ), &
-       '      Smallest positive number:', TINY ( 0.0_sp ), &
-       '      Largest representable number:', HUGE ( 0.0_sp )
-  WRITE ( iw, '( /,T2,A,T72,A,4(/,T2,A,T61,I20) )' ) &
-       'INTEGER: Data type name:', '(default)', '         Kind value:', &
-       KIND ( 0 ), &
-       '         Bit size:', BIT_SIZE ( 0 ), &
-       '         Largest representable number:', HUGE ( 0 )
-  WRITE ( iw, '( /,T2,A,T72,A,/,T2,A,T75,I6,/ )' ) &
-       'LOGICAL: Data type name:', '(default)', &
-       '         Kind value:', KIND ( .TRUE. )
-  WRITE ( iw, '( /,T2,A,T72,A,/,T2,A,T75,I6,/ )' ) &
-       'CHARACTER: Data type name:', '(default)', &
-       '           Kind value:', KIND ( 'C' )
-  
-END SUBROUTINE print_kind_info
+    WRITE ( iw, '( /,T2,A,T79,A,2(/,T2,A,T75,I6),3(/,T2,A,T67,E14.8) )' ) &
+         'REAL: Data type name:', 'dp', '      Kind value:', KIND ( 0.0_dp ), &
+         '      Precision:', PRECISION ( 0.0_dp ), &
+         '      Smallest non-negligible quantity relative to 1:', &
+         EPSILON ( 0.0_dp ), &
+         '      Smallest positive number:', TINY ( 0.0_dp ), &
+         '      Largest representable number:', HUGE ( 0.0_dp )
+    WRITE ( iw, '( /,T2,A,T79,A,2(/,T2,A,T75,I6),3(/,T2,A,T67,E14.8) )' ) &
+         '      Data type name:', 'sp', '      Kind value:', KIND ( 0.0_sp ), &
+         '      Precision:', PRECISION ( 0.0_sp ), &
+         '      Smallest non-negligible quantity relative to 1:', &
+         EPSILON ( 0.0_sp ), &
+         '      Smallest positive number:', TINY ( 0.0_sp ), &
+         '      Largest representable number:', HUGE ( 0.0_sp )
+    WRITE ( iw, '( /,T2,A,T72,A,4(/,T2,A,T61,I20) )' ) &
+         'INTEGER: Data type name:', '(default)', '         Kind value:', &
+         KIND ( 0 ), &
+         '         Bit size:', BIT_SIZE ( 0 ), &
+         '         Largest representable number:', HUGE ( 0 )
+    WRITE ( iw, '( /,T2,A,T72,A,/,T2,A,T75,I6,/ )' ) &
+         'LOGICAL: Data type name:', '(default)', &
+         '         Kind value:', KIND ( .TRUE. )
+    WRITE ( iw, '( /,T2,A,T72,A,/,T2,A,T75,I6,/ )' ) &
+         'CHARACTER: Data type name:', '(default)', &
+         '           Kind value:', KIND ( 'C' )
+
+  END SUBROUTINE print_kind_info
 
 END MODULE kinds
 

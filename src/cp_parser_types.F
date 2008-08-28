@@ -13,6 +13,7 @@
 !>      22.11.1999 first version of the old parser (called qs_parser)
 !>                 Matthias Krack
 !>      06.2004 removed module variables, cp_parser_type, new module [fawzi]
+!>      08.2008 Added buffering [tlaino]
 !> \author fawzi
 ! *****************************************************************************
 MODULE cp_parser_types
@@ -22,16 +23,21 @@ MODULE cp_parser_types
                                              cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_parser_buffer_types,          ONLY: buffer_type,&
+                                             create_buffer_type,&
+                                             release_buffer_type
   USE cp_parser_ilist_types,           ONLY: create_ilist_type,&
                                              ilist_type,&
                                              release_ilist_type
   USE cp_parser_inpp_types,            ONLY: create_inpp_type,&
                                              inpp_type,&
                                              release_inpp_type
+  USE cp_parser_status_types,          ONLY: status_type
   USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
-                                             dp
+                                             dp,&
+                                             max_line_length
   USE message_passing,                 ONLY: MPI_COMM_SELF
   USE string_utilities,                ONLY: compress
 #include "cp_common_uses.h"
@@ -40,24 +46,19 @@ MODULE cp_parser_types
 
   PRIVATE
 
-  PUBLIC :: cp_parser_type
-  PUBLIC :: parser_release, parser_retain, parser_create
+  PUBLIC :: cp_parser_type, parser_release, parser_retain, parser_create
 
-! *** Global parameters ***
-
+! *** Private parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_types'
-
+  INTEGER, SAVE, PRIVATE               :: last_parser_id=0
 
 ! *** Global variables ***
-  INTEGER, PARAMETER, PUBLIC         :: max_line_length = 2*default_path_length
-  CHARACTER(LEN=1),PARAMETER, PUBLIC :: default_continuation_character = CHAR(92) ! backslash
-  CHARACTER(LEN=4),PARAMETER, PUBLIC :: default_separators = ",:;="
-  CHARACTER(LEN=3),PARAMETER, PUBLIC :: default_end_section_label = "END"
-  CHARACTER(LEN=1),PARAMETER, PUBLIC :: default_comment_character(2) = (/"#","!"/),&
-                                        default_section_character = "&"
-
-  INTEGER,PARAMETER, PUBLIC :: max_unit_number = 999
-  INTEGER, SAVE, PRIVATE    :: last_parser_id=0
+  CHARACTER(LEN=1),PARAMETER, PUBLIC   :: default_continuation_character = CHAR(92) ! backslash
+  CHARACTER(LEN=4),PARAMETER, PUBLIC   :: default_separators = ",:;="
+  CHARACTER(LEN=3),PARAMETER, PUBLIC   :: default_end_section_label = "END"
+  CHARACTER(LEN=1),PARAMETER, PUBLIC   :: default_comment_character(2) = (/"#","!"/),&
+                                          default_section_character = "&"
+  INTEGER,PARAMETER, PUBLIC            :: max_unit_number = 999
 
 ! *****************************************************************************
 !> \brief represent a parser
@@ -81,6 +82,8 @@ MODULE cp_parser_types
      INTEGER                                        :: icol,icol1,icol2
      INTEGER                                        :: input_unit, input_line_number
      LOGICAL                                        :: first_separator
+     TYPE(buffer_type), POINTER                     :: buffer
+     TYPE(status_type), POINTER                     :: status
      TYPE(cp_para_env_type), POINTER                :: para_env
      TYPE(inpp_type), POINTER                       :: inpp
      TYPE(ilist_type), POINTER                      :: ilist
@@ -137,11 +140,11 @@ CONTAINS
           CALL cp_para_env_release(parser%para_env,error=error)
           CALL release_inpp_type(parser%inpp, error)
           CALL release_ilist_type(parser%ilist, error)
+          CALL release_buffer_type(parser%buffer, error)
           DEALLOCATE(parser,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
-    NULLIFY(parser)
   END SUBROUTINE parser_release
 
 ! *****************************************************************************
@@ -150,9 +153,8 @@ CONTAINS
 !> \date    14.02.2001
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE parser_create(parser,file_name,unit_nr,para_env, &
-       end_section_label,separator_chars,comment_char,continuation_char, section_char, &
-       error)
+  SUBROUTINE parser_create(parser, file_name, unit_nr, para_env, end_section_label,&
+       separator_chars, comment_char, continuation_char, section_char, error)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_name
     INTEGER, INTENT(in), OPTIONAL            :: unit_nr
@@ -184,7 +186,6 @@ CONTAINS
        parser%input_file_name=""
 
        !   *** Load the default values and overwrite them, if requested ***
-
        parser%separators = default_separators
        IF (PRESENT(separator_chars)) parser%separators = separator_chars
        parser%comment_character = default_comment_character
@@ -211,7 +212,6 @@ CONTAINS
        END IF
 
        !   *** Get the logical output unit number for error messages ***
-
        IF (parser%para_env%mepos==parser%para_env%source) THEN
           IF (PRESENT(unit_nr)) THEN
              parser%input_unit=unit_nr
@@ -234,10 +234,13 @@ CONTAINS
        parser%icol1=0
        parser%icol2=0
        parser%first_separator=.TRUE.
+       NULLIFY(parser%buffer)
+       NULLIFY(parser%status)
        NULLIFY(parser%inpp)
        NULLIFY(parser%ilist)
        CALL create_inpp_type(parser%inpp, error)
        CALL create_ilist_type(parser%ilist, error)
+       CALL create_buffer_type(parser%buffer, error)
     END IF
   END SUBROUTINE parser_create
 

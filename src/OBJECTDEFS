@@ -93,10 +93,12 @@ OBJECTS_GENERIC =\
  cp_output_handling.o\
  cp_para_env.o\
  cp_para_types.o\
+ cp_parser_buffer_types.o\
  cp_parser_ilist_types.o\
  cp_parser_ilist_methods.o\
  cp_parser_inpp_types.o\
  cp_parser_inpp_methods.o\
+ cp_parser_status_types.o\
  cp_parser_types.o\
  cp_parser_methods.o\
  cp_result_types.o\

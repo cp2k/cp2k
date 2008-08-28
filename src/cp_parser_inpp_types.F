@@ -76,7 +76,7 @@ CONTAINS
   END SUBROUTINE create_inpp_type
 
 ! ****************************************************************************
-!> \brief creates the internal preprocessing type
+!> \brief releases the internal preprocessing type
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date  22.02.2008
 ! *****************************************************************************

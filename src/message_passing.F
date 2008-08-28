@@ -120,9 +120,9 @@ MODULE message_passing
   END INTERFACE
   
   INTERFACE mp_bcast
-     MODULE PROCEDURE mp_bcast_i1, mp_bcast_r1, mp_bcast_c1, mp_bcast_z, &
-          mp_bcast_iv, mp_bcast_rv, mp_bcast_cv, mp_bcast_l, mp_bcast_rm, &
-          mp_bcast_cm, mp_bcast_im, mp_bcast_rm3
+     MODULE PROCEDURE mp_bcast_i1, mp_bcast_r1, mp_bcast_c1, mp_bcast_z1, &
+          mp_bcast_iv, mp_bcast_rv, mp_bcast_cv, mp_bcast_zv, mp_bcast_l, &
+          mp_bcast_rm, mp_bcast_cm, mp_bcast_im, mp_bcast_rm3
   END INTERFACE
 
   ! needed in case default integer and int_8 are the same
@@ -2013,14 +2013,14 @@ SUBROUTINE mp_bcast_l(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_l
 ! *****************************************************************************
-SUBROUTINE mp_bcast_z(msg,source,gid)
+SUBROUTINE mp_bcast_z1(msg,source,gid)
     CHARACTER(LEN=*)                         :: msg
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: i, ierr, msglen
     INTEGER, ALLOCATABLE                     :: imsg( : )
     INTEGER :: handle
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_z', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_z1', &
       routineP = moduleN//':'//routineN
 #if defined(__mp_timeset__)
     CALL timeset(routineN,handle)
@@ -2051,7 +2051,52 @@ SUBROUTINE mp_bcast_z(msg,source,gid)
 #if defined(__mp_timeset__)
     CALL timestop(handle)
 #endif
-END SUBROUTINE mp_bcast_z
+ END SUBROUTINE mp_bcast_z1
+! *****************************************************************************
+SUBROUTINE mp_bcast_zv(msg,source,gid)
+    CHARACTER(LEN=*)                         :: msg(:)
+    INTEGER                                  :: source, gid
+
+    INTEGER                                  :: i, j, ierr, msglen, msgsiz
+    INTEGER, ALLOCATABLE                     :: imsg( :, :)
+    INTEGER :: handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_zv', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+
+  ierr = 0
+  msgsiz = SIZE(msg)
+  msglen = LEN(msg)
+#if defined(__parallel)
+  t_start = m_walltime ( )
+! this is a workaround to avoid problems on the T3E
+! at the moment we have a data alignment error when trying to
+! broadcats characters on the T3E (not always!)
+! JH 19/3/99 on galileo
+! CALL mpi_bcast(msg,msglen,MPI_CHARACTER,source,gid,ierr)
+  ALLOCATE (imsg(1:msglen,1:msgsiz))
+  DO j = 1, msgsiz
+     DO i = 1, msglen
+        imsg(i,j) = ICHAR(msg(j)(i:i))
+     END DO
+  END DO
+  CALL mpi_bcast(imsg,msglen*msgsiz,MPI_INTEGER,source,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_z" )
+  DO j = 1, msgsiz
+     DO i = 1, msglen
+        msg(j)(i:i) = CHAR(imsg(i,j))
+     END DO
+  END DO
+  DEALLOCATE (imsg)
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen*msgsiz)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+END SUBROUTINE mp_bcast_zv
 
 !..mp_sum
 ! *****************************************************************************

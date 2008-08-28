@@ -673,10 +673,11 @@ CONTAINS
     SELECT CASE(my_format)
     CASE (do_cell_cp2k)
        my_end = .FALSE.
+       CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
        DO WHILE (.NOT.my_end)
+          READ(parser%input_line,*)idum,xdum,hmat(:,1),hmat(:,2),hmat(:,3)
           CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
        END DO
-       READ(parser%input_line,*)idum,xdum,hmat(:,1),hmat(:,2),hmat(:,3)
     CASE (do_cell_xsc)
        READ(parser%input_line,*)idum,hmat(:,1),hmat(:,2),hmat(:,3)
     END SELECT

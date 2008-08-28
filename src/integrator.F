@@ -36,8 +36,7 @@ MODULE integrator
   USE constraint_util,                 ONLY: getold,&
                                              pv_constraint
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser_methods,               ONLY: broadcast_input_information,&
-                                             parser_get_next_line,&
+  USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                              parser_read_line
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -68,8 +67,7 @@ MODULE integrator
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
                                              set_md_env
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_max
+  USE message_passing,                 ONLY: mp_max
   USE metadynamics,                    ONLY: metadyn_forces
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
@@ -1189,13 +1187,11 @@ CONTAINS
 
     CHARACTER(LEN=10)                        :: AA
     INTEGER                                  :: cell_itimes, I, nparticle, &
-                                                Nread, stat, trj_itimes
+                                                Nread, trj_itimes
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, init, my_end, test_ok
     REAL(KIND=dp)                            :: cell_time, h(3,3), trj_epot, &
                                                 trj_time, vol
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pos
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -1221,44 +1217,40 @@ CONTAINS
     CALL cp_subsys_get(subsys=subsys, particles=particles, error=error)
     nparticle    = particles%n_els
     particle_set => particles%els
-    ALLOCATE (pos(3,nparticle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    pos = 0.0_dp
-    
-    ! SnapShots read from an external file
-    IF(para_env%mepos==para_env%source) THEN
-       CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
-       READ(reftraj_env%info%traj_parser%input_line,FMT="(I8)") nread
-       CPPostcondition(nread==nparticle,cp_failure_level,routineP,error,failure)
-       CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
-       test_ok = .FALSE.
-       READ(reftraj_env%info%traj_parser%input_line,FMT="(T6,I8,T23,F12.3,T41,F20.10)",&
-            ERR=999)trj_itimes, trj_time, trj_epot
-       test_ok = .TRUE.
-999    IF (.NOT.test_ok) THEN
-          ! Handling properly the error when reading the title of an XYZ
-          CALL get_md_env(md_env, itimes=itimes, error=error)
-          trj_itimes = itimes
-          trj_time   = 0.0_dp
-          trj_epot   = 0.0_dp
-       END IF
-       DO i = 1,nread-1
-          CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
-          READ(reftraj_env%info%traj_parser%input_line,*) AA,pos(1:3,i)
-          pos(1,i) = cp_unit_to_cp2k(pos(1,i),"angstrom",error=error)
-          pos(2,i) = cp_unit_to_cp2k(pos(2,i),"angstrom",error=error)
-          pos(3,i) = cp_unit_to_cp2k(pos(3,i),"angstrom",error=error)
-       END DO
-       ! End of file is properly addressed in the previous call..
-       ! Let's check directly (providing some info) also for the last
-       ! line of this frame..
-       CALL parser_read_line(reftraj_env%info%traj_parser,1,at_end=my_end,error=error)
-       READ(reftraj_env%info%traj_parser%input_line,*) AA,pos(1:3,i)
-       pos(1,i) = cp_unit_to_cp2k(pos(1,i),"angstrom",error=error)
-       pos(2,i) = cp_unit_to_cp2k(pos(2,i),"angstrom",error=error)
-       pos(3,i) = cp_unit_to_cp2k(pos(3,i),"angstrom",error=error)
+
+    ! SnapShots read from an external file (parsers calls are buffered! please
+    ! don't put any additional MPI call!) [tlaino]
+    CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
+    READ(reftraj_env%info%traj_parser%input_line,FMT="(I8)") nread
+    CPPostcondition(nread==nparticle,cp_failure_level,routineP,error,failure)
+    CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
+    test_ok = .FALSE.
+    READ(reftraj_env%info%traj_parser%input_line,FMT="(T6,I8,T23,F12.3,T41,F20.10)",ERR=999)&
+         trj_itimes, trj_time, trj_epot
+    test_ok = .TRUE.
+999 IF (.NOT.test_ok) THEN
+       ! Handling properly the error when reading the title of an XYZ
+       CALL get_md_env(md_env, itimes=itimes, error=error)
+       trj_itimes = itimes
+       trj_time   = 0.0_dp
+       trj_epot   = 0.0_dp
     END IF
-    CALL mp_bcast(my_end,para_env%source,para_env%group)
+    DO i = 1,nread-1
+       CALL parser_read_line(reftraj_env%info%traj_parser,1,error=error)
+       READ(reftraj_env%info%traj_parser%input_line,*) AA,particle_set(i)%r
+       particle_set(i)%r(1) = cp_unit_to_cp2k(particle_set(i)%r(1),"angstrom",error=error)
+       particle_set(i)%r(2) = cp_unit_to_cp2k(particle_set(i)%r(2),"angstrom",error=error)
+       particle_set(i)%r(3) = cp_unit_to_cp2k(particle_set(i)%r(3),"angstrom",error=error)
+    END DO
+    ! End of file is properly addressed in the previous call..
+    ! Let's check directly (providing some info) also for the last
+    ! line of this frame..
+    CALL parser_read_line(reftraj_env%info%traj_parser,1,at_end=my_end,error=error)
+    READ(reftraj_env%info%traj_parser%input_line,*) AA,particle_set(i)%r
+    particle_set(i)%r(1) = cp_unit_to_cp2k(particle_set(i)%r(1),"angstrom",error=error)
+    particle_set(i)%r(2) = cp_unit_to_cp2k(particle_set(i)%r(2),"angstrom",error=error)
+    particle_set(i)%r(3) = cp_unit_to_cp2k(particle_set(i)%r(3),"angstrom",error=error)
+
     ! Check if we reached the end of the file and provide some info..
     IF (my_end) THEN
        CALL cp_assert(reftraj_env%isnap==(simpar%nsteps-1),cp_fatal_level,cp_assertion_failed,routineP,&
@@ -1267,14 +1259,7 @@ CONTAINS
 CPSourceFileRef,&
             only_ionode=.TRUE.)
     END IF
-    CALL broadcast_input_information(reftraj_env%info%traj_parser,error=error)
-    CALL mp_bcast (trj_itimes,para_env%source,para_env%group)
-    CALL mp_bcast (trj_time,para_env%source,para_env%group)
-    CALL mp_bcast (trj_epot,para_env%source,para_env%group)
-    CALL update_particle_set (particle_set, para_env%group, pos=pos)
-    DEALLOCATE (pos, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
     IF(reftraj_env%info%variable_volume)THEN
        CALL parser_get_next_line(reftraj_env%info%cell_parser,1,at_end=my_end,error=error)
        CALL parse_cell_line(reftraj_env%info%cell_parser%input_line, cell_itimes, cell_time, h, vol, error)

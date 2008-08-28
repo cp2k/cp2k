@@ -1446,7 +1446,7 @@ CONTAINS
              my_val => cp_sll_val_get_el_at(s_vals%values(ik,irs)%list,&
                   irk,error=error)
           END IF
-       ELSE IF (.not.my_ignore_required.and.section%required) THEN
+       ELSE IF (.NOT.my_ignore_required.AND.section%required) THEN
           CALL cp_assert(.FALSE.,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "section "//TRIM(section%name)//&

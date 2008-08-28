@@ -572,8 +572,6 @@ CONTAINS
     END IF
   END SUBROUTINE create_center_section
 
-!****f* input_cp2k_dft/create_localize_section *
-
 ! *****************************************************************************
 !> \brief parameters fo the localization of wavefunctions
 !> \par History

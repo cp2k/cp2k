@@ -32,8 +32,7 @@ MODULE input_parsing
                                              parser_location,&
                                              parser_skip_space,&
                                              parser_test_next_token
-  USE cp_parser_types,                 ONLY: cp_parser_type,&
-                                             max_line_length
+  USE cp_parser_types,                 ONLY: cp_parser_type
   USE cp_units,                        ONLY: cp_unit_compatible,&
                                              cp_unit_create,&
                                              cp_unit_desc,&
@@ -57,7 +56,8 @@ MODULE input_parsing
        char_t, enum_t, integer_t, lchar_t, logical_t, no_t, real_t, &
        val_create, val_type, val_write
   USE kinds,                           ONLY: default_string_length,&
-                                             dp
+                                             dp,&
+                                             max_line_length
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -305,7 +305,6 @@ CONTAINS
                    keyword => section%keywords(ik)%keyword
                    IF (ASSOCIATED(keyword)) THEN
                       NULLIFY(el)
-                      !                 PRINT *,"about to parse keyword ",TRIM(token)," in section ",TRIM(section%name)
                       IF (ik/=0.and.keyword%type_of_var==lchar_t) &
                            CALL parser_skip_space(parser,error=error)
                       CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
