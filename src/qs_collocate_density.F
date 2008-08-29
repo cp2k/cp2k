@@ -525,7 +525,7 @@ CONTAINS
     REAL(KIND=dp)                            :: eps_rho_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
-    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb, rab_inv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab, p_block, pab, rpgfa, &
                                                 rpgfb, sphi_a, sphi_b, work, &
@@ -872,10 +872,11 @@ CONTAINS
                ga_gb_function=ga_gb_function, &
                map_consistent=map_consistent,use_subpatch=use_subpatch,error=error)
        ELSE
+          rab_inv=-rab
           CALL collocate_pgf_product_rspace(&
                lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                la_max(iset),zeta(ipgf,iset),la_min(iset),&
-               rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
+               rb,rab_inv,rab2,scale,pab,nb1-1,na1-1,&
                rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                eps_rho_rspace,&
                ga_gb_function=ga_gb_function, &

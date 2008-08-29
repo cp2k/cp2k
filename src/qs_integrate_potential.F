@@ -318,7 +318,7 @@ CONTAINS
       use_virial
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, &
                                                 kind_radius_b, rab2, zetp
-    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, rb
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, rb, rab_inv
     REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab, h_block, hab, &
@@ -802,10 +802,11 @@ CONTAINS
                      use_virial=use_virial,my_virial_a=my_virial_a,&
                      my_virial_b=my_virial_b, use_subpatch=use_subpatch,error=error)
              ELSE
+                rab_inv=-rab
                 CALL integrate_pgf_product_rspace(&
                      lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                      la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                     rb,-rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
+                     rb,rab_inv,rab2,rs_v(igrid_level)%rs_grid,cell,&
                      cube_info(igrid_level),&
                      hab,pab=pab,o1=nb1-1,o2=na1-1, &
                      eps_gvg_rspace=eps_gvg_rspace,&
@@ -831,10 +832,11 @@ CONTAINS
                      use_virial=use_virial,my_virial_a=my_virial_a,&
                      my_virial_b=my_virial_b,use_subpatch=use_subpatch,error=error)
              ELSE
+                rab_inv=-rab
                 CALL integrate_pgf_product_rspace(&
                      lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                      la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                     rb,-rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
+                     rb,rab_inv,rab2,rs_v(igrid_level)%rs_grid,cell,&
                      cube_info(igrid_level),&
                      hab,pab=pab,o1=nb1-1,o2=na1-1, &
                      eps_gvg_rspace=eps_gvg_rspace,&
@@ -859,10 +861,11 @@ CONTAINS
                   compute_tau=my_compute_tau,&
                   map_consistent=map_consistent,use_subpatch=use_subpatch,error=error)
           ELSE
+             rab_inv=-rab
              CALL integrate_pgf_product_rspace(&
                   lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                   la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                  rb,-rab,rab2,rs_v(igrid_level)%rs_grid,cell,&
+                  rb,rab_inv,rab2,rs_v(igrid_level)%rs_grid,cell,&
                   cube_info(igrid_level),&
                   hab,o1=nb1-1,o2=na1-1,&
                   eps_gvg_rspace=eps_gvg_rspace,&
