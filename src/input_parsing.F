@@ -79,8 +79,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE section_vals_parse(section_vals,parser, &
-       default_units,root_section,error)
+  RECURSIVE SUBROUTINE section_vals_parse(section_vals,parser,default_units,root_section,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_unit_set_type), POINTER          :: default_units
@@ -92,9 +91,9 @@ CONTAINS
 
     CHARACTER(len=max_line_length)           :: token
     INTEGER                                  :: desc_level, handle, ik, irs, &
-                                                is, nsub
-    LOGICAL :: at_end, compatible_end, failure, root_sect, skip_description, &
-      skip_help, suberror_happened, whole_section
+                                                is, nsub, output_unit
+    LOGICAL :: at_end, compatible_end, failure, ionode, root_sect, &
+      skip_description, skip_help, suberror_happened, whole_section
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: last_val, new_val, &
@@ -115,6 +114,12 @@ CONTAINS
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     CALL cp_error_init(suberror,stop_level=cp_fatal_level,template_error=error)
     logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit = -1
+    IF (ionode) THEN
+       output_unit= cp_logger_get_default_unit_nr(logger)
+    END IF
+
     IF (.NOT.failure) THEN
        CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
        CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -160,7 +165,7 @@ CONTAINS
           CALL cp_error_propagate_error(suberror,routineP,"parsing section "//&
                TRIM(section%name)//" parameters",error=error)
           CALL cp_error_reset(suberror)
-           IF (.NOT.failure) THEN
+          IF (.NOT.failure) THEN
              NULLIFY(new_val)
              CALL cp_sll_val_create(new_val,el,error=error)
              section_vals%values(-1,irs)%list => new_val
@@ -208,10 +213,10 @@ CONTAINS
                         TRIM(parser_location(parser,error=error)),error,failure)
                    skip_description=.TRUE.
                 ELSE
-          CALL cp_error_propagate_error(suberror,routineP,&
+                   CALL cp_error_propagate_error(suberror,routineP,&
                         "parsing end of section "// TRIM(section%name),&
                         error=error)
-          CALL cp_error_reset(suberror)
+                   CALL cp_error_reset(suberror)
                 END IF
                 !              call cp_error_dealloc_ref(suberror)
                 !              RETURN
@@ -224,11 +229,11 @@ CONTAINS
                 CALL section_vals_parse(section_vals%subs_vals(is,irs)%section_vals,&
                      default_units=default_units,parser=parser,error=suberror)
                 suberror_happened=.FALSE.
-          CALL cp_error_propagate_error(suberror,routineP,&
+                CALL cp_error_propagate_error(suberror,routineP,&
                      "parsing subsection "//TRIM(section%subsections(is)%section%name)&
                      //" of section "// TRIM(section%name),&
                      error=error,failure=suberror_happened)
-          CALL cp_error_reset(suberror)
+                CALL cp_error_reset(suberror)
                 IF (.NOT. failure .AND. suberror_happened) THEN
                    skip_description=.TRUE.
                    skip_help=.TRUE.
@@ -242,10 +247,10 @@ CONTAINS
                 DO WHILE (nSub>0)
                    CALL parser_get_object(parser,token,newline=.TRUE.,&
                         lower_to_upper=.TRUE.,error=suberror)
-          CALL cp_error_propagate_error(suberror,routineP,&
+                   CALL cp_error_propagate_error(suberror,routineP,&
                         "parsing end of section "// TRIM(section%name),&
                         error=error,failure=failure)
-          CALL cp_error_reset(suberror)
+                   CALL cp_error_reset(suberror)
                    IF (failure) EXIT
                    IF (token(1:1)==parser%section_character) THEN
                       IF (token=="&END") THEN
@@ -258,38 +263,32 @@ CONTAINS
              END IF
           ELSE ! token is a keyword
              IF (token=="DESCRIBE") THEN
-                IF (parser%para_env%mepos==parser%para_env%source) THEN
-                   WRITE(cp_logger_get_default_unit_nr(logger),&
-                        "(/,' ****** DESCRIPTION ******',/)")
-                   skip_description=.TRUE.
-                   desc_level=3
-                   IF (parser_test_next_token(parser,error=error)=="INT") THEN
-                      CALL parser_get_object(parser,desc_level,error=error)
-                   END IF
-                   whole_section=.TRUE.
-                   DO WHILE (parser_test_next_token(parser,error=error)=="STR")
-                      whole_section=.FALSE.
-                      CALL parser_get_object(parser,token,newline=.FALSE.,&
-                           lower_to_upper=.TRUE.,error=suberror)
-                      keyword => section_get_keyword(section,token,error=error)
-                      IF (.NOT.ASSOCIATED(keyword)) THEN
-                         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                              routineP,"unknown keyword to describe "//TRIM(token)//&
-                              " in section "//TRIM(section%name),error,failure)
-                      ELSE
-                         CALL keyword_describe(keyword,&
-                              cp_logger_get_default_unit_nr(logger),&
-                              desc_level,error=error)
-                      END IF
-                   END DO
-                   IF (whole_section) THEN
-                      CALL section_describe(section,&
-                           cp_logger_get_default_unit_nr(logger),&
-                           desc_level,hide_root=.NOT.root_sect,error=error)
-                   END IF
-                   WRITE(cp_logger_get_default_unit_nr(logger),&
-                        "(/,' ****** =========== ******',/)")
+                IF (output_unit>0) WRITE(output_unit,"(/,' ****** DESCRIPTION ******',/)")
+                skip_description=.TRUE.
+                desc_level=3
+                IF (parser_test_next_token(parser,error=error)=="INT") THEN
+                   CALL parser_get_object(parser,desc_level,error=error)
                 END IF
+                whole_section=.TRUE.
+                DO WHILE (parser_test_next_token(parser,error=error)=="STR")
+                   whole_section=.FALSE.
+                   CALL parser_get_object(parser,token,newline=.FALSE.,&
+                        lower_to_upper=.TRUE.,error=suberror)
+                   keyword => section_get_keyword(section,token,error=error)
+                   IF (.NOT.ASSOCIATED(keyword)) THEN
+                      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                           routineP,"unknown keyword to describe "//TRIM(token)//&
+                           " in section "//TRIM(section%name),error,failure)
+                   ELSE
+                      CALL keyword_describe(keyword,output_unit,desc_level,error=error)
+                   END IF
+                END DO
+                IF (whole_section) THEN
+                   CALL section_describe(section, output_unit, desc_level,hide_root=.NOT.root_sect,&
+                        error=error)
+                END IF
+                IF (output_unit>0) WRITE(output_unit,"(/,' ****** =========== ******',/)")
+
              ELSE ! token is a "normal" keyword
                 ik=section_get_keyword_index(section,token,error=error)
                 IF (ik<1) THEN ! don't accept pseudo keyword names
@@ -355,23 +354,21 @@ CONTAINS
              END IF
           END IF
        END DO
-       IF (failure.and.parser%para_env%mepos==parser%para_env%source) THEN
+       IF (failure.AND.ionode) THEN
           IF (.NOT.skip_help) THEN
              CALL print_message(&
                   ' You can have a description of the input by using the keyword '//&
                   'DESCRIBE in the CP2K section optionally followed by the level of output (1-4).',&
-                  cp_logger_get_default_unit_nr(logger,local=.TRUE.),0,0,0)
+                  output_unit,0,0,0)
              CALL print_message(&
                   ' Putting the keyword DESCRIBE in a subsection describes '//&
                   'just that section and all its subsections. '//&
                   'If you just want the description of some keywords you can '//&
                   'just add their name to the DESCRIBE directive.',&
-                  cp_logger_get_default_unit_nr(logger,local=.TRUE.),0,0,0)
+                  output_unit,0,0,0)
           END IF
           IF (.NOT.skip_description) THEN
-             CALL section_describe(section,&
-                  cp_logger_get_default_unit_nr(logger),&
-                  3,error=error)
+             CALL section_describe(section,output_unit,3,error=error)
           END IF
        END IF
     END IF

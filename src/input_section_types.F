@@ -316,49 +316,51 @@ CONTAINS
     INTEGER                                  :: ikeyword, isub, my_recurse
     LOGICAL                                  :: failure, my_hide_root
 
-    failure=.FALSE.
-    my_hide_root=.FALSE.
-    IF (PRESENT(hide_root)) my_hide_root=hide_root
-    my_recurse=0
-    IF (PRESENT(recurse)) my_recurse=recurse
-    IF (ASSOCIATED(section)) THEN
-       CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
+    failure =.FALSE.
+    IF (unit_nr>0) THEN
+       my_hide_root =.FALSE.
+       IF (PRESENT(hide_root)) my_hide_root=hide_root
+       my_recurse=0
+       IF (PRESENT(recurse)) my_recurse=recurse
+       IF (ASSOCIATED(section)) THEN
+          CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
 
-       IF (.not.my_hide_root)&
-            WRITE(unit_nr,"('*** section &',a,' ***')")TRIM(section%name)
-       IF (level>1) THEN
-          CALL print_message(TRIM(section%description),unit_nr,0,0,0)
-       END IF
-       IF (level>0) THEN
-          IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
-             CALL keyword_describe(section%keywords(-1)%keyword,unit_nr,&
-                  level,error=error)
+          IF (.not.my_hide_root)&
+               WRITE(unit_nr,"('*** section &',a,' ***')")TRIM(section%name)
+          IF (level>1) THEN
+             CALL print_message(TRIM(section%description),unit_nr,0,0,0)
           END IF
-          IF (ASSOCIATED(section%keywords(0)%keyword)) THEN
-             CALL keyword_describe(section%keywords(0)%keyword,unit_nr,&
-                  level,error=error)
-          END IF
-          DO ikeyword=1,section%n_keywords
-             CALL keyword_describe(section%keywords(ikeyword)%keyword,unit_nr,&
-                  level,error=error)
-          END DO
-       END IF
-       IF (section%n_subsections>0 .and.my_recurse>=0) THEN
-          IF (.NOT.my_hide_root)&
-               WRITE(unit_nr,"('** subsections **')")
-          DO isub=1,section%n_subsections
-             IF (my_recurse>0) THEN
-                CALL section_describe(section%subsections(isub)%section,unit_nr,&
-                     level,recurse=my_recurse-1,error=error)
-             ELSE
-                WRITE(unit_nr,"(' ',a)") section%subsections(isub)%section%name
+          IF (level>0) THEN
+             IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
+                CALL keyword_describe(section%keywords(-1)%keyword,unit_nr,&
+                     level,error=error)
              END IF
-          END DO
+             IF (ASSOCIATED(section%keywords(0)%keyword)) THEN
+                CALL keyword_describe(section%keywords(0)%keyword,unit_nr,&
+                     level,error=error)
+             END IF
+             DO ikeyword=1,section%n_keywords
+                CALL keyword_describe(section%keywords(ikeyword)%keyword,unit_nr,&
+                     level,error=error)
+             END DO
+          END IF
+          IF (section%n_subsections>0 .and.my_recurse>=0) THEN
+             IF (.NOT.my_hide_root)&
+                  WRITE(unit_nr,"('** subsections **')")
+             DO isub=1,section%n_subsections
+                IF (my_recurse>0) THEN
+                   CALL section_describe(section%subsections(isub)%section,unit_nr,&
+                        level,recurse=my_recurse-1,error=error)
+                ELSE
+                   WRITE(unit_nr,"(' ',a)") section%subsections(isub)%section%name
+                END IF
+             END DO
+          END IF
+          IF (.NOT.my_hide_root)&
+               WRITE(unit_nr,"('*** &end section ',a,' ***')")TRIM(section%name)
+       ELSE
+          WRITE(unit_nr,"(a)") '<section *null*>'
        END IF
-       IF (.NOT.my_hide_root)&
-            WRITE(unit_nr,"('*** &end section ',a,' ***')")TRIM(section%name)
-    ELSE
-       WRITE(unit_nr,"(a)") '<section *null*>'
     END IF
   END SUBROUTINE section_describe
 

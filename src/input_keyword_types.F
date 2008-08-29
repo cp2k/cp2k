@@ -531,7 +531,7 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
     CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure.AND.level>0) THEN
+    IF (.NOT. failure.AND.level>0.AND.(unit_nr>0)) THEN
        WRITE(unit_nr,"(a,a,a)") "                           ---",&
             TRIM(keyword%names(1)),"---"
        IF (level>1) THEN
