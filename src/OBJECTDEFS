@@ -18,6 +18,7 @@ OBJECTS_GENERIC =\
  atom_output.o\
  atom_types.o\
  atom_utils.o\
+ atom_xc.o\
  averages_types.o\
  barostat_types.o\
  barostat_utils.o\

@@ -8,6 +8,9 @@
 !> \author jgh
 ! *****************************************************************************
 MODULE input_cp2k_atom
+  USE bibliography,                    ONLY: Goedecker1996,&
+                                             Hartwigsen1998,&
+                                             Krack2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -20,8 +23,9 @@ MODULE input_cp2k_atom
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: char_t,&
-                                             integer_t
+  USE input_val_types,                 ONLY: lchar_t, char_t,&
+                                             integer_t,&
+                                             real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
@@ -163,6 +167,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_potential_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_atom_section
@@ -236,7 +244,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="AE_BASIS",&
             description="Section of basis set information for all-electron calculations.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        CALL atom_basis_section(section,error) 
@@ -266,7 +274,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="PP_BASIS",&
             description="Section of basis set information for pseudopotential calculations.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        CALL atom_basis_section(section,error) 
@@ -290,6 +298,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -312,24 +321,66 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NUM_GTO",&
-            description="Number of Gaussian type functions "//&
-              "(l independent, used for GAUSSIAN and GEOMETRICAL basis sets)",&
-            usage="NUM_GTO integer",&
+            description="Number of Gaussian type functions for s, p, d, ...",&
+            usage="NUM_GTO 5 5 5 ",n_var=-1,type_of_var=integer_t,&
             default_i_val=-1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="START_INDEX",&
+            description="Starting index for Geometrical Basis sets",&
+            usage="START_INDEX 0 2 5 4 ",n_var=-1,type_of_var=integer_t,&
+            default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="S_EXPONENTS",&
+            description="Exponents for s functions",&
+            usage="S_EXPONENTS 1.0 2.0 ... ",n_var=-1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="P_EXPONENTS",&
+            description="Exponents for p functions",&
+            usage="P_EXPONENTS 1.0 2.0 ... ",n_var=-1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="D_EXPONENTS",&
+            description="Exponents for d functions",&
+            usage="D_EXPONENTS 1.0 2.0 ... ",n_var=-1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="F_EXPONENTS",&
+            description="Exponents for f functions",&
+            usage="F_EXPONENTS 1.0 2.0 ... ",n_var=-1,type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="GEOMETRICAL_FACTOR",&
             description="Geometrical basis: factor C in a*C^k",&
             usage="GEOMETRICAL_FACTOR real",&
-            default_r_val=0._dp,error=error)
+            default_r_val=2.6_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="GEO_START_VALUE",&
             description="Geometrical basis: starting value a in a*C^k",&
             usage="GEO_START_VALUE real",&
-            default_r_val=0._dp,error=error)
+            default_r_val=0.016_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BASIS_SET_FILE_NAME",&
+            description="Name of the basis set file, may include a path",&
+            usage="BASIS_SET_FILE_NAME <FILENAME>",&
+            default_lc_val="BASIS_SET",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BASIS_SET",&
+            variants=s2a("ORBITAL_BASIS_SET","ORB_BASIS"),&
+            description="The contracted Gaussian basis set",&
+            usage="BASIS_SET DZVP", default_c_val=" ", &
+            n_var=1, required=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -348,6 +399,11 @@ CONTAINS
             default_i_val=400,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       NULLIFY(subsection)
+       CALL create_basis_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE atom_basis_section
@@ -455,5 +511,131 @@ CONTAINS
     END IF
   END SUBROUTINE create_optimization_section
 
+! *****************************************************************************
+!> \brief Create the potential section for Atom calculations
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author jgh
+! *****************************************************************************
+  SUBROUTINE create_potential_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_potential_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="POTENTIAL",&
+            description="Section of information on potential.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="CONFINEMENT",&
+            description="Definition of confinement potential",&
+            usage="CONFINEMENT 1.0 4.2 4", default_r_val=0.4_dp,&
+            supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME",&
+            description="Name of the pseudo potential file, may include a path",&
+            usage="POTENTIAL_FILE_NAME <FILENAME>",&
+            default_lc_val="POTENTIAL",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="POTENTIAL",&
+            variants=(/ "POT" /),&
+            description="The name of the pseudopotential for the defined kind.",&
+            usage="POTENTIAL <PSEUDO-POTENTIAL-NAME>", default_c_val=" ", n_var=1,&
+            citations=(/Goedecker1996, Hartwigsen1998, Krack2005/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(subsection)
+       CALL create_gthpotential_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_potential_section
+
+! *****************************************************************************
+!> \brief Creates the &GTH_POTENTIAL section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_gthpotential_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_gthpotential_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="GTH_POTENTIAL",&
+            description="Section used to specify Potentials.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="CP2K Pseudo Potential Standard Format (GTH, ALL or ELP)",&
+            repeats=.TRUE.,type_of_var=lchar_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_gthpotential_section
+
+! *****************************************************************************
+!> \brief Creates the &BASIS section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_basis_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_basis_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="basis",&
+            description="Section used to specify a general basis set for QM calculations.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="CP2K Basis Set Standard Format",repeats=.TRUE.,&
+            type_of_var=lchar_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_basis_section
+
+! *****************************************************************************
 
 END MODULE input_cp2k_atom

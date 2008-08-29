@@ -12,7 +12,7 @@
 ! *****************************************************************************
 MODULE atom_utils
 
-  USE atom_types,                      ONLY: GTO_BASIS,&
+  USE atom_types,                      ONLY: CGTO_BASIS, GTO_BASIS,&
                                              atom_basis_type,&
                                              eri
   USE erf_fn,                          ONLY: erf
@@ -281,20 +281,22 @@ CONTAINS
     orb = 0._dp
     DO l=0,maxl
       n = maxn(l)
-      lwork = 10*n
-      ALLOCATE(a(n,n),s(n,n),w(n),work(lwork),STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-      a(1:n,1:n) = hmat(1:n,1:n,l)
-      s(1:n,1:n) = smat(1:n,1:n,l)
+      IF ( n > 0 ) THEN
+        lwork = 10*n
+        ALLOCATE(a(n,n),s(n,n),w(n),work(lwork),STAT=ierr)
+        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        a(1:n,1:n) = hmat(1:n,1:n,l)
+        s(1:n,1:n) = smat(1:n,1:n,l)
 
-      CALL lapack_ssygv(1,"V","U",n,a,n,s,n,w,work,lwork,info)
-      CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+        CALL lapack_ssygv(1,"V","U",n,a,n,s,n,w,work,lwork,info)
+        CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
-      m = MIN(n,SIZE(orb,2))
-      orb(1:n,1:m,l) = a(1:n,1:m)
-      ener(1:m,l) = w(1:m)
-      DEALLOCATE(a,s,w,work,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        m = MIN(n,SIZE(orb,2))
+        orb(1:n,1:m,l) = a(1:n,1:m)
+        ener(1:m,l) = w(1:m)
+        DEALLOCATE(a,s,w,work,STAT=ierr)
+        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      END IF
     END DO
 
   END SUBROUTINE atom_solve
@@ -394,21 +396,22 @@ CONTAINS
 
   SUBROUTINE coulomb_potential_analytic ( cpot, pmat, basis, grid, maxl, error )
     REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT)                          :: cpot
+      INTENT(INOUT)                              :: cpot
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
-      INTENT(IN)                             :: pmat
-    TYPE(atom_basis_type), INTENT(IN)        :: basis
-    TYPE(grid_atom_type)                     :: grid
-    INTEGER, INTENT(IN)                      :: maxl
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+      INTENT(IN)                                 :: pmat
+    TYPE(atom_basis_type), INTENT(IN)            :: basis
+    TYPE(grid_atom_type)                         :: grid
+    INTEGER, INTENT(IN)                          :: maxl
+    TYPE(cp_error_type), INTENT(INOUT)           :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coulomb_potential_analytic', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, j, k, l, m
-    LOGICAL                                  :: failure = .FALSE.
-    REAL(KIND=dp)                            :: a, b, ff, oab, sab
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erfa, expa, z
+    INTEGER                                      :: i, ierr, j, k, l, m, n
+    LOGICAL                                      :: failure = .FALSE.
+    REAL(KIND=dp)                                :: a, b, ff, oab, sab
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: erfa, expa, z
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)   :: unp
 
     m = SIZE(cpot)
     ALLOCATE ( erfa(1:m), expa(1:m), z(1:m), STAT=ierr )
@@ -418,39 +421,78 @@ CONTAINS
 
     DO l = 0, maxl
       IF ( MAXVAL(ABS(pmat(:,:,l))) < 1.e-14_dp ) CYCLE
-      DO i = 1, basis%nbas(l)
-        DO j = i, basis%nbas(l)
-          IF ( ABS(pmat(i,j,l)) < 1.e-14_dp ) CYCLE
-          ff = pmat(i,j,l)
-          IF (i /= j) ff = 2._dp*ff
-          SELECT CASE ( basis%basis_type )
-            CASE DEFAULT
-              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-            CASE ( GTO_BASIS )
-              a = basis%al(i)
-              b = basis%al(j)
-          END SELECT
-          sab = SQRT(a+b)
-          oab = rootpi/(a+b)**(l+1.5_dp)*ff
-          z(:) = sab*grid%rad(:)
-          DO k=1,SIZE(erfa)
-            erfa(k)= oab*erf(z(k))/grid%rad(k)
+      SELECT CASE ( basis%basis_type )
+        CASE DEFAULT
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        CASE ( GTO_BASIS )
+          DO i = 1, basis%nbas(l)
+            DO j = i, basis%nbas(l)
+              IF ( ABS(pmat(i,j,l)) < 1.e-14_dp ) CYCLE
+              ff = pmat(i,j,l)
+              IF (i /= j) ff = 2._dp*ff
+              a = basis%am(i,l)
+              b = basis%am(j,l)
+              sab = SQRT(a+b)
+              oab = rootpi/(a+b)**(l+1.5_dp)*ff
+              z(:) = sab*grid%rad(:)
+              DO k=1,SIZE(erfa)
+                erfa(k)= oab*erf(z(k))/grid%rad(k)
+              END DO
+              expa(:)= EXP(-z(:)**2)*ff/(a+b)**(l+1)
+              SELECT CASE (l)
+                CASE DEFAULT
+                  CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CASE (0)
+                  cpot(:) = cpot(:) + 0.25_dp*erfa(:)
+                CASE (1)
+                  cpot(:) = cpot(:) + 0.375_dp*erfa(:)-0.25_dp*expa(:)
+                CASE (2)
+                  cpot(:) = cpot(:) + 0.9375_dp*erfa(:)-expa(:)*(0.875_dp+0.25_dp*z(:)**2)
+                CASE (3)
+                  cpot(:) = cpot(:) + 3.28125_dp*erfa(:)-expa(:)*(3.5625_dp+1.375_dp*z(:)**2+0.25*z(:)**4)
+              END SELECT
+            END DO
           END DO
-          expa(:)= EXP(-z(:)**2)*ff/(a+b)**(l+1)
-          SELECT CASE (l)
-            CASE DEFAULT
-              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-            CASE (0)
-              cpot(:) = cpot(:) + 0.25_dp*erfa(:)
-            CASE (1)
-              cpot(:) = cpot(:) + 0.375_dp*erfa(:)-0.25_dp*expa(:)
-            CASE (2)
-              cpot(:) = cpot(:) + 0.9375_dp*erfa(:)-expa(:)*(0.875_dp+0.25_dp*z(:)**2)
-            CASE (3)
-              cpot(:) = cpot(:) + 3.28125_dp*erfa(:)-expa(:)*(3.5625_dp+1.375_dp*z(:)**2+0.25*z(:)**4)
-          END SELECT
-        END DO
-      END DO
+        CASE ( CGTO_BASIS )
+          n = basis%nprim(l)
+          m = basis%nbas(l)
+          ALLOCATE ( unp(n,n), STAT=ierr )
+          CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+          unp(1:n,1:n) = MATMUL ( MATMUL(basis%cm(1:n,1:m,l),pmat(1:m,1:m,l)),&
+                                  TRANSPOSE(basis%cm(1:n,1:m,l)))
+          DO i = 1, basis%nprim(l)
+            DO j = i, basis%nprim(l)
+              IF ( ABS(unp(i,j)) < 1.e-14_dp ) CYCLE
+              ff = unp(i,j)
+              IF (i /= j) ff = 2._dp*ff
+              a = basis%am(i,l)
+              b = basis%am(j,l)
+              sab = SQRT(a+b)
+              oab = rootpi/(a+b)**(l+1.5_dp)*ff
+              z(:) = sab*grid%rad(:)
+              DO k=1,SIZE(erfa)
+                erfa(k)= oab*erf(z(k))/grid%rad(k)
+              END DO
+              expa(:)= EXP(-z(:)**2)*ff/(a+b)**(l+1)
+              SELECT CASE (l)
+                CASE DEFAULT
+                  CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                CASE (0)
+                  cpot(:) = cpot(:) + 0.25_dp*erfa(:)
+                CASE (1)
+                  cpot(:) = cpot(:) + 0.375_dp*erfa(:)-0.25_dp*expa(:)
+                CASE (2)
+                  cpot(:) = cpot(:) + 0.9375_dp*erfa(:)-expa(:)*(0.875_dp+0.25_dp*z(:)**2)
+                CASE (3)
+                  cpot(:) = cpot(:) + 3.28125_dp*erfa(:)-expa(:)*(3.5625_dp+1.375_dp*z(:)**2+0.25*z(:)**4)
+              END SELECT
+            END DO
+          END DO
+
+          DEALLOCATE ( unp, STAT=ierr )
+          CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      END SELECT
     END DO
     DEALLOCATE ( erfa, expa, z, STAT=ierr )
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -473,11 +515,12 @@ CONTAINS
   END FUNCTION atom_trace
 
 ! *****************************************************************************
-  SUBROUTINE numpot_matrix(imat,cpot,basis,error)
+  SUBROUTINE numpot_matrix(imat,cpot,basis,derivatives,error)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(INOUT)                          :: imat
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: cpot
     TYPE(atom_basis_type), INTENT(INOUT)     :: basis
+    INTEGER, INTENT(IN)                      :: derivatives
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'numpot_matrix', &
@@ -488,15 +531,45 @@ CONTAINS
 
     failure = .FALSE.
 
-    DO l=0,3
-      n=basis%nbas(l)
-      DO i=1,n
-        DO j=i,n
-          imat(i,j,l) = integrate_grid ( cpot, basis%bf(:,i,l), basis%bf(:,j,l), basis%grid )
-          imat(j,i,l) = imat(i,j,l)
+    SELECT CASE (derivatives)
+      CASE (0)
+        DO l=0,3
+          n=basis%nbas(l)
+          DO i=1,n
+            DO j=i,n
+              imat(i,j,l) = imat(i,j,l) + &
+                  integrate_grid ( cpot, basis%bf(:,i,l), basis%bf(:,j,l), basis%grid )
+              imat(j,i,l) = imat(i,j,l)
+            END DO
+          END DO
         END DO
-      END DO
-    END DO
+      CASE (1)
+        DO l=0,3
+          n=basis%nbas(l)
+          DO i=1,n
+            DO j=i,n
+              imat(i,j,l) = imat(i,j,l) + &
+                  integrate_grid ( cpot, basis%dbf(:,i,l), basis%bf(:,j,l), basis%grid )
+              imat(i,j,l) = imat(i,j,l) + &
+                  integrate_grid ( cpot, basis%bf(:,i,l), basis%dbf(:,j,l), basis%grid )
+              imat(j,i,l) = imat(i,j,l)
+            END DO
+          END DO
+        END DO
+      CASE (2)
+        DO l=0,3
+          n=basis%nbas(l)
+          DO i=1,n
+            DO j=i,n
+              imat(i,j,l) = imat(i,j,l) + &
+                 integrate_grid ( cpot, basis%dbf(:,i,l), basis%dbf(:,j,l), basis%grid )
+              imat(j,i,l) = imat(i,j,l)
+            END DO
+          END DO
+        END DO
+      CASE DEFAULT
+        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
 
   END SUBROUTINE numpot_matrix
 ! *****************************************************************************

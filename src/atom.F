@@ -26,6 +26,7 @@ MODULE atom
        atom_trace, ceri_contract, coulomb_potential_analytic, &
        coulomb_potential_numeric, eeri_contract, err_matrix, get_maxl_occ, &
        get_maxn_occ, integrate_grid, numpot_matrix
+  USE atom_xc,                         ONLY: calculate_atom_vxc
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -168,10 +169,10 @@ CONTAINS
 
     basis_section => section_vals_get_subs_vals(atom_section,"AE_BASIS",error=error)
     NULLIFY(ae_basis%grid)
-    CALL init_atom_basis(ae_basis,basis_section,error)
+    CALL init_atom_basis(ae_basis,basis_section,zval,error)
     NULLIFY(pp_basis%grid)
     basis_section => section_vals_get_subs_vals(atom_section,"PP_BASIS",error=error)
-    CALL init_atom_basis(pp_basis,basis_section,error)
+    CALL init_atom_basis(pp_basis,basis_section,zval,error)
 
     eri_c = .FALSE.
     CALL section_vals_val_get(atom_section,"COULOMB_INTEGRALS", i_val=do_eri, error=error)
@@ -241,11 +242,13 @@ CONTAINS
         CALL atom_int_setup(pp_int,pp_basis,eri_coulomb=eri_c,eri_exchange=eri_e,error=error)
         CALL set_atom(atom_info(in)%atom,basis=pp_basis,integrals=pp_int,error=error)
         state%maxn_calc(:) = MIN( state%maxn_calc(:), pp_basis%nbas(:) )
+        CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP, error, failure)
         had_pp = .TRUE.
       ELSE
         CALL atom_int_setup(ae_int,ae_basis,eri_coulomb=eri_c,eri_exchange=eri_e,error=error)
         CALL set_atom(atom_info(in)%atom,basis=ae_basis,integrals=ae_int,error=error)
         state%maxn_calc(:) = MIN( state%maxn_calc(:), ae_basis%nbas(:) )
+        CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP, error, failure)
         had_ae = .TRUE.
       END IF
 
@@ -294,7 +297,7 @@ CONTAINS
     REAL(KIND=dp)                            :: deps, eps_scf
     TYPE(atom_history_type)                  :: history
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(opgrid_type), POINTER               :: cpot, density, edens
+    TYPE(opgrid_type), POINTER               :: cpot, density
     TYPE(opmat_type), POINTER                :: fmat, hcore, jmat, kmat, xcmat
     TYPE(section_vals_type), POINTER         :: method_section, opt_section
 
@@ -393,6 +396,7 @@ CONTAINS
       atom%energy%ecore = atom_trace(hcore%op,atom%orbitals%pmat,error)
 
       ! Hartree Term
+      jmat%op = 0._dp
       CALL section_vals_val_get(atom_section,"COULOMB_INTEGRALS", i_val=do_eri, error=error)
       SELECT CASE (do_eri)
         CASE DEFAULT
@@ -402,11 +406,11 @@ CONTAINS
         CASE (do_semi_analytic)
           CALL coulomb_potential_analytic(cpot%op,atom%orbitals%pmat,atom%basis,atom%basis%grid,&
                  atom%state%maxl_occ,error)
-          CALL numpot_matrix(jmat%op,cpot%op,atom%basis,error)
+          CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
         CASE (do_numeric)
           CALL atom_density(density%op,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,"RHO",error)
           CALL coulomb_potential_numeric(cpot%op,density%op,density%grid,error)
-          CALL numpot_matrix(jmat%op,cpot%op,atom%basis,error)
+          CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
       END SELECT
       atom%energy%ecoulomb = 0.5_dp * atom_trace(jmat%op,atom%orbitals%pmat,error)
 
@@ -433,15 +437,7 @@ CONTAINS
       ! XC
       IF (need_xc) THEN
         xcmat%op = 0._dp
-        NULLIFY(edens)
-        CALL create_opgrid(edens,atom%basis%grid,error)
-        CALL atom_density(density%op,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,"RHO",error)
-        DO i=1,SIZE(density%op)
-          CALL pade(density%op(i),edens%op(i),cpot%op(i))
-        END DO
-        CALL numpot_matrix(xcmat%op,cpot%op,atom%basis,error)
-        atom%energy%exc = fourpi*integrate_grid(edens%op,atom%basis%grid)
-        CALL release_opgrid(edens,error)
+        CALL calculate_atom_vxc(xcmat,atom,atom_section,error)
       ELSE
         xcmat%op = 0._dp
         atom%energy%exc = 0._dp
@@ -491,40 +487,6 @@ CONTAINS
 
   END SUBROUTINE atom_electronic_structure
 
-! *****************************************************************************
-  SUBROUTINE PADE(RHO,EC,VC)
-!     ==--------------------------------------------------------------==
-!     ==  PADE APPROXIMATION                                          ==
-!     ==  S. GOEDECKER, M. TETER, J. HUTTER, PRB in press             ==
-!     ==--------------------------------------------------------------==
-    REAL(dp)                                 :: rho, ec, vc
-
-    REAL(dp)                                 :: a0, a1, a2, a3, b1, b2, b3, &
-                                                b4, o3, pi34
-
-      PARAMETER (A0=0.4581652932831429_dp,A1=2.217058676663745_dp,&
-                 A2=0.7405551735357053_dp,A3=0.01968227878617998_dp)
-      PARAMETER (B1=1.0000000000000000_dp,B2=4.504130959426697_dp,&
-                 B3=1.110667363742916_dp,B4=0.02359291751427506_dp)
-      PARAMETER (O3=1._dp/3._dp)
-      PARAMETER (PI34= 0.75_dp / 3.141592653589793_dp)
-      REAL(dp)     :: rs,top,dtop,bot,dbot
-!     ==--------------------------------------------------------------==
-      IF (RHO < 1.e-20_dp) THEN
-        EC=0._dp
-        VC=0._dp
-      ELSE
-        RS=(PI34/RHO)**O3
-        TOP=A0+RS*(A1+RS*(A2+RS*A3))
-        DTOP=A1+RS*(2._dp*A2+3._dp*A3*RS)
-        BOT=RS*(B1+RS*(B2+RS*(B3+RS*B4)))
-        DBOT=B1+RS*(2._dp*B2+RS*(3._dp*B3+RS*4._dp*B4))
-        EC=-TOP/BOT
-        VC=EC+RS*O3*(DTOP/BOT-TOP*DBOT/(BOT*BOT))
-        EC= EC * RHO
-      END IF
-!     ==--------------------------------------------------------------==
-  END SUBROUTINE PADE
 ! *****************************************************************************
 
 END MODULE atom
