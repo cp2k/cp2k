@@ -566,6 +566,7 @@ OBJECTS_GENERIC =\
  thermostat_types.o\
  thermostat_utils.o\
  timings.o\
+ timings_mp.o\
  topology.o\
  topology_coordinate_util.o\
  topology_connectivity_util.o\

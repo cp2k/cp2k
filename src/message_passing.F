@@ -17,31 +17,28 @@
 !>      JGH (13-Feb-2006): Flexibel precision
 !>      JGH (15-Feb-2006): single precision mp_alltoall
 !> \author JGH
-#ifndef __mp_timeset__
-! #define __mp_timeset__  
-#endif
-
 ! *****************************************************************************
+
 MODULE message_passing
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
+                                             int_8,&
                                              int_size,&
-                                             sp, int_8
-  USE machine,                         ONLY: m_abort,&
-                                             m_walltime,&
+                                             sp
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_abort,&
                                              m_flush,&
-                                             default_output_unit
-#if defined(__mp_timeset__)
-  !
-  ! this really is a circular dependency
-  ! if you want to use __mp_timeset__ you'll need to cheat 
-  !
-  ! USE timings,                         ONLY: timeset,&
-#endif
+                                             m_walltime
 
   IMPLICIT NONE
-
   PRIVATE
+
+
+#if defined(__mp_timeset__)
+  ! Interface to mpi timing routines (wrapper to standard timings routine to work
+  ! with circular dependencies)
+#include "timings_mp.h"
+#endif
 
 #if defined(__parallel)
   INCLUDE "mpif.h"
@@ -85,7 +82,6 @@ MODULE message_passing
   PUBLIC :: cp2k_is_parallel
 
   ! message passing
-
   PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
   PUBLIC :: mp_gather, mp_alltoall, mp_sendrecv, mp_allgather
   PUBLIC :: mp_cart_shift, mp_isend, mp_irecv
@@ -93,9 +89,6 @@ MODULE message_passing
   PUBLIC :: mp_gatherv
   PUBLIC :: mp_sum_i8
   PUBLIC :: mp_send, mp_recv
-
-  ! currently not used
-  ! PUBLIC :: mp_group
 
   ! default communicators
   PUBLIC :: MPI_COMM_SELF, MPI_COMM_WORLD, MPI_COMM_NULL
@@ -224,7 +217,7 @@ MODULE message_passing
 
 ! *****************************************************************************
   TYPE mp_perf_env_p_type
-     TYPE(mp_perf_env_type), POINTER :: mp_perf_env
+     TYPE(mp_perf_env_type), POINTER         :: mp_perf_env
   END TYPE mp_perf_env_p_type
      
   ! introduce a stack of mp_perfs, first index is the stack pointer, for convience is replacing
@@ -257,34 +250,34 @@ CONTAINS
 !> \par History
 !>      2.2004 created [Joost VandeVondele ]
 ! *****************************************************************************
-SUBROUTINE mp_world_init(mp_comm)
-  INTEGER, INTENT(OUT) :: mp_comm
+  SUBROUTINE mp_world_init(mp_comm)
+    INTEGER, INTENT(OUT)                     :: mp_comm
 #if defined(__parallel)
-  INTEGER :: ierr
-  CALL mpi_init ( ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_init @ mp_world_init" )
-  CALL mpi_errhandler_set ( MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_errhandler_set @ mp_world_init" )
-  mp_comm = MPI_COMM_WORLD
+    INTEGER                                  :: ierr
+    CALL mpi_init ( ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_init @ mp_world_init" )
+    CALL mpi_errhandler_set ( MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_errhandler_set @ mp_world_init" )
+    mp_comm = MPI_COMM_WORLD
 #else
-  mp_comm = 0
+    mp_comm = 0
 #endif
-END SUBROUTINE mp_world_init
+  END SUBROUTINE mp_world_init
 
 ! *****************************************************************************
 !> \brief finalizes the system default communicator
 !> \par History
 !>      2.2004 created [Joost VandeVondele]
 ! *****************************************************************************
-SUBROUTINE mp_world_finalize()
+  SUBROUTINE mp_world_finalize()
 #if defined(__parallel)
-  INTEGER :: ierr
-  CALL mpi_barrier ( MPI_COMM_WORLD,ierr ) ! call mpi directly to avoid 0 stack pointer
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_barrier @ mp_world_finalize" )
-  CALL mpi_finalize ( ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_finalize @ mp_world_finalize" )
+    INTEGER                                  :: ierr
+    CALL mpi_barrier ( MPI_COMM_WORLD,ierr ) ! call mpi directly to avoid 0 stack pointer
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_barrier @ mp_world_finalize" )
+    CALL mpi_finalize ( ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_finalize @ mp_world_finalize" )
 #endif
-END SUBROUTINE
+  END SUBROUTINE mp_world_finalize
 
 ! all the following routines should work for a given communicator, not MPI_WORLD
 
@@ -300,26 +293,26 @@ END SUBROUTINE
 !> \par History
 !>      2.2004 created [Joost VandeVondele]
 ! *****************************************************************************
-SUBROUTINE add_mp_perf_env(perf_env)
+  SUBROUTINE add_mp_perf_env(perf_env)
     TYPE(mp_perf_env_type), OPTIONAL, &
       POINTER                                :: perf_env
 
-  stack_pointer = stack_pointer + 1
-  IF (stack_pointer > max_stack_size) THEN
-     CALL mp_abort ( "stack_pointer too large : message_passing @ add_mp_perf_env" )   
-  ENDIF
-  NULLIFY(mp_perf_stack(stack_pointer)%mp_perf_env)
-  IF (PRESENT(perf_env)) THEN
-     mp_perf_stack(stack_pointer)%mp_perf_env => perf_env
-     IF (ASSOCIATED(perf_env)) CALL mp_perf_env_retain(perf_env)
-  END IF
-  IF (.NOT.ASSOCIATED(mp_perf_stack(stack_pointer)%mp_perf_env)) THEN
-     CALL mp_perf_env_create(mp_perf_stack(stack_pointer)%mp_perf_env)
-  END IF
-END SUBROUTINE add_mp_perf_env
+    stack_pointer = stack_pointer + 1
+    IF (stack_pointer > max_stack_size) THEN
+       CALL mp_abort ( "stack_pointer too large : message_passing @ add_mp_perf_env" )   
+    ENDIF
+    NULLIFY(mp_perf_stack(stack_pointer)%mp_perf_env)
+    IF (PRESENT(perf_env)) THEN
+       mp_perf_stack(stack_pointer)%mp_perf_env => perf_env
+       IF (ASSOCIATED(perf_env)) CALL mp_perf_env_retain(perf_env)
+    END IF
+    IF (.NOT.ASSOCIATED(mp_perf_stack(stack_pointer)%mp_perf_env)) THEN
+       CALL mp_perf_env_create(mp_perf_stack(stack_pointer)%mp_perf_env)
+    END IF
+  END SUBROUTINE add_mp_perf_env
 
 ! *****************************************************************************
-SUBROUTINE mp_perf_env_create(perf_env)
+  SUBROUTINE mp_perf_env_create(perf_env)
     TYPE(mp_perf_env_type), OPTIONAL, &
       POINTER                                :: perf_env
 
@@ -340,122 +333,121 @@ SUBROUTINE mp_perf_env_create(perf_env)
        perf_env%mp_perfs(i) % time = 0.0_dp
     END DO
 
-END SUBROUTINE mp_perf_env_create
+  END SUBROUTINE mp_perf_env_create
 
 ! *****************************************************************************
-SUBROUTINE mp_perf_env_release(perf_env)
+  SUBROUTINE mp_perf_env_release(perf_env)
     TYPE(mp_perf_env_type), POINTER          :: perf_env
 
     INTEGER                                  :: stat
 
-  IF (ASSOCIATED(perf_env)) THEN
-     IF (perf_env%ref_count<1) THEN
-        CALL mp_abort(&
-             "invalid ref_count: message_passing @ mp_perf_env_release")
-     END IF
-     perf_env%ref_count=perf_env%ref_count-1
-     IF (perf_env%ref_count==0) THEN
-        DEALLOCATE(perf_env,stat=stat)
-        IF (stat/=0) THEN
-           CALL mp_abort("deallocation error: message_passing @ mp_perf_env_release")
-        END IF
-     END IF
-  END IF
-  NULLIFY(perf_env)
-END SUBROUTINE mp_perf_env_release
+    IF (ASSOCIATED(perf_env)) THEN
+       IF (perf_env%ref_count<1) THEN
+          CALL mp_abort(&
+               "invalid ref_count: message_passing @ mp_perf_env_release")
+       END IF
+       perf_env%ref_count=perf_env%ref_count-1
+       IF (perf_env%ref_count==0) THEN
+          DEALLOCATE(perf_env,stat=stat)
+          IF (stat/=0) THEN
+             CALL mp_abort("deallocation error: message_passing @ mp_perf_env_release")
+          END IF
+       END IF
+    END IF
+    NULLIFY(perf_env)
+  END SUBROUTINE mp_perf_env_release
 
 ! *****************************************************************************
-SUBROUTINE mp_perf_env_retain(perf_env)
+  SUBROUTINE mp_perf_env_retain(perf_env)
     TYPE(mp_perf_env_type), POINTER          :: perf_env
 
-  IF (.NOT.ASSOCIATED(perf_env)) THEN
-     CALL mp_abort("unassociated perf_env: message_passing @ mp_perf_env_retain")
-  END IF
-  IF (perf_env%ref_count<1) THEN
-     CALL mp_abort("invalid ref_count: message_passing @ mp_perf_env_retain")
-  END IF
-  perf_env%ref_count=perf_env%ref_count+1
-END SUBROUTINE mp_perf_env_retain
+    IF (.NOT.ASSOCIATED(perf_env)) THEN
+       CALL mp_abort("unassociated perf_env: message_passing @ mp_perf_env_retain")
+    END IF
+    IF (perf_env%ref_count<1) THEN
+       CALL mp_abort("invalid ref_count: message_passing @ mp_perf_env_retain")
+    END IF
+    perf_env%ref_count=perf_env%ref_count+1
+  END SUBROUTINE mp_perf_env_retain
 
 !.. reports the performance counters for the MPI run
 ! *****************************************************************************
-SUBROUTINE mp_perf_env_describe ( perf_env, iw )
+  SUBROUTINE mp_perf_env_describe ( perf_env, iw )
     TYPE(mp_perf_env_type), POINTER          :: perf_env
     INTEGER, INTENT(IN)                      :: iw
 
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: per, vol
 
-  IF (.not.ASSOCIATED(perf_env)) THEN
-     CALL mp_abort ("unassociated perf_env : message_passing @ mp_perf_env_describe" )   
-  ENDIF
-  IF (perf_env%ref_count<1) THEN
-     CALL mp_abort ("invalid perf_env%ref_count : message_passing @ mp_perf_env_describe" )   
-  ENDIF
+    IF (.NOT.ASSOCIATED(perf_env)) THEN
+       CALL mp_abort ("unassociated perf_env : message_passing @ mp_perf_env_describe" )   
+    ENDIF
+    IF (perf_env%ref_count<1) THEN
+       CALL mp_abort ("invalid perf_env%ref_count : message_passing @ mp_perf_env_describe" )   
+    ENDIF
 #if defined(__parallel)
-  IF ( iw > 0 ) THEN
-    WRITE ( iw, '( /, 1X, 79("-") )' )
-    WRITE ( iw, '( " -", 77X, "-" )' )
-    WRITE ( iw, '( " -", 24X, A, 24X, "-" )' ) ' MESSAGE PASSING PERFORMANCE '
-    WRITE ( iw, '( " -", 77X, "-" )' )
-    WRITE ( iw, '( 1X, 79("-"), / )' )
-    WRITE ( iw, '( A, A, A )' ) ' ROUTINE', '             CALLS ', &
+    IF ( iw > 0 ) THEN
+       WRITE ( iw, '( /, 1X, 79("-") )' )
+       WRITE ( iw, '( " -", 77X, "-" )' )
+       WRITE ( iw, '( " -", 24X, A, 24X, "-" )' ) ' MESSAGE PASSING PERFORMANCE '
+       WRITE ( iw, '( " -", 77X, "-" )' )
+       WRITE ( iw, '( 1X, 79("-"), / )' )
+       WRITE ( iw, '( A, A, A )' ) ' ROUTINE', '             CALLS ', &
             ' TOT TIME [s]  AVE VOLUME [Bytes]  PERFORMANCE [MB/s]'
-    DO i = 1, MAX_PERF
+       DO i = 1, MAX_PERF
 
-      IF ( perf_env%mp_perfs( i ) % count > 0 ) THEN
-        vol = perf_env%mp_perfs( i ) % msg_size / REAL ( perf_env%mp_perfs( i ) % count,KIND=dp)
-        IF ( perf_env%mp_perfs( i ) % time > 0.0_dp ) THEN
-          per = perf_env%mp_perfs( i ) % msg_size / perf_env%mp_perfs (i) % time * 1.e-6_dp
-        ELSE
-          per = 0.0_dp
-        ENDIF
-        IF ( vol < 1.0_dp ) THEN
-          WRITE ( iw, '(1X,A15,T17,I10,T27,F14.3)' ) &
-            ADJUSTL ( perf_env%mp_perfs( i ) % name ), perf_env%mp_perfs( i ) % count, &
-            perf_env%mp_perfs( i ) % time
-        ELSE
-          WRITE ( iw, '(1X,A15,T17,I10,T27,F14.3,T50,F11.0,T69,F12.2)' ) &
-            ADJUSTL ( perf_env%mp_perfs( i ) % name ), perf_env%mp_perfs( i ) % count, &
-            perf_env%mp_perfs( i ) % time, vol, per
-        END IF
-      ENDIF
+          IF ( perf_env%mp_perfs( i ) % count > 0 ) THEN
+             vol = perf_env%mp_perfs( i ) % msg_size / REAL ( perf_env%mp_perfs( i ) % count,KIND=dp)
+             IF ( perf_env%mp_perfs( i ) % time > 0.0_dp ) THEN
+                per = perf_env%mp_perfs( i ) % msg_size / perf_env%mp_perfs (i) % time * 1.e-6_dp
+             ELSE
+                per = 0.0_dp
+             ENDIF
+             IF ( vol < 1.0_dp ) THEN
+                WRITE ( iw, '(1X,A15,T17,I10,T27,F14.3)' ) &
+                     ADJUSTL ( perf_env%mp_perfs( i ) % name ), perf_env%mp_perfs( i ) % count, &
+                     perf_env%mp_perfs( i ) % time
+             ELSE
+                WRITE ( iw, '(1X,A15,T17,I10,T27,F14.3,T50,F11.0,T69,F12.2)' ) &
+                     ADJUSTL ( perf_env%mp_perfs( i ) % name ), perf_env%mp_perfs( i ) % count, &
+                     perf_env%mp_perfs( i ) % time, vol, per
+             END IF
+          ENDIF
 
-    END DO
-    WRITE ( iw, '( 1X, 79("-"), / )' )
-  END IF
+       END DO
+       WRITE ( iw, '( 1X, 79("-"), / )' )
+    END IF
 #endif
-END SUBROUTINE mp_perf_env_describe
+  END SUBROUTINE mp_perf_env_describe
 
 ! *****************************************************************************
-SUBROUTINE rm_mp_perf_env ()
-  IF (stack_pointer<1) THEN
-     CALL mp_abort ( "no perf_env in the stack : message_passing @ rm_mp_perf_env" )   
-  ENDIF
-  CALL mp_perf_env_release(mp_perf_stack(stack_pointer)%mp_perf_env)
-  stack_pointer = stack_pointer - 1
-END SUBROUTINE rm_mp_perf_env
+  SUBROUTINE rm_mp_perf_env ()
+    IF (stack_pointer<1) THEN
+       CALL mp_abort ( "no perf_env in the stack : message_passing @ rm_mp_perf_env" )   
+    ENDIF
+    CALL mp_perf_env_release(mp_perf_stack(stack_pointer)%mp_perf_env)
+    stack_pointer = stack_pointer - 1
+  END SUBROUTINE rm_mp_perf_env
 
 ! *****************************************************************************
-FUNCTION get_mp_perf_env () RESULT(res)
+  FUNCTION get_mp_perf_env () RESULT(res)
     TYPE(mp_perf_env_type), POINTER          :: res
 
-  IF (stack_pointer<1) THEN
-     CALL mp_abort ( "no perf_env in the stack : message_passing @ get_mp_perf_env" )   
-  ENDIF
-  res => mp_perf_stack(stack_pointer)%mp_perf_env
-
-END FUNCTION get_mp_perf_env
+    IF (stack_pointer<1) THEN
+       CALL mp_abort ( "no perf_env in the stack : message_passing @ get_mp_perf_env" )   
+    ENDIF
+    res => mp_perf_stack(stack_pointer)%mp_perf_env
+  END FUNCTION get_mp_perf_env
 
 ! *****************************************************************************
-SUBROUTINE describe_mp_perf_env(scr)
+  SUBROUTINE describe_mp_perf_env(scr)
     INTEGER, INTENT(in)                      :: scr
 
     TYPE(mp_perf_env_type), POINTER          :: perf_env
 
-  perf_env => get_mp_perf_env()
-  CALL mp_perf_env_describe(perf_env, scr)
-END SUBROUTINE describe_mp_perf_env
+    perf_env => get_mp_perf_env()
+    CALL mp_perf_env_describe(perf_env, scr)
+  END SUBROUTINE describe_mp_perf_env
 
 ! *****************************************************************************
 !> \brief adds the performance informations of one call
@@ -463,56 +455,58 @@ END SUBROUTINE describe_mp_perf_env
 !>        see module cp_error_handling 
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE add_perf(perf_id,count,time,msg_size)
-  INTEGER, INTENT(in) :: perf_id
-  INTEGER, INTENT(in), OPTIONAL :: count,msg_size
-  REAL(KIND=dp), INTENT(in), OPTIONAL :: time
-  TYPE(mp_perf_type), POINTER :: mp_perf
+  SUBROUTINE add_perf(perf_id,count,time,msg_size)
+    INTEGER, INTENT(in)                      :: perf_id
+    INTEGER, INTENT(in), OPTIONAL            :: count
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: time
+    INTEGER, INTENT(in), OPTIONAL            :: msg_size
+
+    TYPE(mp_perf_type), POINTER              :: mp_perf
 
 #if defined(__parallel)
-  
-  mp_perf => mp_perf_stack (stack_pointer)%mp_perf_env%mp_perfs( perf_id )
-  IF (PRESENT(count)) THEN
-      mp_perf%count = mp_perf%count + count
-  END IF
-  IF (PRESENT(time)) THEN
-     mp_perf%time = mp_perf%time + time
-  END IF
-  IF (PRESENT(msg_size)) THEN
-     mp_perf%msg_size = mp_perf%msg_size+REAL(msg_size,dp)
-  END IF
+    mp_perf => mp_perf_stack (stack_pointer)%mp_perf_env%mp_perfs( perf_id )
+    IF (PRESENT(count)) THEN
+       mp_perf%count = mp_perf%count + count
+    END IF
+    IF (PRESENT(time)) THEN
+       mp_perf%time = mp_perf%time + time
+    END IF
+    IF (PRESENT(msg_size)) THEN
+       mp_perf%msg_size = mp_perf%msg_size+REAL(msg_size,dp)
+    END IF
 #endif
 
-END SUBROUTINE add_perf
+  END SUBROUTINE add_perf
 
 ! *****************************************************************************
 !> \brief globally stops all tasks, can optionally print a message.
 !>       this is intended to be low level, most of CP2K should rather use cp_error_handling
 ! *****************************************************************************
-SUBROUTINE mp_abort (message)
-  CHARACTER ( LEN=* ), INTENT(IN), OPTIONAL :: message
+  SUBROUTINE mp_abort (message)
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: message
 
-  INTEGER                                   :: numtask, taskid, ierr
-#if defined(__parallel)
-  CALL mp_environ ( numtask, taskid, MPI_COMM_WORLD )
-#else
-  numtask=1
-  taskid=0
-#endif
-  IF (PRESENT(message)) THEN
-      WRITE(default_output_unit,'(A)')         ' CP2K| '//TRIM(message)
-  ENDIF
-  WRITE(default_output_unit,'(A,I0)')   ' CP2K| Abnormal program termination, stopped by process number ',taskid
-  CALL m_flush(default_output_unit)
+    INTEGER                                  :: ierr, numtask, taskid
 
 #if defined(__parallel)
-  CALL mpi_abort ( MPI_COMM_WORLD, 1, ierr )
+    CALL mp_environ ( numtask, taskid, MPI_COMM_WORLD )
 #else
-  CALL m_abort() ! uncomment if you want nice core dumps
+    numtask=1
+    taskid=0
 #endif
-  ! this routine never returns
-  STOP 1
-END SUBROUTINE mp_abort
+    IF (PRESENT(message)) THEN
+       WRITE(default_output_unit,'(A)')         ' CP2K| '//TRIM(message)
+    ENDIF
+    WRITE(default_output_unit,'(A,I0)')   ' CP2K| Abnormal program termination, stopped by process number ',taskid
+    CALL m_flush(default_output_unit)
+
+#if defined(__parallel)
+    CALL mpi_abort ( MPI_COMM_WORLD, 1, ierr )
+#else
+    CALL m_abort() ! uncomment if you want nice core dumps
+#endif
+    ! this routine never returns
+    STOP 1
+  END SUBROUTINE mp_abort
 
 ! *****************************************************************************
 !> \brief stops *after an mpi error* translating the error code
@@ -520,64 +514,58 @@ END SUBROUTINE mp_abort
 !> \note
 !>       this function is private to message_passing.F
 ! *****************************************************************************
-SUBROUTINE mp_stop ( ierr, prg_code )
+  SUBROUTINE mp_stop ( ierr, prg_code )
+    INTEGER, INTENT(IN)                      :: ierr
+    CHARACTER(LEN=*)                         :: prg_code
 
-  IMPLICIT NONE
-
-  INTEGER, INTENT ( IN ) :: ierr
-  CHARACTER ( LEN=* ) :: prg_code
-
+    INTEGER                                  :: istat, len
+    CHARACTER(LEN=512)                       :: full_error
 #if defined(__parallel)
-  CHARACTER ( LEN = MPI_MAX_ERROR_STRING ) :: error_string
+    CHARACTER ( LEN = MPI_MAX_ERROR_STRING ) :: error_string
 #else
-  CHARACTER ( LEN = 512 )                  :: error_string
-#endif
-  CHARACTER ( LEN = 512 )                  :: full_error
-  INTEGER :: istat,len
-
-#if defined(__parallel)
-  CALL mpi_error_string ( ierr, error_string, len, istat )
-  WRITE(full_error,'(A,I0,A)') ' MPI error ',ierr,' in '//TRIM(prg_code)//' : '//error_string(1:len)
-#else
-  WRITE(full_error,'(A,I0,A)') ' MPI error (!?) ',ierr,' in '//TRIM(prg_code)
+    CHARACTER ( LEN = 512 )                  :: error_string
 #endif
 
-  CALL mp_abort(full_error)
+#if defined(__parallel)
+    CALL mpi_error_string ( ierr, error_string, len, istat )
+    WRITE(full_error,'(A,I0,A)') ' MPI error ',ierr,' in '//TRIM(prg_code)//' : '//error_string(1:len)
+#else
+    WRITE(full_error,'(A,I0,A)') ' MPI error (!?) ',ierr,' in '//TRIM(prg_code)
+#endif
 
-END SUBROUTINE mp_stop
+    CALL mp_abort(full_error)
+
+  END SUBROUTINE mp_stop
 
 ! *****************************************************************************
 !> \brief synchronizes with a barrier a given group of mpi tasks
 !> \param group mpi communicator
 ! *****************************************************************************
-SUBROUTINE mp_sync ( group )
+  SUBROUTINE mp_sync ( group )
+    INTEGER, INTENT(IN)                      :: group
 
-  IMPLICIT NONE
-
-! Arguments
-  INTEGER, INTENT ( IN ) :: group
-
-! Locals
-  INTEGER :: ierr
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sync', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_barrier ( group, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_barrier @ mp_sync" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=4,count=1,time=t_end-t_start)
+    t_start = m_walltime ( )
+    CALL mpi_barrier ( group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_barrier @ mp_sync" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=4,count=1,time=t_end-t_start)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_sync
+  END SUBROUTINE mp_sync
 
 ! *****************************************************************************
 !> \brief returns number of tasks and task id for a given mpi group
@@ -586,2445 +574,2532 @@ END SUBROUTINE mp_sync
 !> \note
 !>         ..mp_world_setup is gone, use mp_environ instead (i.e. give a groupid explicitly)
 ! *****************************************************************************
-SUBROUTINE mp_environ_l ( numtask, taskid, groupid )
+  SUBROUTINE mp_environ_l ( numtask, taskid, groupid )
 
     INTEGER, INTENT(OUT)                     :: numtask, taskid
     INTEGER, INTENT(IN)                      :: groupid
 
-    INTEGER                                  :: ierr
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_environ_l', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  numtask = 1
-  taskid = 0
+    INTEGER                                  :: handle, ierr
+
+    ierr    = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    numtask = 1
+    taskid  = 0
 #if defined(__parallel)
-  CALL mpi_comm_rank ( groupid, taskid, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_rank @ mp_environ_l" )
+    CALL mpi_comm_rank ( groupid, taskid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_rank @ mp_environ_l" )
 
-  CALL mpi_comm_size ( groupid, numtask, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_environ_l" )
+    CALL mpi_comm_size ( groupid, numtask, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_environ_l" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_environ_l
+  END SUBROUTINE mp_environ_l
 
 ! *****************************************************************************
-SUBROUTINE mp_environ_c ( numtask, dims, task_coor, groupid )
+  SUBROUTINE mp_environ_c ( numtask, dims, task_coor, groupid )
 
     INTEGER, INTENT(OUT)                     :: numtask, dims( 2 ), &
                                                 task_coor( 2 )
     INTEGER, INTENT(IN)                      :: groupid
 
-    INTEGER                                  :: ierr
-    LOGICAL                                  :: periods( 2 )
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_environ_c', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  numtask = 1
-  task_coor = 0
-  dims = 1
+    INTEGER                                  :: handle, ierr
+    LOGICAL                                  :: periods( 2 )
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    numtask = 1
+    task_coor = 0
+    dims = 1
 #if defined(__parallel)
-  CALL mpi_comm_size ( groupid, numtask, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_environ_c" )
+    CALL mpi_comm_size ( groupid, numtask, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_environ_c" )
 
-  CALL mpi_cart_get ( groupid, 2, dims, periods, task_coor, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_environ_c" )
+    CALL mpi_cart_get ( groupid, 2, dims, periods, task_coor, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_environ_c" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_environ_c
+  END SUBROUTINE mp_environ_c
 
 ! *****************************************************************************
-SUBROUTINE mp_environ_c2 ( comm, ndims, dims, task_coor, periods )
+  SUBROUTINE mp_environ_c2 ( comm, ndims, dims, task_coor, periods )
 
     INTEGER, INTENT(IN)                      :: comm, ndims
     INTEGER, INTENT(OUT)                     :: dims( ndims ), &
                                                 task_coor( ndims )
     LOGICAL, INTENT(out)                     :: periods( ndims )
 
-    INTEGER                                  :: ierr
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_environ_c2', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
-  task_coor = 0
-  dims = 1
-  periods=.FALSE.
+    task_coor = 0
+    dims = 1
+    periods=.FALSE.
 #if defined(__parallel)
-  CALL mpi_cart_get ( comm, ndims, dims, periods, task_coor, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_environ_c" )
+    CALL mpi_cart_get ( comm, ndims, dims, periods, task_coor, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_environ_c" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_environ_c2
+  END SUBROUTINE mp_environ_c2
 
 !..mp_cart_create
 ! *****************************************************************************
-SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
+  SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
 
     INTEGER, INTENT(IN)                      :: comm_old, ndims
     INTEGER, INTENT(INOUT)                   :: dims( : )
     INTEGER, INTENT(OUT)                     :: pos( : ), comm_cart
 
-    INTEGER                                  :: ierr, nodes
-    LOGICAL                                  :: period(1:ndims), reorder
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_create', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  pos ( 1:ndims ) = -1
-  comm_cart = comm_old
+    INTEGER                                  :: handle, ierr, nodes
+    LOGICAL                                  :: period(1:ndims), reorder
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    pos ( 1:ndims ) = -1
+    comm_cart = comm_old
 #if defined(__parallel)
 
-  t_start = m_walltime ( )
-  CALL mpi_comm_size ( comm_old, nodes, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_cart_create" )
+    t_start = m_walltime ( )
+    CALL mpi_comm_size ( comm_old, nodes, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_cart_create" )
 
-  IF (ANY(dims == 0)) CALL mpi_dims_create(nodes,ndims,dims,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_dims_create @ mp_cart_create" )
+    IF (ANY(dims == 0)) CALL mpi_dims_create(nodes,ndims,dims,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_dims_create @ mp_cart_create" )
 
-  ! FIX ME.  Quick hack to avoid problems with realspace grids for compilers
-  ! like IBM that actually reorder the processors when creating the new
-  ! communicator
-  reorder = .FALSE.
-  period = .TRUE.
-  CALL mpi_cart_create ( comm_old, ndims, dims, period, reorder, comm_cart, &
-       ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_create @ mp_cart_create" )
-  
-  IF (comm_cart /= MPI_COMM_NULL) THEN
-     CALL mpi_cart_get ( comm_cart, ndims, dims, period, pos, ierr )
-     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_cart_create" )
-  END IF
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=1,count=1)
-  CALL add_perf(perf_id=2,time=t_end-t_start)
+    ! FIX ME.  Quick hack to avoid problems with realspace grids for compilers
+    ! like IBM that actually reorder the processors when creating the new
+    ! communicator
+    reorder = .FALSE.
+    period = .TRUE.
+    CALL mpi_cart_create ( comm_old, ndims, dims, period, reorder, comm_cart, &
+         ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_create @ mp_cart_create" )
+
+    IF (comm_cart /= MPI_COMM_NULL) THEN
+       CALL mpi_cart_get ( comm_cart, ndims, dims, period, pos, ierr )
+       IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_cart_create" )
+    END IF
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=1,count=1)
+    CALL add_perf(perf_id=2,time=t_end-t_start)
 #else
-  pos ( 1:ndims ) = 0
-  dims = 1
-  comm_cart = 0
+    pos ( 1:ndims ) = 0
+    dims = 1
+    comm_cart = 0
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-  
-END SUBROUTINE mp_cart_create
+
+  END SUBROUTINE mp_cart_create
 
 !..mp_cart_coords 
 ! *****************************************************************************
-SUBROUTINE mp_cart_coords ( comm, rank, coords)
+  SUBROUTINE mp_cart_coords ( comm, rank, coords)
 
     INTEGER, INTENT(IN)                      :: comm, rank
     INTEGER, DIMENSION(:), INTENT(OUT)       :: coords
 
-    INTEGER                                  :: ierr, m
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_coords', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, m
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
-  m = SIZE ( coords )
+    m = SIZE ( coords )
 #if defined(__parallel)
-  CALL mpi_cart_coords ( comm, rank, m, coords, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_cart_coords @ mp_cart_coords" )
+    CALL mpi_cart_coords ( comm, rank, m, coords, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_cart_coords @ mp_cart_coords" )
 #else
-  coords = 0
+    coords = 0
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_cart_coords
+  END SUBROUTINE mp_cart_coords
 
 !..mp_cart_shift
 ! *****************************************************************************
-SUBROUTINE mp_cart_shift ( comm, dir, disp, source, dest )
+  SUBROUTINE mp_cart_shift ( comm, dir, disp, source, dest )
 
     INTEGER, INTENT(IN)                      :: comm, dir, disp
     INTEGER, INTENT(OUT)                     :: source, dest
 
-    INTEGER                                  :: ierr
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_shift', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
 #if defined(__parallel)
-  CALL mpi_cart_shift ( comm, dir, disp, source, dest, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_cart_shift @ mp_cart_shift" )
+    CALL mpi_cart_shift ( comm, dir, disp, source, dest, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_cart_shift @ mp_cart_shift" )
 #else
-  source = 0
-  dest = 0
+    source = 0
+    dest = 0
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_cart_shift
+  END SUBROUTINE mp_cart_shift
 
 !..mp_comm_compare
 ! *****************************************************************************
-SUBROUTINE mp_comm_compare ( comm1, comm2, RESULT)
+  SUBROUTINE mp_comm_compare ( comm1, comm2, RESULT)
 
     INTEGER, INTENT(IN)                      :: comm1, comm2
     INTEGER, INTENT(OUT)                     :: RESULT
 
-    INTEGER                                  :: ierr, iout
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_compare', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, iout
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
-  RESULT = 0
+    RESULT = 0
 #if defined(__parallel)
-  CALL mpi_comm_compare ( comm1, comm2, iout, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_compare @ mp_comm_compare" )
-  SELECT CASE(iout)
-  CASE(MPI_IDENT)
-     RESULT=0
-  CASE(MPI_CONGRUENT)
-     RESULT=1
-  CASE(MPI_SIMILAR)
-     RESULT=2
-  CASE (MPI_UNEQUAL)
-     RESULT=3
-  CASE default
-     RESULT=4
-  END SELECT
+    CALL mpi_comm_compare ( comm1, comm2, iout, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_compare @ mp_comm_compare" )
+    SELECT CASE(iout)
+    CASE(MPI_IDENT)
+       RESULT=0
+    CASE(MPI_CONGRUENT)
+       RESULT=1
+    CASE(MPI_SIMILAR)
+       RESULT=2
+    CASE (MPI_UNEQUAL)
+       RESULT=3
+    CASE default
+       RESULT=4
+    END SELECT
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_comm_compare
+  END SUBROUTINE mp_comm_compare
 
 !..mp_cart_sub
 ! *****************************************************************************
-SUBROUTINE mp_cart_sub ( comm, rdim, sub_comm )
+  SUBROUTINE mp_cart_sub ( comm, rdim, sub_comm )
 
     INTEGER, INTENT(IN)                      :: comm
     LOGICAL, DIMENSION(:), INTENT(IN)        :: rdim
     INTEGER, INTENT(OUT)                     :: sub_comm
 
-    INTEGER                                  :: ierr
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_sub', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
-  sub_comm = 0
+    sub_comm = 0
 #if defined(__parallel)
-  CALL mpi_cart_sub ( comm, rdim, sub_comm, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_cart_sub @ mp_cart_sub" )
+    CALL mpi_cart_sub ( comm, rdim, sub_comm, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_cart_sub @ mp_cart_sub" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_cart_sub
+  END SUBROUTINE mp_cart_sub
 
 !..mp_comm_free
 ! *****************************************************************************
-SUBROUTINE mp_comm_free ( comm )
+  SUBROUTINE mp_comm_free ( comm )
 
     INTEGER, INTENT(IN)                      :: comm
 
-    INTEGER                                  :: ierr
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_free', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
 #if defined(__parallel)
-  CALL mpi_comm_free ( comm, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_free @ mp_comm_free" )
+    CALL mpi_comm_free ( comm, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_free @ mp_comm_free" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_comm_free
+  END SUBROUTINE mp_comm_free
 
 !..mp_comm_dup
 ! *****************************************************************************
-SUBROUTINE mp_comm_dup ( comm1, comm2 )
+  SUBROUTINE mp_comm_dup ( comm1, comm2 )
 
     INTEGER, INTENT(IN)                      :: comm1
     INTEGER, INTENT(OUT)                     :: comm2
 
-    INTEGER                                  :: ierr
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_dup', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
 #if defined(__parallel)
-  CALL mpi_comm_dup ( comm1, comm2, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_dup @ mp_comm_dup" )
+    CALL mpi_comm_dup ( comm1, comm2, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_dup @ mp_comm_dup" )
 #else
-  comm2=comm1
+    comm2=comm1
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_comm_dup
+  END SUBROUTINE mp_comm_dup
 
 !..mp_rank_compare
 ! *****************************************************************************
-SUBROUTINE mp_rank_compare ( comm1, comm2, rank )
+  SUBROUTINE mp_rank_compare ( comm1, comm2, rank )
 
     INTEGER, INTENT(IN)                      :: comm1, comm2
     INTEGER, DIMENSION(:), INTENT(OUT)       :: rank
 
-    INTEGER                                  :: g1, g2, i, ierr, n, n1, n2
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rin
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_rank_compare', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  rank = 0
+    INTEGER                                  :: g1, g2, handle, i, ierr, n, &
+                                                n1, n2
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rin
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    rank = 0
 #if defined(__parallel)
-  CALL mpi_comm_size ( comm1, n1, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_size @ mp_rank_compare" )
-  CALL mpi_comm_size ( comm2, n2, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_size @ mp_rank_compare" )
-  n = MAX ( n1, n2 )
-  CALL mpi_comm_group ( comm1, g1, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_group @ mp_rank_compare" )
-  CALL mpi_comm_group ( comm2, g2, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_group @ mp_rank_compare" )
-  ALLOCATE ( rin ( 0 : n - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_rank_compare" )
-  DO i = 0, n-1
-    rin ( i ) = i
-  END DO
-  CALL mpi_group_translate_ranks ( g1, n, rin, g2, rank, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, &
-      "mpi_group_translate_rank @ mp_rank_compare" )
-  DEALLOCATE ( rin, STAT = ierr )
-  IF ( ierr /= 0 ) CALL mp_abort( "deallocate @ mp_rank_compare" )
+    CALL mpi_comm_size ( comm1, n1, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_size @ mp_rank_compare" )
+    CALL mpi_comm_size ( comm2, n2, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_size @ mp_rank_compare" )
+    n = MAX ( n1, n2 )
+    CALL mpi_comm_group ( comm1, g1, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_group @ mp_rank_compare" )
+    CALL mpi_comm_group ( comm2, g2, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_group @ mp_rank_compare" )
+    ALLOCATE ( rin ( 0 : n - 1 ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_rank_compare" )
+    DO i = 0, n-1
+       rin ( i ) = i
+    END DO
+    CALL mpi_group_translate_ranks ( g1, n, rin, g2, rank, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, &
+         "mpi_group_translate_rank @ mp_rank_compare" )
+    DEALLOCATE ( rin, STAT = ierr )
+    IF ( ierr /= 0 ) CALL mp_abort( "deallocate @ mp_rank_compare" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_rank_compare
+  END SUBROUTINE mp_rank_compare
 
 !..mp_dims_create
 ! *****************************************************************************
-SUBROUTINE mp_dims_create ( nodes, dims )
+  SUBROUTINE mp_dims_create ( nodes, dims )
 
-  IMPLICIT NONE
+    INTEGER, INTENT(IN)                      :: nodes
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: dims
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: nodes
-  INTEGER, DIMENSION ( : ), INTENT ( INOUT ) :: dims
-
-! Locals
-  INTEGER :: ndim, ierr
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_dims_create', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, ndim
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  ndim = SIZE ( dims )
-  IF (ANY(dims == 0)) CALL mpi_dims_create(nodes,ndim,dims,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_dims_create @ mp_dims_create" )
+    ndim = SIZE ( dims )
+    IF (ANY(dims == 0)) CALL mpi_dims_create(nodes,ndim,dims,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_dims_create @ mp_dims_create" )
 #else
-  dims = 1
+    dims = 1
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_dims_create
+  END SUBROUTINE mp_dims_create
 
 ! this routine will shift around the data in msg
 ! i.e. msg will be moved from rank to rank+displ_in (in a circular way)
 ! displ_in will be 1 by default (others not tested)
 ! the message array needs to be the same size on all processes
 ! *****************************************************************************
-SUBROUTINE mp_shift_im( msg, group, displ_in)
+  SUBROUTINE mp_shift_im( msg, group, displ_in)
 
-  IMPLICIT NONE
-  INTEGER, INTENT ( IN )               :: group
-  INTEGER, INTENT(INOUT)               :: msg ( :, : )
-  INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
-!
-  INTEGER, DIMENSION(:), ALLOCATABLE ::  status
-  INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag,elen
-  CHARACTER (LEN=80) :: estring
-    INTEGER :: handle
+    INTEGER, INTENT(INOUT)                   :: msg( :, : )
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, INTENT(IN), OPTIONAL            :: displ_in
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_shift_im', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: displ, handle, ierror, left, &
+                                                msglen, myrank, nprocs, &
+                                                right, tag
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+
+    ierror = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  ALLOCATE(status(MPI_STATUS_SIZE))
-  CALL mpi_comm_rank(group,myrank,ierror)
-  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ mp_shift" )
-  CALL mpi_comm_size(group,nprocs,ierror)
-  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_size @ mp_shift" )
-  IF (PRESENT(displ_in)) THEN
-     displ=displ_in
-  ELSE
-     displ=1
-  ENDIF
-  right=MODULO(myrank+displ,nprocs)
-  left =MODULO(myrank-displ,nprocs)
-  tag=17
-  msglen = SIZE(msg)
-  t_start = m_walltime ( )
-  CALL mpi_sendrecv_replace(msg,msglen,MPI_INTEGER,right,tag,left,tag, &
-     group,status(1),ierror)
-  t_end = m_walltime ( )
-  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_im" )
-  CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*intlen)
-  DEALLOCATE(status)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    CALL mpi_comm_rank(group,myrank,ierror)
+    IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ mp_shift" )
+    CALL mpi_comm_size(group,nprocs,ierror)
+    IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_size @ mp_shift" )
+    IF (PRESENT(displ_in)) THEN
+       displ=displ_in
+    ELSE
+       displ=1
+    ENDIF
+    right=MODULO(myrank+displ,nprocs)
+    left =MODULO(myrank-displ,nprocs)
+    tag=17
+    msglen = SIZE(msg)
+    t_start = m_walltime ( )
+    CALL mpi_sendrecv_replace(msg,msglen,MPI_INTEGER,right,tag,left,tag, &
+         group,status(1),ierror)
+    t_end = m_walltime ( )
+    IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_im" )
+    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    DEALLOCATE(status)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_shift_im
+  END SUBROUTINE mp_shift_im
 
 ! *****************************************************************************
-SUBROUTINE mp_shift_rm( msg, group, displ_in)
+  SUBROUTINE mp_shift_rm( msg, group, displ_in)
 
-  IMPLICIT NONE
-  INTEGER, INTENT ( IN )               :: group
-  REAL (KIND=dp) , INTENT(INOUT)         :: msg ( :, : )
-  INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
-! 
-  INTEGER, DIMENSION(:), ALLOCATABLE ::  status
-  INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag,elen
-  CHARACTER (LEN=80) :: estring
-    INTEGER :: handle
+    REAL(KIND=dp), INTENT(INOUT)             :: msg( :, : )
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, INTENT(IN), OPTIONAL            :: displ_in
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_shift_rm', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: displ, handle, ierror, left, &
+                                                msglen, myrank, nprocs, &
+                                                right, tag
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+
+    ierror = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  ALLOCATE(status(MPI_STATUS_SIZE))
-  CALL mpi_comm_rank(group,myrank,ierror)
-  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ mp_shift" )
-  CALL mpi_comm_size(group,nprocs,ierror)
-  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_size @ mp_shift" )
-  IF (PRESENT(displ_in)) THEN
-     displ=displ_in 
-  ELSE
-     displ=1
-  ENDIF
-  right=MODULO(myrank+displ,nprocs) 
-  left =MODULO(myrank-displ,nprocs) 
-  tag=18
-  msglen = SIZE(msg)
-  t_start = m_walltime ( )
-  CALL mpi_sendrecv_replace(msg,msglen,MP_STD_REAL,right,tag,left,&
-                            tag,group,status(1),ierror)
-  t_end = m_walltime ( )
-  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_rm" )
-  CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*reallen)
-  DEALLOCATE(status)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    CALL mpi_comm_rank(group,myrank,ierror)
+    IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ mp_shift" )
+    CALL mpi_comm_size(group,nprocs,ierror)
+    IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_size @ mp_shift" )
+    IF (PRESENT(displ_in)) THEN
+       displ=displ_in 
+    ELSE
+       displ=1
+    ENDIF
+    right=MODULO(myrank+displ,nprocs) 
+    left =MODULO(myrank-displ,nprocs) 
+    tag=18
+    msglen = SIZE(msg)
+    t_start = m_walltime ( )
+    CALL mpi_sendrecv_replace(msg,msglen,MP_STD_REAL,right,tag,left,&
+         tag,group,status(1),ierror)
+    t_end = m_walltime ( )
+    IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_rm" )
+    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    DEALLOCATE(status)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_shift_rm
+  END SUBROUTINE mp_shift_rm
 
 ! *****************************************************************************
-SUBROUTINE mp_shift_r1( msg, group, displ_in)
+  SUBROUTINE mp_shift_r1( msg, group, displ_in)
 
-  IMPLICIT NONE
-  INTEGER, INTENT ( IN )               :: group
-  REAL (KIND=dp) , INTENT(INOUT)         :: msg ( : )
-  INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
-!
-  INTEGER, DIMENSION(:), ALLOCATABLE ::  status
-  INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag,elen
-  CHARACTER (LEN=80) :: estring
-    INTEGER :: handle
+    REAL(KIND=dp), INTENT(INOUT)             :: msg( : )
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, INTENT(IN), OPTIONAL            :: displ_in
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_shift_r1', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: displ, handle, ierror, left, &
+                                                msglen, myrank, nprocs, &
+                                                right, tag
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+
+    ierror = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  ALLOCATE(status(MPI_STATUS_SIZE))
-  CALL mpi_comm_rank(group,myrank,ierror)
-  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ mp_shift" )
-  CALL mpi_comm_size(group,nprocs,ierror)
-  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_size @ mp_shift" )
-  IF (PRESENT(displ_in)) THEN
-     displ=displ_in
-  ELSE
-     displ=1
-  ENDIF
-  right=MODULO(myrank+displ,nprocs)
-  left =MODULO(myrank-displ,nprocs)
-  tag=19
-  msglen = SIZE(msg)
-  t_start = m_walltime ( )
-  CALL mpi_sendrecv_replace(msg,msglen,MP_STD_REAL,right,tag,left,&
-                            tag,group,status(1),ierror)
-  t_end = m_walltime ( )
-  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_r1" )
-  CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*reallen)
-  DEALLOCATE(status)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    CALL mpi_comm_rank(group,myrank,ierror)
+    IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ mp_shift" )
+    CALL mpi_comm_size(group,nprocs,ierror)
+    IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_size @ mp_shift" )
+    IF (PRESENT(displ_in)) THEN
+       displ=displ_in
+    ELSE
+       displ=1
+    ENDIF
+    right=MODULO(myrank+displ,nprocs)
+    left =MODULO(myrank-displ,nprocs)
+    tag=19
+    msglen = SIZE(msg)
+    t_start = m_walltime ( )
+    CALL mpi_sendrecv_replace(msg,msglen,MP_STD_REAL,right,tag,left,&
+         tag,group,status(1),ierror)
+    t_end = m_walltime ( )
+    IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_r1" )
+    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    DEALLOCATE(status)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_shift_r1
+  END SUBROUTINE mp_shift_r1
 
 !..mp_cart_rank
 ! *****************************************************************************
-SUBROUTINE mp_cart_rank ( group, pos, rank )
+  SUBROUTINE mp_cart_rank ( group, pos, rank )
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, DIMENSION(:), INTENT(IN)        :: pos
+    INTEGER, INTENT(OUT)                     :: rank
 
-  IMPLICIT NONE
-
-! Arguments
-  INTEGER, INTENT ( IN ) :: group
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: pos
-  INTEGER, INTENT ( OUT ) :: rank
-
-! Locals
-  INTEGER :: ierr
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_rank', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  CALL mpi_cart_rank ( group, pos, rank, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_rank @ mp_cart_rank" )
+    CALL mpi_cart_rank ( group, pos, rank, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_rank @ mp_cart_rank" )
 #else
-  rank = 0
+    rank = 0
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_cart_rank
+  END SUBROUTINE mp_cart_rank
 !..mp_alltoall
 
 ! *****************************************************************************
-SUBROUTINE mp_alltoall_i11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
+  SUBROUTINE mp_alltoall_i11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: sb, scount, sdispl
-    INTEGER, DIMENSION(:), INTENT(INOUT)       :: rb
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_i11v', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
+    ierr = 0
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_alltoallv ( sb, scount, sdispl, MPI_INTEGER, &
-                       rb, rcount, rdispl, MPI_INTEGER, group, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_i11v" )
-  t_end = m_walltime ( )
-  msglen = SUM ( scount ) + SUM ( rcount )
-  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    CALL mpi_alltoallv ( sb, scount, sdispl, MPI_INTEGER, &
+         rb, rcount, rdispl, MPI_INTEGER, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_i11v" )
+    t_end = m_walltime ( )
+    msglen = SUM ( scount ) + SUM ( rcount )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #else
-  rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
+    rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_alltoall_i11v
+  END SUBROUTINE mp_alltoall_i11v
 
 ! *****************************************************************************
-SUBROUTINE mp_alltoall_i8v ( sb, scount, sdispl, rb, rcount, rdispl, group )
+  SUBROUTINE mp_alltoall_i8v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
-    INTEGER(kind=int_8), DIMENSION(:), INTENT(IN)        :: sb 
+    INTEGER(kind=int_8), DIMENSION(:), &
+      INTENT(IN)                             :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
-    INTEGER(kind=int_8), DIMENSION(:), INTENT(INOUT)       :: rb
+    INTEGER(kind=int_8), DIMENSION(:), &
+      INTENT(INOUT)                          :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
-    INTEGER(kind=int_8)                      :: int_8_size, dummy
 
-    INTEGER                                  :: ierr, msglen, int_8_size_4
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_i8v', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, int_8_size_4, &
+                                                msglen
+    INTEGER(kind=int_8)                      :: dummy, int_8_size
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
     dummy = 10
     int_8_size = BIT_SIZE (dummy) / 8
     int_8_size_4 = int_8_size
 
-  ierr = 0
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_alltoallv ( sb, scount, sdispl, MPI_INTEGER8, &
-                       rb, rcount, rdispl, MPI_INTEGER8, group, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_i8v" )
-  t_end = m_walltime ( )
-  msglen = SUM ( scount ) + SUM ( rcount )
-  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*int_8_size_4)
+    t_start = m_walltime ( )
+    CALL mpi_alltoallv ( sb, scount, sdispl, MPI_INTEGER8, &
+         rb, rcount, rdispl, MPI_INTEGER8, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_i8v" )
+    t_end = m_walltime ( )
+    msglen = SUM ( scount ) + SUM ( rcount )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*int_8_size_4)
 #else
-  rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
+    rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_alltoall_i8v
+  END SUBROUTINE mp_alltoall_i8v
 
 ! *****************************************************************************
-SUBROUTINE mp_alltoall_z11v ( sb, scount, sdispl, rb, rcount, rdispl,len_string, group )
+  SUBROUTINE mp_alltoall_z11v ( sb, scount, sdispl, rb, rcount, rdispl,len_string, group )
 
-    INTEGER,INTENT(IN)                       :: len_string
-    CHARACTER(LEN=len_string),DIMENSION(:), INTENT(IN)    :: sb
-    INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
-    CHARACTER(LEN=len_string), DIMENSION(:), INTENT(INOUT)  :: rb
-    INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
+    INTEGER, INTENT(IN)                      :: len_string
+    INTEGER, DIMENSION(:), INTENT(IN)        :: rdispl, rcount
+    CHARACTER(LEN=len_string), &
+      DIMENSION(:), INTENT(INOUT)            :: rb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: sdispl, scount
+    CHARACTER(LEN=len_string), &
+      DIMENSION(:), INTENT(IN)               :: sb
     INTEGER, INTENT(IN)                      :: group
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
-    INTEGER,DIMENSION(SIZE(scount))          :: len_s,len_r
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_z11v', &
       routineP = moduleN//':'//routineN
+
+    INTEGER, DIMENSION(SIZE(scount))         :: len_r, len_s
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  len_s(:)=scount(:)*len_string
-  len_r(:)=rcount(:)*len_string  
-  CALL mpi_alltoallv ( sb, len_s, sdispl*len_string, MPI_CHARACTER, &
-                       rb, len_r, rdispl*len_string, MPI_CHARACTER, group, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_z11v" )
-  msglen = SUM ( scount ) + SUM ( rcount )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    len_s(:)=scount(:)*len_string
+    len_r(:)=rcount(:)*len_string  
+    CALL mpi_alltoallv ( sb, len_s, sdispl*len_string, MPI_CHARACTER, &
+         rb, len_r, rdispl*len_string, MPI_CHARACTER, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_z11v" )
+    msglen = SUM ( scount ) + SUM ( rcount )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
-  rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
+    rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
   END SUBROUTINE mp_alltoall_z11v
 
 ! *****************************************************************************
-SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
+  SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
-    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT) :: rb
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_r11v', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_alltoallv ( sb, scount, sdispl, MP_STD_REAL, &
-                       rb, rcount, rdispl, MP_STD_REAL, group, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_r11v" )
-  msglen = SUM ( scount ) + SUM ( rcount )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_alltoallv ( sb, scount, sdispl, MP_STD_REAL, &
+         rb, rcount, rdispl, MP_STD_REAL, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_r11v" )
+    msglen = SUM ( scount ) + SUM ( rcount )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
-  rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
+    rb(rdispl(1)+1:rdispl(1)+rcount(1))=sb(sdispl(1)+1:sdispl(1)+scount(1))
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_alltoall_r11v
+  END SUBROUTINE mp_alltoall_r11v
 
 !..mp_alltoall
 ! *****************************************************************************
-SUBROUTINE mp_alltoall_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
+  SUBROUTINE mp_alltoall_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
     COMPLEX(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                            :: rb
+      INTENT(INOUT)                          :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_c22v', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_alltoallv ( sb, scount, sdispl, MP_STD_COMPLEX, &
-                       rb, rcount, rdispl, MP_STD_COMPLEX, group, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_c22v" )
-  msglen = SUM ( scount ) + SUM ( rcount )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_alltoallv ( sb, scount, sdispl, MP_STD_COMPLEX, &
+         rb, rcount, rdispl, MP_STD_COMPLEX, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_c22v" )
+    msglen = SUM ( scount ) + SUM ( rcount )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
 #else
-  rb=sb
+    rb=sb
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_alltoall_c22v
+  END SUBROUTINE mp_alltoall_c22v
 
 #if defined(__SGL)
 ! *****************************************************************************
-SUBROUTINE mp_alltoall_c22v_sgl ( dummy )
+  SUBROUTINE mp_alltoall_c22v_sgl ( dummy )
     LOGICAL, INTENT(IN)                      :: dummy
 
-    INTEGER                                  :: ierr
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_c22v_sgl', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  CALL mp_abort("illegal call !? to mp_alltoall_c22v_sgl" )
+    INTEGER                                  :: handle, ierr
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timeset_mp(routineN,handle)
 #endif
-END SUBROUTINE mp_alltoall_c22v_sgl
+    CALL mp_abort("illegal call !? to mp_alltoall_c22v_sgl" )
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_alltoall_c22v_sgl
 #else
 ! *****************************************************************************
-SUBROUTINE mp_alltoall_c22v_sgl ( sb, scount, sdispl, rb, rcount, rdispl, group )
+  SUBROUTINE mp_alltoall_c22v_sgl ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       INTENT(IN)                             :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
     COMPLEX(KIND=sp), DIMENSION(:, :), &
-      INTENT(INOUT)                            :: rb
+      INTENT(INOUT)                          :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_c22v_sgl', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_alltoallv ( sb, scount, sdispl, MPI_COMPLEX, &
-                       rb, rcount, rdispl, MPI_COMPLEX, group, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_c22v" )
-  msglen = SUM ( scount ) + SUM ( rcount )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_alltoallv ( sb, scount, sdispl, MPI_COMPLEX, &
+         rb, rcount, rdispl, MPI_COMPLEX, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_c22v" )
+    msglen = SUM ( scount ) + SUM ( rcount )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
-  rb=sb
+    rb=sb
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_alltoall_c22v_sgl
+  END SUBROUTINE mp_alltoall_c22v_sgl
 #endif
 
 ! *****************************************************************************
-SUBROUTINE mp_alltoall_i ( sb, rb, count, group )
+  SUBROUTINE mp_alltoall_i ( sb, rb, count, group )
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: sb
     INTEGER, DIMENSION(:), INTENT(OUT)       :: rb
     INTEGER, INTENT(IN)                      :: count, group
 
-    INTEGER                                  :: ierr, msglen, np
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_i', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen, np
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_alltoall ( sb, count, MPI_INTEGER, &
-                      rb, count, MPI_INTEGER, group, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_i" )
-  CALL mpi_comm_size ( group, np, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_i" )
-  msglen = 2 * count * np
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    CALL mpi_alltoall ( sb, count, MPI_INTEGER, &
+         rb, count, MPI_INTEGER, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_i" )
+    CALL mpi_comm_size ( group, np, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_i" )
+    msglen = 2 * count * np
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #else
-!  rb=sb
+    !  rb=sb
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_alltoall_i
+  END SUBROUTINE mp_alltoall_i
 
 ! *****************************************************************************
-SUBROUTINE mp_alltoall_r45 ( sb, rb, count, group )
+  SUBROUTINE mp_alltoall_r45 ( sb, rb, count, group )
 
-    REAL(kind=dp), DIMENSION(:,:,:,:), INTENT(IN)  :: sb
-    REAL(kind=dp), DIMENSION(:,:,:,:,:), INTENT(OUT) :: rb
+    REAL(kind=dp), DIMENSION(:, :, :, :), &
+      INTENT(IN)                             :: sb
+    REAL(kind=dp), &
+      DIMENSION(:, :, :, :, :), INTENT(OUT)  :: rb
     INTEGER, INTENT(IN)                      :: count, group
 
-    INTEGER                                  :: ierr, msglen, np
-    INTEGER :: handle
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_r', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_r45', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen, np
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_alltoall ( sb, count, MP_STD_REAL, &
-                      rb, count, MP_STD_REAL, group, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_r" )
-  CALL mpi_comm_size ( group, np, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_r" )
-  msglen = 2 * count * np
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
-#else
-!  rb=sb
+    t_start = m_walltime ( )
+    CALL mpi_alltoall ( sb, count, MP_STD_REAL, &
+         rb, count, MP_STD_REAL, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_r" )
+    CALL mpi_comm_size ( group, np, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_r" )
+    msglen = 2 * count * np
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
   END SUBROUTINE mp_alltoall_r45
 
 ! *****************************************************************************
-SUBROUTINE mp_alltoall_r34 ( sb, rb, count, group )
+  SUBROUTINE mp_alltoall_r34 ( sb, rb, count, group )
 
-    REAL(kind=dp), DIMENSION(:,:,:), INTENT(IN)  :: sb
-    REAL(kind=dp), DIMENSION(:,:,:,:), INTENT(OUT) :: rb
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: sb
+    REAL(kind=dp), DIMENSION(:, :, :, :), &
+      INTENT(OUT)                            :: rb
     INTEGER, INTENT(IN)                      :: count, group
 
-    INTEGER                                  :: ierr, msglen, np
-    INTEGER :: handle
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_r', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_r34', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen, np
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_alltoall ( sb, count, MP_STD_REAL, &
-                      rb, count, MP_STD_REAL, group, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_r" )
-  CALL mpi_comm_size ( group, np, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_r" )
-  msglen = 2 * count * np
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
-#else
-!  rb=sb
+    t_start = m_walltime ( )
+    CALL mpi_alltoall ( sb, count, MP_STD_REAL, &
+         rb, count, MP_STD_REAL, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_r" )
+    CALL mpi_comm_size ( group, np, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_r" )
+    msglen = 2 * count * np
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
   END SUBROUTINE mp_alltoall_r34
 
 ! *****************************************************************************
-SUBROUTINE mp_alltoall_r54 ( sb, rb, count, group )
+  SUBROUTINE mp_alltoall_r54 ( sb, rb, count, group )
 
-    REAL(kind=dp), DIMENSION(:,:,:,:,:), INTENT(IN)  :: sb
-    REAL(kind=dp), DIMENSION(:,:,:,:), INTENT(OUT) :: rb
+    REAL(kind=dp), &
+      DIMENSION(:, :, :, :, :), INTENT(IN)   :: sb
+    REAL(kind=dp), DIMENSION(:, :, :, :), &
+      INTENT(OUT)                            :: rb
     INTEGER, INTENT(IN)                      :: count, group
 
-    INTEGER                                  :: ierr, msglen, np
-    INTEGER :: handle
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_r', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_r54', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen, np
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_alltoall ( sb, count, MP_STD_REAL, &
-                      rb, count, MP_STD_REAL, group, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_r" )
-  CALL mpi_comm_size ( group, np, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_r" )
-  msglen = 2 * count * np
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
-#else
-!  rb=sb
+    t_start = m_walltime ( )
+    CALL mpi_alltoall ( sb, count, MP_STD_REAL, &
+         rb, count, MP_STD_REAL, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ mp_alltoall_r" )
+    CALL mpi_comm_size ( group, np, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_alltoall_r" )
+    msglen = 2 * count * np
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
   END SUBROUTINE mp_alltoall_r54
 
 ! ..mp_send
 ! *****************************************************************************
-SUBROUTINE mp_send_iv(msg,dest,tag,gid)
-    INTEGER                                  :: msg( : ), dest, gid,tag
+  SUBROUTINE mp_send_iv(msg,dest,tag,gid)
+    INTEGER                                  :: msg( : ), dest, tag, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_send_iv', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = SIZE(msg)
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = SIZE(msg)
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_send(msg,msglen,MPI_INTEGER,dest,tag,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_send @ mp_send_iv" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=13,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    CALL mpi_send(msg,msglen,MPI_INTEGER,dest,tag,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_send @ mp_send_iv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=13,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_send_iv
+  END SUBROUTINE mp_send_iv
 
 ! *****************************************************************************
-SUBROUTINE mp_send_rv(msg,dest,tag,gid)
-    INTEGER                                  :: dest, gid,tag
+  SUBROUTINE mp_send_rv(msg,dest,tag,gid)
     REAL(KIND=dp)                            :: msg( : )
+    INTEGER                                  :: dest, tag, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_send_rv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
-  msglen = SIZE(msg)
+    msglen = SIZE(msg)
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_send(msg,msglen,MP_STD_REAL,dest,tag,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_send @ mp_send_rv" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=13,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_send(msg,msglen,MP_STD_REAL,dest,tag,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_send @ mp_send_rv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=13,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_send_rv
+  END SUBROUTINE mp_send_rv
 
 ! *****************************************************************************
-SUBROUTINE mp_send_i(msg,dest,tag,gid)
-    INTEGER                                  :: msg, dest, gid,tag
+  SUBROUTINE mp_send_i(msg,dest,tag,gid)
+    INTEGER                                  :: msg, dest, tag, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_send_iv', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_send_i', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = 1
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = 1
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_send(msg,msglen,MPI_INTEGER,dest,tag,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_send @ mp_send_iv" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=13,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    CALL mpi_send(msg,msglen,MPI_INTEGER,dest,tag,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_send @ mp_send_iv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=13,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_send_i
+  END SUBROUTINE mp_send_i
 
 ! ..mp_recv
 ! *****************************************************************************
-SUBROUTINE mp_recv_iv(msg,source,tag,gid)
+  SUBROUTINE mp_recv_iv(msg,source,tag,gid)
     INTEGER, INTENT(INOUT)                   :: msg( : ), source, tag
     INTEGER, INTENT(IN)                      :: gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
-    INTEGER, DIMENSION(:), ALLOCATABLE ::  status
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_recv_iv', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = SIZE(msg)
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = SIZE(msg)
 #if defined(__parallel)
-  ALLOCATE(status(MPI_STATUS_SIZE))
-  t_start = m_walltime ( )
-  CALL mpi_recv(msg,msglen,MPI_INTEGER,source,tag,gid,status,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_recv @ mp_recv_iv" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=14,count=1,time=t_end-t_start,msg_size=msglen*intlen)
-  source = status(MPI_SOURCE)
-  tag = status(MPI_TAG)
-  DEALLOCATE(status)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    t_start = m_walltime ( )
+    CALL mpi_recv(msg,msglen,MPI_INTEGER,source,tag,gid,status,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_recv @ mp_recv_iv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=14,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    source = status(MPI_SOURCE)
+    tag = status(MPI_TAG)
+    DEALLOCATE(status)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_recv_iv
+  END SUBROUTINE mp_recv_iv
 
 ! *****************************************************************************
-SUBROUTINE mp_recv_rv(msg,source,tag,gid)
-    INTEGER, INTENT(INOUT)                   :: source, tag
+  SUBROUTINE mp_recv_rv(msg,source,tag,gid)
     REAL(KIND=dp), INTENT(INOUT)             :: msg( : )
+    INTEGER, INTENT(INOUT)                   :: source, tag
     INTEGER, INTENT(IN)                      :: gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
-    INTEGER, DIMENSION(:), ALLOCATABLE ::  status
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_recv_rv', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = SIZE(msg)
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = SIZE(msg)
 #if defined(__parallel)
-  ALLOCATE(status(MPI_STATUS_SIZE))
-  t_start = m_walltime ( )
-  CALL mpi_recv(msg,msglen,MP_STD_REAL,source,tag,gid,status,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_recv @ mp_recv_rv" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=14,count=1,time=t_end-t_start,msg_size=msglen*intlen)
-  source = status(MPI_SOURCE)
-  tag = status(MPI_TAG)
-  DEALLOCATE(status)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    t_start = m_walltime ( )
+    CALL mpi_recv(msg,msglen,MP_STD_REAL,source,tag,gid,status,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_recv @ mp_recv_rv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=14,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    source = status(MPI_SOURCE)
+    tag = status(MPI_TAG)
+    DEALLOCATE(status)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_recv_rv
+  END SUBROUTINE mp_recv_rv
 
 ! *****************************************************************************
-SUBROUTINE mp_recv_i(msg,source,tag,gid)
+  SUBROUTINE mp_recv_i(msg,source,tag,gid)
     INTEGER, INTENT(INOUT)                   :: msg, source, tag
     INTEGER, INTENT(IN)                      :: gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
-    INTEGER, DIMENSION(:), ALLOCATABLE ::  status
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_recv_iv', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_recv_i', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = 1
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = 1
 #if defined(__parallel)
-  ALLOCATE(status(MPI_STATUS_SIZE))
-  t_start = m_walltime ( )
-  CALL mpi_recv(msg,msglen,MPI_INTEGER,source,tag,gid,status,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_recv @ mp_recv_iv" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=14,count=1,time=t_end-t_start,msg_size=msglen*intlen)
-  source = status(MPI_SOURCE)
-  tag = status(MPI_TAG)
-  DEALLOCATE(status)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    t_start = m_walltime ( )
+    CALL mpi_recv(msg,msglen,MPI_INTEGER,source,tag,gid,status,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_recv @ mp_recv_iv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=14,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    source = status(MPI_SOURCE)
+    tag = status(MPI_TAG)
+    DEALLOCATE(status)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_recv_i
+  END SUBROUTINE mp_recv_i
 
 !..mp_bcast
 ! *****************************************************************************
-SUBROUTINE mp_bcast_i1(msg,source,gid)
+  SUBROUTINE mp_bcast_i1(msg,source,gid)
     INTEGER                                  :: msg, source, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_i1', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = 1
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = 1
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MPI_INTEGER,source,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_i1" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MPI_INTEGER,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_i1" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_bcast_i1
+  END SUBROUTINE mp_bcast_i1
 ! *****************************************************************************
-SUBROUTINE mp_bcast_iv(msg,source,gid)
+  SUBROUTINE mp_bcast_iv(msg,source,gid)
     INTEGER                                  :: msg( : ), source, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_iv', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = SIZE(msg)
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = SIZE(msg)
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MPI_INTEGER,source,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_iv" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MPI_INTEGER,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_iv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_bcast_iv
+  END SUBROUTINE mp_bcast_iv
 ! *****************************************************************************
-SUBROUTINE mp_bcast_im(msg,source,gid)
+  SUBROUTINE mp_bcast_im(msg,source,gid)
     INTEGER                                  :: msg( :, : ), source, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_im', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = SIZE(msg)
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = SIZE(msg)
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MPI_INTEGER,source,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_im" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MPI_INTEGER,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_im" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_bcast_im
+  END SUBROUTINE mp_bcast_im
 ! *****************************************************************************
-SUBROUTINE mp_bcast_r1(msg,source,gid)
+  SUBROUTINE mp_bcast_r1(msg,source,gid)
     REAL(KIND=dp)                            :: msg
     INTEGER                                  :: source, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_r1', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = 1
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = 1
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MP_STD_REAL,source,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_r1" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MP_STD_REAL,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_r1" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_bcast_r1
+  END SUBROUTINE mp_bcast_r1
 ! *****************************************************************************
-SUBROUTINE mp_bcast_rv(msg,source,gid)
+  SUBROUTINE mp_bcast_rv(msg,source,gid)
     REAL(KIND=dp)                            :: msg( : )
     INTEGER                                  :: source, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_rv', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = SIZE(msg)
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = SIZE(msg)
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MP_STD_REAL,source,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_rv" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MP_STD_REAL,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_rv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_bcast_rv
+  END SUBROUTINE mp_bcast_rv
 ! *****************************************************************************
-SUBROUTINE mp_bcast_rm(msg,source,gid)
+  SUBROUTINE mp_bcast_rm(msg,source,gid)
     REAL(KIND=dp)                            :: msg( :, : )
     INTEGER                                  :: source, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_rm', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = SIZE(msg)
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = SIZE(msg)
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MP_STD_REAL,source,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_rm" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MP_STD_REAL,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_rm" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_bcast_rm
+  END SUBROUTINE mp_bcast_rm
 ! *****************************************************************************
-SUBROUTINE mp_bcast_rm3(msg,source,gid)
+  SUBROUTINE mp_bcast_rm3(msg,source,gid)
     REAL(KIND=dp)                            :: msg( :, :, : )
     INTEGER                                  :: source, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_rm3', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = SIZE(msg)
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = SIZE(msg)
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MP_STD_REAL,source,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_rm" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MP_STD_REAL,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_rm" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_bcast_rm3
+  END SUBROUTINE mp_bcast_rm3
 ! *****************************************************************************
-SUBROUTINE mp_bcast_c1(msg,source,gid)
+  SUBROUTINE mp_bcast_c1(msg,source,gid)
     COMPLEX(KIND=dp)                         :: msg
     INTEGER                                  :: source, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_c1', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = 1
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = 1
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MP_STD_COMPLEX,source,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_c1" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MP_STD_COMPLEX,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_c1" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_bcast_c1
+  END SUBROUTINE mp_bcast_c1
 ! *****************************************************************************
-SUBROUTINE mp_bcast_cv(msg,source,gid)
+  SUBROUTINE mp_bcast_cv(msg,source,gid)
     COMPLEX(KIND=dp)                         :: msg( : )
     INTEGER                                  :: source, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_cv', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = SIZE(msg)
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = SIZE(msg)
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MP_STD_COMPLEX,source,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_cv" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MP_STD_COMPLEX,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_cv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_bcast_cv
+  END SUBROUTINE mp_bcast_cv
 ! *****************************************************************************
-SUBROUTINE mp_bcast_cm(msg,source,gid)
+  SUBROUTINE mp_bcast_cm(msg,source,gid)
     COMPLEX(KIND=dp)                         :: msg( :, : )
     INTEGER                                  :: source, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_cm', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = SIZE(msg)
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = SIZE(msg)
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MP_STD_COMPLEX,source,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_cm")
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MP_STD_COMPLEX,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_cm")
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_bcast_cm
+  END SUBROUTINE mp_bcast_cm
 ! *****************************************************************************
-SUBROUTINE mp_bcast_l(msg,source,gid)
+  SUBROUTINE mp_bcast_l(msg,source,gid)
     LOGICAL                                  :: msg
     INTEGER                                  :: source, gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_l', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = 1
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = 1
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MPI_LOGICAL,source,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_l" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*loglen)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MPI_LOGICAL,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_l" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*loglen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_bcast_l
+  END SUBROUTINE mp_bcast_l
 ! *****************************************************************************
-SUBROUTINE mp_bcast_z1(msg,source,gid)
+  SUBROUTINE mp_bcast_z1(msg,source,gid)
     CHARACTER(LEN=*)                         :: msg
     INTEGER                                  :: source, gid
 
-    INTEGER                                  :: i, ierr, msglen
-    INTEGER, ALLOCATABLE                     :: imsg( : )
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_z1', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msglen = LEN(msg)
+    INTEGER                                  :: handle, i, ierr, msglen
+    INTEGER, ALLOCATABLE                     :: imsg( : )
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = LEN(msg)
 #if defined(__parallel)
-  t_start = m_walltime ( )
-! this is a workaround to avoid problems on the T3E
-! at the moment we have a data alignment error when trying to
-! broadcats characters on the T3E (not always!)
-! JH 19/3/99 on galileo
-! CALL mpi_bcast(msg,msglen,MPI_CHARACTER,source,gid,ierr)
-  ALLOCATE (imsg(1:msglen))
-  DO i = 1, msglen
-     imsg(i) = ICHAR(msg(i:i))
-  END DO
-  CALL mpi_bcast(imsg,msglen,MPI_INTEGER,source,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_z" )
-  DO i = 1, msglen
-     msg(i:i) = CHAR(imsg(i))
-  END DO
-  DEALLOCATE (imsg)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen)
+    t_start = m_walltime ( )
+    ! this is a workaround to avoid problems on the T3E
+    ! at the moment we have a data alignment error when trying to
+    ! broadcats characters on the T3E (not always!)
+    ! JH 19/3/99 on galileo
+    ! CALL mpi_bcast(msg,msglen,MPI_CHARACTER,source,gid,ierr)
+    ALLOCATE (imsg(1:msglen))
+    DO i = 1, msglen
+       imsg(i) = ICHAR(msg(i:i))
+    END DO
+    CALL mpi_bcast(imsg,msglen,MPI_INTEGER,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_z" )
+    DO i = 1, msglen
+       msg(i:i) = CHAR(imsg(i))
+    END DO
+    DEALLOCATE (imsg)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
- END SUBROUTINE mp_bcast_z1
+  END SUBROUTINE mp_bcast_z1
 ! *****************************************************************************
-SUBROUTINE mp_bcast_zv(msg,source,gid)
+  SUBROUTINE mp_bcast_zv(msg,source,gid)
     CHARACTER(LEN=*)                         :: msg(:)
     INTEGER                                  :: source, gid
 
-    INTEGER                                  :: i, j, ierr, msglen, msgsiz
-    INTEGER, ALLOCATABLE                     :: imsg( :, :)
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_zv', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  ierr = 0
-  msgsiz = SIZE(msg)
-  msglen = LEN(msg)
+    INTEGER                                  :: handle, i, ierr, j, msglen, &
+                                                msgsiz
+    INTEGER, ALLOCATABLE                     :: imsg( :, :)
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msgsiz = SIZE(msg)
+    msglen = LEN(msg)
 #if defined(__parallel)
-  t_start = m_walltime ( )
-! this is a workaround to avoid problems on the T3E
-! at the moment we have a data alignment error when trying to
-! broadcats characters on the T3E (not always!)
-! JH 19/3/99 on galileo
-! CALL mpi_bcast(msg,msglen,MPI_CHARACTER,source,gid,ierr)
-  ALLOCATE (imsg(1:msglen,1:msgsiz))
-  DO j = 1, msgsiz
-     DO i = 1, msglen
-        imsg(i,j) = ICHAR(msg(j)(i:i))
-     END DO
-  END DO
-  CALL mpi_bcast(imsg,msglen*msgsiz,MPI_INTEGER,source,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_z" )
-  DO j = 1, msgsiz
-     DO i = 1, msglen
-        msg(j)(i:i) = CHAR(imsg(i,j))
-     END DO
-  END DO
-  DEALLOCATE (imsg)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen*msgsiz)
+    t_start = m_walltime ( )
+    ! this is a workaround to avoid problems on the T3E
+    ! at the moment we have a data alignment error when trying to
+    ! broadcats characters on the T3E (not always!)
+    ! JH 19/3/99 on galileo
+    ! CALL mpi_bcast(msg,msglen,MPI_CHARACTER,source,gid,ierr)
+    ALLOCATE (imsg(1:msglen,1:msgsiz))
+    DO j = 1, msgsiz
+       DO i = 1, msglen
+          imsg(i,j) = ICHAR(msg(j)(i:i))
+       END DO
+    END DO
+    CALL mpi_bcast(imsg,msglen*msgsiz,MPI_INTEGER,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_z" )
+    DO j = 1, msgsiz
+       DO i = 1, msglen
+          msg(j)(i:i) = CHAR(imsg(i,j))
+       END DO
+    END DO
+    DEALLOCATE (imsg)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen*msgsiz)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_bcast_zv
+  END SUBROUTINE mp_bcast_zv
 
 !..mp_sum
 ! *****************************************************************************
-SUBROUTINE mp_sum_i1(msg,gid)
+  SUBROUTINE mp_sum_i1(msg,gid)
     INTEGER, INTENT(INOUT)                   :: msg
     INTEGER, INTENT(IN)                      :: gid
 
-    INTEGER                                  :: ierr, msglen, res
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_i1', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  msglen = 1
+    INTEGER                                  :: handle, ierr, msglen, res
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = 1
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_i1" )
-  msg = res
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_i1" )
+    msg = res
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_i1
+  END SUBROUTINE mp_sum_i1
 
 ! *****************************************************************************
-SUBROUTINE mp_sum_8i1(msg,gid)
-    INTEGER(KIND=int_8), INTENT(INOUT)                   :: msg
+  SUBROUTINE mp_sum_8i1(msg,gid)
+    INTEGER(KIND=int_8), INTENT(INOUT)       :: msg
     INTEGER, INTENT(IN)                      :: gid
 
-    INTEGER                                  :: ierr, msglen
-    INTEGER(KIND=int_8)                      :: res
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_8i1', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  msglen = 1
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER(KIND=int_8)                      :: res
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = 1
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER8,MPI_SUM,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_8i1" )
-  msg = res
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER8,MPI_SUM,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_8i1" )
+    msg = res
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_8i1
+  END SUBROUTINE mp_sum_8i1
 
 ! *****************************************************************************
-SUBROUTINE mp_sum_iv(msg,gid)
-  IMPLICIT NONE
-  INTEGER, INTENT ( INOUT ) :: msg ( : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  INTEGER, ALLOCATABLE :: res ( : )
-    INTEGER :: handle
+  SUBROUTINE mp_sum_iv(msg,gid)
+    INTEGER, INTENT(INOUT)                   :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_iv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER, ALLOCATABLE                     :: res( : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_iv" )
-  CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_iv" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_iv" )
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_iv" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_iv
+  END SUBROUTINE mp_sum_iv
 
 ! *****************************************************************************
-SUBROUTINE mp_sum_8iv(msg,gid)
-  IMPLICIT NONE
-  INTEGER(KIND=int_8), INTENT ( INOUT ) :: msg ( : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  INTEGER(KIND=int_8), ALLOCATABLE :: res ( : )
-    INTEGER :: handle
+  SUBROUTINE mp_sum_8iv(msg,gid)
+    INTEGER(KIND=int_8), INTENT(INOUT)       :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_8iv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER(KIND=int_8), ALLOCATABLE         :: res( : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_iv" )
-  CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER8,MPI_SUM,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_8iv" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_iv" )
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER8,MPI_SUM,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_8iv" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_8iv
+  END SUBROUTINE mp_sum_8iv
 
 ! *****************************************************************************
-SUBROUTINE mp_sum_im(msg,gid)
-  IMPLICIT NONE
-  INTEGER, INTENT ( INOUT ) :: msg ( :, : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, m1, m2, ierr
-  INTEGER, ALLOCATABLE :: res ( :, : )
-    INTEGER :: handle
+  SUBROUTINE mp_sum_im(msg,gid)
+    INTEGER, INTENT(INOUT)                   :: msg( :, : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_im', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, m1, m2, msglen
+    INTEGER, ALLOCATABLE                     :: res( :, : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  m1 = SIZE(msg,1)
-  m2 = SIZE(msg,2)
-  ALLOCATE (res(m1,m2),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_im" )
-  CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_im" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    m1 = SIZE(msg,1)
+    m2 = SIZE(msg,2)
+    ALLOCATE (res(m1,m2),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_im" )
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_im" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_im
+  END SUBROUTINE mp_sum_im
 ! *****************************************************************************
-SUBROUTINE mp_sum_im3(msg,gid)
-  IMPLICIT NONE
-  INTEGER, INTENT ( INOUT ) :: msg ( :, :, : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, m1, m2, m3, ierr
-  INTEGER, ALLOCATABLE :: res ( :, :, : )
-    INTEGER :: handle
+  SUBROUTINE mp_sum_im3(msg,gid)
+    INTEGER, INTENT(INOUT)                   :: msg( :, :, : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_im3', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, m1, m2, m3, &
+                                                msglen
+    INTEGER, ALLOCATABLE                     :: res( :, :, : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  m1 = SIZE(msg,1)
-  m2 = SIZE(msg,2)
-  m3 = SIZE(msg,3)
-  ALLOCATE (res(m1,m2,m3),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_im3" )
-  CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_im3" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    m1 = SIZE(msg,1)
+    m2 = SIZE(msg,2)
+    m3 = SIZE(msg,3)
+    ALLOCATE (res(m1,m2,m3),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_im3" )
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_im3" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_im3
+  END SUBROUTINE mp_sum_im3
 ! *****************************************************************************
-SUBROUTINE mp_sum_r1(msg,gid)
+  SUBROUTINE mp_sum_r1(msg,gid)
     REAL(KIND=dp), INTENT(INOUT)             :: msg
     INTEGER, INTENT(IN)                      :: gid
 
-    INTEGER                                  :: ierr, msglen
-    REAL(KIND=dp)                            :: res
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_r1', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  msglen = 1
+    INTEGER                                  :: handle, ierr, msglen
+    REAL(KIND=dp)                            :: res
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = 1
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_r1" )
-  msg = res
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_r1" )
+    msg = res
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_r1
+  END SUBROUTINE mp_sum_r1
 ! *****************************************************************************
-SUBROUTINE mp_sum_rv(msg,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  REAL (KIND=dp), ALLOCATABLE :: res ( : )
-    INTEGER :: handle
+  SUBROUTINE mp_sum_rv(msg,gid)
+    REAL(KIND=dp), INTENT(INOUT)             :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_rv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    REAL(KIND=dp), ALLOCATABLE               :: res( : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_rv" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rv" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_rv" )
+    CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rv" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_rv
+  END SUBROUTINE mp_sum_rv
 ! *****************************************************************************
-SUBROUTINE mp_sum_root_rv(msg,root,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
-  INTEGER, INTENT ( IN ) :: root,gid
-  INTEGER :: msglen, m1, ierr, taskid
-  REAL (KIND=dp), ALLOCATABLE :: res ( : )
-    INTEGER :: handle
+  SUBROUTINE mp_sum_root_rv(msg,root,gid)
+    REAL(KIND=dp), INTENT(INOUT)             :: msg( : )
+    INTEGER, INTENT(IN)                      :: root, gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_root_rv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, m1, msglen, &
+                                                taskid
+    REAL(KIND=dp), ALLOCATABLE               :: res( : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_comm_rank ( gid, taskid, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_rank @ mp_sum_root_rm" )
-  msglen = SIZE(msg)
-  m1 = SIZE(msg,1)
-  ALLOCATE (res(m1),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_root_rv" )
-  CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,&
-       root,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rv" )
-  IF ( taskid == root ) THEN
-    msg = res
-  END IF
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_comm_rank ( gid, taskid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_rank @ mp_sum_root_rm" )
+    msglen = SIZE(msg)
+    m1 = SIZE(msg,1)
+    ALLOCATE (res(m1),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_root_rv" )
+    CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,&
+         root,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rv" )
+    IF ( taskid == root ) THEN
+       msg = res
+    END IF
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_root_rv
+  END SUBROUTINE mp_sum_root_rv
 ! *****************************************************************************
-SUBROUTINE mp_sum_rm(msg,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( :, : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, m1, m2, ierr
-  REAL (KIND=dp), ALLOCATABLE :: res ( :, : )
-    INTEGER :: handle
+  SUBROUTINE mp_sum_rm(msg,gid)
+    REAL(KIND=dp), INTENT(INOUT)             :: msg( :, : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_rm', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, m1, m2, msglen
+    REAL(KIND=dp), ALLOCATABLE               :: res( :, : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  m1 = SIZE(msg,1)
-  m2 = SIZE(msg,2)
-  ALLOCATE (res(m1,m2),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_rm" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rm" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    m1 = SIZE(msg,1)
+    m2 = SIZE(msg,2)
+    ALLOCATE (res(m1,m2),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_rm" )
+    CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rm" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_rm
+  END SUBROUTINE mp_sum_rm
 ! *****************************************************************************
-SUBROUTINE mp_sum_root_rm(msg,root,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( :, : )
-  INTEGER, INTENT ( IN ) :: root,gid
-  INTEGER :: msglen, m1, m2, ierr, taskid
-  REAL (KIND=dp), ALLOCATABLE :: res ( :, : )
-    INTEGER :: handle
+  SUBROUTINE mp_sum_root_rm(msg,root,gid)
+    REAL(KIND=dp), INTENT(INOUT)             :: msg( :, : )
+    INTEGER, INTENT(IN)                      :: root, gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_root_rm', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, m1, m2, msglen, &
+                                                taskid
+    REAL(KIND=dp), ALLOCATABLE               :: res( :, : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_comm_rank ( gid, taskid, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_rank @ mp_sum_root_rm" )
-  msglen = SIZE(msg)
-  m1 = SIZE(msg,1)
-  m2 = SIZE(msg,2)
-  ALLOCATE (res(m1,m2),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_root_rm" )
-  CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,root,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rm" )
-  IF ( taskid == root ) THEN
-    msg = res
-  END IF
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_comm_rank ( gid, taskid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_rank @ mp_sum_root_rm" )
+    msglen = SIZE(msg)
+    m1 = SIZE(msg,1)
+    m2 = SIZE(msg,2)
+    ALLOCATE (res(m1,m2),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_root_rm" )
+    CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,root,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rm" )
+    IF ( taskid == root ) THEN
+       msg = res
+    END IF
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_root_rm
+  END SUBROUTINE mp_sum_root_rm
 ! *****************************************************************************
-SUBROUTINE mp_sum_rm3(msg,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( :, :, : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, m1, m2, m3, ierr
-  REAL (KIND=dp), ALLOCATABLE :: res ( :, :, : )
-    INTEGER :: handle
+  SUBROUTINE mp_sum_rm3(msg,gid)
+    REAL(KIND=dp), INTENT(INOUT)             :: msg( :, :, : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_rm3', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, m1, m2, m3, &
+                                                msglen
+    REAL(KIND=dp), ALLOCATABLE               :: res( :, :, : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  m1 = SIZE(msg,1)
-  m2 = SIZE(msg,2)
-  m3 = SIZE(msg,3)
-  ALLOCATE (res(m1,m2,m3),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort("allocate @ mp_sum_rm3" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rm3" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    m1 = SIZE(msg,1)
+    m2 = SIZE(msg,2)
+    m3 = SIZE(msg,3)
+    ALLOCATE (res(m1,m2,m3),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort("allocate @ mp_sum_rm3" )
+    CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_rm3" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_rm3
+  END SUBROUTINE mp_sum_rm3
 ! *****************************************************************************
-SUBROUTINE mp_sum_root_rm3(msg,root,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( :, :, : )
-  INTEGER, INTENT ( IN ) :: root,gid
-  INTEGER :: msglen, m1, m2, m3, ierr, taskid
-  REAL (KIND=dp), ALLOCATABLE :: res ( :, :, : )
-    INTEGER :: handle
+  SUBROUTINE mp_sum_root_rm3(msg,root,gid)
+    REAL(KIND=dp), INTENT(INOUT)             :: msg( :, :, : )
+    INTEGER, INTENT(IN)                      :: root, gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_root_rm3', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, m1, m2, m3, &
+                                                msglen, taskid
+    REAL(KIND=dp), ALLOCATABLE               :: res( :, :, : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_comm_rank ( gid, taskid, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_rank @ mp_sum_root_rm3" )
-  msglen = SIZE(msg)
-  m1 = SIZE(msg,1)
-  m2 = SIZE(msg,2)
-  m3 = SIZE(msg,3)
-  ALLOCATE (res(m1,m2,m3),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_root_rm3" )
-  CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,root,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rm3" )
-  IF ( taskid == root ) THEN
-    msg = res
-  END IF
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_comm_rank ( gid, taskid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_rank @ mp_sum_root_rm3" )
+    msglen = SIZE(msg)
+    m1 = SIZE(msg,1)
+    m2 = SIZE(msg,2)
+    m3 = SIZE(msg,3)
+    ALLOCATE (res(m1,m2,m3),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_root_rm3" )
+    CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,root,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rm3" )
+    IF ( taskid == root ) THEN
+       msg = res
+    END IF
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_root_rm3
+  END SUBROUTINE mp_sum_root_rm3
 ! *****************************************************************************
-SUBROUTINE mp_sum_c1(msg,gid)
+  SUBROUTINE mp_sum_c1(msg,gid)
     COMPLEX(KIND=dp), INTENT(INOUT)          :: msg
     INTEGER, INTENT(IN)                      :: gid
 
-    COMPLEX(KIND=dp)                         :: res
-    INTEGER                                  :: ierr, msglen
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_c1', &
       routineP = moduleN//':'//routineN
-#if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
-#endif
 
-  msglen = 2
+    COMPLEX(KIND=dp)                         :: res
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = 2
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_c1" )
-  msg = res
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
+    t_start = m_walltime ( )
+    CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_c1" )
+    msg = res
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_c1
+  END SUBROUTINE mp_sum_c1
 ! *****************************************************************************
-SUBROUTINE mp_sum_cv(msg,gid)
-  IMPLICIT NONE
-  COMPLEX (KIND=dp), INTENT ( INOUT ) :: msg ( : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  COMPLEX (KIND=dp), ALLOCATABLE :: res ( : )
-    INTEGER :: handle
+  SUBROUTINE mp_sum_cv(msg,gid)
+    COMPLEX(KIND=dp), INTENT(INOUT)          :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_cv', &
       routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), ALLOCATABLE            :: res( : )
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_cv" )
-  CALL mpi_allreduce(msg,res,2*msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cv" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_cv" )
+    CALL mpi_allreduce(msg,res,2*msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cv" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_cv
+  END SUBROUTINE mp_sum_cv
 ! *****************************************************************************
-SUBROUTINE mp_sum_cm(msg,gid)
-  IMPLICIT NONE
-  COMPLEX (KIND=dp), INTENT ( INOUT ) :: msg ( :, : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, m1, m2, ierr
-  COMPLEX (KIND=dp), ALLOCATABLE :: res ( :, : )
-    INTEGER :: handle
+  SUBROUTINE mp_sum_cm(msg,gid)
+    COMPLEX(KIND=dp), INTENT(INOUT)          :: msg( :, : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_cm', &
       routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), ALLOCATABLE            :: res( :, : )
+    INTEGER                                  :: handle, ierr, m1, m2, msglen
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = 2*SIZE(msg)
-  m1 = SIZE(msg,1)
-  m2 = SIZE(msg,2)
-  ALLOCATE (res(m1,m2),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_cm" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cm" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
+    t_start = m_walltime ( )
+    msglen = 2*SIZE(msg)
+    m1 = SIZE(msg,1)
+    m2 = SIZE(msg,2)
+    ALLOCATE (res(m1,m2),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_cm" )
+    CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cm" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_cm
+  END SUBROUTINE mp_sum_cm
 ! *****************************************************************************
-SUBROUTINE mp_sum_cm3(msg,gid)
-  IMPLICIT NONE
-  COMPLEX (KIND=dp), INTENT ( INOUT ) :: msg ( :, :, : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, m1, m2, m3, ierr
-  COMPLEX (KIND=dp), ALLOCATABLE :: res ( :, :, : )
-    INTEGER :: handle
+  SUBROUTINE mp_sum_cm3(msg,gid)
+    COMPLEX(KIND=dp), INTENT(INOUT)          :: msg( :, :, : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_cm3', &
       routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), ALLOCATABLE            :: res( :, :, : )
+    INTEGER                                  :: handle, ierr, m1, m2, m3, &
+                                                msglen
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = 2*SIZE(msg)
-  m1 = SIZE(msg,1)
-  m2 = SIZE(msg,2)
-  m3 = SIZE(msg,3)
-  ALLOCATE (res(m1,m2,m3),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_cm3" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cm3" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
+    t_start = m_walltime ( )
+    msglen = 2*SIZE(msg)
+    m1 = SIZE(msg,1)
+    m2 = SIZE(msg,2)
+    m3 = SIZE(msg,3)
+    ALLOCATE (res(m1,m2,m3),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_sum_cm3" )
+    CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cm3" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_cm3
+  END SUBROUTINE mp_sum_cm3
 
 ! *****************************************************************************
-SUBROUTINE mp_max_i(msg,gid)
-  IMPLICIT NONE
-  INTEGER, INTENT ( INOUT ) :: msg
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  INTEGER :: res
-    INTEGER :: handle
+  SUBROUTINE mp_max_i(msg,gid)
+    INTEGER, INTENT(INOUT)                   :: msg
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_max_i', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen, res
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = 1
-  CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MAX,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_i" )
-  msg = res
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    msglen = 1
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MAX,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_i" )
+    msg = res
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_max_i
+  END SUBROUTINE mp_max_i
 ! *****************************************************************************
-SUBROUTINE mp_max_iv(msg,gid)
-  IMPLICIT NONE
-  INTEGER, INTENT ( INOUT ) :: msg ( : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  INTEGER, ALLOCATABLE :: res ( : )
-    INTEGER :: handle
+  SUBROUTINE mp_max_iv(msg,gid)
+    INTEGER, INTENT(INOUT)                   :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_max_iv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER, ALLOCATABLE                     :: res( : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_max_iv" )
-  CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MAX,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_iv" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_max_iv" )
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MAX,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_iv" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_max_iv
+  END SUBROUTINE mp_max_iv
 ! *****************************************************************************
-SUBROUTINE mp_max_r(msg,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( INOUT ) :: msg
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  REAL (KIND=dp) :: res
-    INTEGER :: handle
+  SUBROUTINE mp_max_r(msg,gid)
+    REAL(KIND=dp), INTENT(INOUT)             :: msg
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_max_r', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    REAL(KIND=dp)                            :: res
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = 1
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MAX,gid, ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_r" )
-  msg = res
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    msglen = 1
+    CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MAX,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_r" )
+    msg = res
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_max_r
+  END SUBROUTINE mp_max_r
 
 ! *****************************************************************************
-SUBROUTINE mp_maxloc_i(msg,gid)
-  IMPLICIT NONE
-  INTEGER, INTENT ( INOUT ) :: msg ( : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  INTEGER, ALLOCATABLE :: res ( : )
-    INTEGER :: handle
+  SUBROUTINE mp_maxloc_i(msg,gid)
+    INTEGER, INTENT(INOUT)                   :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_i', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER, ALLOCATABLE                     :: res( : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_maxloc_i" )
-  CALL mpi_allreduce(msg,res,1,MPI_2INTEGER,MPI_MAXLOC,gid, ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_maxloc_i" )
-  msg = res
-  DEALLOCATE (res,STAT=ierr)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_maxloc_i" )
+    CALL mpi_allreduce(msg,res,1,MPI_2INTEGER,MPI_MAXLOC,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_maxloc_i" )
+    msg = res
+    DEALLOCATE (res,STAT=ierr)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_maxloc_i
+  END SUBROUTINE mp_maxloc_i
 
 ! *****************************************************************************
-SUBROUTINE mp_minloc_rv(msg,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  REAL (KIND=dp), ALLOCATABLE :: res ( : )
-    INTEGER :: handle
+  SUBROUTINE mp_minloc_rv(msg,gid)
+    REAL(KIND=dp), INTENT(INOUT)             :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_rv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    REAL(KIND=dp), ALLOCATABLE               :: res( : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_min_rv" )
-  CALL mpi_allreduce(msg,res,1,MPI_2DOUBLE_PRECISION,MPI_MINLOC,gid, ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_rv" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_min_rv" )
+    CALL mpi_allreduce(msg,res,1,MPI_2DOUBLE_PRECISION,MPI_MINLOC,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_rv" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_minloc_rv
+  END SUBROUTINE mp_minloc_rv
 
 ! *****************************************************************************
-SUBROUTINE mp_max_rv(msg,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  REAL (KIND=dp), ALLOCATABLE :: res ( : )
-    INTEGER :: handle
+  SUBROUTINE mp_max_rv(msg,gid)
+    REAL(KIND=dp), INTENT(INOUT)             :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_max_rv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    REAL(KIND=dp), ALLOCATABLE               :: res( : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_max_rv" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MAX,gid, ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_rv" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_max_rv" )
+    CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MAX,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_rv" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_max_rv
+  END SUBROUTINE mp_max_rv
 
 ! *****************************************************************************
-SUBROUTINE mp_min_i(msg,gid)
-  IMPLICIT NONE
-  INTEGER, INTENT ( INOUT ) :: msg
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  INTEGER :: res
-    INTEGER :: handle
+  SUBROUTINE mp_min_i(msg,gid)
+    INTEGER, INTENT(INOUT)                   :: msg
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_min_i', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen, res
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = 1
-  CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MIN,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_i" )
-  msg = res
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    msglen = 1
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MIN,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_i" )
+    msg = res
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_min_i
+  END SUBROUTINE mp_min_i
 ! *****************************************************************************
-SUBROUTINE mp_min_iv(msg,gid)
-  IMPLICIT NONE
-  INTEGER, INTENT ( INOUT ) :: msg ( : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  INTEGER, ALLOCATABLE :: res ( : )
-    INTEGER :: handle
+  SUBROUTINE mp_min_iv(msg,gid)
+    INTEGER, INTENT(INOUT)                   :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_min_iv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER, ALLOCATABLE                     :: res( : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_min_iv" )
-  CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MIN,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_iv" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_min_iv" )
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER,MPI_MIN,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_iv" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_min_iv
+  END SUBROUTINE mp_min_iv
 ! *****************************************************************************
-SUBROUTINE mp_min_r(msg,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( INOUT ) :: msg
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  REAL (KIND=dp) :: res
-    INTEGER :: handle
+  SUBROUTINE mp_min_r(msg,gid)
+    REAL(KIND=dp), INTENT(INOUT)             :: msg
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_min_r', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    REAL(KIND=dp)                            :: res
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = 1
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MIN,gid, &
-       ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_r" )
-  msg = res
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    msglen = 1
+    CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MIN,gid, &
+         ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_r" )
+    msg = res
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_min_r
+  END SUBROUTINE mp_min_r
 ! *****************************************************************************
-SUBROUTINE mp_min_rv(msg,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-  REAL (KIND=dp), ALLOCATABLE :: res ( : )
-    INTEGER :: handle
+  SUBROUTINE mp_min_rv(msg,gid)
+    REAL(KIND=dp), INTENT(INOUT)             :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_min_rv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    REAL(KIND=dp), ALLOCATABLE               :: res( : )
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_min_rv" )
-  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MIN,gid, ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_rv" )
-  msg = res
-  DEALLOCATE (res)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ mp_min_rv" )
+    CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MIN,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_rv" )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_min_rv
+  END SUBROUTINE mp_min_rv
 
 ! *****************************************************************************
-SUBROUTINE mp_gather_i(msg,msg_gather,root,gid)
-  IMPLICIT NONE
-  INTEGER, INTENT ( IN ) :: msg
-  INTEGER, INTENT ( OUT ) :: msg_gather ( : )
-  INTEGER, INTENT ( IN ) :: root
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-    INTEGER :: handle
+  SUBROUTINE mp_gather_i(msg,msg_gather,root,gid)
+    INTEGER, INTENT(IN)                      :: msg
+    INTEGER, INTENT(OUT)                     :: msg_gather( : )
+    INTEGER, INTENT(IN)                      :: root, gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_gather_i', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = 1
-  CALL mpi_gather(msg,msglen,MPI_INTEGER,msg_gather,&
-                  msglen,MPI_INTEGER,root,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_i" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    msglen = 1
+    CALL mpi_gather(msg,msglen,MPI_INTEGER,msg_gather,&
+         msglen,MPI_INTEGER,root,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_i" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #else
-  msg_gather = msg
+    msg_gather = msg
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_gather_i
+  END SUBROUTINE mp_gather_i
 
 ! *****************************************************************************
-SUBROUTINE mp_gather_iv(msg,msg_gather,root,gid)
-  IMPLICIT NONE
-  INTEGER, INTENT ( IN ) :: msg ( : )
-  INTEGER, INTENT ( OUT ) :: msg_gather ( : )
-  INTEGER, INTENT ( IN ) :: root
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-    INTEGER :: handle
+  SUBROUTINE mp_gather_iv(msg,msg_gather,root,gid)
+    INTEGER, INTENT(IN)                      :: msg( : )
+    INTEGER, INTENT(OUT)                     :: msg_gather( : )
+    INTEGER, INTENT(IN)                      :: root, gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_gather_iv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  CALL mpi_gather(msg,msglen,MPI_INTEGER,msg_gather,&
-                  msglen,MPI_INTEGER,root,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_iv" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    CALL mpi_gather(msg,msglen,MPI_INTEGER,msg_gather,&
+         msglen,MPI_INTEGER,root,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_iv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*intlen)
 #else
-  msg_gather = msg
+    msg_gather = msg
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_gather_iv
+  END SUBROUTINE mp_gather_iv
 
 ! *****************************************************************************
-SUBROUTINE mp_gather_r(msg,msg_gather,root,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( IN ) :: msg
-  REAL (KIND=dp), INTENT ( OUT ) :: msg_gather ( : )
-  INTEGER, INTENT ( IN ) :: root
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-    INTEGER :: handle
+  SUBROUTINE mp_gather_r(msg,msg_gather,root,gid)
+    REAL(KIND=dp), INTENT(IN)                :: msg
+    REAL(KIND=dp), INTENT(OUT)               :: msg_gather( : )
+    INTEGER, INTENT(IN)                      :: root, gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_gather_r', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = 1
-  CALL mpi_gather(msg,msglen,MP_STD_REAL,msg_gather,&
-                  msglen,MP_STD_REAL,root,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_r" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    msglen = 1
+    CALL mpi_gather(msg,msglen,MP_STD_REAL,msg_gather,&
+         msglen,MP_STD_REAL,root,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_r" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
-  msg_gather = msg
+    msg_gather = msg
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_gather_r
+  END SUBROUTINE mp_gather_r
 
 ! *****************************************************************************
-SUBROUTINE mp_gather_rv(msg,msg_gather,root,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( IN ) :: msg ( : )
-  REAL (KIND=dp), INTENT ( OUT ) :: msg_gather ( : )
-  INTEGER, INTENT ( IN ) :: root
-  INTEGER, INTENT ( IN ) :: gid
-  INTEGER :: msglen, ierr
-    INTEGER :: handle
+  SUBROUTINE mp_gather_rv(msg,msg_gather,root,gid)
+    REAL(KIND=dp), INTENT(IN)                :: msg( : )
+    REAL(KIND=dp), INTENT(OUT)               :: msg_gather( : )
+    INTEGER, INTENT(IN)                      :: root, gid
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_gather_rv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  msglen = SIZE(msg)
-  CALL mpi_gather(msg,msglen,MP_STD_REAL,msg_gather,&
-                  msglen,MP_STD_REAL,root,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_rv" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    CALL mpi_gather(msg,msglen,MP_STD_REAL,msg_gather,&
+         msglen,MP_STD_REAL,root,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_rv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
-  msg_gather = msg
+    msg_gather = msg
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_gather_rv
+  END SUBROUTINE mp_gather_rv
 
 ! *****************************************************************************
   SUBROUTINE mp_gatherv_iv(sendbuf,recvbuf,recvcounts,displs,root,comm)
@@ -3034,30 +3109,32 @@ END SUBROUTINE mp_gather_rv
     INTEGER, DIMENSION(:), INTENT(IN)        :: recvcounts, displs
     INTEGER, INTENT(IN)                      :: root, comm
 
-    INTEGER                                  :: ierr, sendcount
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_gatherv_iv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, sendcount
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
     sendcount = SIZE(sendbuf)
 #if defined(__parallel)
     t_start = m_walltime()
     CALL mpi_gatherv(sendbuf,sendcount,MPI_INTEGER,&
-                     recvbuf,recvcounts,displs,MPI_INTEGER,&
-                     root,comm,ierr)
+         recvbuf,recvcounts,displs,MPI_INTEGER,&
+         root,comm,ierr)
     IF (ierr /= 0) CALL mp_stop(ierr,"mpi_gatherv@mp_gatherv_iv")
     t_end = m_walltime()
     CALL add_perf(perf_id=4,&
-                  count=1,&
-                  time=t_end-t_start,&
-                  msg_size=sendcount*int_size)
+         count=1,&
+         time=t_end-t_start,&
+         msg_size=sendcount*int_size)
 #else
     recvbuf(1+displs(1):) = sendbuf
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
   END SUBROUTINE mp_gatherv_iv
 
@@ -3069,12 +3146,14 @@ END SUBROUTINE mp_gather_rv
     INTEGER, DIMENSION(:), INTENT(IN)        :: recvcounts, displs
     INTEGER, INTENT(IN)                      :: root, comm
 
-    INTEGER                                  :: ierr, sendcount
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_gatherv_rv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, sendcount
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
     sendcount = SIZE(sendbuf)
@@ -3093,7 +3172,7 @@ END SUBROUTINE mp_gather_rv
     recvbuf(1+displs(1):) = sendbuf
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
   END SUBROUTINE mp_gatherv_rv
@@ -3102,210 +3181,219 @@ END SUBROUTINE mp_gather_rv
 ! one dimensional real arrays
 
 ! *****************************************************************************
-SUBROUTINE mp_allgather_i1(msgout,msgin,gid)
-  IMPLICIT NONE
-  INTEGER, INTENT ( IN ) :: msgout
-  INTEGER, INTENT ( OUT ) :: msgin ( : )
-  INTEGER, INTENT ( IN ) :: gid
+  SUBROUTINE mp_allgather_i1(msgout,msgin,gid)
+    INTEGER, INTENT(IN)                      :: msgout
+    INTEGER, INTENT(OUT)                     :: msgin( : )
+    INTEGER, INTENT(IN)                      :: gid
 
-  INTEGER :: ierr, scount, rcount
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_allgather_i1', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, rcount, scount
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  scount = 1
-  rcount = 1
-  CALL MPI_ALLGATHER(msgout, scount, MPI_INTEGER, &
-                     msgin , rcount, MPI_INTEGER, &
-                     gid, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ mp_allgather_i1" )
+    scount = 1
+    rcount = 1
+    CALL MPI_ALLGATHER(msgout, scount, MPI_INTEGER, &
+                       msgin , rcount, MPI_INTEGER, &
+                       gid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ mp_allgather_i1" )
 #else
-  msgin = msgout
-  ierr = 0
+    msgin = msgout
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_allgather_i1
+  END SUBROUTINE mp_allgather_i1
 
 ! *****************************************************************************
-SUBROUTINE mp_allgatherv_rv(msgout,msgin,rcount,rdispl,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( IN ) :: msgout ( : )
-  REAL (KIND=dp), INTENT ( OUT ) :: msgin ( : )
-  INTEGER, INTENT ( IN ) :: rcount ( : ), rdispl ( : )
-  INTEGER, INTENT ( IN ) :: gid
+  SUBROUTINE mp_allgatherv_rv(msgout,msgin,rcount,rdispl,gid)
+    REAL(KIND=dp), INTENT(IN)                :: msgout( : )
+    REAL(KIND=dp), INTENT(OUT)               :: msgin( : )
+    INTEGER, INTENT(IN)                      :: rcount( : ), rdispl( : ), gid
 
-  INTEGER :: ierr, scount
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_allgatherv_rv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, scount
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  scount = SIZE ( msgout )
-  CALL MPI_ALLGATHERV(msgout, scount, MP_STD_REAL, msgin, rcount, &
-                      rdispl, MP_STD_REAL, gid, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgatherv @ mp_allgatherv_rv" )
+    scount = SIZE ( msgout )
+    CALL MPI_ALLGATHERV(msgout, scount, MP_STD_REAL, msgin, rcount, &
+                        rdispl, MP_STD_REAL, gid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgatherv @ mp_allgatherv_rv" )
 #else
-  msgin = msgout
-  ierr = 0
+    msgin = msgout
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_allgatherv_rv
+  END SUBROUTINE mp_allgatherv_rv
 
 ! wrapper for MPI_REDUCE_SCATTER subroutine
 ! one dimensional real arrays
 ! *****************************************************************************
-SUBROUTINE mp_sum_scatter_rv(msgout,msgin,rcount,gid)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( IN ) :: msgout ( : )
-  REAL (KIND=dp), INTENT ( OUT ) :: msgin ( : )
-  INTEGER, INTENT ( IN ) :: rcount ( : )
-  INTEGER, INTENT ( IN ) :: gid
+  SUBROUTINE mp_sum_scatter_rv(msgout,msgin,rcount,gid)
+    REAL(KIND=dp), INTENT(IN)                :: msgout( : )
+    REAL(KIND=dp), INTENT(OUT)               :: msgin( : )
+    INTEGER, INTENT(IN)                      :: rcount( : ), gid
 
-  INTEGER :: ierr
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_scatter_rv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL MPI_REDUCE_SCATTER(msgout, msgin, rcount, MP_STD_REAL, MPI_SUM, &
-                          gid, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce_scatter @ mp_sum_scatter_rv" )
+    t_start = m_walltime ( )
+    CALL MPI_REDUCE_SCATTER(msgout, msgin, rcount, MP_STD_REAL, MPI_SUM, &
+         gid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce_scatter @ mp_sum_scatter_rv" )
 
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,&
-       msg_size=rcount(1)*2*reallen)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,&
+         msg_size=rcount(1)*2*reallen)
 #else
-  msgin = msgout
-  ierr = 0
+    msgin = msgout
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sum_scatter_rv
+  END SUBROUTINE mp_sum_scatter_rv
 
 ! *****************************************************************************
-SUBROUTINE mp_sendrecv_rm3(msgin,dest,msgout,source,comm)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( IN ) :: msgin ( :, :, : )
-  REAL (KIND=dp), INTENT ( OUT ) :: msgout ( :, :, : )
-  INTEGER, INTENT ( IN ) :: dest, source, comm
-  INTEGER :: msglen_in, msglen_out, ierr, send_tag, recv_tag
-  INTEGER, DIMENSION(:), ALLOCATABLE ::  status
-    INTEGER :: handle
+  SUBROUTINE mp_sendrecv_rm3(msgin,dest,msgout,source,comm)
+    REAL(KIND=dp), INTENT(IN)                :: msgin( :, :, : )
+    INTEGER, INTENT(IN)                      :: dest
+    REAL(KIND=dp), INTENT(OUT)               :: msgout( :, :, : )
+    INTEGER, INTENT(IN)                      :: source, comm
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sendrecv_rm3', &
       routineP = moduleN//':'//routineN
-  
+
+    INTEGER                                  :: handle, ierr, msglen_in, &
+                                                msglen_out, recv_tag, send_tag
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  ALLOCATE(status(MPI_STATUS_SIZE))
-  t_start = m_walltime ( )
-  msglen_in = SIZE(msgin)
-  msglen_out = SIZE(msgout)
-  send_tag = 0 ! cannot think of something better here, this might be dangerous
-  recv_tag = 0 ! cannot think of something better here, this might be dangerous
-  CALL mpi_sendrecv(msgin,msglen_in,MP_STD_REAL,dest,send_tag,msgout,&
-       msglen_out,MP_STD_REAL,source,recv_tag,comm,status(1),ierr)
-  ! we do not check the status
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rm3" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen_in*reallen)
-  DEALLOCATE(status)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    t_start = m_walltime ( )
+    msglen_in = SIZE(msgin)
+    msglen_out = SIZE(msgout)
+    send_tag = 0 ! cannot think of something better here, this might be dangerous
+    recv_tag = 0 ! cannot think of something better here, this might be dangerous
+    CALL mpi_sendrecv(msgin,msglen_in,MP_STD_REAL,dest,send_tag,msgout,&
+         msglen_out,MP_STD_REAL,source,recv_tag,comm,status(1),ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rm3" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen_in*reallen)
+    DEALLOCATE(status)
 #else
-  msgout = msgin
+    msgout = msgin
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sendrecv_rm3
+  END SUBROUTINE mp_sendrecv_rm3
 
 ! *****************************************************************************
-SUBROUTINE mp_sendrecv_rm2(msgin,dest,msgout,source,comm)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( IN ) :: msgin ( :, : )
-  REAL (KIND=dp), INTENT ( OUT ) :: msgout ( :, : )
-  INTEGER, INTENT ( IN ) :: dest, source, comm
-  INTEGER :: msglen, ierr, send_tag, recv_tag
-  INTEGER, DIMENSION(:), ALLOCATABLE ::  status
-    INTEGER :: handle
+  SUBROUTINE mp_sendrecv_rm2(msgin,dest,msgout,source,comm)
+    REAL(KIND=dp), INTENT(IN)                :: msgin( :, : )
+    INTEGER, INTENT(IN)                      :: dest
+    REAL(KIND=dp), INTENT(OUT)               :: msgout( :, : )
+    INTEGER, INTENT(IN)                      :: source, comm
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sendrecv_rm2', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen, &
+                                                recv_tag, send_tag
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  ALLOCATE(status(MPI_STATUS_SIZE))
-  t_start = m_walltime ( )
-  msglen = SIZE(msgin,1)*SIZE(msgin,2)
-  send_tag = 0 ! cannot think of something better here, this might be dangerous
-  recv_tag = 0 ! cannot think of something better here, this might be dangerous
-  CALL mpi_sendrecv(msgin,msglen,MP_STD_REAL,dest,send_tag,msgout,&
-       msglen,MP_STD_REAL,source,recv_tag,comm,status(1),ierr)
-  ! we do not check the status
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rm2" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*reallen)
-  DEALLOCATE(status)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    t_start = m_walltime ( )
+    msglen = SIZE(msgin,1)*SIZE(msgin,2)
+    send_tag = 0 ! cannot think of something better here, this might be dangerous
+    recv_tag = 0 ! cannot think of something better here, this might be dangerous
+    CALL mpi_sendrecv(msgin,msglen,MP_STD_REAL,dest,send_tag,msgout,&
+         msglen,MP_STD_REAL,source,recv_tag,comm,status(1),ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rm2" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    DEALLOCATE(status)
 #else
-  msgout = msgin
+    msgout = msgin
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sendrecv_rm2
+  END SUBROUTINE mp_sendrecv_rm2
 
 ! *****************************************************************************
-SUBROUTINE mp_sendrecv_rv(msgin,dest,msgout,source,comm)
-  IMPLICIT NONE
-  REAL (KIND=dp), INTENT ( IN ) :: msgin ( : )
-  REAL (KIND=dp), INTENT ( OUT ) :: msgout ( : )
-  INTEGER, INTENT ( IN ) :: dest, source, comm
-  INTEGER :: msglen_in, msglen_out, ierr, send_tag, recv_tag
-  INTEGER, DIMENSION(:), ALLOCATABLE ::  status
-    INTEGER :: handle
+  SUBROUTINE mp_sendrecv_rv(msgin,dest,msgout,source,comm)
+    REAL(KIND=dp), INTENT(IN)                :: msgin( : )
+    INTEGER, INTENT(IN)                      :: dest
+    REAL(KIND=dp), INTENT(OUT)               :: msgout( : )
+    INTEGER, INTENT(IN)                      :: source, comm
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sendrecv_rv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen_in, &
+                                                msglen_out, recv_tag, send_tag
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  ALLOCATE(status(MPI_STATUS_SIZE))
-  t_start = m_walltime ( )
-  msglen_in = SIZE(msgin)
-  msglen_out = SIZE(msgout)
-  send_tag = 0 ! cannot think of something better here, this might be dangerous
-  recv_tag = 0 ! cannot think of something better here, this might be dangerous
-  CALL mpi_sendrecv(msgin,msglen_in,MP_STD_REAL,dest,send_tag,msgout,&
-       msglen_out,MP_STD_REAL,source,recv_tag,comm,status(1),ierr)
-  ! we do not check the status
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rv" )
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=7,count=1,time=t_end-t_start,&
-       msg_size=(msglen_in+msglen_out)*reallen/2)
-  DEALLOCATE(status)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    t_start = m_walltime ( )
+    msglen_in = SIZE(msgin)
+    msglen_out = SIZE(msgout)
+    send_tag = 0 ! cannot think of something better here, this might be dangerous
+    recv_tag = 0 ! cannot think of something better here, this might be dangerous
+    CALL mpi_sendrecv(msgin,msglen_in,MP_STD_REAL,dest,send_tag,msgout,&
+         msglen_out,MP_STD_REAL,source,recv_tag,comm,status(1),ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,&
+         msg_size=(msglen_in+msglen_out)*reallen/2)
+    DEALLOCATE(status)
 #else
-  msgout = msgin
+    msgout = msgin
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_sendrecv_rv
+  END SUBROUTINE mp_sendrecv_rv
 
 ! *****************************************************************************
 !> \brief non blocking send of real arrays
@@ -3315,61 +3403,65 @@ END SUBROUTINE mp_sendrecv_rv
 !> \par History
 !>      11.2004 created [Joost VandeVondele]
 ! *****************************************************************************
-SUBROUTINE mp_isendrecv_rv(msgin,dest,msgout,source,comm,send_request,&
-                           recv_request,tag)
-  IMPLICIT NONE
-  REAL (KIND=dp), POINTER, DIMENSION (:) :: msgin,msgout
-  INTEGER, INTENT ( IN ) :: dest, source, comm
-  INTEGER, INTENT(out) :: send_request, recv_request
-  INTEGER, OPTIONAL, INTENT(in) :: tag
-  INTEGER :: msglen, ierr, my_tag
-  INTEGER :: lower1
-  REAL(KIND=dp) :: foo
-    INTEGER :: handle
+  SUBROUTINE mp_isendrecv_rv(msgin,dest,msgout,source,comm,send_request,&
+       recv_request,tag)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: msgin
+    INTEGER, INTENT(IN)                      :: dest
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+    INTEGER, INTENT(out)                     :: send_request, recv_request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_isendrecv_rv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, msglen, &
+                                                my_tag
+    REAL(KIND=dp)                            :: foo
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  my_tag = 0
-  IF (PRESENT(tag)) my_tag=tag
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
 
-  msglen = SIZE(msgout,1)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgout,1)
-     CALL mpi_irecv(msgout(lower1),msglen,MP_STD_REAL,source, my_tag,&
-          comm,recv_request,ierr)
-  ELSE
-     CALL mpi_irecv(foo,msglen,MP_STD_REAL,source, my_tag,&
-          comm,recv_request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_isendrecv_rm2" )
+    msglen = SIZE(msgout,1)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgout,1)
+       CALL mpi_irecv(msgout(lower1),msglen,MP_STD_REAL,source, my_tag,&
+            comm,recv_request,ierr)
+    ELSE
+       CALL mpi_irecv(foo,msglen,MP_STD_REAL,source, my_tag,&
+            comm,recv_request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_isendrecv_rm2" )
 
-  msglen = SIZE(msgin,1)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgin,1)
-     CALL mpi_isend(msgin(lower1),msglen,MP_STD_REAL,dest,my_tag,&
-          comm,send_request,ierr)
-  ELSE
-     CALL mpi_isend(foo,msglen,MP_STD_REAL,dest,my_tag,&
-          comm,send_request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
+    msglen = SIZE(msgin,1)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgin,1)
+       CALL mpi_isend(msgin(lower1),msglen,MP_STD_REAL,dest,my_tag,&
+            comm,send_request,ierr)
+    ELSE
+       CALL mpi_isend(foo,msglen,MP_STD_REAL,dest,my_tag,&
+            comm,send_request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
 
-  msglen = (msglen+SIZE(msgout,1))/2.0_dp
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    msglen = (msglen+SIZE(msgout,1))/2.0_dp
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
-  send_request=0
-  recv_request=0
-  msgout = msgin
+    send_request=0
+    recv_request=0
+    msgout = msgin
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_isendrecv_rv
+  END SUBROUTINE mp_isendrecv_rv
 
 ! *****************************************************************************
 !> \brief non blocking send of int_8 arrays
@@ -3379,61 +3471,65 @@ END SUBROUTINE mp_isendrecv_rv
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 ! *****************************************************************************
-SUBROUTINE mp_isendrecv_8iv(msgin,dest,msgout,source,comm,send_request,&
-                            recv_request,tag)
-  IMPLICIT NONE
-  INTEGER(int_8), POINTER, DIMENSION (:) :: msgin,msgout
-  INTEGER, INTENT ( IN ) :: dest, source, comm
-  INTEGER, INTENT(out) :: send_request, recv_request
-  INTEGER, OPTIONAL, INTENT(in) :: tag
-  INTEGER :: msglen, ierr, my_tag
-  INTEGER :: lower1
-  INTEGER(int_8) :: foo
-    INTEGER :: handle
+  SUBROUTINE mp_isendrecv_8iv(msgin,dest,msgout,source,comm,send_request,&
+       recv_request,tag)
+    INTEGER(int_8), DIMENSION(:), POINTER    :: msgin
+    INTEGER, INTENT(IN)                      :: dest
+    INTEGER(int_8), DIMENSION(:), POINTER    :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+    INTEGER, INTENT(out)                     :: send_request, recv_request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_isendrecv_8iv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, msglen, &
+                                                my_tag
+    INTEGER(int_8)                           :: foo
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  my_tag = 0
-  IF (PRESENT(tag)) my_tag=tag
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
 
-  msglen = SIZE(msgout,1)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgout,1)
-     CALL mpi_irecv(msgout(lower1),msglen,MPI_INTEGER8,source, my_tag,&
-          comm,recv_request,ierr)
-  ELSE
-     CALL mpi_irecv(foo,msglen,MPI_INTEGER8,source, my_tag,&
-          comm,recv_request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_isendrecv_8iv" )
+    msglen = SIZE(msgout,1)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgout,1)
+       CALL mpi_irecv(msgout(lower1),msglen,MPI_INTEGER8,source, my_tag,&
+            comm,recv_request,ierr)
+    ELSE
+       CALL mpi_irecv(foo,msglen,MPI_INTEGER8,source, my_tag,&
+            comm,recv_request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_isendrecv_8iv" )
 
-  msglen = SIZE(msgin,1)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgin,1)
-     CALL mpi_isend(msgin(lower1),msglen,MPI_INTEGER8,dest,my_tag,&
-          comm,send_request,ierr)
-  ELSE
-     CALL mpi_isend(foo,msglen,MPI_INTEGER8,dest,my_tag,&
-          comm,send_request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_8iv" )
+    msglen = SIZE(msgin,1)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgin,1)
+       CALL mpi_isend(msgin(lower1),msglen,MPI_INTEGER8,dest,my_tag,&
+            comm,send_request,ierr)
+    ELSE
+       CALL mpi_isend(foo,msglen,MPI_INTEGER8,dest,my_tag,&
+            comm,send_request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_8iv" )
 
-  msglen = (msglen+SIZE(msgout,1))/2.0_dp
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    msglen = (msglen+SIZE(msgout,1))/2.0_dp
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
-  send_request=0
-  recv_request=0
-  msgout = msgin
+    send_request=0
+    recv_request=0
+    msgout = msgin
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_isendrecv_8iv
+  END SUBROUTINE mp_isendrecv_8iv
 
 ! *****************************************************************************
 !> \brief non blocking send of real arrays 
@@ -3444,64 +3540,68 @@ END SUBROUTINE mp_isendrecv_8iv
 !>      08.2003 created [f&j]
 !> \author joost & fawzi
 ! *****************************************************************************
-SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
-     recv_request,tag)
-  IMPLICIT NONE
-  REAL (KIND=dp), POINTER, DIMENSION (:,:) :: msgin,msgout
-  INTEGER, INTENT ( IN ) :: dest, source, comm
-  INTEGER, INTENT(out) :: send_request, recv_request
-  INTEGER, OPTIONAL, INTENT(in) :: tag
-  INTEGER :: msglen, ierr, my_tag
-  INTEGER :: lower1,lower2
-  REAL(KIND=dp) :: foo
-    INTEGER :: handle
+  SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
+       recv_request,tag)
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: msgin
+    INTEGER, INTENT(IN)                      :: dest
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+    INTEGER, INTENT(out)                     :: send_request, recv_request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_isendrecv_rm2', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, lower2, &
+                                                msglen, my_tag
+    REAL(KIND=dp)                            :: foo
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  my_tag = 0
-  IF (PRESENT(tag)) my_tag=tag
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
 
-  msglen = SIZE(msgout,1)*SIZE(msgout,2)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgout,1)
-     lower2=LBOUND(msgout,2)
-     CALL mpi_irecv(msgout(lower1,lower2),msglen,MP_STD_REAL,source, my_tag,&
-          comm,recv_request,ierr)
-  ELSE
-     CALL mpi_irecv(foo,msglen,MP_STD_REAL,source, my_tag,&
-          comm,recv_request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_isendrecv_rm2" )
+    msglen = SIZE(msgout,1)*SIZE(msgout,2)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgout,1)
+       lower2=LBOUND(msgout,2)
+       CALL mpi_irecv(msgout(lower1,lower2),msglen,MP_STD_REAL,source, my_tag,&
+            comm,recv_request,ierr)
+    ELSE
+       CALL mpi_irecv(foo,msglen,MP_STD_REAL,source, my_tag,&
+            comm,recv_request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_isendrecv_rm2" )
 
-  msglen = SIZE(msgin,1)*SIZE(msgin,2)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgin,1)
-     lower2=LBOUND(msgin,2)
-     CALL mpi_isend(msgin(lower1,lower2),msglen,MP_STD_REAL,dest,my_tag,&
-          comm,send_request,ierr)
-  ELSE
-     CALL mpi_isend(foo,msglen,MP_STD_REAL,dest,my_tag,&
-          comm,send_request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
+    msglen = SIZE(msgin,1)*SIZE(msgin,2)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgin,1)
+       lower2=LBOUND(msgin,2)
+       CALL mpi_isend(msgin(lower1,lower2),msglen,MP_STD_REAL,dest,my_tag,&
+            comm,send_request,ierr)
+    ELSE
+       CALL mpi_isend(foo,msglen,MP_STD_REAL,dest,my_tag,&
+            comm,send_request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
 
-  msglen = (msglen+SIZE(msgout,1)*SIZE(msgout,2))/2.0_dp
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    msglen = (msglen+SIZE(msgout,1)*SIZE(msgout,2))/2.0_dp
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
-  send_request=0
-  recv_request=0 
-  msgout = msgin
+    send_request=0
+    recv_request=0 
+    msgout = msgin
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_isendrecv_rm2
+  END SUBROUTINE mp_isendrecv_rm2
 
 ! *****************************************************************************
 !> \brief non blocking send of real arrays 
@@ -3509,184 +3609,188 @@ END SUBROUTINE mp_isendrecv_rm2
 !>      the arguments must be pointers to be sure that we do not get a temporaries.
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE mp_isend_rm2(msgin,dest,comm,request,tag)
-  IMPLICIT NONE
-  REAL (KIND=dp), POINTER, DIMENSION (:,:) :: msgin
-  INTEGER, INTENT ( IN ) :: dest, comm
-  INTEGER, INTENT(out) :: request
-  INTEGER, OPTIONAL, INTENT(in) :: tag
+  SUBROUTINE mp_isend_rm2(msgin,dest,comm,request,tag)
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: msgin
+    INTEGER, INTENT(IN)                      :: dest, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
 
-  INTEGER :: msglen, ierr, my_tag
-  INTEGER :: lower1,lower2
-  REAL(KIND=dp) :: foo(1)
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_rm2', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, lower2, &
+                                                msglen, my_tag
+    REAL(KIND=dp)                            :: foo(1)
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  my_tag = 0
-  IF (PRESENT(tag)) my_tag=tag
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
 
-  msglen = SIZE(msgin,1)*SIZE(msgin,2)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgin,1)
-     lower2=LBOUND(msgin,2)
-     CALL mpi_isend(msgin(lower1,lower2),msglen,MP_STD_REAL,dest,my_tag,&
-          comm,request,ierr)
-  ELSE
-     CALL mpi_isend(foo,msglen,MP_STD_REAL,dest,my_tag,&
-          comm,request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isend_rm2" )
+    msglen = SIZE(msgin,1)*SIZE(msgin,2)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgin,1)
+       lower2=LBOUND(msgin,2)
+       CALL mpi_isend(msgin(lower1,lower2),msglen,MP_STD_REAL,dest,my_tag,&
+            comm,request,ierr)
+    ELSE
+       CALL mpi_isend(foo,msglen,MP_STD_REAL,dest,my_tag,&
+            comm,request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isend_rm2" )
 
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
-  ierr=1
-  CALL mp_stop( ierr, "mp_isend called in non parallel case" )
+    ierr=1
+    CALL mp_stop( ierr, "mp_isend called in non parallel case" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_isend_rm2
+  END SUBROUTINE mp_isend_rm2
 
-SUBROUTINE mp_isend_cv(msgin,dest,comm,request,tag)
-  IMPLICIT NONE
-  COMPLEX (KIND=dp), POINTER, DIMENSION (:) :: msgin
-  INTEGER, INTENT ( IN ) :: dest, comm
-  INTEGER, INTENT(out) :: request
-  INTEGER, OPTIONAL, INTENT(in) :: tag
+  SUBROUTINE mp_isend_cv(msgin,dest,comm,request,tag)
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: msgin
+    INTEGER, INTENT(IN)                      :: dest, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
 
-  INTEGER :: msglen, ierr, my_tag
-  INTEGER :: lower1
-  REAL(KIND=dp) :: foo(1)
-  INTEGER :: handle
-  CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_rm2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_cv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, msglen, &
+                                                my_tag
+    REAL(KIND=dp)                            :: foo(1)
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  my_tag = 0
-  IF (PRESENT(tag)) my_tag=tag
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
 
-  msglen = SIZE(msgin)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgin,1)
-     CALL mpi_isend(msgin(lower1),msglen,MP_STD_COMPLEX,dest,my_tag,&
-          comm,request,ierr)
-  ELSE
-     CALL mpi_isend(foo,msglen,MP_STD_COMPLEX,dest,my_tag,&
-          comm,request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isend_cv" )
+    msglen = SIZE(msgin)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgin,1)
+       CALL mpi_isend(msgin(lower1),msglen,MP_STD_COMPLEX,dest,my_tag,&
+            comm,request,ierr)
+    ELSE
+       CALL mpi_isend(foo,msglen,MP_STD_COMPLEX,dest,my_tag,&
+            comm,request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isend_cv" )
 
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=2*msglen*reallen)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=2*msglen*reallen)
 #else
-  ierr=1
-  CALL mp_stop( ierr, "mp_isend called in non parallel case" )
+    ierr=1
+    CALL mp_stop( ierr, "mp_isend called in non parallel case" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_isend_cv
+  END SUBROUTINE mp_isend_cv
 
 #if defined(__FFTSGL)
-SUBROUTINE mp_isend_rm2_lp(msgin,dest,comm,request,tag)
-  IMPLICIT NONE
-  REAL (KIND=sp), POINTER, DIMENSION (:,:) :: msgin
-  INTEGER, INTENT ( IN ) :: dest, comm
-  INTEGER, INTENT(out) :: request
-  INTEGER, OPTIONAL, INTENT(in) :: tag
+  SUBROUTINE mp_isend_rm2_lp(msgin,dest,comm,request,tag)
+    REAL(KIND=sp), DIMENSION(:, :), POINTER  :: msgin
+    INTEGER, INTENT(IN)                      :: dest, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
 
-  INTEGER :: msglen, ierr, my_tag
-  INTEGER :: lower1,lower2
-  REAL(KIND=sp) :: foo(1)
-    INTEGER :: handle
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_rm2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_rm2_lp', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, lower2, &
+                                                msglen, my_tag
+    REAL(KIND=sp)                            :: foo(1)
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  my_tag = 0
-  IF (PRESENT(tag)) my_tag=tag
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
 
-  msglen = SIZE(msgin,1)*SIZE(msgin,2)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgin,1)
-     lower2=LBOUND(msgin,2)
-     CALL mpi_isend(msgin(lower1,lower2),msglen,MP_STD_REAL,dest,my_tag,&
-          comm,request,ierr)
-  ELSE
-     CALL mpi_isend(foo,msglen,MP_STD_REAL,dest,my_tag,&
-          comm,request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isend_rm2" )
+    msglen = SIZE(msgin,1)*SIZE(msgin,2)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgin,1)
+       lower2=LBOUND(msgin,2)
+       CALL mpi_isend(msgin(lower1,lower2),msglen,MP_STD_REAL,dest,my_tag,&
+            comm,request,ierr)
+    ELSE
+       CALL mpi_isend(foo,msglen,MP_STD_REAL,dest,my_tag,&
+            comm,request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isend_rm2" )
 
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
-  ierr=1
-  CALL mp_stop( ierr, "mp_isend called in non parallel case" )
+    ierr=1
+    CALL mp_stop( ierr, "mp_isend called in non parallel case" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_isend_rm2_lp
+  END SUBROUTINE mp_isend_rm2_lp
 
-SUBROUTINE mp_isend_cv_lp(msgin,dest,comm,request,tag)
-  IMPLICIT NONE
-  COMPLEX (KIND=sp), POINTER, DIMENSION (:) :: msgin
-  INTEGER, INTENT ( IN ) :: dest, comm
-  INTEGER, INTENT(out) :: request
-  INTEGER, OPTIONAL, INTENT(in) :: tag
+  SUBROUTINE mp_isend_cv_lp(msgin,dest,comm,request,tag)
+    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: msgin
+    INTEGER, INTENT(IN)                      :: dest, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
 
-  INTEGER :: msglen, ierr, my_tag
-  INTEGER :: lower1
-  REAL(KIND=sp) :: foo(1)
-  INTEGER :: handle
-  CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_rm2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_cv_lp', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, msglen, &
+                                                my_tag
+    REAL(KIND=sp)                            :: foo(1)
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  my_tag = 0
-  IF (PRESENT(tag)) my_tag=tag
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
 
-  msglen = SIZE(msgin)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgin,1)
-     CALL mpi_isend(msgin(lower1),msglen,MP_STD_COMPLEX,dest,my_tag,&
-          comm,request,ierr)
-  ELSE
-     CALL mpi_isend(foo,msglen,MP_STD_COMPLEX,dest,my_tag,&
-          comm,request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isend_cv" )
+    msglen = SIZE(msgin)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgin,1)
+       CALL mpi_isend(msgin(lower1),msglen,MP_STD_COMPLEX,dest,my_tag,&
+            comm,request,ierr)
+    ELSE
+       CALL mpi_isend(foo,msglen,MP_STD_COMPLEX,dest,my_tag,&
+            comm,request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isend_cv" )
 
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=2*msglen*reallen)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=2*msglen*reallen)
 #else
-  ierr=1
-  CALL mp_stop( ierr, "mp_isend called in non parallel case" )
+    ierr=1
+    CALL mp_stop( ierr, "mp_isend called in non parallel case" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_isend_cv_lp
+  END SUBROUTINE mp_isend_cv_lp
 #endif
 
 ! *****************************************************************************
@@ -3695,178 +3799,184 @@ END SUBROUTINE mp_isend_cv_lp
 !>      the arguments must be pointers to be sure that we do not get a temporaries.
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE mp_irecv_rm2(msgout,source,comm,request,tag)
-  IMPLICIT NONE
-  REAL (KIND=dp), POINTER, DIMENSION (:,:) :: msgout
-  INTEGER, INTENT ( IN ) :: source, comm
-  INTEGER, INTENT(out) :: request
-  INTEGER, OPTIONAL, INTENT(in) :: tag
-  INTEGER :: msglen, ierr, my_tag
-  INTEGER :: lower1,lower2
-  REAL(KIND=dp) :: foo(1)
-    INTEGER :: handle
+  SUBROUTINE mp_irecv_rm2(msgout,source,comm,request,tag)
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_rm2', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, lower2, &
+                                                msglen, my_tag
+    REAL(KIND=dp)                            :: foo(1)
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  my_tag = 0
-  IF (PRESENT(tag)) my_tag=tag
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
 
-  msglen = SIZE(msgout,1)*SIZE(msgout,2)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgout,1)
-     lower2=LBOUND(msgout,2)
-     CALL mpi_irecv(msgout(lower1,lower2),msglen,MP_STD_REAL,source, my_tag,&
-          comm,request,ierr)
-  ELSE
-     CALL mpi_irecv(foo,msglen,MP_STD_REAL,source, my_tag,&
-          comm,request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_irecv_rm2" )
+    msglen = SIZE(msgout,1)*SIZE(msgout,2)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgout,1)
+       lower2=LBOUND(msgout,2)
+       CALL mpi_irecv(msgout(lower1,lower2),msglen,MP_STD_REAL,source, my_tag,&
+            comm,request,ierr)
+    ELSE
+       CALL mpi_irecv(foo,msglen,MP_STD_REAL,source, my_tag,&
+            comm,request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_irecv_rm2" )
 
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
-  CALL mp_abort( "mp_irecv called in non parallel case" )
+    CALL mp_abort( "mp_irecv called in non parallel case" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_irecv_rm2
+  END SUBROUTINE mp_irecv_rm2
 
-SUBROUTINE mp_irecv_cv(msgout,source,comm,request,tag)
-  IMPLICIT NONE
-  COMPLEX (KIND=dp), POINTER, DIMENSION (:) :: msgout
-  INTEGER, INTENT ( IN ) :: source, comm
-  INTEGER, INTENT(out) :: request
-  INTEGER, OPTIONAL, INTENT(in) :: tag
+  SUBROUTINE mp_irecv_cv(msgout,source,comm,request,tag)
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
 
-  INTEGER :: msglen, ierr, my_tag
-  INTEGER :: lower1
-  REAL(KIND=dp) :: foo(1)
-  INTEGER :: handle
-  CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_cv', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_cv', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, msglen, &
+                                                my_tag
+    REAL(KIND=dp)                            :: foo(1)
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  my_tag = 0
-  IF (PRESENT(tag)) my_tag=tag
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
 
-  msglen = SIZE(msgout)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgout,1)
-     CALL mpi_irecv(msgout(lower1),msglen,MP_STD_COMPLEX,source, my_tag,&
-          comm,request,ierr)
-  ELSE
-     CALL mpi_irecv(foo,msglen,MP_STD_COMPLEX,source, my_tag,&
-          comm,request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_irecv_cv" )
+    msglen = SIZE(msgout)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgout,1)
+       CALL mpi_irecv(msgout(lower1),msglen,MP_STD_COMPLEX,source, my_tag,&
+            comm,request,ierr)
+    ELSE
+       CALL mpi_irecv(foo,msglen,MP_STD_COMPLEX,source, my_tag,&
+            comm,request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_irecv_cv" )
 
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=2*msglen*reallen)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=2*msglen*reallen)
 #else
-  CALL mp_abort( "mp_irecv called in non parallel case" )
+    CALL mp_abort( "mp_irecv called in non parallel case" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_irecv_cv
+  END SUBROUTINE mp_irecv_cv
 
 #if defined(__FFTSGL)
-SUBROUTINE mp_irecv_rm2_lp(msgout,source,comm,request,tag)
-  IMPLICIT NONE
-  REAL (KIND=sp), POINTER, DIMENSION (:,:) :: msgout
-  INTEGER, INTENT ( IN ) :: source, comm
-  INTEGER, INTENT(out) :: request
-  INTEGER, OPTIONAL, INTENT(in) :: tag
-  INTEGER :: msglen, ierr, my_tag
-  INTEGER :: lower1,lower2
-  REAL(KIND=sp) :: foo(1)
-    INTEGER :: handle
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_rm2', &
+  SUBROUTINE mp_irecv_rm2_lp(msgout,source,comm,request,tag)
+    REAL(KIND=sp), DIMENSION(:, :), POINTER  :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_rm2_lp', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, lower2, &
+                                                msglen, my_tag
+    REAL(KIND=sp)                            :: foo(1)
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  my_tag = 0
-  IF (PRESENT(tag)) my_tag=tag
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
 
-  msglen = SIZE(msgout,1)*SIZE(msgout,2)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgout,1)
-     lower2=LBOUND(msgout,2)
-     CALL mpi_irecv(msgout(lower1,lower2),msglen,MP_STD_REAL,source, my_tag,&
-          comm,request,ierr)
-  ELSE
-     CALL mpi_irecv(foo,msglen,MP_STD_REAL,source, my_tag,&
-          comm,request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_irecv_rm2" )
+    msglen = SIZE(msgout,1)*SIZE(msgout,2)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgout,1)
+       lower2=LBOUND(msgout,2)
+       CALL mpi_irecv(msgout(lower1,lower2),msglen,MP_STD_REAL,source, my_tag,&
+            comm,request,ierr)
+    ELSE
+       CALL mpi_irecv(foo,msglen,MP_STD_REAL,source, my_tag,&
+            comm,request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_irecv_rm2" )
 
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
-  CALL mp_abort( "mp_irecv called in non parallel case" )
+    CALL mp_abort( "mp_irecv called in non parallel case" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_irecv_rm2_lp
+  END SUBROUTINE mp_irecv_rm2_lp
 
-SUBROUTINE mp_irecv_cv_lp(msgout,source,comm,request,tag)
-  IMPLICIT NONE
-  COMPLEX (KIND=sp), POINTER, DIMENSION (:) :: msgout
-  INTEGER, INTENT ( IN ) :: source, comm
-  INTEGER, INTENT(out) :: request
-  INTEGER, OPTIONAL, INTENT(in) :: tag
+  SUBROUTINE mp_irecv_cv_lp(msgout,source,comm,request,tag)
+    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
 
-  INTEGER :: msglen, ierr, my_tag
-  INTEGER :: lower1
-  REAL(KIND=sp) :: foo(1)
-  INTEGER :: handle
-  CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_cv', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_cv_lp', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, msglen, &
+                                                my_tag
+    REAL(KIND=sp)                            :: foo(1)
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  my_tag = 0
-  IF (PRESENT(tag)) my_tag=tag
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
 
-  msglen = SIZE(msgout)
-  IF (msglen>0) THEN
-     lower1=LBOUND(msgout,1)
-     CALL mpi_irecv(msgout(lower1),msglen,MP_STD_COMPLEX,source, my_tag,&
-          comm,request,ierr)
-  ELSE
-     CALL mpi_irecv(foo,msglen,MP_STD_COMPLEX,source, my_tag,&
-          comm,request,ierr)
-  END IF
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_irecv_cv" )
+    msglen = SIZE(msgout)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgout,1)
+       CALL mpi_irecv(msgout(lower1),msglen,MP_STD_COMPLEX,source, my_tag,&
+            comm,request,ierr)
+    ELSE
+       CALL mpi_irecv(foo,msglen,MP_STD_COMPLEX,source, my_tag,&
+            comm,request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_irecv_cv" )
 
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=2*msglen*reallen)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=2*msglen*reallen)
 #else
-  CALL mp_abort( "mp_irecv called in non parallel case" )
+    CALL mp_abort( "mp_irecv called in non parallel case" )
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_irecv_cv_lp
+  END SUBROUTINE mp_irecv_cv_lp
 #endif
 
 ! *****************************************************************************
@@ -3877,34 +3987,36 @@ END SUBROUTINE mp_irecv_cv_lp
 !>      08.2003 created [f&j]
 !> \author joost & fawzi
 ! *****************************************************************************
-SUBROUTINE mp_wait(request)
-  INTEGER, INTENT(inout) :: request
+  SUBROUTINE mp_wait(request)
+    INTEGER, INTENT(inout)                   :: request
 
-  INTEGER, DIMENSION(:), ALLOCATABLE :: status
-  INTEGER :: ierr
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_wait', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  ALLOCATE(status(MPI_STATUS_SIZE))
-  t_start = m_walltime ( )
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    t_start = m_walltime ( )
 
-  CALL mpi_wait(request,status,ierr)
-  ! we do not check the status
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_wait @ mp_wait" )
+    CALL mpi_wait(request,status,ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_wait @ mp_wait" )
 
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
-  DEALLOCATE(status)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
+    DEALLOCATE(status)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_wait
+  END SUBROUTINE mp_wait
 
 ! *****************************************************************************
 !> \brief waits for completion of the given requests
@@ -3914,35 +4026,37 @@ END SUBROUTINE mp_wait
 !>      08.2003 created [f&j]
 !> \author joost & fawzi
 ! *****************************************************************************
-SUBROUTINE mp_waitall(requests)
-  INTEGER, INTENT(inout), DIMENSION(:) :: requests
+  SUBROUTINE mp_waitall(requests)
+    INTEGER, DIMENSION(:), INTENT(inout)     :: requests
 
-  INTEGER, DIMENSION(:,:), ALLOCATABLE :: status
-  INTEGER :: ierr,count
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitall', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: count, handle, ierr
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
 #if defined(__parallel)
-  count=SIZE(requests)
-  ALLOCATE(status(MPI_STATUS_SIZE,count))
-  t_start = m_walltime ( )
+    count=SIZE(requests)
+    ALLOCATE(status(MPI_STATUS_SIZE,count))
+    t_start = m_walltime ( )
 
-  CALL mpi_waitall(count,requests,status,ierr)
-  ! we do not check the status
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_waitall @ mp_waitall" )
+    CALL mpi_waitall(count,requests,status,ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_waitall @ mp_waitall" )
 
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
-  DEALLOCATE(status)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
+    DEALLOCATE(status)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
-END SUBROUTINE mp_waitall
+  END SUBROUTINE mp_waitall
 
 ! *****************************************************************************
 !> \brief splits the given communicator in group in subgroups trying to organize
@@ -3967,24 +4081,27 @@ END SUBROUTINE mp_waitall
 !>      02.2004 modified [Joost VandeVondele]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE mp_comm_split(comm,sub_comm,ngroups, group_distribution, &
-                    subgroup_min_size, n_subgroups, group_partition)
+  SUBROUTINE mp_comm_split(comm,sub_comm,ngroups, group_distribution, &
+       subgroup_min_size, n_subgroups, group_partition)
     INTEGER, INTENT(in)                      :: comm
     INTEGER, INTENT(out)                     :: sub_comm, ngroups
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
     INTEGER, INTENT(in), OPTIONAL            :: subgroup_min_size, n_subgroups
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: group_partition
 
-    INTEGER                                  :: color, i, ierr, j, k, mepos, &
-                                                my_subgroup_min_size, nnodes
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: color, handle, i, ierr, j, k, &
+                                                mepos, my_subgroup_min_size, &
+                                                nnodes
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-! actual number of groups
+    ! actual number of groups
 
     IF (.NOT. PRESENT(subgroup_min_size) .AND. .NOT. PRESENT(n_subgroups)) THEN
        CALL mp_abort(routineP//" missing arguments ")
@@ -3999,10 +4116,10 @@ SUBROUTINE mp_comm_split(comm,sub_comm,ngroups, group_distribution, &
        CALL mp_abort(routineP//" group_distribution not associated")
     ENDIF
     IF (LBOUND(group_distribution,1) .NE. 0 .OR. &
-        UBOUND(group_distribution,1).NE.nnodes-1) THEN
+         UBOUND(group_distribution,1).NE.nnodes-1) THEN
        CALL mp_abort(routineP//" group_distribution wrong bounds")
     ENDIF
-  
+
 #if defined(__parallel)
     t_start = m_walltime ( )
     IF (PRESENT(subgroup_min_size)) THEN
@@ -4040,13 +4157,13 @@ SUBROUTINE mp_comm_split(comm,sub_comm,ngroups, group_distribution, &
              ENDDO
           ELSE
              ! just ignore silently as we have reasonable defaults. Probably a warning would not be to bad         
-          ENDIF 
+          ENDIF
        ENDIF
     ENDIF
     color=group_distribution(mepos)
     CALL mpi_comm_split(comm,color,0,sub_comm,ierr)
     IF (ierr/=mpi_success) CALL mp_stop(ierr,"in "//routineP//" split")
-     
+
     t_end = m_walltime ( )
     CALL add_perf(perf_id=10,count=1,time=t_end-t_start)
 #else
@@ -4055,48 +4172,50 @@ SUBROUTINE mp_comm_split(comm,sub_comm,ngroups, group_distribution, &
     ngroups=1
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_comm_split
+  END SUBROUTINE mp_comm_split
 
 ! a bunch of currently unused features
 !..mp_group
 ! *****************************************************************************
-SUBROUTINE mp_group(group_list,group_size,base_group,groupid)
+  SUBROUTINE mp_group(group_list,group_size,base_group,groupid)
 
     INTEGER, INTENT(IN)                      :: group_list( : ), group_size, &
                                                 base_group
     INTEGER, INTENT(OUT)                     :: groupid
 
-    INTEGER                                  :: base, ierr, newgroup
-    INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_group', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: base, handle, ierr, newgroup
+
+    ierr = 0
 #if defined(__mp_timeset__)
-    CALL timeset(routineN,handle)
+    CALL timeset_mp(routineN,handle)
 #endif
 
-  ierr = 0
-  groupid = base_group
+    ierr = 0
+    groupid = base_group
 #if defined(__parallel)
-  t_start = m_walltime ( )
-  CALL mpi_comm_group ( base_group, base, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_group @ mp_group" )
+    t_start = m_walltime ( )
+    CALL mpi_comm_group ( base_group, base, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_group @ mp_group" )
 
-  CALL mpi_group_incl ( base, group_size, group_list, newgroup, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_group_incl @ mp_group" )
+    CALL mpi_group_incl ( base, group_size, group_list, newgroup, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_group_incl @ mp_group" )
 
-  CALL mpi_comm_create ( base_group, newgroup, groupid, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_create @ mp_group" )
-  CALL add_perf(perf_id=2,count=1)
-  t_end = m_walltime ( )
-  CALL add_perf(perf_id=1,time=t_end-t_start)
+    CALL mpi_comm_create ( base_group, newgroup, groupid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_create @ mp_group" )
+    CALL add_perf(perf_id=2,count=1)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=1,time=t_end-t_start)
 #endif
 #if defined(__mp_timeset__)
-    CALL timestop(handle)
+    CALL timestop_mp(handle)
 #endif
 
-END SUBROUTINE mp_group
+  END SUBROUTINE mp_group
 
 END MODULE message_passing

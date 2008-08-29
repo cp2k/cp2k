@@ -525,7 +525,7 @@ CONTAINS
     REAL(KIND=dp)                            :: eps_rho_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
-    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb, rab_inv
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rab_inv, rb
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab, p_block, pab, rpgfa, &
                                                 rpgfb, sphi_a, sphi_b, work, &

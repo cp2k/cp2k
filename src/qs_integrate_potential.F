@@ -318,7 +318,8 @@ CONTAINS
       use_virial
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, &
                                                 kind_radius_b, rab2, zetp
-    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, rb, rab_inv
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
+                                                rab_inv, rb
     REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab, h_block, hab, &
