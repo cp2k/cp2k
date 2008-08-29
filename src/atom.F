@@ -25,7 +25,7 @@ MODULE atom
        atom_denmat, atom_density, atom_set_occupation, atom_solve, &
        atom_trace, ceri_contract, coulomb_potential_analytic, &
        coulomb_potential_numeric, eeri_contract, err_matrix, get_maxl_occ, &
-       get_maxn_occ, integrate_grid, numpot_matrix
+       get_maxn_occ, numpot_matrix
   USE atom_xc,                         ONLY: calculate_atom_vxc
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -41,7 +41,6 @@ MODULE atom
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: fourpi
   USE periodic_table,                  ONLY: nelem,&
                                              ptable
 #include "cp_common_uses.h"

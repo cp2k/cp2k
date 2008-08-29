@@ -12,7 +12,8 @@
 ! *****************************************************************************
 MODULE atom_utils
 
-  USE atom_types,                      ONLY: CGTO_BASIS, GTO_BASIS,&
+  USE atom_types,                      ONLY: CGTO_BASIS,&
+                                             GTO_BASIS,&
                                              atom_basis_type,&
                                              eri
   USE erf_fn,                          ONLY: erf
@@ -396,22 +397,23 @@ CONTAINS
 
   SUBROUTINE coulomb_potential_analytic ( cpot, pmat, basis, grid, maxl, error )
     REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT)                              :: cpot
+      INTENT(INOUT)                          :: cpot
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
-      INTENT(IN)                                 :: pmat
-    TYPE(atom_basis_type), INTENT(IN)            :: basis
-    TYPE(grid_atom_type)                         :: grid
-    INTEGER, INTENT(IN)                          :: maxl
-    TYPE(cp_error_type), INTENT(INOUT)           :: error
+      INTENT(IN)                             :: pmat
+    TYPE(atom_basis_type), INTENT(IN)        :: basis
+    TYPE(grid_atom_type)                     :: grid
+    INTEGER, INTENT(IN)                      :: maxl
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coulomb_potential_analytic', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                      :: i, ierr, j, k, l, m, n
-    LOGICAL                                      :: failure = .FALSE.
-    REAL(KIND=dp)                                :: a, b, ff, oab, sab
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: erfa, expa, z
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)   :: unp
+    INTEGER                                  :: i, ierr, j, k, l, m, n
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: a, b, ff, oab, sab
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erfa, expa, z
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: unp
 
     m = SIZE(cpot)
     ALLOCATE ( erfa(1:m), expa(1:m), z(1:m), STAT=ierr )

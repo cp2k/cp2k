@@ -49,10 +49,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_int_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, l, l1, l2, ll, n, n1, &
-       n2, nn1, nn2, nu, nx, m, m1, m2, mm1, mm2
+    INTEGER                                  :: ierr, l, l1, l2, ll, m, m1, &
+                                                m2, mm1, mm2, n, n1, n2, nn1, &
+                                                nn2, nu, nx
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: omat
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: omat
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: eri
 
     failure = .FALSE.
@@ -289,34 +291,34 @@ CONTAINS
   END SUBROUTINE atom_int_release
 ! *****************************************************************************
   SUBROUTINE contract2 ( int, omat, cm, error )
-    REAL(dp), DIMENSION(:,:), INTENT(INOUT)  :: int
-    REAL(dp), DIMENSION(:,:), INTENT(IN)     :: omat, cm
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: int
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: omat, cm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'contract2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n, m
+    INTEGER                                  :: m, n
 
     n = SIZE(int,1)
     m = SIZE(omat,1)
 
-    int(1:n,1:n) = MATMUL(TRANSPOSE(cm(1:m,1:n)),MATMUL(omat(1:m,1:m),cm(1:m,1:n)))
+    INT(1:n,1:n) = MATMUL(TRANSPOSE(cm(1:m,1:n)),MATMUL(omat(1:m,1:m),cm(1:m,1:n)))
 
   END SUBROUTINE contract2 
 ! *****************************************************************************
   SUBROUTINE contract4 ( eri, omat, cm1, cm2, error )
-    REAL(dp), DIMENSION(:,:), INTENT(INOUT)  :: eri
-    REAL(dp), DIMENSION(:,:), INTENT(IN)     :: omat, cm1, cm2
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: eri
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: omat, cm1, cm2
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'contract4', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure=.FALSE.
-    INTEGER                                  :: n1, n2, m1, m2, nn1, nn2, mm1, mm2
-    INTEGER                                  :: i1, i2, ierr
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE    :: amat, atran, bmat, btran, hint
+    INTEGER                                  :: i1, i2, ierr, m1, m2, mm1, &
+                                                mm2, n1, n2, nn1, nn2
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: amat, atran, bmat, btran, hint
 
     m1 = SIZE(cm1,1)
     n1 = SIZE(cm1,2)
@@ -352,11 +354,11 @@ CONTAINS
   END SUBROUTINE contract4
 ! *****************************************************************************
   SUBROUTINE ipack(mat,vec,n)
-    REAL(dp), DIMENSION(:,:), INTENT(IN)     :: mat
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: mat
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: vec
     INTEGER, INTENT(IN)                      :: n
 
-    INTEGER                                  :: i, j, ij
+    INTEGER                                  :: i, ij, j
 
     ij = 0
     DO i=1,n
@@ -369,11 +371,11 @@ CONTAINS
   END SUBROUTINE ipack
 
   SUBROUTINE iunpack(mat,vec,n)
-    REAL(dp), DIMENSION(:,:), INTENT(INOUT)  :: mat
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: mat
     REAL(dp), DIMENSION(:), INTENT(IN)       :: vec
     INTEGER, INTENT(IN)                      :: n
 
-    INTEGER                                  :: i, j, ij
+    INTEGER                                  :: i, ij, j
 
     ij = 0
     DO i=1,n

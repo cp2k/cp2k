@@ -14,35 +14,31 @@ MODULE atom_types
 
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_methods,               ONLY: parser_get_object,&
                                              parser_search_string
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_list_get,&
-                                             section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_val_get,&
-                                             section_vals_val_set
   USE input_constants,                 ONLY: contracted_gto,&
                                              gaussian,&
                                              geometrical_gto,&
                                              numerical,&
                                              slater
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_list_get,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE input_val_types,                 ONLY: val_get,&
                                              val_type
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
-  USE periodic_table,                  ONLY: nelem,&
-                                             ptable
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE periodic_table,                  ONLY: ptable
   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
                                              create_grid_atom,&
                                              deallocate_grid_atom,&
                                              grid_atom_type
-  USE string_utilities,                ONLY: integer_to_string,&
-                                             remove_word,&
+  USE string_utilities,                ONLY: remove_word,&
                                              uppercase
 #include "cp_common_uses.h"
 
@@ -169,6 +165,29 @@ MODULE atom_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief Initialize the basis for the atomic code
+!> \note  Highly accurate relativistic universal Gaussian basis set: Dirac-Fock-Coulomb calculations 
+!>        for atomic systems up to nobelium
+!>        J. Chem. Phys. 101, 6829 (1994); DOI:10.1063/1.468311
+!>        G. L. Malli and A. B. F. Da Silva
+!>        Department of Chemistry, Simon Fraser University, Burnaby, B.C., Canada
+!>        Yasuyuki Ishikawa
+!>        Department of Chemistry, University of Puerto Rico, San Juan, Puerto Rico
+!>        
+!>        A universal Gaussian basis set is developed that leads to relativistic Dirac-Fock SCF energies 
+!>        of comparable accuracy as that obtained by the accurate numerical finite-difference method 
+!>        (GRASP2 package) [J. Phys. B 25, 1 (1992)]. The Gaussian-type functions of our universal basis 
+!>        set satisfy the relativistic boundary conditions associated with the finite nuclear model for a 
+!>        finite speed of light and conform to the so-called kinetic balance at the nonrelativistic limit. 
+!>        We attribute the exceptionally high accuracy obtained in our calculations to the fact that the 
+!>        representation of the relativistic dynamics of an electron in a spherical ball finite nucleus 
+!>        near the origin in terms of our universal Gaussian basis set is as accurate as that provided by 
+!>        the numerical finite-difference method. Results of the Dirac-Fock-Coulomb energies for a number 
+!>        of atoms up to No (Z=102) and some negative ions are presented and compared with the recent 
+!>        results obtained with the numerical finite-difference method and geometrical Gaussian basis sets 
+!>        by Parpia, Mohanty, and Clementi [J. Phys. B 25, 1 (1992)]. The accuracy of our calculations is 
+!>        estimated to be within a few parts in 109 for all the atomic systems studied.
+! *****************************************************************************
   SUBROUTINE init_atom_basis(basis,basis_section,zval,error)
     TYPE(atom_basis_type), INTENT(INOUT)     :: basis
     TYPE(section_vals_type), POINTER         :: basis_section
@@ -177,57 +196,30 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_basis', &
       routineP = moduleN//':'//routineN
-
-! Highly accurate relativistic universal Gaussian basis set: Dirac-Fock-Coulomb calculations 
-! for atomic systems up to nobelium
-! J. Chem. Phys. 101, 6829 (1994); DOI:10.1063/1.468311
-! G. L. Malli and A. B. F. Da Silva
-! Department of Chemistry, Simon Fraser University, Burnaby, B.C., Canada
-! Yasuyuki Ishikawa
-! Department of Chemistry, University of Puerto Rico, San Juan, Puerto Rico
-!
-! A universal Gaussian basis set is developed that leads to relativistic Dirac-Fock SCF energies 
-! of comparable accuracy as that obtained by the accurate numerical finite-difference method 
-! (GRASP2 package) [J. Phys. B 25, 1 (1992)]. The Gaussian-type functions of our universal basis 
-! set satisfy the relativistic boundary conditions associated with the finite nuclear model for a 
-! finite speed of light and conform to the so-called kinetic balance at the nonrelativistic limit. 
-! We attribute the exceptionally high accuracy obtained in our calculations to the fact that the 
-! representation of the relativistic dynamics of an electron in a spherical ball finite nucleus 
-! near the origin in terms of our universal Gaussian basis set is as accurate as that provided by 
-! the numerical finite-difference method. Results of the Dirac-Fock-Coulomb energies for a number 
-! of atoms up to No (Z=102) and some negative ions are presented and compared with the recent 
-! results obtained with the numerical finite-difference method and geometrical Gaussian basis sets 
-! by Parpia, Mohanty, and Clementi [J. Phys. B 25, 1 (1992)]. The accuracy of our calculations is 
-! estimated to be within a few parts in 109 for all the atomic systems studied.
-!
     INTEGER, PARAMETER                       :: nu = 40
-    REAL(KIND=dp), DIMENSION(nu), PARAMETER :: ugbs = (/0.007299_dp, &
+    REAL(KIND=dp), DIMENSION(nu), PARAMETER :: ugbs = (/0.007299_dp,&
       0.013705_dp, 0.025733_dp, 0.048316_dp, 0.090718_dp, 0.170333_dp,&
-      0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp, 3.974902_dp, &
-      1.463317_dp,14.013204_dp, 26.311339_dp, 49.402449_dp, 92.758561_dp, &
-      174.164456_dp, 327.013024_dp,614.003114_dp, 1152.858743_dp, &
-      2164.619772_dp, 4064.312984_dp, 7631.197056_dp,14328.416324_dp, &
+      0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp, 3.974902_dp,&
+      1.463317_dp,14.013204_dp, 26.311339_dp, 49.402449_dp, 92.758561_dp,&
+      174.164456_dp, 327.013024_dp,614.003114_dp, 1152.858743_dp,&
+      2164.619772_dp, 4064.312984_dp, 7631.197056_dp,14328.416324_dp,&
       26903.186074_dp, 50513.706789_dp, 94845.070265_dp, 178082.107320_dp,&
       334368.848683_dp, 627814.487663_dp, 1178791.123851_dp, 2213310.684886_dp&
-      , 4155735.557141_dp,7802853.046713_dp, 14650719.428954_dp, &
+      ,4155735.557141_dp,7802853.046713_dp, 14650719.428954_dp,&
       27508345.793637_dp, 51649961.080194_dp, 96978513.342764_dp,&
-      182087882.613702_dp, 341890134.751331_dp /)
-!
-!
+      182087882.613702_dp, 341890134.751331_dp /) 
 
-    INTEGER                                  :: basistype, i, j, ierr, k, l, m, &
-                                                ngp, nr, quadtype, ll
+    CHARACTER(LEN=default_string_length)     :: basis_fn, basis_name
+    INTEGER                                  :: basistype, i, ierr, j, k, l, &
+                                                ll, m, ngp, nr, quadtype
     INTEGER, DIMENSION(0:3)                  :: starti
     INTEGER, DIMENSION(:), POINTER           :: num_gto, sindex
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: al, ear, rk, cval, aval
+    REAL(KIND=dp)                            :: al, aval, cval, ear, rk
     REAL(KIND=dp), DIMENSION(:), POINTER     :: expo
-    CHARACTER(LEN=default_string_length)     :: basis_fn, basis_name
     TYPE(section_vals_type), POINTER         :: gto_basis_section
-!
 
     failure = .FALSE.
-
     NULLIFY(basis%am,basis%cm,basis%as,basis%bf,basis%dbf)
     ! get information on quadrature type and number of grid points
     ! allocate and initialize the atomic grid 
@@ -705,7 +697,7 @@ CONTAINS
     INTEGER, DIMENSION(0:3), INTENT(OUT)     :: ngto, ival
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'Clementi_geobas',&
+    CHARACTER(len=*), PARAMETER :: routineN = 'Clementi_geobas', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure = .FALSE.
@@ -1460,13 +1452,13 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol
     TYPE(atom_basis_type), INTENT(INOUT)     :: basis
-    CHARACTER(LEN=*), INTENT(IN)             :: basis_set_name
-    CHARACTER(LEN=*), INTENT(IN)             :: basis_set_file
+    CHARACTER(LEN=*), INTENT(IN)             :: basis_set_name, basis_set_file
     TYPE(section_vals_type), POINTER         :: basis_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_basis_set', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: maxpri = 40, maxset = 10
 
     CHARACTER(len=20*default_string_length)  :: line_att
     CHARACTER(LEN=240)                       :: line
@@ -1475,15 +1467,17 @@ CONTAINS
     CHARACTER(LEN=LEN(basis_set_name)+2)     :: bsname2
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
-    LOGICAL                                  :: failure, read_from_input, is_ok, &
-                                                found, match
-    INTEGER, PARAMETER                       :: maxset = 10, maxpri = 40
-    INTEGER, DIMENSION(maxset)               :: lmax, lmin, npgf, nshell, n
-    INTEGER, DIMENSION(maxpri,maxset)        :: l
-    REAL(dp), DIMENSION(maxpri,maxset)       :: zet
-    REAL(dp), DIMENSION(maxpri,maxpri,maxset):: gcc
-    INTEGER :: i, j, k, ii, irep, nset, iset, nmin, lshell, ishell, ipgf, nj, ns,&
-       ierr, strlen1, strlen2
+    INTEGER                                  :: i, ierr, ii, ipgf, irep, &
+                                                iset, ishell, j, k, lshell, &
+                                                nj, nmin, ns, nset, strlen1, &
+                                                strlen2
+    INTEGER, DIMENSION(maxpri, maxset)       :: l
+    INTEGER, DIMENSION(maxset)               :: lmax, lmin, n, npgf, nshell
+    LOGICAL                                  :: failure, found, is_ok, match, &
+                                                read_from_input
+    REAL(dp), &
+      DIMENSION(maxpri, maxpri, maxset)      :: gcc
+    REAL(dp), DIMENSION(maxpri, maxset)      :: zet
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(val_type), POINTER                  :: val

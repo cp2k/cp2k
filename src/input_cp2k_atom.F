@@ -23,8 +23,9 @@ MODULE input_cp2k_atom
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: lchar_t, char_t,&
+  USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
+                                             lchar_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a

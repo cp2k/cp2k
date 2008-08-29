@@ -11,33 +11,31 @@ MODULE atom_xc
 
   USE atom_types,                      ONLY: atom_type,&
                                              opmat_type
-  USE atom_utils,                      ONLY: integrate_grid,&
-                                             numpot_matrix,&
-                                             atom_density
-  USE kinds,                           ONLY: dp
+  USE atom_utils,                      ONLY: atom_density,&
+                                             integrate_grid,&
+                                             numpot_matrix
   USE input_constants,                 ONLY: xc_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_atom,                         ONLY: xc_rho_set_atom_update
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_create,&
+                                             xc_dset_get_derivative,&
                                              xc_dset_release,&
-                                             xc_dset_zero_all,&
-                                             xc_dset_get_derivative
-  USE xc_derivatives,                  ONLY: xc_functionals_get_needs,&
-                                             xc_functionals_eval
+                                             xc_dset_zero_all
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
+  USE xc_derivatives,                  ONLY: xc_functionals_eval,&
+                                             xc_functionals_get_needs
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                              xc_rho_set_release,&
                                              xc_rho_set_type
-
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -62,18 +60,20 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_vxc', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure=.FALSE.
-    INTEGER                                  :: handle, myfun, nspins, deriv_order, nr, ierr
-    TYPE(section_vals_type), POINTER         :: xc_section, xc_fun_section
-    TYPE(xc_rho_cflags_type)                 :: needs
-    REAL(KIND=dp)                            :: density_cut, gradient_cut, tau_cut
-    INTEGER, DIMENSION(2,3)                  :: bounds
-    LOGICAL                                  :: lsd, gradient_f
-    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    INTEGER                                  :: deriv_order, handle, ierr, &
+                                                myfun, nr, nspins
+    INTEGER, DIMENSION(2, 3)                 :: bounds
+    LOGICAL                                  :: failure = .FALSE., lsd
+    REAL(KIND=dp)                            :: density_cut, gradient_cut, &
+                                                tau_cut
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: drho, rho, tau
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: xcpot
+    TYPE(section_vals_type), POINTER         :: xc_fun_section, xc_section
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: rho, drho, tau
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: xcpot
+    TYPE(xc_rho_cflags_type)                 :: needs
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
 
 ! -------------------------------------------------------------------------
 
@@ -183,9 +183,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
-    REAL(dp), DIMENSION(:), POINTER          :: rho
-    REAL(dp), DIMENSION(:), POINTER          :: drho
-    REAL(dp), DIMENSION(:), POINTER          :: tau
+    REAL(dp), DIMENSION(:), POINTER          :: rho, drho, tau
     INTEGER, INTENT(IN)                      :: na
     TYPE(cp_error_type), INTENT(inout)       :: error
 
