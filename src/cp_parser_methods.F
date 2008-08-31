@@ -17,7 +17,9 @@
 ! *****************************************************************************
 MODULE cp_parser_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser_buffer_types,          ONLY: copy_buffer_type
+  USE cp_parser_buffer_types,          ONLY: copy_buffer_type,&
+                                             finalize_sub_buffer,&
+                                             initialize_sub_buffer
   USE cp_parser_ilist_methods,         ONLY: ilist_reset,&
                                              ilist_setup,&
                                              ilist_update
@@ -131,24 +133,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_retrieve_status', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iline
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    ! We are always on the same file (no possibility of switch file at this level)
-    IF (parser%para_env%mepos==parser%para_env%source) THEN
-       check = ALL(parser%buffer%input_line_numbers==parser%status%buffer%input_line_numbers)
-       IF (.NOT.check) THEN
-          ! Parser advanced.. retrieve its original location in the file
-          check = ALL(parser%buffer%input_line_numbers>=parser%status%buffer%input_line_numbers)
-          CPPrecondition(check,cp_failure_level,routineP,error,failure)
-          DO iline=1,parser%buffer%input_line_numbers(1)-parser%status%buffer%input_line_numbers(1)
-             BACKSPACE (parser%input_unit)
-          END DO
-       END IF
+    ! Always store the new buffer (if it is really newly read)
+    IF (ANY(parser%buffer%input_line_numbers/=parser%status%buffer%input_line_numbers)) THEN
+       CALL initialize_sub_buffer(parser%buffer%sub_buffer, parser%buffer, error)
     END IF
 
     parser%input_line        = parser%status%old_input_line
@@ -231,8 +224,13 @@ CONTAINS
     istat = 0
     ! Check buffer
     IF (parser%buffer%present_line_number==parser%buffer%size) THEN
-       ! Rebuffer input file if required
-       CALL parser_read_line_low(parser,error)
+       IF(ASSOCIATED(parser%buffer%sub_buffer)) THEN
+          ! If the sub_buffer is initialized let's restore its buffer
+          CALL finalize_sub_buffer(parser%buffer%sub_buffer,parser%buffer,error=error)
+       ELSE
+          ! Rebuffer input file if required
+          CALL parser_read_line_low(parser,error)
+       END IF
     END IF
     parser%buffer%present_line_number = parser%buffer%present_line_number+1
     parser%input_line_number = parser%buffer%input_line_numbers(parser%buffer%present_line_number)

@@ -28,9 +28,11 @@ MODULE cp_parser_buffer_types
      INTEGER, DIMENSION(:), POINTER       :: input_line_numbers
      CHARACTER(LEN=max_line_length), &
           DIMENSION(:), POINTER           :: input_lines
+     TYPE(buffer_type), POINTER           :: sub_buffer
   END TYPE buffer_type
 
-  PUBLIC :: buffer_type, create_buffer_type, release_buffer_type, copy_buffer_type
+  PUBLIC :: buffer_type, create_buffer_type, release_buffer_type, copy_buffer_type,&
+            initialize_sub_buffer, finalize_sub_buffer
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_buffer_types'
   INTEGER, PARAMETER, PRIVATE          :: buffer_size=1000
 
@@ -64,6 +66,7 @@ CONTAINS
     buffer%istat               = 0
     buffer%present_line_number = buffer%size
     buffer%last_line_number    = buffer%size
+    NULLIFY(buffer%sub_buffer)
   END SUBROUTINE create_buffer_type
 
 ! ****************************************************************************
@@ -71,7 +74,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   08.2008
 ! *****************************************************************************
-  SUBROUTINE release_buffer_type(buffer, error)
+  RECURSIVE SUBROUTINE release_buffer_type(buffer, error)
     TYPE(buffer_type), POINTER               :: buffer
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -87,16 +90,19 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(buffer%input_line_numbers, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (ASSOCIATED(buffer%sub_buffer)) THEN
+       CALL release_buffer_type(buffer%sub_buffer, error)
+    END IF
     DEALLOCATE(buffer, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE release_buffer_type
 
 ! ****************************************************************************
-!> \brief  copy buffer types
+!> \brief  Copies  buffer types
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   08.2008
 ! *****************************************************************************
-  SUBROUTINE copy_buffer_type(buffer_in, buffer_out, error)
+  RECURSIVE SUBROUTINE copy_buffer_type(buffer_in, buffer_out, error)
     TYPE(buffer_type), POINTER               :: buffer_in, buffer_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -113,7 +119,54 @@ CONTAINS
     buffer_out%last_line_number    = buffer_in%last_line_number
     buffer_out%istat               = buffer_in%istat
     buffer_out%input_line_numbers  = buffer_in%input_line_numbers
-    buffer_out%input_lines         = buffer_in%input_lines        
+    buffer_out%input_lines         = buffer_in%input_lines
+    IF (ASSOCIATED(buffer_in%sub_buffer).AND.ASSOCIATED(buffer_out%sub_buffer)) THEN
+       CALL copy_buffer_type(buffer_in%sub_buffer, buffer_out%sub_buffer, error)
+    END IF
   END SUBROUTINE copy_buffer_type
+
+! ****************************************************************************
+!> \brief  Initializes sub buffer structure
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   08.2008
+! *****************************************************************************
+  SUBROUTINE initialize_sub_buffer(sub_buffer, buffer, error)
+    TYPE(buffer_type), POINTER               :: sub_buffer, buffer
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_sub_buffer', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPostcondition(ASSOCIATED(buffer),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(sub_buffer),cp_failure_level,routineP,error,failure)
+    CALL create_buffer_type(sub_buffer, error)
+    CALL copy_buffer_type(buffer, sub_buffer, error)
+    sub_buffer%present_line_number = 0
+  END SUBROUTINE initialize_sub_buffer
+
+
+! ****************************************************************************
+!> \brief  Finalizes sub buffer structure
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   08.2008
+! *****************************************************************************
+  SUBROUTINE finalize_sub_buffer(sub_buffer, buffer, error)
+    TYPE(buffer_type), POINTER               :: sub_buffer, buffer
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'finalize_sub_buffer', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPostcondition(ASSOCIATED(buffer),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(sub_buffer),cp_failure_level,routineP,error,failure)
+    CALL copy_buffer_type(sub_buffer,buffer,error=error)
+    CALL release_buffer_type(sub_buffer, error=error)
+  END SUBROUTINE finalize_sub_buffer
 
 END MODULE cp_parser_buffer_types
