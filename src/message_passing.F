@@ -2043,9 +2043,10 @@ CONTAINS
 #if defined(__mp_timeset__)
     CALL timeset_mp(routineN,handle)
 #endif
-    msglen = LEN(msg)
 #if defined(__parallel)
     t_start = m_walltime ( )
+    msglen = LEN_TRIM(msg)
+    CALL mp_bcast_i1(msglen, source, gid)
     ! this is a workaround to avoid problems on the T3E
     ! at the moment we have a data alignment error when trying to
     ! broadcats characters on the T3E (not always!)
@@ -2057,6 +2058,7 @@ CONTAINS
     END DO
     CALL mpi_bcast(imsg,msglen,MPI_INTEGER,source,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_z" )
+    msg = ""
     DO i = 1, msglen
        msg(i:i) = CHAR(imsg(i))
     END DO
@@ -2076,37 +2078,49 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_zv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ierr, j, msglen, &
-                                                msgsiz
-    INTEGER, ALLOCATABLE                     :: imsg( :, :)
+    INTEGER                                  :: handle, i, ierr, j, k, &
+                                                msglen, msgsiz
+    INTEGER, ALLOCATABLE                     :: imsg(:), imsglen(:)
 
     ierr = 0
 #if defined(__mp_timeset__)
     CALL timeset_mp(routineN,handle)
 #endif
-    msgsiz = SIZE(msg)
-    msglen = LEN(msg)
 #if defined(__parallel)
     t_start = m_walltime ( )
+    msgsiz = SIZE(msg)
+    ! Determine size of the minimum array of integers to bradcast the string
+    ALLOCATE (imsglen(1:msgsiz))
+    DO j = 1, msgsiz
+       imsglen(j) = LEN_TRIM(msg(j))
+    END DO
+    CALL mp_bcast_iv(imsglen, source, gid)
+    msglen = SUM(imsglen)
     ! this is a workaround to avoid problems on the T3E
     ! at the moment we have a data alignment error when trying to
     ! broadcats characters on the T3E (not always!)
     ! JH 19/3/99 on galileo
     ! CALL mpi_bcast(msg,msglen,MPI_CHARACTER,source,gid,ierr)
-    ALLOCATE (imsg(1:msglen,1:msgsiz))
+    ALLOCATE (imsg(1:msglen))
+    k = 0
     DO j = 1, msgsiz
-       DO i = 1, msglen
-          imsg(i,j) = ICHAR(msg(j)(i:i))
+       DO i = 1, imsglen(j)
+          k = k + 1
+          imsg(k) = ICHAR(msg(j)(i:i))
        END DO
     END DO
-    CALL mpi_bcast(imsg,msglen*msgsiz,MPI_INTEGER,source,gid,ierr)
+    CALL mpi_bcast(imsg,msglen,MPI_INTEGER,source,gid,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_z" )
+    msg = ""
+    k = 0
     DO j = 1, msgsiz
-       DO i = 1, msglen
-          msg(j)(i:i) = CHAR(imsg(i,j))
+       DO i = 1, imsglen(j)
+          k = k + 1
+          msg(j)(i:i) = CHAR(imsg(k))
        END DO
     END DO
     DEALLOCATE (imsg)
+    DEALLOCATE (imsglen)
     t_end = m_walltime ( )
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*charlen*msgsiz)
 #endif
