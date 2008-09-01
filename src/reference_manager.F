@@ -334,11 +334,13 @@ CONTAINS
     ENDIF
 
     ! Journal, volume (issue), pages (year).
-    journal=TRIM(get_source(thebib(key)%ref%ISI_record))//","
-    journal=TRIM(journal)//" "//get_volume(thebib(key)%ref%ISI_record)
-    IF (get_issue(thebib(key)%ref%ISI_record).NE."") THEN
-        journal=TRIM(journal)//" ("//TRIM(get_issue(thebib(key)%ref%ISI_record))//")"
-    ENDIF
+    journal=TRIM(get_source(thebib(key)%ref%ISI_record))
+    IF (get_volume(thebib(key)%ref%ISI_record).NE."") THEN
+       journal=TRIM(journal)//", "//get_volume(thebib(key)%ref%ISI_record)
+       IF (get_issue(thebib(key)%ref%ISI_record).NE."") THEN
+          journal=TRIM(journal)//" ("//TRIM(get_issue(thebib(key)%ref%ISI_record))//")"
+       ENDIF
+    END IF
     journal=TRIM(journal)//", "//get_pages(thebib(key)%ref%ISI_record)
     IF (get_year(thebib(key)%ref%ISI_record).NE."") THEN
         journal=TRIM(journal)//" ("//TRIM(get_year(thebib(key)%ref%ISI_record))//")."
@@ -400,11 +402,13 @@ CONTAINS
       WRITE(unit,'(T2,A)',ADVANCE="NO") '<A HREF="http://dx.doi.org/'//TRIM(thebib(key)%ref%DOI)//'">'
     ENDIF
     ! Journal, volume (issue), pages (year).
-    journal=TRIM(get_source(thebib(key)%ref%ISI_record))//","
-    journal=TRIM(journal)//" "//get_volume(thebib(key)%ref%ISI_record)
-    IF (get_issue(thebib(key)%ref%ISI_record).NE."") THEN
-        journal=TRIM(journal)//" ("//TRIM(get_issue(thebib(key)%ref%ISI_record))//")"
-    ENDIF
+    journal=TRIM(get_source(thebib(key)%ref%ISI_record))
+    IF (get_volume(thebib(key)%ref%ISI_record).NE."") THEN
+       journal=TRIM(journal)//", "//get_volume(thebib(key)%ref%ISI_record)
+       IF (get_issue(thebib(key)%ref%ISI_record).NE."") THEN
+          journal=TRIM(journal)//" ("//TRIM(get_issue(thebib(key)%ref%ISI_record))//")"
+       ENDIF
+    END IF
     journal=TRIM(journal)//", "//get_pages(thebib(key)%ref%ISI_record)
     IF (get_year(thebib(key)%ref%ISI_record).NE."") THEN
         journal=TRIM(journal)//" ("//TRIM(get_year(thebib(key)%ref%ISI_record))//")."
