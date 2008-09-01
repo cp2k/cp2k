@@ -215,7 +215,7 @@ CONTAINS
             variants=(/"R_0"/),&
             description="Specify the R0 parameter in the coordination function.",&
             usage="R0 {real}",default_r_val=3.0_dp,&
-            n_var=1, error=error)
+            unit_str="bohr",n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
