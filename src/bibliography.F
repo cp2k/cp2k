@@ -34,7 +34,7 @@ MODULE bibliography
 
   PRIVATE
 
-  PUBLIC :: cite_reference ! for convenience
+  PUBLIC :: cite_reference     ! for convenience
   PUBLIC :: add_all_references ! f77_interface only
 
   ! all reference keys
@@ -49,7 +49,8 @@ MODULE bibliography
              Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, Aguado2003,&
              Essmann1995,Ewald1921,Darden1993, Tersoff1988, Tosi1964a, Tosi1964b,&
              Yamada2000,Dudarev1997,Dudarev1998,Dewar1977,Dewar1985,Rocha2006,&
-             Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003,Guidon2008
+             Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003,Guidon2008,&
+             Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004
 
 CONTAINS
 
@@ -64,6 +65,88 @@ CONTAINS
 !>      08.2007 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE add_all_references()
+
+    CALL add_reference(key=Wales2004, ISI_record=s2a(&
+         "AU Trygubenko, SA",&
+         "   Wales, DJ",&
+         "TI A doubly nudged elastic band method for finding transition states",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD FEB 1",&
+         "PY 2004",&
+         "VL 120",&
+         "IS 5",&
+         "BP 2082",&
+         "EP 2094",&
+         "DI 10.1063/1.1636455",&
+         "UT ISI:000188498400003",&
+         "ER"),&
+         DOI="10.1063/1.1329672")
+    
+    CALL add_reference(key=Jonsson2000_2, ISI_record=s2a(&
+         "AU Henkelman, G",&
+         "   Uberuaga, BP",&
+         "   Jonsson, H",&
+         "TI A climbing image nudged elastic band method for finding saddle points",&
+         "   and minimum energy paths",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD DEC 8",&
+         "PY 2000",&
+         "VL 113",&
+         "IS 22",&
+         "BP 9901",&
+         "EP 9904",&
+         "UT ISI:000165584900005",&
+         "ER"),&
+         DOI="10.1063/1.1329672")
+
+    CALL add_reference(key=Jonsson2000_1, ISI_record=s2a(&
+         "AU Henkelman, G",&
+         "   Jonsson, H",&
+         "TI Improved tangent estimate in the nudged elastic band method for finding",&
+         "   minimum energy paths and saddle points",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD DEC 8",&
+         "PY 2000",&
+         "VL 113",&
+         "IS 22",&
+         "BP 9978",&
+         "EP 9985",&
+         "UT ISI:000165584900014",&
+         "ER"),&
+         DOI="10.1063/1.1323224")
+
+    CALL add_reference(key=Jonsson1998, ISI_record=s2a(&
+         "AU JONSSON, H",&
+         "   MILLS, G",&
+         "   JACOBSEN, K W",&
+         "TI Nudged elastic band method for finding minimum energy paths ",&
+         "   of transitions",&
+         "SO Classical and Quantum Dynamics in Condensed Phase Simulations",&
+         "PY 1998",&
+         "BP 385",&
+         "EP 404",&
+         "ER"),&
+         DOI="")
+
+    CALL add_reference(key=Elber1987, ISI_record=s2a(&
+         "AU ELBER, R",&
+         "   KARPLUS, M",&
+         "TI A METHOD FOR DETERMINING REACTION PATHS IN LARGE MOLECULES -",&
+         "   APPLICATION TO MYOGLOBIN",&
+         "SO CHEMICAL PHYSICS LETTERS",&
+         "SN 0009-2614",&
+         "PD SEP 4",&
+         "PY 1987",&
+         "VL 139",&
+         "IS 5",&
+         "BP 375",&
+         "EP 380",&
+         "UT ISI:A1987K321300001",&
+         "ER"),&
+         DOI="10.1016/0009-2614(87)80576-6")
 
     CALL add_reference(key=Weber2008, ISI_record=s2a(&
          "AU Weber, V",&

@@ -16,6 +16,12 @@
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
 MODULE neb_utils
+  USE bibliography,                    ONLY: Elber1987,&
+                                             Jonsson1998,&
+                                             Jonsson2000_1,&
+                                             Jonsson2000_2,&
+                                             Wales2004,&
+                                             cite_reference
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -539,6 +545,7 @@ CPSourceFileRef,&
     neb_env%spring_energy = neb_env%spring_energy + 0.5_dp*neb_env%k*tmp**2
     SELECT CASE(my_tag)
     CASE(do_eb)
+       CALL cite_reference(Elber1987)
        ! Elastic band - Hamiltonian formulation according the original Karplus/Elber
        !                formulation
        ALLOCATE(dtmp1(SIZE(coords,1)),stat=stat)
@@ -564,12 +571,14 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CASE(do_b_neb)
        ! Bisection NEB
+       CALL cite_reference(Jonsson1998)
        wrk = (coords(:,i+1)-2.0_dp*coords(:,i)+coords(:,i-1))
        tmp = neb_env%k * DOT_PRODUCT(wrk,tangent)
        wrk = forces(:,i)-DOT_PRODUCT(forces(:,i),tangent)*tangent
        forces(:,i) = wrk + tmp * tangent
     CASE(do_it_neb)
        ! Improved tangent NEB
+       CALL cite_reference(Jonsson2000_1)
        CALL neb_replica_distance(coords=coords,i0=i,i=i+1,distance=distance1,iw=iw,&
             rotate=.FALSE.,error=error)
        CALL neb_replica_distance(coords=coords,i0=i-1,i=i,distance=distance2,iw=iw,&
@@ -579,6 +588,7 @@ CPSourceFileRef,&
        forces(:,i) = wrk + tmp * tangent       
     CASE(do_ci_neb)
        ! Climbing Image NEB
+       CALL cite_reference(Jonsson2000_2)
        IF (neb_env%istep<=neb_env%nsteps_it.OR.i/=neb_env%nr_HE_image) THEN
           CALL get_neb_force(neb_env, tangent, coords, i, forces, do_it_neb, iw, error)
        ELSE
@@ -588,6 +598,7 @@ CPSourceFileRef,&
        END IF
     CASE(do_d_neb)
        ! Doubly NEB
+       CALL cite_reference(Wales2004)
        ALLOCATE(dtmp1(SIZE(coords,1)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        dtmp1       = forces(:,i)-DOT_PRODUCT(forces(:,i),tangent)*tangent
