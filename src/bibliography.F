@@ -50,7 +50,8 @@ MODULE bibliography
              Essmann1995,Ewald1921,Darden1993, Tersoff1988, Tosi1964a, Tosi1964b,&
              Yamada2000,Dudarev1997,Dudarev1998,Dewar1977,Dewar1985,Rocha2006,&
              Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003,Guidon2008,&
-             Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004
+             Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
+             Stewart1982
 
 CONTAINS
 
@@ -1357,6 +1358,23 @@ CONTAINS
           "UT ISI:000256527500005",&
           "ER"),&
           DOI="10.1063/1.2931945")
+
+     CALL add_reference(key=Stewart1982,ISI_record=s2a(&
+          "PT J",&
+          "AU Stewart, JJP",&
+          "   Csaszar, P",&
+          "   Pulay, P",&
+          "TI Fast semi-empirical calculations",&
+          "SO JOURNAL OF COMPUTATIONAL CHEMISTRY",&
+          "SN 0192-8651",&
+          "PY 1982",&
+          "VL 3",&
+          "IS 2",&
+          "BP 227",&
+          "EP 228",&
+          "UT ISI:A1982NN22800013",&
+          "ER"),&
+          DOI="10.1002/jcc.540030214")
 
    END SUBROUTINE add_all_references
 

@@ -15,7 +15,7 @@ MODULE input_cp2k_dft
        Goedecker1996, Heyd2004, Hunt2003, Iannuzzi2005, Iannuzzi2006, &
        Iannuzzi2007, Krack2000, Krack2002, Lee1988, Lippert1997, Lippert1999, &
        Ortiz1994, Perdew1981, Perdew1996, Porezag1995, Repasky2002, &
-       Rocha2006, Seifert1996, Stewart1989, Stewart2007, Thiel1992, &
+       Rocha2006, Seifert1996, Stewart1982, Stewart1989, Stewart2007, Thiel1992, &
        VandeVondele2003, VandeVondele2005a, VandeVondele2005b, Vosko1980, &
        Weber2008, Zhang1998, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
@@ -3509,14 +3509,26 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="JACOBI_THRESHOLD",&
-            description="XXXXXXXX switch to jacobi if ...",&
-            usage="JACOBI_THRESHOLD 1.0e-6", default_r_val=1.0E-7_dp,error=error)
+            description="Controls the accuracy of the pseudo-diagonalization method using Jacobi rotations",&
+            usage="JACOBI_THRESHOLD 1.0E-6",&
+            default_r_val=1.0E-7_dp,&
+            citations=(/Stewart1982/),&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_JACOBI",&
-            description="XXXXXXXX target jacobi precision",&
-            usage="EPS_JACOBI 1.e-5", default_r_val=0._dp,error=error)
+            description="Below this threshold value for the SCF convergence the pseudo-diagonalization "//&
+                        "method using Jacobi rotations is activated. This method is much faster than a "//&
+                        "real diagonalization and it is even speeding up while achieving full convergence."//&
+                        "However, it needs a pre-converged wavefunction obtained by at least one real "//&
+                        "diagonalization which is further optimized while keeping the original eigenvalue "//&
+                        "spectrum. The MO eigenvalues are NOT updated. The method might be useful to speed "//&
+                        "up calculations for large systems e.g. using a semi-empirical method.",&
+            usage="EPS_JACOBI 1.0E-5",&
+            default_r_val=0.0_dp,&
+            citations=(/Stewart1982/),&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
