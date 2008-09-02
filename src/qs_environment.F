@@ -791,9 +791,9 @@ CONTAINS
     n_mo(1) = n_mo(1) + scf_control%added_mos(1)
     IF (n_mo(2) /= 0) n_mo(2) = n_mo(2) + scf_control%added_mos(2)
 
-    IF ((scf_control%smear /= 0.0_dp).AND.(scf_control%added_mos(1) == 0)) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "More states are needed to apply smearing.")
+    IF (scf_control%smear%do_smear.AND.(scf_control%added_mos(1) == 0)) THEN
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "More states are needed to apply smearing.")
     END IF
 
     !   *** Some options require that all MOs are computed ... ***
@@ -817,10 +817,10 @@ CPSourceFileRef,&
           CALL stop_program(routineN,moduleN,__LINE__,&
                "Pseudo-diagonalization for ROKS is not yet implemented")
        END IF
-       IF (scf_control%smear /= 0.0_dp) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "The options ROKS and SMEAR are not compatible. "//&
-               "Try UKS instead of ROKS")
+       IF (scf_control%smear%do_smear) THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+                           "The options ROKS and SMEAR are not compatible. "//&
+                           "Try UKS instead of ROKS")
        END IF
     END IF
 

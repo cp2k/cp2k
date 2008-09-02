@@ -18,6 +18,7 @@
 !> \author Matthias Krack (09.05.2001,MK)
 ! *****************************************************************************
 MODULE qs_mo_types
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -40,6 +41,8 @@ MODULE qs_mo_types
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_constants,                 ONLY: smear_energy_window,&
+                                             smear_fermi_dirac
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -56,6 +59,7 @@ MODULE qs_mo_types
   USE particle_types,                  ONLY: particle_type
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
+  USE scf_control_types,               ONLY: smear_type
   USE scp_environment_types,           ONLY: scp_environment_type
   USE scp_restarts,                    ONLY: read_aux_coeff_set,&
                                              write_scp_coeff_set
@@ -70,17 +74,16 @@ MODULE qs_mo_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_types'
 
-! *****************************************************************************
   TYPE mo_set_type
     ! the actual MO coefficients as a matrix
-    TYPE(cp_fm_type), POINTER :: mo_coeff
+    TYPE(cp_fm_type), POINTER                 :: mo_coeff
     ! number of molecular orbitals (# cols in mo_coeff)
     INTEGER                                   :: nmo
     ! number of atomic orbitals (# rows in mo_coeff)
     INTEGER                                   :: nao
     ! occupation - eigenvalues  of the nmo states (if eigenstates)
     REAL(KIND = dp), DIMENSION(:), POINTER    :: eigenvalues,occupation_numbers
-    ! maximum allowed occupation number of an MO (1-2)
+    ! maximum allowed occupation number of an MO (1 or 2)
     REAL(KIND = dp)                           :: maxocc
     ! number of electrons (taking occupation into account)
     INTEGER                                   :: nelectron
@@ -92,17 +95,12 @@ MODULE qs_mo_types
     LOGICAL                                   :: uniform_occupation
   END TYPE mo_set_type
 
-! *****************************************************************************
   TYPE mo_set_p_type
     TYPE(mo_set_type), POINTER :: mo_set
   END TYPE mo_set_p_type
 
-! *** Public data types ***
-
   PUBLIC :: mo_set_p_type,&
             mo_set_type
-
-! *** Public subroutines ***
 
   PUBLIC :: allocate_mo_set,&
             correct_mo_eigenvalues,&
@@ -113,6 +111,7 @@ MODULE qs_mo_types
             read_mo_set,&
             read_mos_restart_low,&
             set_mo_occupation,&
+            set_mo_occupation_old,&
             set_mo_set, &
             write_mo_set, &
             write_mo_set_low,&
@@ -144,19 +143,20 @@ CONTAINS
 !> \author Matthias Krack
 !> \date 15.05.2001
 ! *****************************************************************************
-  SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,maxocc, error)
+  SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,maxocc,error)
+
     TYPE(mo_set_type), POINTER               :: mo_set
     INTEGER, INTENT(IN)                      :: nao, nmo, nelectron
     REAL(KIND=dp), INTENT(IN)                :: maxocc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_mo_set', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_mo_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
+    failure = .FALSE.
 
     ALLOCATE (mo_set,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
@@ -187,20 +187,20 @@ CONTAINS
 !>      11.2002 rewamped [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE init_mo_set(mo_set, fm_pool, name, error)
+  SUBROUTINE init_mo_set(mo_set,fm_pool,name,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_pool_type), POINTER           :: fm_pool
-    CHARACTER(len=*), INTENT(in)             :: name
+    CHARACTER(LEN=*), INTENT(in)             :: name
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'init_mo_set', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_mo_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat, nao, nmo
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
+    failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(mo_set%mo_coeff),cp_failure_level,routineP,error,failure)
 
     ALLOCATE (mo_set%eigenvalues(mo_set%nmo),STAT=istat)
@@ -209,16 +209,11 @@ CONTAINS
 
     ALLOCATE (mo_set%occupation_numbers(mo_set%nmo),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-    CALL set_mo_occupation(mo_set%occupation_numbers,&
-         mo_set%eigenvalues,mo_set%homo,mo_set%lfomo,&
-         mo_set%maxocc,mo_set%nelectron, uocc=mo_set%uniform_occupation,error=error)
-
-    CALL fm_pool_create_fm(fm_pool,mo_set%mo_coeff,&
-         name=name,error=error)
-    CALL cp_fm_get_info(mo_set%mo_coeff, nrow_global=nao, &
-         ncol_global=nmo,error=error)
-    CPPostcondition(nao>=mo_set%nao,cp_failure_level,routineP,error,failure)
-    CPPostcondition(nmo>=mo_set%nmo,cp_failure_level,routineP,error,failure)
+    CALL set_mo_occupation(mo_set=mo_set,error=error)
+    CALL fm_pool_create_fm(fm_pool,mo_set%mo_coeff,name=name,error=error)
+    CALL cp_fm_get_info(mo_set%mo_coeff,nrow_global=nao,ncol_global=nmo,error=error)
+    CPPostcondition((nao >= mo_set%nao),cp_failure_level,routineP,error,failure)
+    CPPostcondition((nmo >= mo_set%nmo),cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE init_mo_set
 
@@ -234,25 +229,27 @@ CONTAINS
       POINTER                                :: mo_array
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mo_set_restrict', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mo_set_restrict', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,"I","",handle)
-    failure=.FALSE.
+
+    failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(mo_array).EQ.2,cp_failure_level,routineP,error,failure)
     CPPrecondition(mo_array(1)%mo_set%nmo>=mo_array(2)%mo_set%nmo,cp_failure_level,routineP,error,failure)
 
     ! first nmo_beta orbitals are copied from alpha to beta
-    IF (.NOT. failure) THEN
-       CALL cp_fm_to_fm(mo_array(1)%mo_set%mo_coeff,mo_array(2)%mo_set%mo_coeff,mo_array(2)%mo_set%nmo)
-    ENDIF
+    IF (.NOT.failure) THEN
+      CALL cp_fm_to_fm(mo_array(1)%mo_set%mo_coeff,mo_array(2)%mo_set%mo_coeff,mo_array(2)%mo_set%nmo)
+    END IF
 
     CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE mo_set_restrict
 
 ! *****************************************************************************
@@ -266,7 +263,7 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN)                :: level_shift
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'correct_mo_eigenvalues', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'correct_mo_eigenvalues', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imo
@@ -274,7 +271,7 @@ CONTAINS
     IF (level_shift == 0.0_dp) RETURN
 
     DO imo=mo_set%homo+1,mo_set%nmo
-       mo_set%eigenvalues(imo) = mo_set%eigenvalues(imo) - level_shift
+      mo_set%eigenvalues(imo) = mo_set%eigenvalues(imo) - level_shift
     END DO
 
   END SUBROUTINE correct_mo_eigenvalues
@@ -290,28 +287,26 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mo_set', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_mo_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
+    failure = .FALSE.
+
     IF (ASSOCIATED(mo_set)) THEN
-       IF (ASSOCIATED(mo_set%eigenvalues)) THEN
-          DEALLOCATE (mo_set%eigenvalues,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-       END IF
-
-       IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
-          DEALLOCATE (mo_set%occupation_numbers,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-       END IF
-
-       CALL cp_fm_release(mo_set%mo_coeff,error=error)
-
-       DEALLOCATE (mo_set,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+      IF (ASSOCIATED(mo_set%eigenvalues)) THEN
+        DEALLOCATE (mo_set%eigenvalues,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+      END IF
+      IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
+        DEALLOCATE (mo_set%occupation_numbers,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+      END IF
+      CALL cp_fm_release(mo_set%mo_coeff,error=error)
+      DEALLOCATE (mo_set,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
   END SUBROUTINE deallocate_mo_set
@@ -352,109 +347,170 @@ CONTAINS
   END SUBROUTINE get_mo_set
 
 ! *****************************************************************************
-!> \brief  Smearing of the MO occupation due to the given smear value. 
-!> \author  MK
-!> \date    17.04.2002
-!> \version 1.0
+!> \brief   Smearing of the MO occupation due to a Fermi-Dirac distribution
+!> \author  Matthias Krack
+!> \date    17.04.2002 (v1.0), 26.08.2008 (v1.1)
+!> \version 1.1
+!> \param   mo_set MO dataset structure
+!> \param   smear optional smearing information
 ! *****************************************************************************
-  SUBROUTINE set_mo_occupation(occupation,eigenvalues,homo,lfomo,maxocc,nelectron,&
-       uocc,smear,error)
+  SUBROUTINE set_mo_occupation(mo_set,smear,error)
 
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation, eigenvalues
-    INTEGER, INTENT(OUT)                     :: homo, lfomo
-    REAL(KIND=dp), INTENT(IN)                :: maxocc
-    INTEGER, INTENT(IN)                      :: nelectron
-    LOGICAL, INTENT(INOUT)                   :: uocc
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: smear
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(smear_type), INTENT(IN), OPTIONAL   :: smear
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_mo_occupation', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: imo, nmo, nomo, output_unit
-    LOGICAL                                  :: ionode
-    REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
-                                                my_smear, nelec
-    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER                                  :: imo, nmo, nomo
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: beta, e1, e2, edelta, edist, &
+                                                mu, nelec, norm
 
-!   ---------------------------------------------------------------------------
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
 
-    logger =>cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
+    nomo = NINT(mo_set%nelectron/mo_set%maxocc)
+    nmo  = SIZE(mo_set%eigenvalues)
 
-    my_smear = 0.0_dp
-    IF(PRESENT(smear)) my_smear = smear
+    ! Check and initialize MO occupations
 
-    nomo = NINT(nelectron/maxocc)
-    nmo  = SIZE(eigenvalues)
+    CPPrecondition(ASSOCIATED(mo_set%occupation_numbers),cp_failure_level,routineP,error,failure)
+    CPPrecondition((SIZE(mo_set%occupation_numbers) >= nmo),cp_failure_level,routineP,error,failure)
+    mo_set%occupation_numbers(:) = 0.0_dp
+    mo_set%occupation_numbers(1:nomo) =  mo_set%maxocc
+    mo_set%uniform_occupation = .TRUE.
 
-    occupation(:) = 0.0_dp
-    occupation(1:nomo) =  maxocc
+    mo_set%homo = nomo
+    mo_set%lfomo = nomo + 1
 
-    homo = nomo
-    lfomo = nomo + 1
+    ! Quick return, if no smearing information is supplied
 
-    perform_smear: IF (my_smear /= 0.0_dp) THEN
+    IF (.NOT.PRESENT(smear)) RETURN
 
-       !     *** Define the energy window for the eigenvalues ***
+    ! Perform smearing
 
-       e1 = eigenvalues(nomo) - 0.5_dp*smear
-       e2 = eigenvalues(nomo) + 0.5_dp*smear
+    IF (smear%do_smear) THEN
 
-       !     *** Find the lowest fractional occupied MO ***
+      SELECT CASE (smear%method)
 
-       DO imo=1,nomo
-          IF (eigenvalues(imo) > e1) THEN
-             lfomo = imo
-             EXIT
+      CASE (smear_fermi_dirac)
+
+        mu = mo_set%eigenvalues(mo_set%homo)       ! Fermi energy
+        beta = 1.0_dp/smear%electronic_temperature ! 1/kT
+
+        ! Generate a smeared occupation based on the Fermi-Dirac distribution
+
+        DO imo=1,nmo
+          mo_set%occupation_numbers(imo) = mo_set%maxocc/(EXP(beta*(mo_set%eigenvalues(imo) - mu)) + 1.0_dp)
+          IF (mo_set%occupation_numbers(imo) < smear%eps_fermi_dirac) THEN
+            mo_set%occupation_numbers(imo) = 0.0_dp
           END IF
-       END DO
-
-       !     *** Find the highest fractional occupied (non-zero) MO which will be the HOMO ***
-       IF(e2 > eigenvalues(nmo)) THEN
-          IF(ionode) THEN
-            WRITE(output_unit,*) "WARNING might be too few states for the smearing !"
+          IF (ABS(mo_set%maxocc - mo_set%occupation_numbers(imo)) < smear%eps_fermi_dirac) THEN
+            mo_set%occupation_numbers(imo) = mo_set%maxocc
           END IF
-       END IF
-       DO imo=nmo,nomo,-1
-          IF (eigenvalues(imo) < e2) THEN
-             homo = imo
-             EXIT
+        END DO
+ 
+        ! Find the lowest fractional occupied MO (LFOMO)
+ 
+        DO imo=1,nmo
+          IF (mo_set%occupation_numbers(imo) < mo_set%maxocc) THEN
+            mo_set%lfomo = imo
+            EXIT
           END IF
-       END DO
+        END DO
+        CALL cp_assert((mo_set%lfomo > 1),cp_warning_level,cp_assertion_failed,routineP,&
+                       "Fermi-Dirac smearing includes the first MO",&
+                       error,failure)
+ 
+        ! Find the highest (fractional) occupied MO which will be now the HOMO
+ 
+        DO imo=nmo,1,-1
+          IF (mo_set%occupation_numbers(imo) > 0.0_dp) THEN
+            mo_set%homo = imo
+            EXIT
+          END IF
+        END DO
+        CALL cp_assert((mo_set%homo < nmo),cp_warning_level,cp_assertion_failed,routineP,&
+                       "Fermi-Dirac smearing includes the last MO => "//&
+                       "Add more MOs for proper smearing.",error,failure)
+ 
+        ! Normalise the number of smeared electrons
+ 
+        norm = mo_set%maxocc*REAL(nomo - mo_set%lfomo + 1,KIND=dp)/&
+               SUM(mo_set%occupation_numbers(mo_set%lfomo:mo_set%homo))
+ 
+        mo_set%occupation_numbers(mo_set%lfomo:mo_set%homo) = norm*mo_set%occupation_numbers(mo_set%lfomo:mo_set%homo)
+ 
+        CALL cp_assert((ABS(mo_set%nelectron - SUM(mo_set%occupation_numbers(:))) < 1.0E-14_dp),&
+                       cp_warning_level,cp_assertion_failed,routineP,&
+                       "Accurate smearing failed",&
+                       error,failure)
 
-       !     *** Get the number of electrons to be smeared ***
+      CASE (smear_energy_window)
 
-       edist = 0.0_dp
-       nelec = 0.0_dp
+        ! Define the energy window for the eigenvalues
 
-       DO imo=lfomo,homo
-          nelec = nelec + occupation(imo)
-          edist = edist + ABS(e2 - eigenvalues(imo))
-       END DO
+        e1 = mo_set%eigenvalues(mo_set%homo) - 0.5_dp*smear%window_size
+        CALL cp_assert((e1 > mo_set%eigenvalues(1)),cp_warning_level,cp_assertion_failed,routineP,&
+                       "Energy window for smearing includes the first MO",&
+                       error,failure)
 
-       !     *** Smear electrons inside the window ***
+        e2 = mo_set%eigenvalues(mo_set%homo) + 0.5_dp*smear%window_size
+        CALL cp_assert((e2 < mo_set%eigenvalues(nmo)),cp_warning_level,cp_assertion_failed,routineP,&
+                       "Energy window for smearing includes the last MO => "//&
+                       "Add more MOs for proper smearing.",error,failure)
 
-       DO imo=lfomo,homo
-          edelta = ABS(e2 - eigenvalues(imo))
-          occupation(imo) = MIN(maxocc,nelec*edelta/edist)
-          nelec = nelec - occupation(imo)
+        ! Find the lowest fractional occupied MO (LFOMO)
+
+        DO imo=1,nomo
+          IF (mo_set%eigenvalues(imo) > e1) THEN
+            mo_set%lfomo = imo
+            EXIT
+          END IF
+        END DO
+
+        ! Find the highest fractional occupied (non-zero) MO which will be the HOMO
+
+        DO imo=nmo,nomo,-1
+          IF (mo_set%eigenvalues(imo) < e2) THEN
+            mo_set%homo = imo
+            EXIT
+          END IF
+        END DO
+
+        ! Get the number of electrons to be smeared
+
+        edist = 0.0_dp
+        nelec = 0.0_dp
+
+        DO imo=mo_set%lfomo,mo_set%homo
+          nelec = nelec + mo_set%occupation_numbers(imo)
+          edist = edist + ABS(e2 - mo_set%eigenvalues(imo))
+        END DO
+
+        ! Smear electrons inside the energy window
+
+        DO imo=mo_set%lfomo,mo_set%homo
+          edelta = ABS(e2 - mo_set%eigenvalues(imo))
+          mo_set%occupation_numbers(imo) = MIN(mo_set%maxocc,nelec*edelta/edist)
+          nelec = nelec - mo_set%occupation_numbers(imo)
           edist = edist - edelta
-       END DO
+        END DO
 
-       !     *** Check, if the smearing involves more than one MO ***
+      END SELECT
 
-       IF (lfomo == homo) THEN
-          homo = nomo
-          lfomo = nomo + 1
-       END IF
-       uocc = .FALSE.
-    END IF perform_smear
+      ! Check, if the smearing involves more than one MO
+
+      IF (mo_set%lfomo == mo_set%homo) THEN
+        mo_set%homo = nomo
+        mo_set%lfomo = nomo + 1
+      ELSE
+        mo_set%uniform_occupation = .FALSE.
+      END IF
+
+    END IF ! do smear
 
   END SUBROUTINE set_mo_occupation
 
@@ -465,8 +521,8 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
-       eigenvalues,occupation_numbers,&
-       uniform_occupation,error)
+                        eigenvalues,occupation_numbers,uniform_occupation,&
+                        error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc
@@ -478,35 +534,40 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: uniform_occupation
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_mo_set', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     IF (PRESENT(maxocc)) mo_set%maxocc = maxocc
-    IF (PRESENT(homo))  mo_set%homo = homo
-    IF (PRESENT(lfomo))  mo_set%lfomo = lfomo
-    IF (PRESENT(nao))  mo_set%nao = nao
-    IF (PRESENT(nelectron))  mo_set%nelectron = nelectron
+    IF (PRESENT(homo)) mo_set%homo = homo
+    IF (PRESENT(lfomo)) mo_set%lfomo = lfomo
+    IF (PRESENT(nao)) mo_set%nao = nao
+    IF (PRESENT(nelectron)) mo_set%nelectron = nelectron
     IF (PRESENT(nmo)) mo_set%nmo = nmo
     IF (PRESENT(eigenvalues)) THEN
-       IF(ASSOCIATED(mo_set%eigenvalues)) DEALLOCATE(mo_set%eigenvalues,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-       mo_set%eigenvalues => eigenvalues
+      IF (ASSOCIATED(mo_set%eigenvalues)) THEN
+        DEALLOCATE(mo_set%eigenvalues,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      END IF
+      mo_set%eigenvalues => eigenvalues
     END IF
     IF (PRESENT(occupation_numbers)) THEN
-       IF(ASSOCIATED(mo_set%occupation_numbers)) &
-            DEALLOCATE(mo_set%occupation_numbers,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-       mo_set%occupation_numbers => occupation_numbers
+      IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
+        DEALLOCATE(mo_set%occupation_numbers,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      END IF
+      mo_set%occupation_numbers => occupation_numbers
     END IF
-    IF(PRESENT(uniform_occupation)) mo_set%uniform_occupation=uniform_occupation
+    IF(PRESENT(uniform_occupation)) mo_set%uniform_occupation = uniform_occupation
 
   END SUBROUTINE set_mo_set
 
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_to_restart(mo_array, particle_set, dft_section, scp, scp_env, atomic_kind_set, error)
+  SUBROUTINE write_mo_set_to_restart(mo_array,particle_set,dft_section,scp,&
+                                     scp_env,atomic_kind_set,error)
+
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
@@ -519,7 +580,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=30), DIMENSION(2) :: &
@@ -541,7 +602,7 @@ CONTAINS
 
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
                dft_section,keys(ikey),error=error),cp_p_file)) THEN
-             
+
              ires = cp_print_key_unit_nr(logger,dft_section,keys(ikey),&
                   extension=".wfn", file_status="REPLACE", file_action="WRITE",&
                   do_backup=.TRUE., file_form="UNFORMATTED", error=error)
@@ -568,7 +629,7 @@ CONTAINS
     INTEGER                                  :: ires
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_set_low', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_low', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, i_block, iatom, iset, ishell, ispin, istat, j, &
@@ -583,7 +644,6 @@ CONTAINS
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
     CALL timeset(routineN,"I","",handle)
-    failure = .FALSE.
     nspin = SIZE(mo_array)
     nao = mo_array(1)%mo_set%nao
 
@@ -592,7 +652,7 @@ CONTAINS
        natom = SIZE(particle_set,1)
        nset_max = 0
        nshell_max = 0
-       
+
        DO iatom=1,natom
           NULLIFY(orb_basis_set,dftb_parameter)
           CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
@@ -617,19 +677,19 @@ CPSourceFileRef,&
                only_ionode=.TRUE.)
           END IF
        END DO
-       
+
        ALLOCATE (nso_info(nshell_max,nset_max,natom),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        nso_info(:,:,:) = 0
-       
+
        ALLOCATE (nshell_info(nset_max,natom),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        nshell_info(:,:) = 0
-       
+
        ALLOCATE (nset_info(natom),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        nset_info(:) = 0
-       
+
        DO iatom=1,natom
           NULLIFY(orb_basis_set,dftb_parameter)
           CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
@@ -662,27 +722,27 @@ CPSourceFileRef,&
                only_ionode=.TRUE.)
           END IF
        END DO
-       
+
        WRITE (ires) natom,nspin,nao,nset_max,nshell_max
        WRITE (ires) nset_info
        WRITE (ires) nshell_info
        WRITE (ires) nso_info
-       
+
        DEALLOCATE (nset_info,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-       
+
        DEALLOCATE (nshell_info,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-       
+
        DEALLOCATE (nso_info,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
     END IF
-    
+
     ! use the scalapack block size as a default for buffering columns
     CALL cp_fm_get_info(mo_array(1)%mo_set%mo_coeff,ncol_block=max_block,error=error)
     ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-    
+
     DO ispin=1,nspin
        nmo=mo_array(ispin)%mo_set%nmo
        IF ((ires>0).AND.(nmo > 0)) THEN
@@ -693,7 +753,7 @@ CPSourceFileRef,&
           WRITE (ires) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
                mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
        END IF
-       
+
        DO i=1,nmo,MAX(max_block,1)
           i_block=MIN(max_block,nmo-i+1)
           CALL cp_fm_get_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,i_block,error=error)
@@ -705,10 +765,10 @@ CPSourceFileRef,&
           ENDDO
        END DO
     END DO
-    
+
     DEALLOCATE (vecbuffer,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-    
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE write_mo_set_low
@@ -770,7 +830,7 @@ CPSourceFileRef,&
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name
@@ -801,7 +861,7 @@ CPSourceFileRef,&
                      unit_number=restart_unit)
 
     END IF
-    
+
     CALL read_mos_restart_low (mo_array, para_env, particle_set, natom,&
          restart_unit, multiplicity=multiplicity, error=error)
     IF (scp) CALL read_aux_coeff_set(restart_unit, scp_env%aux_coeff_set, para_env, error)
@@ -873,21 +933,21 @@ CPSourceFileRef,&
 CPSourceFileRef,&
                only_ionode=.TRUE.)
         END IF
-      ELSE        
+      ELSE
        ! we should allow for restarting with different spin settings
         IF (nspin_read /= nspin) THEN
           WRITE(cp_logger_get_default_unit_nr(logger),*)  &
             "READ RESTART : WARNING : nspin is not equal "
         END IF
       END IF
-  
+
       IF (natom_read /= natom) THEN
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
           "Incorrect number of atoms in restart file. "//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)
       END IF
-  
+
       ! Let's make it possible to change the basis set
       ALLOCATE (nso_info(nshell_max,nset_max,natom_read),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -897,7 +957,7 @@ CPSourceFileRef,&
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (offset_info(nshell_max,nset_max,natom_read),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-  
+
       IF (nao_read /= nao) THEN
         WRITE(cp_logger_get_default_unit_nr(logger),*) &
           " READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
@@ -916,7 +976,7 @@ CPSourceFileRef,&
             END DO
           END DO
         END DO
-  
+
         ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -1102,7 +1162,7 @@ CPSourceFileRef,&
 
     DEALLOCATE(vecbuffer,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    
+
     IF (para_env%ionode) THEN
        DEALLOCATE(vecbuffer_read,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1145,7 +1205,7 @@ CPSourceFileRef,&
     LOGICAL, INTENT(IN), OPTIONAL            :: last
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_set_to_output_unit', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_output_unit', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=12)                        :: symbol
@@ -1490,5 +1550,107 @@ CPSourceFileRef,&
                                       error=error)
 
   END SUBROUTINE write_mo_set_to_output_unit
+
+  !MK Just kept for a while to allow a smooth transition to the new routine
+  SUBROUTINE set_mo_occupation_old(occupation,eigenvalues,homo,lfomo,maxocc,nelectron,&
+       uocc,smear,error)
+
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation, eigenvalues
+    INTEGER, INTENT(OUT)                     :: homo, lfomo
+    REAL(KIND=dp), INTENT(IN)                :: maxocc
+    INTEGER, INTENT(IN)                      :: nelectron
+    LOGICAL, INTENT(INOUT)                   :: uocc
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: smear
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_mo_occupation_old', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: imo, nmo, nomo, output_unit
+    LOGICAL                                  :: ionode
+    REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
+                                                my_smear, nelec
+    TYPE(cp_logger_type), POINTER            :: logger
+
+!   ---------------------------------------------------------------------------
+
+    logger =>cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+       output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+       output_unit = -1
+    END IF
+
+    my_smear = 0.0_dp
+    IF(PRESENT(smear)) my_smear = smear
+
+    nomo = NINT(nelectron/maxocc)
+    nmo  = SIZE(eigenvalues)
+
+    occupation(:) = 0.0_dp
+    occupation(1:nomo) =  maxocc
+
+    homo = nomo
+    lfomo = nomo + 1
+
+    perform_smear: IF (my_smear /= 0.0_dp) THEN
+
+       !     *** Define the energy window for the eigenvalues ***
+
+       e1 = eigenvalues(nomo) - 0.5_dp*smear
+       e2 = eigenvalues(nomo) + 0.5_dp*smear
+
+       !     *** Find the lowest fractional occupied MO ***
+
+       DO imo=1,nomo
+          IF (eigenvalues(imo) > e1) THEN
+             lfomo = imo
+             EXIT
+          END IF
+       END DO
+
+       !     *** Find the highest fractional occupied (non-zero) MO which will be the HOMO ***
+       IF(e2 > eigenvalues(nmo)) THEN
+          IF(ionode) THEN
+            WRITE(output_unit,*) "WARNING might be too few states for the smearing !"
+          END IF
+       END IF
+       DO imo=nmo,nomo,-1
+          IF (eigenvalues(imo) < e2) THEN
+             homo = imo
+             EXIT
+          END IF
+       END DO
+
+       !     *** Get the number of electrons to be smeared ***
+
+       edist = 0.0_dp
+       nelec = 0.0_dp
+
+       DO imo=lfomo,homo
+          nelec = nelec + occupation(imo)
+          edist = edist + ABS(e2 - eigenvalues(imo))
+       END DO
+
+       !     *** Smear electrons inside the window ***
+
+       DO imo=lfomo,homo
+          edelta = ABS(e2 - eigenvalues(imo))
+          occupation(imo) = MIN(maxocc,nelec*edelta/edist)
+          nelec = nelec - occupation(imo)
+          edist = edist - edelta
+       END DO
+
+       !     *** Check, if the smearing involves more than one MO ***
+
+       IF (lfomo == homo) THEN
+          homo = nomo
+          lfomo = nomo + 1
+       END IF
+       uocc = .FALSE.
+    END IF perform_smear
+
+  END SUBROUTINE set_mo_occupation_old
 
 END MODULE qs_mo_types

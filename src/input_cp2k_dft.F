@@ -3421,19 +3421,24 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"scf",&
             description="parameters needed perform an scf run",&
-            n_keywords=25, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=24, n_subsections=3, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(subsection)
+       NULLIFY (subsection)
+
        CALL create_ot_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
        CALL create_outer_scf_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(keyword)
+       CALL create_smear_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       NULLIFY (keyword)
 
        CALL keyword_create(keyword, name="MAX_ITER_LUMO",&
             variants=(/"MAX_ITER_LUMOS"/),&
@@ -3452,12 +3457,6 @@ CONTAINS
        CALL keyword_create(keyword, name="WORK_SYEVX",&
             description="limit the memory usage of SYEVX to a fraction of the maximum size",&
             usage="work_syevx 0.8", default_r_val=1.0_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="SMEAR",&
-            description="Use a finite temperature like smearing of the occupation numbers",&
-            usage="SMEAR 0.1", default_r_val=0._dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5020,14 +5019,14 @@ CONTAINS
             default_i_val=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
+!MK to be done: new smear section
        CALL keyword_create(keyword, name="SMEAR",&
             description="smearing coefficient",&
             usage="SMEAR 0.5",&
             default_r_val=0._dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
+!MK
        CALL keyword_create(keyword,name="ATOMS_LU_BOUNDS",&
             variants=(/"AT_LU"/),&
             description="The lower and upper index of the atoms to be excited",&
@@ -5096,9 +5095,14 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        NULLIFY(subsection)
+
        CALL create_localize_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
+
+!MK       CALL create_smear_section(subsection,error)
+!MK       CALL section_add_subsection(section, subsection, error=error)
+!MK       CALL section_release(subsection,error=error)
 
        NULLIFY(subsection)
        CALL section_create(subsection,"PRINT",&
@@ -5977,5 +5981,108 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_restraint_A
+
+! *****************************************************************************
+!> \brief      Create CP2K input section for the smearing of occupation numbers
+!> \author     Matthias Krack (MK)
+!> \date       27.08.2008
+!> \version    1.0
+! *****************************************************************************
+  SUBROUTINE create_smear_section(section,error)
+
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_smear_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure = .FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+
+    IF (.NOT.failure) THEN
+
+      CALL section_create(section,&
+                          name="SMEAR",&
+                          description="Define the smearing of the MO occupation numbers",&
+                          n_keywords=5,&
+                          n_subsections=0,&
+                          repeats=.FALSE.,&
+                          required=.FALSE.,&
+                          error=error)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword,&
+                          name="_SECTION_PARAMETERS_",&
+                          description="Controls the activation of smearing",&
+                          usage="&SMEAR ON",&
+                          default_l_val=.FALSE.,&
+                          lone_keyword_l_val=.TRUE.,&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="METHOD",&
+                          description="Smearing method to be applied",&
+                          usage="METHOD Fermi_Dirac",&
+                          default_i_val=smear_energy_window,&
+                          enum_c_vals=s2a("FERMI_DIRAC","ENERGY_WINDOW"),&
+                          enum_i_vals=(/smear_fermi_dirac,smear_energy_window/),&
+                          enum_desc=s2a("Fermi-Dirac distribution defined by the keyword ELECTRONIC_TEMPERATURE",&
+                                        "Energy window defined by the keyword WINDOW_SIZE"),&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="ELECTRONIC_TEMPERATURE",&
+                          variants=s2a("ELEC_TEMP","TELEC"),&
+                          description="Electronic temperature in the case of Fermi-Dirac smearing",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=0.0_dp,&
+                          unit_str="K",&
+                          usage="ELECTRONIC_TEMPERATURE [K] 300",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="EPS_FERMI_DIRAC",&
+                          description="Minimal occupation of an MO in the case of Fermi-Dirac smearing",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=1.0E-5_dp,&
+                          usage="EPS_FERMI_DIRAC 1.0E-6",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="WINDOW_SIZE",&
+                          description="Size of the energy window centred at the Fermi level",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=0.0_dp,&
+                          unit_str="au_e",&
+                          usage="WINDOW_SIZE [eV] 0.3",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_smear_section
 
 END MODULE input_cp2k_dft

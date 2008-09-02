@@ -265,9 +265,9 @@ CONTAINS
 
 !   Set initial occupation numbers, and store the original ones
     DO ispin = 1,dft_control%nspins
-        CALL get_mo_set(mos(ispin)%mo_set,nelectron=nelectron,maxocc=maxocc,&
-             homo=my_homo(ispin),uniform_occupation=my_uocc(ispin))
-      IF(scf_control%smear /= 0.0_dp) THEN
+      CALL get_mo_set(mos(ispin)%mo_set,nelectron=nelectron,maxocc=maxocc,&
+                      homo=my_homo(ispin),uniform_occupation=my_uocc(ispin))
+      IF (scf_control%smear%do_smear) THEN
         homo = NINT(nelectron/maxocc)
         uocc = .TRUE.
         CALL set_mo_set(mos(ispin)%mo_set, homo=homo,uniform_occupation=uocc,error=error)

@@ -1747,9 +1747,10 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
+    IF (.NOT.failure) THEN
 
-      CALL section_create(section,name="DFT_PLUS_U",&
+      CALL section_create(section,&
+                          name="DFT_PLUS_U",&
                           description="Define the parameters for a DFT+U run",&
                           n_keywords=3,&
                           n_subsections=0,&
@@ -1759,7 +1760,8 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+      CALL keyword_create(keyword,&
+                          name="_SECTION_PARAMETERS_",&
                           description="controls the activation of the DFT+U section",&
                           usage="&DFT_PLUS_U ON",&
                           default_l_val=.FALSE.,&

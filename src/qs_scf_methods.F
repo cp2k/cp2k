@@ -5,11 +5,12 @@
 
 ! *****************************************************************************
 !> \brief groups fairly general SCF methods, so that modules other than qs_scf can use them too
-!>      split off from qs_scf to reduce dependencies
+!>        split off from qs_scf to reduce dependencies
 !> \par History
 !>      - Joost VandeVondele (03.2006)
 !>      - combine_ks_matrices added (05.04.06,MK)
 !>      - second ROKS scheme added (15.04.06,MK)
+!>      - MO occupation management moved (29.08.2008,MK)
 ! *****************************************************************************
 MODULE qs_scf_methods
 
@@ -34,9 +35,7 @@ MODULE qs_scf_methods
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
                                              get_mo_set,&
-                                             mo_set_type,&
-                                             set_mo_occupation,&
-                                             set_mo_set
+                                             mo_set_type
   USE qs_scf_types,                    ONLY: ao_mixing_nr,&
                                              no_mixing_nr
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
@@ -60,14 +59,10 @@ MODULE qs_scf_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_methods'
   REAL(KIND=dp), PARAMETER    :: ratio = 0.25_dp
 
-  ! Public subroutines
-
   PUBLIC :: combine_ks_matrices,&
             eigensolver,&
             scf_env_density_mixing,&
             simple_eigensolver
-
-  ! Interfaces
 
   INTERFACE combine_ks_matrices
     MODULE PROCEDURE combine_ks_matrices_1,&
@@ -147,6 +142,7 @@ CONTAINS
     END IF
 
     CALL timestop(handle)
+
   END SUBROUTINE scf_env_density_mixing
 
 ! *****************************************************************************
@@ -158,7 +154,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE eigensolver(matrix_ks,mo_set,ortho,work,do_level_shift,&
                          level_shift,use_cholesky,work_syevx,use_jacobi,&
-                         jacobi_threshold,smear,error)
+                         jacobi_threshold,error)
     TYPE(cp_fm_type), POINTER                :: matrix_ks
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: ortho, work
@@ -167,34 +163,32 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: use_cholesky
     REAL(KIND=dp), INTENT(IN)                :: work_syevx
     LOGICAL, INTENT(IN)                      :: use_jacobi
-    REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, smear
+    REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, imo, lfomo, &
-                                                nao, nelectron, nmo
-    LOGICAL                                  :: mo_uocc
-    REAL(KIND=dp)                            :: alpha, maxocc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, mo_occupation
+    INTEGER                                  :: handle, homo, imo, nao, &
+                                                nelectron, nmo
+    REAL(KIND=dp)                            :: alpha
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
 
-!   *** Diagonalise the Kohn-Sham matrix ***
+    NULLIFY (mo_coeff)
+    NULLIFY (mo_eigenvalues)
+
+    ! Diagonalise the Kohn-Sham matrix
 
     CALL get_mo_set(mo_set=mo_set,&
-         nao=nao,&
-         nmo=nmo,&
-         homo=homo, &
-         nelectron=nelectron,&
-         maxocc=maxocc,&
-         eigenvalues=mo_eigenvalues,&
-         occupation_numbers=mo_occupation,&
-         mo_coeff=mo_coeff)
+                    nao=nao,&
+                    nmo=nmo,&
+                    homo=homo, &
+                    nelectron=nelectron,&
+                    eigenvalues=mo_eigenvalues,&
+                    mo_coeff=mo_coeff)
 
     IF (do_level_shift) THEN
        IF (use_cholesky) THEN
@@ -258,58 +252,43 @@ CONTAINS
 
     END IF
 
-    mo_uocc = .TRUE.
-    IF (smear /= 0.0_dp) THEN
-      CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
-                             homo,lfomo,maxocc,nelectron,&
-                             mo_uocc,&
-                             smear=smear, error=error)
-      CALL set_mo_set(mo_set=mo_set,&
-                      homo=homo,lfomo=lfomo,&
-                      uniform_occupation=mo_uocc,error=error)
-    END IF
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE eigensolver
 
 ! *****************************************************************************
-  SUBROUTINE simple_eigensolver(matrix_ks,mo_set,work,&
-             do_level_shift,level_shift,work_syevx,smear,error)
+  SUBROUTINE simple_eigensolver(matrix_ks,mo_set,work,do_level_shift,&
+                                level_shift,work_syevx,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_ks
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: work
     LOGICAL, INTENT(IN)                      :: do_level_shift
-    REAL(KIND=dp), INTENT(IN)                :: level_shift, work_syevx, smear
+    REAL(KIND=dp), INTENT(IN)                :: level_shift, work_syevx
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'simple_eigensolver', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, homo, imo, istat, &
-                                                lfomo, nao, nelectron, nmo
-    LOGICAL                                  :: mo_uocc
-    REAL(KIND=dp)                            :: alpha, maxocc
+                                                nao, nelectron, nmo
+    REAL(KIND=dp)                            :: alpha
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigvals
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, mo_occupation
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
 
-    NULLIFY(mo_eigenvalues,mo_occupation,mo_coeff)
+    NULLIFY (mo_coeff)
+    NULLIFY (mo_eigenvalues)
 
     CALL get_mo_set(mo_set=mo_set,&
-         nao=nao,&
-         nmo=nmo,&
-         homo=homo, &
-         nelectron=nelectron,&
-         maxocc=maxocc,&
-         eigenvalues=mo_eigenvalues,&
-         occupation_numbers=mo_occupation,&
-         mo_coeff=mo_coeff)
+                    nao=nao,&
+                    nmo=nmo,&
+                    homo=homo, &
+                    nelectron=nelectron,&
+                    eigenvalues=mo_eigenvalues,&
+                    mo_coeff=mo_coeff)
 
     IF (do_level_shift) THEN
       DO imo=homo+1,nmo
@@ -336,16 +315,6 @@ CONTAINS
 
     IF (do_level_shift) THEN
       CALL correct_mo_eigenvalues(mo_set,level_shift)
-    END IF
-
-    mo_uocc = .TRUE.
-    IF (smear /= 0.0_dp) THEN
-      CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
-                             homo,lfomo,maxocc,nelectron,&
-                             mo_uocc, smear=smear, error=error)
-      CALL set_mo_set(mo_set=mo_set,&
-                      homo=homo,lfomo=lfomo,&
-                      uniform_occupation=mo_uocc,error=error)
     END IF
 
     CALL timestop(0.0_dp,handle)

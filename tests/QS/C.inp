@@ -1,3 +1,7 @@
+&GLOBAL
+  PROJECT C
+  PRINT_LEVEL LOW
+&END GLOBAL
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -7,17 +11,26 @@
       NGRIDS 1
       REL_CUTOFF 30
     &END MGRID
+    &PRINT
+      &MO
+        EIGENVALUES
+        OCCUPATION_NUMBERS
+      &END MO
+    &END PRINT
     &QS
       EPS_GVG 1.0E-8
       EPS_RHO 1.0E-10
     &END QS
     &SCF
-      ADDED_MOS 4 0
+      ADDED_MOS 4
       EPS_SCF 1.0E-5
       MAX_SCF 30
       MIXING 0.4
       SCF_GUESS ATOMIC
-      SMEAR 0.02
+      &SMEAR ON
+        METHOD energy_window
+        WINDOW_SIZE 0.02
+      &END SMEAR
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
@@ -42,7 +55,3 @@
     &END
   &END
 &END FORCE_EVAL
-&GLOBAL
-
-  PRINT_LEVEL LOW
-&END GLOBAL

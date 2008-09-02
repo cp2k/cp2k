@@ -17,7 +17,7 @@ MODULE kg_gpw_fm_mol_types
 
   USE kinds,                           ONLY: dp,&
                                              dp_size
-  USE qs_mo_types,                     ONLY: set_mo_occupation
+  USE qs_mo_types,                     ONLY: set_mo_occupation_old
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -333,8 +333,8 @@ CONTAINS
     maxocc = mo_set%maxocc
     nelectron = mo_set%nelectron
     mo_uocc = .TRUE.
-    CALL set_mo_occupation(mo_set%occupation_numbers,mo_set%eigenvalues,&
-                           homo,lfomo,maxocc,nelectron,mo_uocc,error=error)
+    CALL set_mo_occupation_old(mo_set%occupation_numbers,mo_set%eigenvalues,&
+                               homo,lfomo,maxocc,nelectron,mo_uocc,error=error)
 
     mo_set%homo = homo
     mo_set%lfomo = lfomo

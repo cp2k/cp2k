@@ -16,13 +16,15 @@ MODULE scf_control_types
 
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
        atomic_guess, core_guess, general_roks, high_spin_roks, &
        outer_scf_becke, outer_scf_ddapc_constraint, outer_scf_none, &
        outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
-       outer_scf_s2_constraint, outer_scf_scp
+       outer_scf_s2_constraint, outer_scf_scp, smear_energy_window, &
+       smear_fermi_dirac
   USE input_cp2k_dft,                  ONLY: create_scf_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -52,7 +54,8 @@ MODULE scf_control_types
   ! Public data types
 
   PUBLIC :: outer_scf_control_type,&
-            scf_control_type
+            scf_control_type,&
+            smear_type
 
   ! Public subroutines
 
@@ -70,7 +73,6 @@ MODULE scf_control_types
 !> \param eps_scf whanted error on the whole scf
 !> \param level_shift amount of level shift
 !> \param p_mix how to mix the new and old densities in non diss iterations
-!> \param smear amount of smeating applied at the orbitals
 !> \param work_syevx real to control the amount of temporary memory needed
 !>        by lapack syevx
 !> \param eps_lumos error on the lumos calculated at the end of the scf
@@ -86,35 +88,46 @@ MODULE scf_control_types
 !>      09.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
+
   TYPE outer_scf_control_type
-    LOGICAL               :: have_scf
-    INTEGER               :: max_scf
-    REAL(KIND = dp)       :: eps_scf,step_size
-    INTEGER               :: TYPE
-    INTEGER               :: optimizer
-    INTEGER               :: diis_buffer_length
-    INTEGER               :: extrapolation_order
-    INTEGER               :: bisect_trust_count
+    LOGICAL       :: have_scf
+    INTEGER       :: max_scf
+    REAL(KIND=dp) :: eps_scf,step_size
+    INTEGER       :: TYPE
+    INTEGER       :: optimizer
+    INTEGER       :: diis_buffer_length
+    INTEGER       :: extrapolation_order
+    INTEGER       :: bisect_trust_count
   END TYPE outer_scf_control_type
 
-! *****************************************************************************
+  TYPE smear_type
+    LOGICAL       :: do_smear
+    INTEGER       :: method
+    REAL(KIND=dp) :: electronic_temperature,&
+                     eps_fermi_dirac,&
+                     window_size
+  END TYPE smear_type
+
   TYPE scf_control_type
-    TYPE(outer_scf_control_type) :: outer_scf
-    INTEGER               :: density_guess
-    REAL(KIND = dp)       :: eps_eigval,eps_scf,eps_scf_hist,level_shift,p_mix,smear,&
-                             work_syevx,eps_lumos,eps_diis,eps_jacobi,&
-                             jacobi_threshold, gspace_mixing_a, gspace_mixing_b
-    INTEGER               :: nmixing, max_iter_lumos, max_diis
-    INTEGER               :: max_scf,nrow_block,max_scf_hist,&
-                             ncol_block,maxl,nkind
-    LOGICAL               :: gradient_functional,gth_potential_present,&
-                             use_cholesky,use_ot
-    INTEGER               :: ref_count,id_nr
-    INTEGER, DIMENSION(2) :: added_mos
+    TYPE(outer_scf_control_type)          :: outer_scf
+    TYPE(smear_type)                      :: smear
+    INTEGER                               :: density_guess
+    REAL(KIND=dp)                         :: eps_eigval,eps_scf,eps_scf_hist,&
+                                             level_shift,p_mix,work_syevx,&
+                                             eps_lumos,eps_diis,eps_jacobi,&
+                                             jacobi_threshold,gspace_mixing_a,&
+                                             gspace_mixing_b
+    INTEGER                               :: nmixing, max_iter_lumos, max_diis
+    INTEGER                               :: max_scf,nrow_block,max_scf_hist,&
+                                             ncol_block,maxl,nkind
+    LOGICAL                               :: gradient_functional,gth_potential_present,&
+                                             use_cholesky,use_ot
+    INTEGER                               :: ref_count,id_nr
+    INTEGER, DIMENSION(2)                 :: added_mos
     INTEGER                               :: roks_scheme
     REAL(KIND=dp)                         :: roks_f
     REAL(KIND=dp), DIMENSION(0:2,0:2,1:2) :: roks_parameter
-   END TYPE scf_control_type
+  END TYPE scf_control_type
 
 CONTAINS
 
@@ -139,12 +152,10 @@ CONTAINS
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-! -------------------------------------------------------------------------
-
     failure = .FALSE.
 
-    ALLOCATE (scf_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (scf_control,STAT=stat)
+    CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
 
     IF (.NOT.failure) THEN
 
@@ -164,7 +175,6 @@ CONTAINS
       scf_control%ncol_block = 32
       scf_control%p_mix = 0.4_dp
       scf_control%nmixing = 2
-      scf_control%smear = 0.0_dp
       scf_control%work_syevx = 1.0_dp
       scf_control%use_cholesky = .TRUE.
       scf_control%use_ot = .FALSE.
@@ -174,7 +184,7 @@ CONTAINS
       scf_control%id_nr=last_scf_c_id_nr
       scf_control%eps_jacobi = 0.0_dp
       scf_control%jacobi_threshold = 1.0E-7_dp
-      scf_control%added_mos=0
+      scf_control%added_mos(:) = 0
       scf_control%max_scf_hist = 0
       scf_control%gspace_mixing_a = 1.0_dp
       scf_control%gspace_mixing_b = 0.0_dp
@@ -222,6 +232,14 @@ CONTAINS
       scf_control%outer_scf%optimizer = -1
       scf_control%outer_scf%diis_buffer_length = -1
 
+      ! Smearing of the MO occupations
+
+      scf_control%smear%do_smear = .FALSE.
+      scf_control%smear%method = smear_energy_window
+      scf_control%smear%electronic_temperature = 0.0_dp
+      scf_control%smear%eps_fermi_dirac = 1.0E-5_dp
+      scf_control%smear%window_size = 0.0_dp
+
       last_scf_c_id_nr = last_scf_c_id_nr + 1
 
     END IF
@@ -242,12 +260,10 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'scf_c_retain', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_retain', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-
-! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -276,13 +292,11 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'scf_c_release', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-
-! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -315,162 +329,202 @@ CONTAINS
                                                 force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: PARAMETER, r_vals
-    LOGICAL                                  :: failure
-    INTEGER, DIMENSION(:), POINTER           :: added_mos
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
       routineP = moduleN//':'//routineN
 
-    TYPE(section_vals_type), POINTER         :: outer_scf_section, scf_section
-
-! -------------------------------------------------------------------------
+    INTEGER, DIMENSION(:), POINTER           :: added_mos
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals, roks_parameter
+    TYPE(section_vals_type), POINTER         :: outer_scf_section, &
+                                                scf_section, smear_section
 
     failure = .FALSE.
 
     NULLIFY (r_vals)
 
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
-    CPPrecondition(scf_control%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition((scf_control%ref_count > 0),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(root_section),cp_failure_level,routineP,error,failure)
 
     IF (.NOT.failure) THEN
 
-       scf_section => section_vals_get_subs_vals(force_env_section,&
-                                                 "DFT%SCF",error=error)
-       CALL section_vals_val_get(scf_section,"nrow_block",&
-            i_val=scf_control%nrow_block,error=error)
-       CALL section_vals_val_get(scf_section,"ncol_block",&
-            i_val=scf_control%ncol_block,error=error)
-       CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",&
-            l_val=scf_control%use_ot,error=error)
-       CALL section_vals_val_get(scf_section,"SCF_GUESS",&
-            i_val=scf_control%density_guess,error=error)
-       CALL section_vals_val_get(scf_section,"MIXING",&
-            r_val=scf_control%p_mix,error=error)
-       CALL section_vals_val_get(scf_section,"NMIXING",&
-            i_val=scf_control%nmixing,error=error)
-       CALL section_vals_val_get(scf_section,"GSPACE_MIXING",&
-                                 r_vals=r_vals,error=error)
-       scf_control%gspace_mixing_a = r_vals(1)
-       scf_control%gspace_mixing_b = r_vals(2)
-       CALL section_vals_val_get(scf_section,"EPS_DIIS",&
-            r_val=scf_control%eps_diis,error=error)
-       CALL section_vals_val_get(scf_section,"eps_eigval",&
-            r_val=scf_control%eps_eigval,error=error)
-       CALL section_vals_val_get(scf_section,"eps_jacobi",&
-            r_val=scf_control%eps_jacobi,error=error)
-       CALL section_vals_val_get(scf_section,"jacobi_threshold",&
-            r_val=scf_control%jacobi_threshold,error=error)
-       CALL section_vals_val_get(scf_section,"cholesky",&
-            l_val=scf_control%use_cholesky,error=error)
-       CALL section_vals_val_get(scf_section,"eps_scf",&
-            r_val=scf_control%eps_scf,error=error)
-       CALL section_vals_val_get(scf_section,"level_shift",&
-            r_val=scf_control%level_shift,error=error)
-       CALL section_vals_val_get(scf_section,"max_diis",&
-            i_val=scf_control%max_diis,error=error)
-       CALL section_vals_val_get(scf_section,"max_scf",&
-            i_val=scf_control%max_scf,error=error)
-       CALL section_vals_val_get(scf_section,"smear",&
-            r_val=scf_control%smear,error=error)
-       CALL section_vals_val_get(scf_section,"work_syevx",&
-            r_val=scf_control%work_syevx,error=error)
-       scf_control%work_syevx = MIN(MAX(0.0_dp,scf_control%work_syevx),1.0_dp)
+      scf_section => section_vals_get_subs_vals(force_env_section,"DFT%SCF",&
+                                                error=error)
+      CALL section_vals_val_get(scf_section,"nrow_block",&
+                                i_val=scf_control%nrow_block,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"ncol_block",&
+                                i_val=scf_control%ncol_block,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",&
+                                l_val=scf_control%use_ot,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"SCF_GUESS",&
+                                i_val=scf_control%density_guess,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"MIXING",&
+                                r_val=scf_control%p_mix,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"NMIXING",&
+                                i_val=scf_control%nmixing,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"GSPACE_MIXING",&
+                                r_vals=r_vals,error=error)
+      scf_control%gspace_mixing_a = r_vals(1)
+      scf_control%gspace_mixing_b = r_vals(2)
+      CALL section_vals_val_get(scf_section,"EPS_DIIS",&
+                                r_val=scf_control%eps_diis,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"eps_eigval",&
+                                r_val=scf_control%eps_eigval,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"eps_jacobi",&
+                                r_val=scf_control%eps_jacobi,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"jacobi_threshold",&
+                                r_val=scf_control%jacobi_threshold,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"cholesky",&
+                                l_val=scf_control%use_cholesky,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"eps_scf",&
+                                r_val=scf_control%eps_scf,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"level_shift",&
+                                r_val=scf_control%level_shift,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"max_diis",&
+                                i_val=scf_control%max_diis,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"max_scf",&
+                                i_val=scf_control%max_scf,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"work_syevx",&
+                                r_val=scf_control%work_syevx,&
+                                error=error)
+      scf_control%work_syevx = MIN(MAX(0.0_dp,scf_control%work_syevx),1.0_dp)
 
-       ! Read ROKS parameters
+      ! Read ROKS parameters
 
-       CALL section_vals_val_get(scf_section,"ROKS_SCHEME",&
-                                 i_val=scf_control%roks_scheme,&
-                                 error=error)
+      CALL section_vals_val_get(scf_section,"ROKS_SCHEME",&
+                                i_val=scf_control%roks_scheme,&
+                                error=error)
 
-       IF (scf_control%roks_scheme == general_roks) THEN
+      SELECT CASE (scf_control%roks_scheme)
 
-         ! Read parameters for the general ROKS scheme
+      CASE (general_roks)
 
-         CALL section_vals_val_get(scf_section,"ROKS_F",&
-                                   r_val=scf_control%roks_f,&
-                                   error=error)
+        ! Read parameters for the general ROKS scheme
 
-       ELSE IF (scf_control%roks_scheme == high_spin_roks) THEN
+        CALL section_vals_val_get(scf_section,"ROKS_F",&
+                                  r_val=scf_control%roks_f,&
+                                  error=error)
 
-         ! Read high-spin ROKS parameters for the diagonal block
-         ! 0 = v)irtual, 1 = o)pen shell, 2 = c)losed shell
+      CASE (high_spin_roks)
 
-         NULLIFY (PARAMETER)
-         CALL section_vals_val_get(scf_section,"ROKS_PARAMETERS",&
-                                   r_vals=PARAMETER,&
-                                   error=error)
-         IF (ASSOCIATED(PARAMETER)) THEN
-           scf_control%roks_parameter(2,2,1) = PARAMETER(1) ! acc
-           scf_control%roks_parameter(2,2,2) = PARAMETER(2) ! bcc
-           scf_control%roks_parameter(1,1,1) = PARAMETER(3) ! aoo
-           scf_control%roks_parameter(1,1,2) = PARAMETER(4) ! boo
-           scf_control%roks_parameter(0,0,1) = PARAMETER(5) ! avv
-           scf_control%roks_parameter(0,0,2) = PARAMETER(6) ! bvv
-         END IF
+        ! Read high-spin ROKS parameters for the diagonal block
+        ! 0 = v)irtual, 1 = o)pen shell, 2 = c)losed shell
 
-       END IF
+        NULLIFY (roks_parameter)
+        CALL section_vals_val_get(scf_section,"ROKS_PARAMETERS",&
+                                  r_vals=roks_parameter,&
+                                  error=error)
+        IF (ASSOCIATED(roks_parameter)) THEN
+          scf_control%roks_parameter(2,2,1) = roks_parameter(1) ! acc
+          scf_control%roks_parameter(2,2,2) = roks_parameter(2) ! bcc
+          scf_control%roks_parameter(1,1,1) = roks_parameter(3) ! aoo
+          scf_control%roks_parameter(1,1,2) = roks_parameter(4) ! boo
+          scf_control%roks_parameter(0,0,1) = roks_parameter(5) ! avv
+          scf_control%roks_parameter(0,0,2) = roks_parameter(6) ! bvv
+        END IF
 
-       ! should be moved to printkey
-       CALL section_vals_val_get(scf_section,"eps_lumo",&
-            r_val=scf_control%eps_lumos,error=error)
-       CALL section_vals_val_get(scf_section,"max_iter_lumo",&
-            i_val=scf_control%max_iter_lumos,error=error)
-       CALL section_vals_val_get(scf_section,"added_mos",&
-            i_vals=added_mos,error=error)
-       CPPrecondition(ASSOCIATED(added_mos),cp_failure_level,routineP,error,failure)
-       scf_control%added_mos=0
-       IF (SIZE(added_mos)>0) THEN
-          scf_control%added_mos(:)=added_mos(1)
-          IF (SIZE(added_mos)>1) THEN
-             scf_control%added_mos(2)=added_mos(2)
-          END IF
-       END IF
-       CALL section_vals_val_get(scf_section,"max_scf_history",&
-                                 i_val=scf_control%max_scf_hist,&
-                                 error=error)
-       CALL section_vals_val_get(scf_section,"eps_scf_history",&
-                                 r_val=scf_control%eps_scf_hist,&
-                                 error=error)
+      END SELECT
 
-       IF (scf_control%level_shift /= 0.0_dp) &
-            scf_control%use_cholesky = .FALSE.
-       IF (scf_control%use_ot .AND. &
-            (scf_control%density_guess==core_guess)) THEN
-          CALL stop_program("scf_c_read_parameters","Use GUESS {ATOMIC,RESTART,RANDOM} with OT")
-       END IF
+      ! should be moved to printkey
 
-       outer_scf_section => section_vals_get_subs_vals(scf_section,"OUTER_SCF",error=error)
-       CALL section_vals_val_get(outer_scf_section,"_SECTION_PARAMETERS_",&
-            l_val=scf_control%outer_scf%have_scf,error=error)
-       IF (scf_control%outer_scf%have_scf) THEN
-          CALL section_vals_val_get(outer_scf_section,"EPS_SCF",&
-                                    r_val=scf_control%outer_scf%eps_scf,&
-                                    error=error)
-          CALL section_vals_val_get(outer_scf_section,"STEP_SIZE",&
-                                    r_val=scf_control%outer_scf%step_size,&
-                                    error=error)
-          CALL section_vals_val_get(outer_scf_section,"DIIS_BUFFER_LENGTH",&
-                                    i_val=scf_control%outer_scf%diis_buffer_length,&
-                                    error=error)
-          CALL section_vals_val_get(outer_scf_section,"BISECT_TRUST_COUNT",&
-                                    i_val=scf_control%outer_scf%bisect_trust_count,&
-                                    error=error)
-          CALL section_vals_val_get(outer_scf_section,"TYPE",&
-                                    i_val=scf_control%outer_scf%type,&
-                                    error=error)
-          CALL section_vals_val_get(outer_scf_section,"OPTIMIZER",&
-                                    i_val=scf_control%outer_scf%optimizer,&
-                                    error=error)
-          CALL section_vals_val_get(outer_scf_section,"MAX_SCF",&
-                                    i_val=scf_control%outer_scf%max_scf,&
-                                    error=error)
-          CALL section_vals_val_get(outer_scf_section,"EXTRAPOLATION_ORDER",&
-                                    i_val=scf_control%outer_scf%extrapolation_order,&
-                                    error=error)
-       END IF
+      CALL section_vals_val_get(scf_section,"eps_lumo",&
+                                r_val=scf_control%eps_lumos,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"max_iter_lumo",&
+                                i_val=scf_control%max_iter_lumos,&
+                                error=error)
 
-    END IF
+      ! Extra MOs, e.g. for smearing
+
+      CALL section_vals_val_get(scf_section,"added_mos",&
+                                i_vals=added_mos,&
+                                error=error)
+      CPPrecondition(ASSOCIATED(added_mos),cp_failure_level,routineP,error,failure)
+      IF (SIZE(added_mos) > 0) THEN
+        scf_control%added_mos(1) = added_mos(1)
+        IF (SIZE(added_mos) > 1) THEN
+          scf_control%added_mos(2) = added_mos(2)
+        END IF
+      END IF
+
+      CALL section_vals_val_get(scf_section,"max_scf_history",&
+                                i_val=scf_control%max_scf_hist,&
+                                error=error)
+      CALL section_vals_val_get(scf_section,"eps_scf_history",&
+                                r_val=scf_control%eps_scf_hist,&
+                                error=error)
+
+      IF (scf_control%level_shift /= 0.0_dp) scf_control%use_cholesky = .FALSE.
+      IF (scf_control%use_ot.AND.(scf_control%density_guess == core_guess)) THEN
+        CALL stop_program("scf_c_read_parameters","Use GUESS {ATOMIC,RESTART,RANDOM} with OT")
+      END IF
+
+      outer_scf_section => section_vals_get_subs_vals(scf_section,"OUTER_SCF",error=error)
+      CALL section_vals_val_get(outer_scf_section,"_SECTION_PARAMETERS_",&
+                                l_val=scf_control%outer_scf%have_scf,&
+                                error=error)
+      IF (scf_control%outer_scf%have_scf) THEN
+        CALL section_vals_val_get(outer_scf_section,"EPS_SCF",&
+                                  r_val=scf_control%outer_scf%eps_scf,&
+                                  error=error)
+        CALL section_vals_val_get(outer_scf_section,"STEP_SIZE",&
+                                  r_val=scf_control%outer_scf%step_size,&
+                                  error=error)
+        CALL section_vals_val_get(outer_scf_section,"DIIS_BUFFER_LENGTH",&
+                                  i_val=scf_control%outer_scf%diis_buffer_length,&
+                                  error=error)
+        CALL section_vals_val_get(outer_scf_section,"BISECT_TRUST_COUNT",&
+                                  i_val=scf_control%outer_scf%bisect_trust_count,&
+                                  error=error)
+        CALL section_vals_val_get(outer_scf_section,"TYPE",&
+                                  i_val=scf_control%outer_scf%type,&
+                                  error=error)
+        CALL section_vals_val_get(outer_scf_section,"OPTIMIZER",&
+                                  i_val=scf_control%outer_scf%optimizer,&
+                                  error=error)
+        CALL section_vals_val_get(outer_scf_section,"MAX_SCF",&
+                                  i_val=scf_control%outer_scf%max_scf,&
+                                  error=error)
+        CALL section_vals_val_get(outer_scf_section,"EXTRAPOLATION_ORDER",&
+                                  i_val=scf_control%outer_scf%extrapolation_order,&
+                                  error=error)
+      END IF
+
+      smear_section => section_vals_get_subs_vals(scf_section,"SMEAR",error=error)
+      CALL section_vals_val_get(smear_section,"_SECTION_PARAMETERS_",&
+                                l_val=scf_control%smear%do_smear,&
+                                error=error)
+      IF (scf_control%smear%do_smear) THEN
+        CALL section_vals_val_get(smear_section,"METHOD",&
+                                  i_val=scf_control%smear%method,&
+                                  error=error)
+        CALL section_vals_val_get(smear_section,"ELECTRONIC_TEMPERATURE",&
+                                  r_val=scf_control%smear%electronic_temperature,&
+                                  error=error)
+        CALL section_vals_val_get(smear_section,"EPS_FERMI_DIRAC",&
+                                  r_val=scf_control%smear%eps_fermi_dirac,&
+                                  error=error)
+        CALL section_vals_val_get(smear_section,"WINDOW_SIZE",&
+                                  r_val=scf_control%smear%window_size,&
+                                  error=error)
+      END IF ! do smear
+
+    END IF ! failure
 
   END SUBROUTINE scf_c_read_parameters
 
@@ -494,13 +548,12 @@ CONTAINS
 
     INTEGER                                  :: output_unit, roks_scheme
     LOGICAL                                  :: failure, roks
+    REAL(KIND=dp)                            :: elec_temp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: dft_section, scf_section
-
-! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -520,15 +573,18 @@ CONTAINS
                                          extension=".scfLog",error=error)
 
       IF (output_unit > 0) THEN
-        IF (scf_control%max_scf < 1) RETURN
+
+        IF (scf_control%max_scf > 0) THEN
+
           CALL create_scf_section(section,error=error)
+
           keyword => section_get_keyword(section,"SCF_GUESS",error=error)
           CALL keyword_get(keyword,enum=enum,error=error)
 
           WRITE (UNIT=output_unit,&
-                 FMT="(/,/,T2,A,T25,A,T71,A10,/,T25,56('-'),3(/,T25,A,T76,I5),/,"//&
+                 FMT="(/,/,T2,A,T25,A,T51,A30,/,T25,56('-'),3(/,T25,A,T76,I5),/,"//&
                      "T25,56('-'),6(/,T25,A,T72,ES9.2),/,T25,56('-'),"//&
-                     "6(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
+                     "5(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
             "SCF PARAMETERS",&
             "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess,error=error))),&
             "max_scf:           ",scf_control%max_scf,&
@@ -545,9 +601,28 @@ CONTAINS
             "G-space mixing b:  ",scf_control%gspace_mixing_b,&
             "work_syevx:        ",scf_control%work_syevx,&
             "level_shift [a.u.]:",scf_control%level_shift,&
-            "smear [a.u.]:      ",scf_control%smear,&
             "added MOs          ",scf_control%added_mos
 
+          IF (scf_control%smear%do_smear) THEN
+            keyword => section_get_keyword(section,"SMEAR%METHOD",error=error)
+            CALL keyword_get(keyword,enum=enum,error=error)
+            WRITE (UNIT=output_unit,FMT="(T25,A,/,T25,A,T51,A30)")&
+              REPEAT("-",56),&
+              "Smear method:      ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%smear%method,error=error)))
+            SELECT CASE (scf_control%smear%method)
+            CASE (smear_fermi_dirac)
+              elec_temp = cp_unit_from_cp2k(scf_control%smear%electronic_temperature,&
+                                            "K",error=error)
+              WRITE (UNIT=output_unit,FMT="(T25,A,T61,F20.1)")&
+                "Electronic temperature [K]:",elec_temp
+              WRITE (UNIT=output_unit,FMT="(T25,A,T71,ES10.2)")&
+                "Electronic temperature [a.u.]:",scf_control%smear%electronic_temperature,&
+                "Minimal MO occupation:",scf_control%smear%eps_fermi_dirac
+            CASE (smear_energy_window)
+              WRITE (UNIT=output_unit,FMT="(T25,A,T71,F10.6)")&
+                "Smear window [a.u.]:       ",scf_control%smear%window_size
+            END SELECT
+          END IF
           dft_section => section_vals_get_subs_vals(force_env_section,"DFT",&
                                                     error=error)
 
@@ -558,13 +633,14 @@ CONTAINS
                                       i_val=roks_scheme,error=error)
             keyword => section_get_keyword(section,"ROKS_SCHEME",error=error)
             CALL keyword_get(keyword,enum=enum,error=error)
-            WRITE (UNIT=output_unit,FMT="(T25,A,/,T25,A,T71,A10)")&
+            WRITE (UNIT=output_unit,FMT="(T25,A,/,T25,A,T51,A30)")&
               REPEAT("-",56),&
               "ROKS scheme:",ADJUSTR(TRIM(enum_i2c(enum,roks_scheme,error=error)))
-            IF (roks_scheme == general_roks) THEN
+            SELECT CASE (roks_scheme)
+            CASE (general_roks)
               WRITE (UNIT=output_unit,FMT="(T25,A,T71,F10.6)")&
                 "ROKS parameter f:",scf_control%roks_f
-            ELSE IF (roks_scheme == high_spin_roks) THEN
+            CASE (high_spin_roks)
               WRITE (UNIT=output_unit,&
                      FMT="(T25,A,6(/,T25,A,T71,F10.6))")&
                 "ROKS parameters: a)lpha, b)eta; c)losed, o)pen, v)irtual",&
@@ -574,7 +650,7 @@ CONTAINS
                 "boo",scf_control%roks_parameter(1,1,2),&
                 "avv",scf_control%roks_parameter(0,0,1),&
                 "bvv",scf_control%roks_parameter(0,0,2)
-            END IF
+            END SELECT
           END IF
 
           CALL section_release(section,error=error)
@@ -609,17 +685,22 @@ CONTAINS
               WRITE (output_unit,'(T25,A)') "DIIS optimization"
               WRITE (output_unit,'(T25,A,T72,I9)') "DIIS buffer length", &
                 scf_control%outer_scf%diis_buffer_length
-             CASE DEFAULT
-               CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             END SELECT
-             WRITE (output_unit,'(T25,A,T72,ES9.2)') "step_size",scf_control%outer_scf%step_size
+            CASE DEFAULT
+              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+            END SELECT
+            WRITE (output_unit,'(T25,A,T72,ES9.2)') "step_size",scf_control%outer_scf%step_size
           ELSE
-             WRITE (output_unit,"(T25,56('-'),/,T25,A)") "No outer SCF"
-          ENDIF
-       END IF
-       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-                                         "PRINT%PROGRAM_RUN_INFO",error=error)
-    END IF
+            WRITE (output_unit,"(T25,56('-'),/,T25,A)") "No outer SCF"
+          END IF
+
+        END IF ! max_scf > 0
+
+      END IF ! output_unit > 0
+
+      CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+                                        "PRINT%PROGRAM_RUN_INFO",error=error)
+
+    END IF ! not failure
 
   END SUBROUTINE scf_c_write_parameters
 

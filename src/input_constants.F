@@ -694,9 +694,14 @@ MODULE input_constants
                                 plus_u_mulliken=2,&
                                 plus_u_mulliken_charges=3
 
-  ! distribution in g-space can be
+  ! Distribution in g-space can be
   INTEGER, PARAMETER, PUBLIC :: do_pw_grid_blocked_false=0,&
-                        do_pw_grid_blocked_true =1,&
-                        do_pw_grid_blocked_free =2
+                                do_pw_grid_blocked_true=1,&
+                                do_pw_grid_blocked_free=2
+
+  ! Define identifier codes for smearing method
+
+  INTEGER, PARAMETER, PUBLIC :: smear_energy_window=1,&
+                                smear_fermi_dirac=2
 
 END MODULE input_constants

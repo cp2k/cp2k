@@ -9,6 +9,7 @@
 !>       2006.03 Moved here from qs_scf.F [Joost VandeVondele]
 ! *****************************************************************************
 MODULE qs_initial_guess
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -54,6 +55,7 @@ MODULE qs_initial_guess
                                              mo_set_p_type,&
                                              mo_set_restrict,&
                                              read_mo_set,&
+                                             set_mo_occupation,&
                                              wfn_restart_file_name
   USE qs_scf_methods,                  ONLY: eigensolver,&
                                              simple_eigensolver
@@ -72,8 +74,6 @@ MODULE qs_initial_guess
   IMPLICIT NONE
 
   PRIVATE
-
-! *** Global parameters ***
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_initial_guess'
 
@@ -341,19 +341,24 @@ CPSourceFileRef,&
        ! molecular orbitals (MOs)
 
        IF (ortho_basis) THEN
-          CALL simple_eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,&
-                                  work2,.FALSE.,0.0_dp,&
+          CALL simple_eigensolver(matrix_ks=work1(ispin)%matrix,&
+                                  mo_set=mo_array(ispin)%mo_set,&
+                                  work=work2,&
+                                  do_level_shift=.FALSE.,&
+                                  level_shift=0.0_dp,&
                                   work_syevx=scf_control%work_syevx,&
-                                  smear=0.0_dp,&
                                   error=error)
        ELSE
-          CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2,&
-                           .FALSE.,0.0_dp,&
+          CALL eigensolver(matrix_ks=work1(ispin)%matrix,&
+                           mo_set=mo_array(ispin)%mo_set,&
+                           ortho=ortho,&
+                           work=work2,&
+                           do_level_shift=.FALSE.,&
+                           level_shift=0.0_dp,&
                            use_cholesky=scf_control%use_cholesky,&
                            work_syevx=scf_control%work_syevx,&
                            use_jacobi=.FALSE.,&
                            jacobi_threshold=scf_control%jacobi_threshold,&
-                           smear=0.0_dp,&
                            error=error)
        END IF
 
@@ -369,13 +374,18 @@ CPSourceFileRef,&
        ! an open shell calculation) from the first MOs set
 
        DO ispin=1,nspin
-          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                        p_rmpv(ispin)%matrix,&
-                                        error=error)
+         CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
+                                smear=scf_control%smear,&
+                                error=error)
+         CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+                                       p_rmpv(ispin)%matrix,&
+                                       error=error)
        END DO
 
-    ELSE IF((density_guess == atomic_guess).OR.(density_guess == mopac_guess)) THEN
+    ELSE IF ((density_guess == atomic_guess).OR.(density_guess == mopac_guess)) THEN
+
        ! ATOMIC GUESS and MOPAC GUESS share most of the structures...
+      
        group = qs_env%para_env%group
        natom = SIZE(particle_set)
        ALLOCATE (first_sgf(natom),STAT=istat)
@@ -660,23 +670,32 @@ CPSourceFileRef,&
 
        ! diagonalization
        DO ispin = 1,qs_env%dft_control%nspins
-          CALL copy_sm_to_fm(qs_env%matrix_ks(ispin)%matrix, qs_env%scf_env%scf_work1(ispin)%matrix,error=error)
+          CALL copy_sm_to_fm(qs_env%matrix_ks(ispin)%matrix,&
+                             qs_env%scf_env%scf_work1(ispin)%matrix,&
+                             error=error)
        END DO
-       
+
        qs_env%scf_env%iter_method = "Mixing/Diag"
        qs_env%scf_env%iter_delta = 0.0_dp
-       
+
        DO ispin = 1,qs_env%dft_control%nspins
-          CALL eigensolver(matrix_ks=qs_env%scf_env%scf_work1(ispin)%matrix, &
-                           mo_set=qs_env%mos(ispin)%mo_set, ortho=qs_env%scf_env%ortho, &
-                           work=qs_env%scf_env%scf_work2, do_level_shift=.FALSE., &
-                           level_shift=scf_control%level_shift, &
-                           use_cholesky=scf_control%use_cholesky, work_syevx=scf_control%work_syevx, &
-                           use_jacobi=.FALSE., jacobi_threshold=scf_control%jacobi_threshold, &
-                           smear=scf_control%smear, error=error)
-          
-          ! calculate_density_matrix
-          CALL calculate_density_matrix(qs_env%mos(ispin)%mo_set, qs_env%rho%rho_ao(ispin)%matrix, error=error)
+         CALL eigensolver(matrix_ks=qs_env%scf_env%scf_work1(ispin)%matrix, &
+                          mo_set=mo_array(ispin)%mo_set,&
+                          ortho=qs_env%scf_env%ortho, &
+                          work=qs_env%scf_env%scf_work2,&
+                          do_level_shift=.FALSE., &
+                          level_shift=scf_control%level_shift, &
+                          use_cholesky=scf_control%use_cholesky,&
+                          work_syevx=scf_control%work_syevx, &
+                          use_jacobi=.FALSE.,&
+                          jacobi_threshold=scf_control%jacobi_threshold, &
+                          error=error)
+         CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
+                                smear=scf_control%smear,&
+                                error=error)
+         CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+                                       qs_env%rho%rho_ao(ispin)%matrix,&
+                                       error=error)
        END DO
 
     ELSE IF (density_guess == no_guess) THEN

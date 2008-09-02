@@ -55,7 +55,7 @@ PROGRAM cp2k
   CHARACTER(LEN=default_path_length)   :: input_file_name,output_file_name,arg_att
   CHARACTER(LEN=default_string_length) :: dev_flag
   INTEGER                              :: output_unit
-  INTEGER                              :: ierr, i, n_arg, i_arg
+  INTEGER                              :: ierr, n_arg, i_arg
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
                                           permissive
   LOGICAL                              :: run_it, force_run, has_input, xml, print_version, print_license

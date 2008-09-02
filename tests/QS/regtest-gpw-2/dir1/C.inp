@@ -19,7 +19,10 @@
       MAX_SCF 1
       MIXING 0.4
       SCF_GUESS ATOMIC
-      SMEAR 0.02
+      &SMEAR
+        METHOD energy_window
+        WINDOW_SIZE 0.02
+      &END SMEAR
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade

@@ -610,7 +610,7 @@ CONTAINS
     IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
             "DFT%PRINT%MO",error=error),cp_p_file).OR.&
         (scf_control%level_shift /= 0.0_dp).OR.&
-        (scf_control%smear /= 0.0_dp).OR.&
+        (scf_control%smear%window_size /= 0.0_dp).OR.&
         (scf_control%eps_jacobi /= 0.0_dp)) THEN
         nmo_eq_nao = .TRUE.
     END IF

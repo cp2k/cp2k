@@ -496,7 +496,7 @@ CONTAINS
                                    use_cholesky=scf_control%use_cholesky, &
                                    use_jacobi=use_jacobi,&
                                    jacobi_threshold=scf_control%jacobi_threshold,&
-                                   smear=scf_control%smear, error=error)
+                                   smear=scf_control%smear%window_size, error=error)
 
           CALL calculate_mol_density_matrix(mo_set,mol_block,&
                             nat_mol,matrix_p(ispin)%matrix,error=error)

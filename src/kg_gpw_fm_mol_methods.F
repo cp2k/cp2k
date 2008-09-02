@@ -40,7 +40,7 @@ MODULE kg_gpw_fm_mol_methods
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
-  USE qs_mo_types,                     ONLY: set_mo_occupation
+  USE qs_mo_types,                     ONLY: set_mo_occupation_old
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_type
   USE termination,                     ONLY: stop_memory,&
@@ -588,7 +588,7 @@ CONTAINS
     IF (smear /= 0.0_dp) THEN
      CALL get_mol_mo_set(mo_set=mo_set,lfomo=lfomo, homo=homo,&
                          maxocc=maxocc, nelectron=nelectron)
-     CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
+     CALL set_mo_occupation_old(mo_occupation,mo_eigenvalues,&
                           homo,lfomo,maxocc,nelectron,mo_uocc,&
                           smear=smear,error=error)
      CALL  set_mol_mo_set(mo_set=mo_set,homo=homo,lfomo=lfomo)

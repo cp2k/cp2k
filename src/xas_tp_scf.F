@@ -328,7 +328,6 @@ CONTAINS
                   work_syevx=scf_control%work_syevx,&
                   use_jacobi=use_jacobi,&
                   jacobi_threshold=scf_control%jacobi_threshold,&
-                  smear=0.0_dp, &
                   error=error)
 
              IF(ispin == 1) THEN
