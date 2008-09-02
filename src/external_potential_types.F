@@ -1522,7 +1522,7 @@ CONTAINS
                    DO i=1,nprj_ppnl
                       IF (i == 1) THEN
                          IF (read_from_input) THEN
-                            READ(line_att,'(E24.16)')hprj_ppnl(i,i,l)
+                            READ(line_att,*)hprj_ppnl(i,i,l)
                             CALL remove_word(line_att) 
                          ELSE
                             CALL parser_get_object(parser,hprj_ppnl(i,i,l),error=error)
