@@ -15,9 +15,9 @@ MODULE input_cp2k_dft
        Goedecker1996, Heyd2004, Hunt2003, Iannuzzi2005, Iannuzzi2006, &
        Iannuzzi2007, Krack2000, Krack2002, Lee1988, Lippert1997, Lippert1999, &
        Ortiz1994, Perdew1981, Perdew1996, Porezag1995, Repasky2002, &
-       Rocha2006, Seifert1996, Stewart1982, Stewart1989, Stewart2007, Thiel1992, &
-       VandeVondele2003, VandeVondele2005a, VandeVondele2005b, Vosko1980, &
-       Weber2008, Zhang1998, Zhechkov2005
+       Rocha2006, Seifert1996, Stewart1982, Stewart1989, Stewart2007, &
+       Thiel1992, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
+       Vosko1980, Weber2008, Zhang1998, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
