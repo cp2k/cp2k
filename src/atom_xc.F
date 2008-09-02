@@ -51,10 +51,10 @@ MODULE atom_xc
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE calculate_atom_vxc(xcmat,atom,atom_section,error)
+  SUBROUTINE calculate_atom_vxc(xcmat,atom,method_section,error)
     TYPE(opmat_type), POINTER                :: xcmat
     TYPE(atom_type), INTENT(INOUT)           :: atom
-    TYPE(section_vals_type), POINTER         :: atom_section
+    TYPE(section_vals_type), POINTER         :: method_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_vxc', &
@@ -81,7 +81,7 @@ CONTAINS
 
     NULLIFY(rho_set) 
 
-    xc_section => section_vals_get_subs_vals(atom_section,"METHOD%XC",error=error)
+    xc_section => section_vals_get_subs_vals(method_section,"XC",error=error)
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
     CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun,error=error)
 

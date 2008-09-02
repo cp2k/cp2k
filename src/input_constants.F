@@ -249,6 +249,9 @@ MODULE input_constants
                                 do_rhf_atom=3,&
                                 do_uhf_atom=4,&
                                 do_rohf_atom=5
+  ! Pseudopotential type for Atom Code
+  INTEGER, PARAMETER, PUBLIC :: no_pseudo=0,&
+                                gth_pseudo=1
   ! BAND
   INTEGER, PARAMETER, PUBLIC :: do_b_neb=0,&
                                 do_it_neb=1,&

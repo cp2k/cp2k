@@ -504,10 +504,6 @@ CONTAINS
     END SELECT
 
     ! tau part
-    IF (needs%tau.OR.needs%tau_spin) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                        "GAPW + metafunctionals not implemented yet")
-    END IF
     IF (needs%tau) THEN
       NULLIFY(rho_set%tau)
       ALLOCATE(rho_set%tau(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))

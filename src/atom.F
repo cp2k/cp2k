@@ -6,21 +6,28 @@
 ! *****************************************************************************
 MODULE atom
   USE atom_operators,                  ONLY: atom_int_release,&
-                                             atom_int_setup
+                                             atom_int_setup,&
+                                             atom_ppint_release,&
+                                             atom_ppint_setup
   USE atom_optimization,               ONLY: atom_history_init,&
                                              atom_history_release,&
                                              atom_history_type,&
                                              atom_history_update,&
                                              atom_opt
-  USE atom_output,                     ONLY: atom_print_energies,&
+  USE atom_output,                     ONLY: atom_print_basis,&
+                                             atom_print_energies,&
+                                             atom_print_info,&
                                              atom_print_iteration,&
+                                             atom_print_method,&
+                                             atom_print_potential,&
                                              atom_print_state
   USE atom_types,                      ONLY: &
-       atom_basis_type, atom_integrals, atom_orbitals, atom_p_type, &
-       atom_state, atom_type, create_atom_orbs, create_atom_type, &
-       create_opgrid, create_opmat, init_atom_basis, opgrid_type, opmat_type, &
-       release_atom_basis, release_atom_type, release_opgrid, release_opmat, &
-       set_atom
+       GTH_PSEUDO, NO_PSEUDO, atom_basis_type, atom_integrals, atom_orbitals, &
+       atom_p_type, atom_potential_type, atom_state, atom_type, &
+       create_atom_orbs, create_atom_type, create_opgrid, create_opmat, &
+       init_atom_basis, init_atom_potential, opgrid_type, opmat_type, &
+       release_atom_basis, release_atom_potential, release_atom_type, &
+       release_opgrid, release_opmat, set_atom
   USE atom_utils,                      ONLY: &
        atom_denmat, atom_density, atom_set_occupation, atom_solve, &
        atom_trace, ceri_contract, coulomb_potential_analytic, &
@@ -36,7 +43,8 @@ MODULE atom
   USE input_constants,                 ONLY: &
        atom_energy_run, atom_no_run, do_analytic, do_numeric, do_rhf_atom, &
        do_rks_atom, do_rohf_atom, do_semi_analytic, do_uhf_atom, do_uks_atom
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -140,8 +148,9 @@ CONTAINS
     CHARACTER(LEN=2)                         :: elem
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER                                  :: do_eri, i, ierr, in, k, maxl, &
-                                                mb, mo, n_rep, zval, zz
+    INTEGER                                  :: do_eri, i, ierr, im, in, iw, &
+                                                k, maxl, mb, meth, mo, &
+                                                n_meth, n_rep, zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, failure, &
@@ -149,12 +158,18 @@ CONTAINS
     TYPE(atom_basis_type), TARGET            :: ae_basis, pp_basis
     TYPE(atom_integrals), TARGET             :: ae_int, pp_int
     TYPE(atom_orbitals), POINTER             :: orbitals
-    TYPE(atom_p_type), DIMENSION(:), POINTER :: atom_info
+    TYPE(atom_p_type), DIMENSION(:, :), &
+      POINTER                                :: atom_info
+    TYPE(atom_potential_type), TARGET        :: ae_pot, p_pot
     TYPE(atom_state), POINTER                :: state
-    TYPE(section_vals_type), POINTER         :: basis_section
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: basis_section, &
+                                                method_section, &
+                                                potential_section
 
     failure = .FALSE.
 
+    ! What atom do we calculate
     CALL section_vals_val_get(atom_section,"ATOMIC_NUMBER", i_val=zval, error=error)
     CALL section_vals_val_get(atom_section,"ELEMENT", c_val=elem, error=error)
     zz = 0
@@ -166,13 +181,39 @@ CONTAINS
     END DO
     IF ( zz /= 1 ) zval = zz
 
+    ! read and set up inofrmation on the basis sets
     basis_section => section_vals_get_subs_vals(atom_section,"AE_BASIS",error=error)
     NULLIFY(ae_basis%grid)
-    CALL init_atom_basis(ae_basis,basis_section,zval,error)
+    CALL init_atom_basis(ae_basis,basis_section,zval,"AE",error)
     NULLIFY(pp_basis%grid)
     basis_section => section_vals_get_subs_vals(atom_section,"PP_BASIS",error=error)
-    CALL init_atom_basis(pp_basis,basis_section,zval,error)
+    CALL init_atom_basis(pp_basis,basis_section,zval,"PP",error)
 
+    ! print general and basis set information
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%PROGRAM_BANNER",extension=".log",error=error)
+    IF(iw > 0) CALL atom_print_info(zval,"Atomic Energy Calculation",iw,error)
+    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%PROGRAM_BANNER",error=error)
+    iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%BASIS_SET",extension=".log",error=error)
+    IF(iw > 0) THEN
+      CALL atom_print_basis(ae_basis,iw,"All Electron Basis",error)
+      CALL atom_print_basis(pp_basis,iw,"Pseudopotential Basis",error)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%BASIS_SET",error=error)
+
+    ! read and setup information on the pseudopotential
+    NULLIFY(potential_section)
+    potential_section => section_vals_get_subs_vals(atom_section,"POTENTIAL",error=error)
+    CALL init_atom_potential(p_pot,potential_section,zval,error)
+    CALL init_atom_potential(ae_pot,potential_section,-1,error)
+    iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%POTENTIAL",extension=".log",error=error)
+    IF(iw > 0) THEN
+      CALL atom_print_potential(ae_pot,iw,error)
+      CALL atom_print_potential(p_pot,iw,error)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%POTENTIAL",error=error)
+
+    ! if the ERI's are calculated analytically, we have to precalculate them
     eri_c = .FALSE.
     CALL section_vals_val_get(atom_section,"COULOMB_INTEGRALS", i_val=do_eri, error=error)
     IF(do_eri==do_analytic) eri_c = .TRUE.
@@ -180,6 +221,7 @@ CONTAINS
     CALL section_vals_val_get(atom_section,"EXCHANGE_INTEGRALS", i_val=do_eri, error=error)
     IF(do_eri==do_analytic) eri_e = .TRUE.
 
+    ! information on the states to be calculated
     CALL section_vals_val_get(atom_section,"MAX_ANGULAR_MOMENTUM", i_val=maxl, error=error)
     maxn=0
     CALL section_vals_val_get(atom_section,"CALCULATE_STATES", i_vals=cn, error=error)
@@ -188,94 +230,122 @@ CONTAINS
     END DO
 
     ae_int%status = 0
+    ae_int%ppstat = 0
     pp_int%status = 0
+    pp_int%ppstat = 0
     had_ae = .FALSE.
     had_pp = .FALSE.
 
     ! Check for the total number of electron configurations to be calculated
     CALL section_vals_val_get(atom_section,"ELECTRON_CONFIGURATION", n_rep_val=n_rep, error=error)
+    ! Check for the total number of method types to be calculated
+    method_section => section_vals_get_subs_vals(atom_section,"METHOD",error=error)
+    CALL section_vals_get(method_section,n_repetition=n_meth,error=error)
 
-    ALLOCATE(atom_info(n_rep),STAT=ierr)
+    ALLOCATE(atom_info(n_rep,n_meth),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
     DO in = 1, n_rep
+      DO im = 1, n_meth
 
-      NULLIFY(atom_info(in)%atom)
-      CALL create_atom_type(atom_info(in)%atom,error)
-      atom_info(in)%atom%z = zval
+        NULLIFY(atom_info(in,im)%atom)
+        CALL create_atom_type(atom_info(in,im)%atom,error)
 
-      ALLOCATE(state,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+        atom_info(in,im)%atom%method_section => method_section
+        atom_info(in,im)%atom%method_section_number = im
+        logger => cp_error_get_logger(error)
+        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%METHOD_INFO",extension=".log",error=error)
+        CALL section_vals_val_get(method_section,"METHOD_TYPE", i_val=meth, i_rep_section=im, error=error)
+        IF( meth==do_rks_atom .OR. meth==do_uks_atom) CALL atom_print_method(method_section,im,iw,error)
+        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%METHOD_INFO",error=error)
 
-      ! get the electronic configuration
-      CALL section_vals_val_get(atom_section,"ELECTRON_CONFIGURATION", i_rep_val=in,&
-                                c_vals=tmpstringlist, error=error)
+        atom_info(in,im)%atom%z = zval
 
-      ! set occupations 
-      CALL atom_set_occupation(tmpstringlist,state%occ,error)
-      state%maxl_occ = get_maxl_occ(state%occ)
-      state%maxn_occ = get_maxn_occ(state%occ)
+        ALLOCATE(state,STAT=ierr)
+        CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
-      ! set number of states to be calculated
-      state%maxl_calc = MAX(maxl,state%maxl_occ)
-      state%maxl_calc = MIN(3,state%maxl_calc)
-      state%maxn_calc = 0
-      DO k=0,state%maxl_calc
-        state%maxn_calc(k) = MAX(maxn(k),state%maxn_occ(k))
+        ! get the electronic configuration
+        CALL section_vals_val_get(atom_section,"ELECTRON_CONFIGURATION", i_rep_val=in,&
+                                  c_vals=tmpstringlist, error=error)
+
+        ! set occupations 
+        CALL atom_set_occupation(tmpstringlist,state%occ,state%occupation,error)
+        state%maxl_occ = get_maxl_occ(state%occ)
+        state%maxn_occ = get_maxn_occ(state%occ)
+
+        ! set number of states to be calculated
+        state%maxl_calc = MAX(maxl,state%maxl_occ)
+        state%maxl_calc = MIN(3,state%maxl_calc)
+        state%maxn_calc = 0
+        DO k=0,state%maxl_calc
+          state%maxn_calc(k) = MAX(maxn(k),state%maxn_occ(k))
+        END DO
+
+        ! is there a pseudo potential
+        pp_calc = INDEX(tmpstringlist(1),"CORE") /= 0
+        IF ( pp_calc ) THEN
+          ! get and set the core occupations 
+          CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)
+          CALL atom_set_occupation(tmpstringlist,state%core,state%occupation,error)
+          zcore = zval - SUM(state%core)
+          CALL set_atom(atom_info(in,im)%atom,zcore=zcore,pp_calc=.TRUE.,error=error)
+        ELSE
+          state%core=0._dp
+          CALL set_atom(atom_info(in,im)%atom,zcore=zval,pp_calc=.FALSE.,error=error)
+        END IF
+
+        ! calculate integrals
+        IF ( pp_calc ) THEN
+          CALL atom_int_setup(pp_int,pp_basis,&
+                              potential=p_pot,eri_coulomb=eri_c,eri_exchange=eri_e,error=error)
+          CALL atom_ppint_setup(pp_int,pp_basis,potential=p_pot,error=error)
+          CALL set_atom(atom_info(in,im)%atom,basis=pp_basis,integrals=pp_int,potential=p_pot,error=error)
+          state%maxn_calc(:) = MIN( state%maxn_calc(:), pp_basis%nbas(:) )
+          CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP, error, failure)
+          had_pp = .TRUE.
+        ELSE
+          CALL atom_int_setup(ae_int,ae_basis,potential=ae_pot,&
+                              eri_coulomb=eri_c,eri_exchange=eri_e,error=error)
+          CALL atom_ppint_setup(ae_int,ae_basis,potential=ae_pot,error=error)
+          CALL set_atom(atom_info(in,im)%atom,basis=ae_basis,integrals=ae_int,potential=ae_pot,error=error)
+          state%maxn_calc(:) = MIN( state%maxn_calc(:), ae_basis%nbas(:) )
+          CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP, error, failure)
+          had_ae = .TRUE.
+        END IF
+
+        CALL set_atom(atom_info(in,im)%atom,state=state,error=error)
+
+        NULLIFY(orbitals)
+        mo = MAXVAL(state%maxn_calc)
+        mb = MAXVAL(atom_info(in,im)%atom%basis%nbas)
+        CALL create_atom_orbs(orbitals,mb,mo,error)
+        CALL set_atom(atom_info(in,im)%atom,orbitals=orbitals,error=error)
+
+        !Calculate the electronic structure
+        CALL atom_electronic_structure(atom_info(in,im)%atom,atom_section,error)
+
       END DO
-
-      ! is there a pseudo potential
-      pp_calc = INDEX(tmpstringlist(1),"CORE") /= 0
-      IF ( pp_calc ) THEN
-        ! get and set the core occupations 
-        CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)
-        CALL atom_set_occupation(tmpstringlist,state%core,error)
-        atom_info(in)%atom%zcore = zval - SUM(state%core)
-      ELSE
-        state%core=0._dp
-        atom_info(in)%atom%zcore = zval
-      END IF
-
-      ! calculate integrals
-      IF ( pp_calc ) THEN
-        CALL atom_int_setup(pp_int,pp_basis,eri_coulomb=eri_c,eri_exchange=eri_e,error=error)
-        CALL set_atom(atom_info(in)%atom,basis=pp_basis,integrals=pp_int,error=error)
-        state%maxn_calc(:) = MIN( state%maxn_calc(:), pp_basis%nbas(:) )
-        CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP, error, failure)
-        had_pp = .TRUE.
-      ELSE
-        CALL atom_int_setup(ae_int,ae_basis,eri_coulomb=eri_c,eri_exchange=eri_e,error=error)
-        CALL set_atom(atom_info(in)%atom,basis=ae_basis,integrals=ae_int,error=error)
-        state%maxn_calc(:) = MIN( state%maxn_calc(:), ae_basis%nbas(:) )
-        CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP, error, failure)
-        had_ae = .TRUE.
-      END IF
-
-      CALL set_atom(atom_info(in)%atom,state=state,error=error)
-
-      NULLIFY(orbitals)
-      mo = MAXVAL(state%maxn_calc)
-      mb = MAXVAL(atom_info(in)%atom%basis%nbas)
-      CALL create_atom_orbs(orbitals,mb,mo,error)
-      CALL set_atom(atom_info(in)%atom,orbitals=orbitals,error=error)
-
-      !Calculate the electronic structure
-      CALL atom_electronic_structure(atom_info(in)%atom,atom_section,error)
-
     END DO
 
     ! clean up
     IF ( had_ae ) THEN
       CALL atom_int_release(ae_int,error)
+      CALL atom_ppint_release(ae_int,error)
     END IF
     IF ( had_pp ) THEN
       CALL atom_int_release(pp_int,error)
+      CALL atom_ppint_release(pp_int,error)
     END IF
     CALL release_atom_basis(ae_basis,error)
     CALL release_atom_basis(pp_basis,error)
 
+    CALL release_atom_potential(p_pot,error)
+    CALL release_atom_potential(ae_pot,error)
+
     DO in = 1, n_rep
-      CALL release_atom_type(atom_info(in)%atom,error)
+      DO im = 1, n_meth
+        CALL release_atom_type(atom_info(in,im)%atom,error)
+      END DO
     END DO
     DEALLOCATE(atom_info,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
@@ -291,41 +361,61 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_electronic_structure', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: do_eri, i, iter, iw, l, method
-    LOGICAL                                  :: failure, need_x, need_xc
-    REAL(KIND=dp)                            :: deps, eps_scf
+    INTEGER                                  :: do_eri, i, im, iter, iw, l, &
+                                                method
+    LOGICAL                                  :: do_hfx, failure, need_x, &
+                                                need_xc
+    REAL(KIND=dp)                            :: deps, eps_scf, hf_frac
     TYPE(atom_history_type)                  :: history
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(opgrid_type), POINTER               :: cpot, density
     TYPE(opmat_type), POINTER                :: fmat, hcore, jmat, kmat, xcmat
-    TYPE(section_vals_type), POINTER         :: method_section, opt_section
+    TYPE(section_vals_type), POINTER         :: hfx_sections, method_section, &
+                                                opt_section, xc_section
 
     failure = .FALSE.
 
-    method_section => section_vals_get_subs_vals(atom_section,"METHOD",error=error)
+    method_section => atom%method_section
+    im = atom%method_section_number
+    CALL section_vals_val_get(method_section,"METHOD_TYPE", i_val=method, i_rep_val=im, error=error)
+    xc_section => section_vals_get_subs_vals(method_section,"XC",i_rep_section=im,error=error)
+    hfx_sections => section_vals_get_subs_vals(xc_section,"HF",error=error)
+    CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
+    IF ( do_hfx ) THEN
+      CALL section_vals_val_get(hfx_sections,"FRACTION", r_val=hf_frac, error=error)
+    ELSE
+      hf_frac = 0._dp
+    END IF
+!deb
+!   adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING",error=error)
+!   CALL section_vals_get(adiabatic_rescaling_section,explicit=do_adiabatic_rescaling,error=error)
+!deb
+
     opt_section => section_vals_get_subs_vals(atom_section,"OPTIMIZATION",error=error)
-    CALL section_vals_val_get(method_section,"METHOD_TYPE", i_val=method, error=error)
 
     SELECT CASE (method)
       CASE DEFAULT
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
       CASE (do_rks_atom)
-        need_x = .FALSE.
+        need_x = do_hfx
         need_xc = .TRUE.
       CASE (do_uks_atom)
-        need_x = .FALSE.
+        need_x = do_hfx
         need_xc = .TRUE.
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
       CASE (do_rhf_atom)
         need_x = .TRUE.
         need_xc = .FALSE.
+        hf_frac = 1._dp
       CASE (do_uhf_atom)
         need_x = .TRUE.
         need_xc = .FALSE.
+        hf_frac = 1._dp
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
       CASE (do_rohf_atom)
         need_x = .TRUE.
         need_xc = .FALSE.
+        hf_frac = 1._dp
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
     END SELECT
 
@@ -339,18 +429,23 @@ CONTAINS
 
     NULLIFY(hcore)
     CALL create_opmat(hcore,atom%basis%nbas,error)
-    hcore%op = atom%integrals%kin - atom%zcore*atom%integrals%core
     ! Pseudopotentials
-!   SELECT CASE (atom%ppot_type)
-!     CASE DEFAULT
-!       CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
-!     CASE
-!   END SELECT
+    SELECT CASE (atom%potential%ppot_type)
+      CASE DEFAULT
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+      CASE (NO_PSEUDO)
+        hcore%op = atom%integrals%kin - atom%zcore*atom%integrals%core
+      CASE (GTH_PSEUDO)
+        hcore%op = atom%integrals%kin + atom%integrals%core + atom%integrals%hnl
+    END SELECT
+    IF ( atom%potential%confinement ) THEN
+      hcore%op = hcore%op + atom%potential%acon * atom%integrals%conf
+    END IF
 
     ! initial guess
     CALL atom_solve(hcore%op,atom%integrals%ovlp,atom%orbitals%wfn,atom%orbitals%ener,&
                     atom%basis%nbas,atom%state%maxl_calc,error)
-    CALL atom_denmat(atom%orbitals%pmat,atom%orbitals%wfn,atom%basis%nbas,atom%state%occ,&
+    CALL atom_denmat(atom%orbitals%pmat,atom%orbitals%wfn,atom%basis%nbas,atom%state%occupation,&
                      atom%state%maxl_occ,atom%state%maxn_occ,error)
 
     NULLIFY(fmat,jmat,kmat,xcmat)
@@ -376,23 +471,33 @@ CONTAINS
       ! Band energy
       atom%energy%eband = 0._dp
       DO l=0,3
-        DO i=1,MIN(SIZE(atom%state%occ,2),SIZE(atom%orbitals%ener,1))
-          atom%energy%eband = atom%energy%eband + atom%orbitals%ener(i,l)*atom%state%occ(l,i)
+        DO i=1,MIN(SIZE(atom%state%occupation,2),SIZE(atom%orbitals%ener,1))
+          atom%energy%eband = atom%energy%eband + atom%orbitals%ener(i,l)*atom%state%occupation(l,i)
         END DO
       END DO
 
       ! Pseudopotential energy
-      atom%energy%eploc = 0._dp
-      atom%energy%epnl = 0._dp
-!     SELECT CASE (atom%ppot_type)
-!       CASE DEFAULT
-!         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
-!       CASE
-!     END SELECT
+      SELECT CASE (atom%potential%ppot_type)
+        CASE DEFAULT
+          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CASE (NO_PSEUDO)
+          atom%energy%eploc = 0._dp
+          atom%energy%epnl = 0._dp
+        CASE (GTH_PSEUDO)
+          atom%energy%eploc = atom_trace(atom%integrals%core,atom%orbitals%pmat,error)
+          atom%energy%epnl = atom_trace(atom%integrals%hnl,atom%orbitals%pmat,error)
+      END SELECT
       atom%energy%epseudo = atom%energy%eploc + atom%energy%epnl
   
       ! Core energy
       atom%energy%ecore = atom_trace(hcore%op,atom%orbitals%pmat,error)
+
+      ! Confinement energy
+      IF ( atom%potential%confinement ) THEN
+        atom%energy%econfinement = atom_trace(atom%integrals%conf,atom%orbitals%pmat,error)
+      ELSE
+        atom%energy%econfinement = 0._dp
+      END IF
 
       ! Hartree Term
       jmat%op = 0._dp
@@ -427,7 +532,8 @@ CONTAINS
           CASE (do_numeric)
             WRITE(6,*) "Exchange numeric"
         END SELECT
-        atom%energy%eexchange = 0.5_dp * atom_trace(kmat%op,atom%orbitals%pmat,error)
+        atom%energy%eexchange = hf_frac * 0.5_dp * atom_trace(kmat%op,atom%orbitals%pmat,error)
+        kmat%op = hf_frac*kmat%op
       ELSE
         kmat%op = 0._dp
         atom%energy%eexchange = 0._dp
@@ -436,7 +542,7 @@ CONTAINS
       ! XC
       IF (need_xc) THEN
         xcmat%op = 0._dp
-        CALL calculate_atom_vxc(xcmat,atom,atom_section,error)
+        CALL calculate_atom_vxc(xcmat,atom,method_section,error)
       ELSE
         xcmat%op = 0._dp
         atom%energy%exc = 0._dp
@@ -464,7 +570,7 @@ CONTAINS
       ! Solve HF/KS equations
       CALL atom_solve(fmat%op,atom%integrals%ovlp,atom%orbitals%wfn,atom%orbitals%ener,&
                       atom%basis%nbas,atom%state%maxl_calc,error)
-      CALL atom_denmat(atom%orbitals%pmat,atom%orbitals%wfn,atom%basis%nbas,atom%state%occ,&
+      CALL atom_denmat(atom%orbitals%pmat,atom%orbitals%wfn,atom%basis%nbas,atom%state%occupation,&
                        atom%state%maxl_occ,atom%state%maxn_occ,error)
 
     END DO        !SCF Loop
@@ -482,7 +588,7 @@ CONTAINS
     CALL release_opgrid(density,error)
     CALL release_opgrid(cpot,error)
 
-    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%PROGRAM_BANNER",error=error)
+    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
 
   END SUBROUTINE atom_electronic_structure
 

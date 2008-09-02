@@ -9,11 +9,25 @@
 ! *****************************************************************************
 MODULE atom_output
 
-  USE atom_types,                      ONLY: atom_state,&
-                                             atom_type
+  USE atom_types,                      ONLY: &
+       CGTO_BASIS, GTH_PSEUDO, GTO_BASIS, NO_PSEUDO, NUM_BASIS, STO_BASIS, &
+       atom_basis_type, atom_potential_type, atom_state, atom_type
   USE atom_utils,                      ONLY: get_maxl_occ,&
                                              get_maxn_occ
+  USE input_constants,                 ONLY: do_rhf_atom,&
+                                             do_rks_atom,&
+                                             do_rohf_atom,&
+                                             do_uhf_atom,&
+                                             do_uks_atom,&
+                                             xc_none
+  USE input_cp2k_check,                ONLY: xc_functionals_expand
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_get_subs_vals2,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE periodic_table,                  ONLY: ptable
+  USE xc_derivatives,                  ONLY: xc_functional_get_info
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -22,12 +36,27 @@ MODULE atom_output
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_output'
 
-  PUBLIC :: atom_print_state, atom_print_energies, atom_print_iteration
+  PUBLIC :: atom_print_state, atom_print_energies, atom_print_iteration, &
+            atom_print_basis, atom_print_method, atom_print_info, atom_print_potential
 
 ! *****************************************************************************
 
 CONTAINS
 
+! *****************************************************************************
+  SUBROUTINE atom_print_info(zval,info,iw,error)
+    INTEGER, INTENT(IN)                      :: zval
+    CHARACTER(len=*), INTENT(IN)             :: info
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_info', &
+      routineP = moduleN//':'//routineN
+
+    WRITE(iw,'(/," ",A,T40,A," [",A,"]",T62,"Atomic number:",T78,I3,/)') &
+      ADJUSTL(TRIM(info)),TRIM(ptable(zval)%name),TRIM(ptable(zval)%symbol),zval
+
+  END SUBROUTINE atom_print_info
 ! *****************************************************************************
   SUBROUTINE atom_print_state(state,iw,error)
     TYPE(atom_state)                         :: state
@@ -59,7 +88,7 @@ CONTAINS
          mc = mm(l)
          CPPrecondition(SUM(state%occ(l,1:mc))==0,cp_failure_level,routineP,error,failure)
          WRITE(iw,ADVANCE="no",FMT='(A5,T9,A1,10F6.2)') label(l),"[",(state%core(l,j),j=1,mc)
-         WRITE(iw,FMT='(A1,F5.2,10F6.2)') "]",(state%occ(l,j),j=mc+1,mo)
+         WRITE(iw,FMT='(A1,F5.2,10F6.2)') "]",(state%occ(l,j),j=mc+1,mc+mo)
       END IF
     END DO
     WRITE(iw,*)
@@ -74,18 +103,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_energies', &
       routineP = moduleN//':'//routineN
 
-    WRITE(iw,'(/,A)') " Energy components [Hartree]"
-    WRITE(iw,'(T10,A,T61,F20.12)') "    Total Energy ::",atom%energy%etot
-    WRITE(iw,'(T10,A,T61,F20.12)') "     Band Energy ::",atom%energy%eband
-    WRITE(iw,'(T10,A,T61,F20.12)') "  Kinetic Energy ::",atom%energy%ekin
-    WRITE(iw,'(T10,A,T61,F20.12)') "     Core Energy ::",atom%energy%ecore
-    WRITE(iw,'(T10,A,T61,F20.12)') "       XC Energy ::",atom%energy%exc
-    WRITE(iw,'(T10,A,T61,F20.12)') "  Coulomb Energy ::",atom%energy%ecoulomb
-    WRITE(iw,'(T10,A,T61,F20.12)') " Exchange Energy ::",atom%energy%eexchange
-    IF ( atom%ppot_type /= 0 ) THEN
-       WRITE(iw,'(T10,A,T61,F20.12)') "    Total Pseudopotential Energy ::",atom%energy%epseudo
-       WRITE(iw,'(T10,A,T61,F20.12)') "    Local Pseudopotential Energy ::",atom%energy%eploc
-       WRITE(iw,'(T10,A,T61,F20.12)') " Nonlocal Pseudopotential Energy ::",atom%energy%epnl
+    WRITE(iw,'(/,A,T36,A,T61,F20.12)') " Energy components [Hartree]",&
+                                   "    Total Energy ::",atom%energy%etot
+    WRITE(iw,'(T36,A,T61,F20.12)') "     Band Energy ::",atom%energy%eband
+    WRITE(iw,'(T36,A,T61,F20.12)') "  Kinetic Energy ::",atom%energy%ekin
+    WRITE(iw,'(T36,A,T61,F20.12)') "     Core Energy ::",atom%energy%ecore
+    WRITE(iw,'(T36,A,T61,F20.12)') "       XC Energy ::",atom%energy%exc
+    WRITE(iw,'(T36,A,T61,F20.12)') "  Coulomb Energy ::",atom%energy%ecoulomb
+    WRITE(iw,'(T36,A,T61,F20.12)') " Exchange Energy ::",atom%energy%eexchange
+    IF ( atom%potential%ppot_type /= 0 ) THEN
+       WRITE(iw,'(T20,A,T61,F20.12)') "    Total Pseudopotential Energy ::",atom%energy%epseudo
+       WRITE(iw,'(T20,A,T61,F20.12)') "    Local Pseudopotential Energy ::",atom%energy%eploc
+       WRITE(iw,'(T20,A,T61,F20.12)') " Nonlocal Pseudopotential Energy ::",atom%energy%epnl
+    END IF
+    IF ( atom%potential%confinement ) THEN
+       WRITE(iw,'(T36,A,T61,F20.12)') "     Confinement ::",atom%energy%econfinement
     END IF
 
   END SUBROUTINE atom_print_energies
@@ -106,6 +138,149 @@ CONTAINS
     WRITE(iw,'(T20,i8,T34,G14.6,T61,F20.12)') iter,deps,etot
 
   END SUBROUTINE atom_print_iteration
+! *****************************************************************************
+  SUBROUTINE atom_print_basis(atom_basis,iw,title,error)
+    TYPE(atom_basis_type)                    :: atom_basis
+    INTEGER, INTENT(IN)                      :: iw
+    CHARACTER(len=*)                         :: title
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_basis', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, l
+    LOGICAL                                  :: failure = .FALSE.
+
+    WRITE(iw,'(/,A)') TRIM(title)
+    SELECT CASE (atom_basis%basis_type)
+      CASE (GTO_BASIS)
+        WRITE(iw,'(/," ",21("*"),A,21("*"))') " Uncontracted Gaussian Type Orbitals "
+        IF ( atom_basis%nbas(0) > 0 ) WRITE(iw,'(A,20(T17,4F16.5,/))') &
+                        " s Exponents: ",(atom_basis%am(i,0),i=1,atom_basis%nbas(0))
+        IF ( atom_basis%nbas(1) > 0 ) WRITE(iw,'(A,20(T17,4F16.5,/))') &
+                        " p Exponents: ",(atom_basis%am(i,1),i=1,atom_basis%nbas(1))
+        IF ( atom_basis%nbas(2) > 0 ) WRITE(iw,'(A,20(T17,4F16.5,/))') &
+                        " d Exponents: ",(atom_basis%am(i,2),i=1,atom_basis%nbas(2))
+        IF ( atom_basis%nbas(3) > 0 ) WRITE(iw,'(A,20(T17,4F16.5,/))') &
+                        " f Exponents: ",(atom_basis%am(i,3),i=1,atom_basis%nbas(3))
+      CASE (CGTO_BASIS)
+        WRITE(iw,'(/," ",22("*"),A,22("*"))') " Contracted Gaussian Type Orbitals "
+        DO l=0,3
+          IF ( atom_basis%nbas(l) > 0 ) THEN
+            IF (l==0) WRITE(iw,'(A)') " s Funtions"
+            IF (l==1) WRITE(iw,'(A)') " p Funtions"
+            IF (l==2) WRITE(iw,'(A)') " d Funtions"
+            IF (l==3) WRITE(iw,'(A)') " f Funtions"
+            DO i=1,atom_basis%nprim(l)
+              WRITE(iw,'(F15.6,5(T21,6F10.6,/))') &
+                  atom_basis%am(i,l),(atom_basis%cm(i,j,l),j=1,atom_basis%nbas(l))
+            END DO
+          END IF
+        END DO
+      CASE (STO_BASIS)
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+      CASE (NUM_BASIS)
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+      CASE DEFAULT
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+    END SELECT
+
+  END SUBROUTINE atom_print_basis
+! *****************************************************************************
+  SUBROUTINE atom_print_method(method_section,i_rep,iw,error)
+    TYPE(section_vals_type), POINTER         :: method_section
+    INTEGER, INTENT(IN)                      :: i_rep, iw
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_method', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=160)                       :: reference
+    CHARACTER(len=20)                        :: tmpStr
+    INTEGER                                  :: ifun, il, meth, myfun
+    LOGICAL                                  :: failure = .FALSE., lsd
+    TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section, &
+                                                xc_section
+
+    NULLIFY(xc_fun,xc_fun_section,xc_section)
+    xc_section => section_vals_get_subs_vals(method_section,"XC",i_rep_section=i_rep,error=error)
+    xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
+    CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun,error=error)
+
+    CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=meth,i_rep_val=i_rep,error=error)
+
+    SELECT CASE (meth)
+      CASE DEFAULT
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+      CASE (do_rks_atom)
+        IF (iw > 0) WRITE (iw, fmt="(/,' METHOD    | Restricted Kohn-Sham Calculation')")
+      CASE (do_uks_atom)
+        IF (iw > 0) WRITE (iw, fmt="(/,' METHOD    | Unrestricted Kohn-Sham Calculation')")
+      CASE (do_rhf_atom)
+        IF (iw > 0) WRITE (iw, fmt="(/,' METHOD    | Restricted Hartree-Fock Calculation')")
+      CASE (do_uhf_atom)
+        IF (iw > 0) WRITE (iw, fmt="(/,' METHOD    | Unrestricted Kohn-Sham Calculation')")
+      CASE (do_rohf_atom)
+        IF (iw > 0) WRITE (iw, fmt="(/,' METHOD    | Restricted Open-Shell Kohn-Sham Calculation')")
+    END SELECT
+
+    lsd = (meth==do_uks_atom)
+
+    IF (myfun/=xc_none) THEN
+      CALL section_vals_val_get(xc_section,"FUNCTIONAL_ROUTINE",c_val=tmpStr,error=error)
+      IF (iw > 0) WRITE (iw, fmt="(' FUNCTIONAL| ROUTINE=',a)") TRIM(tmpStr)
+      CALL xc_functionals_expand(xc_fun_section,xc_section,error=error)
+      IF (iw > 0) THEN
+        ifun=0
+        DO
+          ifun=ifun+1
+          xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+          IF (.NOT.ASSOCIATED(xc_fun)) EXIT
+          CALL xc_functional_get_info(xc_fun, lsd=lsd, reference=reference, error=error)
+          WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") TRIM(xc_fun%section%name)
+          il = LEN_TRIM(reference)
+          IF (il < 67) THEN
+            WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:il)
+          ELSE IF (il < 134) THEN
+            WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+            WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(68:il)
+          ELSE
+            WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+            WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(68:134)
+            WRITE (iw, fmt="(' FUNCTIONAL| ',a)") reference(134:il)
+          END IF
+        END DO
+      END IF
+    ELSE
+      IF(iw>0) WRITE (iw, fmt="(' FUNCTIONAL| NO EXCHAGE-CORRELATION FUNCTIONAL USED.')")
+    END IF
+
+  END SUBROUTINE atom_print_method
+! *****************************************************************************
+  SUBROUTINE atom_print_potential(potential,iw,error)
+    TYPE(atom_potential_type)                :: potential
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_potential', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure = .FALSE.
+
+    SELECT CASE (potential%ppot_type)
+      CASE (NO_PSEUDO)
+        WRITE(iw,'(/," ",28("*"),A,27("*"))') " All Electron Potential "
+      CASE (GTH_PSEUDO)
+        WRITE(iw,'(/," ",29("*"),A,29("*"))') " GTH Pseudopotential "
+      CASE DEFAULT
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+    END SELECT
+    IF (potential%confinement) THEN
+      WRITE(iw,'(T20,A,T51,F12.6," * (R /",F6.2,")**",I2)') &
+        " Confinement Potential ",potential%acon,potential%rcon,potential%ncon
+    END IF
+
+  END SUBROUTINE atom_print_potential
 ! *****************************************************************************
 
 END MODULE atom_output

@@ -56,10 +56,10 @@ MODULE atom_utils
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE atom_set_occupation(ostring,occupation,error)
+  SUBROUTINE atom_set_occupation(ostring,occupation,wfnocc,error)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: ostring
-    REAL(Kind=dp), DIMENSION(0:3, 10)        :: occupation
+    REAL(Kind=dp), DIMENSION(0:3, 10)        :: occupation, wfnocc
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_set_occupation', &
@@ -154,6 +154,17 @@ CONTAINS
       
     END DO
 
+    wfnocc = 0._dp
+    DO l=0,3
+      k = 0
+      DO i=1,10
+        IF ( occupation(l,i) /= 0._dp ) THEN
+          k = k + 1
+          wfnocc(l,k) = occupation(l,i)
+        END IF
+      END DO
+    END DO
+
   END SUBROUTINE atom_set_occupation
 
   FUNCTION get_maxl_occ(occupation) RESULT(maxl)
@@ -178,7 +189,7 @@ CONTAINS
     maxn = 0
     DO l=0,3
       DO k=1,10
-        IF(occupation(l,k) /= 0._dp) maxn(l)=k
+        IF(occupation(l,k) /= 0._dp) maxn(l)=maxn(l)+1
       END DO
     END DO
 

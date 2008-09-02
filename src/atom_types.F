@@ -15,7 +15,8 @@ MODULE atom_types
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
   USE cp_parser_methods,               ONLY: parser_get_object,&
-                                             parser_search_string
+                                             parser_search_string,&
+                                             parser_test_next_token
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
@@ -33,6 +34,8 @@ MODULE atom_types
                                              val_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE mathconstants,                   ONLY: dfac,&
+                                             pi
   USE periodic_table,                  ONLY: ptable
   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
                                              create_grid_atom,&
@@ -52,6 +55,8 @@ MODULE atom_types
                                                         CGTO_BASIS=101,&
                                                         STO_BASIS=102,&
                                                         NUM_BASIS=103
+  INTEGER, PARAMETER                                 :: NO_PSEUDO=0,&
+                                                        GTH_PSEUDO=1
 
 !> Provides all information about a basis set
 ! *****************************************************************************
@@ -67,11 +72,33 @@ MODULE atom_types
     TYPE(grid_atom_type),POINTER                  :: grid
   END TYPE atom_basis_type
 
+!> Provides all information about a pseudopotential
+! *****************************************************************************
+  TYPE atom_gthpot_type
+    REAL(dp)                                      :: zion
+    REAL(dp)                                      :: rc
+    INTEGER                                       :: ncl
+    REAL(dp), DIMENSION(5)                        :: cl
+    INTEGER, DIMENSION(0:3)                       :: nl
+    REAL(dp), DIMENSION(0:3)                      :: rcnl
+    REAL(dp), DIMENSION(4,4,0:3)                  :: hnl
+  END TYPE atom_gthpot_type
+
+  TYPE atom_potential_type
+    INTEGER                                       :: ppot_type
+    LOGICAL                                       :: confinement
+    REAL(dp)                                      :: acon
+    REAL(dp)                                      :: rcon
+    INTEGER                                       :: ncon
+    TYPE(atom_gthpot_type)                        :: gth_pot
+  END TYPE atom_potential_type
+
 !> Provides all information on states and occupation
 ! *****************************************************************************
   TYPE atom_state
     REAL(KIND=dp),DIMENSION(0:3,10)               :: occ
     REAL(KIND=dp),DIMENSION(0:3,10)               :: core
+    REAL(KIND=dp),DIMENSION(0:3,10)               :: occupation
     INTEGER                                       :: maxl_occ
     INTEGER,DIMENSION(0:3)                        :: maxn_occ
     INTEGER                                       :: maxl_calc
@@ -86,11 +113,13 @@ MODULE atom_types
 
   TYPE atom_integrals
     INTEGER                                       :: status
+    INTEGER                                       :: ppstat
     LOGICAL                                       :: eri_coulomb
     LOGICAL                                       :: eri_exchange
     LOGICAL                                       :: all_nu
     INTEGER, DIMENSION(0:3)                       :: n
-    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: ovlp, kin, core, proj
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: ovlp, kin, core
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: hnl
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: conf
     TYPE(eri),DIMENSION(20)                       :: ceri
     TYPE(eri),DIMENSION(20)                       :: eeri
@@ -132,6 +161,7 @@ MODULE atom_types
     REAL(KIND=dp)                                 :: exc
     REAL(KIND=dp)                                 :: ecoulomb
     REAL(KIND=dp)                                 :: eexchange
+    REAL(KIND=dp)                                 :: econfinement
   END TYPE atom_energy_type
 
 !> Provides all information about an atomic kind
@@ -139,12 +169,15 @@ MODULE atom_types
   TYPE atom_type
     INTEGER                                       :: z
     INTEGER                                       :: zcore
-    INTEGER                                       :: ppot_type
+    LOGICAL                                       :: pp_calc
     TYPE(atom_basis_type), POINTER                :: basis
+    TYPE(atom_potential_type), POINTER            :: potential
     TYPE(atom_state), POINTER                     :: state
     TYPE(atom_integrals), POINTER                 :: integrals
     TYPE(atom_orbitals), POINTER                  :: orbitals
     TYPE(atom_energy_type)                        :: energy
+    TYPE(section_vals_type), POINTER              :: method_section
+    INTEGER                                       :: method_section_number
   END TYPE atom_type
 ! *****************************************************************************
   TYPE atom_p_type
@@ -152,13 +185,15 @@ MODULE atom_types
   END TYPE atom_p_type
 
   PUBLIC :: atom_p_type, atom_type, atom_basis_type, atom_state, atom_integrals
-  PUBLIC :: atom_orbitals, atom_energy_type, eri
+  PUBLIC :: atom_orbitals, atom_energy_type, eri, atom_potential_type, atom_gthpot_type
   PUBLIC :: create_atom_type, release_atom_type, set_atom
   PUBLIC :: create_atom_orbs, release_atom_orbs
   PUBLIC :: init_atom_basis, release_atom_basis
+  PUBLIC :: init_atom_potential, release_atom_potential
   PUBLIC :: GTO_BASIS, CGTO_BASIS, STO_BASIS, NUM_BASIS
   PUBLIC :: opmat_type, create_opmat, release_opmat
   PUBLIC :: opgrid_type, create_opgrid, release_opgrid
+  PUBLIC :: NO_PSEUDO, GTH_PSEUDO
 
 ! *****************************************************************************
 
@@ -188,16 +223,17 @@ CONTAINS
 !>        by Parpia, Mohanty, and Clementi [J. Phys. B 25, 1 (1992)]. The accuracy of our calculations is 
 !>        estimated to be within a few parts in 109 for all the atomic systems studied.
 ! *****************************************************************************
-  SUBROUTINE init_atom_basis(basis,basis_section,zval,error)
+  SUBROUTINE init_atom_basis(basis,basis_section,zval,btyp,error)
     TYPE(atom_basis_type), INTENT(INOUT)     :: basis
     TYPE(section_vals_type), POINTER         :: basis_section
     INTEGER, INTENT(IN)                      :: zval
+    CHARACTER(LEN=2)                         :: btyp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_basis', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nu = 40
-    REAL(KIND=dp), DIMENSION(nu), PARAMETER :: ugbs = (/0.007299_dp,&
+    INTEGER, PARAMETER                       :: nua = 40, nup = 20
+    REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = (/0.007299_dp,&
       0.013705_dp, 0.025733_dp, 0.048316_dp, 0.090718_dp, 0.170333_dp,&
       0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp, 3.974902_dp,&
       1.463317_dp,14.013204_dp, 26.311339_dp, 49.402449_dp, 92.758561_dp,&
@@ -211,7 +247,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: basis_fn, basis_name
     INTEGER                                  :: basistype, i, ierr, j, k, l, &
-                                                ll, m, ngp, nr, quadtype
+                                                ll, m, ngp, nr, nu, quadtype
     INTEGER, DIMENSION(0:3)                  :: starti
     INTEGER, DIMENSION(:), POINTER           :: num_gto, sindex
     LOGICAL                                  :: failure
@@ -241,6 +277,13 @@ CONTAINS
          CALL section_vals_val_get(basis_section,"NUM_GTO",i_vals=num_gto,error=error)
          IF ( num_gto(1) < 1 ) THEN
            ! use default basis
+           IF ( btyp == "AE" ) THEN
+             nu = nua
+           ELSEIF ( btyp == "AE" ) THEN
+             nu = nup
+           ELSE
+             nu = nua
+           ENDIF
            basis % nbas = nu
            basis % nprim = 0
            ALLOCATE (basis%am(nu,0:3),STAT=ierr)
@@ -461,7 +504,8 @@ CONTAINS
     ALLOCATE(atom,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
-    atom%ppot_type = 0
+    NULLIFY(atom%method_section)
+    atom%method_section_number = 1
 
   END SUBROUTINE create_atom_type
 
@@ -496,7 +540,7 @@ CONTAINS
   
   END SUBROUTINE release_atom_type
 
-  SUBROUTINE set_atom(atom,basis,state,integrals,orbitals,error)
+  SUBROUTINE set_atom(atom,basis,state,integrals,orbitals,potential,zcore,pp_calc,error)
     TYPE(atom_type), POINTER                 :: atom
     TYPE(atom_basis_type), INTENT(IN), &
       OPTIONAL, TARGET                       :: basis
@@ -506,6 +550,10 @@ CONTAINS
       OPTIONAL, TARGET                       :: integrals
     TYPE(atom_orbitals), INTENT(IN), &
       OPTIONAL, TARGET                       :: orbitals
+    TYPE(atom_potential_type), INTENT(IN), &
+      OPTIONAL, TARGET                       :: potential
+    INTEGER, INTENT(IN), OPTIONAL            :: zcore
+    LOGICAL, INTENT(IN), OPTIONAL            :: pp_calc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_atom', &
@@ -522,6 +570,9 @@ CONTAINS
       IF(PRESENT(state)) atom%state => state
       IF(PRESENT(integrals)) atom%integrals => integrals
       IF(PRESENT(orbitals)) atom%orbitals => orbitals
+      IF(PRESENT(potential)) atom%potential => potential
+      IF(PRESENT(zcore)) atom%zcore = zcore
+      IF(PRESENT(pp_calc)) atom%pp_calc = pp_calc
     END IF
 
   END SUBROUTINE set_atom
@@ -1475,6 +1526,7 @@ CONTAINS
     INTEGER, DIMENSION(maxset)               :: lmax, lmin, n, npgf, nshell
     LOGICAL                                  :: failure, found, is_ok, match, &
                                                 read_from_input
+    REAL(dp)                                 :: expzet, gcca, prefac, zeta
     REAL(dp), &
       DIMENSION(maxpri, maxpri, maxset)      :: gcc
     REAL(dp), DIMENSION(maxpri, maxset)      :: zet
@@ -1645,8 +1697,275 @@ CONTAINS
       END DO
     END DO
 
+    ! Normalization
+    DO j=0,3
+      expzet = 0.25_dp*REAL(2*j + 3,dp)
+      prefac = SQRT( SQRT(pi)/2._dp**(j+2)*dfac(2*j+1) )
+      DO ipgf=1,basis%nprim(j)
+        DO ii=1,basis%nbas(j)
+          gcca = basis%cm(ipgf,ii,j)
+          zeta = 2._dp*basis%am(ipgf,j)
+          basis%cm(ipgf,ii,j) = zeta**expzet*gcca/prefac
+        END DO
+      END DO
+    END DO
+
   END SUBROUTINE read_basis_set
 
+! *****************************************************************************
+  SUBROUTINE init_atom_potential(potential,potential_section,zval,error)
+    TYPE(atom_potential_type), INTENT(INOUT) :: potential
+    TYPE(section_vals_type), POINTER         :: potential_section
+    INTEGER, INTENT(IN)                      :: zval
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_potential', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: pseudo_fn, pseudo_name
+    LOGICAL                                  :: confinement, failure
+    REAL(dp), DIMENSION(:), POINTER          :: convals
+    TYPE(section_vals_type), POINTER         :: gth_potential_section
+
+    failure = .FALSE.
+
+    IF ( zval > 0 ) THEN
+      CALL section_vals_val_get(potential_section,"PSEUDO_TYPE",i_val=potential%ppot_type,error=error)
+
+      SELECT CASE (potential%ppot_type)
+        CASE (gth_pseudo)
+           CALL section_vals_val_get(potential_section,"POTENTIAL_FILE_NAME",c_val=pseudo_fn,error=error)
+           CALL section_vals_val_get(potential_section,"POTENTIAL_NAME",c_val=pseudo_name,error=error)
+           gth_potential_section => section_vals_get_subs_vals(potential_section,"GTH_POTENTIAL",error=error)
+           CALL read_gth_potential(ptable(zval)%symbol,potential%gth_pot,&
+                 pseudo_name,pseudo_fn,gth_potential_section,error)
+        CASE (no_pseudo)
+          ! do nothing
+        CASE DEFAULT
+          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+      END SELECT
+    ELSE
+      potential%ppot_type = no_pseudo
+    END IF
+
+    ! confinement
+    NULLIFY(convals)
+    CALL section_vals_val_get(potential_section,"CONFINEMENT",r_vals=convals,error=error)
+    IF ( SIZE (convals) >= 1 ) THEN
+      IF ( convals(1) > 0._dp ) THEN
+        potential%confinement = .TRUE.
+        potential%acon = convals(1)
+        IF ( SIZE (convals) >= 2 ) THEN
+          potential%rcon = convals(2)
+        ELSE
+          potential%rcon = 4._dp
+        END IF
+        IF ( SIZE (convals) >= 3 ) THEN
+          potential%ncon = NINT(convals(3))
+        ELSE
+          potential%ncon = 2
+        END IF
+      ELSE
+        potential%confinement = .FALSE.
+      END IF
+    ELSE
+      potential%confinement = .FALSE.
+    END IF
+
+  END SUBROUTINE init_atom_potential
+! *****************************************************************************
+  SUBROUTINE release_atom_potential(potential,error)
+    TYPE(atom_potential_type), INTENT(INOUT) :: potential
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_potential', &
+      routineP = moduleN//':'//routineN
+
+    potential%confinement = .FALSE.
+
+  END SUBROUTINE release_atom_potential
+! *****************************************************************************
+  SUBROUTINE read_gth_potential(element_symbol,potential,pseudo_name,pseudo_file,&
+                            potential_section,error)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: element_symbol
+    TYPE(atom_gthpot_type), INTENT(INOUT)    :: potential
+    CHARACTER(LEN=*), INTENT(IN)             :: pseudo_name, pseudo_file
+    TYPE(section_vals_type), POINTER         :: potential_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_gth_potential', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=240)                       :: line
+    CHARACTER(LEN=242)                       :: line2
+    CHARACTER(len=5*default_string_length)   :: line_att
+    CHARACTER(LEN=LEN(element_symbol))       :: symbol
+    CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
+    CHARACTER(LEN=LEN(pseudo_name))          :: apname
+    CHARACTER(LEN=LEN(pseudo_name)+2)        :: apname2
+    INTEGER                                  :: i, j, l, nlmax, strlen1, &
+                                                strlen2
+    INTEGER, DIMENSION(0:4)                  :: elec_conf
+    LOGICAL                                  :: failure, found, is_ok, match, &
+                                                read_from_input
+    TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(cp_sll_val_type), POINTER           :: list
+    TYPE(val_type), POINTER                  :: val
+
+    failure = .FALSE.
+
+    elec_conf = 0
+
+    apname = pseudo_name
+    symbol = element_symbol
+
+    potential%rc = 0._dp
+    potential%ncl = 0
+    potential%cl = 0._dp
+    potential%nl = 0
+    potential%rcnl = 0._dp
+    potential%hnl = 0._dp
+
+    read_from_input = .FALSE.
+    CALL section_vals_get(potential_section,explicit=read_from_input, error=error)
+    IF (read_from_input) THEN
+      CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+      CALL uppercase(symbol)
+      CALL uppercase(apname)
+      ! Read the electronic configuration, not used here
+      l = 0
+      is_ok=cp_sll_val_next(list,val,error=error)
+      CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
+      CALL val_get(val,c_val=line_att,error=error)
+      READ(line_att,*) elec_conf(l)
+      CALL remove_word(line_att)
+      DO WHILE (LEN_TRIM(line_att) /= 0)
+        l = l + 1
+        READ(line_att,*)elec_conf(l)
+        CALL remove_word(line_att)
+      END DO
+      potential%zion = REAL ( SUM(elec_conf), dp )
+      ! Read r(loc) to define the exponent of the core charge
+      is_ok=cp_sll_val_next(list,val,error=error)
+      CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
+      CALL val_get(val,c_val=line_att,error=error)
+      READ(line_att,*) potential%rc
+      CALL remove_word(line_att)
+      ! Read the parameters for the local part of the GTH pseudopotential (ppl)
+      READ(line_att,*) potential%ncl
+      CALL remove_word(line_att)
+      DO i=1,potential%ncl
+        READ(line_att,*) potential%cl(i)
+        CALL remove_word(line_att)
+      END DO
+      ! Read the parameters for the non-local part of the GTH pseudopotential (ppnl)
+      is_ok=cp_sll_val_next(list,val,error=error)
+      CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
+      CALL val_get(val,c_val=line_att,error=error)
+      READ(line_att,*) nlmax
+      CALL remove_word(line_att)
+      IF (nlmax > 0) THEN
+        ! Load the parameter for nlmax non-local projectors
+        DO l=0,nlmax-1
+          is_ok=cp_sll_val_next(list,val,error=error)
+          CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
+          CALL val_get(val,c_val=line_att,error=error)
+          READ(line_att,*) potential%rcnl(l)
+          CALL remove_word(line_att)
+          READ(line_att,*) potential%nl(l)
+          CALL remove_word(line_att)
+          DO i=1,potential%nl(l)
+            IF (i == 1) THEN
+              READ(line_att,*) potential%hnl(1,1,l)
+              CALL remove_word(line_att)
+            ELSE
+              CPPostcondition(LEN_TRIM(line_att)==0, cp_failure_level, routineP, error, failure)
+              is_ok=cp_sll_val_next(list,val,error=error)
+              CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
+              CALL val_get(val,c_val=line_att,error=error)
+              READ(line_att,*) potential%hnl(i,i,l)
+              CALL remove_word(line_att)
+            END IF
+            DO j=i+1,potential%nl(l)
+              READ(line_att,*) potential%hnl(i,j,l)
+              potential%hnl(j,i,l) = potential%hnl(i,j,l)
+              CALL remove_word(line_att)
+            END DO
+          END DO
+          CPPostcondition(LEN_TRIM(line_att)==0, cp_failure_level, routineP, error, failure)
+        END DO
+      END IF
+    ELSE
+      NULLIFY(parser)
+      CALL parser_create(parser,pseudo_file,error=error)
+
+      search_loop: DO
+        CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line,error=error)
+        IF (found) THEN
+          CALL uppercase(symbol)
+          CALL uppercase(apname)
+          ! Check both the element symbol and the atomic potential name
+          match = .FALSE.
+          CALL uppercase(line)
+          line2 = " "//line//" "
+          symbol2 = " "//TRIM(symbol)//" "
+          apname2 = " "//TRIM(apname)//" "
+          strlen1 = LEN_TRIM(symbol2) + 1
+          strlen2 = LEN_TRIM(apname2) + 1
+
+          IF ( (INDEX(line2,symbol2(:strlen1)) > 0).AND.&
+                  (INDEX(line2,apname2(:strlen2)) > 0) ) match = .TRUE.
+
+          IF (match) THEN
+             ! Read the electronic configuration
+             l = 0
+             CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.,error=error)
+             DO WHILE (parser_test_next_token(parser,error=error) == "INT")
+               l = l + 1
+               CALL parser_get_object(parser,elec_conf(l),error=error)
+             END DO
+             potential%zion = REAL ( SUM(elec_conf), dp )
+             ! Read r(loc) to define the exponent of the core charge
+             CALL parser_get_object(parser,potential%rc,newline=.TRUE.,error=error)
+             ! Read the parameters for the local part of the GTH pseudopotential (ppl)
+             CALL parser_get_object(parser,potential%ncl,error=error)
+             DO i=1,potential%ncl
+               CALL parser_get_object(parser,potential%cl(i),error=error)
+             END DO
+             ! Read the parameters for the non-local part of the GTH pseudopotential (ppnl)
+             CALL parser_get_object(parser,nlmax,newline=.TRUE.,error=error)
+             IF (nlmax > 0) THEN
+                ! Load the parameter for n non-local projectors
+                DO l=0,nlmax-1
+                   CALL parser_get_object(parser,potential%rcnl(l),newline=.TRUE.,error=error)
+                   CALL parser_get_object(parser,potential%nl(l),error=error)
+                   DO i=1,potential%nl(l)
+                      IF (i == 1) THEN
+                        CALL parser_get_object(parser,potential%hnl(i,i,l),error=error)
+                      ELSE
+                        CALL parser_get_object(parser,potential%hnl(i,i,l),newline=.TRUE.,error=error)
+                      END IF
+                      DO j=i+1,potential%nl(l)
+                        CALL parser_get_object(parser,potential%hnl(i,j,l),error=error)
+                        potential%hnl(j,i,l) = potential%hnl(i,j,l)
+                      END DO
+                   END DO
+                END DO
+             END IF
+             EXIT search_loop
+          END IF
+        ELSE
+          ! Stop program, if the end of file is reached
+          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        END IF
+
+      END DO search_loop
+
+      CALL parser_release(parser,error=error)
+    END IF
+
+  END SUBROUTINE read_gth_potential
 ! *****************************************************************************
 
 END MODULE atom_types

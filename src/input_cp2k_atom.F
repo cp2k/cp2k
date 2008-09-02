@@ -8,9 +8,6 @@
 !> \author jgh
 ! *****************************************************************************
 MODULE input_cp2k_atom
-  USE bibliography,                    ONLY: Goedecker1996,&
-                                             Hartwigsen1998,&
-                                             Krack2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -213,9 +210,30 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"METHOD_INFO",&
+            description="Controls the printing of method information",&
+            print_level=medium_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"BASIS_SET",&
+            description="Controls the printing of the basis sets",&
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"POTENTIAL",&
+            description="Controls the printing of the potentials",&
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"SCF_INFO",&
             description="Controls the printing of SCF information",&
-            print_level=silent_print_level,filename="__STD_OUT__",&
+            print_level=medium_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -434,7 +452,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="METHOD",&
             description="Section of information on method to use.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        CALL keyword_create(keyword, name="METHOD_TYPE",&
@@ -542,7 +560,20 @@ CONTAINS
 
        CALL keyword_create(keyword, name="CONFINEMENT",&
             description="Definition of confinement potential",&
-            usage="CONFINEMENT 1.0 4.2 4", default_r_val=0.4_dp,&
+            usage="CONFINEMENT prefactor range exponent", &
+            default_r_vals=(/ 0._dp, 4._dp, 2._dp /),&
+            repeats=.FALSE., n_var=-1,&
+            supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PSEUDO_TYPE",&
+            description="Pseudopotential type",&
+            usage="PSEUDO_TYPE GTH",&
+            default_i_val=no_pseudo,&
+            enum_c_vals=(/"NONE                     ",&
+                          "GTH                      "/),&
+            enum_i_vals= (/ no_pseudo, gth_pseudo /),&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -554,11 +585,10 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="POTENTIAL",&
-            variants=(/ "POT" /),&
+       CALL keyword_create(keyword, name="POTENTIAL_NAME",&
+            variants=(/ "POT_NAME" /),&
             description="The name of the pseudopotential for the defined kind.",&
-            usage="POTENTIAL <PSEUDO-POTENTIAL-NAME>", default_c_val=" ", n_var=1,&
-            citations=(/Goedecker1996, Hartwigsen1998, Krack2005/),&
+            usage="POTENTIAL_NAME <PSEUDO-POTENTIAL-NAME>", default_c_val=" ", n_var=1,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
