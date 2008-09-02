@@ -19,6 +19,7 @@
     &END
     &QS
       METHOD GAPW
+      FULL_GAPW
     &END QS
     &SCF
       &PRINT

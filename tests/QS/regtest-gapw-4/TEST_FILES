@@ -13,3 +13,5 @@ CO_xastpxfh_150Ry.inp    1
 H2O_gpw.inp        1
 #bug fix perdew_zunger
 Ne-BP.inp          1
+# mixed GPW/FULL_GAPW run
+H2O_gpw_full_gapw.inp

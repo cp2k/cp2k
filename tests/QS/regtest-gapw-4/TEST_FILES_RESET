@@ -122,3 +122,5 @@ CO_xastpxfh_locall.inp
 CO_xastpxfh_locall.inp
 #  
 CO_xastpxfh_150Ry.inp
+# increase numerical accuracy
+H2O_gpw.inp
