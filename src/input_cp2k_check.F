@@ -39,6 +39,7 @@ MODULE input_cp2k_check
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE memory_utilities,                ONLY: reallocate
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -271,6 +272,8 @@ CONTAINS
 
     CHARACTER(default_path_length)           :: r_file_path
     CHARACTER(default_string_length)         :: path
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: restarted_infos
     INTEGER                                  :: ensemble, handle, i_rep_val, &
                                                 iforce_eval, myi, n_rep_val, &
                                                 nforce_eval1, nforce_eval2
@@ -289,13 +292,14 @@ CONTAINS
                                                 section1, section2, &
                                                 sections1, sections2
 
-    CALL timeset(routineN,handle)
-   
+    NULLIFY(restarted_infos)
+    CALL timeset(routineN,handle)   
     failure=.FALSE. 
     IF (.NOT. failure) THEN
+       ! Handle restart file
        r_section => section_vals_get_subs_vals(input_file, "EXT_RESTART",error=error)
        CALL section_vals_val_get(r_section,"RESTART_FILE_NAME", c_val=r_file_path, error=error)
-       
+
        IF (r_file_path/=" ") THEN
           CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
           ! parse the input
@@ -312,7 +316,7 @@ CONTAINS
           CALL cp_unit_set_release(default_units,error=sub_error)
           CALL parser_release(cpparser,error=sub_error)
           CALL cp_error_dealloc_ref(sub_error)
-  
+
           ! Restart and input files same number of force_env sections
           sections1  => section_vals_get_subs_vals(restart_file,"FORCE_EVAL",error=error)
           CALL section_vals_get(sections1, n_repetition=nforce_eval1, error=error)
@@ -325,7 +329,7 @@ CONTAINS
           END IF
           ! Handle default restarts
           CALL handle_defaults_restart(r_section, error=error)
-  
+
           ! Real restart of force_evals
           DO iforce_eval = 1, nforce_eval1
              section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",&
@@ -342,48 +346,58 @@ CONTAINS
                    IF (flag) THEN
                       section  => section_vals_get_subs_vals(section1,"CELL",error=error)
                       CALL section_vals_set_subs_vals(section2,"CELL",section,error=error)              
+                      CALL set_restart_info("CELL",restarted_infos,error)
                    END IF
-                   
+
                    CALL section_vals_val_get(r_section,"RESTART_POS",l_val=flag,error=error)
                    IF (flag) THEN
                       section => section_vals_get_subs_vals(section1,"COORD",error=error)
                       CALL section_vals_set_subs_vals(section2,"COORD",section,error=error)
+                      CALL set_restart_info("COORDINATES",restarted_infos,error)
                    END IF
-                   
+
                    CALL section_vals_val_get(r_section,"RESTART_RANDOMG",l_val=flag,error=error)
                    IF (flag) THEN
                       section => section_vals_get_subs_vals(section1,"RNG_INIT",error=error)
                       CALL section_vals_set_subs_vals(section2,"RNG_INIT",section,error=error)
+                      CALL set_restart_info("RANDOM NUMBER GENERATOR",restarted_infos,error)
                    END IF
-                   
+
                    CALL section_vals_val_get(r_section,"RESTART_VEL",l_val=flag,error=error)
                    IF (flag) THEN
                       section => section_vals_get_subs_vals(section1,"VELOCITY",error=error)
                       CALL section_vals_set_subs_vals(section2,"VELOCITY",section,error=error)
+                      CALL set_restart_info("VELOCITIES",restarted_infos,error)
                    END IF
-                   
+
+                   ! Core-Shell information "restarted" only when strictly necessary
                    CALL section_vals_val_get(r_section,"RESTART_SHELL_POS",l_val=flag,error=error)
                    IF (flag) THEN
                       section => section_vals_get_subs_vals(section1,"SHELL_COORD",error=error)
                       CALL section_vals_set_subs_vals(section2,"SHELL_COORD",section,error=error)
+                      IF  (check_restart(section1, section2, "SHELL_COORD",error)) &
+                           CALL set_restart_info("SHELL COORDINATES",restarted_infos,error)
                    END IF
-  
                    CALL section_vals_val_get(r_section,"RESTART_CORE_POS",l_val=flag,error=error)
                    IF (flag) THEN
                       section => section_vals_get_subs_vals(section1,"CORE_COORD",error=error)
                       CALL section_vals_set_subs_vals(section2,"CORE_COORD",section,error=error)
+                      IF  (check_restart(section1, section2, "CORE_COORD",error)) &
+                           CALL set_restart_info("CORE COORDINATES",restarted_infos,error)
                    END IF
-                   
                    CALL section_vals_val_get(r_section,"RESTART_SHELL_VELOCITY",l_val=flag,error=error)
                    IF (flag) THEN
                       section => section_vals_get_subs_vals(section1,"SHELL_VELOCITY",error=error)
                       CALL section_vals_set_subs_vals(section2,"SHELL_VELOCITY",section,error=error)
+                      IF  (check_restart(section1, section2, "SHELL_VELOCITY",error)) &
+                           CALL set_restart_info("SHELL VELOCITIES",restarted_infos,error)
                    END IF
-  
                    CALL section_vals_val_get(r_section,"RESTART_CORE_VELOCITY",l_val=flag,error=error)
                    IF (flag) THEN
                       section => section_vals_get_subs_vals(section1,"CORE_VELOCITY",error=error)
                       CALL section_vals_set_subs_vals(section2,"CORE_VELOCITY",section,error=error)
+                      IF  (check_restart(section1, section2, "CORE_VELOCITY",error)) &
+                           CALL set_restart_info("CORE VELOCITIES",restarted_infos,error)
                    END IF
                 END IF
              ELSE
@@ -401,6 +415,7 @@ CONTAINS
              CALL section_vals_get(section2,explicit=explicit2,error=error)
              qmmm_check = (explicit1.AND.explicit2)
              IF (flag.AND.qmmm_check) THEN
+                CALL set_restart_info("QMMM TRANSLATION VECTOR",restarted_infos,error)
                 CALL section_vals_val_get(section1,"INITIAL_TRANSLATION_VECTOR",r_vals=vec,error=error)
                 ALLOCATE(work(3))
                 work = vec
@@ -416,6 +431,7 @@ CONTAINS
              IF (flag.AND.bsse_check) THEN
                 section  => section_vals_get_subs_vals(section1,"FRAGMENT_ENERGIES",error=error)
                 CALL section_vals_set_subs_vals(section2,"FRAGMENT_ENERGIES",section,error=error) 
+                CALL set_restart_info("BSSE FRAGMENT ENERGIES",restarted_infos,error)
              END IF
           END DO
 
@@ -426,6 +442,7 @@ CONTAINS
                 CALL section_vals_val_get(restart_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
                 CALL section_vals_val_set(input_file,"MOTION%MD%STEP_START_VAL",i_val=myi,error=error)
                 CALL section_vals_val_set(input_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
+                CALL set_restart_info("MD COUNTERS",restarted_infos,error)
              END IF
              !
              CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag2,error=error)
@@ -438,6 +455,7 @@ CONTAINS
                      "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
                 CALL section_vals_val_set(input_file,&
                      "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
+                CALL set_restart_info("METADYNAMIC COUNTERS",restarted_infos,error)
              END IF
           END IF
 
@@ -445,6 +463,7 @@ CONTAINS
           IF (flag.AND.check_restart(input_file, restart_file, "MOTION%BAND",error)) THEN
              rep_sections => section_vals_get_subs_vals(restart_file,"MOTION%BAND%REPLICA",error=error)
              CALL section_vals_set_subs_vals(input_file,"MOTION%BAND%REPLICA",rep_sections,error=error)
+             CALL set_restart_info("BAND CALCULATION",restarted_infos,error)
           END IF
 
           CALL section_vals_val_get(r_section,"RESTART_BAROSTAT",l_val=flag,error=error)
@@ -457,20 +476,22 @@ CONTAINS
                   "MOTION%MD%BAROSTAT%VELOCITY",error=error)
              CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%VELOCITY",&
                   section,error=error)
+             CALL set_restart_info("BAROSTAT",restarted_infos,error)
           END IF
 
           flag = check_restart(input_file, restart_file, "MOTION%MD", error)
           IF(flag) THEN
-            CALL section_vals_val_get(input_file,"MOTION%MD%ENSEMBLE",i_val=ensemble,error=error)
-            IF(ensemble == npt_i_ensemble .OR. ensemble==npt_f_ensemble) THEN
-              CALL section_vals_val_get(r_section,"RESTART_BAROSTAT_THERMOSTAT",l_val=flag,error=error)
-              check = check_restart(input_file, restart_file, "MOTION%MD%BAROSTAT", error)
-              CALL restart_thermostat(flag, input_file, restart_file, "MOTION%MD%BAROSTAT%THERMOSTAT", &
-                   check=check, error=error)
-            END IF
+             CALL section_vals_val_get(input_file,"MOTION%MD%ENSEMBLE",i_val=ensemble,error=error)
+             IF(ensemble == npt_i_ensemble .OR. ensemble==npt_f_ensemble) THEN
+                CALL section_vals_val_get(r_section,"RESTART_BAROSTAT_THERMOSTAT",l_val=flag,error=error)
+                check = check_restart(input_file, restart_file, "MOTION%MD%BAROSTAT", error)
+                CALL restart_thermostat(flag, input_file, restart_file, "MOTION%MD%BAROSTAT%THERMOSTAT", &
+                     check=check, error=error)
+                IF (flag.AND.check) CALL set_restart_info("THERMOSTAT OF BAROSTAT",restarted_infos,error)
+             END IF
           END IF
 
-! KG 
+          ! KG 
           CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_POS",l_val=flag,error=error)
           IF (flag.AND.check_restart(input_file, restart_file, "MOTION%MD%KG_COEFF",error)) THEN
              section => section_vals_get_subs_vals(restart_file,&
@@ -481,6 +502,7 @@ CONTAINS
                   "MOTION%MD%KG_COEFF%COORD",error=error)
              CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%COORD",&
                   section,error=error)
+             CALL set_restart_info("KG COEFFICIENT POSITION",restarted_infos,error)
           END IF
 
           CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_VEL",l_val=flag,error=error)
@@ -493,24 +515,29 @@ CONTAINS
                   "MOTION%MD%KG_COEFF%VELOCITY",error=error)
              CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%VELOCITY",&
                   section,error=error)
+             CALL set_restart_info("KG COEFFICIENT VELOCITY",restarted_infos,error)
           END IF
 
           CALL section_vals_val_get(r_section,"RESTART_KG_THERMOSTAT",l_val=flag,error=error)
           CALL restart_thermostat(flag, input_file, restart_file, "MOTION%MD%KG_COEFF%THERMOSTAT", error=error)
+          IF (flag) CALL set_restart_info("KG THERMOSTAT",restarted_infos,error)
 
           check = check_restart(input_file, restart_file, "MOTION%MD%SHELL", error)
           IF(check) THEN
-            CALL section_vals_val_get(r_section,"RESTART_SHELL_THERMOSTAT",l_val=flag,error=error)
-            CALL restart_thermostat(flag, input_file, restart_file, "MOTION%MD%SHELL%THERMOSTAT", error=error)
+             CALL section_vals_val_get(r_section,"RESTART_SHELL_THERMOSTAT",l_val=flag,error=error)
+             CALL restart_thermostat(flag, input_file, restart_file, "MOTION%MD%SHELL%THERMOSTAT", error=error)
+             CALL set_restart_info("SHELL THERMOSTAT",restarted_infos,error)
           END IF
-          
+
           CALL section_vals_val_get(r_section,"RESTART_THERMOSTAT",l_val=flag,error=error)
           CALL restart_thermostat(flag,input_file, restart_file, "MOTION%MD%THERMOSTAT", error=error)
+          IF (flag) CALL set_restart_info("PARTICLE THERMOSTAT",restarted_infos,error)
 
           CALL section_vals_val_get(r_section,"RESTART_CONSTRAINT",l_val=flag,error=error)
           IF (flag.AND.check_restart(input_file, restart_file, "MOTION%CONSTRAINT",error)) THEN
              section => section_vals_get_subs_vals(restart_file,"MOTION%CONSTRAINT",error=error)
              CALL section_vals_set_subs_vals(input_file,"MOTION%CONSTRAINT",section,error=error)
+             CALL set_restart_info("CONSTRAINTS/RESTRAINTS",restarted_infos,error)
           END IF
 
           CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag,error=error)
@@ -536,6 +563,7 @@ CONTAINS
                   "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
              CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",&
                   section,error=error)
+             CALL set_restart_info("METADYNAMICS",restarted_infos,error)
           END IF
 
           CALL section_vals_val_get(r_section,"RESTART_DIMER",l_val=flag,error=error)
@@ -544,6 +572,7 @@ CONTAINS
                   "MOTION%GEO_OPT%TRANSITION_STATE%DIMER%DIMER_VECTOR",error=error)
              CALL section_vals_set_subs_vals(input_file,"MOTION%GEO_OPT%TRANSITION_STATE%DIMER%DIMER_VECTOR",&
                   section,error=error)
+             CALL set_restart_info("DIMER TRANSITION STATE SEARCH",restarted_infos,error)
           END IF
 
           CALL section_vals_val_get(r_section,"CUSTOM_PATH",n_rep_val=n_rep_val,error=error)
@@ -552,14 +581,92 @@ CONTAINS
              IF (path/=" ") THEN
                 section => section_vals_get_subs_vals(restart_file,path,error=error)
                 CALL section_vals_set_subs_vals(input_file,path,section,error=error)
+                CALL set_restart_info("USER RESTART: "//TRIM(path),restarted_infos,error)
              END IF
           END DO
           CALL section_vals_val_set(r_section,"RESTART_FILE_NAME", c_val=" ",error=error)
           CALL section_vals_release(restart_file,error=error)
+          CALL release_restart_info(restarted_infos, r_file_path, error)
        END IF
     END IF
     CALL timestop(handle)
   END SUBROUTINE handle_ext_restart
+
+! *****************************************************************************
+!> \brief store information on the restarted quantities
+!> \author Teodoro Laino [tlaino] 09.2008 - University of Zurich
+! *****************************************************************************
+  SUBROUTINE set_restart_info(label, restarted_infos, error)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: label
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: restarted_infos
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_restart_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: isize
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    isize = 0
+    IF (ASSOCIATED(restarted_infos)) isize = SIZE(restarted_infos)
+    isize = isize + 1 
+    CALL reallocate(restarted_infos,1,isize)
+    restarted_infos(isize) = TRIM(label)
+
+  END SUBROUTINE set_restart_info
+
+! *****************************************************************************
+!> \brief dumps on output the information on the information effectively restarted
+!> \author Teodoro Laino [tlaino] 09.2008 - University of Zurich
+! *****************************************************************************
+  SUBROUTINE release_restart_info(restarted_infos, r_file_path, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: restarted_infos
+    CHARACTER(LEN=*), INTENT(IN)             :: r_file_path
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'release_restart_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, output_unit, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    output_unit = -1
+    IF  (logger%para_env%mepos==logger%para_env%source) &
+         output_unit= cp_logger_get_default_unit_nr(logger)
+    IF (output_unit>0.AND.ASSOCIATED(restarted_infos)) THEN
+       WRITE(output_unit,'(1X,79("*"))')
+       WRITE(output_unit,'(1X,"*",T30,A,T80,"*")')" RESTART INFORMATION "
+       WRITE(output_unit,'(1X,79("*"))')
+       WRITE(output_unit,'(1X,"*",T80,"*")')
+       i = 1
+       WRITE(output_unit,'(1X,"*",A,T26,A,T80,"*")')"    RESTART FILE NAME:  ",&
+            r_file_path(53*(i-1)+1:53*i)
+       DO i = 2, CEILING(REAL(LEN_TRIM(r_file_path),KIND=dp)/53.0_dp)
+          WRITE(output_unit,'(T1,1X,"*",T26,A,T80,"*")')r_file_path(53*(i-1)+1:53*i)
+       END DO
+       WRITE(output_unit,'(1X,"*",T80,"*")')
+       WRITE(output_unit,'(1X,"*", A,T80,"*")')" RESTARTED QUANTITIES:  "
+       DO j = 1, SIZE(restarted_infos)
+          DO i = 1, CEILING(REAL(LEN_TRIM(restarted_infos(j)),KIND=dp)/53.0_dp)
+             WRITE(output_unit,'(T1,1X,"*",T26,A,T80,"*")')restarted_infos(j)(53*(i-1)+1:53*i)
+          END DO
+       END DO
+       WRITE(output_unit,'(1X,79("*"),/)')
+    END IF
+    IF (ASSOCIATED(restarted_infos)) THEN
+       DEALLOCATE(restarted_infos,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+  END SUBROUTINE release_restart_info
+
 
 ! *****************************************************************************
 !> \brief Possibly restart thermostats information

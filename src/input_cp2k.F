@@ -1024,8 +1024,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CUSTOM_PATH",&
-            description="Takes the given path "//&
-            "from the EXTERNAL file",&
+            description="Restarts the given path from the EXTERNAL file. Allows a major flexibility for restarts.",&
             type_of_var=char_t,repeats=.TRUE., supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
