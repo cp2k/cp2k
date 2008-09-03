@@ -6031,11 +6031,20 @@ CONTAINS
                           description="Smearing method to be applied",&
                           usage="METHOD Fermi_Dirac",&
                           default_i_val=smear_energy_window,&
-                          enum_c_vals=s2a("FERMI_DIRAC","ENERGY_WINDOW"),&
-                          enum_i_vals=(/smear_fermi_dirac,smear_energy_window/),&
+                          enum_c_vals=s2a("FERMI_DIRAC","ENERGY_WINDOW","LIST"),&
+                          enum_i_vals=(/smear_fermi_dirac,smear_energy_window,smear_list/),&
                           enum_desc=s2a("Fermi-Dirac distribution defined by the keyword ELECTRONIC_TEMPERATURE",&
-                                        "Energy window defined by the keyword WINDOW_SIZE"),&
+                                        "Energy window defined by the keyword WINDOW_SIZE",&
+                                        "Use a fixed list of occupations"),&
                           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,name="LIST",&
+           description="A list of fractional occupations to use,"//&
+                       "must match the number of states and sum up to the correct number of electrons",&
+           usage="LIST 2.0 0.6666 0.6666 0.66666 0.0 0.0",&
+           n_var=-1,type_of_var=real_t,repeats=.FALSE.,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 

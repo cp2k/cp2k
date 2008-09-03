@@ -42,7 +42,8 @@ MODULE qs_mo_types
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: smear_energy_window,&
-                                             smear_fermi_dirac
+                                             smear_fermi_dirac,&
+                                             smear_list
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -364,7 +365,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imo, nmo, nomo
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: equal_size, failure
     REAL(KIND=dp)                            :: beta, e1, e2, edelta, edist, &
                                                 mu, nelec, norm
 
@@ -499,6 +500,13 @@ CONTAINS
           edist = edist - edelta
         END DO
 
+      CASE(smear_list)
+        equal_size=SIZE(mo_set%occupation_numbers,1)==SIZE(smear%list,1)
+        CPPostcondition(equal_size,cp_failure_level,routineP,error,failure)
+        mo_set%occupation_numbers=smear%list
+        ! most general case
+        mo_set%lfomo=1
+        mo_set%homo =nmo
       END SELECT
 
       ! Check, if the smearing involves more than one MO
@@ -939,6 +947,13 @@ CPSourceFileRef,&
           WRITE(cp_logger_get_default_unit_nr(logger),*)  &
             "READ RESTART : WARNING : nspin is not equal "
         END IF
+        ! this case needs fixing of homo/lfomo/nelec/occupations ...
+        IF (nspin_read > nspin) THEN
+         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+          "To change nsin is not possible. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+        ENDIF
       END IF
 
       IF (natom_read /= natom) THEN

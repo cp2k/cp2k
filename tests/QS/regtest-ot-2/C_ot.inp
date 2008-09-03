@@ -1,0 +1,54 @@
+&GLOBAL
+  PROJECT C
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      &SMEAR
+         METHOD LIST
+         LIST 2.0 0.66666666666666666 0.6666666666666666666 0.666666666666666666 0.0 0.0
+      &END
+      SCF_GUESS RANDOM
+      ADDED_MOS 4
+      EPS_SCF 1.0E-5
+      MAX_SCF 30
+      &OT
+         ROTATION
+      &END
+       &OUTER_SCF
+          EPS_SCF 1.0E-5
+          MAX_SCF 1000
+       &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    C   0.000000  0.000000  0.000000
+    &END COORD
+    &KIND C
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+  &END SUBSYS
+  &PRINT  
+    &GRID_INFORMATION ON
+    &END
+  &END
+&END FORCE_EVAL

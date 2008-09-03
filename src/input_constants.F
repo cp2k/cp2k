@@ -705,6 +705,7 @@ MODULE input_constants
   ! Define identifier codes for smearing method
 
   INTEGER, PARAMETER, PUBLIC :: smear_energy_window=1,&
-                                smear_fermi_dirac=2
+                                smear_fermi_dirac=2,&
+                                smear_list=3
 
 END MODULE input_constants

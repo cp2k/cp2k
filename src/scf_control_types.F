@@ -24,7 +24,7 @@ MODULE scf_control_types
        outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
        outer_scf_s2_constraint, outer_scf_scp, smear_energy_window, &
-       smear_fermi_dirac
+       smear_fermi_dirac, smear_list
   USE input_cp2k_dft,                  ONLY: create_scf_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -106,6 +106,7 @@ MODULE scf_control_types
     REAL(KIND=dp) :: electronic_temperature,&
                      eps_fermi_dirac,&
                      window_size
+    REAL(KIND=dp), DIMENSION(:), POINTER :: list
   END TYPE smear_type
 
   TYPE scf_control_type
@@ -239,6 +240,7 @@ CONTAINS
       scf_control%smear%electronic_temperature = 0.0_dp
       scf_control%smear%eps_fermi_dirac = 1.0E-5_dp
       scf_control%smear%window_size = 0.0_dp
+      NULLIFY(scf_control%smear%list)
 
       last_scf_c_id_nr = last_scf_c_id_nr + 1
 
@@ -304,6 +306,10 @@ CONTAINS
       CPPrecondition(scf_control%ref_count>0,cp_failure_level,routineP,error,failure)
       scf_control%ref_count = scf_control%ref_count - 1
       IF (scf_control%ref_count < 1) THEN
+        IF (ASSOCIATED(scf_control%smear%list)) THEN
+           DEALLOCATE(scf_control%smear%list,stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        ENDIF
         DEALLOCATE(scf_control,stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
       END IF
@@ -332,6 +338,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: stat
     INTEGER, DIMENSION(:), POINTER           :: added_mos
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals, roks_parameter
@@ -522,6 +529,15 @@ CONTAINS
         CALL section_vals_val_get(smear_section,"WINDOW_SIZE",&
                                   r_val=scf_control%smear%window_size,&
                                   error=error)
+        IF (scf_control%smear%method==smear_list) THEN
+              CALL section_vals_val_get(smear_section,"LIST",&
+                                  r_vals=r_vals,&
+                                  error=error)
+              CPPrecondition(ASSOCIATED(r_vals),cp_failure_level,routineP,error,failure)
+              ALLOCATE(scf_control%smear%list(SIZE(r_vals)),stat=stat)
+              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+              scf_control%smear%list=r_vals
+        ENDIF
       END IF ! do smear
 
     END IF ! failure

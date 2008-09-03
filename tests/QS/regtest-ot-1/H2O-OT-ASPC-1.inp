@@ -12,7 +12,7 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-4
-      SCF_GUESS RESTART
+      SCF_GUESS ATOMIC
       &OT ON
         MINIMIZER DIIS
       &END OT

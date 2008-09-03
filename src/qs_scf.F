@@ -1311,6 +1311,14 @@ END SUBROUTINE qs_scf_print_summary
           dftb = .TRUE.
        END IF
 
+       ! so far can in principle not work with all kinds of smearing, just with a fixed list
+       DO ispin=1,dft_control%nspins
+          CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
+                                 smear=scf_control%smear,&
+                                 error=error)
+       ENDDO
+
+
        ! reortho the wavefunctions if we are having an outer scf and 
        ! this is not the first iteration
        ! this is useful to avoid the build-up of numerical noise
