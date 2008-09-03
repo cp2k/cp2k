@@ -26,8 +26,6 @@ MODULE cp_parser_methods
   USE cp_parser_inpp_methods,          ONLY: inpp_end_include,&
                                              inpp_expand_variables,&
                                              inpp_process_directive
-  USE cp_parser_status_types,          ONLY: create_status_type,&
-                                             release_status_type
   USE cp_parser_types,                 ONLY: cp_parser_type
   USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
@@ -110,7 +108,7 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
-    CALL create_status_type(parser%status, error)
+    CPPrecondition(ASSOCIATED(parser%status),cp_failure_level,routineP,error,failure)
     parser%status%in_use                = .TRUE.
     parser%status%old_input_line        = parser%input_line
     parser%status%old_input_line_number = parser%input_line_number
@@ -118,7 +116,7 @@ CONTAINS
     parser%status%old_icol1             = parser%icol1
     parser%status%old_icol2             = parser%icol2
     ! Store buffer info
-    CALL copy_buffer_type(parser%buffer, parser%status%buffer, error)
+    CALL copy_buffer_type(parser%buffer, parser%status%buffer, error=error)
   END SUBROUTINE parser_store_status
 
 ! *****************************************************************************
@@ -140,18 +138,17 @@ CONTAINS
     CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
 
     ! Always store the new buffer (if it is really newly read)
-    IF (ANY(parser%buffer%input_line_numbers/=parser%status%buffer%input_line_numbers)) THEN
+    IF (parser%buffer%buffer_id/=parser%status%buffer%buffer_id) THEN
        CALL initialize_sub_buffer(parser%buffer%sub_buffer, parser%buffer, error)
     END IF
-
+    parser%status%in_use     = .FALSE.
     parser%input_line        = parser%status%old_input_line
     parser%input_line_number = parser%status%old_input_line_number
     parser%icol              = parser%status%old_icol
     parser%icol1             = parser%status%old_icol1
     parser%icol2             = parser%status%old_icol2
-    CALL copy_buffer_type(parser%status%buffer, parser%buffer, error)
-    CALL release_status_type(parser%status, error)
-
+    ! Retrieve buffer info
+    CALL copy_buffer_type(parser%status%buffer, parser%buffer, error=error)
   END SUBROUTINE parser_retrieve_status
 
 ! *****************************************************************************
@@ -265,6 +262,7 @@ CONTAINS
        IF (parser%para_env%mepos==parser%para_env%source) THEN
           iline = 0
           istat = 0
+          parser%buffer%buffer_id           = parser%buffer%buffer_id + 1
           parser%buffer%present_line_number = 0
           parser%buffer%last_line_number    = parser%buffer%size
           last_buffered_line_number         = parser%buffer%input_line_numbers(parser%buffer%size)
@@ -359,6 +357,7 @@ CONTAINS
     CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
     para_env => parser%para_env
     IF (.NOT.failure .AND. para_env%num_pe>1) THEN
+       CALL mp_bcast(parser%buffer%buffer_id,para_env%source,para_env%group)
        CALL mp_bcast(parser%buffer%present_line_number,para_env%source,para_env%group)
        CALL mp_bcast(parser%buffer%last_line_number,para_env%source,para_env%group)
        CALL mp_bcast(parser%buffer%istat,para_env%source,para_env%group)

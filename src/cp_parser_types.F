@@ -32,7 +32,9 @@ MODULE cp_parser_types
   USE cp_parser_inpp_types,            ONLY: create_inpp_type,&
                                              inpp_type,&
                                              release_inpp_type
-  USE cp_parser_status_types,          ONLY: status_type
+  USE cp_parser_status_types,          ONLY: create_status_type,&
+                                             release_status_type,&
+                                             status_type
   USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -141,6 +143,7 @@ CONTAINS
           CALL release_inpp_type(parser%inpp, error)
           CALL release_ilist_type(parser%ilist, error)
           CALL release_buffer_type(parser%buffer, error)
+          CALL release_status_type(parser%status, error)
           DEALLOCATE(parser,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
@@ -241,6 +244,7 @@ CONTAINS
        CALL create_inpp_type(parser%inpp, error)
        CALL create_ilist_type(parser%ilist, error)
        CALL create_buffer_type(parser%buffer, error)
+       CALL create_status_type(parser%status, error)
     END IF
   END SUBROUTINE parser_create
 

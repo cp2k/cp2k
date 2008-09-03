@@ -21,7 +21,7 @@ MODULE cp_parser_buffer_types
 !> \date   08.2008
 ! *****************************************************************************
   TYPE buffer_type
-     INTEGER                              :: size
+     INTEGER                              :: size, buffer_id
      INTEGER                              :: present_line_number,&
                                              last_line_number,&
                                              istat
@@ -62,6 +62,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(buffer%input_line_numbers(buffer%size), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    buffer%buffer_id           = 0
     buffer%input_line_numbers  = 0
     buffer%istat               = 0
     buffer%present_line_number = buffer%size
@@ -102,26 +103,34 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   08.2008
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE copy_buffer_type(buffer_in, buffer_out, error)
+  RECURSIVE SUBROUTINE copy_buffer_type(buffer_in, buffer_out, force, error)
     TYPE(buffer_type), POINTER               :: buffer_in, buffer_out
+    LOGICAL, INTENT(IN), OPTIONAL            :: force
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_buffer_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_force
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(buffer_in),cp_failure_level,routineP,error,failure)
     CPPostcondition(ASSOCIATED(buffer_out),cp_failure_level,routineP,error,failure)
     CPPostcondition(buffer_in%size==buffer_out%size,cp_failure_level,routineP,error,failure)
+    my_force = .FALSE.
+    IF (PRESENT(force)) my_force = force
+    ! Copy buffer structure
     buffer_out%present_line_number = buffer_in%present_line_number
     buffer_out%last_line_number    = buffer_in%last_line_number
     buffer_out%istat               = buffer_in%istat
-    buffer_out%input_line_numbers  = buffer_in%input_line_numbers
-    buffer_out%input_lines         = buffer_in%input_lines
+    ! This part can be quite expensive.. we do it only when strictly necessary..
+    IF ((buffer_out%buffer_id/=buffer_in%buffer_id).OR.(my_force)) THEN
+       buffer_out%buffer_id           = buffer_in%buffer_id
+       buffer_out%input_line_numbers  = buffer_in%input_line_numbers
+       buffer_out%input_lines         = buffer_in%input_lines
+    END IF
     IF (ASSOCIATED(buffer_in%sub_buffer).AND.ASSOCIATED(buffer_out%sub_buffer)) THEN
-       CALL copy_buffer_type(buffer_in%sub_buffer, buffer_out%sub_buffer, error)
+       CALL copy_buffer_type(buffer_in%sub_buffer, buffer_out%sub_buffer, force, error)
     END IF
   END SUBROUTINE copy_buffer_type
 
@@ -143,7 +152,7 @@ CONTAINS
     CPPostcondition(ASSOCIATED(buffer),cp_failure_level,routineP,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(sub_buffer),cp_failure_level,routineP,error,failure)
     CALL create_buffer_type(sub_buffer, error)
-    CALL copy_buffer_type(buffer, sub_buffer, error)
+    CALL copy_buffer_type(buffer, sub_buffer,error=error)
     sub_buffer%present_line_number = 0
   END SUBROUTINE initialize_sub_buffer
 
