@@ -30,7 +30,8 @@ MODULE input_section_types
                                              val_release,&
                                              val_type,&
                                              val_write
-  USE kinds,                           ONLY: default_string_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE reference_manager,               ONLY: get_citation_key,&
                                              print_format_journal,&
@@ -292,6 +293,36 @@ CONTAINS
   END SUBROUTINE section_release
 
 ! *****************************************************************************
+!> \brief collects additional information on the section for IO + documentation
+!> \author fawzi
+! *****************************************************************************
+  FUNCTION get_section_info(section, error) RESULT(message)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    CHARACTER(LEN=default_path_length)       :: message
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_section_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: length
+
+    message = ""
+    length  = LEN_TRIM(section%description)
+    IF (section%description(length:length)/=".") message = "."
+    IF (section%repeats) THEN
+       message=TRIM(message)//" This section can be repeated and "
+    ELSE
+       message=TRIM(message)//" This section can not be repeated and "
+    END IF
+    IF (section%required) THEN
+       message=TRIM(message)//" can not be optional."
+    ELSE
+       message=TRIM(message)//" can be optional."
+    END IF
+
+  END FUNCTION get_section_info
+
+! *****************************************************************************
 !> \brief prints a description of the given section
 !> \param section the section to describe
 !> \param unit_nr the unit to write to
@@ -313,6 +344,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_describe', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_path_length)       :: message
     INTEGER                                  :: ikeyword, isub, my_recurse
     LOGICAL                                  :: failure, my_hide_root
 
@@ -328,7 +360,8 @@ CONTAINS
           IF (.not.my_hide_root)&
                WRITE(unit_nr,"('*** section &',a,' ***')")TRIM(section%name)
           IF (level>1) THEN
-             CALL print_message(TRIM(section%description),unit_nr,0,0,0)
+             message = get_section_info(section, error)
+             CALL print_message(TRIM(section%description)//TRIM(message),unit_nr,0,0,0)
           END IF
           IF (level>0) THEN
              IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
@@ -377,6 +410,7 @@ CONTAINS
     CHARACTER(LEN=100)                       :: color_tag
     CHARACTER(LEN=1000)                      :: local_prefix
     CHARACTER(LEN=256), DIMENSION(50), SAVE  :: location, name
+    CHARACTER(LEN=default_path_length)       :: message
     INTEGER                                  :: idepth, ikeyword, iref, isub
     LOGICAL                                  :: failure, has_keywords
 
@@ -404,7 +438,8 @@ CONTAINS
        name(depth+1)=TRIM(section%name)
        WRITE(179,FMT='(A)') '<A HREF="'//TRIM(location(depth+1))//'">'//TRIM(name(depth+1))//'</A>.'
 
-       WRITE(179,FMT='(A)') '<BR><BR>'//TRIM(section%description)
+       message = get_section_info(section, error)
+       WRITE(179,FMT='(A)') '<BR><BR>'//TRIM(section%description)//TRIM(message)
 
        IF (ASSOCIATED(section%citations)) THEN
           IF (SIZE(section%citations,1)>1) THEN
@@ -2054,6 +2089,8 @@ CONTAINS
   END SUBROUTINE section_vals_write
 
 ! *****************************************************************************
+!> \brief writes the values in the given section in xml
+! *****************************************************************************
   RECURSIVE SUBROUTINE write_section_xml(section,level,unit_number,error)
 
     TYPE(section_type), POINTER              :: section
@@ -2115,7 +2152,8 @@ CONTAINS
   END SUBROUTINE write_section_xml
 
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE section_typo_match(section,unknown_string,location_string,matching_rank,matching_string,error)
+  RECURSIVE SUBROUTINE section_typo_match(section,unknown_string,location_string,&
+       matching_rank,matching_string,error)
 
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*)                         :: unknown_string, &
