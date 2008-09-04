@@ -637,6 +637,9 @@ CONTAINS
        CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)
     ENDIF
 
+    ! XXXXXXX this is backwards XXXXXXXX
+    dft_control%smear = scf_control%smear%do_smear
+
     !   Initialize the GAPW local densities and potentials
     IF  (dft_control%qs_control%method_id == do_method_gapw .OR. &
          dft_control%qs_control%method_id == do_method_gapw_xc) THEN

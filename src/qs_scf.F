@@ -1088,6 +1088,10 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
               "GAPW_XC| Exc from hard and soft atomic rho1:      ",energy%exc1
          END IF
        END IF
+       IF (dft_control%smear) THEN
+         WRITE (UNIT=output_unit,FMT="((T3,A,T55,F25.14))")&
+          "electronic entropic energy:",energy%kTS
+       END IF
        IF (dft_control%dft_plus_u) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
           "DFT+U energy:",energy%dft_plus_u

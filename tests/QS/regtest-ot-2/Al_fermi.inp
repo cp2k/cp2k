@@ -1,0 +1,61 @@
+&GLOBAL
+  PROJECT Al
+  PRINT_LEVEL LOW
+  RUN_TYPE MD
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &MGRID
+      CUTOFF 40
+    &END MGRID
+    ! &PRINT
+    !   &MO
+    !     EIGENVALUES
+    !     OCCUPATION_NUMBERS
+    !   &END MO
+    ! &END PRINT
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      &SMEAR
+         METHOD FERMI_DIRAC
+         ELECTRONIC_TEMPERATURE 3000
+      &END
+      SCF_GUESS ATOMIC
+      ADDED_MOS 12
+      EPS_SCF 1.0E-6
+      MAX_SCF 5
+      MIXING 0.3
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+ Al        -0.4201082476       -0.4201082770       -0.4201082658
+ Al         2.1120503717        0.1540265147        0.1540265525
+ Al         0.1540266214        2.1120506065        0.1540265605
+ Al         0.1540266183        0.1540265196        2.1120505165
+    &END COORD
+    &KIND Al
+      BASIS_SET DZVP-GTH-PADE-CONFINED
+      POTENTIAL GTH-PADE-q3
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&MOTION
+ &MD
+   TIMESTEP    0.5
+   STEPS       3
+   TEMPERATURE 500
+ &END
+&END

@@ -1094,7 +1094,6 @@ CONTAINS
             ks_matrix, matrix_s,rho,mulliken_order_p,error)
  
        ! Add DFT+U contribution, if requested
-
        IF (dft_control%dft_plus_u) THEN
          IF (just_energy) THEN
            CALL plus_u(qs_env=qs_env,error=error)
@@ -1104,6 +1103,15 @@ CONTAINS
        ELSE
          energy%dft_plus_u = 0.0_dp
        END IF
+
+       ! prepare to add electronic entropic contribution is needed
+       IF (dft_control%smear) THEN
+          energy%kTS = 0.0_dp
+          CALL get_qs_env(qs_env,mos=mo_array,error=error)
+          DO ispin=1,SIZE(mo_array)
+             energy%kTS = energy%kTS + mo_array(ispin)%mo_set%kTS
+          ENDDO          
+       ENDIF
 
        ! **** right now we can compute the orbital derivative here, as it depends currently only on the available
        ! **** Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
@@ -1176,7 +1184,7 @@ CONTAINS
             energy%exc + energy%exc1 + energy%ex + &
             energy%qmmm_el + energy%mulliken + &
             energy%kg_gpw_ekin_mol + SUM(energy%ddapc_restraint) + energy%s2_restraint +&
-            energy%becke + energy%dft_plus_u
+            energy%becke + energy%dft_plus_u + energy%kTS
        IF( dft_control%do_wfn_fitting ) THEN
          energy%total = energy%total + energy%exc_aux_fit
        END IF 

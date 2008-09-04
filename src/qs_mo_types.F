@@ -96,6 +96,8 @@ MODULE qs_mo_types
     INTEGER                                   :: lfomo
     ! flag that indicates if the MOS have the same occupation number
     LOGICAL                                   :: uniform_occupation
+    ! the entropic energy contribution
+    REAL(KIND=dp)                             :: kTS
   END TYPE mo_set_type
 
   TYPE mo_set_p_type
@@ -171,6 +173,7 @@ CONTAINS
     mo_set%homo = 0
     mo_set%lfomo = 0
     mo_set%uniform_occupation = .TRUE.
+    mo_set%kTS = 0.0_dp
 
     NULLIFY (mo_set%eigenvalues)
     NULLIFY (mo_set%occupation_numbers)
@@ -322,7 +325,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
                         eigenvalues,occupation_numbers,mo_coeff,&
-                        uniform_occupation)
+                        uniform_occupation,kTS)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: maxocc
@@ -333,6 +336,7 @@ CONTAINS
                                                 occupation_numbers
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
     LOGICAL, INTENT(OUT), OPTIONAL           :: uniform_occupation
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kTS
 
     IF (PRESENT(maxocc)) maxocc = mo_set%maxocc
     IF (PRESENT(homo)) homo = mo_set%homo
@@ -346,6 +350,7 @@ CONTAINS
     END IF
     IF (PRESENT(mo_coeff)) mo_coeff => mo_set%mo_coeff
     IF (PRESENT(uniform_occupation)) uniform_occupation = mo_set%uniform_occupation
+    IF (PRESENT(kTS)) kTS = mo_set%kTS
 
   END SUBROUTINE get_mo_set
 
@@ -401,7 +406,7 @@ CONTAINS
       CASE (smear_fermi_dirac)
 
         Nelec = mo_set%nelectron
-        CALL FermiFixed(mo_set%occupation_numbers,mu,mo_set%eigenvalues,Nelec, &
+        CALL FermiFixed(mo_set%occupation_numbers,mu,mo_set%kTS,mo_set%eigenvalues,Nelec, &
                         smear%electronic_temperature,mo_set%maxocc)
 
         ! Find the lowest fractional occupied MO (LFOMO)
@@ -517,10 +522,10 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
                         eigenvalues,occupation_numbers,uniform_occupation,&
-                        error)
+                        kTS, error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc, kTS
     INTEGER, INTENT(IN), OPTIONAL            :: homo, lfomo, nao, nelectron, &
                                                 nmo
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
@@ -556,6 +561,7 @@ CONTAINS
       mo_set%occupation_numbers => occupation_numbers
     END IF
     IF(PRESENT(uniform_occupation)) mo_set%uniform_occupation = uniform_occupation
+    IF(PRESENT(kTS)) mo_set%kTS = kTS
 
   END SUBROUTINE set_mo_set
 

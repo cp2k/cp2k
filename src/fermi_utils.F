@@ -30,26 +30,35 @@ CONTAINS
 !> \param   T  electronic temperature
 !> \param   maxocc maximum occupation of an orbital
 ! *****************************************************************************
- SUBROUTINE Fermi(f,N,e,mu,T,maxocc)
-    REAL(KIND=dp), INTENT(out)               :: f(:), N
+ SUBROUTINE Fermi(f,N,kTS,e,mu,T,maxocc)
+    REAL(KIND=dp), INTENT(out)               :: f(:), N, kTS
     REAL(KIND=dp), INTENT(IN)                :: e(:), mu, T, maxocc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Fermi', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: I, Nstate
-    REAL(KIND=dp)                            :: tmp
+    REAL(KIND=dp)                            :: tmp, tmp2, tmp3
 
    Nstate=SIZE(e)
+   kTS = 0.0_dp
+   ! kTS is the entropic contribution to the energy i.e. -TS
+   ! kTS= kT*[f ln f + (1-f) ln (1-f)]
 
    DO I=1,Nstate
       ! have the result of exp go to zero instead of overflowing
       IF (e(i) > mu) THEN 
          tmp = EXP( -(e(i)-mu)/T )
-         f(i)= maxocc * tmp   / (tmp + 1.0_dp)
+         tmp2= tmp   / (tmp + 1.0_dp)
+         tmp3= 1.0_dp / (tmp + 1.0_dp)
+         f(i)= maxocc * tmp2
+         kTS = kTS + T * maxocc * ( tmp2 * LOG(tmp2) + (tmp3)*LOG(tmp3))
       ELSE
          tmp = EXP(  (e(i)-mu)/T )
-         f(i)= maxocc * 1.0_dp / (tmp + 1.0_dp) 
+         tmp2= 1.0_dp / (tmp + 1.0_dp)
+         tmp3= tmp   / (tmp + 1.0_dp)
+         f(i)= maxocc * tmp2
+         kTS = kTS + T * maxocc * ( tmp2 * LOG(tmp2) + (tmp3)*LOG(tmp3))
       ENDIF
    ENDDO
    N = accurate_sum(f)
@@ -70,8 +79,8 @@ CONTAINS
 !> \param   T  electronic temperature
 !> \param   maxocc maximum occupation of an orbital
 ! *****************************************************************************
- SUBROUTINE FermiFixed(f,mu,e,N,T,maxocc) 
-    REAL(KIND=dp), INTENT(OUT)               :: f(:), mu
+ SUBROUTINE FermiFixed(f,mu,kTS,e,N,T,maxocc) 
+    REAL(KIND=dp), INTENT(OUT)               :: f(:), mu, kTS
     REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'FermiFixed', &
@@ -84,14 +93,14 @@ CONTAINS
 ! bisection search to find N, it is assumed that mu lies in the interval of the evals
 
    mu_min=MINVAL(e)
-   CALL Fermi(f,N_min,e,mu_min,T, maxocc)
+   CALL Fermi(f,N_min,kTS,e,mu_min,T, maxocc)
    mu_max=MAXVAL(e)
-   CALL Fermi(f,N_max,e,mu_max,T, maxocc)
+   CALL Fermi(f,N_max,kTS,e,mu_max,T, maxocc)
 
    iter = 2
    DO WHILE( mu_max-mu_min > EPSILON(mu) )
       mu_now = (mu_max+mu_min)/2.0_dp
-      CALL Fermi(f,N_now,e,mu_now,T, maxocc)
+      CALL Fermi(f,N_now,kTS,e,mu_now,T, maxocc)
       iter = iter + 1
       IF (N_now<=N) THEN
          mu_min = mu_now
@@ -103,7 +112,7 @@ CONTAINS
    ENDDO
 
    mu=(mu_max+mu_min)/2.0_dp
-   CALL Fermi(f,N_now,e,mu,T, maxocc)
+   CALL Fermi(f,N_now,kTS,e,mu,T, maxocc)
 
  END SUBROUTINE FermiFixed
 
@@ -124,8 +133,8 @@ CONTAINS
 !> \param   T  electronic temperature
 !> \param   l  typical lenght scale (~ 10 * T)
 ! *****************************************************************************
- SUBROUTINE FermiFixedDeriv(dfde,f,mu,e,N,T,maxocc,l)
-    REAL(KIND=dp), INTENT(OUT)               :: dfde(:,:), f(:), mu
+ SUBROUTINE FermiFixedDeriv(dfde,f,mu,kTS,e,N,T,maxocc,l)
+    REAL(KIND=dp), INTENT(OUT)               :: dfde(:,:), f(:), mu, kTS
     REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc, l
 
     CHARACTER(len=*), PARAMETER :: routineN = 'FermiFixedDeriv', &
@@ -150,15 +159,15 @@ CONTAINS
       ! and the symmetric finite difference 
       ex=e
       ex(i)=e(i)+h 
-      CALL FermiFixed(fx,mux,ex,N,T,maxocc)
+      CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc)
       dfde(:,I)=fx
       ex(i)=e(i)-h
-      CALL FermiFixed(fx,mux,ex,N,T,maxocc)
+      CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc)
       dfde(:,I)=(dfde(:,I)-fx)/(2.0_dp*h)
    ENDDO
    DEALLOCATE(ex,fx)
 
-   CALL FermiFixed(f,mu,e,N,T,maxocc)
+   CALL FermiFixed(f,mu,kTS,e,N,T,maxocc)
    
  END SUBROUTINE FermiFixedDeriv
 

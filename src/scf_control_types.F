@@ -633,7 +633,7 @@ CONTAINS
                 "Electronic temperature [K]:",elec_temp
               WRITE (UNIT=output_unit,FMT="(T25,A,T71,ES10.2)")&
                 "Electronic temperature [a.u.]:",scf_control%smear%electronic_temperature,&
-                "Minimal MO occupation:",scf_control%smear%eps_fermi_dirac
+                "Accuracy threshold:",scf_control%smear%eps_fermi_dirac
             CASE (smear_energy_window)
               WRITE (UNIT=output_unit,FMT="(T25,A,T71,F10.6)")&
                 "Smear window [a.u.]:       ",scf_control%smear%window_size

@@ -189,6 +189,9 @@ CPSourceFileRef,&
     CALL section_vals_val_get(dft_section,"PLUS_U_METHOD",i_val=method_id,error=error)
     dft_control%plus_u_method_id = method_id
 
+    ! smearing in use
+    dft_control%smear         = .FALSE.
+
     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
          c_val=basis_set_file_name , error=error)
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
