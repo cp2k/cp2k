@@ -6056,7 +6056,7 @@ CONTAINS
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
-                          default_r_val=0.0_dp,&
+                          default_r_val=cp_unit_to_cp2k(value=300.0_dp, unit_str="K", error=error),&
                           unit_str="K",&
                           usage="ELECTRONIC_TEMPERATURE [K] 300",&
                           error=error)
@@ -6065,12 +6065,12 @@ CONTAINS
 
       CALL keyword_create(keyword,&
                           name="EPS_FERMI_DIRAC",&
-                          description="Minimal occupation of an MO in the case of Fermi-Dirac smearing",&
+                          description="Accuracy checks on occupation numbers use this as a tolerance",&
                           required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
-                          default_r_val=1.0E-5_dp,&
+                          default_r_val=1.0E-10_dp,&
                           usage="EPS_FERMI_DIRAC 1.0E-6",&
                           error=error)
       CALL section_add_keyword(section,keyword,error=error)

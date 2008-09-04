@@ -38,3 +38,5 @@ C-sic-1.inp        1
 C-sic-2.inp        1
 # ot with fractional occupations
 C_ot.inp           1
+# use of the fermi distribution
+C_fermi.inp        1

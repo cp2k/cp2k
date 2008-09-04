@@ -41,12 +41,14 @@ MODULE qs_mo_types
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE fermi_utils,                     ONLY: FermiFixed
   USE input_constants,                 ONLY: smear_energy_window,&
                                              smear_fermi_dirac,&
                                              smear_list
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -348,7 +350,7 @@ CONTAINS
   END SUBROUTINE get_mo_set
 
 ! *****************************************************************************
-!> \brief   Smearing of the MO occupation due to a Fermi-Dirac distribution
+!> \brief   Smearing of the MO occupation with all kind of occupation numbers
 !> \author  Matthias Krack
 !> \date    17.04.2002 (v1.0), 26.08.2008 (v1.1)
 !> \version 1.1
@@ -365,9 +367,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imo, nmo, nomo
-    LOGICAL                                  :: equal_size, failure
-    REAL(KIND=dp)                            :: beta, e1, e2, edelta, edist, &
-                                                mu, nelec, norm
+    LOGICAL                                  :: equal_size, failure, is_large
+    REAL(KIND=dp)                            :: e1, e2, edelta, edist, mu, &
+                                                nelec
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
@@ -398,55 +400,40 @@ CONTAINS
 
       CASE (smear_fermi_dirac)
 
-        mu = mo_set%eigenvalues(mo_set%homo)       ! Fermi energy
-        beta = 1.0_dp/smear%electronic_temperature ! 1/kT
+        Nelec = mo_set%nelectron
+        CALL FermiFixed(mo_set%occupation_numbers,mu,mo_set%eigenvalues,Nelec, &
+                        smear%electronic_temperature,mo_set%maxocc)
 
-        ! Generate a smeared occupation based on the Fermi-Dirac distribution
-
-        DO imo=1,nmo
-          mo_set%occupation_numbers(imo) = mo_set%maxocc/(EXP(beta*(mo_set%eigenvalues(imo) - mu)) + 1.0_dp)
-          IF (mo_set%occupation_numbers(imo) < smear%eps_fermi_dirac) THEN
-            mo_set%occupation_numbers(imo) = 0.0_dp
-          END IF
-          IF (ABS(mo_set%maxocc - mo_set%occupation_numbers(imo)) < smear%eps_fermi_dirac) THEN
-            mo_set%occupation_numbers(imo) = mo_set%maxocc
-          END IF
-        END DO
- 
         ! Find the lowest fractional occupied MO (LFOMO)
- 
         DO imo=1,nmo
-          IF (mo_set%occupation_numbers(imo) < mo_set%maxocc) THEN
+          IF (mo_set%occupation_numbers(imo) <= mo_set%maxocc) THEN
             mo_set%lfomo = imo
             EXIT
           END IF
         END DO
-        CALL cp_assert((mo_set%lfomo > 1),cp_warning_level,cp_assertion_failed,routineP,&
+        is_large=ABS(mo_set%occupation_numbers(mo_set%lfomo)-mo_set%maxocc)> smear%eps_fermi_dirac
+        ! this is not a real problem, but the temperature might be a bit large
+        CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
                        "Fermi-Dirac smearing includes the first MO",&
                        error,failure)
  
         ! Find the highest (fractional) occupied MO which will be now the HOMO
- 
         DO imo=nmo,1,-1
           IF (mo_set%occupation_numbers(imo) > 0.0_dp) THEN
             mo_set%homo = imo
             EXIT
           END IF
         END DO
-        CALL cp_assert((mo_set%homo < nmo),cp_warning_level,cp_assertion_failed,routineP,&
+        is_large=ABS(mo_set%occupation_numbers(mo_set%homo))> smear%eps_fermi_dirac
+        CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
                        "Fermi-Dirac smearing includes the last MO => "//&
                        "Add more MOs for proper smearing.",error,failure)
- 
-        ! Normalise the number of smeared electrons
- 
-        norm = mo_set%maxocc*REAL(nomo - mo_set%lfomo + 1,KIND=dp)/&
-               SUM(mo_set%occupation_numbers(mo_set%lfomo:mo_set%homo))
- 
-        mo_set%occupation_numbers(mo_set%lfomo:mo_set%homo) = norm*mo_set%occupation_numbers(mo_set%lfomo:mo_set%homo)
- 
-        CALL cp_assert((ABS(mo_set%nelectron - SUM(mo_set%occupation_numbers(:))) < 1.0E-14_dp),&
+
+        ! check that the total electron count is accurate
+        is_large=(ABS(mo_set%nelectron - accurate_sum(mo_set%occupation_numbers(:))) > smear%eps_fermi_dirac*mo_set%nelectron)
+        CALL cp_assert(.NOT.is_large,&
                        cp_warning_level,cp_assertion_failed,routineP,&
-                       "Accurate smearing failed",&
+                       "Total number of electrons is not accurate",&
                        error,failure)
 
       CASE (smear_energy_window)

@@ -168,6 +168,7 @@ OBJECTS_GENERIC =\
  f77_interface.o\
  farming_methods.o\
  farming_types.o\
+ fermi_utils.o\
  fft_tools.o\
  fist_energy_types.o\
  fist_environment.o\

@@ -1,0 +1,165 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2008  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
+!> \brief deal with the Fermi distribution, compute it, fix mu, get derivs
+!> \author Joost VandeVondele
+!> \date 09.2008
+! *****************************************************************************
+MODULE fermi_utils
+  USE kahan_sum,                       ONLY: accurate_sum
+  USE kinds,                           ONLY: dp
+
+  IMPLICIT NONE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fermi_utils'
+
+CONTAINS
+! *****************************************************************************
+!> \brief   returns occupations according to Fermi-Dirac statistics
+!>          for a given set of energies and fermi level.
+!>          Note that singly occupied orbitals are assumed
+!> \author  Joost VandeVondele
+!> \date    09.2008
+!> \param   f occupations
+!> \param   N total number of electrons (output)
+!> \param   e eigenvalues
+!> \param   mu Fermi level (input)
+!> \param   T  electronic temperature
+!> \param   maxocc maximum occupation of an orbital
+! *****************************************************************************
+ SUBROUTINE Fermi(f,N,e,mu,T,maxocc)
+    REAL(KIND=dp), INTENT(out)               :: f(:), N
+    REAL(KIND=dp), INTENT(IN)                :: e(:), mu, T, maxocc
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'Fermi', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: I, Nstate
+    REAL(KIND=dp)                            :: tmp
+
+   Nstate=SIZE(e)
+
+   DO I=1,Nstate
+      ! have the result of exp go to zero instead of overflowing
+      IF (e(i) > mu) THEN 
+         tmp = EXP( -(e(i)-mu)/T )
+         f(i)= maxocc * tmp   / (tmp + 1.0_dp)
+      ELSE
+         tmp = EXP(  (e(i)-mu)/T )
+         f(i)= maxocc * 1.0_dp / (tmp + 1.0_dp) 
+      ENDIF
+   ENDDO
+   N = accurate_sum(f)
+ END SUBROUTINE Fermi
+
+! *****************************************************************************
+!> \brief   returns occupations according to Fermi-Dirac statistics
+!>          for a given set of energies and number of electrons.
+!>          Note that singly occupied orbitals are assumed.
+!>          could fail if the fermi level lies out of the range of eigenvalues
+!>          (to be fixed)
+!> \author  Joost VandeVondele
+!> \date    09.2008
+!> \param   f occupations
+!> \param   N total number of electrons (input)
+!> \param   e eigenvalues
+!> \param   mu Fermi level (output)
+!> \param   T  electronic temperature
+!> \param   maxocc maximum occupation of an orbital
+! *****************************************************************************
+ SUBROUTINE FermiFixed(f,mu,e,N,T,maxocc) 
+    REAL(KIND=dp), INTENT(OUT)               :: f(:), mu
+    REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'FermiFixed', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iter
+    REAL(KIND=dp)                            :: mu_max, mu_min, mu_now, &
+                                                N_max, N_min, N_now
+
+! bisection search to find N, it is assumed that mu lies in the interval of the evals
+
+   mu_min=MINVAL(e)
+   CALL Fermi(f,N_min,e,mu_min,T, maxocc)
+   mu_max=MAXVAL(e)
+   CALL Fermi(f,N_max,e,mu_max,T, maxocc)
+
+   iter = 2
+   DO WHILE( mu_max-mu_min > EPSILON(mu) )
+      mu_now = (mu_max+mu_min)/2.0_dp
+      CALL Fermi(f,N_now,e,mu_now,T, maxocc)
+      iter = iter + 1
+      IF (N_now<=N) THEN
+         mu_min = mu_now
+         N_min  = N_now
+      ELSE
+         mu_max = mu_now
+         N_max  = N_now
+      ENDIF
+   ENDDO
+
+   mu=(mu_max+mu_min)/2.0_dp
+   CALL Fermi(f,N_now,e,mu,T, maxocc)
+
+ END SUBROUTINE FermiFixed
+
+! *****************************************************************************
+!> \brief   returns f and dfde for a given set of energies and number of electrons
+!>          it is a numerical derivative, trying to use a reasonable step length
+!>          it ought to yield an accuracy of approximately EPSILON()^(2/3) (~10^-11)
+!>          l ~ 10*T yields best accuracy
+!>          Note that singly occupied orbitals are assumed.
+!>          To be fixed: this could be parallellized for better efficiency
+!> \author  Joost VandeVondele
+!> \date    09.2008
+!> \param   dfde derivatives of the occupation numbers with respect to the eigenvalues
+!> \param   f occupations
+!> \param   N total number of electrons (output)
+!> \param   e eigenvalues
+!> \param   mu Fermi level (input)
+!> \param   T  electronic temperature
+!> \param   l  typical lenght scale (~ 10 * T)
+! *****************************************************************************
+ SUBROUTINE FermiFixedDeriv(dfde,f,mu,e,N,T,maxocc,l)
+    REAL(KIND=dp), INTENT(OUT)               :: dfde(:,:), f(:), mu
+    REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc, l
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'FermiFixedDeriv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: I, Nstate
+    REAL(KIND=dp)                            :: h, mux
+    REAL(KIND=dp), ALLOCATABLE               :: ex(:), fx(:)
+
+   Nstate=SIZE(e) 
+   ALLOCATE(ex(Nstate),fx(Nstate))
+
+   DO I=1,Nstate
+      ! NR 5.7.8
+      ! the problem here is that each f_i 'seems to have' a different lenght scale
+      ! and it would be to expensive to compute each single df_i/de_i using a finite difference
+      h=(EPSILON(h)**(1.0_dp/3.0_dp))*l
+      ! get an exact machine representable number close to this h
+      h=2.0_dp**EXPONENT(h)
+      ! this should write three times the same number
+      ! write(6,*) h,(e(i)+h)-e(i),(e(i)-h)-e(i)
+      ! and the symmetric finite difference 
+      ex=e
+      ex(i)=e(i)+h 
+      CALL FermiFixed(fx,mux,ex,N,T,maxocc)
+      dfde(:,I)=fx
+      ex(i)=e(i)-h
+      CALL FermiFixed(fx,mux,ex,N,T,maxocc)
+      dfde(:,I)=(dfde(:,I)-fx)/(2.0_dp*h)
+   ENDDO
+   DEALLOCATE(ex,fx)
+
+   CALL FermiFixed(f,mu,e,N,T,maxocc)
+   
+ END SUBROUTINE FermiFixedDeriv
+
+END MODULE fermi_utils
