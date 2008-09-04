@@ -406,12 +406,12 @@ CONTAINS
 
         ! Find the lowest fractional occupied MO (LFOMO)
         DO imo=1,nmo
-          IF (mo_set%occupation_numbers(imo) <= mo_set%maxocc) THEN
+          IF (mo_set%occupation_numbers(imo) < mo_set%maxocc) THEN
             mo_set%lfomo = imo
             EXIT
           END IF
         END DO
-        is_large=ABS(mo_set%occupation_numbers(mo_set%lfomo)-mo_set%maxocc)> smear%eps_fermi_dirac
+        is_large=ABS(mo_set%occupation_numbers(1)-mo_set%maxocc)> smear%eps_fermi_dirac
         ! this is not a real problem, but the temperature might be a bit large
         CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
                        "Fermi-Dirac smearing includes the first MO",&
