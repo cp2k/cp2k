@@ -818,7 +818,15 @@ CONTAINS
   END SUBROUTINE keyword_describe_html
 
 ! *****************************************************************************
+!> \brief Prints a description of a keyword in XML format
+!> \param keyword The keyword to describe
+!> \param unit_number Number of the output unit
+!> \param error Variable to control error logging, stopping ...
+!>        see module cp_error_handling 
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE write_keyword_xml(keyword,level,unit_number,error)
+
     TYPE(keyword_type), POINTER              :: keyword
     INTEGER, INTENT(IN)                      :: level, unit_number
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -826,9 +834,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_keyword_xml', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=1000)                      :: string
     CHARACTER(LEN=3)                         :: repeats, required
-    CHARACTER(LEN=5)                         :: keyword_n_var
+    CHARACTER(LEN=8)                         :: short_string
+    CHARACTER(LEN=1000)                      :: string
     INTEGER                                  :: i, l0, l1, l2, l3, l4
     LOGICAL                                  :: failure
 
@@ -928,10 +936,10 @@ CONTAINS
           CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
        END SELECT
 
-       keyword_n_var = ""
-       WRITE (UNIT=keyword_n_var,FMT="(I5)") keyword%n_var
+       short_string = ""
+       WRITE (UNIT=short_string,FMT="(I8)") keyword%n_var
        WRITE (UNIT=unit_number,FMT="(A)")&
-            REPEAT(" ",l2)//"<N_VAR>"//TRIM(ADJUSTL(keyword_n_var))//"</N_VAR>",&
+            REPEAT(" ",l2)//"<N_VAR>"//TRIM(ADJUSTL(short_string))//"</N_VAR>",&
             REPEAT(" ",l1)//"</DATA_TYPE>"
 
        CALL substitute_special_xml_tokens(keyword%usage,string,ltu=.TRUE.)
@@ -975,6 +983,18 @@ CONTAINS
           WRITE (UNIT=unit_number,FMT="(A)")&
                REPEAT(" ",l1)//"<LONE_KEYWORD_VALUE>"//&
                TRIM(ADJUSTL(string))//"</LONE_KEYWORD_VALUE>"
+       END IF
+
+       IF (ASSOCIATED(keyword%citations)) THEN
+          DO i=1,SIZE(keyword%citations,1)
+             short_string = ""
+             WRITE (UNIT=short_string,FMT="(I8)") keyword%citations(i)
+             WRITE (UNIT=unit_number,FMT="(A)")&
+                  REPEAT(" ",l1)//"<REFERENCE>",&
+                  REPEAT(" ",l2)//"<NAME>"//TRIM(get_citation_key(keyword%citations(i)))//"</NAME>",&
+                  REPEAT(" ",l2)//"<NUMBER>"//TRIM(ADJUSTL(short_string))//"</NUMBER>",&
+                  REPEAT(" ",l1)//"</REFERENCE>"
+          END DO
        END IF
 
        ! Close (special) keyword section

@@ -2100,18 +2100,23 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_section_xml', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=1000)                      :: string
     CHARACTER(LEN=3)                         :: repeats, required
-    INTEGER                                  :: i, l0, l1
+    CHARACTER(LEN=8)                         :: short_string
+    CHARACTER(LEN=1000)                      :: string
+    INTEGER                                  :: i, l0, l1, l2
     LOGICAL                                  :: failure
 
     failure = .FALSE.
+
     IF (ASSOCIATED(section)) THEN
+
        CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
 
        ! Indentation for current level, next level, etc.
+
        l0 = level
        l1 = level + 1
+       l2 = level + 2
 
        IF (section%required) THEN
           required = "yes"
@@ -2132,6 +2137,18 @@ CONTAINS
             """ repeats="""//TRIM(repeats)//""">",&
             REPEAT(" ",l1)//"<NAME>"//TRIM(section%name)//"</NAME>",&
             REPEAT(" ",l1)//"<DESCRIPTION>"//TRIM(string)//"</DESCRIPTION>"
+
+       IF (ASSOCIATED(section%citations)) THEN
+          DO i=1,SIZE(section%citations,1)
+             short_string = ""
+             WRITE (UNIT=short_string,FMT="(I8)") section%citations(i)
+             WRITE (UNIT=unit_number,FMT="(A)")&
+                  REPEAT(" ",l1)//"<REFERENCE>",&
+                  REPEAT(" ",l2)//"<NAME>"//TRIM(get_citation_key(section%citations(i)))//"</NAME>",&
+                  REPEAT(" ",l2)//"<NUMBER>"//TRIM(ADJUSTL(short_string))//"</NUMBER>",&
+                  REPEAT(" ",l1)//"</REFERENCE>"
+          END DO
+       END IF
 
        DO i=-1,section%n_keywords
           IF (ASSOCIATED(section%keywords(i)%keyword)) THEN
