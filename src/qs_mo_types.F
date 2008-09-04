@@ -411,7 +411,7 @@ CONTAINS
             EXIT
           END IF
         END DO
-        is_large=ABS(mo_set%occupation_numbers(1)-mo_set%maxocc)> smear%eps_fermi_dirac
+        is_large=ABS(MAXVAL(mo_set%occupation_numbers)-mo_set%maxocc)> smear%eps_fermi_dirac
         ! this is not a real problem, but the temperature might be a bit large
         CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
                        "Fermi-Dirac smearing includes the first MO",&
@@ -424,7 +424,7 @@ CONTAINS
             EXIT
           END IF
         END DO
-        is_large=ABS(mo_set%occupation_numbers(mo_set%homo))> smear%eps_fermi_dirac
+        is_large=ABS(MINVAL(mo_set%occupation_numbers))> smear%eps_fermi_dirac
         CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
                        "Fermi-Dirac smearing includes the last MO => "//&
                        "Add more MOs for proper smearing.",error,failure)
