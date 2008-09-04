@@ -525,13 +525,14 @@ CONTAINS
                         kTS, error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc, kTS
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc
     INTEGER, INTENT(IN), OPTIONAL            :: homo, lfomo, nao, nelectron, &
                                                 nmo
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
     LOGICAL, INTENT(IN), OPTIONAL            :: uniform_occupation
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kTS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_set', &
