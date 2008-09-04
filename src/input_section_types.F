@@ -2100,9 +2100,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_section_xml', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=1000)                      :: string
     CHARACTER(LEN=3)                         :: repeats, required
     CHARACTER(LEN=8)                         :: short_string
-    CHARACTER(LEN=1000)                      :: string
     INTEGER                                  :: i, l0, l1, l2
     LOGICAL                                  :: failure
 
