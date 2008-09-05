@@ -167,7 +167,8 @@ MODULE qs_scf
                                              wfi_update
   USE qs_wf_history_types,             ONLY: wfi_frozen_method_nr,&
                                              wfi_use_guess_method_nr
-  USE scf_control_types,               ONLY: scf_control_type
+  USE scf_control_types,               ONLY: scf_control_type,&
+                                             smear_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type
   USE scp_density_methods,             ONLY: update_rhoscp
   USE scp_energy_types,                ONLY: scp_energy_type
@@ -193,7 +194,7 @@ MODULE qs_scf
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf'
 
   PUBLIC :: scf, scf_env_cleanup, scf_env_do_scf,&
-            init_scf_run, init_scf_loop, qs_scf_loop_do_ot,&
+            init_scf_run, init_scf_loop, &
             qs_scf_print_summary
 
 CONTAINS
@@ -540,11 +541,10 @@ CONTAINS
           CASE(ot_method_nr)
              ! ***SCP
              IF ( scp ) THEN
-
-                CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, &
+                CALL qs_scf_loop_do_ot(scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &
                      matrix_s, aux_coeff_set, energy_only,has_unit_metric,error)
              ELSE
-                CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, &
+                CALL qs_scf_loop_do_ot(scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &
                      matrix_s, energy_only=energy_only,has_unit_metric=has_unit_metric,error=error)
              ENDIF
              ! ***SCP
@@ -917,11 +917,12 @@ CONTAINS
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,&
+  SUBROUTINE qs_scf_loop_do_ot(scf_env,smear,mos,rho,mo_derivs,total_energy,&
                                matrix_s,aux_coeff_set,energy_only, &
                                has_unit_metric,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(smear_type)                         :: smear
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
@@ -952,6 +953,12 @@ CONTAINS
                      total_energy, aux_coeff_set,    &
                      energy_only,scf_env%iter_delta, & 
                      scf_env%qs_ot_env,error=error)
+
+    DO ispin=1,SIZE(mos)
+       CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
+                              smear=smear,&
+                              error=error)
+    ENDDO
 
     DO ispin=1,SIZE(mos)
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
@@ -1281,6 +1288,16 @@ END SUBROUTINE qs_scf_print_summary
          mos=mos,matrix_ks=matrix_ks,&
          matrix_s=matrix_s, error=error)
 
+    ! this just guarantees that all mo_occupations match the eigenvalues, if smear
+    ! TO BE FIXED, right now, can't be done with xas
+    IF (.NOT. (dft_control%do_xas_calculation .AND. dft_control%xas_estate>0)) THEN
+       DO ispin=1,dft_control%nspins
+          CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
+                                 smear=scf_control%smear,&
+                                 error=error)
+       ENDDO
+    ENDIF
+
     SELECT CASE (scf_env%method)
     CASE DEFAULT
 
@@ -1315,18 +1332,10 @@ END SUBROUTINE qs_scf_print_summary
           dftb = .TRUE.
        END IF
 
-       ! so far can in principle not work with all kinds of smearing, just with a fixed list
-       DO ispin=1,dft_control%nspins
-          CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
-                                 smear=scf_control%smear,&
-                                 error=error)
-       ENDDO
-
-
        ! reortho the wavefunctions if we are having an outer scf and 
        ! this is not the first iteration
        ! this is useful to avoid the build-up of numerical noise
-       ! however, we can play this trick if restricted (don't mix non-equivalent orbs)
+       ! however, we can not play this trick if restricted (don't mix non-equivalent orbs)
        IF (scf_control%outer_scf%have_scf .AND. .NOT. dft_control%restricted) THEN
           IF (scf_env%outer_scf%iter_count>0) THEN
              DO ispin=1,dft_control%nspins
@@ -1339,6 +1348,7 @@ END SUBROUTINE qs_scf_print_summary
              ENDDO
           ENDIF
        ENDIF
+
 
        IF (.NOT.ASSOCIATED(scf_env%qs_ot_env)) THEN
 
@@ -1568,6 +1578,14 @@ END SUBROUTINE qs_scf_print_summary
              END SELECT
           END IF
        ENDIF
+
+       ! if we have non-uniform occupations we should be using rotation
+       do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
+       DO ispin=1,SIZE(mos)
+          IF (.NOT. mos(ispin)%mo_set%uniform_occupation) THEN
+             CPPrecondition(do_rotation,cp_failure_level,routineP,error,failure)
+          ENDIF
+       ENDDO
     END SELECT
 
     CALL timestop(0.0_dp,handle)

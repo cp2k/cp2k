@@ -94,7 +94,7 @@ MODULE qs_ot
   ! needed for spins as e.g. in qs_ot_scf      !
 ! *****************************************************************************
   TYPE qs_ot_settings_type
-     LOGICAL           :: do_rotation
+     LOGICAL           :: do_rotation, do_ener
      ! **** SCP
      LOGICAL           :: scp, ks
      ! **** SCP
@@ -215,6 +215,14 @@ MODULE qs_ot
      REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: h_e 
      REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: h_x 
      ! *** SCP
+
+     ! fourth part of the variables, if we need to optimize orbital energies
+     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_x 
+     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_dx 
+     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_gx 
+     REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_gx_old 
+     REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: ener_h_e 
+     REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: ener_h_x 
   END TYPE qs_ot_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot'
@@ -244,6 +252,7 @@ CONTAINS
     settings%max_taylor=4
     settings%gold_target=0.01_dp
     settings%do_rotation=.FALSE.
+    settings%do_ener=.FALSE.
     settings%irac_degree=4
     settings%max_irac=50
     settings%eps_irac=1.0E-10_dp
@@ -272,6 +281,8 @@ CONTAINS
     INTEGER                                  :: istat, ncoef
     LOGICAL                                  :: failure
 
+    failure = .FALSE.
+
     qs_ot_env%preconditioner => preconditioner
     qs_ot_env%os_valid = .FALSE.
     IF (.NOT. ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
@@ -284,9 +295,14 @@ CONTAINS
        IF (qs_ot_env%settings%do_rotation) THEN
           CALL cp_fm_create(qs_ot_env%rot_mat_dx,qs_ot_env%rot_mat_gx%matrix_struct,"rot_mat_dx",error=error)
        ENDIF
+       IF (qs_ot_env%settings%do_ener) THEN
+          ncoef = SIZE ( qs_ot_env % ener_gx)
+          ALLOCATE ( qs_ot_env%ener_dx ( ncoef ), STAT = istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          qs_ot_env%ener_dx = 0.0_dp
+       ENDIF
        ! ***SCP
        IF ( qs_ot_env % settings % scp ) THEN
-          failure = .FALSE.
           ncoef = SIZE ( qs_ot_env % gx )
           ALLOCATE ( qs_ot_env%dx ( ncoef ), STAT = istat )
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -321,6 +337,8 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k, fm_struct_n_o, &
                                                 fm_struct_o_k, fm_struct_o_o
     TYPE(cp_para_env_type), POINTER          :: para_env
+
+    failure = .FALSE.
 
     CALL cite_reference(VandeVondele2003)
 
@@ -445,12 +463,37 @@ CONTAINS
             CALL cp_fm_create(qs_ot_env%rot_mat_dx,fm_struct_k_k,name="rot_mat_dx",error=error)
 
     ENDIF
+    IF ( qs_ot_env % settings % do_ener ) THEN
+       ncoef = k
+       ALLOCATE ( qs_ot_env % ener_x ( ncoef  ), STAT = istat )
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
+          ALLOCATE(qs_ot_env%ener_h_e( m_diis, ncoef ), STAT = istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(qs_ot_env%ener_h_x( m_diis, ncoef ), STAT = istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+
+       ALLOCATE ( qs_ot_env%ener_gx ( ncoef  ), STAT = istat )
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       IF (qs_ot_env%use_gx_old) THEN
+          ALLOCATE ( qs_ot_env%ener_gx_old ( ncoef  ), STAT = istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+
+       IF (qs_ot_env%use_dx) THEN
+          ALLOCATE ( qs_ot_env%ener_dx ( ncoef ), STAT = istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          qs_ot_env%ener_dx = 0.0_dp
+       ENDIF
+    ENDIF
     ! **** SCP
     ! The aux_coeffs in SCP are distributed. The arrays will be 
     ! allocated to the number of local coeffs.  There may be need
     ! for communication in the minimization
     IF ( qs_ot_env % settings % scp ) THEN
-       failure = .FALSE.
        CALL cp_para_env_retain (  aux_coeff_set % distribution % para_env, error ) 
        qs_ot_env % scp_para_env => aux_coeff_set % distribution % para_env
        ncoef = 0
@@ -535,6 +578,13 @@ CONTAINS
             qs_ot_env % gx_old ( : ) = 0.0_dp
     ENDIF
     ! **** SCP
+    IF (qs_ot_env%settings%do_ener) THEN
+       qs_ot_env % ener_gx ( : ) = 0.0_dp
+       IF (qs_ot_env%use_dx) &
+            qs_ot_env % ener_dx ( : ) = 0.0_dp
+       IF (qs_ot_env%use_gx_old) &
+            qs_ot_env % ener_gx_old ( : ) = 0.0_dp
+    ENDIF
 
   END SUBROUTINE qs_ot_init
 
@@ -549,6 +599,8 @@ CONTAINS
 
     INTEGER                                  :: i, istat
     LOGICAL                                  :: failure
+
+    failure = .FALSE.
 
     DEALLOCATE(qs_ot_env%evals)
     DEALLOCATE(qs_ot_env%dum)
@@ -620,7 +672,6 @@ CONTAINS
     ENDIF
     ! **** SCP
     IF (qs_ot_env%settings%scp) THEN
-       failure = .FALSE.
        DEALLOCATE ( qs_ot_env % x, STAT=istat )
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE ( qs_ot_env % gx, STAT=istat )
@@ -641,7 +692,27 @@ CONTAINS
        ENDIF
        CALL cp_para_env_release ( qs_ot_env % scp_para_env, error ) 
     END IF
-    ! **** SCP
+
+    IF (qs_ot_env%settings%do_ener) THEN
+       DEALLOCATE ( qs_ot_env % ener_x, STAT=istat )
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( qs_ot_env % ener_gx, STAT=istat )
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
+          DEALLOCATE (qs_ot_env % ener_h_x, STAT=istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (qs_ot_env % ener_h_e, STAT=istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+       IF (qs_ot_env%use_dx) THEN
+          DEALLOCATE ( qs_ot_env % ener_dx, STAT=istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+       IF (qs_ot_env%use_gx_old) THEN
+          DEALLOCATE ( qs_ot_env % ener_gx_old, STAT=istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+    END IF
 
   END SUBROUTINE qs_ot_destroy
 

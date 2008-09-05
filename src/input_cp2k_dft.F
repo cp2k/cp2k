@@ -4878,6 +4878,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="ENERGIES",&
+            description="Optimize orbital energies for use in Fermi-Dirac smearing "//&
+                        "(requires ROTATION and FD smearing to be active).",&
+            usage="ENERGIES",lone_keyword_l_val=.TRUE.,&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
   END SUBROUTINE create_ot_section
 

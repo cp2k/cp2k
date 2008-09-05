@@ -73,16 +73,21 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_read_input', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=40)                        :: value
     INTEGER                                  :: handle, ispin, ls_method, &
                                                 nspin, ot_algorithm, &
                                                 ot_method, ot_ortho_irac, &
                                                 output_unit
-    LOGICAL                                  :: explicit
+    LOGICAL                                  :: explicit, failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: ot_section
 
-    CALL timeset('ot_scf_read_input','I','',handle)
+    failure=.FALSE.
+
+    CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -219,6 +224,9 @@ CONTAINS
     CALL section_vals_val_get(ot_section,"MAX_TAYLOR",i_val=qs_ot_env(1)%settings%max_taylor,error=error)
     CALL section_vals_val_get(ot_section,"ROTATION",l_val=qs_ot_env(1)%settings%do_rotation,error=error)
     CALL section_vals_val_get(ot_section,"SCP",l_val=qs_ot_env(1)%settings%scp,error=error)
+    CALL section_vals_val_get(ot_section,"ENERGIES",l_val=qs_ot_env(1)%settings%do_ener,error=error)
+    ! not yet fully implemented
+    CPPostcondition(.NOT.qs_ot_env(1)%settings%do_ener,cp_failure_level,routineP,error,failure)
 
     ! write OT output
 
@@ -227,6 +235,7 @@ CONTAINS
        WRITE(output_unit,'(A)') "  ----------------------------------- OT --------------------------------------"
        WRITE(output_unit,'(A)') " "
        WRITE(output_unit,'(A,L2)') "  Allowing for rotations: ",qs_ot_env(1)%settings%do_rotation
+       WRITE(output_unit,'(A,L2)') "  Optimizing orbital energies: ",qs_ot_env(1)%settings%do_ener
        SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
        CASE ("SD")
           WRITE(output_unit,'(A)') "  minimizer      : SD                  : steepest descent"
@@ -350,10 +359,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_mini', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ispin, k, n, nspin
+    INTEGER                                  :: handle, ispin, k, n, nspin
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
-    CALL timeset('ot_scf_mini','I','',handle)
+    CALL timeset(routineN,handle)
 
     ! we use the size of the ot_env to indicate the spin.
     ! this needs correction in case of restricted calculations
@@ -424,14 +433,18 @@ CONTAINS
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_init', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, i, icoef, icoef_atom, &
                                                 ikind, ispin, k, n, n_els, &
                                                 ncoef_atom, nkind, nspin
+    LOGICAL                                  :: failure, is_equal
     REAL(dp), DIMENSION(:, :), POINTER       :: c, fc
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
-    CALL timeset('ot_scf_init','I','',handle)
+    CALL timeset(routineN,handle)
 
     ! **** SCP
     NULLIFY ( local_coeffs, c, fc )
@@ -473,6 +486,12 @@ CONTAINS
        ENDIF
        IF (qs_ot_env(ispin)%settings%scp) THEN
           qs_ot_env ( ispin ) % x ( : ) = 0.0_dp
+       ENDIF
+
+       IF (qs_ot_env(ispin)%settings%do_ener) THEN
+          is_equal=SIZE(qs_ot_env ( ispin ) % ener_x)==SIZE(mo_array(ispin)%mo_set%eigenvalues)   
+          CPPostcondition(is_equal,cp_failure_level,routineP,error,failure)
+          qs_ot_env ( ispin ) % ener_x = mo_array(ispin)%mo_set%eigenvalues
        ENDIF
 
        SELECT CASE(qs_ot_env(1)%settings%ot_algorithm)
