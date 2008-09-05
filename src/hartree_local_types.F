@@ -11,7 +11,6 @@ MODULE hartree_local_types
   USE qs_oce_types,                    ONLY: deallocate_vtriple,&
                                              vtriple_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
-  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -52,46 +51,51 @@ MODULE hartree_local_types
   CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE  allocate_ecoul_1center(ecoul_1c,natom)
+  SUBROUTINE  allocate_ecoul_1center(ecoul_1c,natom,error)
 
     TYPE(ecoul_1center_type), DIMENSION(:), &
       POINTER                                :: ecoul_1c
     INTEGER, INTENT(IN)                      :: natom
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_ecoul_1center', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 
     IF(ASSOCIATED(ecoul_1c)) THEN
-      CALL deallocate_ecoul_1center(ecoul_1c)
+      CALL deallocate_ecoul_1center(ecoul_1c,error)
     END IF
 
     ALLOCATE(ecoul_1c(natom), STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                            "ecoul_1c",natom*int_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO iat = 1,natom
-      ALLOCATE(ecoul_1c(iat)%Vh1_h)
+      ALLOCATE(ecoul_1c(iat)%Vh1_h,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
       NULLIFY(ecoul_1c(iat)%Vh1_h%r_coef)
-      ALLOCATE(ecoul_1c(iat)%Vh1_s)
+      ALLOCATE(ecoul_1c(iat)%Vh1_s,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
       NULLIFY(ecoul_1c(iat)%Vh1_s%r_coef)
     END DO
 
   END SUBROUTINE allocate_ecoul_1center
 
 ! *****************************************************************************
-  SUBROUTINE  deallocate_ecoul_1center(ecoul_1c)
+  SUBROUTINE  deallocate_ecoul_1center(ecoul_1c,error)
 
     TYPE(ecoul_1center_type), DIMENSION(:), &
       POINTER                                :: ecoul_1c
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_ecoul_1center', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat, natom
+    LOGICAL :: failure
 
 !   ---------------------------------------------------------------------------
 
@@ -100,27 +104,22 @@ MODULE hartree_local_types
     DO iat= 1,natom
       IF (ASSOCIATED(ecoul_1c(iat)%Vh1_h%r_coef)) THEN
           DEALLOCATE(ecoul_1c(iat)%Vh1_h%r_coef,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                           "ecoul_1c%Vh1_h%r_coef")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ENDIF
       DEALLOCATE(ecoul_1c(iat)%Vh1_h,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "ecoul_1c%Vh1_h")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       IF (ASSOCIATED(ecoul_1c(iat)%Vh1_s%r_coef)) THEN 
           DEALLOCATE(ecoul_1c(iat)%Vh1_s%r_coef,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                           "ecoul_1c%Vh1_s%r_coef")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ENDIF
       DEALLOCATE(ecoul_1c(iat)%Vh1_s,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "ecoul_1c%Vh1_s")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     END DO
 
     DEALLOCATE(ecoul_1c, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "ecoul_1c")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE deallocate_ecoul_1center
 
@@ -200,7 +199,7 @@ MODULE hartree_local_types
 
     IF (ASSOCIATED(hartree_local)) THEN
       IF (ASSOCIATED(hartree_local%ecoul_1c)) THEN
-        CALL deallocate_ecoul_1center(hartree_local%ecoul_1c)
+        CALL deallocate_ecoul_1center(hartree_local%ecoul_1c, error)
       END IF
 
       IF (ASSOCIATED(hartree_local%vtriple)) THEN

@@ -143,7 +143,7 @@ CONTAINS
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,zet0_h=z0_h,zet0_s=z0_s,&
          norm_g0l_h=ng0_h,norm_g0l_s=ng0_s,lmax_0=lmax_0)
 
-    IF(z0_h==z0_s) THEN
+    IF(.NOT. qs_env%dft_control%qs_control%gapw_control%full_gapw) THEN !z0_h==z0_s
        RETURN
     END IF
 

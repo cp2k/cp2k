@@ -268,9 +268,20 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     
     IF(dft_control%qs_control%gapw) THEN
       qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
-      IF (ASSOCIATED(qs_env%rho_core)) THEN
+      IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
+!          *** updates rho core ***
+        CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
+        CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
+        CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+        IF (.NOT. failure) THEN
+           CALL calculate_rho_core(qs_env%rho_core, &
+                qs_env%qs_charges%total_rho_core_rspace,qs_env,only_nopaw=.true.,error=error)
+        END IF
+      ELSE        
+        IF (ASSOCIATED(qs_env%rho_core)) THEN
           CALL pw_release(qs_env%rho_core%pw,error=error)
           DEALLOCATE(qs_env%rho_core)
+        ENDIF
       ENDIF
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
       !??
@@ -394,6 +405,17 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
          DEALLOCATE(rho_core,stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
+      IF(dft_control%qs_control%gapw_control%nopaw_as_gpw ) THEN
+        ALLOCATE(rho_core,stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        IF (.NOT.failure) THEN
+           CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+           CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
+                use_data=COMPLEXDATA1D, error=error)
+           rho_core%pw%in_space=RECIPROCALSPACE
+           CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
+        END IF
+      END IF
     ELSE IF (dft_control%qs_control%semi_empirical) THEN
     ELSE IF (dft_control%qs_control%dftb) THEN
     ELSE
@@ -498,14 +520,22 @@ SUBROUTINE qs_env_update_rho_core(qs_env,error)
          qs_charges=qs_charges,error=error)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_charges),cp_failure_level,routineP,error,failure)
-    IF(.NOT. dft_control%qs_control%gapw) THEN
+    IF(dft_control%qs_control%gapw) THEN
+      IF(dft_control%qs_control%gapw_control%nopaw_as_gpw ) THEN
+        CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
+        IF (.NOT. failure) THEN
+           CALL calculate_rho_core(rho_core, &
+              qs_charges%total_rho_core_rspace,qs_env,only_nopaw=.TRUE.,error=error)
+        END IF
+      ELSE
+        qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
+      END IF
+    ELSEIF(.NOT. dft_control%qs_control%gapw) THEN
       CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
       IF (.NOT. failure) THEN
          CALL calculate_rho_core(rho_core, &
-            qs_charges%total_rho_core_rspace,qs_env,error)
+            qs_charges%total_rho_core_rspace,qs_env,error=error)
       END IF
-    ELSE
-      qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
     END IF
     CALL timestop(handle)
 

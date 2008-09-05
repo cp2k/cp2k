@@ -142,11 +142,12 @@ MODULE qs_rho0_methods
   END SUBROUTINE calculate_mpole_gau
 
 ! *****************************************************************************
-  SUBROUTINE calculate_rho0_atom(rho_atom_set, rho0_atom_set, &
+  SUBROUTINE calculate_rho0_atom(gapw_control,rho_atom_set, rho0_atom_set, &
                                  rho0_mp,a_list,g_atom,&
                                  paw_atom,natom,ikind,harmonics,&
-                                 rho0_h_tot,rho0_s_tot)
+                                 rho0_h_tot,rho0_s_tot,error)
 
+    TYPE(gapw_control_type) , POINTER       :: gapw_control
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho0_atom_type), DIMENSION(:), &
@@ -158,6 +159,7 @@ MODULE qs_rho0_methods
     INTEGER, INTENT(IN)                      :: natom, ikind
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     REAL(dp), INTENT(INOUT)                  :: rho0_h_tot, rho0_s_tot
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho0_atom', &
       routineP = moduleN//':'//routineN
@@ -198,6 +200,7 @@ MODULE qs_rho0_methods
       rho0_mp%mp_rho(iatom)%Qlm_tot(1) = rho0_mp%mp_rho(iatom)%Qlm_z
     ENDDO
 
+    IF(.NOT.(.NOT. paw_atom .AND. gapw_control%nopaw_as_gpw)) THEN
     DO iso = 1, nsoset(lmax0)
       l = indso(1,iso)
       DO iat = 1,natom
@@ -224,9 +227,24 @@ MODULE qs_rho0_methods
          rho0_s_tot = rho0_s_tot + sum2* harmonics%slm_int(iso)
       END DO  ! iat
     END DO  ! iso
+    END IF
 
 !   Transform the coefficinets from spherical to cartesian
 
+    IF(.NOT. paw_atom .AND. gapw_control%nopaw_as_gpw) THEN
+      DO iat = 1,natom
+        iatom = a_list(iat)
+       mpole_rho => rho0_mp%mp_rho(iatom)
+
+       DO lshell = 0,lmax0
+         DO ic = 1,nco(lshell)
+           ico = ic + ncoset(lshell-1)
+           mpole_rho%Qlm_car_h(ico) = 0.0_dp
+           mpole_rho%Qlm_car_s(ico) = 0.0_dp
+         END DO
+       END DO
+      END DO
+    ELSE
     DO iat = 1,natom
        iatom = a_list(iat)
        mpole_rho => rho0_mp%mp_rho(iatom)
@@ -257,6 +275,7 @@ MODULE qs_rho0_methods
          END DO
        END DO  ! lshell
     END DO  ! iat
+    END IF
 
    CALL timestop(0.0_dp,handle)
 
@@ -516,7 +535,7 @@ MODULE qs_rho0_methods
     END DO
 
 !   Allocate and Initialize the g0 gaussians used to build the compensation density
-!   an calculate the interaction radii
+!   and calculate the interaction radii
     max_rpgf0_s = 0.0_dp
     DO ikind = 1,nkind
       atom_kind => atomic_kind_set(ikind)
@@ -530,9 +549,9 @@ MODULE qs_rho0_methods
     END DO
     rho0_mpole%max_rpgf0_s = max_rpgf0_s
     ALLOCATE(rho0_mpole%orb_radius_3c(nkind),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(rho0_mpole%set_radius_3c(maxnset,nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "orb_radius_3c,set_radius_3c")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
 !   Calculate the interaction radii for the 3 centers lists
     CALL radii_3c_orbxrho0(qs_env,rho0_mpole,error=error)

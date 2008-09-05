@@ -1631,6 +1631,17 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="FORCE_PAW",&
+            description="Use the GAPW scheme also for atoms with soft basis sets, i.e. "//&
+            " the local densities are computed even if hard and soft should be equal. "//&
+            "If this keyword is not set to true, those atoms with soft basis sets are treated by a GPW scheme, i.e. "//&
+            "the corresponding density contribution goes on the global grid and is expanded in PW. "//&
+            " This option nullifies the effect of the GPW_TYPE in the atomic KIND",&
+            usage="FORCE_PAW",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MAX_RAD_LOCAL",&
             description="GAPW : maximum radius of gaussian functions"//&
             " included in the generation of projectors",&

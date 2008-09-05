@@ -1300,6 +1300,7 @@ CONTAINS
 
     IF (ASSOCIATED(atomic_kind_set)) THEN
 
+       qs_control%gapw_control%non_paw_atoms = .FALSE.     
        nkind = SIZE(atomic_kind_set)
 
        DO ikind=1,nkind
@@ -1327,12 +1328,20 @@ CONTAINS
 
              CALL projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,&
                   force_env_section,error)
+          ELSE
+             qs_control%gapw_control%non_paw_atoms = .TRUE. 
           END IF
 
           ! grid_atom and harmonics are allocated even if NOT PAW_ATOM
           CALL allocate_grid_atom(atomic_kind%grid_atom,error)
           CALL allocate_harmonics_atom(atomic_kind%harmonics,error)
        END DO
+
+       IF(qs_control%gapw_control%non_paw_atoms .AND. .NOT. qs_control%gapw_control%full_gapw) THEN
+          qs_control%gapw_control%nopaw_as_gpw = .TRUE.
+       ELSE
+          qs_control%gapw_control%nopaw_as_gpw = .FALSE.        
+       END IF
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer atomic_kind_set is not associated")

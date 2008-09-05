@@ -355,11 +355,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief computes the density of the core charges on the grid
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_core(rho_core,total_rho,qs_env,error)
+  SUBROUTINE calculate_rho_core(rho_core,total_rho,qs_env,only_nopaw,error)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_core
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL,INTENT(IN), OPTIONAL             :: only_nopaw
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
@@ -369,6 +370,7 @@ CONTAINS
                                                 ierr, ikind, ithread, j, &
                                                 natom, npme, nthread
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
+    LOGICAL                                  :: my_only_nopaw, paw_atom
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
@@ -395,6 +397,10 @@ CONTAINS
     ALLOCATE(pab(1,1),STAT=ierr)
     IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "pab", 1 )
 
+
+    my_only_nopaw = .FALSE.
+    IF(PRESENT(only_nopaw)) my_only_nopaw = only_nopaw
+
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
@@ -416,10 +422,12 @@ CONTAINS
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            natom=natom,&
+                           paw_atom=paw_atom,&
                            atom_list=atom_list,&
                            alpha_core_charge=alpha,&
                            ccore_charge=pab(1,1))
 
+      IF(my_only_nopaw .AND. paw_atom ) CYCLE                     
       IF (alpha == 0.0_dp .OR. pab(1,1)== 0.0_dp) CYCLE
 
       nthread = 1

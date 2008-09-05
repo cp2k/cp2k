@@ -100,7 +100,7 @@ MODULE qs_rho0_ggrid
     INTEGER :: auxbas_grid, dir, handle, iat, iatom, igrid, ikind, istat, &
       ithread, j, l0_ikind, lmax0, nat, nch_ik, nch_max, nkind, npme, tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, paw_atom
     REAL(KIND=dp)                            :: eps_rho_rspace, r_V0, &
                                                 rpgf0_s, zet0_s
     REAL(KIND=dp), DIMENSION(3)              :: ra
@@ -180,7 +180,9 @@ MODULE qs_rho0_ggrid
 
     DO ikind = 1,nkind
       atom_kind => atom_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,natom=nat)
+      CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,natom=nat,paw_atom=paw_atom)
+
+      IF(.NOT. paw_atom .AND. dft_control%qs_control%gapw_control%nopaw_as_gpw) CYCLE
 
       CALL get_rho0_mpole(rho0_mpole=rho0, ikind=ikind, l0_ikind=l0_ikind,&
                            rpgf0_s=rpgf0_s,r_V0hmV0s=r_V0)
@@ -237,11 +239,11 @@ MODULE qs_rho0_ggrid
 
     IF (ASSOCIATED(cores)) THEN
       DEALLOCATE (cores,STAT=istat)
-      IF ( istat /= 0 ) CALL stop_memory ( "put_rho0_s_on_grid", "cores" )
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     DEALLOCATE(pab,STAT=istat)
-    IF( istat/= 0 ) CALL stop_memory ("put_rho0_s_on_grid","pab")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF(igrid /= auxbas_grid) THEN
       CALL rs_pw_transfer(rs_grid,coeff_rspace%pw,rs2pw)
@@ -265,9 +267,9 @@ MODULE qs_rho0_ggrid
 
       tot_rs_int = pw_integrate_function(rho0_s_rs%pw,isign=-1)
 
+      CALL pw_zero(rho0_s_gs%pw)
       CALL pw_transfer(rho0_s_rs%pw,rho0_s_gs%pw)
     END IF
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE  put_rho0_s_on_grid

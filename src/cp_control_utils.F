@@ -440,6 +440,7 @@ CPSourceFileRef,&
     qs_control%gapw_control%alpha0_soft_from_input = .FALSE.
     IF(qs_control%gapw_control%alpha0_soft/=0.0_dp) qs_control%gapw_control%alpha0_soft_from_input = .TRUE.
     CALL section_vals_val_get(qs_section,"FULL_GAPW",l_val=qs_control%gapw_control%full_gapw,error=error)
+    CALL section_vals_val_get(qs_section,"FORCE_PAW",l_val=qs_control%gapw_control%force_paw,error=error)
     CALL section_vals_val_get(qs_section,"MAX_RAD_LOCAL",r_val=qs_control%gapw_control%max_rad_local,error=error)
 
     ! Logicals
@@ -957,6 +958,18 @@ CPSourceFileRef,&
                qs_control%gapw_control%lmax_sphere ,&
                "QS| GAPW|      max_l_rho0 :",&
                qs_control%gapw_control%lmax_rho0
+           IF(qs_control%gapw_control%non_paw_atoms) THEN
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+               "QS| GAPW|      At least one kind is NOT PAW, i.e. it has only soft AO "
+           END IF
+           IF(qs_control%gapw_control%nopaw_as_gpw) THEN
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+               "QS| GAPW|      The NOT PAW atoms are treated fully GPW"
+           END IF
+           IF(qs_control%gapw_control%full_gapw) THEN
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
+               "QS| GAPW|      FULL GAPW calculations, alpha0_H=/alpha0_S"
+           END IF
        END IF
        IF (qs_control%gapw_xc) THEN
           WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&

@@ -902,7 +902,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mos_restart_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: group, homo, i, iatom, irow, iset, iset_read, ishell, &
+    INTEGER :: group, homo, homo_read, lfomo_read, nelectron_read, i, iatom, irow, iset, iset_read, ishell, &
       ishell_read, iso, ispin, istat, lmax, lshell, my_mult, nao, nao_read, &
       natom_read, nelectron, nmo, nmo_read, nnshell, nset, nset_max, &
       nshell_max, nspin, nspin_read, offset_read, source
@@ -911,6 +911,7 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
     LOGICAL                                  :: failure, minbas, my_xas, &
                                                 use_this
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE  :: eig_read, occ_read
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -1005,10 +1006,12 @@ CPSourceFileRef,&
       CALL cp_fm_set_all(mos(ispin)%mo_set%mo_coeff,0.0_dp,error=error)
 
       IF (para_env%ionode.AND.(nmo > 0)) THEN
-        READ (rst_unit) nmo_read,&
-                            mos(ispin)%mo_set%homo,&
-                            mos(ispin)%mo_set%lfomo,&
-                            mos(ispin)%mo_set%nelectron
+        READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
+        allocate(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        eig_read = 0.0_dp
+        occ_read = 0.0_dp
+
         nmo = MIN(nmo,nmo_read)
         CALL cp_assert((nmo_read >= nmo),cp_warning_level,cp_assertion_failed,routineP,&
              "The number of MOs on the restart unit is smaller than the number of "//&
@@ -1029,15 +1032,30 @@ CPSourceFileRef,&
                 only_ionode=.TRUE.)
         END IF
 
-        READ (rst_unit) mos(ispin)%mo_set%eigenvalues(1:nmo),&
-                            mos(ispin)%mo_set%occupation_numbers(1:nmo)
-        IF (mos(ispin)%mo_set%homo > nmo) THEN
-          ! can not make this a warning i.e. homo must be smaller than nmo
-          ! otherwise e.g. set_mo_occupation will go out of bounds
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "Number of occupied MOs on restart unit larger than allocated MOs. "//&
+        READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
+        mos(ispin)%mo_set%eigenvalues(1:nmo) = eig_read(1:nmo)
+        mos(ispin)%mo_set%occupation_numbers(1:nmo) = occ_read(1:nmo)
+        deallocate(eig_read, occ_read, STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+        mos(ispin)%mo_set%homo = homo_read
+        mos(ispin)%mo_set%lfomo = lfomo_read
+        IF (homo_read > nmo) THEN
+          IF(nelectron_read==mos(ispin)%mo_set%nelectron) THEN
+             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                 "The number of occupied MOs on the restart unit is larger than "//&
+                 "the allocated MOs. The read MO set will be truncated and the occupation numbers recalculated!"//&
 CPSourceFileRef,&
-               only_ionode=.TRUE.)
+                 only_ionode=.TRUE.)
+             CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,error=error)
+          ELSE
+              ! can not make this a warning i.e. homo must be smaller than nmo
+              ! otherwise e.g. set_mo_occupation will go out of bounds
+              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                "Number of occupied MOs on restart unit larger than allocated MOs. "//&
+CPSourceFileRef,&
+                 only_ionode=.TRUE.)
+          END IF
         END IF
       END IF
 

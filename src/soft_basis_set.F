@@ -64,12 +64,12 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: bsname
     INTEGER :: icgf, ico, ipgf, ipgf_s, iset, iset_s, ishell, jpgf, lshell, &
-      lshell_old, lx, ly, lz, m, maxco, maxpgf, maxpgf_s, maxshell, &
-      maxshell_s, ncgf, ncgf_set, nset, nset_s, nsgf, stat
+      lshell_old, lx, ly, lz,  m, maxco, maxpgf, maxpgf_s, maxshell, &
+      maxshell_s, ncgf, nset, nset_s, nsgf, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iset_s2h
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, n
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_gpw_type_forced
     REAL(KIND=dp)                            :: eps_fit, expzet, fnorm, gcca, &
                                                 gccb, minzet, prefac, radius, &
                                                 zeta, zetb
@@ -80,8 +80,13 @@ CONTAINS
     NULLIFY(gcc,l,lmax,lmin,n,npgf,nshell,zet)
     eps_fit=gapw%eps_fit
     paw_atom = .FALSE.
+    my_gpw_type_forced = gpw_type_forced 
+    IF(gapw%force_paw) THEN
+      paw_atom = .TRUE.
+      my_gpw_type_forced = .FALSE.
+    END IF
     failure = .FALSE.
-    IF (.NOT.gpw_type_forced) THEN
+    IF (.NOT.my_gpw_type_forced) THEN
        CALL get_gto_basis_set(gto_basis_set=orb_basis,name=bsname,&
             maxpgf=maxpgf,maxshell=maxshell,nset=nset)
 

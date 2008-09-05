@@ -1858,10 +1858,17 @@ CONTAINS
                     qs_charges=qs_charges,error=error)
 
     IF (.NOT.my_skip) THEN
-       IF(qs_env%dft_control%qs_control%gapw) THEN
-          CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
-          CALL pw_copy(rho0_s_gs%pw,rho_tot_gspace%pw)
-          CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw)
+       IF(qs_env%dft_control%qs_control%gapw ) THEN
+           IF( qs_env%dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
+              CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
+              CALL pw_copy(rho0_s_gs%pw,rho_tot_gspace%pw)
+              CALL pw_axpy(rho_core%pw,rho_tot_gspace%pw)
+              CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw)
+           ELSE
+              CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
+              CALL pw_copy(rho0_s_gs%pw,rho_tot_gspace%pw)
+              CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw)
+           END IF
        ELSE
           CALL pw_copy(rho_core%pw,rho_tot_gspace%pw)
           CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw)

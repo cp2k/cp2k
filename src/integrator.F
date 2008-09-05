@@ -1263,6 +1263,10 @@ CPSourceFileRef,&
     IF(reftraj_env%info%variable_volume)THEN
        CALL parser_get_next_line(reftraj_env%info%cell_parser,1,at_end=my_end,error=error)
        CALL parse_cell_line(reftraj_env%info%cell_parser%input_line, cell_itimes, cell_time, h, vol, error)
+!dbg
+     trj_time = cell_time
+     trj_itimes  = cell_itimes
+!dbg
        CPPostcondition(trj_itimes==cell_itimes,cp_failure_level,routineP,error,failure)
        ! Check if we reached the end of the file and provide some info..
        IF (my_end) THEN

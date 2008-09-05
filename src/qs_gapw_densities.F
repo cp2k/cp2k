@@ -7,7 +7,7 @@
 MODULE qs_gapw_densities
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_control_types,                ONLY: dft_control_type, gapw_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -49,10 +49,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'prepare_gapw_den', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ikind, ispin, natom, &
+    INTEGER                                  :: handle, ikind, ispin, istat, natom, &
                                                 nkind, nspins, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: ionode, my_do_rho0, paw_atom
+    LOGICAL                                  :: failure, ionode, my_do_rho0, paw_atom
     REAL(dp)                                 :: rho0_h_tot, rho0_s_tot, &
                                                 tot_rs_int
     REAL(dp), DIMENSION(:), POINTER          :: rho1_h_tot, rho1_s_tot
@@ -62,6 +62,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(qs_charges_type), POINTER           :: qs_charges
@@ -76,6 +77,7 @@ CONTAINS
     NULLIFY(atomic_kind_set)
     NULLIFY(atom_kind)
     NULLIFY(dft_control)
+    NULLIFY(gapw_control)
     NULLIFY(para_env)
     NULLIFY(atom_list)
     NULLIFY(grid_atom)
@@ -85,6 +87,8 @@ CONTAINS
     NULLIFY(rho_atom_set)
     NULLIFY(rho0_atom_set)
     NULLIFY(logger)
+
+    failure = .FALSE.
 
     my_do_rho0 = .TRUE.
     IF (PRESENT(do_rho0)) my_do_rho0 = do_rho0
@@ -103,6 +107,8 @@ CONTAINS
                     rho_atom_set=rho_atom_set,&
                     rho0_atom_set=rho0_atom_set,error=error)
 
+    gapw_control => dft_control%qs_control%gapw_control
+
     IF (PRESENT(local_rho_set)) THEN
        rho_atom_set  => local_rho_set%rho_atom_set
        IF(my_do_rho0) THEN
@@ -116,7 +122,8 @@ CONTAINS
 
     rho0_h_tot = 0.0_dp
     rho0_s_tot = 0.0_dp
-    ALLOCATE(rho1_h_tot(1:nspins), rho1_s_tot(1:nspins))
+    ALLOCATE(rho1_h_tot(1:nspins), rho1_s_tot(1:nspins),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     rho1_h_tot = 0.0_dp
     rho1_s_tot = 0.0_dp
 
@@ -133,8 +140,8 @@ CONTAINS
 
 !     Calculate rho0_h and rho0_s on the radial gris centered on the atomic position
       IF (my_do_rho0) &
-           CALL calculate_rho0_atom(rho_atom_set,rho0_atom_set,rho0_mpole,atom_list,grid_atom,&
-                                    paw_atom,natom,ikind,harmonics,rho0_h_tot,rho0_s_tot)
+           CALL calculate_rho0_atom(gapw_control, rho_atom_set,rho0_atom_set,rho0_mpole,atom_list,grid_atom,&
+                                    paw_atom,natom,ikind,harmonics,rho0_h_tot,rho0_s_tot,error=error)
 
     ENDDO
 
@@ -151,7 +158,8 @@ CONTAINS
 
 !      Put the rho0_soft on the global grid
        CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,rho0_mpole,tot_rs_int,error)
-       IF(ABS(1.0_dp-ABS(tot_rs_int/rho0_s_tot)).GT.1.0E-3_dp) THEN
+       IF(ABS(rho0_s_tot) .GE. 1.0E-5_dp)THEN
+        IF(ABS(1.0_dp-ABS(tot_rs_int/rho0_s_tot)).GT.1.0E-3_dp) THEN
           IF (ionode) THEN
              WRITE(output_unit,'(/,72("*"))')
              WRITE(output_unit,'(T2,A,T66,1E20.8)') &
@@ -161,6 +169,7 @@ CONTAINS
                   "         bad integration"
              WRITE(output_unit,'(72("*"),/)')
           END IF
+        END IF
        END IF
        qs_charges%total_rho0_soft_rspace = tot_rs_int
        qs_charges%total_rho0_hard_lebedev = rho0_h_tot
@@ -169,7 +178,8 @@ CONTAINS
        qs_charges%total_rho0_hard_lebedev = 0.0_dp
     END IF
 
-   DEALLOCATE(rho1_h_tot,rho1_s_tot)
+   DEALLOCATE(rho1_h_tot,rho1_s_tot,STAT=istat)
+   CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
    CALL timestop(0.0_dp,handle)
 
