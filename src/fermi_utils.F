@@ -31,14 +31,16 @@ CONTAINS
 !> \param   maxocc maximum occupation of an orbital
 ! *****************************************************************************
  SUBROUTINE Fermi(f,N,kTS,e,mu,T,maxocc)
+
     REAL(KIND=dp), INTENT(out)               :: f(:), N, kTS
     REAL(KIND=dp), INTENT(IN)                :: e(:), mu, T, maxocc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Fermi', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: eps = 10.0_dp*TINY(0.0_dp)
 
     INTEGER                                  :: I, Nstate
-    REAL(KIND=dp)                            :: tmp, tmp2, tmp3
+    REAL(KIND=dp)                            :: term1, term2, tmp, tmp2, tmp3
 
    Nstate=SIZE(e)
    kTS = 0.0_dp
@@ -48,20 +50,42 @@ CONTAINS
    DO I=1,Nstate
       ! have the result of exp go to zero instead of overflowing
       IF (e(i) > mu) THEN 
-         tmp = EXP( -(e(i)-mu)/T )
-         tmp2= tmp   / (tmp + 1.0_dp)
-         tmp3= 1.0_dp / (tmp + 1.0_dp)
-         f(i)= maxocc * tmp2
-         kTS = kTS + T * maxocc * ( tmp2 * LOG(tmp2) + (tmp3)*LOG(tmp3))
+         tmp  = EXP(-(e(i)-mu)/T)
+         tmp2 = tmp/(tmp + 1.0_dp)
+         tmp3 = 1.0_dp/(tmp + 1.0_dp)
+         f(i) = maxocc*tmp2
+         IF (ABS(tmp2) < eps) THEN
+            term1 = 0.0_dp
+         ELSE
+            term1 = tmp2*LOG(tmp2)
+         END IF
+         IF (ABS(tmp3) < eps) THEN
+            term2 = 0.0_dp
+         ELSE
+            term2 = tmp3*LOG(tmp3)
+         END IF
+         kTS = kTS + T*maxocc*(term1 + term2)
       ELSE
-         tmp = EXP(  (e(i)-mu)/T )
-         tmp2= 1.0_dp / (tmp + 1.0_dp)
-         tmp3= tmp   / (tmp + 1.0_dp)
-         f(i)= maxocc * tmp2
-         kTS = kTS + T * maxocc * ( tmp2 * LOG(tmp2) + (tmp3)*LOG(tmp3))
-      ENDIF
-   ENDDO
+         tmp  = EXP((e(i)-mu)/T)
+         tmp2 = 1.0_dp/(tmp + 1.0_dp)
+         tmp3 = tmp/(tmp + 1.0_dp)
+         f(i) = maxocc*tmp2
+         IF (ABS(tmp2) < eps) THEN
+            term1 = 0.0_dp
+         ELSE
+            term1 = tmp2*LOG(tmp2)
+         END IF
+         IF (ABS(tmp3) < eps) THEN
+            term2 = 0.0_dp
+         ELSE
+            term2 = tmp3*LOG(tmp3)
+         END IF
+         kTS = kTS + T*maxocc*(term1 + term2)
+      END IF
+   END DO
+
    N = accurate_sum(f)
+
  END SUBROUTINE Fermi
 
 ! *****************************************************************************

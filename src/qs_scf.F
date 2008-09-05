@@ -1090,7 +1090,7 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
        END IF
        IF (dft_control%smear) THEN
          WRITE (UNIT=output_unit,FMT="((T3,A,T55,F25.14))")&
-          "electronic entropic energy:",energy%kTS
+          "Electronic entropic energy:",energy%kTS
        END IF
        IF (dft_control%dft_plus_u) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
