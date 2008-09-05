@@ -7,7 +7,8 @@
 MODULE qs_gapw_densities
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cp_control_types,                ONLY: dft_control_type, gapw_control_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             gapw_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -49,10 +50,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'prepare_gapw_den', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ikind, ispin, istat, natom, &
-                                                nkind, nspins, output_unit
+    INTEGER                                  :: handle, ikind, ispin, istat, &
+                                                natom, nkind, nspins, &
+                                                output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, ionode, my_do_rho0, paw_atom
+    LOGICAL                                  :: failure, ionode, my_do_rho0, &
+                                                paw_atom
     REAL(dp)                                 :: rho0_h_tot, rho0_s_tot, &
                                                 tot_rs_int
     REAL(dp), DIMENSION(:), POINTER          :: rho1_h_tot, rho1_s_tot

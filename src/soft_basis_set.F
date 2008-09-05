@@ -64,7 +64,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: bsname
     INTEGER :: icgf, ico, ipgf, ipgf_s, iset, iset_s, ishell, jpgf, lshell, &
-      lshell_old, lx, ly, lz,  m, maxco, maxpgf, maxpgf_s, maxshell, &
+      lshell_old, lx, ly, lz, m, maxco, maxpgf, maxpgf_s, maxshell, &
       maxshell_s, ncgf, nset, nset_s, nsgf, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iset_s2h
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell

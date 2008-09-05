@@ -19,8 +19,7 @@ MODULE  hartree_local_methods
                                              set_ecoul_1c
   USE input_constants,                 ONLY: tddfpt_singlet,&
                                              use_periodic
-  USE kinds,                           ONLY: dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              pi
   USE memory_utilities,                ONLY: reallocate
@@ -79,22 +78,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_coulomb_local', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ikind, &
-                                                max_iso_not0, nat, natom, &
-                                                nkind, nr
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    INTEGER                                  :: handle, natom, nkind
     LOGICAL                                  :: my_tddft
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(ecoul_1center_type), DIMENSION(:), &
       POINTER                                :: ecoul_1c
 
     CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(atomic_kind_set)
-    NULLIFY(atom_kind)
-    NULLIFY(atom_list)
     NULLIFY(ecoul_1c)
 
     my_tddft = .FALSE.
@@ -236,8 +229,8 @@ CONTAINS
       m1, m2, max_iso, max_iso_not0, max_nr, maxso, mepos, n1, n2, nat, &
       nchan_0, nkind, nr, nset, nsotot, nspins, num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
-    LOGICAL                                  :: failure, my_periodic, my_tddft, &
-                                                paw_atom
+    LOGICAL                                  :: failure, my_periodic, &
+                                                my_tddft, paw_atom
     REAL(dp)                                 :: back_ch, ec_tmp, ecoul_1_0, &
                                                 ecoul_1_h, ecoul_1_s, &
                                                 ecoul_1_z, factor, gVg_0, &

@@ -902,16 +902,17 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mos_restart_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: group, homo, homo_read, lfomo_read, nelectron_read, i, iatom, irow, iset, iset_read, ishell, &
-      ishell_read, iso, ispin, istat, lmax, lshell, my_mult, nao, nao_read, &
-      natom_read, nelectron, nmo, nmo_read, nnshell, nset, nset_max, &
-      nshell_max, nspin, nspin_read, offset_read, source
+    INTEGER :: group, homo, homo_read, i, iatom, irow, iset, iset_read, &
+      ishell, ishell_read, iso, ispin, istat, lfomo_read, lmax, lshell, &
+      my_mult, nao, nao_read, natom_read, nelectron, nelectron_read, nmo, &
+      nmo_read, nnshell, nset, nset_max, nshell_max, nspin, nspin_read, &
+      offset_read, source
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
     LOGICAL                                  :: failure, minbas, my_xas, &
                                                 use_this
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE  :: eig_read, occ_read
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -1007,7 +1008,7 @@ CPSourceFileRef,&
 
       IF (para_env%ionode.AND.(nmo > 0)) THEN
         READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
-        allocate(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
+        ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         eig_read = 0.0_dp
         occ_read = 0.0_dp
@@ -1035,7 +1036,7 @@ CPSourceFileRef,&
         READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
         mos(ispin)%mo_set%eigenvalues(1:nmo) = eig_read(1:nmo)
         mos(ispin)%mo_set%occupation_numbers(1:nmo) = occ_read(1:nmo)
-        deallocate(eig_read, occ_read, STAT=istat)
+        DEALLOCATE(eig_read, occ_read, STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
         mos(ispin)%mo_set%homo = homo_read

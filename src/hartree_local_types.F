@@ -6,8 +6,7 @@
 MODULE hartree_local_types
 
   USE f77_blas
-  USE kinds,                           ONLY: dp,&
-                                             int_size
+  USE kinds,                           ONLY: dp
   USE qs_oce_types,                    ONLY: deallocate_vtriple,&
                                              vtriple_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
@@ -95,7 +94,7 @@ MODULE hartree_local_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat, natom
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 

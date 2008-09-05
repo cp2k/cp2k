@@ -147,7 +147,7 @@ MODULE qs_rho0_methods
                                  paw_atom,natom,ikind,harmonics,&
                                  rho0_h_tot,rho0_s_tot,error)
 
-    TYPE(gapw_control_type) , POINTER       :: gapw_control
+    TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho0_atom_type), DIMENSION(:), &

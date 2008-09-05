@@ -275,7 +275,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
         CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
         IF (.NOT. failure) THEN
            CALL calculate_rho_core(qs_env%rho_core, &
-                qs_env%qs_charges%total_rho_core_rspace,qs_env,only_nopaw=.true.,error=error)
+                qs_env%qs_charges%total_rho_core_rspace,qs_env,only_nopaw=.TRUE.,error=error)
         END IF
       ELSE        
         IF (ASSOCIATED(qs_env%rho_core)) THEN

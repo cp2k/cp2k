@@ -360,7 +360,7 @@ CONTAINS
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_core
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL,INTENT(IN), OPTIONAL             :: only_nopaw
+    LOGICAL, INTENT(IN), OPTIONAL            :: only_nopaw
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
