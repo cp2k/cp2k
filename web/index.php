@@ -72,11 +72,7 @@ having CVS write permission.
 <ul>
  <li><a href="download.html">Download and Install</a> CP2K </li>
  <li><a href="input/index.html">Input reference manual</a>
-<!--
- <li> Input reference manual <a href="input/index.html">HTML</a>,
-                             <a href="cp2k_input.htm">DHTML</a> (requires Javascript), or
-                             <a href="cp2k_input_nojavascript.htm">single HTML page</a></li>
--->
+ <li><a href="manual/index.html">Input reference manual obtained from the XML output of CP2K</a></li>
  <li><a href="changelog.html">A list of recent changes to the sources</a></li>
  <li><a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/cp2k/src/?sortby=date">Browse the sources and follow development</a></li>
  <li><a href="regtest.html">Automatic regression tester</a></li>
