@@ -96,33 +96,16 @@ CO_xastpxfh_locall.inp
 #  
 CO_xastpxfh_150Ry.inp
 Ne-BP.inp
-#  
 H2O_gpw.inp
-# eps0 
-H2O_gpw.inp
-# numerical noise
-H2O_gpw.inp
-# eps0 removed 
-H2O_gpw.inp
-# constant rootpi corrected 
-CO.inp
-CO_xastpxfh.inp
-CO_xastpxfh_locall.inp
-CO_xastpxfh_150Ry.inp
 H2O_gpw.inp
 Ne-BP.inp
-# numerics SQRT(pi) -> rootpi and same for oorootpi
-H2O_gpw.inp
-# numerics SQRT(pi) -> rootpi and same for oorootpi
 CO_xastpxfh_150Ry.inp
 CO_xastpxfh_locall.inp
-#  
+CO_xastpxfh.inp
+CO.inp
+#
+O_xastpxfh_150Ry.inp
 CO_xastpxfh_locall.inp
-#  
-CO_xastpxfh_locall.inp
-#  
-CO_xastpxfh_150Ry.inp
-# increase numerical accuracy
 H2O_gpw.inp
 #  
 CO.inp

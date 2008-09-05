@@ -1,0 +1,74 @@
+&GLOBAL
+  PROJECT conf1_MOLOPT
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../BASIS_MOLOPT
+    POTENTIAL_FILE_NAME ./POTENTIAL
+    &MGRID
+      NGRIDS 1
+      CUTOFF 280
+    &END MGRID
+    &POISSON
+       PERIODIC NONE
+       POISSON_SOLVER MT
+    &END
+    &QS
+      METHOD GAPW
+    &END QS
+    &SCF
+      &PRINT
+        &RESTART
+           &EACH 
+             MD 1 
+             QS_SCF 0
+           &END
+           ADD_LAST NUMERIC
+        &END
+        &DETAILED_ENERGY
+           &EACH
+             QS_SCF  1
+           &END
+        &END
+      &END
+      SCF_GUESS atomic
+      MAX_SCF 30
+      EPS_SCF 1.0E-4
+      &OT 
+        MINIMIZER DIIS
+        N_DIIS 7
+        PRECONDITIONER FULL_ALL
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+O  0.000000    0.000000    0.117226
+H  0.000000    0.757136   -0.468906
+H  0.000000   -0.757136   -0.468906
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-BLYP-q1
+      GPW_TYPE
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-BLYP-q6
+##      GPW_TYPE
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

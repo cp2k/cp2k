@@ -1,0 +1,56 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    LSD
+    &MGRID
+      CUTOFF 200
+      REL_CUTOFF 50
+    &END MGRID
+    &QS
+      METHOD GAPW
+      ALPHA0_HARD  10.0
+      FORCE_PAW
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 100
+    &END SCF
+    &XC
+       &XC_FUNCTIONAL NONE
+       &END XC_FUNCTIONAL
+       &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+          EPS_BOX 1.0E-10
+          SCREEN_P_FORCES FALSE
+        &END
+        &MEMORY
+          MAX_MEMORY  1000
+        &END
+       &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+     H   0.000000    0.000000    0.0000
+    &END COORD
+    &KIND H
+      &BASIS
+ 1
+ 1 0 0 1 1
+       0.27311686438733073778 1.0
+      &END
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+
