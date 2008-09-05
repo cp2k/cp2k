@@ -694,6 +694,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   test rs_pw_transfer performance
 !> \author  Joost VandeVondele
+!>      9.2008 Randomise rs grid [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE rs_pw_transfer_test ( para_env, iw, globenv, rs_pw_transfer_section, error )
 
@@ -757,6 +758,9 @@ CONTAINS
     CALL rs_grid_create(rs_grid,pw_grid=grid, input_settings=input_settings,error=error)
     CALL rs_grid_print(rs_grid,iw,error=error)
     CALL rs_grid_zero(rs_grid)
+
+    ! Put random values on the grid, so summation check will pick up errors
+    CALL RANDOM_NUMBER(rs_grid % r)
 
     CALL section_vals_val_get(rs_pw_transfer_section,"N_loop",i_val=N_loop,error=error )
     CALL section_vals_val_get(rs_pw_transfer_section,"RS2PW",l_val=do_rs2pw,error=error )

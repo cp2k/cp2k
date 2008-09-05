@@ -193,6 +193,7 @@ END SUBROUTINE init_input_type
 !> \brief Determine the setup of real space grids
 !> \par History
 !>      JGH (08-Jun-2003) : nsmax <= 0 indicates fully replicated grid
+!>      Iain Bethune (05-Sep-2008) : modified cut heuristic (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !> \author JGH (18-Mar-2001)
 ! *****************************************************************************
   SUBROUTINE rs_grid_create ( rs, pw_grid, input_settings, error)
@@ -318,9 +319,10 @@ END SUBROUTINE init_input_type
              ! a heuristic optimisation to reduce the memory usage
              ! we go for the smallest local to real volume
              ! volume of the box without the wings / volume of the box with the wings
+             ! with prefactors to promote less cuts in Z dimension
              ratio = PRODUCT(REAL(rs % npts,KIND=dp) / n_slices_tmp ) /  & 
                      PRODUCT(REAL(rs % npts,KIND=dp) / n_slices_tmp  +   &
-                       MERGE((/0,0,0/),2*(/nmin,nmin,nmin/), n_slices_tmp ==(/1,1,1/)))
+                        MERGE((/0.0,0.0,0.0/),2*(/1.06*nmin,1.05*nmin,1.03*nmin/),n_slices_tmp==(/1,1,1/)))
              IF (ratio>ratio_best) THEN
                 ratio_best=ratio
                 n_slices=n_slices_tmp
@@ -714,6 +716,7 @@ END SUBROUTINE init_input_type
 !>       with the central domain of several CPUs (i.e. next nearest neighbors)
 !> \par History
 !>      12.2007 created [Matt Watkins]
+!>      9.2008 reduced amount of halo data sent [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE rs_pw_transfer_distributed(rs,pw,dir)
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -728,30 +731,20 @@ END SUBROUTINE init_input_type
                                                 j, k, my_pw_rank, my_rs_rank, &
                                                 n_shifts, nn, position, &
                                                 source, x, y, z
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: dshifts, rank_pw2rs, &
-                                                recv_disps, recv_sizes, &
-                                                send_disps, send_sizes, &
-                                                ushifts
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: dshifts, recv_disps, &
+                                                recv_sizes, send_disps, &
+                                                send_sizes, ushifts
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: bounds, recv_tasks, send_tasks
     INTEGER, DIMENSION(2)                    :: neighbours, pos
     INTEGER, DIMENSION(3) :: coords, lb_recv, lb_recv_new, lb_send, &
       lb_send_new, ub_recv, ub_recv_new, ub_send, ub_send_new
     LOGICAL                                  :: failure
+    LOGICAL, DIMENSION(3)                    :: halo_swapped
     REAL(KIND=dp)                            :: pw_sum, rs_sum
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf, send_buf
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: recv_buf_3d, send_buf_3d
     TYPE(cp_error_type)                      :: error
-
-! Both grids are distributed, we have to do some reshuffling of data
-! first map pw ranks (corresponding to the cartesian communicator) to rs ranks (and their cart. comm)
-! this could become part of the rs type
-
-    ALLOCATE(rank_pw2rs(0:rs%group_size-1), STAT=ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer",nn)
-    rank_pw2rs=0
-    rank_pw2rs(pw%pw_grid%para%rs_mpo)=rs%my_pos
-    CALL mp_sum(rank_pw2rs,rs%group)
 
     IF ( dir == rs2pw ) THEN
 
@@ -759,7 +752,13 @@ END SUBROUTINE init_input_type
        rs_sum=accurate_sum(rs%r)*ABS(det_3x3(rs%dh))
        CALL mp_sum(rs_sum,rs%group)
 
-       DO idir = 1,3
+       halo_swapped = .FALSE.
+
+       ! We don't need to send the 'edges' of the halos that have already been sent
+       ! Halos are contiguous in memory in z-direction only, so swap these first,
+       ! and send less data in the y and x directions which are more expensive
+
+       DO idir = 3,1,-1
 
           IF ( rs % perd (idir) .NE. 1) THEN
 
@@ -821,6 +820,15 @@ END SUBROUTINE init_input_type
                 ub_send = ub_send_new
                 lb_recv = lb_recv_new
                 ub_recv = ub_recv_new
+
+                DO i=1,3
+                  IF ( halo_swapped(i) ) THEN
+                    lb_send(i) = rs % lb_real(i)
+                    ub_send(i) = rs % ub_real(i)
+                    lb_recv(i) = rs % lb_real(i)
+                    ub_recv(i) = rs % ub_real(i)
+                  ENDIF
+                ENDDO
 
                 ! Allocate a scratch arrays to receive the data
                 nn = PRODUCT ( ub_send - lb_send + 1 )
@@ -886,6 +894,15 @@ END SUBROUTINE init_input_type
                 lb_recv = lb_recv_new
                 ub_recv = ub_recv_new
 
+                DO i=1,3
+                  IF ( halo_swapped(i) ) THEN
+                    lb_send(i) = rs % lb_real(i)
+                    ub_send(i) = rs % ub_real(i)
+                    lb_recv(i) = rs % lb_real(i)
+                    ub_recv(i) = rs % ub_real(i)
+                  ENDIF
+                ENDDO
+
                 nn = PRODUCT ( ub_send - lb_send + 1 )
                 ALLOCATE ( send_buf_3d ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) ), STAT=ierr )
                 IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d",nn)
@@ -918,6 +935,9 @@ END SUBROUTINE init_input_type
              IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","ushifts")
 
           END IF
+
+          halo_swapped(idir) = .TRUE.
+
        END DO
 
        ! This is the real redistribution
@@ -1391,11 +1411,9 @@ END SUBROUTINE init_input_type
              DEALLOCATE ( dshifts, STAT=ierr)
 
           END IF
+
        END DO       
     END IF
-
-    DEALLOCATE(rank_pw2rs, STAT=ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","rank_pw2rs")
 
   END SUBROUTINE rs_pw_transfer_distributed
 
