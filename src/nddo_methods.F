@@ -16,7 +16,6 @@ MODULE nddo_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_type
@@ -115,11 +114,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, ncol_global, &
-                                                nspins, output_unit, stat
+                                                nspins, output_unit
     LOGICAL                                  :: do_ewald, failure
     REAL(KIND=dp)                            :: qmmm_el
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
-                                                scaling_factor
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -219,12 +217,6 @@ CONTAINS
              CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global,error=error)
              CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
                                     mo_derivs(ispin)%matrix, ncol_global,error=error)
-             ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-             scaling_factor=2.0_dp*occupation_numbers
-             CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
-             DEALLOCATE(scaling_factor,stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDDO
        ENDIF
     END IF

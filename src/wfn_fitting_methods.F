@@ -215,7 +215,7 @@ MODULE wfn_fitting_methods
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE merge_mo_derivs(ispin, wfn_fitting_env, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
-                             mo_derivs_aux_fit, matrix_ks_aux_fit, scaling_factor, error)
+                             mo_derivs_aux_fit, matrix_ks_aux_fit, error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
@@ -223,7 +223,6 @@ MODULE wfn_fitting_methods
       POINTER                                :: mo_derivs, mo_derivs_aux_fit
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks_aux_fit
-    REAL(dp), DIMENSION(:), POINTER          :: scaling_factor
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs', &
@@ -246,8 +245,6 @@ MODULE wfn_fitting_methods
     CALL cp_fm_gemm('N','N', nao_aux_fit, nmo, nao_aux_fit,&
                     1.0_dp,wfn_fitting_env%K(ispin)%matrix,mo_coeff_aux_fit,0.0_dp,&
                     wfn_fitting_env%H(ispin)%matrix,error)
-
-    CALL cp_fm_column_scale(wfn_fitting_env%H(ispin)%matrix,scaling_factor)
 
     CALL cp_fm_to_fm(wfn_fitting_env%H(ispin)%matrix, mo_derivs_aux_fit(ispin)%matrix, error=error) 
 

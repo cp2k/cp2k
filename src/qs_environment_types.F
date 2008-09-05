@@ -254,7 +254,7 @@ MODULE qs_environment_types
 !>                       and the local parts of the xc terms
 !> \param hartree_local contains the 1, 2 and 3 centers coulomb terms
 !> \param requires_mo_derivs logical, true if dE/dC is required (e.g. OT)
-!> \param mo_derivs the actual derivatives of the total energy wrt to MO coeffs
+!> \param mo_derivs the actual derivatives of the total energy wrt to MO coeffs (divided by 2*f_i)
 !> \param neighbor_list_id the current version of the neighbor_list
 !> \param xas_env temporary information for xas calculation
 !> \param dftb_potential pair potentials for use with DFTB

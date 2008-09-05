@@ -40,9 +40,6 @@
       MAX_SCF 5
       MIXING 0.4
       ADDED_MOS  1 1
-      &OT
-        PRECONDITIONER FULL_ALL
-      &END OT
       &PRINT
         &TOTAL_DENSITIES MEDIUM
         &END

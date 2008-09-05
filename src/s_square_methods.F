@@ -79,7 +79,7 @@ CONTAINS
     INTEGER                                  :: handle, i, j, na, nalpha, nb, &
                                                 nbeta, ncol_local, nrow, &
                                                 nrow_local
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, uniform_occupation
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -102,8 +102,10 @@ CONTAINS
           ! let's not do this
           CPPrecondition(PRESENT(mo_derivs),cp_failure_level,routineP,error,failure)
     CASE (2)
-          CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff=c_alpha,homo=nalpha)
-          CALL get_mo_set(mo_set=mos(2)%mo_set,mo_coeff=c_beta,homo=nbeta)
+          CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff=c_alpha,homo=nalpha,uniform_occupation=uniform_occupation)
+          CPPrecondition(uniform_occupation,cp_warning_level,routineP,error,failure)
+          CALL get_mo_set(mo_set=mos(2)%mo_set,mo_coeff=c_beta,homo=nbeta,uniform_occupation=uniform_occupation)
+          CPPrecondition(uniform_occupation,cp_warning_level,routineP,error,failure)
           CALL cp_fm_get_info(c_alpha,ncol_global=na,error=error)
           CALL cp_fm_get_info(c_beta,ncol_global=nb,error=error)
           s_square_ideal = REAL((nalpha - nbeta)*(nalpha - nbeta + 2),KIND=dp)/4.0_dp
@@ -132,13 +134,18 @@ CONTAINS
           CALL mp_sum(tmp,para_env%group)
           s_square = s_square_ideal + nb - tmp
           IF (PRESENT(mo_derivs)) THEN
+            ! this gets really wrong for fractional occupations
             CPPrecondition(SIZE(mo_derivs,1)==2,cp_failure_level,routineP,error,failure)
-            CALL cp_fm_gemm('N','T',nrow,na,nb,-2.0_dp*strength,matrix_sc_b,matrix_overlap,1.0_dp,mo_derivs(1)%matrix,error=error)
+            CALL get_mo_set(mo_set=mos(1)%mo_set,uniform_occupation=uniform_occupation)
+            CPPrecondition(uniform_occupation,cp_failure_level,routineP,error,failure)
+            CALL get_mo_set(mo_set=mos(2)%mo_set,uniform_occupation=uniform_occupation)
+            CPPrecondition(uniform_occupation,cp_failure_level,routineP,error,failure)
+            CALL cp_fm_gemm('N','T',nrow,na,nb,-1.0_dp*strength,matrix_sc_b,matrix_overlap,1.0_dp,mo_derivs(1)%matrix,error=error)
             CALL cp_fm_release(matrix_sc_b,error=error)
             CALL cp_fm_get_info(c_alpha, matrix_struct=fm_struct_tmp,error=error)
             CALL cp_fm_create(matrix_sc_a, fm_struct_tmp,name="matrix_sc_alpha",error=error)
             CALL cp_sm_fm_multiply(matrix_s(1)%matrix,c_alpha,matrix_sc_a,na,error=error)
-            CALL cp_fm_gemm('N','N',nrow,nb,na,-2.0_dp*strength,matrix_sc_a,matrix_overlap,1.0_dp,mo_derivs(2)%matrix,error=error)
+            CALL cp_fm_gemm('N','N',nrow,nb,na,-1.0_dp*strength,matrix_sc_a,matrix_overlap,1.0_dp,mo_derivs(2)%matrix,error=error)
             CALL cp_fm_release(matrix_sc_a,error=error)
             CALL cp_fm_release(matrix_overlap,error=error)
           ELSE

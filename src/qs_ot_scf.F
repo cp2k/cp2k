@@ -12,9 +12,12 @@
 MODULE qs_ot_scf
   USE bibliography,                    ONLY: Weber2008,&
                                              cite_reference
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_gemm
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
                                              cp_fm_p_type,&
+                                             cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
@@ -335,7 +338,7 @@ CONTAINS
   !
   ! performs the actual minimisation, needs only limited info
   ! updated for restricted calculations
-  ! matrix_dedc is the derivative of the energy with respect to the orbitals
+  ! matrix_dedc is the derivative of the energy with respect to the orbitals (except for a factor 2*fi)
   ! a null pointer for matrix_s implies that matrix_s is the unit matrix
   !
   !
@@ -359,10 +362,35 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_mini', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, k, n, nspin
+    INTEGER                                  :: handle, ispin, k, n, nspin, &
+                                                stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
+                                                scaling_factor
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_dedc_scaled
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
     CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+
+    ! this is kind of a hack so far (costly memory wise), we locally recreate the scaled matrix_hc, and
+    ! use it in the following, eventually, as occupations numbers get more integrated, it should become possible
+    ! to remove this.
+    ALLOCATE(matrix_dedc_scaled(SIZE(matrix_dedc)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ispin=1,SIZE(matrix_dedc)
+       CALL cp_fm_create(matrix_dedc_scaled(ispin)%matrix,matrix_dedc(ispin)%matrix%matrix_struct,error=error)
+       CALL cp_fm_to_fm(matrix_dedc(ispin)%matrix,matrix_dedc_scaled(ispin)%matrix,error=error)
+       CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,occupation_numbers=occupation_numbers)
+       ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       scaling_factor=2.0_dp*occupation_numbers
+       CALL cp_fm_column_scale(matrix_dedc_scaled(ispin)%matrix,scaling_factor)
+       DEALLOCATE(scaling_factor,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
 
     ! we use the size of the ot_env to indicate the spin.
     ! this needs correction in case of restricted calculations
@@ -373,7 +401,7 @@ CONTAINS
           DO ispin=1,nspin
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
              CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
-             CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,mo_coeff,matrix_dedc(ispin)%matrix, &
+             CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,mo_coeff,matrix_dedc_scaled(ispin)%matrix, &
                   0.0_dp,qs_ot_env(ispin)%rot_mat_chcf,error=error)
           ENDDO
        ENDIF
@@ -381,7 +409,7 @@ CONTAINS
 
     ! notice we use (1) for driving all output and the minimization in case of LSD
     qs_ot_env(1)%etotal=energy
-    CALL ot_mini(qs_ot_env,matrix_dedc,aux_coeff_set, error=error)
+    CALL ot_mini(qs_ot_env,matrix_dedc_scaled,aux_coeff_set, error=error)
     delta           =qs_ot_env(1)%delta
     energy_only     =qs_ot_env(1)%energy_only
 
@@ -415,6 +443,12 @@ CONTAINS
     ! generate the SCP aux coeffs using the new x
     IF (qs_ot_env(1)%settings%scp) CALL qs_ot_get_scp_coeffs ( qs_ot_env ( 1 ), aux_coeff_set, error )
     ! **** SCP
+
+    DO ispin=1,SIZE(matrix_dedc_scaled)
+       CALL cp_fm_release(matrix_dedc_scaled(ispin)%matrix,error=error)
+    ENDDO
+    DEALLOCATE(matrix_dedc_scaled,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE ot_scf_mini

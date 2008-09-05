@@ -388,7 +388,8 @@ CONTAINS
     CPPrecondition((SIZE(mo_set%occupation_numbers) >= nmo),cp_failure_level,routineP,error,failure)
     mo_set%occupation_numbers(:) = 0.0_dp
     mo_set%occupation_numbers(1:nomo) =  mo_set%maxocc
-    mo_set%uniform_occupation = .TRUE.
+    ! zeros don't count as uniform
+    mo_set%uniform_occupation = ALL(mo_set%occupation_numbers==mo_set%maxocc)
 
     mo_set%homo = nomo
     mo_set%lfomo = nomo + 1

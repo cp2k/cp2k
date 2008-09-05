@@ -14,7 +14,6 @@ MODULE qs_dftb_matrices
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_type
@@ -629,8 +628,7 @@ CONTAINS
                                                 output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, occupation_numbers, &
-                                                scaling_factor
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, occupation_numbers
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -747,10 +745,6 @@ CONTAINS
              CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global,error=error)
              CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
                                         mo_derivs(ispin)%matrix, ncol_global,error=error)
-             ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
-             scaling_factor=2.0_dp*occupation_numbers
-             CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
-             DEALLOCATE(scaling_factor)
           ENDDO
        ENDIF
 

@@ -1443,6 +1443,7 @@ END SUBROUTINE qs_scf_print_summary
                      qs_ot_env = scf_env%qs_ot_env,error=error)
              CASE(ot_precond_full_all,ot_precond_full_single_inverse)
                 ! this will rotate the MOs to be eigen states, which is not compatible with rotation
+                ! e.g. mo_derivs here do not yet include potentially different occupations numbers
                 do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
                 CPPrecondition(.NOT.do_rotation,cp_failure_level,routineP,error,failure)
                 DO ispin=1,dft_control%nspins
@@ -1522,6 +1523,7 @@ END SUBROUTINE qs_scf_print_summary
              CASE(ot_precond_full_all,ot_precond_full_single_inverse)
                 CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure)
                 ! this will rotate the MOs to be eigen states, which is not compatible with rotation
+                ! e.g. mo_derivs here do not yet include potentially different occupations numbers
                 do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
                 CPPrecondition(.NOT.do_rotation,cp_failure_level,routineP,error,failure)
                 DO ispin=1,dft_control%nspins

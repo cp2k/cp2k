@@ -306,7 +306,7 @@ CONTAINS
       irep, ispin, k, k2, n, n_rep_hf, nspins, output_unit, stat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
       do_ep, do_hfx, explicit_potential, failure, gapw, gapw_xc, ionode, &
-      my_diis_step, my_kg_gpw, use_virial
+      my_diis_step, my_kg_gpw, uniform_occupation, use_virial
     REAL(dp) :: a, adiabatic_lambda, adiabatic_omega, &
       adiabatic_rescale_factor, scale_dDFA, scale_ddW0, scale_dEx1, &
       scale_dEx2, total_energy_xc
@@ -315,8 +315,7 @@ CONTAINS
                                                 f_mix, mulliken_order_p, &
                                                 s2_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: g2, occupation_numbers, &
-                                                scaling_factor
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: g2, occupation_numbers
     TYPE(becke_constraint_type), POINTER     :: becke
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -1126,10 +1125,6 @@ CONTAINS
              CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
                                           mo_derivs(ispin)%matrix, k,error=error)
 
-             ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
-             scaling_factor=2.0_dp*occupation_numbers
-             CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
-
              IF( dft_control%do_wfn_fitting) THEN
                CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mos,error=error)
                CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
@@ -1137,9 +1132,8 @@ CONTAINS
                CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
                CALL get_qs_env(qs_env,mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
                CALL merge_mo_derivs(ispin, qs_env%wfn_fitting_env, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
-                                    mo_derivs_aux_fit, qs_env%matrix_ks_aux_fit, scaling_factor, error)
+                                    mo_derivs_aux_fit, qs_env%matrix_ks_aux_fit, error)
              END IF
-             DEALLOCATE(scaling_factor)
 
              IF (dft_control%restricted) THEN
                  ! only the first mo_set are actual variables, but we still need both
@@ -1150,16 +1144,16 @@ CONTAINS
                  CALL cp_fm_set_all(hc_tmp,0.0_dp,error=error)
                  CALL cp_fm_get_info(hc_tmp,ncol_global=k2,error=error)
 
-                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff, &
-                                 occupation_numbers=occupation_numbers )
+                 ! uniform_occupation is needed for this case, otherwise we can no reconstruct things in ot, since we 
+                 ! irreversibly sum 
+                 CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
+                 CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
+                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff, uniform_occupation=uniform_occupation)
+                 CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
+
                  CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
                  CALL cp_sm_fm_multiply(ks_matrix(2)%matrix,mo_coeff,&
                                         hc_tmp, k,error=error)
-                 ALLOCATE(scaling_factor(k2))
-                 scaling_factor=0.0_dp
-                 scaling_factor(1:k)=2.0_dp*occupation_numbers(1:k)
-                 CALL cp_fm_column_scale(hc_tmp,scaling_factor)
-                 DEALLOCATE(scaling_factor)
 
                  ! sum the corresponding columns (relies on the final columns of hc_tmp being zero)
                  CALL cp_fm_scale_and_add(1.0_dp, mo_derivs(1)%matrix, 1.0_dp, hc_tmp,error=error)
@@ -1449,9 +1443,8 @@ CONTAINS
     INTEGER                                  :: handle, i, Iorb, k_alpha, &
                                                 k_beta, Norb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: sic_orbital_list
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, uniform_occupation
     REAL(KIND=dp)                            :: ener, exc, total_rho
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: scaling_factor
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs, mo_derivs_local
@@ -1488,6 +1481,11 @@ CONTAINS
 
     ! we have two spins
     CPPrecondition(SIZE(mo_array,1)==2,cp_failure_level,routineP,error,failure)
+    ! we want uniform occupations
+    CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
+    CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
+    CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff, uniform_occupation=uniform_occupation)
+    CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
 
     k_alpha=0 ; k_beta=0
     SELECT CASE(dft_control%sic_list_id)
@@ -1666,10 +1664,6 @@ CONTAINS
 
            ! add this to the mo_derivs
            CALL cp_sm_fm_multiply(orb_h,matrix_v,matrix_hv, 1, error=error)
-           ALLOCATE(scaling_factor(1))
-           scaling_factor= 2.0_dp 
-           CALL cp_fm_column_scale(matrix_hv,scaling_factor)
-           DEALLOCATE(scaling_factor)
            ! silly trick, copy to an array of the right size and add to mo_derivs
            CALL cp_fm_set_all(mo_derivs_local(sic_orbital_list(3,iorb))%matrix,0.0_dp,error=error)
            CALL cp_fm_to_fm(matrix_hv,mo_derivs_local(sic_orbital_list(3,iorb))%matrix,1,1,sic_orbital_list(2,iorb))
@@ -2805,8 +2799,10 @@ END SUBROUTINE qs_vxc_create
 
     INTEGER                                  :: handle, ncol_block, &
                                                 ncol_global, nrow_block, &
-                                                nrow_global
+                                                nrow_global, stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
+                                                scaling_factor
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: gradient, h_block, h_block_t, &
                                                 weighted_vectors
@@ -2830,11 +2826,20 @@ END SUBROUTINE qs_vxc_create
     CALL cp_fm_create(h_block,fm_struct_tmp, name="h block",error=error)
     IF (do_symm) CALL cp_fm_create(h_block_t,fm_struct_tmp, name="h block t",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+  
+    CALL get_mo_set(mo_set=mo_set, occupation_numbers=occupation_numbers )
+    ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    scaling_factor=2.0_dp*occupation_numbers
+    CALL cp_fm_to_fm(mo_deriv,weighted_vectors,error)
+    CALL cp_fm_column_scale(weighted_vectors,scaling_factor)
+    DEALLOCATE(scaling_factor,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! the convention seems to require the half here, the factor of two is presumably taken care of
     ! internally in qs_core_hamiltonian
     CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,0.5_dp, &
-                    mo_set%mo_coeff,mo_deriv,0.0_dp,h_block,error=error)
+                    mo_set%mo_coeff,weighted_vectors,0.0_dp,h_block,error=error)
 
     IF (do_symm) THEN
        ! at the minimum things are anyway symmetric, but numerically it might not be the case
@@ -2857,7 +2862,16 @@ END SUBROUTINE qs_vxc_create
        CALL cp_fm_create(gradient,mo_set%mo_coeff%matrix_struct,"gradient",error=error)
        CALL cp_sm_fm_multiply(s_matrix,weighted_vectors,&
                                           gradient, ncol_global,error=error)
-       WRITE(6,*) " maxabs difference ", MAXVAL(ABS(mo_deriv%local_data-2.0_dp*gradient%local_data))
+
+       ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       scaling_factor=2.0_dp*occupation_numbers
+       CALL cp_fm_to_fm(mo_deriv,weighted_vectors,error)
+       CALL cp_fm_column_scale(weighted_vectors,scaling_factor)
+       DEALLOCATE(scaling_factor,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+       WRITE(6,*) " maxabs difference ", MAXVAL(ABS(weighted_vectors%local_data-2.0_dp*gradient%local_data))
        CALL cp_fm_release(gradient,error=error)
     ENDIF
 
