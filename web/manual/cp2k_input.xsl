@@ -98,6 +98,33 @@
    </p>
    <hr/>
   </body>
+  <xsl:result-document href="CP2K_INPUT.html" method="html" indent="yes" format="html">
+   <h3><a href="index.html">CP2K input file</a></h3>
+   <ul class="none">
+    <li>
+     <em>
+      Input file of CP2K. This section cannot be repeated and can be optional.
+     </em>
+    </li>
+   </ul>
+   <ul class="none">
+    <li>
+     Section path:
+     <big class="tt">
+      <a href="CP2K_INPUT.html">CP2K_INPUT</a>
+     </big>
+    </li>
+   </ul>
+   <h3>Subsections</h3>
+   <ul class="disc">
+    <xsl:for-each select="SECTION">
+     <xsl:sort select="NAME"/>
+     <li>
+      <a href="{concat('CP2K_INPUT/',string(NAME),'.html')}"><xsl:value-of select="NAME"/></a>
+     </li>
+    </xsl:for-each>
+   </ul>
+  </xsl:result-document>
  </html>
 </xsl:template>
 
@@ -158,7 +185,7 @@
    <xsl:variable name="local_path" select="concat($path,'/',string(NAME))"/>
    <xsl:variable name="section_filename" select="concat($local_path,'.html')"/>
    <xsl:result-document href="{$section_filename}" method="html" indent="yes" format="html">
-     <h3><a href="javascript:history.back()">Section &amp;<xsl:value-of select="NAME"/></a></h3>
+    <h3><a href="{$root}index.html">Section &amp;<xsl:value-of select="NAME"/></a></h3>
     <xsl:if test="string-length(DESCRIPTION) > 0">
      <ul class="none">
       <li>
@@ -267,7 +294,7 @@
     </ul>
     <hr/>
     <p>
-      <a href="javascript:history.back()"><img src="{$root}l_arrow.gif"/></a>
+     <a href="javascript:history.back()"><img src="{$root}l_arrow.gif"/></a>
      <a href="#top"><img src="{$root}u_arrow.gif"/></a>
     </p>
     <p>
