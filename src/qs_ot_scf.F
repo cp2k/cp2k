@@ -16,6 +16,7 @@ MODULE qs_ot_scf
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_diag,&
                                              cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
@@ -367,7 +368,8 @@ CONTAINS
                                                 stat
     LOGICAL                                  :: failure
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: occupation_numbers, &
+      DIMENSION(:)                           :: expectation_values, &
+                                                occupation_numbers, &
                                                 scaling_factor
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dedc_scaled
@@ -383,11 +385,21 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(scaling_factor(nspin),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    IF (qs_ot_env(1)%settings%do_ener) THEN
+      ALLOCATE(expectation_values(nspin),stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+
     DO ispin=1,nspin
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,occupation_numbers=occupation_numbers(ispin)%array)
        ALLOCATE(scaling_factor(ispin)%array(SIZE(occupation_numbers(ispin)%array)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        scaling_factor(ispin)%array=2.0_dp*occupation_numbers(ispin)%array
+       IF (qs_ot_env(1)%settings%do_ener) THEN
+         ALLOCATE(expectation_values(ispin)%array(SIZE(occupation_numbers(ispin)%array)),stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
     ENDDO
 
 
@@ -405,6 +417,10 @@ CONTAINS
              CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
              CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,mo_coeff,matrix_dedc(ispin)%matrix, &
                   0.0_dp,qs_ot_env(ispin)%rot_mat_chcf,error=error)
+             ! here we have c^T H c , lets get the diagonal values, we need them for the ener derivative
+             IF (qs_ot_env(1)%settings%do_ener) THEN
+                CALL cp_fm_get_diag(qs_ot_env(ispin)%rot_mat_chcf,expectation_values(ispin)%array,error)
+             ENDIF
              CALL cp_fm_column_scale(qs_ot_env(ispin)%rot_mat_chcf,scaling_factor(ispin)%array)
           ENDDO
        ENDIF
@@ -421,7 +437,7 @@ CONTAINS
        CALL cp_fm_column_scale(matrix_dedc_scaled(ispin)%matrix,scaling_factor(ispin)%array)
     ENDDO
 
-    ! notice we use (1) for driving all output and the minimization in case of LSD
+    ! notice we use qs_ot_env(1) for driving all output and the minimization in case of LSD
     qs_ot_env(1)%etotal=energy
     CALL ot_mini(qs_ot_env,matrix_dedc_scaled,aux_coeff_set, error=error)
     delta           =qs_ot_env(1)%delta
@@ -465,6 +481,14 @@ CONTAINS
     ENDDO
     DEALLOCATE(scaling_factor,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (qs_ot_env(1)%settings%do_ener) THEN
+       DO ispin=1,SIZE(expectation_values)
+         DEALLOCATE(expectation_values(ispin)%array,stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       DEALLOCATE(expectation_values,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
     DEALLOCATE(occupation_numbers,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ispin=1,SIZE(matrix_dedc_scaled)
