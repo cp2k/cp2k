@@ -366,11 +366,12 @@ CONTAINS
     INTEGER                                  :: handle, ispin, k, n, nspin, &
                                                 stat
     LOGICAL                                  :: failure
+    TYPE(cp_1d_r_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: occupation_numbers, &
+                                                scaling_factor
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dedc_scaled
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_1d_r_p_type), DIMENSION(:), ALLOCATABLE :: occupation_numbers, &
-                                                       scaling_factor
 
     CALL timeset(routineN,handle)
 
