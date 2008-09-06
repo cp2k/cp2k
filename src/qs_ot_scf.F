@@ -12,6 +12,7 @@
 MODULE qs_ot_scf
   USE bibliography,                    ONLY: Weber2008,&
                                              cite_reference
+  USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -365,15 +366,48 @@ CONTAINS
     INTEGER                                  :: handle, ispin, k, n, nspin, &
                                                 stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
-                                                scaling_factor
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dedc_scaled
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_1d_r_p_type), DIMENSION(:), ALLOCATABLE :: occupation_numbers, &
+                                                       scaling_factor
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
+
+    nspin=SIZE(mo_array)
+
+    ALLOCATE(occupation_numbers(nspin),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(scaling_factor(nspin),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ispin=1,nspin
+       CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,occupation_numbers=occupation_numbers(ispin)%array)
+       ALLOCATE(scaling_factor(ispin)%array(SIZE(occupation_numbers(ispin)%array)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       scaling_factor(ispin)%array=2.0_dp*occupation_numbers(ispin)%array
+    ENDDO
+
+
+
+    ! optimizing orbital energies somehow implies non-equivalent orbitals
+    IF (qs_ot_env(1)%settings%do_ener) THEN
+       CPPrecondition(qs_ot_env(1)%settings%do_rotation,cp_failure_level,routineP,error,failure)
+    ENDIF
+
+    ! get a rotational force
+    IF ( .NOT. energy_only) THEN
+       IF (qs_ot_env(1)%settings%do_rotation) THEN
+          DO ispin=1,SIZE(qs_ot_env)
+             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
+             CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
+             CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,mo_coeff,matrix_dedc(ispin)%matrix, &
+                  0.0_dp,qs_ot_env(ispin)%rot_mat_chcf,error=error)
+             CALL cp_fm_column_scale(qs_ot_env(ispin)%rot_mat_chcf,scaling_factor(ispin)%array)
+          ENDDO
+       ENDIF
+    ENDIF
 
     ! this is kind of a hack so far (costly memory wise), we locally recreate the scaled matrix_hc, and
     ! use it in the following, eventually, as occupations numbers get more integrated, it should become possible
@@ -383,29 +417,8 @@ CONTAINS
     DO ispin=1,SIZE(matrix_dedc)
        CALL cp_fm_create(matrix_dedc_scaled(ispin)%matrix,matrix_dedc(ispin)%matrix%matrix_struct,error=error)
        CALL cp_fm_to_fm(matrix_dedc(ispin)%matrix,matrix_dedc_scaled(ispin)%matrix,error=error)
-       CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,occupation_numbers=occupation_numbers)
-       ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       scaling_factor=2.0_dp*occupation_numbers
-       CALL cp_fm_column_scale(matrix_dedc_scaled(ispin)%matrix,scaling_factor)
-       DEALLOCATE(scaling_factor,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL cp_fm_column_scale(matrix_dedc_scaled(ispin)%matrix,scaling_factor(ispin)%array)
     ENDDO
-
-    ! we use the size of the ot_env to indicate the spin.
-    ! this needs correction in case of restricted calculations
-    nspin=SIZE(qs_ot_env)
-
-    IF ( .NOT. energy_only) THEN
-       IF (qs_ot_env(1)%settings%do_rotation) THEN
-          DO ispin=1,nspin
-             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
-             CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
-             CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,mo_coeff,matrix_dedc_scaled(ispin)%matrix, &
-                  0.0_dp,qs_ot_env(ispin)%rot_mat_chcf,error=error)
-          ENDDO
-       ENDIF
-    ENDIF
 
     ! notice we use (1) for driving all output and the minimization in case of LSD
     qs_ot_env(1)%etotal=energy
@@ -414,7 +427,7 @@ CONTAINS
     energy_only     =qs_ot_env(1)%energy_only
 
     ! generate the orbitals using the new matrix_x
-    DO ispin=1,nspin
+    DO ispin=1,SIZE(qs_ot_env)
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
        CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
        SELECT CASE(qs_ot_env(1)%settings%ot_algorithm)
@@ -444,11 +457,22 @@ CONTAINS
     IF (qs_ot_env(1)%settings%scp) CALL qs_ot_get_scp_coeffs ( qs_ot_env ( 1 ), aux_coeff_set, error )
     ! **** SCP
 
+    ! cleanup
+    DO ispin=1,SIZE(scaling_factor)
+      DEALLOCATE(scaling_factor(ispin)%array,stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(scaling_factor,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(occupation_numbers,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ispin=1,SIZE(matrix_dedc_scaled)
        CALL cp_fm_release(matrix_dedc_scaled(ispin)%matrix,error=error)
     ENDDO
     DEALLOCATE(matrix_dedc_scaled,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE ot_scf_mini
