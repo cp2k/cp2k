@@ -330,6 +330,9 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
     INTEGER, INTENT(OUT), OPTIONAL           :: status
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'fft3d_s', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=lp), DIMENSION(1, 1, 1), &
       TARGET                                 :: zdum
     COMPLEX(KIND=lp), DIMENSION(:, :, :), &
@@ -343,7 +346,7 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft3d_s","I","Gflops",handle)
+  CALL timeset(routineN,"I","Gflops",handle)
 
   IF ( PRESENT ( scale ) ) THEN
     norm = scale
@@ -460,6 +463,9 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
     INTEGER, INTENT(OUT), OPTIONAL           :: status
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'fft3d_ps', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: pbuf, qbuf, rbuf, sbuf
     COMPLEX(KIND=lp), DIMENSION(:, :, :), &
@@ -477,7 +483,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft3d_ps","I","Gflops",handle)
+  CALL timeset(routineN,"I","Gflops",handle)
 
   IF ( PRESENT ( debug ) ) THEN
     test = debug
@@ -997,7 +1003,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 ! distribution is not covered.
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft3d_pb","I","Gflops",handle)
+  CALL timeset(routineN,"I","Gflops",handle)
 #if defined(__FFTSGL)
   CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif
@@ -1455,6 +1461,9 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb, fft_scratch, err
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'x_to_yz', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rr
     COMPLEX(KIND=sp), DIMENSION(:, :), &
@@ -1466,7 +1475,7 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb, fft_scratch, err
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("x_to_yz","I","Mcopy",handle)
+  CALL timeset(routineN,"I","Mcopy",handle)
 
   np = SIZE ( p2p )
   scount => fft_scratch%scount
@@ -1551,6 +1560,9 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb, fft_scratch, err
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'yz_to_x', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rr
     COMPLEX(KIND=sp), DIMENSION(:, :), &
@@ -1562,7 +1574,7 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb, fft_scratch, err
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("yz_to_x","I","Mcopy",handle)
+  CALL timeset(routineN,"I","Mcopy",handle)
 
   np = SIZE ( p2p )
   mpr = p2p ( my_pos )
@@ -1650,6 +1662,9 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'yz_to_xz', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rq, rs
     COMPLEX(KIND=sp), DIMENSION(:, :), &
@@ -1665,7 +1680,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("yz_to_xz","I","Mcopy",handle)
+  CALL timeset(routineN,"I","Mcopy",handle)
 
   np = SIZE ( p2p )
 
@@ -1815,6 +1830,9 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'xz_to_yz', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rq, rs
     COMPLEX(KIND=sp), DIMENSION(:, :), &
@@ -1830,7 +1848,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("xz_to_yz","I","Mcopy",handle)
+  CALL timeset(routineN,"I","Mcopy",handle)
 
   np = SIZE ( p2p )
 
@@ -1984,6 +2002,9 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_1', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ipl, ir, is, ixy, &
@@ -1996,7 +2017,7 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("cube_transpose_1","I","",handle)
+  CALL timeset(routineN,"I","",handle)
 
   rdim ( 1 ) = .FALSE.
   rdim ( 2 ) = .TRUE.
@@ -2068,6 +2089,9 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_2', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ipl, ir, ixy, iz, &
@@ -2080,7 +2104,7 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("cube_transpose_2","I","",handle)
+  CALL timeset(routineN,"I","",handle)
 
   rdim ( 1 ) = .FALSE.
   rdim ( 2 ) = .TRUE.
@@ -2152,6 +2176,9 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_3', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ipl, ir, is, ixz, &
@@ -2164,7 +2191,7 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("cube_transpose_3","I","",handle)
+  CALL timeset(routineN,"I","",handle)
 
   rdim ( 1 ) = .TRUE. 
   rdim ( 2 ) = .FALSE.
@@ -2237,6 +2264,9 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_4', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ipl, ir, iy, izx, &
@@ -2249,7 +2279,7 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("cube_transpose_4","I","",handle)
+  CALL timeset(routineN,"I","",handle)
 
   rdim ( 1 ) = .TRUE.
   rdim ( 2 ) = .FALSE.
@@ -2322,6 +2352,9 @@ SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_5', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ir, is, ixz, iy, &
@@ -2331,7 +2364,7 @@ SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout, fft_scratch, error 
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("cube_transpose_5","I","",handle)
+  CALL timeset(routineN,"I","",handle)
 
   CALL mp_environ ( np, dim, pos, group )
   CALL mp_cart_rank ( group, pos, mip )
@@ -2388,6 +2421,9 @@ SUBROUTINE cube_transpose_6 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cube_transpose_6', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ir, iy, izx, mip, &
@@ -2397,7 +2433,7 @@ SUBROUTINE cube_transpose_6 ( cin, group, boin, boout, sout, fft_scratch, error 
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("cube_transpose_6","I","",handle)
+  CALL timeset(routineN,"I","",handle)
 
   CALL mp_environ ( np, dim, pos, group )
   CALL mp_cart_rank ( group, pos, mip )

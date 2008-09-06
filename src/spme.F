@@ -126,7 +126,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, rden)
-    CALL timeset ( 'SPME', 'I', ' ', handle )
+    CALL timeset ( routineN, handle )
     CALL cite_reference(Essmann1995)
 
     !-------------- INITIALISATION ---------------------

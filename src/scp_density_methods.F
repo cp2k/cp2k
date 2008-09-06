@@ -93,7 +93,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_rhoscp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: t1
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -113,7 +113,7 @@ CONTAINS
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(scp_rspw_type), POINTER             :: rspw
 
-    CALL timeset ( 'update_rhoscp','I',' ',handle )
+    CALL timeset ( routineN,handle )
     NULLIFY(atomic_kind_set,gridlevel_info,scp_env)
     NULLIFY(pw_pools,cube_info)
     NULLIFY(cube_info, rs_pools, pw_env, rspw, local_particles)
@@ -192,7 +192,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(scp_rho_type), POINTER              :: rho_scp
 
-    CALL timeset('collocate_scp_density','I',' ',handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(aux_basis_set,aux_coeff_set,&
            local_coeffs,rs_rho, mgrid_rspace, &

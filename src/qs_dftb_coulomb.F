@@ -408,7 +408,7 @@ CONTAINS
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
 
-    CALL timeset ( 'dftb_spme', 'I', ' ', handle )
+    CALL timeset ( routineN, 'I', ' ', handle )
 
     failure = .FALSE.
 

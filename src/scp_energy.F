@@ -85,7 +85,7 @@ CONTAINS
     TYPE(scp_force_type), POINTER            :: scp_force( : )
     TYPE(scp_rho_type), POINTER              :: rho_scp
 
-    CALL timeset ( 'scp_qs_energies','I',' ',handle )
+    CALL timeset (routineN,handle )
 
     failure = .FALSE.
     NULLIFY(atomic_kind_set, aux_coeff_set, scp_env, rho_scp, scp_energy)

@@ -54,7 +54,7 @@ SUBROUTINE velocity_verlet ( md_env, error )
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
-  CALL timeset ( 'velocity_verlet', 'I', ' ', handle )
+  CALL timeset (routineN, handle )
 
   ! get force environment
   CALL get_md_env ( md_env, force_env=force_env, simpar=simpar, error=error)

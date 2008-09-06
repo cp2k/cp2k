@@ -80,10 +80,13 @@ SUBROUTINE pw_zero ( pw )
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_zero', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, i, ns
     REAL(KIND=dp)                            :: zr
 
-  CALL timeset ( 'pw_zero', 'I', 'Mzero', handle )
+  CALL timeset ( routineN, 'I', 'Mzero', handle )
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_zero")
   IF ( pw % in_use == REALDATA1D ) THEN
      ns = SIZE(pw%cr)
@@ -122,10 +125,13 @@ SUBROUTINE pw_copy ( pw1, pw2 )
     TYPE(pw_type), INTENT(IN)                :: pw1
     TYPE(pw_type), INTENT(INOUT)             :: pw2
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_copy', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, i, j, ng, ng1, ng2, ns
     REAL(KIND=dp)                            :: zc
 
-  CALL timeset ( 'pw_copy', 'I', 'Mcopy', handle )
+  CALL timeset ( routineN, 'I', 'Mcopy', handle )
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_copy")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_copy")
   IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) THEN
@@ -283,10 +289,13 @@ SUBROUTINE pw_scale( pw, a )
     TYPE(pw_type), INTENT(INOUT)             :: pw
     REAL(KIND=dp), INTENT(IN)                :: a
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_scale', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, ns
     REAL(KIND=dp)                            :: flop
 
-    CALL timeset ( 'pw_scale', 'I', 'Mflops', handle )
+    CALL timeset ( routineN, 'I', 'Mflops', handle )
     CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_scale")
 
     SELECT CASE ( pw % in_use )
@@ -325,13 +334,16 @@ SUBROUTINE pw_derive ( pw, n )
     TYPE(pw_type), INTENT(INOUT)             :: pw
     INTEGER, DIMENSION(3), INTENT(IN)        :: n
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_derive', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=dp)                         :: im
     INTEGER                                  :: cnt, handle, i, m
     REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'pw_derive', 'I', 'Mflops', handle )
+  CALL timeset ( routineN, 'I', 'Mflops', handle )
 
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_derive")
   IF ( ANY ( n < 0 ) ) CALL stop_program ( "pw_derive", "n < 0" )
@@ -421,12 +433,15 @@ SUBROUTINE pw_dr2 ( pw, pwdr2, i, j )
     TYPE(pw_type), INTENT(INOUT)             :: pwdr2
     INTEGER, INTENT(IN)                      :: i, j
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_dr2', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: cnt, handle, ig
     REAL(KIND=dp)                            :: flop, gg, o3
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'pw_dr2', 'I', 'Mflops', handle )
+  CALL timeset ( routineN, 'I', 'Mflops', handle )
 
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_dr2")
 
@@ -482,10 +497,12 @@ SUBROUTINE pw_dr2_gg ( pw, pwdr2_gg, i, j )
 
     INTEGER                                  :: cnt, handle, ig
     REAL(KIND=dp)                            :: flop, gg, o3
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_dr2_gg', &
+      routineP = moduleN//':'//routineN
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'pw_dr2_gg', 'I', 'Mflops', handle )
+  CALL timeset ( routineN, 'I', 'Mflops', handle )
 
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_dr2_gg")
 
@@ -540,12 +557,15 @@ SUBROUTINE pw_smoothing ( pw, ecut, sigma )
     TYPE(pw_type), INTENT(INOUT)             :: pw
     REAL(KIND=dp), INTENT(IN)                :: ecut, sigma
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_smoothing', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: cnt, handle, ig
     REAL(KIND=dp)                            :: arg, f, flop
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'pw_smooting', 'I', 'Mflops', handle )
+  CALL timeset ( routineN, 'I', 'Mflops', handle )
 
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_dr2")
 
@@ -646,12 +666,15 @@ SUBROUTINE pw_axpy ( pw1, pw2, alpha )
     TYPE(pw_type), INTENT(INOUT)             :: pw2
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_axpy', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, i, j, ng, ng1, ng2
     REAL(KIND=dp)                            :: flop, my_alpha
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'pw_axpy', 'I', 'Mflops', handle )
+  CALL timeset ( routineN, 'I', 'Mflops', handle )
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_axpy")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_axpy")
 
@@ -848,6 +871,9 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
       INTENT(IN)                             :: c
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_gather_s', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: gpt, handle, l, m, n, ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat
@@ -855,7 +881,7 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'pw_gather', 'I', 'Mcopy', handle )
+  CALL timeset ( routineN, 'I', 'Mcopy', handle )
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_gather_s")
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
@@ -912,6 +938,9 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
       INTENT(IN)                             :: c
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_gather_p', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: gpt, handle, l, m, mn, n, &
                                                 ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
@@ -920,7 +949,7 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'pw_gather', 'I', 'Mcopy', handle )
+  CALL timeset ( routineN, 'I', 'Mcopy', handle )
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_gather_p")
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
@@ -989,6 +1018,9 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
       INTENT(INOUT)                          :: c
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_scatter_s', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: gpt, handle, l, m, n, ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat
@@ -996,7 +1028,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'pw_scatter', 'I', 'Mcopy', handle )
+  CALL timeset ( routineN, 'I', 'Mcopy', handle )
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_scatter_s")
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
@@ -1091,6 +1123,9 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
       INTENT(INOUT)                          :: c
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_scatter_p', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: gpt, handle, l, m, mn, n, &
                                                 ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
@@ -1099,7 +1134,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'pw_scatter', 'I', 'Mcopy', handle )
+  CALL timeset ( routineN, 'I', 'Mcopy', handle )
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_gather_p")
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
@@ -1283,7 +1318,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,"I"," ",handle2)
-  CALL timeset("fft_wrap_pw1pw2_"//TRIM(ADJUSTL(cp_to_string( &
+  CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
                CEILING (pw1%pw_grid%cutoff/10)*10))),"I"," ",handle)
 
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"fft_wrap_pw1pw2")
@@ -1939,12 +1974,15 @@ SUBROUTINE pw_structure_factor ( sf, r )
     TYPE(pw_type), INTENT(INOUT)             :: sf
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: r
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_structure_factor', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: cnt, handle, ig
     REAL(KIND=dp)                            :: arg, flop
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'pw_structure_factor', 'I', 'Mflops', handle )
+  CALL timeset ( routineN, 'I', 'Mflops', handle )
 
   CPPreconditionNoErr(sf%ref_count>0,cp_failure_level,"sf")
 

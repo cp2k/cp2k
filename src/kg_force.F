@@ -184,7 +184,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(section_vals_type), POINTER         :: xc_section
 
-  CALL timeset ( 'kgpol_calculate_forces','I',' ',handle )
+  CALL timeset ( routineN,handle )
   failure=.FALSE.
   para_env=>kg_env%para_env
   ionode=para_env%ionode
@@ -486,7 +486,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
 !  CHARACTER(LEN=8) :: force_type
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'kg_calculate_forces','I',' ',handle )
+  CALL timeset (routineN,handle )
   failure=.FALSE.
   para_env=>kg_env%para_env
   ionode=para_env%ionode

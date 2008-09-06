@@ -160,7 +160,7 @@ MODULE k290
     REAL(KIND=dp), ALLOCATABLE               :: rlist(:,:), rx(:,:), &
                                                 tvec(:,:), wvkl(:,:)
 
-      CALL timeset ( 'kp_sym_gen','I',' ',handle )
+      CALL timeset (routineN,'I',' ',handle )
 
       CPPrecondition(.NOT.ASSOCIATED(csym),cp_failure_level,routineP,error,failure)
       ALLOCATE(csym,stat=isos)

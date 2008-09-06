@@ -129,7 +129,7 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
-    CALL timeset ( 'PME', 'I', ' ', handle )
+    CALL timeset ( routineN, handle )
     NULLIFY( poisson_env, rden, drpot)
     failure = .FALSE.
     CALL cite_reference(Darden1993)

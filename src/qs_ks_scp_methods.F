@@ -263,7 +263,7 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_scp_update', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: energy_only, failure
     REAL(KIND=dp)                            :: t1
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -276,7 +276,7 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
     TYPE(scp_rho_type), POINTER              :: rho_scp
     TYPE(scp_rspw_type), POINTER             :: rspw
 
-  CALL timeset ( 'qs_ks_scp_update','I',' ',handle )
+  CALL timeset ( routineN,handle )
 
   failure = .FALSE.
   energy_only = .FALSE.

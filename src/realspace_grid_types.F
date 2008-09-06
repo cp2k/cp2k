@@ -535,7 +535,7 @@ END SUBROUTINE init_input_type
     CALL timeset(routineN,'I',' ',handle2)
     IF (dir.EQ.rs2pw) dirname="RS2PW"
     IF (dir.EQ.pw2rs) dirname="PW2RS"
-    CALL timeset("rs_pw_transfer_"//TRIM(dirname)//"_"// TRIM(ADJUSTL(&
+    CALL timeset(routineN//"_"//TRIM(dirname)//"_"// TRIM(ADJUSTL(&
               cp_to_string(CEILING(pw%pw_grid%cutoff/10)*10))),'I',' ',handle)
 
     IF ( rs % grid_id /= pw % pw_grid % id_nr ) &
