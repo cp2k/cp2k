@@ -11,6 +11,8 @@
 MODULE fermi_utils
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -37,10 +39,10 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Fermi', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: eps = 10.0_dp*TINY(0.0_dp)
 
     INTEGER                                  :: I, Nstate
-    REAL(KIND=dp)                            :: term1, term2, tmp, tmp2, tmp3
+    REAL(KIND=dp)                            :: arg, term1, term2, tmp, tmp2, &
+                                                tmp3, tmp4, tmplog
 
    Nstate=SIZE(e)
    kTS = 0.0_dp
@@ -49,37 +51,30 @@ CONTAINS
 
    DO I=1,Nstate
       ! have the result of exp go to zero instead of overflowing
-      IF (e(i) > mu) THEN 
-         tmp  = EXP(-(e(i)-mu)/T)
-         tmp2 = tmp/(tmp + 1.0_dp)
-         tmp3 = 1.0_dp/(tmp + 1.0_dp)
+      IF (e(i) > mu) THEN
+         arg  = -(e(i)-mu)/T
+         ! tmp is smaller than 1
+         tmp  = EXP(arg)
+         tmp4 = tmp + 1.0_dp
+         tmp2 = tmp/tmp4
+         tmp3 = 1.0_dp/tmp4
          f(i) = maxocc*tmp2
-         IF (ABS(tmp2) < eps) THEN
-            term1 = 0.0_dp
-         ELSE
-            term1 = tmp2*LOG(tmp2)
-         END IF
-         IF (ABS(tmp3) < eps) THEN
-            term2 = 0.0_dp
-         ELSE
-            term2 = tmp3*LOG(tmp3)
-         END IF
+         ! log(1+eps), might need to be written more accurately
+         tmplog = -LOG(tmp4)
+         term1= tmp2 * ( arg + tmplog )
+         term2= tmp3 * tmplog
          kTS = kTS + T*maxocc*(term1 + term2)
       ELSE
-         tmp  = EXP((e(i)-mu)/T)
-         tmp2 = 1.0_dp/(tmp + 1.0_dp)
-         tmp3 = tmp/(tmp + 1.0_dp)
+         arg  = (e(i)-mu)/T 
+         ! tmp is smaller than 1
+         tmp  = EXP(arg)
+         tmp4 = tmp + 1.0_dp
+         tmp2 = 1.0_dp/tmp4
+         tmp3 = tmp/tmp4
          f(i) = maxocc*tmp2
-         IF (ABS(tmp2) < eps) THEN
-            term1 = 0.0_dp
-         ELSE
-            term1 = tmp2*LOG(tmp2)
-         END IF
-         IF (ABS(tmp3) < eps) THEN
-            term2 = 0.0_dp
-         ELSE
-            term2 = tmp3*LOG(tmp3)
-         END IF
+         tmplog = -LOG(tmp4)
+         term1= tmp2 * tmplog
+         term2= tmp3 * (arg + tmplog )
          kTS = kTS + T*maxocc*(term1 + term2)
       END IF
    END DO
@@ -116,27 +111,27 @@ CONTAINS
 
 ! bisection search to find N, it is assumed that mu lies in the interval of the evals
 
-   mu_min=MINVAL(e)
-   CALL Fermi(f,N_min,kTS,e,mu_min,T, maxocc)
-   mu_max=MAXVAL(e)
-   CALL Fermi(f,N_max,kTS,e,mu_max,T, maxocc)
+    mu_min=MINVAL(e)
+    CALL Fermi(f,N_min,kTS,e,mu_min,T, maxocc)
+    mu_max=MAXVAL(e)
+    CALL Fermi(f,N_max,kTS,e,mu_max,T, maxocc)
 
-   iter = 2
-   DO WHILE( mu_max-mu_min > EPSILON(mu) )
-      mu_now = (mu_max+mu_min)/2.0_dp
-      CALL Fermi(f,N_now,kTS,e,mu_now,T, maxocc)
-      iter = iter + 1
-      IF (N_now<=N) THEN
-         mu_min = mu_now
-         N_min  = N_now
-      ELSE
-         mu_max = mu_now
-         N_max  = N_now
-      ENDIF
-   ENDDO
+    iter = 2
+    DO WHILE( mu_max-mu_min > EPSILON(mu) )
+       mu_now = (mu_max+mu_min)/2.0_dp
+       CALL Fermi(f,N_now,kTS,e,mu_now,T, maxocc)
+       iter = iter + 1
+       IF (N_now<=N) THEN
+          mu_min = mu_now
+          N_min  = N_now
+       ELSE
+          mu_max = mu_now
+          N_max  = N_now
+       ENDIF
+    ENDDO
 
-   mu=(mu_max+mu_min)/2.0_dp
-   CALL Fermi(f,N_now,kTS,e,mu,T, maxocc)
+    mu=(mu_max+mu_min)/2.0_dp
+    CALL Fermi(f,N_now,kTS,e,mu,T, maxocc)
 
  END SUBROUTINE FermiFixed
 
@@ -164,34 +159,38 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'FermiFixedDeriv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: I, Nstate
+    INTEGER                                  :: handle, I, Nstate
     REAL(KIND=dp)                            :: h, mux
     REAL(KIND=dp), ALLOCATABLE               :: ex(:), fx(:)
 
-   Nstate=SIZE(e) 
-   ALLOCATE(ex(Nstate),fx(Nstate))
+    CALL timeset(routineN,handle)
 
-   DO I=1,Nstate
-      ! NR 5.7.8
-      ! the problem here is that each f_i 'seems to have' a different lenght scale
-      ! and it would be to expensive to compute each single df_i/de_i using a finite difference
-      h=(EPSILON(h)**(1.0_dp/3.0_dp))*l
-      ! get an exact machine representable number close to this h
-      h=2.0_dp**EXPONENT(h)
-      ! this should write three times the same number
-      ! write(6,*) h,(e(i)+h)-e(i),(e(i)-h)-e(i)
-      ! and the symmetric finite difference 
-      ex=e
-      ex(i)=e(i)+h 
-      CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc)
-      dfde(:,I)=fx
-      ex(i)=e(i)-h
-      CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc)
-      dfde(:,I)=(dfde(:,I)-fx)/(2.0_dp*h)
-   ENDDO
-   DEALLOCATE(ex,fx)
+    Nstate=SIZE(e) 
+    ALLOCATE(ex(Nstate),fx(Nstate))
 
-   CALL FermiFixed(f,mu,kTS,e,N,T,maxocc)
+    DO I=1,Nstate
+       ! NR 5.7.8
+       ! the problem here is that each f_i 'seems to have' a different lenght scale
+       ! and it would be to expensive to compute each single df_i/de_i using a finite difference
+       h=(EPSILON(h)**(1.0_dp/3.0_dp))*l
+       ! get an exact machine representable number close to this h
+       h=2.0_dp**EXPONENT(h)
+       ! this should write three times the same number
+       ! write(6,*) h,(e(i)+h)-e(i),(e(i)-h)-e(i)
+       ! and the symmetric finite difference 
+       ex=e
+       ex(i)=e(i)+h 
+       CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc)
+       dfde(:,I)=fx
+       ex(i)=e(i)-h
+       CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc)
+       dfde(:,I)=(dfde(:,I)-fx)/(2.0_dp*h)
+    ENDDO
+    DEALLOCATE(ex,fx)
+
+    CALL FermiFixed(f,mu,kTS,e,N,T,maxocc)
+
+    CALL timestop(handle)
    
  END SUBROUTINE FermiFixedDeriv
 
