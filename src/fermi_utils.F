@@ -145,6 +145,7 @@ CONTAINS
 !> \author  Joost VandeVondele
 !> \date    09.2008
 !> \param   dfde derivatives of the occupation numbers with respect to the eigenvalues
+!>               the ith column is the derivative of f wrt to e_i
 !> \param   f occupations
 !> \param   N total number of electrons (output)
 !> \param   e eigenvalues

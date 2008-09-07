@@ -41,7 +41,8 @@ MODULE qs_mo_types
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE fermi_utils,                     ONLY: FermiFixed
+  USE fermi_utils,                     ONLY: FermiFixed,&
+                                             FermiFixedDeriv
   USE input_constants,                 ONLY: smear_energy_window,&
                                              smear_fermi_dirac,&
                                              smear_list
@@ -361,20 +362,26 @@ CONTAINS
 !> \version 1.1
 !> \param   mo_set MO dataset structure
 !> \param   smear optional smearing information
+!> \param   eval_deriv on entry the derivative of the KS energy wrt to the occupation number
+!>                     on exit  the derivative of the full free energy (i.e. KS and entropy) wrt to the eigenvalue 
 ! *****************************************************************************
-  SUBROUTINE set_mo_occupation(mo_set,smear,error)
+  SUBROUTINE set_mo_occupation(mo_set,smear,eval_deriv,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(smear_type), INTENT(IN), OPTIONAL   :: smear
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: eval_deriv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: imo, nmo, nomo
+    INTEGER                                  :: imo, nmo, nomo, stat
     LOGICAL                                  :: equal_size, failure, is_large
-    REAL(KIND=dp)                            :: e1, e2, edelta, edist, mu, &
-                                                nelec
+    REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
+                                                lengthscale, mu, nelec
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: dfde
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
@@ -394,9 +401,20 @@ CONTAINS
     mo_set%homo = nomo
     mo_set%lfomo = nomo + 1
 
-    ! Quick return, if no smearing information is supplied
+    ! check consistency of the array lengths
+    IF (PRESENT(eval_deriv)) THEN
+        equal_size=SIZE(mo_set%occupation_numbers,1)==SIZE(eval_deriv,1)
+        CPPrecondition(equal_size,cp_failure_level,routineP,error,failure)
+    ENDIF
 
-    IF (.NOT.PRESENT(smear)) RETURN
+    ! Quick return, if no smearing information is supplied (TO BE FIXED, smear should become non-optional...)
+    IF (.NOT.PRESENT(smear)) THEN
+      ! there is no dependence of the energy on the eigenvalues
+      IF (PRESENT(eval_deriv)) THEN
+         eval_deriv = 0.0_dp
+      ENDIF
+      RETURN
+    ENDIF
 
     ! Perform smearing
 
@@ -407,8 +425,28 @@ CONTAINS
       CASE (smear_fermi_dirac)
 
         Nelec = mo_set%nelectron
-        CALL FermiFixed(mo_set%occupation_numbers,mu,mo_set%kTS,mo_set%eigenvalues,Nelec, &
-                        smear%electronic_temperature,mo_set%maxocc)
+        IF (.NOT. PRESENT(eval_deriv)) THEN
+          CALL FermiFixed(mo_set%occupation_numbers,mu,mo_set%kTS,mo_set%eigenvalues,Nelec, &
+                          smear%electronic_temperature,mo_set%maxocc)
+        ELSE
+          ! could be a relatively large matrix, but one could get rid of it by never storing it
+          ! we only need dE/df * df/de, one could equally parallelize over entries, this could become expensive
+          ALLOCATE(dfde(nmo,nmo),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ! lengthscale could become a parameter, but this is pretty good
+          lengthscale=10*smear%electronic_temperature
+
+          CALL FermiFixedDeriv(dfde,mo_set%occupation_numbers,mu,mo_set%kTS,mo_set%eigenvalues,Nelec, &
+                               smear%electronic_temperature,mo_set%maxocc,lengthscale)
+
+          ! deriv of E_{KS}-kT*S wrt to f_i
+          eval_deriv=eval_deriv - mo_set%eigenvalues + mu
+          ! correspondingly the deriv of  E_{KS}-kT*S wrt to e_i
+          eval_deriv=MATMUL(TRANSPOSE(dfde),eval_deriv)
+
+          DEALLOCATE(dfde,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ENDIF
 
         ! Find the lowest fractional occupied MO (LFOMO)
         DO imo=1,nmo
@@ -443,6 +481,8 @@ CONTAINS
                        error,failure)
 
       CASE (smear_energy_window)
+        ! not implemented
+        CPPrecondition(.NOT.PRESENT(eval_deriv),cp_failure_level,routineP,error,failure)
 
         ! Define the energy window for the eigenvalues
 
@@ -495,8 +535,12 @@ CONTAINS
 
       CASE(smear_list)
         equal_size=SIZE(mo_set%occupation_numbers,1)==SIZE(smear%list,1)
-        CPPostcondition(equal_size,cp_failure_level,routineP,error,failure)
+        CPPrecondition(equal_size,cp_failure_level,routineP,error,failure)
         mo_set%occupation_numbers=smear%list
+        ! there is no dependence of the energy on the eigenvalues
+        IF (PRESENT(eval_deriv)) THEN
+           eval_deriv = 0.0_dp
+        ENDIF
         ! most general case
         mo_set%lfomo=1
         mo_set%homo =nmo

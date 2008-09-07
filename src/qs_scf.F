@@ -949,7 +949,8 @@ CONTAINS
       orthogonality_metric=>matrix_s(1)%matrix
     END IF
 
-    CALL ot_scf_mini(mos,mo_derivs,orthogonality_metric, &
+
+    CALL ot_scf_mini(mos,mo_derivs,smear,orthogonality_metric, &
                      total_energy, aux_coeff_set,    &
                      energy_only,scf_env%iter_delta, & 
                      scf_env%qs_ot_env,error=error)

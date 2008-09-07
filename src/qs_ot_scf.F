@@ -44,12 +44,14 @@ MODULE qs_ot_scf
   USE kinds,                           ONLY: dp
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             mo_set_restrict
+                                             mo_set_restrict,&
+                                             set_mo_occupation
   USE qs_ot,                           ONLY: &
        qs_ot_allocate, qs_ot_destroy, qs_ot_get_orbitals, &
        qs_ot_get_orbitals_ref, qs_ot_get_p, qs_ot_get_scp_coeffs, qs_ot_init, &
        qs_ot_settings_init, qs_ot_type
   USE qs_ot_minimizer,                 ONLY: ot_mini
+  USE scf_control_types,               ONLY: smear_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
                                              aux_coeff_type,&
                                              get_aux_coeff
@@ -345,13 +347,14 @@ CONTAINS
   !
   !
 ! *****************************************************************************
-  SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
+  SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,smear,matrix_s,energy, &
        aux_coeff_set, energy_only, delta, qs_ot_env,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dedc
+    TYPE(smear_type)                         :: smear
     TYPE(real_matrix_type), POINTER          :: matrix_s
     REAL(KIND=dp)                            :: energy
     TYPE(aux_coeff_set_type), OPTIONAL, &
@@ -402,8 +405,6 @@ CONTAINS
        ENDIF
     ENDDO
 
-
-
     ! optimizing orbital energies somehow implies non-equivalent orbitals
     IF (qs_ot_env(1)%settings%do_ener) THEN
        CPPrecondition(qs_ot_env(1)%settings%do_rotation,cp_failure_level,routineP,error,failure)
@@ -423,6 +424,17 @@ CONTAINS
              ENDIF
              CALL cp_fm_column_scale(qs_ot_env(ispin)%rot_mat_chcf,scaling_factor(ispin)%array)
           ENDDO
+
+          ! here we construct the derivative of the free energy with respect to the evals
+          ! (note that expectation_values is modified here)
+          ! the mo occupations should in principle remain unaltered
+          IF (qs_ot_env(1)%settings%do_ener) THEN
+            DO ispin=1,SIZE(mo_array)
+               CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
+                       smear=smear, eval_deriv=expectation_values(ispin)%array, error=error)
+               qs_ot_env(ispin)%ener_gx=expectation_values(ispin)%array
+            ENDDO
+          ENDIF
        ENDIF
     ENDIF
 
@@ -473,6 +485,17 @@ CONTAINS
     ! generate the SCP aux coeffs using the new x
     IF (qs_ot_env(1)%settings%scp) CALL qs_ot_get_scp_coeffs ( qs_ot_env ( 1 ), aux_coeff_set, error )
     ! **** SCP
+
+    !
+    ! obtain the new set of OT eigenvalues and set the occupations accordingly
+    !
+    IF (qs_ot_env(1)%settings%do_ener) THEN
+      DO ispin=1,SIZE(mo_array)
+         mo_array(ispin)%mo_set%eigenvalues=qs_ot_env(ispin)%ener_x
+         CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
+                 smear=smear, error=error)
+      ENDDO
+    ENDIF
 
     ! cleanup
     DO ispin=1,SIZE(scaling_factor)
