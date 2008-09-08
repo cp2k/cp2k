@@ -2154,6 +2154,7 @@ END SUBROUTINE qs_scf_print_summary
                 CALL qs_env_reorthogonalize_vectors(qs_env, &
                      v_matrix=mo_coeff, n_col=nmo,&
                      error=error)
+                CALL set_mo_occupation(mo_set=qs_env%mos(ispin)%mo_set, smear=qs_env%scf_control%smear, error=error)
              END DO
           END IF
        END IF
