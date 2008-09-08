@@ -1285,6 +1285,8 @@ END SUBROUTINE init_input_type
 
        ! now pass wings around
 
+       halo_swapped = .FALSE.
+
        DO idir = 1,3
 
           IF ( rs % perd (idir) /= 1) THEN
@@ -1334,6 +1336,15 @@ END SUBROUTINE init_input_type
                    ub_recv( idir ) = lb_recv( idir ) - 1
                 ENDIF
 
+                DO i=1,3
+                  IF ( .NOT. ( halo_swapped(i) .OR. i .EQ. idir ) ) THEN
+                    lb_send(i) = rs % lb_real(i)
+                    ub_send(i) = rs % ub_real(i)
+                    lb_recv(i) = rs % lb_real(i)
+                    ub_recv(i) = rs % ub_real(i)
+                  ENDIF
+                ENDDO
+
                 nn = PRODUCT ( ub_send - lb_send + 1 )
                 ALLOCATE ( send_buf_3d ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) ), STAT=ierr )
                 IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d",nn)
@@ -1382,6 +1393,16 @@ END SUBROUTINE init_input_type
                    ub_recv( idir ) = lb_recv( idir ) - 1
                 ENDIF
 
+                DO i=1,3
+                  IF ( .NOT. ( halo_swapped(i) .OR. i .EQ. idir ) ) THEN
+                    lb_send(i) = rs % lb_real(i)
+                    ub_send(i) = rs % ub_real(i)
+                    lb_recv(i) = rs % lb_real(i)
+                    ub_recv(i) = rs % ub_real(i)
+                  ENDIF
+                ENDDO
+
+
                 nn = PRODUCT ( ub_send - lb_send + 1 )
                 ALLOCATE ( send_buf_3d ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) ), STAT=ierr )
                 IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d",nn)
@@ -1391,7 +1412,7 @@ END SUBROUTINE init_input_type
 
                 send_buf_3d = rs % r ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) )
 
-                   CALL mp_sendrecv ( send_buf_3d, dest, recv_buf_3d, source, rs % group )
+                CALL mp_sendrecv ( send_buf_3d, dest, recv_buf_3d, source, rs % group )
 
                 ! only some procs may need later shifts
                 IF(ub_recv(idir).GE.lb_recv(idir))THEN
@@ -1411,6 +1432,8 @@ END SUBROUTINE init_input_type
              DEALLOCATE ( dshifts, STAT=ierr)
 
           END IF
+
+          halo_swapped (idir) = .TRUE.
 
        END DO       
     END IF
