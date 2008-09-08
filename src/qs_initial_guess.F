@@ -602,8 +602,19 @@ CPSourceFileRef,&
                 END DO
              END IF
           END IF
-          
+
+          ! if we have many added MOS, the atomic guess as we have it now seriously breaks down (more than usual that is)
+          ! i.e. a number of states are being projected on the null space of the density matrix, which causes failure on reortho
+          ! as temporary fix (to be removed when we have a real atomic guess), we just shift the diagonal a tiny bit.
+          ! a better initial guess for a finite temperature would take the atomic orbital energies into account, and would do some finite
+          ! temperature approach. This hack can be removed as soon as we have real atomic wavefunctions and energies here.
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,nmo=nmo)
+          IF (COUNT(pdiag.NE.0.0_dp)<nmo .AND. scf_control%use_ot) THEN
+             pdiag=pdiag+0.01_dp
+          ENDIF
+
           CALL set_matrix_diagonal(p_rmpv(ispin)%matrix,pdiag)
+           
           
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
