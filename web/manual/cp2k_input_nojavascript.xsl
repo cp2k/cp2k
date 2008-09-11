@@ -31,6 +31,15 @@
    <p>
     <a href="references.html">List of references</a> cited in the CP2K input manual.
    </p>
+   <h2>Search this manual</h2>
+   <p>
+    <form method="get" action="http://www.google.com/search">
+     <input type="text" name="q" maxlength="255"/>
+     <input type="submit" value="Google Search"/>
+     <input type="hidden" name="domains" value="http://cp2k.berlios.de/manual/"/>
+     <input type="radio" style="visibility:hidden" name="sitesearch" value="http://cp2k.berlios.de/manual/" checked="checked"/>
+    </form>
+   </p>
    <h2>Internal input preprocessor</h2>
    <p>
     Before the input is parsed, the input is run through a simple internal preprocessor.
@@ -74,10 +83,18 @@
     index and the detailed description is feasible.
    <h2>Index of all input sections</h2>
    <h4>Last update: <xsl:value-of select="COMPILE_DATE"/></h4>
-   <xsl:call-template name="describe_sections">
-    <xsl:with-param name="path" select="'CP2K_INPUT'"/>
-    <xsl:with-param name="root" select="'../'"/>
-   </xsl:call-template>
+   <p>
+    <a href="index_javascript.html">Collapsible section tree</a> (needs javascript, longer loading time, ignore browser warnings, just continue)
+   </p>
+   <ul class="disc">
+    <li>
+     <a href="CP2K_INPUT.html">CP2K_INPUT</a>
+    </li>
+    <xsl:call-template name="describe_sections">
+     <xsl:with-param name="path" select="'CP2K_INPUT'"/>
+     <xsl:with-param name="root" select="'../'"/>
+    </xsl:call-template>
+   </ul>
    <hr/>
    <p>
     <a href="javascript:history.back()"><img src="l_arrow.gif"/></a>
