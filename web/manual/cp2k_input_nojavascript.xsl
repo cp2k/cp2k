@@ -342,9 +342,9 @@
          List of valid keys:
         </p>
         <ul class="none">
-         <li>
-          <xsl:for-each select="DATA_TYPE/ENUMERATION/ITEM">
-           <xsl:sort select="NAME"/>
+         <xsl:for-each select="DATA_TYPE/ENUMERATION/ITEM">
+          <xsl:sort select="NAME"/>
+          <li>
            <dl>
             <dt>
              <big class="uctt">
@@ -359,8 +359,8 @@
              </dd>
             </xsl:if>
            </dl>
-          </xsl:for-each>
-         </li>
+          </li>
+         </xsl:for-each>
         </ul>
        </xsl:if>
       </dd>
