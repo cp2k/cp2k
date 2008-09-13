@@ -377,7 +377,7 @@ CONTAINS
       kneighbor, nblock_kkind, nkind, nneighbor, nneighbor_old
     INTEGER, DIMENSION(3)                    :: cell_c
     INTEGER, DIMENSION(:), POINTER           :: index_atom
-    LOGICAL                                  :: add_node, paw_atom
+    LOGICAL                                  :: add_node, paw_atom, failure
     REAL(KIND=dp)                            :: dac2, dbc2, maxab
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rac2_tmp, rbc2_tmp
@@ -393,6 +393,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
+
+    failure=.FALSE.
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -433,14 +435,15 @@ CONTAINS
        ! Allocate temporary arrays
        IF(nneighbor > 0) THEN
          ALLOCATE(rac_tmp(3,nneighbor),STAT=istat)
+         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE(rac2_tmp(nneighbor),STAT=istat)
+         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE(rbc_tmp(3,nneighbor),STAT=istat)
+         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE(rbc2_tmp(nneighbor),STAT=istat)
+         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE(index_atom(nneighbor),STAT=istat)
-         IF (istat /= 0 ) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                             "reduced_3c_list: rac,rac2,rbc,rbc2,index_atom")
-         END IF
+         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
 
        knodeloop: DO kneighbor=1,nneighbor
@@ -511,20 +514,15 @@ CONTAINS
        reduced_3c_list(kkind)%nnode = nblock_kkind
        IF(nblock_kkind .GT. 0) THEN
          ALLOCATE(reduced_3c_list(kkind)%rac(3,nblock_kkind),STAT=istat)
+         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE(reduced_3c_list(kkind)%rac2(nblock_kkind),STAT=istat)
+         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE(reduced_3c_list(kkind)%rbc(3,nblock_kkind),STAT=istat)
+         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE(reduced_3c_list(kkind)%rbc2(nblock_kkind),STAT=istat)
-         IF (istat /= 0 ) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                             "reduced_3c_list: rac,rac2,rbc,rbc2",&
-                              8*nblock_kkind*dp_size)
-         END IF
+         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE(reduced_3c_list(kkind)%index_atom(nblock_kkind),STAT=istat)
-         IF (istat /= 0 ) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                             "reduced_3c_list: index_atom",&
-                              nblock_kkind*int_size)
-         END IF
+         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
          DO iblock = 1,nblock_kkind
            reduced_3c_list(kkind)%rac(1:3,iblock)=rac_tmp(1:3,iblock)
            reduced_3c_list(kkind)%rac2(iblock)=rac2_tmp(iblock)
@@ -536,10 +534,7 @@ CONTAINS
 
        IF(nneighbor > 0) THEN
          DEALLOCATE(index_atom, rac_tmp, rac2_tmp, rbc_tmp, rbc2_tmp,STAT=istat)
-         IF (istat /= 0 ) THEN
-              CALL stop_memory(routineN,moduleN,__LINE__,&
-                             "reduced_3c_list: rac,rac2,rbc,rbc2,index_atom")
-         END IF
+         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
     ENDDO  ! kkind
 
