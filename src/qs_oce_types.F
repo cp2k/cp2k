@@ -12,7 +12,6 @@ MODULE qs_oce_types
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE kinds,                           ONLY: dp,&
-                                             dp_size,&
                                              int_size
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indco
@@ -377,7 +376,7 @@ CONTAINS
       kneighbor, nblock_kkind, nkind, nneighbor, nneighbor_old
     INTEGER, DIMENSION(3)                    :: cell_c
     INTEGER, DIMENSION(:), POINTER           :: index_atom
-    LOGICAL                                  :: add_node, paw_atom, failure
+    LOGICAL                                  :: add_node, failure, paw_atom
     REAL(KIND=dp)                            :: dac2, dbc2, maxab
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rac2_tmp, rbc2_tmp
