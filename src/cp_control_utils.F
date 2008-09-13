@@ -35,7 +35,6 @@ MODULE cp_control_utils
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE semi_empirical_int_arrays,       ONLY: init_se_intd_array
   USE termination,                     ONLY: stop_program
   USE xas_control,                     ONLY: read_xas_control
   USE xc_derivatives,                  ONLY: xc_functional_get_info,&
@@ -581,7 +580,6 @@ CPSourceFileRef,&
 
     ! Semi-empirical code
     IF (qs_control%semi_empirical) THEN
-       CALL init_se_intd_array(error)
        CALL section_vals_val_get(se_section,"ANALYTICAL_GRADIENTS",&
             l_val=qs_control%se_control%analytical_gradients,error=error)
        CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",&

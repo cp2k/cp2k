@@ -40,7 +40,6 @@ MODULE fist_environment
   USE ewald_pw_types,                  ONLY: ewald_pw_create,&
                                              ewald_pw_release,&
                                              ewald_pw_type
-  USE ewalds,                          ONLY: ewald_self
   USE f77_blas
   USE fist_energy_types,               ONLY: allocate_fist_energy,&
                                              fist_energy_type
@@ -329,13 +328,8 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
     CALL cp_subsys_set(subsys, multipoles=multipoles, error=error)
 
     CALL ewald_env_get(ewald_env, do_multipoles=do_multipoles, error=error)
-    IF (.NOT.do_multipoles) THEN
-       ! Initialize self-interaction and neutralizing background
-       CALL ewald_self ( ewald_env, atomic_kind_set, local_particles, &
-            thermo % e_self, thermo % e_neut ,error=error)
-    END IF
 
-    ! set the fist_env
+    ! Set the fist_env
     CALL set_fist_env ( fist_env = fist_env, subsys = subsys, error = error )
     CALL set_fist_env ( fist_env=fist_env,&
                         cell=cell, cell_ref=cell_ref, &

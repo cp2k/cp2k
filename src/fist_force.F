@@ -31,7 +31,8 @@ MODULE fist_force
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_type
   USE ewalds,                          ONLY: ewald_evaluate,&
-                                             ewald_print
+                                             ewald_print,&
+                                             ewald_self
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE f77_blas
   USE fist_energy_types,               ONLY: fist_energy_type
@@ -333,6 +334,12 @@ CONTAINS
                message="Multipoles and Core-Shell model not implemented.",&
                error=error, error_level=cp_failure_level)
        END IF
+       ! If not multipole: Compute self-interaction and neutralizing background
+       ! for multipoles is handled separately..
+       IF (.NOT.do_multipoles) THEN
+          CALL ewald_self ( ewald_env, cell, atomic_kind_set, local_particles, &
+               thermo % e_self, thermo % e_neut ,error=error)
+       END IF
        ! Compute g-space part of the ewald sum
        SELECT CASE ( ewald_type )
        CASE ( do_ewald_ewald )
@@ -402,7 +409,7 @@ CONTAINS
                   use_virial=use_virial, error=error)
           END IF
        END IF
-       CALL ewald_print (iw2, cell, pot_nonbond, vg_coulomb, thermo%e_self, thermo%e_neut,&
+       CALL ewald_print (iw2, pot_nonbond, vg_coulomb, thermo%e_self, thermo%e_neut,&
             thermo%e_bonded)
     ELSE
        IF (use_virial) THEN
@@ -476,7 +483,7 @@ CONTAINS
        ! e_self, e_neut, and ebonded are already summed over all processors
        ! vg_coulomb is not calculated in parallel
        thermo%e_gspace = vg_coulomb
-       thermo%pot = thermo%pot + thermo%e_self + thermo%e_neut/cell%deth
+       thermo%pot = thermo%pot + thermo%e_self + thermo%e_neut
        thermo%pot = thermo%pot + vg_coulomb + thermo%e_bonded
     END IF
 
@@ -566,7 +573,7 @@ CONTAINS
           virial%pv_virial = pv_nonbond + pv_bond + pv_bend + pv_torsion + pv_imptors + pv_urey_bradley + pv_bc
           CALL mp_sum (virial%pv_virial, para_env%group)
           
-          virial%pv_virial = virial%pv_virial + ident * thermo%e_neut/cell%deth
+          virial%pv_virial = virial%pv_virial + ident * thermo%e_neut
           virial%pv_virial = virial%pv_virial + pv_g
        END IF
     END IF

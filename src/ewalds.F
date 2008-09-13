@@ -256,10 +256,11 @@ CONTAINS
 !>      none
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE ewald_self ( ewald_env, atomic_kind_set, local_particles, e_self,&
+  SUBROUTINE ewald_self ( ewald_env, cell, atomic_kind_set, local_particles, e_self,&
        e_neut, error)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
     REAL(KIND=dp), INTENT(OUT)               :: e_self, e_neut
@@ -307,7 +308,7 @@ CONTAINS
     e_self = 0.0_dp
     IF ( ewald_type /= do_ewald_none) THEN
        e_self = -q_self *  alpha * oorootpi
-       e_neut = -q_sum ** 2 * pi / ( 2.0_dp * alpha ** 2 )
+       e_neut = -q_sum ** 2 * pi / ( 2.0_dp * alpha ** 2 * cell % deth)
     END IF
 
   END SUBROUTINE ewald_self
@@ -349,10 +350,9 @@ CONTAINS
 !>      none
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE ewald_print ( iw, cell, pot_nonbond, e_gspace, e_self, e_neut, e_bonded )
+  SUBROUTINE ewald_print ( iw, pot_nonbond, e_gspace, e_self, e_neut, e_bonded )
 
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cell_type), INTENT(IN)              :: cell
     REAL(KIND=dp), INTENT(IN)                :: pot_nonbond, e_gspace, &
                                                 e_self, e_neut, e_bonded
 
@@ -372,7 +372,7 @@ CONTAINS
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' SELF ENERGY CORRECTION', &
             units % e_label, '= ', e_self
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' NEUT. BACKGROUND',&
-            units % e_label, '= ', e_neut / cell % deth
+            units % e_label, '= ', e_neut
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' BONDED CORRECTION',&
             units % e_label,'= ', e_bonded
        WRITE ( iw, '( A, A )' ) ' *********************************', &

@@ -73,6 +73,7 @@ MODULE qs_environment
                                              ewald_env_set,&
                                              ewald_environment_type,&
                                              read_ewald_section
+  USE ewald_pw_methods,                ONLY: ewald_pw_grid_change
   USE ewald_pw_types,                  ONLY: ewald_pw_create,&
                                              ewald_pw_release,&
                                              ewald_pw_type
@@ -147,6 +148,7 @@ MODULE qs_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
+  USE semi_empirical_int_arrays,       ONLY: init_se_intd_array
   USE semi_empirical_mpole_methods,    ONLY: nddo_mpole_setup
   USE semi_empirical_mpole_types,      ONLY: nddo_mpole_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_create,&
@@ -198,7 +200,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: max_set, natom
+    INTEGER                                  :: max_set, method_id, natom
     LOGICAL                                  :: do_et, do_hfx, harris_flag, &
                                                 my_qmmm, my_qmmm_periodic, &
                                                 use_ref_cell
@@ -236,11 +238,19 @@ CONTAINS
     IF (PRESENT(qmmm_periodic)) my_qmmm_periodic=qmmm_periodic
 
     harris_flag = .FALSE.
-    CALL section_vals_val_get(harris_section, "ACTIVATE", &
-                              l_val=harris_flag, error=error)
-    CALL set_qs_env(qs_env,input=force_env_section,&
-         use_harris=harris_flag,error=error)
+    CALL section_vals_val_get(harris_section, "ACTIVATE", l_val=harris_flag, error=error)
+    CALL set_qs_env(qs_env,input=force_env_section,use_harris=harris_flag,error=error)
 
+    ! Possibly initialize arrays for SE
+    CALL section_vals_val_get(force_env_section,"DFT%QS%METHOD",i_val=method_id,error=error)
+    SELECT CASE (method_id)
+    CASE ( do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg,&
+           do_method_pm3, do_method_pm6, do_method_mndod )
+       CALL init_se_intd_array(error)
+    CASE DEFAULT
+       ! Do nothing
+    END SELECT
+    
     IF (PRESENT(cell)) THEN
        my_cell => cell
        IF (PRESENT(cell_ref)) THEN
@@ -254,7 +264,7 @@ CONTAINS
     ELSE
        !   *** Read the input section with the cell parameters ***
        CALL read_cell(my_cell, my_cell_ref, use_ref_cell=use_ref_cell, &
-                      cell_section=cell_section, para_env=para_env, error=error)
+            cell_section=cell_section, para_env=para_env, error=error)
     END IF
     CALL get_cell ( my_cell, abc=abc)
 
@@ -691,11 +701,15 @@ CONTAINS
           print_section => section_vals_get_subs_vals(qs_env%input,&
                "PRINT%GRID_INFORMATION",error=error)
           CALL read_ewald_section(ewald_env,ewald_section,error=error)
+          ! Create ewald grids
           CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,&
                print_section=print_section,error=error)
+          ! Initialize ewald grids
+          CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
           ! Setup the nonbond environment (real space part of Ewald)
           CALL fist_nonbond_env_create(se_nonbond_env, nonbonded14=.FALSE.,&
-               nonbonded=.TRUE., ewald_env=ewald_env, error=error)
+               nonbonded=.TRUE., mm_section=se_section, ewald_env=ewald_env,&
+               error=error)
           ! Create and Setup NDDO multipole environment
           CALL nddo_mpole_setup(se_nddo_mpole, natom, error)
           CALL set_qs_env(qs_env,ewald_env=ewald_env, ewald_pw=ewald_pw,&

@@ -192,8 +192,7 @@ CONTAINS
     TYPE(pair_potential_pp_type), OPTIONAL, &
       POINTER                                :: potparm
     LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: mm_section
+    TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -201,13 +200,21 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
     ALLOCATE(fist_nonbond_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    check = PRESENT(potparm).EQV.PRESENT(mm_section)
-    CPPostcondition(check,cp_failure_level,routineP,error,failure)
+    NULLIFY(fist_nonbond_env%potparm)
+    NULLIFY(fist_nonbond_env%rlist_cutsq)
+    NULLIFY(fist_nonbond_env%rlist_lowsq)
+    NULLIFY(fist_nonbond_env%ij_kind_full_fac)
+    NULLIFY(fist_nonbond_env%nonbonded)
+    NULLIFY(fist_nonbond_env%cell_last_update)
+    NULLIFY(fist_nonbond_env%r_last_update)
+    NULLIFY(fist_nonbond_env%r_last_update_pbc)
+    NULLIFY(fist_nonbond_env%rshell_last_update_pbc)
+    NULLIFY(fist_nonbond_env%rcore_last_update_pbc)
     CALL init_fist_nonbond_env( fist_nonbond_env, potparm, nonbonded14,&
          nonbonded, mm_section, ewald_env, error)
   END SUBROUTINE fist_nonbond_env_create
@@ -225,8 +232,7 @@ CONTAINS
     TYPE(pair_potential_pp_type), OPTIONAL, &
       POINTER                                :: potparm
     LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: mm_section
+    TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -264,11 +270,9 @@ CONTAINS
        natom_types = 1
        verlet_skin = 0.0_dp
        CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
-       IF (use_potparm) THEN
-          CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
-               r_val=verlet_skin,error=error)
-          natom_types = SIZE(potparm%pot, 1)
-       END IF
+       CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
+            r_val=verlet_skin,error=error)
+       IF (use_potparm) natom_types = SIZE(potparm%pot, 1)
        ALLOCATE ( fist_nonbond_env%rlist_cutsq(natom_types, natom_types), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE ( fist_nonbond_env%rlist_lowsq(natom_types, natom_types), stat=stat)

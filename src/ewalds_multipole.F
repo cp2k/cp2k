@@ -232,12 +232,12 @@ CONTAINS
             efield2_lr, error)
 
        ! Self-Interactions corrections
-       CALL ewald_multipole_self (ewald_env, local_particles, e_self, e_neut, my_task,&
+       CALL ewald_multipole_self (ewald_env, cell, local_particles, e_self, e_neut, my_task,&
             do_efield, charges, dipoles, quadrupoles, efield0_lr, efield1_lr, efield2_lr, error)
     END IF
 
     ! Print some info about energetics
-    CALL ewald_multipole_print (iw, cell, energy_local, energy_glob, e_rspace, e_self, e_neut)
+    CALL ewald_multipole_print (iw, energy_local, energy_glob, e_rspace, e_self, e_neut)
 
     ! Gather the components of the potential, fields and electrostatic field gradients
     IF (do_efield) THEN
@@ -1790,11 +1790,11 @@ CONTAINS
 !>     when using multipoles
 !> \author Teodoro Laino [tlaino] - University of Zurich - 12.2007
 ! *****************************************************************************
-  SUBROUTINE ewald_multipole_self (ewald_env, local_particles, e_self, e_neut,&
+  SUBROUTINE ewald_multipole_self (ewald_env, cell, local_particles, e_self, e_neut,&
        task, do_efield, charges, dipoles, quadrupoles, efield0, efield1, efield2,&
        error)
-
     TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(distribution_1d_type), POINTER      :: local_particles
     REAL(KIND=dp), INTENT(OUT)               :: e_self, e_neut
     LOGICAL, DIMENSION(3, 3), INTENT(IN)     :: task
@@ -1891,7 +1891,7 @@ CONTAINS
     CALL mp_sum (qu_qu_self, group)
 
     e_self = -(q_self+f23*(dipole_self-f23*ch_qu_self+f415*qu_qu_self*alpha**2)*alpha**2)*alpha*oorootpi
-    fac1   = pi/(2.0_dp * alpha ** 2)
+    fac1   = pi/(2.0_dp * alpha ** 2 * cell % deth)
     e_neut = -q_sum**2 * fac1
 
     ! Correcting Potential for the neutralizing background charge
@@ -1903,7 +1903,7 @@ CONTAINS
              q = charges(iparticle)
              ! Potential energy
              IF (do_efield0) THEN
-                efield0(  iparticle) = efield0(  iparticle) - 2.0_dp*q_sum*q*fac1
+                efield0(  iparticle) = efield0(  iparticle) - 2.0_dp*ABS(q_sum)*q*fac1
              END IF
           END IF
        END DO
@@ -1913,10 +1913,9 @@ CONTAINS
 ! *****************************************************************************
 !> \author Teodoro Laino [tlaino] - University of Zurich - 12.2007
 ! *****************************************************************************
-  SUBROUTINE ewald_multipole_print(iw, cell, e_gspace, e_nonbond, e_rspace, e_self, e_neut)
+  SUBROUTINE ewald_multipole_print(iw, e_gspace, e_nonbond, e_rspace, e_self, e_neut)
 
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cell_type), INTENT(IN)              :: cell
     REAL(KIND=dp), INTENT(IN)                :: e_gspace, e_nonbond, &
                                                 e_rspace, e_self, e_neut
 
@@ -1939,9 +1938,9 @@ CONTAINS
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' SELF ENERGY CORRECTION', &
             units%e_label, '= ', e_self
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' NEUTRALIZ. BCKGR. ENERGY', &
-            units%e_label, '= ', e_neut/cell%deth
+            units%e_label, '= ', e_neut
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' TOTAL ELECTROSTATIC EN.', &
-            units%e_label, '= ', e_rspace+e_gspace+e_self+e_neut/cell%deth
+            units%e_label, '= ', e_rspace+e_gspace+e_self+e_neut
        WRITE ( iw, '( A, A )' ) ' *********************************', &
             '**********************************************'
     END IF

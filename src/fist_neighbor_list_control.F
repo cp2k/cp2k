@@ -118,8 +118,9 @@ CONTAINS
                               potparm=potparm,&
                               last_update=last_update,error=error)
     
-    nparticle_kind = SIZE(atomic_kind_set)
-    nparticle = SIZE(particle_set)
+    nparticle_kind = 1
+    nparticle      = SIZE(particle_set)
+    IF (ASSOCIATED(potparm)) nparticle_kind = SIZE(atomic_kind_set)
     nshell = 0
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          shell_present=shell_present, shell_adiabatic=shell_adiabatic)
@@ -190,15 +191,19 @@ CONTAINS
     IF (update_neighbor_lists) THEN
        ALLOCATE(pot_type(nparticle_kind,nparticle_kind),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO ikind = 1, nparticle_kind
-          DO jkind = ikind, nparticle_kind
-             pot_type(ikind, jkind) = .FALSE.
-             IF (ANY(potparm%pot(ikind, jkind)%pot%type==tersoff_type)) THEN
-                pot_type(ikind, jkind) = .TRUE.
-             END IF
-             pot_type(jkind, ikind) = pot_type(ikind, jkind)
+       IF (ASSOCIATED(potparm)) THEN
+          DO ikind = 1, nparticle_kind
+             DO jkind = ikind, nparticle_kind
+                pot_type(ikind, jkind) = .FALSE.
+                IF (ANY(potparm%pot(ikind, jkind)%pot%type==tersoff_type)) THEN
+                   pot_type(ikind, jkind) = .TRUE.
+                END IF
+                pot_type(jkind, ikind) = pot_type(ikind, jkind)
+             END DO
           END DO
-       END DO
+       ELSE
+          pot_type = .FALSE.
+       END IF
        CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
                                       local_particles,cell,rlist_cutsq,rlist_lowsq,&
                                       nonbonded,para_env,&

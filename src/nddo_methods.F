@@ -64,7 +64,9 @@ MODULE nddo_methods
                                              drotnuc,&
                                              rotint,&
                                              rotnuc
-  USE semi_empirical_mpole_types,      ONLY: nddo_mpole_type
+  USE semi_empirical_mpole_methods,    ONLY: quadrupole_sph_to_cart
+  USE semi_empirical_mpole_types,      ONLY: nddo_mpole_type,&
+                                             semi_empirical_mpole_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_finalize,&
                                              semi_empirical_si_initialize,&
                                              semi_empirical_si_type
@@ -72,14 +74,10 @@ MODULE nddo_methods
                                              semi_empirical_type,&
                                              taper_type
   USE semi_empirical_utils,            ONLY: get_se_type
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             cp_sm_scale_and_add,&
-                                             cp_sm_sm_trace,&
-                                             create_dbm_from_sm,&
-                                             deallocate_dbm_from_sm,&
-                                             get_block_node,&
-                                             real_matrix_p_type,&
-                                             transfer_matrix
+  USE sparse_matrix_types,             ONLY: &
+       allocate_matrix_set, cp_sm_scale_and_add, cp_sm_sm_trace, &
+       create_dbm_from_sm, deallocate_dbm_from_sm, get_block_node, &
+       real_matrix_p_type, set_matrix, transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -90,6 +88,8 @@ MODULE nddo_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'nddo_methods'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
+  LOGICAL, PARAMETER, PRIVATE          :: debug_coulomb_lr  = .FALSE.
+  
   PUBLIC :: build_nddo_fock_matrix, se_core_core_interaction
 
 CONTAINS
@@ -116,7 +116,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, ncol_global, &
                                                 nspins, output_unit
     LOGICAL                                  :: do_ewald, failure
-    REAL(KIND=dp)                            :: qmmm_el
+    REAL(KIND=dp)                            :: ecoul, qmmm_el
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
@@ -159,17 +159,41 @@ CONTAINS
        END DO
 
        CALL semi_empirical_si_initialize(store_int_env, ks_env%s_mstruct_changed, error)
-       CALL build_fock_matrix_exchange(qs_env,ks_matrix,rho,energy,calculate_forces,&
+       CALL build_fock_matrix_exchange(qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
             just_energy,store_int_env,error)
-       CALL build_fock_matrix_coulomb(qs_env,ks_matrix,rho,energy,calculate_forces,&
+       CALL build_fock_matrix_coulomb(qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
             just_energy,store_int_env,error)
        CALL semi_empirical_si_finalize(store_int_env, ks_env%s_mstruct_changed, error)
 
        ! Long Range
        IF (do_ewald) THEN
-          CALL build_fock_matrix_coulomb_lr(qs_env,ks_matrix,rho,energy,calculate_forces,&
+          ! Debug statements
+          IF (debug_coulomb_lr) THEN
+             ! Zero structures only for debugging purpose
+             energy%hartree = 0.0_dp
+             DO ispin = 1, nspins
+                CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
+             END DO
+          END IF
+          ! Evaluate Coulomb Long-Range
+          CALL build_fock_matrix_coulomb_lr(qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
                just_energy,error)
+          ! Debug statements
+          IF (debug_coulomb_lr) THEN
+             WRITE(*,*)"ENERGY::",0.5_dp*energy%hartree
+             CALL mp_abort("debug coulomb long-range")
+          END IF
        END IF
+       ! Compute the Hartree energy
+       DO ispin=1,nspins
+          CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,&
+               para_env=para_env,error=error)
+          energy%hartree = energy%hartree + ecoul
+          ! Debug statements
+          IF (debug_coulomb_lr) THEN
+             WRITE(*,*)ispin,"ECOUL ",ecoul
+          END IF
+       END DO
 
        ! QM/MM
        IF (qs_env%qmmm) THEN
@@ -374,13 +398,12 @@ CONTAINS
 !> \brief Construction of the Coulomb part of the Fock matrix
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE build_fock_matrix_coulomb (qs_env,ks_matrix,rho,energy,calculate_forces,&
+  SUBROUTINE build_fock_matrix_coulomb (qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
        just_energy,store_int_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
-    TYPE(qs_rho_type), POINTER               :: rho
+      POINTER                                :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -395,7 +418,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
                                                 do_ewald, failure, switch
-    REAL(KIND=dp)                            :: delta, dr1, ecore2, ecoul
+    REAL(KIND=dp)                            :: delta, dr1, ecore2
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
@@ -415,8 +438,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_ks, diagmat_p, &
-                                                matrix_p
+      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
@@ -425,7 +447,7 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,"I","",handle)
     IF ( .NOT. failure ) THEN
-       NULLIFY(matrix_p,dft_control,cell,force,particle_set)
+       NULLIFY(dft_control,cell,force,particle_set)
        NULLIFY(diagmat_ks,diagmat_p, se_control,taper)
        
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, taper=taper,&
@@ -439,13 +461,12 @@ CONTAINS
        
        nspins=dft_control%nspins
        CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
        
        CALL allocate_matrix_set(diagmat_ks,nspins,error=error)
        CALL allocate_matrix_set(diagmat_p,nspins,error=error)
        
-       matrix_p => rho%rho_ao
        nkind = SIZE(atomic_kind_set)
 
        IF(calculate_forces) THEN
@@ -651,7 +672,7 @@ CONTAINS
        END DO ! ikind
        
        DO ispin = 1, nspins
-          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(1)%matrix,.FALSE.,error=error)
+          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,.FALSE.,error=error)
           CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,.TRUE.,para_env,error=error)
        END DO
        DEALLOCATE(diagmat_ks,stat=stat)
@@ -667,11 +688,6 @@ CONTAINS
        CALL mp_sum(ecore2,para_env%group)
        
        energy%hartree = ecore2 - energy%core
-       DO ispin=1,nspins
-          CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,&
-               para_env=para_env,error=error)
-          energy%hartree=energy%hartree+ecoul
-       END DO
     END IF
     
     CALL timestop(0.0_dp,handle)
@@ -682,13 +698,12 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   08.2008 [created]
 ! *****************************************************************************
-  SUBROUTINE build_fock_matrix_coulomb_lr (qs_env, ks_matrix, rho, energy,&
+  SUBROUTINE build_fock_matrix_coulomb_lr (qs_env, ks_matrix, matrix_p, energy,&
        calculate_forces, just_energy, error)
    
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
-    TYPE(qs_rho_type), POINTER               :: rho
+      POINTER                                :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -696,21 +711,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coulomb_lr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, ewald_type, forces_g_size, handle, iatom, &
-      ikind, ilist, ispin, itype, iw, jatom, natoms, natorb_a, nkind, &
-      nlocal_particles, nparticle_local, nspins, stat
+    INTEGER :: atom_a, ewald_type, forces_g_size, handle, iatom, ikind, &
+      ilist, indi, indj, ispin, itype, iw, jint, natoms, natorb_a, nkind, &
+      nlocal_particles, nparticle_local, nspins, size_1c_int, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, check, defined, &
-                                                do_ewald, failure
+    LOGICAL                                  :: anag, defined, do_ewald, &
+                                                failure
     LOGICAL, DIMENSION(3)                    :: task
-    REAL(KIND=dp)                            :: e_neut, e_self, ecoul, &
-                                                energy_glob, energy_local
+    REAL(KIND=dp)                            :: e_neut, e_self, energy_glob, &
+                                                energy_local, enuc, fac, tmp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: forces_g, forces_r
-    REAL(KIND=dp), DIMENSION(3)              :: force_ab
-    REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksa_block_a, ksa_block_b, &
-                                                pa_block_a, pa_block_b
+    REAL(KIND=dp), DIMENSION(3)              :: force_a
+    REAL(KIND=dp), DIMENSION(3, 3)           :: qcart
+    REAL(KIND=dp), DIMENSION(5)              :: qsph
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksa_block_a, pa_block_a
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -728,20 +743,20 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_ks, diagmat_p, &
-                                                matrix_p
+      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(section_vals_type), POINTER         :: se_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
+    TYPE(semi_empirical_mpole_type), POINTER :: mpole
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
 
     failure=.FALSE.
-    CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     CALL timeset(routineN,"I","",handle)
+    CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     IF ( .NOT. failure ) THEN
-       NULLIFY(matrix_p, dft_control, cell, force,particle_set, diagmat_ks, diagmat_p,&
-            local_particles, se_control, ewald_env, ewald_pw, se_nddo_mpole, se_nonbond_env,&
-            se_section, logger)
+       NULLIFY(dft_control, cell, force,particle_set, diagmat_ks, diagmat_p,local_particles,&
+            se_control, ewald_env, ewald_pw, se_nddo_mpole, se_nonbond_env, se_section, mpole,&
+            logger)
 
        logger => cp_error_get_logger(error)
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, para_env=para_env,&
@@ -769,13 +784,12 @@ CONTAINS
        
        nspins=dft_control%nspins
        CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
        
        CALL allocate_matrix_set(diagmat_ks,nspins,error=error)
        CALL allocate_matrix_set(diagmat_p,nspins,error=error)
        
-       matrix_p => rho%rho_ao
        nkind = SIZE(atomic_kind_set)
        DO ispin=1,nspins
           ! Allocate diagonal block matrices
@@ -786,160 +800,196 @@ CONTAINS
        END DO
        
        itype    = get_se_type(dft_control%qs_control%method_id)
-       ! Compute the NDDO mpole expansion
-       DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
-          CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
 
-          IF (.NOT.defined .OR. natorb_a < 1) CYCLE
- 
-          nparticle_local = local_particles%n_el(ikind)
-          DO ilist=1, nparticle_local
-             iatom = local_particles%list(ikind)%array(ilist)
-             IF ( nspins >= 1 ) THEN
-                 CALL get_block_node(matrix=diagmat_p(1)%matrix,&
-                                    block_row=iatom,&
-                                    block_col=iatom,&
-                                    BLOCK=pa_block_a)
-                CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
-                p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = 2.0_dp * pa_block_a
-             END IF
-             IF ( nspins >= 2 ) THEN
-                CALL get_block_node(matrix=diagmat_p(2)%matrix,&
-                                    block_row=iatom,&
-                                    block_col=iatom,&
-                                    BLOCK=pa_block_b)
-                CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
-                check = (SIZE(pa_block_a,1)==SIZE(pa_block_b,1)).AND.(SIZE(pa_block_a,2)==SIZE(pa_block_b,2))
-                CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = pa_block_a + pa_block_b
-             END IF
-             
-             SELECT CASE (dft_control%qs_control%method_id)
-             CASE(do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
-                  do_method_rm1, do_method_mndod)
-                
-                ! One-centre One-electron terms
-                
-                ! Coulomb Terms
-                
-             CASE DEFAULT
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             END SELECT
-          END DO
-       END DO
-
-       ! Perform the Ewald Multipole Summation
+       ! Zero arrays and possibly build neighbor lists
        energy_local = 0.0_dp
        energy_glob  = 0.0_dp
        e_neut       = 0.0_dp
        e_self       = 0.0_dp
        task         = .TRUE.
        CALL list_control ( atomic_kind_set, particle_set, local_particles, &
-            cell, se_nonbond_env,para_env, se_section, error=error)
+            cell, se_nonbond_env, para_env, se_section, error=error)
 
-       ! Ewald Multipoles Sum
-       iw = cp_print_key_unit_nr(logger,se_section,"PRINT%EWALD_INFO",extension=".seLog",error=error)
-       IF(calculate_forces) THEN
-          CALL get_qs_env(qs_env=qs_env, force=force, error=error)
+       fac  = 1.0_dp
+       enuc = 0.0_dp
+       IF (nspins == 1) fac = 2.0_dp
+       DO ispin = 1, nspins
+          se_nddo_mpole%charge     = 0.0_dp
+          se_nddo_mpole%dipole     = 0.0_dp
+          se_nddo_mpole%quadrupole = 0.0_dp
 
-          ! Allocate atom index for kind
-          ALLOCATE (atom_of_kind(natoms),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
+          ! Compute the NDDO mpole expansion
+          DO ikind=1,nkind
+             atomic_kind => atomic_kind_set(ikind)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+             CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
 
-          ! Allocate and zeroing arrays
-          ALLOCATE ( forces_g(3, forces_g_size), STAT=stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE ( forces_r(3, natoms), STAT=stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          forces_g = 0.0_dp
-          forces_r = 0.0_dp
-
-          CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
-               particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
-               do_forces=.TRUE., do_stress=.FALSE., do_efield=.TRUE., charges=se_nddo_mpole%charge,&
-               dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
-               forces_local=forces_r, forces_glob=forces_g, efield0=se_nddo_mpole%efield0,&
-               efield1=se_nddo_mpole%efield1, efield2=se_nddo_mpole%efield2, iw=iw, &
-               do_debug=.FALSE.,error=error)
-       ELSE
-          CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
-               particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
-               do_forces=.FALSE., do_stress=.FALSE., do_efield=.TRUE., charges=se_nddo_mpole%charge,&
-               dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
-               efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1,&
-               efield2=se_nddo_mpole%efield2, iw=iw, do_debug=.FALSE.,error=error)
-       END IF
-       CALL cp_print_key_finished_output(iw,logger,se_section,"PRINT%EWALD_INFO",error=error)
-
-       ! Modify the KS matrix and possibly compute derivatives
-       DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
-          CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
-
-          IF (.NOT.defined .OR. natorb_a < 1) CYCLE
- 
-          nparticle_local = local_particles%n_el(ikind)
-          DO ilist=1, nparticle_local
-             iatom = local_particles%list(ikind)%array(ilist)
-             IF ( nspins >= 1 ) THEN
-                 CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+             IF (.NOT.defined .OR. natorb_a < 1) CYCLE
+             
+             nparticle_local = local_particles%n_el(ikind)
+             DO ilist=1, nparticle_local
+                iatom = local_particles%list(ikind)%array(ilist)
+                CALL get_block_node(matrix=diagmat_p(ispin)%matrix,&
                                     block_row=iatom,&
                                     block_col=iatom,&
                                     BLOCK=pa_block_a)
                 CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
-                CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
-                                    block_row=iatom,&
-                                    block_col=iatom,&
-                                    BLOCK=ksa_block_a)
-                CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
-                p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = 2.0_dp * pa_block_a
-             END IF
-             IF ( nspins >= 2 ) THEN
-                CALL get_block_node(matrix=diagmat_p(2)%matrix,&
-                                    block_row=iatom,&
-                                    block_col=iatom,&
-                                    BLOCK=pa_block_b)
-                CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
-                CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
-                                    block_row=iatom,&
-                                    block_col=iatom,&
-                                    BLOCK=ksa_block_b)
-                CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,error,failure)
-                check = (SIZE(pa_block_a,1)==SIZE(pa_block_b,1)).AND.(SIZE(pa_block_a,2)==SIZE(pa_block_b,2))
-                CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = pa_block_a + pa_block_b
-             END IF
+
+                SELECT CASE (dft_control%qs_control%method_id)
+                CASE(do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
+                     do_method_rm1, do_method_mndod)
+                
+                   size_1c_int = SIZE(se_kind_a%w_mpole)
+                   DO jint = 1, size_1c_int
+                      mpole => se_kind_a%w_mpole(jint)%mpole
+                      indi  = se_orbital_pointer(mpole%indi)
+                      indj  = se_orbital_pointer(mpole%indj)
+                      ! Charge
+                      WRITE(*,*)iatom, mpole%task, se_kind_a%zeff
+                      WRITE(*,*)mpole%c, pa_block_a(indi,indj), indi, indj
+                      WRITE(*,*)mpole%d
+                      WRITE(*,*)mpole%qc
+                      WRITE(*,*)mpole%qs
+                      IF (mpole%task(1)) THEN
+                         se_nddo_mpole%charge(iatom)          = se_nddo_mpole%charge(iatom)   +&
+                                                                ! Electrons 
+                                                                pa_block_a(indi,indj)*mpole%c +&
+                                                                ! Nuclei
+                                                                se_kind_a%zeff
+                      END IF
+                      ! Dipole
+                      IF (mpole%task(2)) THEN
+                         se_nddo_mpole%dipole(:,iatom)        = se_nddo_mpole%dipole(:,iatom) +&
+                                                                pa_block_a(indi,indj)*mpole%d(:)
+                      END IF
+
+                      ! Quadrupole
+                      IF (mpole%task(3)) THEN
+                         qsph = mpole%qs * pa_block_a(indi,indj)
+                         CALL quadrupole_sph_to_cart(qcart, qsph, error)
+                         se_nddo_mpole%quadrupole(:,:,iatom)  = se_nddo_mpole%quadrupole(:,:,iatom) + &
+                                                                qcart
+                      END IF
+                   END DO
+                CASE DEFAULT
+                   CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                END SELECT
+             END DO
+          END DO
+
+          WRITE(*,*)se_nddo_mpole%charge
+          WRITE(*,*)se_nddo_mpole%dipole
+          WRITE(*,*)se_nddo_mpole%quadrupole
+
+          ! Ewald Multipoles Sum
+          iw = cp_print_key_unit_nr(logger,se_section,"PRINT%EWALD_INFO",extension=".seLog",error=error)
+          IF(calculate_forces) THEN
+             CALL get_qs_env(qs_env=qs_env, force=force, error=error)
+             
+             ! Allocate atom index for kind
+             ALLOCATE (atom_of_kind(natoms),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
+             
+             ! Allocate and zeroing arrays
+             ALLOCATE ( forces_g(3, forces_g_size), STAT=stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE ( forces_r(3, natoms), STAT=stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             forces_g = 0.0_dp
+             forces_r = 0.0_dp
+             
+             CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
+                  particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
+                  do_forces=.TRUE., do_stress=.FALSE., do_efield=.TRUE., charges=se_nddo_mpole%charge,&
+                  dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
+                  forces_local=forces_r, forces_glob=forces_g, efield0=se_nddo_mpole%efield0,&
+                  efield1=se_nddo_mpole%efield1, efield2=se_nddo_mpole%efield2, iw=iw, &
+                  do_debug=.FALSE.,error=error)
+          ELSE
+             CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
+                  particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
+                  do_forces=.FALSE., do_stress=.FALSE., do_efield=.TRUE., charges=se_nddo_mpole%charge,&
+                  dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
+                  efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1,&
+                  efield2=se_nddo_mpole%efield2, iw=iw, do_debug=.FALSE.,error=error)
+          END IF
+          CALL cp_print_key_finished_output(iw,logger,se_section,"PRINT%EWALD_INFO",error=error)
+
+          WRITE(*,*)"FIELDS"
+          WRITE(*,*)se_nddo_mpole%efield0
+          WRITE(*,*)se_nddo_mpole%efield1
+          WRITE(*,*)se_nddo_mpole%efield2
+
+          ! Modify the KS matrix and possibly compute derivatives
+          DO ikind=1,nkind
+             atomic_kind => atomic_kind_set(ikind)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+             CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
+             
+             IF (.NOT.defined .OR. natorb_a < 1) CYCLE
+             
+             nparticle_local = local_particles%n_el(ikind)
+             DO ilist=1, nparticle_local
+                iatom = local_particles%list(ikind)%array(ilist)
+                IF ( nspins >= 1 ) THEN
+                   CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                                       block_row=iatom,&
+                                       block_col=iatom,&
+                                       BLOCK=ksa_block_a)
+                   CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
+                END IF
  
-             SELECT CASE (dft_control%qs_control%method_id)
-             CASE(do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
-                  do_method_rm1, do_method_mndod)
-                
-                ! One-centre One-electron terms
-                
-                ! Coulomb Terms
-                
+                ! Modify Hamiltonian Matrix accordingly potential, field and electric field gradient
+                SELECT CASE (dft_control%qs_control%method_id)
+                CASE(do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
+                     do_method_rm1, do_method_mndod)
+
+                   size_1c_int = SIZE(se_kind_a%w_mpole)
+                   DO jint = 1, size_1c_int
+                      mpole => se_kind_a%w_mpole(jint)%mpole
+                      indi  = se_orbital_pointer(mpole%indi)
+                      indj  = se_orbital_pointer(mpole%indj)
+
+                      ! Charge
+                      tmp = 0.0_dp
+                      IF (mpole%task(1)) THEN
+                         tmp   = tmp + mpole%c * se_nddo_mpole%efield0(iatom)
+                      END IF
+
+                      ! Dipole
+                      IF (mpole%task(2)) THEN
+                         tmp   = tmp - SUM(mpole%d * se_nddo_mpole%efield1(:,iatom))
+                      END IF
+
+                      ! Quadrupole
+                      IF (mpole%task(3)) THEN
+                         tmp   = tmp - (1.0_dp/3.0_dp) * SUM(mpole%qc * RESHAPE(se_nddo_mpole%efield2(:,iatom),(/3,3/)))
+                      END IF
+
+                      ksa_block_a(indi, indj) = ksa_block_a(indi, indj) + tmp
+                      ksa_block_a(indj, indi) = ksa_block_a(indi, indj)
+                   END DO
+                CASE DEFAULT
+                   CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                END SELECT
+
+                ! Nuclear term and forces
+                enuc = enuc + se_kind_a%zeff * se_nddo_mpole%efield0(iatom)
                 IF(calculate_forces) THEN
                    atom_a   = atom_of_kind(iatom)
-                   atom_b   = atom_of_kind(jatom)
-                   
-                   ! Derivatives of the One-centre One-electron terms
-                   
-                   
-                   ! Derivatives of the Coulomb Terms
-                   force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
+                   force_a  = forces_r(1:3,iatom) + forces_g(1:3,ilist)
+                         
+                   ! Derivatives of the periodic Coulomb Terms
+                   force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_a(:)
                 END IF
-             CASE DEFAULT
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             END SELECT
+             END DO
           END DO
        END DO
-       
+
+       ! Deallocate diagonal block matrix
        DO ispin = 1, nspins
-          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(1)%matrix,.FALSE.,error=error)
+          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,.FALSE.,error=error)
           CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,.TRUE.,para_env,error=error)
        END DO
        DEALLOCATE(diagmat_ks,stat=stat)
@@ -956,11 +1006,8 @@ CONTAINS
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        
-       DO ispin=1,nspins
-          CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,&
-               para_env=para_env,error=error)
-          energy%hartree=energy%hartree+ecoul
-       END DO
+       energy%hartree = energy%hartree + enuc
+       WRITE(*,*)"ENUC  ",enuc
     END IF
     
     CALL timestop(0.0_dp,handle)
@@ -970,13 +1017,12 @@ CONTAINS
 !> \brief Construction of the Exchange part of the Fock matrix
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE build_fock_matrix_exchange (qs_env, ks_matrix, rho, energy, calculate_forces,&
+  SUBROUTINE build_fock_matrix_exchange (qs_env, ks_matrix, matrix_p, energy, calculate_forces,&
        just_energy, store_int_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
-    TYPE(qs_rho_type), POINTER               :: rho
+      POINTER                                :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -1010,8 +1056,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
@@ -1019,7 +1063,7 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,"I","",handle)
-    NULLIFY(matrix_p,dft_control,cell,force,particle_set,se_control,taper)
+    NULLIFY(dft_control,cell,force,particle_set,se_control,taper)
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,cell=cell,taper=taper,&
          para_env=para_env,error=error)
 
@@ -1029,12 +1073,10 @@ CONTAINS
 
     nspins=dft_control%nspins
     CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
 
     IF ( .NOT. failure ) THEN
-
-       matrix_p => rho%rho_ao
 
        CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,atomic_kind_set=atomic_kind_set,error=error)
 

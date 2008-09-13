@@ -33,7 +33,6 @@ MODULE dg_rho0_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dg_rho0_types'
   INTEGER, PRIVATE, SAVE :: last_dg_rho0_id_nr=0
 
-
 ! *****************************************************************************
 !> \brief   Type for Gaussian Densities
 !>              type = type of gaussian (PME)
@@ -70,8 +69,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_set', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF ( PRESENT ( grid ) ) dg_rho0 % grid = grid
     IF ( PRESENT ( kind ) ) dg_rho0 % kind = kind
     IF ( PRESENT ( density ) ) dg_rho0 % density = density
@@ -81,6 +78,7 @@ CONTAINS
     IF ( PRESENT ( cutoff_radius ) ) dg_rho0 % cutoff_radius = cutoff_radius
 
   END SUBROUTINE dg_rho0_set
+
 ! *****************************************************************************
 !> \brief  Get the dg_rho0_type 
 !> \version 1.0
@@ -94,8 +92,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_get', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( grid ) ) grid = dg_rho0 % grid
     IF ( PRESENT ( kind ) ) kind = dg_rho0 % kind
@@ -119,8 +115,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
-
-!   ---------------------------------------------------------------------------
 
     ALLOCATE ( dg_rho0, stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -247,8 +241,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: rho0
     TYPE(pw_grid_type), POINTER              :: pw_grid
-
-!------------------------------------------------------------------------------
 
     const = 1.0_dp / ( 8.0_dp * alpha ** 2 )
 

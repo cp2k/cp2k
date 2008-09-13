@@ -24,10 +24,12 @@ MODULE semi_empirical_mpole_types
 !> \brief Semi-empirical integral multipole expansion type
 ! *****************************************************************************
   TYPE semi_empirical_mpole_type
-     INTEGER                                  :: lmax, indi, indj
+     LOGICAL, DIMENSION(3)                    :: task
+     INTEGER                                  :: indi, indj
      REAL(KIND=dp)                            :: c
      REAL(KIND=dp), DIMENSION(3)              :: d
-     REAL(KIND=dp), DIMENSION(3,3)            :: q
+     REAL(KIND=dp), DIMENSION(3,3)            :: qc ! quadrupole cartesian
+     REAL(KIND=dp), DIMENSION(5)              :: qs ! quadrupole spherical
   END TYPE semi_empirical_mpole_type
 
 ! *****************************************************************************
@@ -127,12 +129,13 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(mpole),cp_failure_level,routineP,error,failure)
     ALLOCATE (mpole,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    mpole%lmax = 0
+    mpole%task = .FALSE.
     mpole%indi = 0
     mpole%indj = 0
     mpole%c    = HUGE(0.0_dp)
     mpole%d    = HUGE(0.0_dp)
-    mpole%q    = HUGE(0.0_dp)
+    mpole%qc   = HUGE(0.0_dp)
+    mpole%qs   = HUGE(0.0_dp)
   END SUBROUTINE semi_empirical_mpole_create
 
 ! *****************************************************************************

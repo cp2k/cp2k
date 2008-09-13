@@ -193,8 +193,12 @@ MODULE semi_empirical_par_utils
                                 1, 8,21,35,35,36,56,70, 0,    0, 0, 0, 0, 0, 0,&!   86
         0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /) 
 
+  INTERFACE amn_l
+     MODULE PROCEDURE amn_l1, amn_l2
+  END INTERFACE
+
   PUBLIC :: convert_param_to_cp2k, calpar, valence_electrons, get_se_basis,&
-            setup_1c_2el_int
+            setup_1c_2el_int, amn_l
 
 CONTAINS
 
@@ -525,28 +529,27 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   03.2008 [tlaino]
 ! *****************************************************************************    
-  SUBROUTINE amn_l (sep, amn,error)
+  SUBROUTINE amn_l1 (sep, amn, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     REAL(KIND=dp), DIMENSION(6), INTENT(OUT) :: amn
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'amn_l', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'amn_l1', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nd, nsp
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: z1, z2, z3, zz
+    REAL(KIND=dp)                            :: z1, z2, z3
 
     failure = .FALSE.
     z1 = sep%sto_exponents(0)
     z2 = sep%sto_exponents(1)
     z3 = sep%sto_exponents(2)
     CPPostcondition(z1>0.0_dp, cp_failure_level, routineP, error, failure)
-    CPPostcondition(z2>0.0_dp, cp_failure_level, routineP, error, failure)
     amn = 0.0_dp
     nsp = nqs(sep%z)
     IF (sep%natorb>=4) THEN
-       zz = z1 * z2
+       CPPostcondition(z2>0.0_dp, cp_failure_level, routineP, error, failure)
        amn(2) = amn_l_low(z1, z2, nsp, nsp, 1)
        amn(3) = amn_l_low(z2, z2, nsp, nsp, 2)
        IF (sep%dorb) THEN
@@ -557,7 +560,53 @@ CONTAINS
           amn(6) = amn_l_low(z3, z3,  nd, nd, 2)
        END IF
     END IF
-  END SUBROUTINE amn_l
+  END SUBROUTINE amn_l1
+
+! *****************************************************************************
+!> \brief  Computes the A^{\mu \nu}_l values for the evaluation of the two-center
+!>          two-electron integrals. The term is the one reported in Eq.(7) of TCA
+!>
+!> \par    
+!> 
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   09.2008 [tlaino]
+! *****************************************************************************    
+  SUBROUTINE amn_l2 (sep, amn, error)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    REAL(KIND=dp), DIMENSION(6, 0:2), &
+      INTENT(OUT)                            :: amn
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'amn_l2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nd, nsp
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: z1, z2, z3
+
+    failure = .FALSE.
+    z1 = sep%sto_exponents(0)
+    z2 = sep%sto_exponents(1)
+    z3 = sep%sto_exponents(2)
+    CPPostcondition(z1>0.0_dp, cp_failure_level, routineP, error, failure)
+    amn = 0.0_dp
+    nsp = nqs(sep%z)
+    amn(1,0) = amn_l_low(z1, z1, nsp, nsp, 0)
+    IF (sep%natorb>=4) THEN
+       CPPostcondition(z2>0.0_dp, cp_failure_level, routineP, error, failure)
+       amn(2,1) = amn_l_low(z1, z2, nsp, nsp, 1)
+       amn(3,0) = amn_l_low(z2, z2, nsp, nsp, 0)
+       amn(3,2) = amn_l_low(z2, z2, nsp, nsp, 2)
+       IF (sep%dorb) THEN
+          CPPostcondition(z3>0.0_dp, cp_failure_level, routineP, error, failure)
+          nd     = nqd(sep%z)
+          amn(4,2) = amn_l_low(z1, z3, nsp, nd, 2)
+          amn(5,1) = amn_l_low(z2, z3, nsp, nd, 1)
+          amn(6,0) = amn_l_low(z3, z3,  nd, nd, 0)
+          amn(6,2) = amn_l_low(z3, z3,  nd, nd, 2)
+       END IF
+    END IF
+  END SUBROUTINE amn_l2
 
 ! *****************************************************************************
 !> \brief  Low level for computing Eq.(7) of TCA
