@@ -520,10 +520,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ig, nt
-    REAL(dp)                                 :: a, aab, alpi, alpj, apdg, ax, &
-                                                dai, daj, dbi, dbj, pai, paj, &
-                                                pbi, pbj, qcorr, rij, rija, &
-                                                scale, ssss, xab, zaf, zbf, zz
+    REAL(dp) :: a, aab, alpi, alpj, apdg, ax, dai, daj, dbi, dbj, pai, paj, &
+      pbi, pbj, qcorr, rij, rija, scale, ssss, ssss_sr, tmp, xab, zaf, zbf, zz
     REAL(dp), DIMENSION(3)                   :: z
     REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
                                                 fnj3
@@ -533,10 +531,18 @@ CONTAINS
     IF (rij > rij_threshold) THEN
        rij = SQRT(rij)
 
-       CALL nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,taper=taper,shortrange=shortrange,&
+       CALL nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,taper=taper,shortrange=.FALSE.,&
             error=error)
+       IF (shortrange) THEN
+          CALL nucint_num(sepi,sepj,rij,ssss=ssss_sr,itype=itype,taper=taper,&
+               shortrange=shortrange,error=error)
+       ELSE
+          ssss_sr = ssss
+       END IF
        zz = sepi%zeff*sepj%zeff
-       ! Nuclear-Nuclear contribution
+       ! Nuclear-Nuclear electrostatic contribution
+       enuc = zz*ssss_sr
+       ! Method dependent correction terms
        IF(itype /= do_method_pm6) THEN
           alpi = sepi%alp
           alpj = sepj%alp
@@ -544,14 +550,11 @@ CONTAINS
 
           nt=sepi%z+sepj%z
           IF(nt == 8 .OR. nt == 9) THEN
-             IF(sepi%z == 7.OR.sepi%z == 8) &
-                  scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpi*rij)
-             IF(sepj%z == 7.OR.sepj%z == 8) &
-                  scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpj*rij)
+             IF(sepi%z == 7.OR.sepi%z == 8) scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpi*rij)
+             IF(sepj%z == 7.OR.sepj%z == 8) scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpj*rij)
           ENDIF
-          enuc = zz*ssss
-          scale=ABS(scale*enuc)
-          zz=zz/rij
+          scale= ABS(scale*zz*ssss)
+          zz   = zz/rij
           IF(itype == do_method_am1 .OR. itype == do_method_pm3 .OR. itype == do_method_pdg) THEN
              IF(itype == do_method_am1 .AND. sepi%z == 5) THEN
                 !special case AM1 Boron
@@ -642,27 +645,25 @@ CONTAINS
           IF ( (sepi%z == 1 .AND. (sepj%z == 6 .OR. sepj%z == 7 .OR. sepj%z == 8)) .OR. &
                (sepj%z == 1 .AND. (sepi%z == 6 .OR. sepi%z == 7 .OR. sepi%z == 8)) ) THEN
              ! Special Case O-H or N-H or C-H
-             enuc=scale*(1._dp+2._dp*xab*EXP(-aab*rija*rija))
+             scale = scale*(2._dp*xab*EXP(-aab*rija*rija))
           ELSEIF ( sepi%z == 6 .AND. sepj%z == 6 ) THEN
              ! Special Case C-C
-             enuc=scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))+9.28_dp*EXP(-5.98_dp*rija))
+             scale = scale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))+9.28_dp*EXP(-5.98_dp*rija))
           ELSEIF ( (sepi%z == 8 .AND. sepj%z == 14) .OR. &
                (sepj%z == 8 .AND. sepi%z == 14) ) THEN
              ! Special Case Si-O
-             enuc=scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))-0.0007_dp*EXP(-(rija-2.9_dp)**2) )
+             scale = scale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))-0.0007_dp*EXP(-(rija-2.9_dp)**2))
           ELSE
              ! General Case
              ! Factor of 2 found by experiment 
-             enuc=scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))
+             scale = scale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))
           END IF
           ! General correction term a*exp(-b*(rij-c)^2)
-          enuc=enuc+(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*sepi%zeff*sepj%zeff/rij
-          enuc=enuc+(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*sepi%zeff*sepj%zeff/rij
+          qcorr = (sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*sepi%zeff*sepj%zeff/rij +&
+                  (sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*sepi%zeff*sepj%zeff/rij
           ! Hard core repulsion
-          enuc=enuc+1.e-8_dp/evolt &
-               * ( (REAL(sepi%z,dp)**(1._dp/3._dp) + REAL(sepj%z,dp)**(1._dp/3._dp))/rija )**12
-          scale = 0.0_dp
-          qcorr = 0.0_dp
+          tmp   = (REAL(sepi%z,dp)**(1._dp/3._dp) + REAL(sepj%z,dp)**(1._dp/3._dp))
+          qcorr = qcorr + 1.e-8_dp/evolt * ( tmp/rija )**12
        END IF
        enuc=enuc+scale+qcorr
     END IF
