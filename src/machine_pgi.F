@@ -63,7 +63,7 @@ FUNCTION m_cputime() RESULT (ct)
 
     INTEGER                                  :: mclock
 
-  ct = mclock()*0.01_dp
+    CALL CPU_TIME(ct)
 END FUNCTION m_cputime
 !!  time and date
 ! *****************************************************************************
