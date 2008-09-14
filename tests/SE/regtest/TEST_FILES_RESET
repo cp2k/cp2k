@@ -248,3 +248,19 @@ h2po4.inp
 st.inp
 # numerics
 h2op_2.inp
+# numerics
+ch2o.inp
+geom.inp
+h2o.inp
+h2o_lsd.inp
+h2o_lsd-ot.inp
+H2O-MNDOD.inp
+H2O-MNDO.inp
+H2O-MNDO-si.inp
+H2O-MNDO-si-nc.inp
+h2op_2.inp
+h2op.inp
+h2po4.inp
+hcn.inp
+nh4.inp
+st.inp

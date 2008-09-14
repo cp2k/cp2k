@@ -120,3 +120,15 @@ scan_zn_1w_cp2k.inp
 # new taper
 md.inp
 scan_zn_1w_cp2k.inp
+# numerics
+ch2o.inp
+h2o.inp
+h2o_lsd.inp
+h2o_lsd-ot.inp
+H2O-MNDO.inp
+H2O-PDDG.inp
+h2op.inp
+hcn.inp
+md.inp
+nh4.inp
+st.inp

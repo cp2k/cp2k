@@ -550,8 +550,8 @@ CONTAINS
 
           nt=sepi%z+sepj%z
           IF(nt == 8 .OR. nt == 9) THEN
-             IF(sepi%z == 7.OR.sepi%z == 8) scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpi*rij)
-             IF(sepj%z == 7.OR.sepj%z == 8) scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpj*rij)
+             IF(sepi%z == 7.OR.sepi%z == 8) scale=scale+(angstrom*rij-1._dp)*EXP(-alpi*rij)
+             IF(sepj%z == 7.OR.sepj%z == 8) scale=scale+(angstrom*rij-1._dp)*EXP(-alpj*rij)
           ENDIF
           scale= ABS(scale*zz*ssss)
           zz   = zz/rij
@@ -624,7 +624,7 @@ CONTAINS
              dbi=sepi%d(2)
              daj=sepj%d(1)
              dbj=sepj%d(2)
-             apdg=10._dp*0.5291772083_dp*0.5291772083_dp
+             apdg=10._dp*angstrom**2
              qcorr = &
                   (zaf*pai+zbf*paj)*EXP(-apdg*(rij-dai-daj)**2)+ &
                   (zaf*pai+zbf*pbj)*EXP(-apdg*(rij-dai-dbj)**2)+ &
