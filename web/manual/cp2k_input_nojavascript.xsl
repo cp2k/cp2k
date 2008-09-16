@@ -88,7 +88,7 @@
    </p>
    <ul class="disc">
     <li>
-     <a href="CP2K_INPUT.html">CP2K_INPUT</a>
+     <a href="CP2K_INPUT.html" id="CP2K_INPUT.html">CP2K_INPUT</a>
     </li>
     <xsl:call-template name="describe_sections">
      <xsl:with-param name="path" select="'CP2K_INPUT'"/>
@@ -106,7 +106,7 @@
    <hr/>
   </body>
   <xsl:result-document href="CP2K_INPUT.html" method="html" indent="yes" format="html">
-   <h3><a href="index.html">CP2K input file</a></h3>
+   <h3><a href="index.html#CP2K_INPUT.html">CP2K input file</a></h3>
    <ul class="none">
     <li>
      <em>
@@ -145,10 +145,10 @@
    <xsl:variable name="local_path" select="concat($path,'/',string(NAME))"/>
    <xsl:variable name="section_filename" select="concat($local_path,'.html')"/>
    <li>
-    <a href="{$section_filename}"><xsl:value-of select="NAME"/></a>
+    <a href="{$section_filename}" id="{$section_filename}"><xsl:value-of select="NAME"/></a>
    </li>
    <xsl:result-document href="{$section_filename}" method="html" indent="yes" format="html">
-    <h3><a href="{$root}index.html">Section &amp;<xsl:value-of select="NAME"/></a></h3>
+    <h3><a href="{$root}index.html#{$section_filename}">Section &amp;<xsl:value-of select="NAME"/></a></h3>
     <xsl:if test="string-length(DESCRIPTION) > 0">
      <ul class="none">
       <li>
@@ -231,17 +231,21 @@
          <xsl:call-template name="describe_keywords">
           <xsl:with-param name="element" select="SECTION_PARAMETERS"/>
           <xsl:with-param name="root" select="$root"/>
+          <xsl:with-param name="section_filename" select="$section_filename"/>
          </xsl:call-template>
         </xsl:if>
         <xsl:if test="count(DEFAULT_KEYWORD) > 0">
          <xsl:call-template name="describe_keywords">
           <xsl:with-param name="element" select="DEFAULT_KEYWORD"/>
           <xsl:with-param name="root" select="$root"/>
+          <xsl:with-param name="section_filename" select="$section_filename"/>
          </xsl:call-template>
         </xsl:if>
         <xsl:if test="count(KEYWORD) > 0">
          <xsl:call-template name="describe_keywords">
+          <xsl:with-param name="element" select="KEYWORD"/>
           <xsl:with-param name="root" select="$root"/>
+          <xsl:with-param name="section_filename" select="$section_filename"/>
          </xsl:call-template>
         </xsl:if>
        </xsl:when>
@@ -276,6 +280,7 @@
 <xsl:template name="describe_keywords">
  <xsl:param name="element" select="KEYWORD"/>
  <xsl:param name="root"/>
+ <xsl:param name="section_filename"/>
  <ul class="none">
   <xsl:for-each select="$element">
    <xsl:sort select="NAME[@type='default']"/>
@@ -283,7 +288,7 @@
     <li>
      <dl>
       <dt>
-       <u><xsl:value-of select="NAME[@type='default']"/></u>
+       <a href="{$root}index.html#{$section_filename}" id="{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
        <xsl:if test="NAME[@type='alias']">
         (alias:
         <xsl:for-each select="NAME[@type='alias']">
