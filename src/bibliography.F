@@ -51,7 +51,7 @@ MODULE bibliography
              Yamada2000,Dudarev1997,Dudarev1998,Dewar1977,Dewar1985,Rocha2006,&
              Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003,Guidon2008,&
              Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
-             Stewart1982
+             Stewart1982, E2002
 
 CONTAINS
 
@@ -66,6 +66,22 @@ CONTAINS
 !>      08.2007 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE add_all_references()
+
+    CALL add_reference(key=E2002, ISI_record=s2a(&
+         "AU E, WN",&
+         "   Ren, WQ",&
+         "   Vanden-Eijnden, E",&
+         "TI String method for the study of rare events",&
+         "SO PHYSICAL REVIEW B",&
+         "SN 1098-0121",&
+         "PD AUG 1",&
+         "PY 2002",&
+         "VL 66",&
+         "IS 5",&
+         "AR 052301",&
+         "UT ISI:000177873000010",&
+         "ER"),&
+         DOI="DI 10.1103/PhysRevB.66.052301")
 
     CALL add_reference(key=Wales2004, ISI_record=s2a(&
          "AU Trygubenko, SA",&

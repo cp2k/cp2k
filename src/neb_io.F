@@ -24,6 +24,7 @@ MODULE neb_io
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get
   USE input_constants,                 ONLY: band_md_opt,&
+                                             do_sm,&
                                              dump_xmol
   USE input_cp2k_motion,               ONLY: create_band_section
   USE input_cp2k_restarts,             ONLY: write_restart
@@ -86,6 +87,13 @@ CONTAINS
     CALL section_vals_val_get(neb_section,"CI_NEB%NSTEPS_IT",i_val=neb_env%nsteps_it,error=error)
     ! Band Optimization Type
     CALL section_vals_val_get(neb_section,"OPTIMIZE_BAND%OPT_TYPE",i_val=neb_env%opt_type,error=error)
+    ! String Method
+    CALL section_vals_val_get(neb_section,"STRING_METHOD%SMOOTHING",r_val=neb_env%smoothing,error=error)
+    CALL section_vals_val_get(neb_section,"STRING_METHOD%SPLINE_ORDER",i_val=neb_env%spline_order,error=error)
+    neb_env%reparametrize_frames =.FALSE.
+    IF (neb_env%id_type==do_sm) THEN
+       neb_env%reparametrize_frames =.TRUE.
+    END IF
   END SUBROUTINE read_neb_section
 
 ! *****************************************************************************

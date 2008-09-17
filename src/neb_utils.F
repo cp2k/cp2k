@@ -16,7 +16,8 @@
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
 MODULE neb_utils
-  USE bibliography,                    ONLY: Elber1987,&
+  USE bibliography,                    ONLY: E2002,&
+                                             Elber1987,&
                                              Jonsson1998,&
                                              Jonsson2000_1,&
                                              Jonsson2000_2,&
@@ -77,6 +78,7 @@ MODULE neb_utils
             get_tangent,&
             get_neb_force,&
             reorient_images,&
+            reparametrize_images,&
             check_convergence
 
 CONTAINS
@@ -492,8 +494,8 @@ CPSourceFileRef,&
           END IF
        END IF
     CASE(do_sm)
-       STOP
        ! String method..
+       tangent(:) = 0.0_dp
     END SELECT
     distance0  = SQRT(DOT_PRODUCT(tangent(:),tangent(:)))
     IF (distance0 /= 0.0_dp) tangent(:) = tangent(:) / distance0
@@ -526,14 +528,17 @@ CPSourceFileRef,&
     IF (PRESENT(tag)) my_tag = tag
     CPPostcondition(ASSOCIATED(forces),cp_failure_level,routineP,error,failure)
     CPPostcondition(ASSOCIATED(coords),cp_failure_level,routineP,error,failure)
-    ! All methods but not the classical elastic band will skip the force 
-    ! calculation for the last frame of the band
+    ! All methods but not the classical elastic and the string method band will
+    ! skip the force calculation for the last frame of the band
     SELECT CASE(my_tag)
     CASE(do_b_neb, do_it_neb, do_ci_neb, do_d_neb)
        IF (i==SIZE(coords,2)) RETURN
     CASE(do_sm)
-       ! Not yet implemented
-       STOP
+       ! String Method
+       ! The forces do not require any projection. Reparametrization required
+       ! after the update of the replica.
+       CALL cite_reference(E2002)
+       RETURN
     END SELECT
     ! otherwise proceeed normally..
     ALLOCATE(wrk(SIZE(coords,1)),stat=stat)
@@ -611,9 +616,6 @@ CPSourceFileRef,&
        forces(:,i) = forces(:,i) + dtmp1
        DEALLOCATE(dtmp1,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CASE(do_sm)
-       ! Not yet implemented
-       STOP
     END SELECT
     DEALLOCATE(wrk,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -670,6 +672,79 @@ CPSourceFileRef,&
        END DO
     END IF
   END SUBROUTINE reorient_images
+
+! *****************************************************************************
+!> \brief Reparametrization of the replica for String Method with splines
+!> \author Teodoro Laino - Rodolphe Vuilleumier 09.2008
+! *****************************************************************************
+  SUBROUTINE reparametrize_images(reparametrize_frames, spline_order, smoothing,&
+       coords, sline, distances, output_unit, error)
+
+    LOGICAL, INTENT(IN)                      :: reparametrize_frames
+    INTEGER, INTENT(IN)                      :: spline_order
+    REAL(KIND=dp), INTENT(IN)                :: smoothing
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, sline
+    REAL(KIND=dp), DIMENSION(:)              :: distances
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'reparametrize_images', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: avg_distance, xtmp
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: tmp_coords
+
+    failure = .FALSE.
+    IF (reparametrize_frames) THEN
+       ALLOCATE(tmp_coords(SIZE(coords,1),SIZE(coords,2)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       tmp_coords = coords
+       ! Smoothing
+       DO i = 2, SIZE(coords,2)-1
+          coords(:,i) = tmp_coords(:,i)*(1.0_dp-2.0_dp*smoothing) + &
+               tmp_coords(:,i-1)*smoothing + tmp_coords(:,i+1)*smoothing
+       END DO
+       sline = coords - tmp_coords + sline
+       tmp_coords =  coords
+       ! Reparametrization
+       SELECT CASE(spline_order)
+       CASE(1)
+          ! Compute distances
+          DO i = 2, SIZE(coords,2)
+             xtmp = DOT_PRODUCT(coords(:,i)-coords(:,i-1),coords(:,i)-coords(:,i-1))
+             distances(i-1) = SQRT(xtmp)
+          END DO
+          avg_distance = SUM(distances)/REAL(SIZE(coords,2)-1,KIND=dp)
+          ! Redistribute frames
+          DO i = 2, SIZE(coords,2)-1
+             xtmp  = 0.0_dp
+             DO j = 1, SIZE(coords,2)-1
+                xtmp = xtmp + distances(j)
+                IF (xtmp>avg_distance*REAL(i-1,KIND=dp)) THEN
+                   xtmp = (xtmp - avg_distance*REAL(i-1,KIND=dp))/distances(j)
+                   coords(:,i) = (1.0_dp-xtmp)*tmp_coords(:,j+1) + xtmp*tmp_coords(:,j)
+                   EXIT
+                END IF
+             END DO
+          END DO
+          ! Re-compute distances
+          DO i = 2, SIZE(coords,2)
+             xtmp = DOT_PRODUCT(coords(:,i)-coords(:,i-1),coords(:,i)-coords(:,i-1))
+             distances(i-1) = SQRT(xtmp)
+          END DO
+       CASE DEFAULT
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="String Method: Spline order greater than 1 not implemented.", &
+               error=error, error_level=cp_warning_level)
+       END SELECT
+       sline = coords - tmp_coords + sline
+       DEALLOCATE(tmp_coords,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+  END SUBROUTINE reparametrize_images
 
 ! *****************************************************************************
 !> \brief Checks for convergence criteria during a NEB run

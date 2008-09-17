@@ -30,7 +30,8 @@ MODULE neb_methods
   USE force_env_types,                 ONLY: force_env_get
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: band_diis_opt,&
-                                             band_md_opt
+                                             band_md_opt,&
+                                             do_sm
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -46,7 +47,8 @@ MODULE neb_methods
   USE neb_utils,                       ONLY: build_replica_coords,&
                                              check_convergence,&
                                              neb_calc_energy_forces,&
-                                             reorient_images
+                                             reorient_images,&
+                                             reparametrize_images
   USE particle_types,                  ONLY: particle_type
   USE replica_types,                   ONLY: rep_env_create,&
                                              rep_env_release,&
@@ -223,6 +225,13 @@ CONTAINS
        NULLIFY(forces, tc_section, vc_section)
        CPPostcondition(ASSOCIATED(coords),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(vels),cp_failure_level,routineP,error,failure)
+       ! MD band for string methods type does not make anywa sense. Stop calculation.
+       IF (neb_env%id_type==do_sm) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="MD band optimization and String Method incompatible.", &
+               error=error, error_level=cp_warning_level)
+       END IF
+       ! Output unit
        iw=cp_print_key_unit_nr(logger,neb_env%neb_section,"REPLICA_INFO",&
             extension=".replicaLog",error=error)
        tc_section => section_vals_get_subs_vals(md_section,"TEMP_CONTROL",error=error)
@@ -383,6 +392,7 @@ CONTAINS
        ! line search direction
        ALLOCATE (sline(3*SIZE(particle_set),SIZE(coords,2)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       sline = 0.0_dp
        ! Array of error vectors
        ALLOCATE (err(3*SIZE(particle_set)*SIZE(coords,2),n_diis),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -397,6 +407,8 @@ CONTAINS
        ! Initializing forces array
        CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
             output_unit, distances, error=error)
+       CALL reparametrize_images(neb_env%reparametrize_frames, neb_env%spline_order,&
+            neb_env%smoothing, coords, sline, distances, output_unit, error)
        neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
        CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
             particle_set, iw, error)
@@ -452,6 +464,8 @@ CONTAINS
           ! Compute forces
           CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
                output_unit, distances, error)
+          CALL reparametrize_images(neb_env%reparametrize_frames, neb_env%spline_order,&
+               neb_env%smoothing, coords, sline, distances, output_unit, error)
           neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
           CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
                particle_set, iw, error)

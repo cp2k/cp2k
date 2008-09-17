@@ -2422,6 +2422,25 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       ! String Method section
+       CALL section_create(subsection,name="STRING_METHOD",&
+            description="Controls parameters for String Method type calculation only.",&
+            repeats=.FALSE., required=.FALSE., error=error)
+
+       CALL keyword_create(keyword, name="SPLINE_ORDER",&
+            description="Specify the oder of the spline used in the String Method.",&
+            default_i_val=1, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error) 
+       CALL keyword_create(keyword, name="SMOOTHING",&
+            description="Smoothing parameter for the reparametrization of the frames.",&
+            default_r_val=0.2_dp, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error) 
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        ! Optimization section
        CALL section_create(subsection,name="optimize_band",&
             description="Specify the optimization method for the band",&

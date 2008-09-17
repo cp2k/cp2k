@@ -34,13 +34,15 @@ MODULE neb_types
 ! *****************************************************************************
   TYPE neb_type
      ! NEB parameters
-     LOGICAL       :: rotate_frames, optimize_end_points
+     LOGICAL       :: rotate_frames, optimize_end_points, reparametrize_frames
      INTEGER       :: id_type
      INTEGER       :: opt_type
      INTEGER       :: number_of_replica
      INTEGER       :: nsteps_it, istep
      INTEGER       :: nr_HE_image
+     INTEGER       :: spline_order
      REAL(KIND=dp) :: K, spring_energy, avg_distance
+     REAL(KIND=dp) :: smoothing
      CHARACTER(LEN=default_string_length) :: opt_type_label
      ! Section used for restart
      TYPE(force_env_type), POINTER        :: force_env
