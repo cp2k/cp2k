@@ -895,22 +895,22 @@ CONTAINS
        SELECT CASE(keyword%type_of_var)
        CASE (logical_t)
           WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DATA_TYPE kind=""BOOLEAN"">"
+               REPEAT(" ",l1)//"<DATA_TYPE kind=""logical"">"
        CASE (integer_t)
           WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DATA_TYPE kind=""INTEGER"">"
+               REPEAT(" ",l1)//"<DATA_TYPE kind=""integer"">"
        CASE (real_t)
           WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DATA_TYPE kind=""FLOAT"">"
+               REPEAT(" ",l1)//"<DATA_TYPE kind=""real"">"
        CASE (char_t)
           WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DATA_TYPE kind=""STRING"">"
+               REPEAT(" ",l1)//"<DATA_TYPE kind=""word"">"
        CASE (lchar_t)
           WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DATA_TYPE kind=""LONG_STRING"">"
+               REPEAT(" ",l1)//"<DATA_TYPE kind=""string"">"
        CASE (enum_t)
           WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DATA_TYPE kind=""ENUMERATION"">"
+               REPEAT(" ",l1)//"<DATA_TYPE kind=""keyword"">"
           IF (keyword%enum%strict) THEN
              WRITE (UNIT=unit_number,FMT="(A)")&
                   REPEAT(" ",l2)//"<ENUMERATION strict=""yes"">"
@@ -930,8 +930,9 @@ CONTAINS
                   REPEAT(" ",l3)//"</ITEM>"
           END DO
           WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"</ENUMERATION>"
-          !MK   CASE (no_t)
-          !MK     no standard type, no action?
+       CASE (no_t)
+          WRITE (UNIT=unit_number,FMT="(A)")&
+               REPEAT(" ",l1)//"<DATA_TYPE kind=""non-standard type"">"
        CASE DEFAULT
           CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
        END SELECT
