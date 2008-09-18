@@ -6,16 +6,8 @@
 <xsl:template match="/CP2K_INPUT">
  <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
   <head>
+   <xsl:call-template name="head"/>
    <title>CP2K input reference</title>
-   <style type="text/css">
-    body {background-color: #ffffff}
-    big.tt {font-family: monospace}
-    big.uctt {font-family: monospace; text-transform: uppercase}
-    ul.none {list-style-type: none}
-    ul.disc {list-style-type: disc}
-    ul.circle {list-style-type: circle}
-   </style>
-   <script src="collapsibleList.js" type="text/javascript" language="javascript1.2"/>
   </head>
   <body>
    <h1 align="center">CP2K input reference</h1>
@@ -27,18 +19,12 @@
     version of the code. The latest CVS log file entry found was
     <xsl:value-of select="COMPILE_LASTCVS"/>.
    </p>
+   <p>
+    <xsl:call-template name="searchform"/>
+   </p>
    <h2>Journal papers</h2>
    <p>
     <a href="references.html">List of references</a> cited in the CP2K input manual.
-   </p>
-   <h2>Search this manual</h2>
-   <p>
-    <form method="get" action="http://www.google.com/search">
-     <input type="text" name="q" maxlength="255"/>
-     <input type="submit" value="Google Search"/>
-     <input type="hidden" name="domains" value="http://cp2k.berlios.de/manual/"/>
-     <input type="radio" style="visibility:hidden" name="sitesearch" value="http://cp2k.berlios.de/manual/" checked="checked"/>
-    </form>
    </p>
    <h2>Internal input preprocessor</h2>
    <p>
@@ -83,9 +69,6 @@
     index and the detailed description is feasible.
    <h2>Index of all input sections</h2>
    <h4>Last update: <xsl:value-of select="COMPILE_DATE"/></h4>
-   <p>
-    <a href="index_javascript.html">Collapsible section tree</a> (needs javascript, longer loading time, ignore browser warnings, just continue)
-   </p>
    <ul class="disc">
     <li>
      <a href="CP2K_INPUT.html" id="CP2K_INPUT.html">CP2K_INPUT</a>
@@ -95,44 +78,127 @@
      <xsl:with-param name="root" select="'../'"/>
     </xsl:call-template>
    </ul>
-   <hr/>
    <p>
-    <a href="javascript:history.back()"><img src="l_arrow.gif"/></a>
-    <a href="#top"><img src="u_arrow.gif"/></a>
+    <a href="index_javascript.html">Collapsible section tree</a> (CAUTION: very long loading time, ignore browser warnings, just continue)
    </p>
-   <p>
-    Back to the <a href="http://cp2k.berlios.de">CP2K home page</a>
-   </p>
-   <hr/>
+   <xsl:call-template name="footer">
+    <xsl:with-param name="root" select="''"/>
+   </xsl:call-template>
   </body>
   <xsl:result-document href="CP2K_INPUT.html" method="html" indent="yes" format="html">
-   <h3><a href="index.html#CP2K_INPUT.html">CP2K input file</a></h3>
-   <ul class="none">
-    <li>
-     <em>
-      Input file of CP2K. This section cannot be repeated and can be optional.
-     </em>
-    </li>
-   </ul>
-   <ul class="none">
-    <li>
-     Section path:
-     <big class="tt">
-      <a href="CP2K_INPUT.html">CP2K_INPUT</a>
-     </big>
-    </li>
-   </ul>
-   <h3>Subsections</h3>
-   <ul class="disc">
-    <xsl:for-each select="SECTION">
-     <xsl:sort select="NAME"/>
-     <li>
-      <a href="{concat('CP2K_INPUT/',string(NAME),'.html')}"><xsl:value-of select="NAME"/></a>
-     </li>
-    </xsl:for-each>
-   </ul>
+   <html>
+    <head>
+     <xsl:call-template name="head"/>
+     <title>The CP2K project: CP2K input file</title>
+    </head>
+    <body>
+     <xsl:call-template name="header">
+      <xsl:with-param name="root" select="''"/>
+     </xsl:call-template>
+     <h2><a href="index.html#CP2K_INPUT.html">CP2K input file</a></h2>
+     <ul class="none">
+      <li>
+       <em>Input file of CP2K</em>
+      </li>
+     </ul>
+     <ul class="none">
+      <li>
+       Section path:
+       <big class="uctt">
+        <a href="CP2K_INPUT.html">CP2K_INPUT</a>
+       </big>
+      </li>
+     </ul>
+     <ul class="none">
+      <li>
+       This section cannot be repeated and can be optional.
+      </li>
+     </ul>
+     <ul class="none">
+      <h3>Subsections</h3>
+      <xsl:for-each select="SECTION">
+       <xsl:sort select="NAME"/>
+       <ul class="disc">
+        <li>
+         <a href="{concat('CP2K_INPUT/',string(NAME),'.html')}"><xsl:value-of select="NAME"/></a>
+        </li>
+       </ul>
+      </xsl:for-each>
+     </ul>
+     <ul class="none">
+      <h3>Keywords</h3>
+      <ul class="disc">
+       <li>
+        none
+       </li>
+      </ul>
+     </ul>
+     <xsl:call-template name="footer">
+      <xsl:with-param name="root" select="''"/>
+     </xsl:call-template>
+    </body>
+   </html>
   </xsl:result-document>
  </html>
+</xsl:template>
+
+<xsl:template name="head">
+ <meta name="description" content="CP2K"/>
+ <meta name="keywords" contents="scientific,computing,chemistry,physics,documentation,help,manual,Fortran,parallel"/>
+ <style type="text/css">
+  body {background-color: #ffffff}
+  big.tt {font-family: monospace; font-size: 100%}
+  big.uctt {font-family: monospace; font-size: 100%; text-transform: uppercase}
+  p.uctt {font-family: monospace; text-transform: uppercase}
+  table.default {table-layout: fixed; width: 100%}
+  td.l {width: 25%}
+  td.r {width: 75%}
+  ul.circle {list-style-type: circle}
+  ul.disc {list-style-type: disc}
+  ul.none {list-style-type: none}
+  ul.square {list-style-type: square}
+ </style>
+ <script src="collapsibleList.js" type="text/javascript" language="javascript1.2"/>
+</xsl:template>
+
+<xsl:template name="header">
+ <xsl:param name="root"/>
+ <table class="default">
+  <tr>
+   <td align="left">
+    Back to the <a href="{$root}index.html">main page</a> of this manual
+   </td>
+   <td align="right">
+    <xsl:call-template name="searchform"/>
+   </td>
+  </tr>
+ </table>
+ <hr/>
+</xsl:template>
+
+<xsl:template name="footer">
+ <xsl:param name="root"/>
+ <hr/>
+ <table class="default">
+  <tr>
+   <td align="left">
+    Back to the <a href="{$root}index.html">main page</a> of this manual or the <a href="http://cp2k.berlios.de">CP2K home page</a>
+   </td>
+   <td align="right">
+    (Last update:
+    <xsl:value-of select="day-from-dateTime(current-dateTime())"/>.<xsl:value-of select="month-from-dateTime(current-dateTime())"/>.<xsl:value-of select="year-from-dateTime(current-dateTime())"/>)
+   </td>
+  </tr>
+ </table>
+</xsl:template>
+
+<xsl:template name="searchform">
+ <form method="get" action="http://www.google.com/search">
+  <input type="text" name="q" maxlength="255"/>
+  <input type="submit" value="Search this manual (Google)"/>
+  <input type="hidden" name="domains" value="http://cp2k.berlios.de/manual/"/>
+  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://cp2k.berlios.de/manual/" checked="checked"/>
+ </form>
 </xsl:template>
 
 <xsl:template name="describe_sections">
@@ -148,85 +214,114 @@
     <a href="{$section_filename}" id="{$section_filename}"><xsl:value-of select="NAME"/></a>
    </li>
    <xsl:result-document href="{$section_filename}" method="html" indent="yes" format="html">
-    <h3><a href="{$root}index.html#{$section_filename}">Section &amp;<xsl:value-of select="NAME"/></a></h3>
-    <xsl:if test="string-length(DESCRIPTION) > 0">
+   <html>
+    <head>
+     <xsl:call-template name="head"/>
+     <title>The CP2K project: input section <xsl:value-of select="NAME"/></title>
+    </head>
+    <body>
+     <xsl:call-template name="header">
+      <xsl:with-param name="root" select="$root"/>
+     </xsl:call-template>
+     <h2><a href="{$root}index.html#{$section_filename}">Section <xsl:value-of select="NAME"/></a></h2>
+     <xsl:if test="string-length(DESCRIPTION) > 0">
+      <ul class="none">
+       <li>
+        <em>
+         <xsl:value-of select="DESCRIPTION"/>
+        </em>
+       </li>
+      </ul>
+     </xsl:if>
      <ul class="none">
       <li>
-       <em>
-        <xsl:value-of select="DESCRIPTION"/>
-       </em>
+       Section path:
+       <big class="uctt">
+        <xsl:call-template name="link_section_path">
+         <xsl:with-param name="string" select="$local_path"/>
+         <xsl:with-param name="separator" select="'/'"/>
+         <xsl:with-param name="root" select="$root"/>
+        </xsl:call-template>
+       </big>
       </li>
      </ul>
-    </xsl:if>
-    <xsl:if test="count(REFERENCE) > 0">
      <ul class="none">
       <li>
-       References:
-       <xsl:for-each select="REFERENCE">
-        <xsl:sort select="NAME"/>
-        [<a href="{$root}references.html#reference_{string(NUMBER)}"><xsl:value-of select="NAME"/></a>]
-       </xsl:for-each>
+       This section can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated
+       and can<xsl:if test="@required = 'yes'">not</xsl:if> be optional.
       </li>
      </ul>
-    </xsl:if>
-    <ul class="none">
-     <li>
-      Section path:
-      <big class="tt">
-       <xsl:call-template name="link_section_path">
-        <xsl:with-param name="string" select="$local_path"/>
-        <xsl:with-param name="separator" select="'/'"/>
-        <xsl:with-param name="root" select="$root"/>
-       </xsl:call-template>
-      </big>
-     </li>
-    </ul>
-    <ul class="none">
-     <li>
-      This section can be repeated:
-      <big class="uctt">
-       <xsl:value-of select="@repeats"/>
-      </big>
-     </li>
-    </ul>
-    <ul class="none">
-     <li>
-      This section is required:
-      <big class="uctt">
-       <xsl:value-of select="@required"/>
-      </big>
-     </li>
-    </ul>
-    <ul class="none">
-     <li>
-      <h3>Subsections</h3>
-      <xsl:choose>
-       <xsl:when test="count(SECTION) > 0">
-        <ul class="disc">
-         <xsl:for-each select="SECTION">
-          <xsl:sort select="NAME"/>
-          <xsl:variable name="subsection_filename" select="concat($section,'/',string(NAME),'.html')"/>
+     <xsl:if test="count(REFERENCE) > 0">
+      <ul class="none">
+       <li>
+        This section cites the following reference<xsl:if test="count(REFERENCE) > 1">s</xsl:if>:
+        <xsl:for-each select="REFERENCE">
+         <xsl:sort select="NAME"/>
+         [<a href="{$root}references.html#reference_{string(NUMBER)}"><xsl:value-of select="NAME"/></a>]
+        </xsl:for-each>
+       </li>
+      </ul>
+     </xsl:if>
+     <ul class="none">
+      <li>
+       <h3>Subsections</h3>
+       <xsl:choose>
+        <xsl:when test="count(SECTION) > 0">
+         <ul class="disc">
+          <xsl:for-each select="SECTION">
+           <xsl:sort select="NAME"/>
+           <xsl:variable name="subsection_filename" select="concat($section,'/',string(NAME),'.html')"/>
+           <li>
+            <a href="{$subsection_filename}"><xsl:value-of select="NAME"/></a>
+           </li>
+          </xsl:for-each>
+         </ul>
+        </xsl:when>
+        <xsl:otherwise>
+         <ul class="disc">
           <li>
-           <a href="{$subsection_filename}"><xsl:value-of select="NAME"/></a>
+           none
           </li>
-         </xsl:for-each>
-        </ul>
-       </xsl:when>
-       <xsl:otherwise>
-        <ul class="none">
-         <li>
-          none
-         </li>
-        </ul>
-       </xsl:otherwise>
-      </xsl:choose>
-     </li>
-    </ul>
-    <ul class="none">
-     <li>
-      <h3>Keywords:</h3>
-      <xsl:choose>
-       <xsl:when test="count(SECTION_PARAMETERS) > 0 or count(DEFAULT_KEYWORD) > 0 or count(KEYWORD) > 0">
+         </ul>
+        </xsl:otherwise>
+       </xsl:choose>
+      </li>
+     </ul>
+     <ul class="none">
+      <li>
+       <h3>Keywords</h3>
+       <xsl:choose>
+        <xsl:when test="count(SECTION_PARAMETERS) > 0 or count(DEFAULT_KEYWORD) > 0 or count(KEYWORD) > 0">
+         <xsl:if test="count(SECTION_PARAMETERS) > 0">
+          <xsl:call-template name="list_keywords">
+           <xsl:with-param name="element" select="SECTION_PARAMETERS"/>
+          </xsl:call-template>
+         </xsl:if>
+         <xsl:if test="count(DEFAULT_KEYWORD) > 0">
+          <xsl:call-template name="list_keywords">
+           <xsl:with-param name="element" select="DEFAULT_KEYWORD"/>
+          </xsl:call-template>
+         </xsl:if>
+         <xsl:if test="count(KEYWORD) > 0">
+          <xsl:call-template name="list_keywords">
+           <xsl:with-param name="element" select="KEYWORD"/>
+          </xsl:call-template>
+         </xsl:if>
+        </xsl:when>
+        <xsl:otherwise>
+         <ul class="disc">
+          <li>
+           none
+          </li>
+         </ul>
+        </xsl:otherwise>
+       </xsl:choose>
+      </li>
+     </ul>
+     <xsl:if test="count(SECTION_PARAMETERS) > 0 or count(DEFAULT_KEYWORD) > 0 or count(KEYWORD) > 0">
+      <ul class="none">
+       <li>
+        <h3>Keyword descriptions</h3>
         <xsl:if test="count(SECTION_PARAMETERS) > 0">
          <xsl:call-template name="describe_keywords">
           <xsl:with-param name="element" select="SECTION_PARAMETERS"/>
@@ -248,26 +343,14 @@
           <xsl:with-param name="section_filename" select="$section_filename"/>
          </xsl:call-template>
         </xsl:if>
-       </xsl:when>
-       <xsl:otherwise>
-        <ul class="none">
-         <li>
-          none
-         </li>
-        </ul>
-       </xsl:otherwise>
-      </xsl:choose>
-     </li>
-    </ul>
-    <hr/>
-    <p>
-     <a href="javascript:history.back()"><img src="{$root}l_arrow.gif"/></a>
-     <a href="#top"><img src="{$root}u_arrow.gif"/></a>
-    </p>
-    <p>
-     Back to the <a href="http://cp2k.berlios.de">CP2K home page</a>
-    </p>
-    <hr/>
+       </li>
+      </ul>
+     </xsl:if>
+     <xsl:call-template name="footer">
+      <xsl:with-param name="root" select="$root"/>
+     </xsl:call-template>
+    </body>
+   </html>
    </xsl:result-document>
    <xsl:call-template name="describe_sections">
     <xsl:with-param name="path" select="$local_path"/>
@@ -277,133 +360,194 @@
  </ul>
 </xsl:template>
 
-<xsl:template name="describe_keywords">
+<xsl:template name="list_keywords">
  <xsl:param name="element" select="KEYWORD"/>
- <xsl:param name="root"/>
- <xsl:param name="section_filename"/>
- <ul class="none">
+ <ul class="disc">
   <xsl:for-each select="$element">
    <xsl:sort select="NAME[@type='default']"/>
    <xsl:if test="not(starts-with(NAME[@type='default'],'__'))">
     <li>
-     <dl>
-      <dt>
-       <a href="{$root}index.html#{$section_filename}" id="{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
-       <xsl:if test="NAME[@type='alias']">
-        (alias:
-        <xsl:for-each select="NAME[@type='alias']">
-         <xsl:sort select="NAME[@type='alias']"/>
-         <xsl:choose>
-          <xsl:when test="position() = last()">
-           <xsl:value-of select="."/>)
-          </xsl:when>
-          <xsl:otherwise>
-           <xsl:value-of select="."/>,
-          </xsl:otherwise>
-         </xsl:choose>
-        </xsl:for-each>
-       </xsl:if>
-      </dt>
-      <dd>
-       <p>
-        <em>
-         <xsl:value-of select="DESCRIPTION"/>
-        </em>
-       </p>
-      </dd>
-      <xsl:if test="count(REFERENCE) > 0">
-       <dd>
-        <p>
-         References:
-         <xsl:for-each select="REFERENCE">
-          <xsl:sort select="NAME"/>
-          [<a href="{$root}references.html#reference_{string(NUMBER)}"><xsl:value-of select="NAME"/></a>]
-         </xsl:for-each>
-        </p>
-       </dd>
-      </xsl:if>
-      <dd>
-       <p>
-        This keyword can be repeated:
-        <big class="uctt">
-         <xsl:value-of select="@repeats"/>
-        </big>
-       </p>
-      </dd>
-      <dd>
-       <p>
-        This keyword is required:
-        <big class="uctt">
-         <xsl:value-of select="@required"/>
-        </big>
-       </p>
-      </dd>
-      <dd>
-       <p>
-        Data type: <big class="uctt"><xsl:value-of select="DATA_TYPE/@kind"/></big>
-       </p>
-       <xsl:if test="DATA_TYPE/ENUMERATION">
-        <p>
-         List of valid keys:
-        </p>
-        <ul class="none">
-         <xsl:for-each select="DATA_TYPE/ENUMERATION/ITEM">
-          <xsl:sort select="NAME"/>
-          <li>
-           <dl>
-            <dt>
-             <big class="uctt">
-              <xsl:value-of select="NAME"/>
-             </big>
-            </dt>
-            <xsl:if test="string-length(DESCRIPTION) > 0">
-             <dd>
-              <em>
-               <xsl:value-of select="DESCRIPTION"/>
-              </em>
-             </dd>
-            </xsl:if>
-           </dl>
-          </li>
-         </xsl:for-each>
-        </ul>
-       </xsl:if>
-      </dd>
-      <xsl:if test="string-length(USAGE) > 0">
-       <dd>
-        <p>
-         Usage example:
-         <big class="uctt">
-          <xsl:value-of select="USAGE"/>
-         </big>
-        </p>
-       </dd>
-      </xsl:if>
-      <xsl:if test="string-length(DEFAULT_VALUE) > 0">
-       <dd>
-        <p>
-         Default value:
-         <big class="uctt">
-          <xsl:value-of select="DEFAULT_VALUE"/>
-         </big>
-        </p>
-       </dd>
-      </xsl:if>
-      <xsl:if test="string-length(DEFAULT_UNIT) > 0">
-       <dd>
-        <p>
-         Default unit:
-         <big class="uctt">
-          <xsl:value-of select="DEFAULT_UNIT"/>
-         </big>
-        </p>
-       </dd>
-      </xsl:if>
-     </dl>
+     <a href="#desc_{string(NAME[@type='default'])}" id="list_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
     </li>
    </xsl:if>
   </xsl:for-each>
  </ul>
+</xsl:template>
+
+<xsl:template name="describe_keywords">
+ <xsl:param name="element" select="KEYWORD"/>
+ <xsl:param name="root"/>
+ <xsl:param name="section_filename"/>
+ <xsl:for-each select="$element">
+  <xsl:sort select="NAME[@type='default']"/>
+  <xsl:if test="not(starts-with(NAME[@type='default'],'__'))">
+   <table class="default">
+    <tr>
+     <td class="l">
+      <ul class="disc">
+       <li>
+        <a href="#list_{string(NAME[@type='default'])}" id="desc_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
+       </li>
+      </ul>
+     </td>
+     <td class="r">
+     </td>
+    </tr>
+    <tr>
+     <td class="l">
+     </td>
+     <td class="r">
+      <xsl:if test="string-length(USAGE) > 0">
+       <big class="uctt">
+        <xsl:value-of select="USAGE"/>
+       </big>
+      </xsl:if>
+     </td>
+    </tr>
+    <tr>
+     <td class="l">
+     </td>
+     <td class="r">
+      <em>
+       <xsl:value-of select="DESCRIPTION"/>
+      </em>
+     </td>
+    </tr>
+    <tr>
+     <td class="l">
+     </td>
+     <td class="r">
+      This
+      <xsl:if test="@required = 'yes'">
+       required
+      </xsl:if>
+      <xsl:if test="@required = 'no'">
+       optional
+      </xsl:if>
+      keyword can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated
+      and it expects
+      <xsl:if test="DATA_TYPE/N_VAR = -1">
+       a list of <xsl:value-of select="DATA_TYPE/@kind"/>s.
+      </xsl:if>
+      <xsl:if test="DATA_TYPE/N_VAR = 1">
+       precisely one <xsl:value-of select="DATA_TYPE/@kind"/>.
+      </xsl:if>
+      <xsl:if test="DATA_TYPE/N_VAR > 1">
+       precisely <xsl:value-of select="DATA_TYPE/N_VAR"/>&#160;<xsl:value-of select="DATA_TYPE/@kind"/>s.
+      </xsl:if>
+     </td>
+    </tr>
+    <xsl:if test="LONE_KEYWORD_VALUE">
+     <tr>
+      <td class="l">
+      </td>
+      <td class="r">
+       The lone keyword behaves as a switch to
+       <big class="uctt">
+        <xsl:if test="LONE_KEYWORD_VALUE = 'T'">.TRUE.</xsl:if>
+        <xsl:if test="LONE_KEYWORD_VALUE = 'F'">.FALSE.</xsl:if>
+       </big>
+      </td>
+     </tr>
+    </xsl:if>
+    <xsl:if test="string-length(DEFAULT_VALUE) > 0">
+     <tr>
+      <td class="l">
+      </td>
+      <td class="r">
+       Default value<xsl:if test="DATA_TYPE/N_VAR > 1">s</xsl:if>:
+       <big class="uctt">
+        <xsl:choose>
+         <xsl:when test="DATA_TYPE/@kind = 'logical'">
+          <xsl:if test="DEFAULT_VALUE = 'T'">.TRUE.</xsl:if>
+          <xsl:if test="DEFAULT_VALUE = 'F'">.FALSE.</xsl:if>
+         </xsl:when>
+         <xsl:otherwise>
+          <xsl:value-of select="DEFAULT_VALUE"/>
+         </xsl:otherwise>
+        </xsl:choose>
+       </big>
+      </td>
+     </tr>
+    </xsl:if>
+    <xsl:if test="string-length(DEFAULT_UNIT) > 0">
+     <tr>
+      <td class="l">
+      </td>
+      <td class="r">
+       Default unit:
+       <big class="tt">
+        [<xsl:value-of select="DEFAULT_UNIT"/>]
+       </big>
+      </td>
+     </tr>
+    </xsl:if>
+    <xsl:if test="DATA_TYPE/ENUMERATION">
+     <tr>
+      <td class="l">
+      </td>
+      <td class="r">
+       List of valid keywords:
+       <ul class="square">
+        <xsl:for-each select="DATA_TYPE/ENUMERATION/ITEM">
+         <xsl:sort select="NAME"/>
+         <li>
+          <dl>
+           <dt>
+            <big class="uctt">
+             <xsl:value-of select="NAME"/>
+            </big>
+           </dt>
+           <xsl:if test="string-length(DESCRIPTION) > 0">
+            <dd>
+             <em>
+              <xsl:value-of select="DESCRIPTION"/>
+             </em>
+            </dd>
+           </xsl:if>
+          </dl>
+         </li>
+        </xsl:for-each>
+       </ul>
+      </td>
+     </tr>
+    </xsl:if>
+    <xsl:if test="NAME[@type='alias']">
+     <tr>
+      <td class="l">
+      </td>
+      <td class="r">
+       Alias names for this keyword:
+       <xsl:for-each select="NAME[@type='alias']">
+        <xsl:sort select="NAME[@type='alias']"/>
+        <xsl:choose>
+         <xsl:when test="position() = last()">
+          <xsl:value-of select="."/>
+         </xsl:when>
+         <xsl:otherwise>
+          <xsl:value-of select="."/>,
+         </xsl:otherwise>
+        </xsl:choose>
+       </xsl:for-each>
+      </td>
+     </tr>
+    </xsl:if>
+    <xsl:if test="count(REFERENCE) > 0">
+     <tr>
+      <td class="l">
+      </td>
+      <td class="r">
+       This keyword cites the following reference<xsl:if test="count(REFERENCE) > 1">s</xsl:if>:
+       <xsl:for-each select="REFERENCE">
+        <xsl:sort select="NAME"/>
+        [<a href="{$root}references.html#reference_{string(NUMBER)}"><xsl:value-of select="NAME"/></a>]
+       </xsl:for-each>
+      </td>
+     </tr>
+    </xsl:if>
+   </table>
+  </xsl:if>
+ </xsl:for-each>
 </xsl:template>
 
 <xsl:template name="link_section_path">
@@ -412,7 +556,7 @@
  <xsl:param name="root"/>
  <xsl:variable name="string_before" select="substring-before($string,$separator)"/>
  <xsl:variable name="string_after" select="substring-after($string,$separator)"/>
- <a href="{concat($root,$string_before,'.html')}"><xsl:value-of select="concat($string_before,'/')"/></a>
+ <a href="{concat($root,$string_before,'.html')}"><xsl:value-of select="$string_before"/></a> /
  <xsl:choose>
   <xsl:when test="contains($string_after,$separator)">
    <xsl:call-template name="link_section_path">

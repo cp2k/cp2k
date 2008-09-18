@@ -1,6 +1,18 @@
 #!/bin/sh
 if [[ $1 == "-javascript" ]]; then
-  saxon -o index.html cp2k_input.xml cp2k_input.xsl
+
+  # Saxon 8.8J from Saxonica (e.g. saxon package of SUSE Linux)
+  # saxon -o index.html cp2k_input.xml cp2k_input.xsl
+
+  # Java version from http://sourceforge.net/projects/saxon
+  java -jar saxon9.jar -o index.html cp2k_input.xml cp2k_input.xsl
+
 else
-  saxon -o index.html cp2k_input.xml cp2k_input_nojavascript.xsl
+
+  # Saxon 8.8J from Saxonica (e.g. saxon package of SUSE Linux)
+  # saxon -o index.html cp2k_input.xml cp2k_input_nojavascript.xsl
+
+  # Java version from http://sourceforge.net/projects/saxon
+  java -jar saxon9.jar -o index.html cp2k_input.xml cp2k_input_nojavascript.xsl
+
 fi
