@@ -119,6 +119,8 @@ MODULE qs_ot
      REAL(KIND = dp)   :: eps_irac_switch
      LOGICAL           :: on_the_fly_loc
      CHARACTER(LEN=4)  :: ortho_irac
+     LOGICAL           :: occupation_preconditioner, add_nondiag_energy
+     REAL(KIND = dp)   :: nondiag_energy_strength
   END TYPE qs_ot_settings_type
 
 ! *****************************************************************************
@@ -194,7 +196,8 @@ MODULE qs_ot
      ! second part of the variables, if an explicit rotation is required as well
      TYPE(cp_fm_type), POINTER :: rot_mat_u ! rotation matrix
      TYPE(cp_fm_type), POINTER :: rot_mat_x ! antisymmetric matrix that parametrises rot_matrix_u
-     TYPE(cp_fm_type), POINTER :: rot_mat_chcf ! needed for the derivative
+     TYPE(cp_fm_type), POINTER :: rot_mat_dedu ! derivative of the total energy wrt to u
+     TYPE(cp_fm_type), POINTER :: rot_mat_chc  ! for convencience, the matrix c^T H c
 
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: rot_mat_h_e
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: rot_mat_h_x
@@ -262,6 +265,9 @@ CONTAINS
     settings%ortho_irac="CHOL"
     settings%scp=.FALSE.
     settings%ks=.TRUE.
+    settings%occupation_preconditioner=.FALSE.
+    settings%add_nondiag_energy=.FALSE.
+    settings%nondiag_energy_strength=0.0_dp
   END SUBROUTINE qs_ot_settings_init
 
   ! gets ready to use the preconditioner/ or renew the preconditioner
@@ -436,12 +442,13 @@ CONTAINS
 
     NULLIFY(qs_ot_env%rot_mat_u,  qs_ot_env%rot_mat_x,      qs_ot_env%rot_mat_h_e, qs_ot_env%rot_mat_h_x, &
          qs_ot_env%rot_mat_gx, qs_ot_env%rot_mat_gx_old, qs_ot_env%rot_mat_dx,  &
-         qs_ot_env%rot_mat_evals,  qs_ot_env%rot_mat_evec, qs_ot_env%rot_mat_chcf)
+         qs_ot_env%rot_mat_evals,  qs_ot_env%rot_mat_evec, qs_ot_env%rot_mat_dedu, qs_ot_env%rot_mat_chc)
 
     IF (qs_ot_env%settings%do_rotation) THEN
        CALL cp_fm_create(qs_ot_env%rot_mat_u,fm_struct_k_k,name="rot_mat_u",error=error)
        CALL cp_fm_create(qs_ot_env%rot_mat_x,fm_struct_k_k,name="rot_mat_x",error=error)
-       CALL cp_fm_create(qs_ot_env%rot_mat_chcf,fm_struct_k_k,name="rot_mat_chcf",error=error)
+       CALL cp_fm_create(qs_ot_env%rot_mat_dedu,fm_struct_k_k,name="rot_mat_dedu",error=error)
+       CALL cp_fm_create(qs_ot_env%rot_mat_chc,fm_struct_k_k,name="rot_mat_chc",error=error)
 
        IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
           ALLOCATE(qs_ot_env%rot_mat_h_e(m_diis))
@@ -649,7 +656,8 @@ CONTAINS
     IF (qs_ot_env%settings%do_rotation) THEN
        CALL cp_fm_release(qs_ot_env%rot_mat_u,error=error)
        CALL cp_fm_release(qs_ot_env%rot_mat_x,error=error)
-       CALL cp_fm_release(qs_ot_env%rot_mat_chcf,error=error)
+       CALL cp_fm_release(qs_ot_env%rot_mat_dedu,error=error)
+       CALL cp_fm_release(qs_ot_env%rot_mat_chc,error=error)
 
        IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
           DO i=1,qs_ot_env%settings%diis_m
@@ -1340,7 +1348,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief computes the derivative fields with respect to rot_mat_x
 !> \param valid qs_ot_env. In particular qs_ot_generate_rotation has to be called before
-!>                        and the chcf matrix has to be up to date
+!>                        and the rot_mat_dedu matrix has to be up to date
 !> \par History
 !>      08.2004 created [ Joost VandeVondele ]
 ! *****************************************************************************
@@ -1369,9 +1377,7 @@ CONTAINS
 
     CALL cp_fm_get_info(qs_ot_env%rot_mat_u,nrow_global=k,error=error)
     IF (k/=0) THEN
-       ! create the derivative of the energy wrt to rot_mat_u
-       CALL cp_fm_gemm('N','N',k,k,k,1.0_dp,qs_ot_env%rot_mat_u,qs_ot_env%rot_mat_chcf, &
-            0.0_dp,qs_ot_env%matrix_buf1,error=error)
+       CALL cp_fm_to_fm(qs_ot_env%rot_mat_dedu,qs_ot_env%matrix_buf1,error=error)
        
        ! now we get to the derivative wrt the antisymmetric matrix rot_mat_x
        CALL cp_fm_get_info(qs_ot_env%rot_mat_x,matrix_struct=fm_struct,error=error)

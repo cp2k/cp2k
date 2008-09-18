@@ -4897,6 +4897,27 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="OCCUPATION_PRECONDITIONER",&
+            description="Preconditioner with the occupation numbers (FD smearing)",&
+            usage="OCCUPATION_PRECONDITIONER",lone_keyword_l_val=.TRUE.,&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NONDIAG_ENERGY",&
+            description="Add a non-diagonal energy penalty (FD smearing)",&
+            usage="NONDIAG_ENERGY",lone_keyword_l_val=.TRUE.,&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NONDIAG_ENERGY_STRENGTH",&
+            description="The prefactor for the non-diagonal energy penalty (FD smearing)",&
+            usage="NONDIAG_ENERGY_STRENGTH", default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
     END IF
   END SUBROUTINE create_ot_section
 

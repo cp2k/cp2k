@@ -14,15 +14,11 @@ MODULE qs_ot_scf
                                              cite_reference
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_diag,&
-                                             cp_fm_get_info,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
+                                             cp_fm_gemm,&
+                                             cp_fm_trace
+  USE cp_fm_types,                     ONLY: &
+       cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_p_type, &
+       cp_fm_release, cp_fm_set_all, cp_fm_set_diag, cp_fm_to_fm, cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -232,6 +228,11 @@ CONTAINS
     CALL section_vals_val_get(ot_section,"ROTATION",l_val=qs_ot_env(1)%settings%do_rotation,error=error)
     CALL section_vals_val_get(ot_section,"SCP",l_val=qs_ot_env(1)%settings%scp,error=error)
     CALL section_vals_val_get(ot_section,"ENERGIES",l_val=qs_ot_env(1)%settings%do_ener,error=error)
+    CALL section_vals_val_get(ot_section,"OCCUPATION_PRECONDITIONER", &
+           l_val=qs_ot_env(1)%settings%occupation_preconditioner,error=error)
+    CALL section_vals_val_get(ot_section,"NONDIAG_ENERGY",l_val=qs_ot_env(1)%settings%add_nondiag_energy,error=error)
+    CALL section_vals_val_get(ot_section,"NONDIAG_ENERGY_STRENGTH",&
+           r_val=qs_ot_env(1)%settings%nondiag_energy_strength,error=error)
     ! not yet fully implemented
     CPPostcondition(.NOT.qs_ot_env(1)%settings%do_ener,cp_failure_level,routineP,error,failure)
 
@@ -370,6 +371,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, k, n, nspin, &
                                                 stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: ener_nondiag, trace
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: expectation_values, &
                                                 occupation_numbers, &
@@ -409,6 +411,10 @@ CONTAINS
     IF (qs_ot_env(1)%settings%do_ener) THEN
        CPPrecondition(qs_ot_env(1)%settings%do_rotation,cp_failure_level,routineP,error,failure)
     ENDIF
+    ! add_nondiag_energy requires do_ener
+    IF (qs_ot_env(1)%settings%add_nondiag_energy) THEN
+       CPPrecondition(qs_ot_env(1)%settings%do_ener,cp_failure_level,routineP,error,failure)   
+    ENDIF
 
     ! get a rotational force
     IF ( .NOT. energy_only) THEN
@@ -417,25 +423,75 @@ CONTAINS
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
              CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
              CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,mo_coeff,matrix_dedc(ispin)%matrix, &
-                  0.0_dp,qs_ot_env(ispin)%rot_mat_chcf,error=error)
-             ! here we have c^T H c , lets get the diagonal values, we need them for the ener derivative
-             IF (qs_ot_env(1)%settings%do_ener) THEN
-                CALL cp_fm_get_diag(qs_ot_env(ispin)%rot_mat_chcf,expectation_values(ispin)%array,error)
-             ENDIF
-             CALL cp_fm_column_scale(qs_ot_env(ispin)%rot_mat_chcf,scaling_factor(ispin)%array)
+                  0.0_dp,qs_ot_env(ispin)%rot_mat_chc,error=error)
+             CALL cp_fm_to_fm(qs_ot_env(ispin)%rot_mat_chc,qs_ot_env(ispin)%matrix_buf1,error=error)
+             CALL cp_fm_column_scale(qs_ot_env(ispin)%matrix_buf1,scaling_factor(ispin)%array)
+             ! create the derivative of the energy wrt to rot_mat_u
+             CALL cp_fm_gemm('N','N',k,k,k,1.0_dp,qs_ot_env(ispin)%rot_mat_u,qs_ot_env(ispin)%matrix_buf1, &
+                  0.0_dp,qs_ot_env(ispin)%rot_mat_dedu,error=error)
           ENDDO
 
           ! here we construct the derivative of the free energy with respect to the evals
-          ! (note that expectation_values is modified here)
+          ! (note that this requires the diagonal elements of chc)
           ! the mo occupations should in principle remain unaltered
           IF (qs_ot_env(1)%settings%do_ener) THEN
             DO ispin=1,SIZE(mo_array)
-               CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
-                       smear=smear, eval_deriv=expectation_values(ispin)%array, error=error)
+               CALL cp_fm_get_diag(qs_ot_env(ispin)%rot_mat_chc,expectation_values(ispin)%array,error)
                qs_ot_env(ispin)%ener_gx=expectation_values(ispin)%array
+               CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
+                       smear=smear, eval_deriv=qs_ot_env(ispin)%ener_gx, error=error)
             ENDDO
           ENDIF
+
+          ! chc only needs to be stored in u independent form if we require add_nondiag_energy, 
+          ! which will use it in non-selfconsistent form for e.g. the linesearch
+          ! transform C^T H C -> U C^T H C U ^ T
+          IF (qs_ot_env(1)%settings%add_nondiag_energy) THEN
+             DO ispin=1,SIZE(qs_ot_env)
+                CALL cp_fm_get_info(qs_ot_env(ispin)%rot_mat_u,ncol_global=k,error=error)
+                CALL cp_fm_gemm('N','N',k,k,k,1.0_dp,qs_ot_env(ispin)%rot_mat_u,qs_ot_env(ispin)%rot_mat_chc, &
+                  0.0_dp,qs_ot_env(ispin)%matrix_buf1,error=error)
+                CALL cp_fm_gemm('N','T',k,k,k,1.0_dp,qs_ot_env(ispin)%matrix_buf1,qs_ot_env(ispin)%rot_mat_u, &
+                  0.0_dp,qs_ot_env(ispin)%rot_mat_chc,error=error)
+             ENDDO
+          ENDIF
        ENDIF
+    ENDIF
+
+    ! evaluate non-diagonal energy contribution
+    ener_nondiag=0.0_dp
+    IF (qs_ot_env(1)%settings%add_nondiag_energy) THEN
+       DO ispin=1,SIZE(qs_ot_env)
+          ! transform \tilde H to the current basis of C (assuming non-selfconsistent H)
+          CALL cp_fm_get_info(qs_ot_env(ispin)%rot_mat_u,ncol_global=k,error=error)
+          CALL cp_fm_gemm('T','N',k,k,k,1.0_dp,qs_ot_env(ispin)%rot_mat_u,qs_ot_env(ispin)%rot_mat_chc, &
+            0.0_dp,qs_ot_env(ispin)%matrix_buf1,error=error)
+          CALL cp_fm_gemm('N','N',k,k,k,1.0_dp,qs_ot_env(ispin)%matrix_buf1,qs_ot_env(ispin)%rot_mat_u, &
+            0.0_dp,qs_ot_env(ispin)%matrix_buf2,error=error)
+
+          ! subtract the current ener_x from the diagonal
+          CALL cp_fm_get_diag(qs_ot_env(ispin)%matrix_buf2,expectation_values(ispin)%array,error)
+          expectation_values(ispin)%array=expectation_values(ispin)%array-qs_ot_env(ispin)%ener_x
+          CALL cp_fm_set_diag(qs_ot_env(ispin)%matrix_buf2,expectation_values(ispin)%array,error)
+ 
+          ! get nondiag energy trace (D^T D)
+          CALL cp_fm_trace(qs_ot_env(ispin)%matrix_buf2,qs_ot_env(ispin)%matrix_buf2,trace,error)
+          ener_nondiag=ener_nondiag+0.5_dp*qs_ot_env(1)%settings%nondiag_energy_strength*trace
+
+          ! get gradient (again ignoring dependencies of H)
+          IF (.NOT. energy_only) THEN
+             ! first for the ener_x (-2*(diag(C^T H C)-ener_x))
+             qs_ot_env(ispin)%ener_gx = qs_ot_env(ispin)%ener_gx - &
+                    qs_ot_env(1)%settings%nondiag_energy_strength * expectation_values(ispin)%array
+
+             ! next for the rot_mat_u derivative (2 * k * \tilde H U D)
+             CALL cp_fm_gemm('N','N',k,k,k,1.0_dp,qs_ot_env(ispin)%rot_mat_chc,qs_ot_env(ispin)%rot_mat_u,&
+                   0.0_dp,qs_ot_env(ispin)%matrix_buf1,error=error)
+             CALL cp_fm_gemm('N','N',k,k,k,2.0_dp * qs_ot_env(1)%settings%nondiag_energy_strength, &
+                   qs_ot_env(ispin)%matrix_buf1,qs_ot_env(ispin)%matrix_buf2,&
+                   1.0_dp,qs_ot_env(ispin)%rot_mat_dedu,error=error)
+          ENDIF
+       ENDDO
     ENDIF
 
     ! this is kind of a hack so far (costly memory wise), we locally recreate the scaled matrix_hc, and
@@ -446,11 +502,17 @@ CONTAINS
     DO ispin=1,SIZE(matrix_dedc)
        CALL cp_fm_create(matrix_dedc_scaled(ispin)%matrix,matrix_dedc(ispin)%matrix%matrix_struct,error=error)
        CALL cp_fm_to_fm(matrix_dedc(ispin)%matrix,matrix_dedc_scaled(ispin)%matrix,error=error)
+
+       ! as a preconditioner, one might want to scale only with a constant, not with f(i)
+       ! for the convergence criterium, maybe take it back out
+       IF (qs_ot_env(1)%settings%occupation_preconditioner) THEN 
+          scaling_factor(ispin)%array=2.0_dp
+       ENDIF
        CALL cp_fm_column_scale(matrix_dedc_scaled(ispin)%matrix,scaling_factor(ispin)%array)
     ENDDO
 
     ! notice we use qs_ot_env(1) for driving all output and the minimization in case of LSD
-    qs_ot_env(1)%etotal=energy
+    qs_ot_env(1)%etotal=energy+ener_nondiag
     CALL ot_mini(qs_ot_env,matrix_dedc_scaled,aux_coeff_set, error=error)
     delta           =qs_ot_env(1)%delta
     energy_only     =qs_ot_env(1)%energy_only
