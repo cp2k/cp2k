@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="2.0">
 
 <xsl:output method="html" indent="yes" name="html"/>
@@ -10,13 +11,16 @@
    <title>CP2K input reference</title>
   </head>
   <body>
+   <xsl:call-template name="write_generate_manual_howto"/>
    <h1 align="center">CP2K input reference</h1>
    <h2>Version information</h2>
    <p>
     This HTML manual was generated automatically from a CP2K executable
     compiled on <xsl:value-of select="COMPILE_DATE"/> using the
-    --xml command line option. Thus the manual describes exactly this
-    version of the code. The latest CVS log file entry found was
+    <big class="tt">--xml</big> command line option (see
+    <a href="generate_manual_howto.html">how to generate this manual</a>).
+    Thus the manual describes exactly this version of the code.
+    The latest CVS log file entry found was
     <xsl:value-of select="COMPILE_LASTCVS"/>.
    </p>
    <p>
@@ -89,7 +93,7 @@
    <html>
     <head>
      <xsl:call-template name="head"/>
-     <title>The CP2K project: CP2K input file</title>
+     <title>CP2K input file</title>
     </head>
     <body>
      <xsl:call-template name="header">
@@ -143,8 +147,20 @@
 </xsl:template>
 
 <xsl:template name="head">
- <meta name="description" content="CP2K"/>
- <meta name="keywords" contents="scientific,computing,chemistry,physics,documentation,help,manual,Fortran,parallel"/>
+ <xsl:variable name="description">
+  <xsl:choose>
+   <xsl:when test="string-length(DESCRIPTION) > 0">
+    <xsl:value-of select="string(DESCRIPTION)"/>
+   </xsl:when>
+   <xsl:otherwise>
+    <xsl:value-of select="'CP2K input reference'"/>
+   </xsl:otherwise>
+  </xsl:choose>
+ </xsl:variable>
+ <meta name="language" content="en"/>
+ <meta name="copyright" content="2000 - {year-from-dateTime(current-dateTime())} CP2K developers group"/>
+ <meta name="description" content="{$description}"/>
+ <meta name="keywords" content="scientific,computing,chemistry,physics,documentation,help,manual,Fortran,parallel,molecular dynamics,MD,density functional theory,DFT,electronic structure,linear scaling,force field,Quickstep,GPW,GAPW,FIST,QM,MM"/>
  <style type="text/css">
   body {background-color: #ffffff}
   big.tt {font-family: monospace; font-size: 100%}
@@ -217,7 +233,7 @@
    <html>
     <head>
      <xsl:call-template name="head"/>
-     <title>The CP2K project: input section <xsl:value-of select="NAME"/></title>
+     <title>Input section <xsl:value-of select="NAME"/></title>
     </head>
     <body>
      <xsl:call-template name="header">
@@ -569,6 +585,65 @@
    <a href="{concat($string_after,'.html')}"><xsl:value-of select="$string_after"/></a>
   </xsl:otherwise>
  </xsl:choose>
+</xsl:template>
+
+<xsl:template name="write_generate_manual_howto">
+ <xsl:result-document href="generate_manual_howto.html" method="html" indent="yes" format="html">
+  <html>
+   <head>
+    <xsl:call-template name="head"/>
+    <title>How to generate the CP2K input reference manual</title>
+   </head>
+   <body>
+    <xsl:call-template name="header">
+     <xsl:with-param name="root" select="''"/>
+    </xsl:call-template>
+    <h2 align="center">How to generate the CP2K input reference manual</h2>
+    <ul class="disc">
+     <li>
+      Prepare a CP2K executable. It does not matter which type of CP2K executable (e.g. sopt) you are using.
+     </li>
+     <li>
+      Run the CP2K executable with the flag <big class="tt">--xml</big> like:
+      <ul class="none">
+       <li><big class="tt">cp2k.sopt --xml</big></li>
+      </ul>
+      which will generate a file named <big class="tt">cp2k_input.xml</big> with a XML dump of the CP2K input
+      structure in the same directory.
+     </li>
+     <li>
+      Copy the XSLT file <big class="tt">cp2k_input.xsl</big> from <big class="tt">cp2k/web/manual/</big> to
+      your working directory, if needed.
+     </li>
+     <li>
+      Transform the XML output in <big class="tt">cp2k_input.xml</big> to HTML using a XML 2.0 compliant
+      translator like SAXON.<br/>
+      If you have the SAXON package already installed, then just run:
+      <ul class="none">
+       <li><big class="tt">saxon -o index.html cp2k_input.xml cp2k_input.xsl</big></li>
+      </ul>
+      Alternatively, you may employ the platform independent Java version of SAXON
+      <ul class="none">
+       <li><big class="tt">java -jar saxon9.jar -o index.html cp2k_input.xml cp2k_input.xsl</big></li>
+      </ul>
+      which can be downloaded from
+      <a href="http://sourceforge.net/projects/saxon">http://sourceforge.net/projects/saxon</a>.<br/>
+      The latter choice might be more convenient, if you have Java installed anyway.<br/>
+     </li>
+     <li>
+      Launch your favorite web browser and load the <big class="tt">index.html</big> file generated in the
+      previous step.
+     </li>
+     <li>
+      Happy browsing!
+     </li>
+    </ul>
+    <xsl:call-template name="footer">
+     <xsl:with-param name="root" select="''"/>
+    </xsl:call-template>
+   </body>
+  </html>
+ </xsl:result-document>
 </xsl:template>
 
 </xsl:stylesheet>
