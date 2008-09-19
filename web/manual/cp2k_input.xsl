@@ -69,29 +69,18 @@
     index and the detailed description is feasible.
    <h2>Index of all input sections</h2>
    <h4>Last update: <xsl:value-of select="COMPILE_DATE"/></h4>
-   <p>
-    <a href="index.html">Fully expanded section tree</a> (fast loading)
-   </p>
-   <p>
-    <font color="red">
-     NOTE: Use the back key of your browser to return to this representation after clicking on a section or keyword link
-    </font>
-   </p>
-   <script type="text/javascript" language="javascript1.2">
-    var Path = new collapsibleList([17,21,'t.gif','l.gif','i.gif','e.gif'],[25,21,'f.gif','b.gif','p.gif','m.gif'],false);
-    Path.sub[0] = new sub('<a href="CP2K_INPUT.html" id="CP2K_INPUT.html">CP2K_INPUT</a>',false);
-    <xsl:call-template name="section_index">
+   <ul class="disc">
+    <li>
+     <a href="CP2K_INPUT.html" id="CP2K_INPUT.html">CP2K_INPUT</a>
+    </li>
+    <xsl:call-template name="describe_sections">
      <xsl:with-param name="path" select="'CP2K_INPUT'"/>
-     <xsl:with-param name="subpath" select="'Path.sub[0]'"/>
-     <xsl:with-param name="expand_list" select="'false'"/>
-     <xsl:with-param name="start" select="count(KEYWORD)"/>
+     <xsl:with-param name="root" select="'../'"/>
     </xsl:call-template>
-    createList(Path);
-   </script>
-   <xsl:call-template name="describe_sections">
-    <xsl:with-param name="path" select="'CP2K_INPUT'"/>
-    <xsl:with-param name="root" select="'../'"/>
-   </xsl:call-template>
+   </ul>
+   <p>
+    <a href="index_javascript.html">Collapsible section tree</a> (CAUTION: very long loading time, ignore browser warnings, just continue)
+   </p>
    <xsl:call-template name="footer">
     <xsl:with-param name="root" select="''"/>
    </xsl:call-template>
@@ -212,53 +201,6 @@
  </form>
 </xsl:template>
 
-<xsl:template name="section_index">
- <xsl:param name="path"/>
- <xsl:param name="subpath"/>
- <xsl:param name="expand_list"/>
- <xsl:param name="start"/>
- <xsl:for-each select="SECTION">
-  <xsl:sort select="NAME"/>
-  <xsl:variable name="section" select="string(NAME)"/>
-  <xsl:variable name="local_path" select="concat($path,'/',string(NAME))"/>
-  <xsl:variable name="section_filename" select="concat($local_path,'.html')"/>
-  <xsl:variable name="local_subpath" select="concat($subpath,'.sub[',string($start+position()-1),']')"/>
-  <xsl:value-of select="$local_subpath"/> = new sub('<a href="{$section_filename}" id="{$section_filename}">&amp;<xsl:value-of select="NAME"/></a>',<xsl:value-of select="$expand_list"/>);
-  <xsl:call-template name="keyword_index">
-   <xsl:with-param name="subpath" select="$local_subpath"/>
-   <xsl:with-param name="section_filename" select="$section_filename"/>
-  </xsl:call-template>
-  <xsl:call-template name="section_index">
-   <xsl:with-param name="path" select="$local_path"/>
-   <xsl:with-param name="subpath" select="$local_subpath"/>
-   <xsl:with-param name="expand_list" select="$expand_list"/>
-   <xsl:with-param name="start" select="count(SECTION_PARAMETERS)+count(DEFAULT_KEYWORD)+count(KEYWORD)"/>
-  </xsl:call-template>
- </xsl:for-each>
-</xsl:template>
-
-<xsl:template name="keyword_index">
- <xsl:param name="subpath"/>
- <xsl:param name="section_filename"/>
- <xsl:variable name="nsecpar" select="count(SECTION_PARAMETERS)"/>
- <xsl:variable name="ndefpar" select="count(DEFAULT_KEYWORD)"/>
- <xsl:for-each select="SECTION_PARAMETERS">
-  <xsl:sort select="NAME[@type='default']"/>
-  <xsl:variable name="local_subpath" select="concat($subpath,'.sub[0]')"/>
-  <xsl:value-of select="$local_subpath"/> = new sub('<a href="{$section_filename}#{string(NAME[@type='default'])}" id="{$section_filename}/{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>');
- </xsl:for-each>
- <xsl:for-each select="DEFAULT_KEYWORD">
-  <xsl:sort select="NAME[@type='default']"/>
-  <xsl:variable name="local_subpath" select="concat($subpath,'.sub[',string($nsecpar),']')"/>
-  <xsl:value-of select="$local_subpath"/> = new sub('<a href="{$section_filename}#{string(NAME[@type='default'])}" id="{$section_filename}/{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>');
- </xsl:for-each>
- <xsl:for-each select="KEYWORD">
-  <xsl:sort select="NAME[@type='default']"/>
-  <xsl:variable name="local_subpath" select="concat($subpath,'.sub[',string($nsecpar+$ndefpar+position()-1),']')"/>
-  <xsl:value-of select="$local_subpath"/> = new sub('<a href="{$section_filename}#{string(NAME[@type='default'])}" id="{$section_filename}/{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>');
- </xsl:for-each>
-</xsl:template>
-
 <xsl:template name="describe_sections">
  <xsl:param name="path"/>
  <xsl:param name="root"/>
@@ -268,6 +210,9 @@
    <xsl:variable name="section" select="string(NAME)"/>
    <xsl:variable name="local_path" select="concat($path,'/',string(NAME))"/>
    <xsl:variable name="section_filename" select="concat($local_path,'.html')"/>
+   <li>
+    <a href="{$section_filename}" id="{$section_filename}"><xsl:value-of select="NAME"/></a>
+   </li>
    <xsl:result-document href="{$section_filename}" method="html" indent="yes" format="html">
    <html>
     <head>

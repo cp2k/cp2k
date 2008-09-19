@@ -2,17 +2,17 @@
 if [[ $1 == "-javascript" ]]; then
 
   # Saxon 8.8J from Saxonica (e.g. saxon package of SUSE Linux)
-  # saxon -o index.html cp2k_input.xml cp2k_input.xsl
+  # saxon -o index.html cp2k_input.xml cp2k_input_javascript.xsl
 
   # Java version from http://sourceforge.net/projects/saxon
-  java -jar saxon9.jar -o index.html cp2k_input.xml cp2k_input.xsl
+  java -jar saxon9.jar -o index.html cp2k_input.xml cp2k_input_javascript.xsl
 
 else
 
   # Saxon 8.8J from Saxonica (e.g. saxon package of SUSE Linux)
-  # saxon -o index.html cp2k_input.xml cp2k_input_nojavascript.xsl
+  # saxon -o index.html cp2k_input.xml cp2k_input.xsl
 
   # Java version from http://sourceforge.net/projects/saxon
-  java -jar saxon9.jar -o index.html cp2k_input.xml cp2k_input_nojavascript.xsl
+  java -jar saxon9.jar -o index.html cp2k_input.xml cp2k_input.xsl
 
 fi
