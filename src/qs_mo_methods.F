@@ -15,7 +15,8 @@ MODULE qs_mo_methods
                                              cp_fm_syrk,&
                                              cp_fm_triangular_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd,&
+                                             cp_fm_syevx
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -363,10 +364,12 @@ CONTAINS
 !> \param para_env of the Kohn-Sham matrix
 !> \param evals_arg optional, filled with the evals
 !> \param ionode /scr  : if present write to unit scr where ionode
-!> \param do_rotation optional rotate orbitals if .TRUE. (default)
-!> \param co_rotate an optional set of orbitals rotated by the same amout
+!> \param do_rotation optional rotate orbitals (default=.TRUE.)
+!>        note that rotating the orbitals is slower
+!> \param co_rotate an optional set of orbitals rotated by the same rotation matrix
 !> \par History
 !>      08.2004 documented and added do_rotation [Joost VandeVondele]
+!>      09.2008 only compute eigenvalues if rotation is not needed
 ! *****************************************************************************
   SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ionode,scr,&
        do_rotation,co_rotate,error)
@@ -387,7 +390,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, ncol_global, &
                                                 nrow_global
-    LOGICAL                                  :: do_rotation_local
+    LOGICAL                                  :: compute_evecs, &
+                                                do_rotation_local
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: e_vectors, h_block, &
@@ -405,6 +409,15 @@ CONTAINS
                                  ncol_global=ncol_global, &
                                  nrow_global=nrow_global,error=error)
 
+    IF (do_rotation_local) THEN
+       compute_evecs=.TRUE.
+    ELSE
+       ! this would be the logical choice if syevx computing only evals were faster than syevd computing evecs and evals.
+       compute_evecs=.FALSE.
+       ! this is not the case, so lets compute evecs always
+       compute_evecs=.TRUE.
+    ENDIF
+
     IF (ncol_global.GT.0) THEN
 
         ALLOCATE(evals(ncol_global))
@@ -414,7 +427,9 @@ CONTAINS
                                                 para_env=orbitals%matrix_struct%para_env, &
                                                 context=orbitals%matrix_struct%context,error=error)
         CALL cp_fm_create(h_block,fm_struct_tmp, name="h block",error=error)
-        CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors",error=error)
+        IF (compute_evecs) THEN
+           CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors",error=error)
+        ENDIF
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
         ! h subblock and diag
@@ -423,7 +438,12 @@ CONTAINS
         CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
                         orbitals,weighted_vectors,0.0_dp,h_block,error=error)
 
-        CALL cp_fm_syevd(h_block,e_vectors,evals,error=error)
+        ! if eigenvectors are required, go for syevd, otherwise only compute eigenvalues
+        IF (compute_evecs) THEN
+            CALL cp_fm_syevd(h_block,e_vectors,evals,error=error)
+        ELSE
+            CALL cp_fm_syevx(h_block,eigenvalues=evals,error=error)
+        ENDIF
 
         ! rotate the orbitals
         IF (do_rotation_local) THEN
@@ -466,7 +486,9 @@ CONTAINS
 
         CALL cp_fm_release(weighted_vectors,error=error)
         CALL cp_fm_release(h_block,error=error)
-        CALL cp_fm_release(e_vectors,error=error)
+        IF (compute_evecs) THEN
+           CALL cp_fm_release(e_vectors,error=error)
+        ENDIF
 
         DEALLOCATE(evals)
 

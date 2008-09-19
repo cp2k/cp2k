@@ -164,18 +164,22 @@ CONTAINS
   END SUBROUTINE cp_fm_syevd
 
 ! *****************************************************************************
+!> \brief   compute eigenvalues and optionally eigenvectors of a real symmetric matrix using scalapack.
+!>          If eigenvectors are required this routine will replicate a full matrix on each CPU...
+!>          if more than a handful of vectors are needed, use cp_fm_syevd instead
+!> \par     matrix is supposed to be in upper triangular form, and overwritten by this routine
+!>          neig   is the number of vectors needed (default all)
+!>          work_syevx evec calculation only, is the fraction of the working buffer allowed (1.0 use full buffer)
+!>                     reducing this saves time, but might cause the routine to fail
+! *****************************************************************************
   SUBROUTINE cp_fm_syevx(matrix,eigenvectors,eigenvalues,neig,work_syevx,error)
 
     ! Diagonalise the symmetric n by n matrix using the LAPACK library.
-    ! if bmatrix present, use general solver, will overwrite bmatrix
-    ! with its cholesky decom.
 
-    ! - Creation (06.06.2001, Matthias Krack)
-    ! - Mod      (05.2001, Joost VandeVondele)
-
-    TYPE(cp_fm_type), POINTER                    :: eigenvectors,matrix
-    REAL(KIND = dp), INTENT(IN)                  :: work_syevx
-    INTEGER, INTENT(IN)                          :: neig
+    TYPE(cp_fm_type), POINTER                    :: matrix
+    TYPE(cp_fm_type), POINTER, OPTIONAL          :: eigenvectors
+    REAL(KIND = dp), OPTIONAL, INTENT(IN)        :: work_syevx
+    INTEGER, INTENT(IN), OPTIONAL                :: neig
     REAL(KIND = dp), DIMENSION(:), INTENT(OUT)   :: eigenvalues
     TYPE(cp_error_type), INTENT(inout)  :: error
 
@@ -185,10 +189,10 @@ CONTAINS
                                    vl = 0.0_dp,&
                                    vu = 0.0_dp
 
-    REAL(KIND = dp) :: abstol
+    REAL(KIND = dp) :: abstol, work_syevx_local
     INTEGER  :: handle,info,istat,liwork,lwork,m,mypcol,myprow,n,nb,&
-                nn,np0,npcol,npe,nprow,nq0,nz,output_unit,itype
-    LOGICAL  :: ionode
+                nn,np0,npcol,npe,nprow,nq0,nz,output_unit,itype, neig_local
+    LOGICAL  :: ionode, needs_evecs
 
     INTEGER, DIMENSION(9) :: desca,descz,descb
 
@@ -197,6 +201,7 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: gap,w,work
     INTEGER, DIMENSION(:), ALLOCATABLE         :: iclustr,ifail,iwork
     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: a,z,b
+    CHARACTER(LEN=1)                           :: job_type
 
     REAL(KIND = dp), EXTERNAL :: dlamch
 
@@ -207,14 +212,34 @@ CONTAINS
 #endif
     ! -------------------------------------------------------------------------
 
-    IF (neig == 0) RETURN
+    ! by default all
+    n = matrix%matrix_struct%nrow_global
+    neig_local=n
+    IF (PRESENT(neig)) neig_local=neig
+    IF (neig_local == 0) RETURN
 
     CALL timeset(routineN,"I","",handle)
 
-    abstol = 2.0_dp*dlamch("S")
+    needs_evecs=PRESENT(eigenvectors)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
+    n = matrix%matrix_struct%nrow_global
+
+    ! by default allocate all needed space
+    work_syevx_local=1.0_dp
+    IF (PRESENT(work_syevx)) work_syevx_local=work_syevx
+
+    ! set scalapack job type
+    IF (needs_evecs) THEN
+       job_type="V"
+    ELSE
+       job_type="N"
+    ENDIF
+
+    ! target the most accurate calculation of the eigenvalues
+    abstol = 2.0_dp*dlamch("S")
+
 
     context =>  matrix%matrix_struct%context
     myprow=context%mepos(1)
@@ -222,13 +247,10 @@ CONTAINS
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
 
-    n = matrix%matrix_struct%nrow_global
 
     ALLOCATE (w(n),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "w",n*dp_size)
-    w(:) = 0.0_dp
-
     eigenvalues(:) = 0.0_dp
 #if defined(__SCALAPACK)
 
@@ -239,8 +261,15 @@ CONTAINS
 
     a => matrix%local_data
     desca(:) = matrix%matrix_struct%descriptor(:)
-    z => eigenvectors%local_data
-    descz(:) = eigenvectors%matrix_struct%descriptor(:)
+
+    IF (needs_evecs) THEN
+      z => eigenvectors%local_data
+      descz(:) = eigenvectors%matrix_struct%descriptor(:)
+    ELSE
+      ! z will not be referenced
+      z => matrix%local_data
+      descz=desca
+    ENDIF
 
     ! Get the optimal work storage size
 
@@ -250,8 +279,12 @@ CONTAINS
     np0 = numroc(nn,nb,0,0,nprow)
     nq0 = MAX(numroc(nn,nb,0,0,npcol),nb)
 
-    lwork = 5*n + MAX(5*nn,np0*nq0) + iceil(neig,npe)*nn + 2*nb*nb +&
-            INT(work_syevx*REAL((neig - 1)*n,dp)) !!!! allocates a full matrix on every CPU !!!!!
+    IF (needs_evecs) THEN
+       lwork = 5*n + MAX(5*nn,np0*nq0) + iceil(neig_local,npe)*nn + 2*nb*nb +&
+               INT(work_syevx_local*REAL((neig_local - 1)*n,dp)) !!!! allocates a full matrix on every CPU !!!!!
+    ELSE
+       lwork = 5*n + MAX(5*nn,nb*(np0+1))
+    ENDIF
     liwork = 6*MAX(N,npe+1,4)
 
     ALLOCATE (gap(npe),STAT=istat)
@@ -273,7 +306,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "work",lwork*dp_size)
 
-    CALL pdsyevx("V","I","U",n,a(1,1),1,1,desca,vl,vu,1,neig,abstol,m,nz,w(1),orfac,&
+    CALL pdsyevx(job_type,"I","U",n,a(1,1),1,1,desca,vl,vu,1,neig_local,abstol,m,nz,w(1),orfac,&
                  z(1,1),1,1,descz,work(1),lwork,iwork(1),liwork,ifail(1),iclustr(1),gap,info)
 
     ! Error handling
@@ -322,7 +355,12 @@ CONTAINS
 #else
 
     a => matrix%local_data
-    z => eigenvectors%local_data
+    IF (needs_evecs) THEN
+       z => eigenvectors%local_data
+    ELSE
+       ! z will not be referenced
+       z => matrix%local_data
+    ENDIF
 
     ! Get the optimal work storage size
 
@@ -344,7 +382,7 @@ CONTAINS
                                      "work",lwork*dp_size)
     info = 0
 
-    CALL dsyevx("V","I","U",n,a(1,1),n,vl,vu,1,neig,abstol,m,w,z(1,1),n,work(1),lwork,&
+    CALL dsyevx(job_type,"I","U",n,a(1,1),n,vl,vu,1,neig_local,abstol,m,w,z(1,1),n,work(1),lwork,&
                 iwork(1),ifail(1),info)
 
     ! Error handling
@@ -375,7 +413,7 @@ CONTAINS
                                      "work")
 
 #endif
-    eigenvalues(1:neig) = w(1:neig)
+    eigenvalues(1:neig_local) = w(1:neig_local)
     DEALLOCATE (w,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "w")
@@ -383,7 +421,6 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_syevx
-
 ! *****************************************************************************
   SUBROUTINE cp_fm_power(matrix,work,exponent,threshold,n_dependent,error)
 
