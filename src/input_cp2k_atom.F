@@ -472,6 +472,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="RELATIVISTIC",&
+            description="Type of scalar relativistic method to be used",&
+            usage="RELATIVISTIC DKH(2)",&
+            default_i_val=do_nonrel_atom,&
+            enum_c_vals=(/"OFF                      ",&
+                          "ZORA(MP)                 ",&
+                          "DKH(2)                   "/),&
+            enum_i_vals= (/ do_nonrel_atom, do_zoramp_atom, do_dkh2_atom /),&
+            supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL create_xc_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)

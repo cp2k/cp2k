@@ -18,7 +18,16 @@ MODULE atom_operators
   USE atom_types,                      ONLY: &
        CGTO_BASIS, GTH_PSEUDO, GTO_BASIS, NO_PSEUDO, NUM_BASIS, STO_BASIS, &
        atom_basis_type, atom_integrals, atom_potential_type
+  USE atom_utils,                      ONLY: numpot_matrix
+  USE input_constants,                 ONLY: do_dkh2_atom,&
+                                             do_nonrel_atom,&
+                                             do_zoramp_atom
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE physcon,                         ONLY: a_fine
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -28,6 +37,7 @@ MODULE atom_operators
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_operators'
 
   PUBLIC :: atom_int_setup, atom_ppint_setup, atom_int_release, atom_ppint_release
+  PUBLIC :: atom_relint_setup, atom_relint_release
 
 ! *****************************************************************************
 
@@ -47,15 +57,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_int_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, l, l1, l2, ll, m, m1, &
-                                                m2, mm1, mm2, n, n1, n2, nn1, &
-                                                nn2, nu, nx
+    INTEGER                                  :: handle, ierr, l, l1, l2, ll, &
+                                                m, m1, m2, mm1, mm2, n, n1, &
+                                                n2, nn1, nn2, nu, nx
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: omat
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: eri
 
     failure = .FALSE.
+
+    CALL timeset(routineN,'I','',handle)
 
     IF ( integrals%status == 0 ) THEN
       n = MAXVAL(basis%nbas)
@@ -251,6 +263,8 @@ CONTAINS
 
     END IF
 
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE atom_int_setup
 ! *****************************************************************************
   SUBROUTINE atom_ppint_setup(integrals,basis,potential,error)
@@ -262,7 +276,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_ppint_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, k, l, m, n
+    INTEGER                                  :: handle, i, ierr, k, l, m, n
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: xmat
@@ -270,6 +284,8 @@ CONTAINS
       DIMENSION(:, :)                        :: omat, spmat
 
     failure = .FALSE.
+
+    CALL timeset(routineN,'I','',handle)
 
     IF ( integrals%ppstat == 0 ) THEN
       n = MAXVAL(basis%nbas)
@@ -389,7 +405,78 @@ CONTAINS
 
     END IF
 
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE atom_ppint_setup
+! *****************************************************************************
+  SUBROUTINE atom_relint_setup(integrals,basis,method_section,irep,modpot,error)
+    TYPE(atom_integrals), INTENT(INOUT)      :: integrals
+    TYPE(atom_basis_type), INTENT(INOUT)     :: basis
+    TYPE(section_vals_type), POINTER         :: method_section
+    INTEGER, INTENT(IN)                      :: irep
+    REAL(dp), DIMENSION(:), OPTIONAL         :: modpot
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_relint_setup', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, l, m, n, reltyp
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: cspeed
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: cpot
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,'I','',handle)
+
+    cspeed = 1._dp/a_fine
+
+    CALL section_vals_val_get(method_section,"RELATIVISTIC",i_val=reltyp,i_rep_section=irep,error=error)
+
+    SELECT CASE (reltyp)
+      CASE DEFAULT
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+      CASE (do_nonrel_atom)
+        ! nothing to do
+      CASE (do_zoramp_atom)
+        IF ( integrals%zorastat == 0 ) THEN
+          n = MAXVAL(basis%nbas)
+          NULLIFY (integrals%tzora)
+          ALLOCATE (integrals%tzora(n,n,0:3),STAT=ierr)
+          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+          integrals%tzora = 0._dp
+          IF (PRESENT(modpot)) THEN
+            m = MIN ( SIZE(modpot), basis%grid%nr )
+            ALLOCATE (cpot(1:m),STAT=ierr)
+            CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+            ! Zora potential / r^2 
+            cpot(1:m) = modpot(1:m)/basis%grid%rad2(1:m)/(4._dp*cspeed - 2._dp*modpot(1:m))
+            CALL numpot_matrix(integrals%tzora,cpot,basis,0,error)
+            DO l=0,3
+              integrals%tzora(:,:,l) = REAL(l*(l+1),dp) * integrals%tzora(:,:,l)
+            END DO
+            !
+            cpot(1:m) = modpot(1:m)/(4._dp*cspeed - 2._dp*modpot(1:m))
+            CALL numpot_matrix(integrals%tzora,cpot,basis,2,error)
+            !
+            DEALLOCATE (cpot,STAT=ierr)
+            CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+          ELSE
+            CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+          END IF
+        END IF
+      CASE (do_dkh2_atom)
+        IF ( integrals%dkhstat == 0 ) THEN
+          n = MAXVAL(basis%nbas)
+          NULLIFY (integrals%hdkh)
+          ALLOCATE (integrals%hdkh(n,n,0:3),STAT=ierr)
+          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+        END IF
+    END SELECT
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE atom_relint_setup
 ! *****************************************************************************
   SUBROUTINE atom_int_release(integrals,error)
     TYPE(atom_integrals), INTENT(INOUT)      :: integrals
@@ -455,6 +542,32 @@ CONTAINS
 
   END SUBROUTINE atom_ppint_release
 ! *****************************************************************************
+  SUBROUTINE atom_relint_release(integrals,error)
+    TYPE(atom_integrals), INTENT(INOUT)      :: integrals
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_relint_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    IF ( ASSOCIATED(integrals%tzora) ) THEN
+      DEALLOCATE (integrals%tzora,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    END IF
+    IF ( ASSOCIATED(integrals%hdkh) ) THEN
+      DEALLOCATE (integrals%hdkh,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    END IF
+
+    integrals%zorastat = 0
+    integrals%dkhstat = 0
+
+  END SUBROUTINE atom_relint_release
+! *****************************************************************************
   SUBROUTINE contract2 ( int, omat, cm, error )
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: int
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: omat, cm
@@ -463,12 +576,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'contract2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: m, n
+    INTEGER                                  :: handle, m, n
+
+    CALL timeset(routineN,'I','',handle)
 
     n = SIZE(int,1)
     m = SIZE(omat,1)
 
     INT(1:n,1:n) = MATMUL(TRANSPOSE(cm(1:m,1:n)),MATMUL(omat(1:m,1:m),cm(1:m,1:n)))
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE contract2 
 ! *****************************************************************************
@@ -480,12 +597,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'contract2add', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: m, n
+    INTEGER                                  :: handle, m, n
+
+    CALL timeset(routineN,'I','',handle)
 
     n = SIZE(int,1)
     m = SIZE(omat,1)
 
     INT(1:n,1:n) = INT(1:n,1:n) + MATMUL(TRANSPOSE(cm(1:m,1:n)),MATMUL(omat(1:m,1:m),cm(1:m,1:n)))
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE contract2add
 ! *****************************************************************************
@@ -497,10 +618,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'contract4', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i1, i2, ierr, m1, m2, mm1, &
-                                                mm2, n1, n2, nn1, nn2
+    INTEGER                                  :: handle, i1, i2, ierr, m1, m2, &
+                                                mm1, mm2, n1, n2, nn1, nn2
     LOGICAL                                  :: failure = .FALSE.
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: amat, atran, bmat, btran, hint
+
+    CALL timeset(routineN,'I','',handle)
 
     m1 = SIZE(cm1,1)
     n1 = SIZE(cm1,2)
@@ -532,6 +655,8 @@ CONTAINS
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(hint,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE contract4
 ! *****************************************************************************

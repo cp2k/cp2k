@@ -39,7 +39,6 @@ MODULE ai_onecenter
   PRIVATE
   PUBLIC :: sg_overlap, sg_kinetic, sg_nuclear, sg_erf, sg_gpot, &
             sg_proj_ol, sg_conf, sg_coulomb, sg_exchange
-  PUBLIC :: contraction0, contraction1, contraction2
   PUBLIC :: sto_overlap, sto_kinetic, sto_nuclear, sto_erf, sto_gpot, &
             sto_proj_ol, sto_conf, sto_coulomb, sto_exchange
   PUBLIC :: num_overlap, num_kinetic, num_nuclear, num_erf, num_gpot, &
@@ -494,44 +493,6 @@ FUNCTION cgau(a,b,t) RESULT(c)
     c = c * (1._dp + t)**(-0.5_dp*(b+1))/dfac(b-1)
 
 END FUNCTION cgau
-
-!------------------------------------------------------------------------------
-SUBROUTINE contraction0 ( in, out, con )
-
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: in
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: out
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: con
-
-    out = MATMUL ( TRANSPOSE(con), in )
-
-END SUBROUTINE contraction0
-!------------------------------------------------------------------------------
-SUBROUTINE contraction1 ( in, out, con1, con2 )
-
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: in
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: out
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: con1, con2
-
-    out = MATMUL ( TRANSPOSE(con1), MATMUL ( in, con2 ) )
-
-END SUBROUTINE contraction1
-!------------------------------------------------------------------------------
-SUBROUTINE contraction2 ( in, out, con )
-
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: in
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: out
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: con
-
-    out = 0._dp
-
-END SUBROUTINE contraction2
 
 !******************************************************************************
 !------------------------------------------------------------------------------

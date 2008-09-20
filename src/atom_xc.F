@@ -60,15 +60,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atom_vxc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: deriv_order, handle, ierr, &
-                                                myfun, nr, nspins
+    INTEGER                                  :: deriv_order, handle, ierr, l, &
+                                                myfun, n1, n2, n3, nr, nspins
     INTEGER, DIMENSION(2, 3)                 :: bounds
     LOGICAL                                  :: failure = .FALSE., lsd
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: drho, rho, tau
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: xcpot
+      POINTER                                :: taumat, xcpot
     TYPE(section_vals_type), POINTER         :: xc_fun_section, xc_section
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv
@@ -119,17 +119,18 @@ CONTAINS
       IF ( needs%rho ) THEN
         ALLOCATE(rho(nr),STAT=ierr)
         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-        CALL atom_density(rho,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,"RHO",error)
+        CALL atom_density(rho,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO",error=error)
       END IF
       IF ( needs%norm_drho ) THEN
         ALLOCATE(drho(nr),STAT=ierr)
         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-        CALL atom_density(drho,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,"DER",error)
+        CALL atom_density(drho,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="DER",error=error)
       END IF
       IF ( needs%tau ) THEN
         ALLOCATE(tau(nr),STAT=ierr)
         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-        CALL atom_density(tau,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,"KIN",error)
+        CALL atom_density(tau,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,&
+                          typ="KIN",rr=atom%basis%grid%rad2,error=error)
       END IF
 
       CALL fill_rho_set(rho_set,nspins,needs,rho,drho,tau,nr,error=error)
@@ -162,8 +163,24 @@ CONTAINS
       IF ( needs%tau ) THEN
         deriv => xc_dset_get_derivative(deriv_set,"(tau)",allocate_deriv=.FALSE.,error=error)
         CALL xc_derivative_get(deriv,deriv_data=xcpot,error=error)
+        n1 = SIZE(xcmat%op,1)
+        n2 = SIZE(xcmat%op,2)
+        n3 = SIZE(xcmat%op,3)
+        ALLOCATE(taumat(n1,n2,0:n3-1),STAT=ierr)
+        CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+        taumat = 0._dp
+
+        xcpot(:,1,1) = 0.5_dp * xcpot(:,1,1)
         CALL numpot_matrix(xcmat%op,xcpot(:,1,1),atom%basis,2,error)
+        xcpot(:,1,1) = xcpot(:,1,1)/atom%basis%grid%rad2(:)
+        CALL numpot_matrix(taumat,xcpot(:,1,1),atom%basis,0,error)
+        DO l=0,3
+          xcmat%op(:,:,l) = xcmat%op(:,:,l) + REAL(l*(l+1),dp)*taumat(:,:,l)
+        END DO
+
         DEALLOCATE(tau,STAT=ierr)
+        CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+        DEALLOCATE(taumat,STAT=ierr)
         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
       END IF
 

@@ -226,13 +226,15 @@ CONTAINS
 
   END SUBROUTINE atom_denmat
 ! *****************************************************************************
-  SUBROUTINE atom_density(density,pmat,basis,maxl,typ,error)
+  SUBROUTINE atom_density(density,pmat,basis,maxl,typ,rr,error)
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: density
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(IN)                             :: pmat
     TYPE(atom_basis_type), INTENT(IN)        :: basis
     INTEGER, INTENT(IN)                      :: maxl
     CHARACTER(LEN=*), OPTIONAL               :: typ
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: rr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_density', &
@@ -244,6 +246,9 @@ CONTAINS
     REAL(KIND=dp)                            :: ff
 
     IF(PRESENT(typ)) my_typ = typ(1:3)
+    IF(my_typ == "KIN") THEN
+      CPPrecondition(PRESENT(rr),cp_failure_level,routineP,error,failure)
+    END IF
 
     density=0._dp
     DO l=0,maxl
@@ -258,7 +263,9 @@ CONTAINS
             density(:) = density(:) + ff*basis%dbf(:,i,l)*basis%bf(:,j,l) &
                                     + ff*basis%bf(:,i,l)*basis%dbf(:,j,l)
           ELSE IF(my_typ == "KIN") THEN
-            density(:) = density(:) + ff*basis%dbf(:,i,l)*basis%dbf(:,j,l)
+            density(:) = density(:) + 0.5_dp*ff*(&
+              basis%dbf(:,i,l)*basis%dbf(:,j,l) + &
+              REAL(l*(l+1),dp)*basis%bf(:,i,l)*basis%bf(:,j,l)/rr(:))
           ELSE
             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END IF

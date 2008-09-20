@@ -112,8 +112,8 @@ MODULE atom_types
   END TYPE eri
 
   TYPE atom_integrals
-    INTEGER                                       :: status
-    INTEGER                                       :: ppstat
+    INTEGER                                       :: status=0
+    INTEGER                                       :: ppstat=0
     LOGICAL                                       :: eri_coulomb
     LOGICAL                                       :: eri_exchange
     LOGICAL                                       :: all_nu
@@ -123,12 +123,15 @@ MODULE atom_types
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: conf
     TYPE(eri),DIMENSION(20)                       :: ceri
     TYPE(eri),DIMENSION(20)                       :: eeri
+    INTEGER                                       :: dkhstat=0
+    INTEGER                                       :: zorastat=0
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: tzora
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: hdkh
   END TYPE atom_integrals
 
 !> Holds atomic orbitals and energies
 ! *****************************************************************************
   TYPE atom_orbitals 
-    INTEGER, DIMENSION(0:3)                       :: n
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: wfn
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: pmat
     REAL(KIND=dp),DIMENSION(:,:),POINTER          :: ener

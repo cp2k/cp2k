@@ -8,7 +8,9 @@ MODULE atom
   USE atom_operators,                  ONLY: atom_int_release,&
                                              atom_int_setup,&
                                              atom_ppint_release,&
-                                             atom_ppint_setup
+                                             atom_ppint_setup,&
+                                             atom_relint_release,&
+                                             atom_relint_setup
   USE atom_optimization,               ONLY: atom_history_init,&
                                              atom_history_release,&
                                              atom_history_type,&
@@ -41,8 +43,9 @@ MODULE atom
   USE header,                          ONLY: atom_footer,&
                                              atom_header
   USE input_constants,                 ONLY: &
-       atom_energy_run, atom_no_run, do_analytic, do_numeric, do_rhf_atom, &
-       do_rks_atom, do_rohf_atom, do_semi_analytic, do_uhf_atom, do_uks_atom
+       atom_energy_run, atom_no_run, do_analytic, do_dkh2_atom, &
+       do_nonrel_atom, do_numeric, do_rhf_atom, do_rks_atom, do_rohf_atom, &
+       do_semi_analytic, do_uhf_atom, do_uks_atom, do_zoramp_atom
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -51,6 +54,8 @@ MODULE atom
                                              dp
   USE periodic_table,                  ONLY: nelem,&
                                              ptable
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -72,12 +77,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_code', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iw, run_type_id
+    INTEGER                                  :: handle, iw, run_type_id
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: atom_section
 
     failure=.FALSE.
+
+    CALL timeset(routineN,'I','',handle)
 
     logger => cp_error_get_logger(error)
     NULLIFY(atom_section)
@@ -102,6 +109,8 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%PROGRAM_BANNER",extension=".log",error=error)
     IF (iw>0) CALL atom_footer(iw)
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%PROGRAM_BANNER",error=error)
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE atom_code
 
@@ -148,8 +157,8 @@ CONTAINS
     CHARACTER(LEN=2)                         :: elem
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER                                  :: do_eri, i, ierr, im, in, iw, &
-                                                k, maxl, mb, meth, mo, &
+    INTEGER                                  :: do_eri, handle, i, ierr, im, &
+                                                in, iw, k, maxl, mb, mo, &
                                                 n_meth, n_rep, zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
@@ -168,6 +177,8 @@ CONTAINS
                                                 potential_section
 
     failure = .FALSE.
+
+    CALL timeset(routineN,'I','',handle)
 
     ! What atom do we calculate
     CALL section_vals_val_get(atom_section,"ATOMIC_NUMBER", i_val=zval, error=error)
@@ -196,8 +207,8 @@ CONTAINS
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%PROGRAM_BANNER",error=error)
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%BASIS_SET",extension=".log",error=error)
     IF(iw > 0) THEN
-      CALL atom_print_basis(ae_basis,iw,"All Electron Basis",error)
-      CALL atom_print_basis(pp_basis,iw,"Pseudopotential Basis",error)
+      CALL atom_print_basis(ae_basis,iw," All Electron Basis",error)
+      CALL atom_print_basis(pp_basis,iw," Pseudopotential Basis",error)
     END IF
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%BASIS_SET",error=error)
 
@@ -206,12 +217,6 @@ CONTAINS
     potential_section => section_vals_get_subs_vals(atom_section,"POTENTIAL",error=error)
     CALL init_atom_potential(p_pot,potential_section,zval,error)
     CALL init_atom_potential(ae_pot,potential_section,-1,error)
-    iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%POTENTIAL",extension=".log",error=error)
-    IF(iw > 0) THEN
-      CALL atom_print_potential(ae_pot,iw,error)
-      CALL atom_print_potential(p_pot,iw,error)
-    END IF
-    CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%POTENTIAL",error=error)
 
     ! if the ERI's are calculated analytically, we have to precalculate them
     eri_c = .FALSE.
@@ -229,10 +234,6 @@ CONTAINS
       maxn(in-1) = cn(in)
     END DO
 
-    ae_int%status = 0
-    ae_int%ppstat = 0
-    pp_int%status = 0
-    pp_int%ppstat = 0
     had_ae = .FALSE.
     had_pp = .FALSE.
 
@@ -253,12 +254,6 @@ CONTAINS
 
         atom_info(in,im)%atom%method_section => method_section
         atom_info(in,im)%atom%method_section_number = im
-        logger => cp_error_get_logger(error)
-        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%METHOD_INFO",extension=".log",error=error)
-        CALL section_vals_val_get(method_section,"METHOD_TYPE", i_val=meth, i_rep_section=im, error=error)
-        IF( meth==do_rks_atom .OR. meth==do_uks_atom) CALL atom_print_method(method_section,im,iw,error)
-        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%METHOD_INFO",error=error)
-
         atom_info(in,im)%atom%z = zval
 
         ALLOCATE(state,STAT=ierr)
@@ -294,19 +289,41 @@ CONTAINS
           CALL set_atom(atom_info(in,im)%atom,zcore=zval,pp_calc=.FALSE.,error=error)
         END IF
 
+        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%METHOD_INFO",extension=".log",error=error)
+        CALL atom_print_method(atom_info(in,im)%atom,iw,error)
+        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%METHOD_INFO",error=error)
+
+        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%POTENTIAL",extension=".log",error=error)
+        IF ( pp_calc ) THEN
+          IF(iw > 0) CALL atom_print_potential(p_pot,iw,error)
+        ELSE
+          IF(iw > 0) CALL atom_print_potential(ae_pot,iw,error)
+        END IF
+        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%POTENTIAL",error=error)
+
         ! calculate integrals
         IF ( pp_calc ) THEN
+          ! general integrals
           CALL atom_int_setup(pp_int,pp_basis,&
                               potential=p_pot,eri_coulomb=eri_c,eri_exchange=eri_e,error=error)
+          ! potential
           CALL atom_ppint_setup(pp_int,pp_basis,potential=p_pot,error=error)
+          !
+          NULLIFY(pp_int%tzora,pp_int%hdkh)
+          !
           CALL set_atom(atom_info(in,im)%atom,basis=pp_basis,integrals=pp_int,potential=p_pot,error=error)
           state%maxn_calc(:) = MIN( state%maxn_calc(:), pp_basis%nbas(:) )
           CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP, error, failure)
           had_pp = .TRUE.
         ELSE
+          ! general integrals
           CALL atom_int_setup(ae_int,ae_basis,potential=ae_pot,&
                               eri_coulomb=eri_c,eri_exchange=eri_e,error=error)
+          ! potential
           CALL atom_ppint_setup(ae_int,ae_basis,potential=ae_pot,error=error)
+          ! relativistic correction terms
+          CALL atom_relint_setup(ae_int,pp_basis,method_section,im,error=error)
+          !
           CALL set_atom(atom_info(in,im)%atom,basis=ae_basis,integrals=ae_int,potential=ae_pot,error=error)
           state%maxn_calc(:) = MIN( state%maxn_calc(:), ae_basis%nbas(:) )
           CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP, error, failure)
@@ -331,10 +348,12 @@ CONTAINS
     IF ( had_ae ) THEN
       CALL atom_int_release(ae_int,error)
       CALL atom_ppint_release(ae_int,error)
+      CALL atom_relint_release(ae_int,error)
     END IF
     IF ( had_pp ) THEN
       CALL atom_int_release(pp_int,error)
       CALL atom_ppint_release(pp_int,error)
+      CALL atom_relint_release(pp_int,error)
     END IF
     CALL release_atom_basis(ae_basis,error)
     CALL release_atom_basis(pp_basis,error)
@@ -350,6 +369,8 @@ CONTAINS
     DEALLOCATE(atom_info,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE atom_energy
 
 ! *****************************************************************************
@@ -361,8 +382,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_electronic_structure', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: do_eri, i, im, iter, iw, l, &
-                                                method
+    INTEGER                                  :: do_eri, handle, i, im, iter, &
+                                                iw, l, method, reltyp
     LOGICAL                                  :: do_hfx, failure, need_x, &
                                                 need_xc
     REAL(KIND=dp)                            :: deps, eps_scf, hf_frac
@@ -375,6 +396,8 @@ CONTAINS
 
     failure = .FALSE.
 
+    CALL timeset(routineN,'I','',handle)
+
     method_section => atom%method_section
     im = atom%method_section_number
     CALL section_vals_val_get(method_section,"METHOD_TYPE", i_val=method, i_rep_val=im, error=error)
@@ -386,10 +409,9 @@ CONTAINS
     ELSE
       hf_frac = 0._dp
     END IF
-!deb
+!not yet installed
 !   adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING",error=error)
 !   CALL section_vals_get(adiabatic_rescaling_section,explicit=do_adiabatic_rescaling,error=error)
-!deb
 
     opt_section => section_vals_get_subs_vals(atom_section,"OPTIMIZATION",error=error)
 
@@ -419,6 +441,9 @@ CONTAINS
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
     END SELECT
 
+    ! check for relativistic method
+    CALL section_vals_val_get(method_section,"RELATIVISTIC",i_val=reltyp,i_rep_section=im,error=error)
+
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%SCF_INFO",extension=".log",error=error)
     IF (iw>0) THEN
@@ -434,10 +459,20 @@ CONTAINS
       CASE DEFAULT
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
       CASE (NO_PSEUDO)
-        hcore%op = atom%integrals%kin - atom%zcore*atom%integrals%core
+        SELECT CASE (reltyp)
+          CASE DEFAULT
+            CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+          CASE (do_nonrel_atom)
+            hcore%op = atom%integrals%kin - atom%zcore*atom%integrals%core
+          CASE (do_zoramp_atom)
+            hcore%op = atom%integrals%kin + atom%integrals%tzora - atom%zcore*atom%integrals%core
+          CASE (do_dkh2_atom)
+            CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        END SELECT
       CASE (GTH_PSEUDO)
         hcore%op = atom%integrals%kin + atom%integrals%core + atom%integrals%hnl
     END SELECT
+    ! add confinement potential (not included in relativistic transformations)
     IF ( atom%potential%confinement ) THEN
       hcore%op = hcore%op + atom%potential%acon * atom%integrals%conf
     END IF
@@ -512,7 +547,7 @@ CONTAINS
                  atom%state%maxl_occ,error)
           CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
         CASE (do_numeric)
-          CALL atom_density(density%op,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,"RHO",error)
+          CALL atom_density(density%op,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO",error=error)
           CALL coulomb_potential_numeric(cpot%op,density%op,density%grid,error)
           CALL numpot_matrix(jmat%op,cpot%op,atom%basis,0,error)
       END SELECT
@@ -589,6 +624,8 @@ CONTAINS
     CALL release_opgrid(cpot,error)
 
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE atom_electronic_structure
 

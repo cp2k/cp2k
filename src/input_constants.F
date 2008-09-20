@@ -249,6 +249,10 @@ MODULE input_constants
                                 do_rhf_atom=3,&
                                 do_uhf_atom=4,&
                                 do_rohf_atom=5
+  ! Relativistic correction for Atom Code
+  INTEGER, PARAMETER, PUBLIC :: do_nonrel_atom=100,&
+                                do_zoramp_atom=101,&
+                                do_dkh2_atom=102
   ! Pseudopotential type for Atom Code
   INTEGER, PARAMETER, PUBLIC :: no_pseudo=0,&
                                 gth_pseudo=1

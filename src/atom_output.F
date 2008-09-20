@@ -14,12 +14,9 @@ MODULE atom_output
        atom_basis_type, atom_potential_type, atom_state, atom_type
   USE atom_utils,                      ONLY: get_maxl_occ,&
                                              get_maxn_occ
-  USE input_constants,                 ONLY: do_rhf_atom,&
-                                             do_rks_atom,&
-                                             do_rohf_atom,&
-                                             do_uhf_atom,&
-                                             do_uks_atom,&
-                                             xc_none
+  USE input_constants,                 ONLY: &
+       do_dkh2_atom, do_nonrel_atom, do_rhf_atom, do_rks_atom, do_rohf_atom, &
+       do_uhf_atom, do_uks_atom, do_zoramp_atom, xc_none
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
@@ -27,6 +24,7 @@ MODULE atom_output
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE periodic_table,                  ONLY: ptable
+  USE physcon,                         ONLY: evolt
   USE xc_derivatives,                  ONLY: xc_functional_get_info
 #include "cp_common_uses.h"
 
@@ -103,6 +101,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_energies', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i, l, n
+
     WRITE(iw,'(/,A,T36,A,T61,F20.12)') " Energy components [Hartree]",&
                                    "    Total Energy ::",atom%energy%etot
     WRITE(iw,'(T36,A,T61,F20.12)') "     Band Energy ::",atom%energy%eband
@@ -110,8 +110,8 @@ CONTAINS
     WRITE(iw,'(T36,A,T61,F20.12)') "     Core Energy ::",atom%energy%ecore
     WRITE(iw,'(T36,A,T61,F20.12)') "       XC Energy ::",atom%energy%exc
     WRITE(iw,'(T36,A,T61,F20.12)') "  Coulomb Energy ::",atom%energy%ecoulomb
-    WRITE(iw,'(T36,A,T61,F20.12)') " Exchange Energy ::",atom%energy%eexchange
-    IF ( atom%potential%ppot_type /= 0 ) THEN
+    WRITE(iw,'(T34,A,T61,F20.12)') "HF Exchange Energy ::",atom%energy%eexchange
+    IF ( atom%potential%ppot_type /= NO_PSEUDO ) THEN
        WRITE(iw,'(T20,A,T61,F20.12)') "    Total Pseudopotential Energy ::",atom%energy%epseudo
        WRITE(iw,'(T20,A,T61,F20.12)') "    Local Pseudopotential Energy ::",atom%energy%eploc
        WRITE(iw,'(T20,A,T61,F20.12)') " Nonlocal Pseudopotential Energy ::",atom%energy%epnl
@@ -119,6 +119,17 @@ CONTAINS
     IF ( atom%potential%confinement ) THEN
        WRITE(iw,'(T36,A,T61,F20.12)') "     Confinement ::",atom%energy%econfinement
     END IF
+
+    WRITE(iw,'(/,A,T20,A,T30,A,T36,A,T49,A,T71,A,/)') " Orbital energies",&
+         "State","L","Occupation","Energy[a.u.]","Energy[eV]"
+    DO l=0,atom%state%maxl_calc
+      n = atom%state%maxn_calc(l)
+      DO i=1,n 
+        WRITE(iw,'(T23,I2,T30,I1,T36,F10.3,T46,F15.6,T66,F15.6)') &
+           i,l,atom%state%occupation(l,i),atom%orbitals%ener(i,l),atom%orbitals%ener(i,l)*evolt
+      END DO
+      IF (n>0) WRITE(iw,*)
+    END DO
 
   END SUBROUTINE atom_print_energies
 ! *****************************************************************************
@@ -163,6 +174,7 @@ CONTAINS
                         " d Exponents: ",(atom_basis%am(i,2),i=1,atom_basis%nbas(2))
         IF ( atom_basis%nbas(3) > 0 ) WRITE(iw,'(A,20(T17,4F16.5,/))') &
                         " f Exponents: ",(atom_basis%am(i,3),i=1,atom_basis%nbas(3))
+        WRITE(iw,'(" ",79("*"))')
       CASE (CGTO_BASIS)
         WRITE(iw,'(/," ",22("*"),A,22("*"))') " Contracted Gaussian Type Orbitals "
         DO l=0,3
@@ -177,6 +189,7 @@ CONTAINS
             END DO
           END IF
         END DO
+        WRITE(iw,'(" ",79("*"))')
       CASE (STO_BASIS)
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
       CASE (NUM_BASIS)
@@ -187,9 +200,9 @@ CONTAINS
 
   END SUBROUTINE atom_print_basis
 ! *****************************************************************************
-  SUBROUTINE atom_print_method(method_section,i_rep,iw,error)
-    TYPE(section_vals_type), POINTER         :: method_section
-    INTEGER, INTENT(IN)                      :: i_rep, iw
+  SUBROUTINE atom_print_method(atom,iw,error)
+    TYPE(atom_type)                          :: atom
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_method', &
@@ -197,17 +210,22 @@ CONTAINS
 
     CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
-    INTEGER                                  :: ifun, il, meth, myfun
+    INTEGER                                  :: ifun, il, irep, meth, myfun, &
+                                                reltyp
     LOGICAL                                  :: failure = .FALSE., lsd
-    TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section, &
-                                                xc_section
+    TYPE(section_vals_type), POINTER         :: method_section, xc_fun, &
+                                                xc_fun_section, xc_section
 
     NULLIFY(xc_fun,xc_fun_section,xc_section)
-    xc_section => section_vals_get_subs_vals(method_section,"XC",i_rep_section=i_rep,error=error)
+
+    method_section => atom%method_section
+    irep = atom%method_section_number
+    CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=meth,i_rep_val=irep,error=error)
+
+    xc_section => section_vals_get_subs_vals(method_section,"XC",i_rep_section=irep,error=error)
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
     CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun,error=error)
 
-    CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=meth,i_rep_val=i_rep,error=error)
 
     SELECT CASE (meth)
       CASE DEFAULT
@@ -223,6 +241,23 @@ CONTAINS
       CASE (do_rohf_atom)
         IF (iw > 0) WRITE (iw, fmt="(/,' METHOD    | Restricted Open-Shell Kohn-Sham Calculation')")
     END SELECT
+
+    IF (atom%pp_calc) THEN
+      IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Nonrelativistic Calculation')")
+    ELSE
+      CALL section_vals_val_get(method_section,"RELATIVISTIC",i_val=reltyp,i_rep_val=irep,error=error)
+
+      SELECT CASE (reltyp)
+        CASE DEFAULT
+          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+        CASE (do_nonrel_atom)
+          IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Nonrelativistic Calculation')")
+        CASE (do_zoramp_atom)
+          IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Relativistic Calculation using ZORA(MP)')")
+        CASE (do_dkh2_atom)
+          IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Relativistic Calculation using Douglas-Kroll 2nd order')")
+      END SELECT
+    END IF
 
     lsd = (meth==do_uks_atom)
 
