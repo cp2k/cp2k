@@ -702,7 +702,7 @@ END SUBROUTINE debug_ewald_multipoles
 ! *****************************************************************************
 SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,&
      particle_set, local_particles, charges, dipoles, quadrupoles, task, iw, &
-     atomic_kind_set, force_env_section, error )
+     atomic_kind_set, mm_section, error )
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -734,7 +734,7 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
   LOGICAL, DIMENSION(3), INTENT(IN)        :: task
   INTEGER, INTENT(IN)                      :: iw
   TYPE(atomic_kind_type), POINTER          :: atomic_kind_set(:)
-  TYPE(section_vals_type), POINTER         :: force_env_section
+  TYPE(section_vals_type), POINTER         :: mm_section
   TYPE(cp_error_type), INTENT(inout)       :: error
   
   CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles_fields', &
@@ -821,7 +821,7 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
 
            ! Rebuild neighbor lists
            CALL list_control ( atomic_kind_set, particle_set, local_particles, &
-                cell, nonbond_env, logger%para_env, force_env_section, &
+                cell, nonbond_env, logger%para_env, mm_section, &
                 shell_particle_set, core_particle_set, error=error)
 
            forces_glob = 0.0_dp
@@ -861,7 +861,7 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
 
            ! Rebuild neighbor lists
            CALL list_control ( atomic_kind_set, particle_set, local_particles, &
-                cell, nonbond_env, logger%para_env, force_env_section, &
+                cell, nonbond_env, logger%para_env, mm_section, &
                 shell_particle_set, core_particle_set, error=error)
 
            forces_glob = 0.0_dp

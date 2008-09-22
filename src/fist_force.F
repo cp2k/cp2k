@@ -356,7 +356,7 @@ CONTAINS
                      do_efield=.FALSE., charges=multipoles%charges, dipoles=multipoles%dipoles,&
                      quadrupoles=multipoles%quadrupoles, forces_local=fg_coulomb,forces_glob=f_nonbond,&
                      pv_local=pv_g,pv_glob=pv_nonbond,iw=iw2,do_debug=.TRUE.,atomic_kind_set=atomic_kind_set,&
-                     force_env_section=force_env_section,error=error) 
+                     mm_section=mm_section,error=error) 
              ELSE
                 CALL ewald_evaluate ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set, &
                      local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial, &

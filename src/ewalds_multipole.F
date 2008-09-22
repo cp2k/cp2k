@@ -65,7 +65,7 @@ CONTAINS
 !> \brief  Computes the potential and the force for a lattice sum of multipoles
 !>      (up to quadrupole)
 !> \par    Note 
-!>         atomic_kind_set and force_env_section are between the arguments only
+!>         atomic_kind_set and mm_section are between the arguments only
 !>         for debug purpose (therefore optional) and can be avoided when this
 !>         function is called in other part of the program
 !> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
@@ -74,7 +74,7 @@ CONTAINS
        cell, particle_set, local_particles, energy_local, energy_glob, e_neut, e_self,&
        task, do_forces, do_stress, do_efield, charges, dipoles, quadrupoles,&
        forces_local, forces_glob, pv_local, pv_glob, efield0, efield1, efield2,&
-       iw, do_debug, atomic_kind_set, force_env_section, error )
+       iw, do_debug, atomic_kind_set, mm_section, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
@@ -104,7 +104,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: force_env_section
+      POINTER                                :: mm_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_evaluate', &
@@ -142,10 +142,10 @@ CONTAINS
        ! Debug electric fields and gradients as pure derivatives
        IF (debug_e_field) THEN
           CPPostcondition(PRESENT(atomic_kind_set),cp_failure_level,routineP,error,failure)
-          CPPostcondition(PRESENT(force_env_section),cp_failure_level,routineP,error,failure)
+          CPPostcondition(PRESENT(mm_section),cp_failure_level,routineP,error,failure)
           CALL debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env,&
                cell, particle_set, local_particles, charges, dipoles, quadrupoles,&
-               task, iw, atomic_kind_set, force_env_section, error)
+               task, iw, atomic_kind_set, mm_section, error)
           STOP "Debug Multipole Requested:  POT+EFIELDS+GRAD!"
        END IF
        ! Debug the potential, electric fields and electric fields gradient in oder
@@ -1903,7 +1903,7 @@ CONTAINS
              q = charges(iparticle)
              ! Potential energy
              IF (do_efield0) THEN
-                efield0(  iparticle) = efield0(  iparticle) - 2.0_dp*ABS(q_sum)*q*fac1
+                efield0(  iparticle) = efield0(  iparticle) - 2.0_dp*ABS(q_sum)*fac1
              END IF
           END IF
        END DO
