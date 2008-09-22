@@ -386,6 +386,7 @@ CONTAINS
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mo_set%eigenvalues),cp_failure_level,routineP,error,failure)
 
     nomo = NINT(mo_set%nelectron/mo_set%maxocc)
     nmo  = SIZE(mo_set%eigenvalues)
@@ -409,13 +410,23 @@ CONTAINS
     ENDIF
 
     ! Quick return, if no smearing information is supplied (TO BE FIXED, smear should become non-optional...)
+
     IF (.NOT.PRESENT(smear)) THEN
       ! there is no dependence of the energy on the eigenvalues
       IF (PRESENT(eval_deriv)) THEN
          eval_deriv = 0.0_dp
       ENDIF
       RETURN
-    ENDIF
+    END IF
+
+    ! Check if proper eigenvalues are already available
+
+    IF (smear%method /= smear_list) THEN
+      IF ((ABS(mo_set%eigenvalues(1)) < 1.0E-12_dp).AND.&
+          (ABS(mo_set%eigenvalues(nmo)) < 1.0E-12_dp)) THEN
+        RETURN
+      END IF
+    END IF
 
     ! Perform smearing
 
@@ -482,6 +493,7 @@ CONTAINS
                        error,failure)
 
       CASE (smear_energy_window)
+
         ! not implemented
         CPPrecondition(.NOT.PRESENT(eval_deriv),cp_failure_level,routineP,error,failure)
 
@@ -534,17 +546,19 @@ CONTAINS
           edist = edist - edelta
         END DO
 
-      CASE(smear_list)
-        equal_size=SIZE(mo_set%occupation_numbers,1)==SIZE(smear%list,1)
+      CASE (smear_list)
+
+        equal_size = SIZE(mo_set%occupation_numbers,1)==SIZE(smear%list,1)
         CPPrecondition(equal_size,cp_failure_level,routineP,error,failure)
-        mo_set%occupation_numbers=smear%list
+        mo_set%occupation_numbers = smear%list
         ! there is no dependence of the energy on the eigenvalues
         IF (PRESENT(eval_deriv)) THEN
-           eval_deriv = 0.0_dp
+          eval_deriv = 0.0_dp
         END IF
         ! most general case
         mo_set%lfomo=1
         mo_set%homo =nmo
+
       END SELECT
 
       ! Check, if the smearing involves more than one MO
