@@ -392,7 +392,6 @@ CONTAINS
     nmo  = SIZE(mo_set%eigenvalues)
 
     ! Check and initialize MO occupations
-
     CPPrecondition(ASSOCIATED(mo_set%occupation_numbers),cp_failure_level,routineP,error,failure)
     CPPrecondition((SIZE(mo_set%occupation_numbers) >= nmo),cp_failure_level,routineP,error,failure)
     mo_set%occupation_numbers(:) = 0.0_dp
@@ -410,7 +409,6 @@ CONTAINS
     ENDIF
 
     ! Quick return, if no smearing information is supplied (TO BE FIXED, smear should become non-optional...)
-
     IF (.NOT.PRESENT(smear)) THEN
       ! there is no dependence of the energy on the eigenvalues
       IF (PRESENT(eval_deriv)) THEN
@@ -420,8 +418,7 @@ CONTAINS
     END IF
 
     ! Check if proper eigenvalues are already available
-
-    IF (smear%method /= smear_list) THEN
+    IF ((smear%method /= smear_list).AND.(nmo>0)) THEN
       IF ((ABS(mo_set%eigenvalues(1)) < 1.0E-12_dp).AND.&
           (ABS(mo_set%eigenvalues(nmo)) < 1.0E-12_dp)) THEN
         RETURN
@@ -429,13 +426,9 @@ CONTAINS
     END IF
 
     ! Perform smearing
-
     IF (smear%do_smear) THEN
-
       SELECT CASE (smear%method)
-
       CASE (smear_fermi_dirac)
-
         Nelec = mo_set%nelectron
         IF (.NOT. PRESENT(eval_deriv)) THEN
           CALL FermiFixed(mo_set%occupation_numbers,mu,mo_set%kTS,mo_set%eigenvalues,Nelec, &
@@ -493,12 +486,10 @@ CONTAINS
                        error,failure)
 
       CASE (smear_energy_window)
-
         ! not implemented
         CPPrecondition(.NOT.PRESENT(eval_deriv),cp_failure_level,routineP,error,failure)
 
         ! Define the energy window for the eigenvalues
-
         e1 = mo_set%eigenvalues(mo_set%homo) - 0.5_dp*smear%window_size
         CALL cp_assert((e1 > mo_set%eigenvalues(1)),cp_warning_level,cp_assertion_failed,routineP,&
                        "Energy window for smearing includes the first MO",&
@@ -510,7 +501,6 @@ CONTAINS
                        "Add more MOs for proper smearing.",error,failure)
 
         ! Find the lowest fractional occupied MO (LFOMO)
-
         DO imo=1,nomo
           IF (mo_set%eigenvalues(imo) > e1) THEN
             mo_set%lfomo = imo
@@ -519,7 +509,6 @@ CONTAINS
         END DO
 
         ! Find the highest fractional occupied (non-zero) MO which will be the HOMO
-
         DO imo=nmo,nomo,-1
           IF (mo_set%eigenvalues(imo) < e2) THEN
             mo_set%homo = imo
@@ -528,7 +517,6 @@ CONTAINS
         END DO
 
         ! Get the number of electrons to be smeared
-
         edist = 0.0_dp
         nelec = 0.0_dp
 
@@ -538,7 +526,6 @@ CONTAINS
         END DO
 
         ! Smear electrons inside the energy window
-
         DO imo=mo_set%lfomo,mo_set%homo
           edelta = ABS(e2 - mo_set%eigenvalues(imo))
           mo_set%occupation_numbers(imo) = MIN(mo_set%maxocc,nelec*edelta/edist)
@@ -547,7 +534,6 @@ CONTAINS
         END DO
 
       CASE (smear_list)
-
         equal_size = SIZE(mo_set%occupation_numbers,1)==SIZE(smear%list,1)
         CPPrecondition(equal_size,cp_failure_level,routineP,error,failure)
         mo_set%occupation_numbers = smear%list
@@ -558,11 +544,9 @@ CONTAINS
         ! most general case
         mo_set%lfomo=1
         mo_set%homo =nmo
-
       END SELECT
 
       ! Check, if the smearing involves more than one MO
-
       IF (mo_set%lfomo == mo_set%homo) THEN
         mo_set%homo = nomo
         mo_set%lfomo = nomo + 1
