@@ -1031,19 +1031,24 @@ CONTAINS
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="eigenvalues",&
+       CALL keyword_create(keyword, name="EIGENVALUES",variants=s2a("EIGVALS"),&
             description="If the printkey is activated controls the printing of the eigenvalues of the mos",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="eigenvectors",&
+       CALL keyword_create(keyword, name="EIGENVECTORS",variants=s2a("EIGVECS"),&
             description="If the printkey is activated controls the printing of the eigenvectors of the mos",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="occupation_numbers",&
+       CALL keyword_create(keyword, name="OCCUPATION_NUMBERS",variants=s2a("OCCNUMS"),&
             description="If the printkey is activated controls the printing of the occupation numbers of the mos",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword=keyword, name="NDIGITS",&
+            description="Specify the number of digits used to print the MO eigenvalues and occupation numbers",&
+            default_i_val=6, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
@@ -6048,7 +6053,7 @@ CONTAINS
       CALL section_create(section,&
                           name="SMEAR",&
                           description="Define the smearing of the MO occupation numbers",&
-                          n_keywords=5,&
+                          n_keywords=6,&
                           n_subsections=0,&
                           repeats=.FALSE.,&
                           required=.FALSE.,&
@@ -6080,11 +6085,16 @@ CONTAINS
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword,name="LIST",&
-           description="A list of fractional occupations to use,"//&
-                       "must match the number of states and sum up to the correct number of electrons",&
-           usage="LIST 2.0 0.6666 0.6666 0.66666 0.0 0.0",&
-           n_var=-1,type_of_var=real_t,repeats=.FALSE.,error=error)
+      CALL keyword_create(keyword,&
+                          name="LIST",&
+                          description="A list of fractional occupations to use. Must match the number of states "//&
+                                      "and sum up to the correct number of electrons",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=-1,&
+                          type_of_var=real_t,&
+                          usage="LIST 2.0 0.6666 0.6666 0.66666 0.0 0.0",&
+                          error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 

@@ -384,6 +384,7 @@ CONTAINS
       DIMENSION(:, :)                        :: dfde
 
     failure = .FALSE.
+
     CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
 
     nomo = NINT(mo_set%nelectron/mo_set%maxocc)
@@ -540,7 +541,7 @@ CONTAINS
         ! there is no dependence of the energy on the eigenvalues
         IF (PRESENT(eval_deriv)) THEN
            eval_deriv = 0.0_dp
-        ENDIF
+        END IF
         ! most general case
         mo_set%lfomo=1
         mo_set%homo =nmo
@@ -858,7 +859,7 @@ CPSourceFileRef,&
       INQUIRE(FILE=filename,exist=exist)
     END IF
 
-  END SUBROUTINE
+  END SUBROUTINE wfn_restart_file_name
 
 ! *****************************************************************************
   SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,particle_set,&
@@ -1283,15 +1284,17 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=12)                        :: symbol
     CHARACTER(LEN=12), DIMENSION(:), POINTER :: bcgf_symbol
+    CHARACTER(LEN=16)                        :: fmtstr5
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=2*default_string_length)   :: name
     CHARACTER(LEN=22)                        :: fmtstr2
     CHARACTER(LEN=25)                        :: fmtstr1
+    CHARACTER(LEN=27)                        :: fmtstr4
     CHARACTER(LEN=38)                        :: fmtstr3
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: bsgf_symbol
-    INTEGER :: from, iatom, icgf, ico, icol, irow, iset, isgf, ishell, iso, &
-      istat, iw, jcol, left, lmax, lshell, natom, ncgf, ncol, ncol_global, &
-      nrow_global, nset, nsgf, right, scf_step, to, width
+    INTEGER :: from, iatom, icgf, ico, icol, imo, irow, iset, isgf, ishell, &
+      iso, istat, iw, jcol, left, lmax, lshell, natom, ncgf, ncol, &
+      ncol_global, nrow_global, nset, nsgf, right, scf_step, to, width
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
     LOGICAL                                  :: failure, ionode, my_last, &
@@ -1326,16 +1329,16 @@ CPSourceFileRef,&
     scf_step = logger%iter_info%iteration(logger%iter_info%n_rlevel) - 1
 
     IF (p_evec) THEN
-       CALL cp_fm_get_info(mo_set%mo_coeff,&
-            nrow_global=nrow_global,&
-            ncol_global=ncol_global,error=error)
-       ALLOCATE(smatrix(nrow_global,ncol_global),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-       CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix,error=error)
-       IF (.NOT.ionode) THEN
-          DEALLOCATE(smatrix,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-       END IF
+      CALL cp_fm_get_info(mo_set%mo_coeff,&
+                          nrow_global=nrow_global,&
+                          ncol_global=ncol_global,error=error)
+      ALLOCATE(smatrix(nrow_global,ncol_global),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+      CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix,error=error)
+      IF (.NOT.ionode) THEN
+        DEALLOCATE(smatrix,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+      END IF
     END IF
 
     iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%MO",&
@@ -1344,279 +1347,285 @@ CPSourceFileRef,&
 
     IF (iw > 0) THEN
 
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-            natom=natom, ncgf=ncgf, nsgf=nsgf)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                               natom=natom,&
+                               ncgf=ncgf,&
+                               nsgf=nsgf)
 
-       ! Definition of the variable formats
+      ! Definition of the variable formats
 
-       fmtstr1 = "(/,T2,21X,  (  X,I5,  X))"
-       fmtstr2 = "(T2,21X,  (1X,F  .  ))"
-       fmtstr3 = "(T2,I5,1X,I5,1X,A,1X,A6,  (1X,F  .  ))"
+      fmtstr1 = "(/,T2,21X,  (  X,I5,  X))"
+      fmtstr2 = "(T2,21X,  (1X,F  .  ))"
+      fmtstr3 = "(T2,I5,1X,I5,1X,A,1X,A6,  (1X,F  .  ))"
 
-       width = before + after + 3
-       ncol = INT(56/width)
+      width = before + after + 3
+      ncol = INT(56/width)
 
-       right = MAX((after-2),1)
-       left =  width - right - 5
+      right = MAX((after-2),1)
+      left =  width - right - 5
 
-       WRITE (UNIT=fmtstr1(11:12),FMT="(I2)") ncol
-       WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") left
-       WRITE (UNIT=fmtstr1(21:22),FMT="(I2)") right
+      WRITE (UNIT=fmtstr1(11:12),FMT="(I2)") ncol
+      WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") left
+      WRITE (UNIT=fmtstr1(21:22),FMT="(I2)") right
 
-       WRITE (UNIT=fmtstr2(9:10),FMT="(I2)") ncol
-       WRITE (UNIT=fmtstr2(16:17),FMT="(I2)") width - 1
-       WRITE (UNIT=fmtstr2(19:20),FMT="(I2)") after
+      WRITE (UNIT=fmtstr2(9:10),FMT="(I2)") ncol
+      WRITE (UNIT=fmtstr2(16:17),FMT="(I2)") width - 1
+      WRITE (UNIT=fmtstr2(19:20),FMT="(I2)") after
 
-       WRITE (UNIT=fmtstr3(25:26),FMT="(I2)") ncol
-       WRITE (UNIT=fmtstr3(32:33),FMT="(I2)") width - 1
-       WRITE (UNIT=fmtstr3(35:36),FMT="(I2)") after
+      WRITE (UNIT=fmtstr3(25:26),FMT="(I2)") ncol
+      WRITE (UNIT=fmtstr3(32:33),FMT="(I2)") width - 1
+      WRITE (UNIT=fmtstr3(35:36),FMT="(I2)") after
 
-       IF (p_evec) THEN
+      IF (p_evec) THEN
 
-          IF (p_cart) THEN
+        IF (p_cart) THEN
 
-            IF (my_last) THEN
-              name = "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "//&
-                     "CARTESIAN MO EIGENVECTORS"
-            ELSE
-              WRITE (UNIT=name,FMT="(A,I6)")&
-                "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "//&
-                "CARTESIAN MO EIGENVECTORS AFTER SCF STEP",scf_step
-            END IF
-
-             ALLOCATE(cmatrix(ncgf,ncgf),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-
-             cmatrix = 0.0_dp
-
-!            ! Transform spherical MOs to Cartesian MOs
-
-             icgf = 1
-             isgf = 1
-             DO iatom=1,natom
-                NULLIFY(orb_basis_set,dftb_parameter)
-                CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                     orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
-                IF (ASSOCIATED(orb_basis_set)) THEN
-                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                       nset=nset,&
-                       nshell=nshell,&
-                       l=l)
-                  DO iset=1,nset
-                     DO ishell=1,nshell(iset)
-                        lshell = l(ishell,iset)
-                        CALL dgemm("T","N",nco(lshell),nsgf,nso(lshell),1.0_dp,&
-                             orbtramat(lshell)%s2c,nso(lshell),&
-                             smatrix(isgf,1),nsgf,0.0_dp,&
-                             cmatrix(icgf,1),ncgf)
-                        icgf = icgf + nco(lshell)
-                        isgf = isgf + nso(lshell)
-                     END DO
-                  END DO
-                ELSEIF (ASSOCIATED(dftb_parameter)) THEN
-                  CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
-                  DO ishell=1,lmax+1
-                    lshell = ishell-1
-                    CALL dgemm("T","N",nco(lshell),nsgf,nso(lshell),1.0_dp,&
-                         orbtramat(lshell)%s2c,nso(lshell),&
-                         smatrix(isgf,1),nsgf,0.0_dp,&
-                         cmatrix(icgf,1),ncgf)
-                    icgf = icgf + nco(lshell)
-                    isgf = isgf + nso(lshell)
-                  END DO
-                ELSE
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "Unknown basis set type. "//&
-CPSourceFileRef,&
-                     only_ionode=.TRUE.)
-                END IF
-             END DO
-
+          IF (my_last) THEN
+            name = "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "//&
+                   "CARTESIAN MO EIGENVECTORS"
           ELSE
-
-            IF (my_last) THEN
-              name = "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "//&
-                     "SPHERICAL MO EIGENVECTORS"
-            ELSE
-              WRITE (UNIT=name,FMT="(A,I6)")&
-                "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "//&
-                "SPHERICAL MO EIGENVECTORS AFTER SCF STEP",scf_step
-            END IF
-
+            WRITE (UNIT=name,FMT="(A,I6)")&
+              "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "//&
+              "CARTESIAN MO EIGENVECTORS AFTER SCF STEP",scf_step
           END IF
 
-       ELSE IF (p_occ) THEN
+          ALLOCATE(cmatrix(ncgf,ncgf),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
 
-         IF (my_last) THEN
-           name = "MO EIGENVALUES AND MO OCCUPATION NUMBERS"
-         ELSE
-           WRITE (UNIT=name,FMT="(A,I6)")&
-             "MO EIGENVALUES AND MO OCCUPATION NUMBERS AFTER "//&
-             "SCF STEP",scf_step
-         END IF
+          cmatrix = 0.0_dp
 
-       ELSE
+          ! Transform spherical MOs to Cartesian MOs
 
-         IF (my_last) THEN
-           name = "MO EIGENVALUES"
-         ELSE
-           WRITE (UNIT=name,FMT="(A,I6)")&
-             "MO EIGENVALUES AFTER SCF STEP",scf_step
-         END IF
+          icgf = 1
+          isgf = 1
+          DO iatom=1,natom
+            NULLIFY (orb_basis_set,dftb_parameter)
+            CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                                 orb_basis_set=orb_basis_set,&
+                                 dftb_parameter=dftb_parameter)
+            IF (ASSOCIATED(orb_basis_set)) THEN
+              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                     nset=nset,&
+                                     nshell=nshell,&
+                                     l=l)
+              DO iset=1,nset
+                 DO ishell=1,nshell(iset)
+                    lshell = l(ishell,iset)
+                    CALL dgemm("T","N",nco(lshell),nsgf,nso(lshell),1.0_dp,&
+                               orbtramat(lshell)%s2c,nso(lshell),&
+                               smatrix(isgf,1),nsgf,0.0_dp,&
+                               cmatrix(icgf,1),ncgf)
+                    icgf = icgf + nco(lshell)
+                    isgf = isgf + nso(lshell)
+                 END DO
+              END DO
+            ELSE IF (ASSOCIATED(dftb_parameter)) THEN
+              CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
+              DO ishell=1,lmax+1
+                lshell = ishell-1
+                CALL dgemm("T","N",nco(lshell),nsgf,nso(lshell),1.0_dp,&
+                           orbtramat(lshell)%s2c,nso(lshell),&
+                           smatrix(isgf,1),nsgf,0.0_dp,&
+                           cmatrix(icgf,1),ncgf)
+                icgf = icgf + nco(lshell)
+                isgf = isgf + nso(lshell)
+              END DO
+            ELSE
+              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                             "Unknown basis set type. "//&
+CPSourceFileRef,&
+                             only_ionode=.TRUE.)
+            END IF
+          END DO ! iatom
 
-       END IF
+        ELSE
 
-       CALL compress(name)
+          IF (my_last) THEN
+            name = "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "//&
+                   "SPHERICAL MO EIGENVECTORS"
+          ELSE
+            WRITE (UNIT=name,FMT="(A,I6)")&
+              "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "//&
+              "SPHERICAL MO EIGENVECTORS AFTER SCF STEP",scf_step
+          END IF
 
-       ! Print headline
+        END IF ! p_cart
 
-       IF (PRESENT(spin)) THEN
-         WRITE (UNIT=iw,FMT="(/,/,T2,A)") spin//" "//TRIM(name)
-       ELSE
-         WRITE (UNIT=iw,FMT="(/,/,T2,A)") TRIM(name)
-       END IF
+      ELSE IF (p_occ.OR.p_eval) THEN
 
-       ! Print MO information
-       DO icol=1,mo_set%nmo,ncol
+        IF (my_last) THEN
+          name = "MO EIGENVALUES AND MO OCCUPATION NUMBERS"
+        ELSE
+          WRITE (UNIT=name,FMT="(A,I6)")&
+            "MO EIGENVALUES AND MO OCCUPATION NUMBERS AFTER "//&
+            "SCF STEP",scf_step
+        END IF
+
+      END IF ! p_evec
+
+      CALL compress(name)
+
+      ! Print headline
+
+      IF (PRESENT(spin)) THEN
+        WRITE (UNIT=iw,FMT="(/,/,T2,A)") spin//" "//TRIM(name)
+      ELSE
+        WRITE (UNIT=iw,FMT="(/,/,T2,A)") TRIM(name)
+      END IF
+
+      IF (p_evec) THEN
+
+        ! Print full MO information
+
+        DO icol=1,mo_set%nmo,ncol
 
           from = icol
           to = MIN((from+ncol-1),mo_set%nmo)
 
-          WRITE (UNIT=iw,FMT=fmtstr1)&
-               (jcol,jcol=from,to)
-          WRITE (UNIT=iw,FMT=fmtstr2)&
-               (mo_set%eigenvalues(jcol),jcol=from,to)
+          WRITE (UNIT=iw,FMT=fmtstr1) (jcol,jcol=from,to)
+          WRITE (UNIT=iw,FMT=fmtstr2) (mo_set%eigenvalues(jcol),jcol=from,to)
           WRITE (UNIT=iw,FMT="(A)") ""
 
-          IF (p_occ) THEN
-             WRITE (UNIT=iw,FMT=fmtstr2)&
-                  (mo_set%occupation_numbers(jcol),jcol=from,to)
-             WRITE (UNIT=iw,FMT="(A)") ""
-          END IF
+          WRITE (UNIT=iw,FMT=fmtstr2) (mo_set%occupation_numbers(jcol),jcol=from,to)
+          WRITE (UNIT=iw,FMT="(A)") ""
 
-          IF (p_evec) THEN
+          irow = 1
 
-             irow = 1
+          DO iatom=1,natom
 
-             DO iatom=1,natom
+            IF (iatom /= 1) WRITE (UNIT=iw,FMT="(A)") ""
 
-                IF (iatom /= 1) WRITE (UNIT=iw,FMT="(A)") ""
+            NULLIFY(orb_basis_set,dftb_parameter)
+            CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                                 element_symbol=element_symbol,&
+                                 orb_basis_set=orb_basis_set,&
+                                 dftb_parameter=dftb_parameter)
 
-                NULLIFY(orb_basis_set,dftb_parameter)
-                CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                     element_symbol=element_symbol,&
-                     orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
+            IF (p_cart) THEN
 
-                IF (p_cart) THEN
+              IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                       nset=nset,&
+                                       nshell=nshell,&
+                                       l=l,&
+                                       cgf_symbol=bcgf_symbol)
 
-                   IF (ASSOCIATED(orb_basis_set)) THEN
-                      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                           nset=nset,&
-                           nshell=nshell,&
-                           l=l,&
-                           cgf_symbol=bcgf_symbol)
-
-                      icgf = 1
-                      DO iset=1,nset
-                         DO ishell=1,nshell(iset)
-                            lshell = l(ishell,iset)
-                            DO ico=1,nco(lshell)
-                               WRITE (UNIT=iw,FMT=fmtstr3)&
-                                 irow,iatom,ADJUSTR(element_symbol),bcgf_symbol(icgf),&
-                                 (cmatrix(irow,jcol),jcol=from,to)
-                               icgf = icgf + 1
-                               irow = irow + 1
-                            END DO
-                         END DO
-                      END DO
-                   ELSE IF (ASSOCIATED(dftb_parameter)) THEN
-                      CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
-                      icgf = 1
-                      DO ishell=1,lmax+1
-                         lshell = ishell-1
-                         DO ico=1,nco(lshell)
-                            symbol = cgf_symbol(1,indco(1:3,icgf))
-                            symbol(1:2) = "  "
-                            WRITE (UNIT=iw,FMT=fmtstr3)&
-                                 irow,iatom,ADJUSTR(element_symbol),symbol,&
-                                 (cmatrix(irow,jcol),jcol=from,to)
-                            icgf = icgf + 1
-                            irow = irow + 1
-                         END DO
-                      END DO
-                   ELSE
-                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                       "Unknown basis set type. "//&
+                icgf = 1
+                DO iset=1,nset
+                  DO ishell=1,nshell(iset)
+                    lshell = l(ishell,iset)
+                    DO ico=1,nco(lshell)
+                      WRITE (UNIT=iw,FMT=fmtstr3)&
+                        irow,iatom,ADJUSTR(element_symbol),bcgf_symbol(icgf),&
+                        (cmatrix(irow,jcol),jcol=from,to)
+                      icgf = icgf + 1
+                      irow = irow + 1
+                    END DO
+                  END DO
+                END DO
+              ELSE IF (ASSOCIATED(dftb_parameter)) THEN
+                CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
+                icgf = 1
+                DO ishell=1,lmax+1
+                  lshell = ishell-1
+                  DO ico=1,nco(lshell)
+                    symbol = cgf_symbol(1,indco(1:3,icgf))
+                    symbol(1:2) = "  "
+                    WRITE (UNIT=iw,FMT=fmtstr3)&
+                      irow,iatom,ADJUSTR(element_symbol),symbol,&
+                      (cmatrix(irow,jcol),jcol=from,to)
+                    icgf = icgf + 1
+                    irow = irow + 1
+                  END DO
+                END DO
+              ELSE
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                               "Unknown basis set type. "//&
 CPSourceFileRef,&
-                       only_ionode=.TRUE.)
-                   END IF
+                               only_ionode=.TRUE.)
+              END IF
 
-                ELSE
+            ELSE
 
-                   IF (ASSOCIATED(orb_basis_set)) THEN
-                      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                           nset=nset,&
-                           nshell=nshell,&
-                           l=l,&
-                           sgf_symbol=bsgf_symbol)
-
-                      isgf = 1
-                      DO iset=1,nset
-                         DO ishell=1,nshell(iset)
-                            lshell = l(ishell,iset)
-                            DO iso=1,nso(lshell)
-                               WRITE (UNIT=iw,FMT=fmtstr3)&
-                                 irow,iatom,ADJUSTR(element_symbol),bsgf_symbol(isgf),&
-                                 (smatrix(irow,jcol),jcol=from,to)
-                               isgf = isgf + 1
-                               irow = irow + 1
-                            END DO
-                         END DO
-                      END DO
-                   ELSE IF (ASSOCIATED(dftb_parameter)) THEN
-                      CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
-                      isgf = 1
-                      DO ishell=1,lmax+1
-                         lshell = ishell-1
-                         DO iso=1,nso(lshell)
-                           symbol = sgf_symbol(1,lshell,-lshell+iso-1)
-                           symbol(1:2) = "  "
-                            WRITE (UNIT=iw,FMT=fmtstr3)&
-                              irow,iatom,ADJUSTR(element_symbol),symbol,&
-                              (smatrix(irow,jcol),jcol=from,to)
-                            isgf = isgf + 1
-                            irow = irow + 1
-                         END DO
-                      END DO
-                   ELSE
-                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                        "Unknown basis type. "//&
+              IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                       nset=nset,&
+                                       nshell=nshell,&
+                                       l=l,&
+                                       sgf_symbol=bsgf_symbol)
+                isgf = 1
+                DO iset=1,nset
+                  DO ishell=1,nshell(iset)
+                    lshell = l(ishell,iset)
+                    DO iso=1,nso(lshell)
+                      WRITE (UNIT=iw,FMT=fmtstr3)&
+                        irow,iatom,ADJUSTR(element_symbol),bsgf_symbol(isgf),&
+                        (smatrix(irow,jcol),jcol=from,to)
+                      isgf = isgf + 1
+                      irow = irow + 1
+                    END DO
+                  END DO
+                END DO
+              ELSE IF (ASSOCIATED(dftb_parameter)) THEN
+                CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
+                isgf = 1
+                DO ishell=1,lmax+1
+                  lshell = ishell-1
+                  DO iso=1,nso(lshell)
+                    symbol = sgf_symbol(1,lshell,-lshell+iso-1)
+                    symbol(1:2) = "  "
+                    WRITE (UNIT=iw,FMT=fmtstr3)&
+                      irow,iatom,ADJUSTR(element_symbol),symbol,&
+                      (smatrix(irow,jcol),jcol=from,to)
+                    isgf = isgf + 1
+                    irow = irow + 1
+                  END DO
+                END DO
+              ELSE
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                               "Unknown basis type. "//&
 CPSourceFileRef,&
-                        only_ionode=.TRUE.)
-                   END IF
+                               only_ionode=.TRUE.)
+              END IF
 
-                END IF
+            END IF ! p_cart
 
-             END DO
+          END DO ! iatom
 
-          END IF
+        END DO ! icol
 
-       END DO
+        WRITE (UNIT=iw,FMT="(/)")
 
-       WRITE (UNIT=iw,FMT="(/)")
+        ! Release work storage
 
-       ! Release work storage
-
-       IF (p_evec) THEN
-          DEALLOCATE (smatrix,STAT=istat)
+        DEALLOCATE (smatrix,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+        IF (p_cart) THEN
+          DEALLOCATE (cmatrix,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-          IF (p_cart) THEN
-             DEALLOCATE (cmatrix,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-          END IF
-       END IF
+        END IF
 
-    END IF
+      ELSE IF (p_occ.OR.p_eval) THEN
+
+        CALL section_vals_val_get(dft_section,"PRINT%MO%NDIGITS",i_val=right,error=error)
+        right = MIN(MAX(right,1),18)
+        fmtstr4 = "(T2,I9,2X,F28.  ,1X,F24.  )"
+        WRITE (UNIT=fmtstr4(15:16),FMT="(I2)") right
+        WRITE (UNIT=fmtstr4(25:26),FMT="(I2)") right
+        WRITE (UNIT=iw,FMT="(/,A)")&
+          "# MO index          MO eigenvalue [a.u.]            MO occupation"
+        DO imo=1,mo_set%nmo
+          WRITE (UNIT=iw,FMT=fmtstr4)&
+            imo,mo_set%eigenvalues(imo),mo_set%occupation_numbers(imo)
+        END DO
+        fmtstr5 = "(A,T42,F24.  ,/)"
+        WRITE (UNIT=fmtstr5(12:13),FMT="(I2)") right
+        WRITE (UNIT=iw,FMT=fmtstr5)&
+          "# Sum",accurate_sum(mo_set%occupation_numbers(:))
+
+      END IF ! p_evec
+
+    END IF ! iw
 
     CALL cp_print_key_finished_output(iw,logger,dft_section,"PRINT%MO",&
                                       ignore_should_output=should_output,&
@@ -1624,7 +1633,9 @@ CPSourceFileRef,&
 
   END SUBROUTINE write_mo_set_to_output_unit
 
-  !MK Just kept for a while to allow a smooth transition to the new routine
+! *****************************************************************************
+!MK Just kept for a while to allow a smooth transition to the new routine
+! *****************************************************************************
   SUBROUTINE set_mo_occupation_old(occupation,eigenvalues,homo,lfomo,maxocc,nelectron,&
        uocc,smear,error)
 
@@ -1644,8 +1655,6 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
                                                 my_smear, nelec
     TYPE(cp_logger_type), POINTER            :: logger
-
-!   ---------------------------------------------------------------------------
 
     logger =>cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source

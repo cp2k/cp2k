@@ -267,7 +267,9 @@ CPSourceFileRef,&
        IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
 
        DO ispin=1,nspin
-          CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set, smear=qs_env%scf_control%smear, error=error)
+          CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
+                                 smear=qs_env%scf_control%smear,&
+                                 error=error)
        ENDDO
 
        DO ispin=1,nspin
@@ -306,7 +308,9 @@ CPSourceFileRef,&
              IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
 
              DO ispin=1,nspin
-                CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set, smear=qs_env%scf_control%smear, error=error)
+                CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
+                                       smear=qs_env%scf_control%smear,&
+                                       error=error)
              ENDDO
 
              DO ispin=1,nspin
@@ -336,7 +340,9 @@ CPSourceFileRef,&
        IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
 
        DO ispin=1,nspin
-          CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set, smear=qs_env%scf_control%smear, error=error)
+          CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
+                                 smear=qs_env%scf_control%smear,&
+                                 error=error)
        ENDDO
 
        DO ispin=1,nspin
@@ -644,7 +650,9 @@ CPSourceFileRef,&
                 END IF
              END IF
 
-             CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set, smear=qs_env%scf_control%smear, error=error)
+             CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
+                                    smear=qs_env%scf_control%smear,&
+                                    error=error)
 
              CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                                            p_rmpv(ispin)%matrix,&
