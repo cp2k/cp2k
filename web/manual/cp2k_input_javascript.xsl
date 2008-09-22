@@ -7,8 +7,8 @@
 <xsl:template match="/CP2K_INPUT">
  <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
   <head>
-   <xsl:call-template name="head"/>
    <title>CP2K input reference</title>
+   <xsl:call-template name="head"/>
   </head>
   <body>
    <xsl:call-template name="write_generate_manual_howto"/>
@@ -103,8 +103,8 @@
   <xsl:result-document href="CP2K_INPUT.html" method="html" indent="yes" format="html">
    <html>
     <head>
-     <xsl:call-template name="head"/>
      <title>CP2K input file</title>
+     <xsl:call-template name="head"/>
     </head>
     <body>
      <xsl:call-template name="header">
@@ -261,17 +261,17 @@
  <xsl:for-each select="SECTION_PARAMETERS">
   <xsl:sort select="NAME[@type='default']"/>
   <xsl:variable name="local_subpath" select="concat($subpath,'.sub[0]')"/>
-  <xsl:value-of select="$local_subpath"/> = new sub('<a href="{$section_filename}#{string(NAME[@type='default'])}" id="{$section_filename}/{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>');
+  <xsl:value-of select="$local_subpath"/> = new sub('<a href="{$section_filename}#desc_{string(NAME[@type='default'])}" id="{$section_filename}/{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>');
  </xsl:for-each>
  <xsl:for-each select="DEFAULT_KEYWORD">
   <xsl:sort select="NAME[@type='default']"/>
   <xsl:variable name="local_subpath" select="concat($subpath,'.sub[',string($nsecpar),']')"/>
-  <xsl:value-of select="$local_subpath"/> = new sub('<a href="{$section_filename}#{string(NAME[@type='default'])}" id="{$section_filename}/{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>');
+  <xsl:value-of select="$local_subpath"/> = new sub('<a href="{$section_filename}#desc_{string(NAME[@type='default'])}" id="{$section_filename}/{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>');
  </xsl:for-each>
  <xsl:for-each select="KEYWORD">
   <xsl:sort select="NAME[@type='default']"/>
   <xsl:variable name="local_subpath" select="concat($subpath,'.sub[',string($nsecpar+$ndefpar+position()-1),']')"/>
-  <xsl:value-of select="$local_subpath"/> = new sub('<a href="{$section_filename}#{string(NAME[@type='default'])}" id="{$section_filename}/{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>');
+  <xsl:value-of select="$local_subpath"/> = new sub('<a href="{$section_filename}#desc_{string(NAME[@type='default'])}" id="{$section_filename}/{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>');
  </xsl:for-each>
 </xsl:template>
 
@@ -287,8 +287,8 @@
    <xsl:result-document href="{$section_filename}" method="html" indent="yes" format="html">
    <html>
     <head>
-     <xsl:call-template name="head"/>
      <title>Input section <xsl:value-of select="NAME"/></title>
+     <xsl:call-template name="head"/>
     </head>
     <body>
      <xsl:call-template name="header">
@@ -646,8 +646,8 @@
  <xsl:result-document href="generate_manual_howto.html" method="html" indent="yes" format="html">
   <html>
    <head>
-    <xsl:call-template name="head"/>
     <title>How to generate the CP2K input reference manual</title>
+    <xsl:call-template name="head"/>
    </head>
    <body>
     <xsl:call-template name="header">

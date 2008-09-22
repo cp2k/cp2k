@@ -7,8 +7,8 @@
 <xsl:template match="/CP2K_INPUT">
  <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
   <head>
-   <xsl:call-template name="head"/>
    <title>CP2K input reference</title>
+   <xsl:call-template name="head"/>
   </head>
   <body>
    <xsl:call-template name="write_generate_manual_howto"/>
@@ -92,8 +92,8 @@
   <xsl:result-document href="CP2K_INPUT.html" method="html" indent="yes" format="html">
    <html>
     <head>
-     <xsl:call-template name="head"/>
      <title>CP2K input file</title>
+     <xsl:call-template name="head"/>
     </head>
     <body>
      <xsl:call-template name="header">
@@ -232,8 +232,8 @@
    <xsl:result-document href="{$section_filename}" method="html" indent="yes" format="html">
    <html>
     <head>
-     <xsl:call-template name="head"/>
      <title>Input section <xsl:value-of select="NAME"/></title>
+     <xsl:call-template name="head"/>
     </head>
     <body>
      <xsl:call-template name="header">
@@ -591,8 +591,8 @@
  <xsl:result-document href="generate_manual_howto.html" method="html" indent="yes" format="html">
   <html>
    <head>
-    <xsl:call-template name="head"/>
     <title>How to generate the CP2K input reference manual</title>
+    <xsl:call-template name="head"/>
    </head>
    <body>
     <xsl:call-template name="header">
