@@ -13,11 +13,11 @@ LDFLAGS  = $(FCFLAGS) -L/apps/lapack-3/64/lib -L/apps/scalapack/64/lib
 LIBS     = -lscalapack\
 	   /apps/scalapack/64/lib/blacsF77init_MPI-ppc64-0.a \
 	   /apps/scalapack/64/lib/blacs_MPI-ppc64-0.a\
-           -llapack_ppc64 -lessl\
-	   /opt/ibmcmp/xlmass/4.3/lib64/libmass_64.a\
+           -L/apps/lapack/3.1.0/64/ -llapack_ppc64 -lessl\
+	   /opt/ibmcmp/xlmass/4.4/lib64/libmass_64.a\
 	   /users/teo/cp2k/libint_tools/libint_cpp_wrapper.o\
 	   /apps/libint-1.1.4/lib/libderiv.a\
-	   /apps/libint-1.1.4/lib/libint.a /opt/ibmcmp/vacpp/8.0/lib64/libibmc++.a
+	   /apps/libint-1.1.4/lib/libint.a /opt/ibmcmp/vacpp/9.0/lib64/libibmc++.a
 
 CPPSHELL = -WF,-D__COMPILE_ARCH="\"$(ARCH)\"",-D__COMPILE_DATE="\"$(shell date)\"",-D__COMPILE_HOST="\"$(shell hostname)\"",-D__COMPILE_LASTCVS="\"$(shell tail -n1 $(SRCDIR)/CVS/Entries)\""
 
