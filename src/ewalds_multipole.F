@@ -110,13 +110,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, size1, size2, &
-                                                stat
+    INTEGER                                  :: group, handle, i, j, size1, &
+                                                size2, stat
     LOGICAL                                  :: check_debug, check_efield, &
                                                 check_forces, do_task(3), &
                                                 failure
     LOGICAL, DIMENSION(3, 3)                 :: my_task
-    REAL(KIND=dp)                            :: e_rspace
+    REAL(KIND=dp)                            :: e_rspace, e_rspace_t, &
+                                                energy_glob_t
     REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0_lr, efield0_sr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1_lr, efield1_sr, &
                                                 efield2_lr, efield2_sr
@@ -236,13 +237,20 @@ CONTAINS
             do_efield, charges, dipoles, quadrupoles, efield0_lr, efield1_lr, efield2_lr, error)
     END IF
 
+    ! Sumup energy contributions for possible IO
+    CALL ewald_env_get (ewald_env, group=group, error=error)
+    energy_glob_t = energy_glob
+    e_rspace_t    = e_rspace
+    CALL mp_sum(energy_glob_t, group)
+    CALL mp_sum(e_rspace_t, group)
     ! Print some info about energetics
-    CALL ewald_multipole_print (iw, energy_local, energy_glob, e_rspace, e_self, e_neut)
+    CALL ewald_multipole_print (iw, energy_local, energy_glob_t, e_rspace_t, e_self, e_neut)
 
     ! Gather the components of the potential, fields and electrostatic field gradients
     IF (do_efield) THEN
        IF (PRESENT(efield0)) THEN
           efield0 = efield0_sr + efield0_lr
+          CALL mp_sum(efield0, group)
           DEALLOCATE (efield0_sr, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE (efield0_lr, stat=stat)
@@ -250,6 +258,7 @@ CONTAINS
        END IF
        IF (PRESENT(efield1)) THEN
           efield1 = efield1_sr + efield1_lr
+          CALL mp_sum(efield1, group)
           DEALLOCATE (efield1_sr, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE (efield1_lr, stat=stat)
@@ -257,6 +266,7 @@ CONTAINS
        END IF
        IF (PRESENT(efield2)) THEN
           efield2 = efield2_sr + efield2_lr
+          CALL mp_sum(efield2, group)
           DEALLOCATE (efield2_sr, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE (efield2_lr, stat=stat)
