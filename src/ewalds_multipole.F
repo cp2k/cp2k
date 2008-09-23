@@ -1903,7 +1903,7 @@ CONTAINS
              q = charges(iparticle)
              ! Potential energy
              IF (do_efield0) THEN
-                efield0(  iparticle) = efield0(  iparticle) - 2.0_dp*ABS(q_sum)*fac1
+                efield0(  iparticle) = efield0(  iparticle) - 2.0_dp*ABS(q_sum)*SIGN(1.0_dp,q)*fac1
              END IF
           END IF
        END DO
