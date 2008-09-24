@@ -891,12 +891,12 @@ CPSourceFileRef,&
        ! *** if the dft_section tells you to do so, write last wavefunction to screen
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
        IF (dft_control%nspins == 2) THEN
-         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,6,&
+         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
                            dft_section,spin="ALPHA",last=.TRUE.,error=error)
-         CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,4,6,&
+         CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,4,&
                            dft_section,spin="BETA",last=.TRUE.,error=error)
        ELSE
-         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,6,&
+         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
                            dft_section,last=.TRUE.,error=error)
        END IF
 

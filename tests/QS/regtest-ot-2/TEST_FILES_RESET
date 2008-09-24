@@ -466,3 +466,6 @@ H2O.inp
 C_fermi.inp
 #  
 C_ot.inp
+#
+C_fermi.inp
+Al_fermi.inp

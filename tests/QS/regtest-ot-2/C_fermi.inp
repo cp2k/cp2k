@@ -9,6 +9,14 @@
     &MGRID
       CUTOFF 100
     &END MGRID
+    &PRINT
+      &MO
+        EIGENVALUES
+        EIGENVECTORS
+        MO_INDEX_RANGE 2 5
+        NDIGITS 8
+      &END MO
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12
     &END QS

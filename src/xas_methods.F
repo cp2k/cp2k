@@ -496,8 +496,8 @@ CONTAINS
 
 !   *** Write last wavefunction to screen ***
         DO ispin=1,dft_control%nspins
-           CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
-           4,6,dft_section,error=error)
+           CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,&
+                             dft_section,error=error)
         ENDDO
 
       ELSE

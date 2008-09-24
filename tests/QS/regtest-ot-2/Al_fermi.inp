@@ -10,12 +10,17 @@
     &MGRID
       CUTOFF 40
     &END MGRID
-    ! &PRINT
-    !   &MO
-    !     EIGENVALUES
-    !     OCCUPATION_NUMBERS
-    !   &END MO
-    ! &END PRINT
+    &PRINT
+      &MO
+        EIGENVALUES
+        MO_RANGE 1 15
+        NDIGITS 12
+        OCCUPATION_NUMBERS
+        &EACH
+          QS_SCF 0
+        &END EACH
+      &END MO
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-8
     &END QS

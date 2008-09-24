@@ -1051,6 +1051,20 @@ CONTAINS
             default_i_val=6, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,&
+                           name="MO_INDEX_RANGE",&
+                           variants=s2a("MO_RANGE","RANGE"),&
+                           description="Allows to print only a subset of the MO eigenvectors or eigenvalues. "//&
+                                       "The indices of the first and the last MO have to be specified",&
+                           required=.FALSE.,&
+                           repeats=.FALSE.,&
+                           n_var=2,&
+                           type_of_var=integer_t,&
+                           default_i_vals=(/0,0/),&
+                           usage="MO_INDEX_RANGE 10 15",&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 

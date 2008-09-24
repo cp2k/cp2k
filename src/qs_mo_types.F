@@ -99,6 +99,8 @@ MODULE qs_mo_types
     LOGICAL                                   :: uniform_occupation
     ! the entropic energy contribution
     REAL(KIND=dp)                             :: kTS
+    ! Fermi energy level
+    REAL(KIND=dp)                             :: mu
   END TYPE mo_set_type
 
   TYPE mo_set_p_type
@@ -164,6 +166,8 @@ CONTAINS
 
     failure = .FALSE.
 
+    IF (ASSOCIATED(mo_set)) CALL deallocate_mo_set(mo_set,error)
+
     ALLOCATE (mo_set,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
 
@@ -175,6 +179,7 @@ CONTAINS
     mo_set%lfomo = 0
     mo_set%uniform_occupation = .TRUE.
     mo_set%kTS = 0.0_dp
+    mo_set%mu = 0.0_dp
 
     NULLIFY (mo_set%eigenvalues)
     NULLIFY (mo_set%occupation_numbers)
@@ -208,19 +213,25 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(fm_pool),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(mo_set%eigenvalues),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(mo_set%occupation_numbers),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(mo_set%mo_coeff),cp_failure_level,routineP,error,failure)
 
-    ALLOCATE (mo_set%eigenvalues(mo_set%nmo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-    mo_set%eigenvalues(:) = 0.0_dp
-
-    ALLOCATE (mo_set%occupation_numbers(mo_set%nmo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-    CALL set_mo_occupation(mo_set=mo_set,error=error)
     CALL fm_pool_create_fm(fm_pool,mo_set%mo_coeff,name=name,error=error)
     CALL cp_fm_get_info(mo_set%mo_coeff,nrow_global=nao,ncol_global=nmo,error=error)
     CPPostcondition((nao >= mo_set%nao),cp_failure_level,routineP,error,failure)
     CPPostcondition((nmo >= mo_set%nmo),cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (mo_set%eigenvalues(nmo),STAT=istat)
+    CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure) 
+    mo_set%eigenvalues(:) = 0.0_dp
+
+    ALLOCATE (mo_set%occupation_numbers(nmo),STAT=istat)
+    CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure) 
+    CALL set_mo_occupation(mo_set=mo_set,error=error)
 
   END SUBROUTINE init_mo_set
 
@@ -326,7 +337,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
                         eigenvalues,occupation_numbers,mo_coeff,&
-                        uniform_occupation,kTS)
+                        uniform_occupation,kTS,mu)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: maxocc
@@ -337,7 +348,7 @@ CONTAINS
                                                 occupation_numbers
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
     LOGICAL, INTENT(OUT), OPTIONAL           :: uniform_occupation
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kTS
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kTS, mu
 
     IF (PRESENT(maxocc)) maxocc = mo_set%maxocc
     IF (PRESENT(homo)) homo = mo_set%homo
@@ -352,6 +363,7 @@ CONTAINS
     IF (PRESENT(mo_coeff)) mo_coeff => mo_set%mo_coeff
     IF (PRESENT(uniform_occupation)) uniform_occupation = mo_set%uniform_occupation
     IF (PRESENT(kTS)) kTS = mo_set%kTS
+    IF (PRESENT(mu)) mu = mo_set%mu
 
   END SUBROUTINE get_mo_set
 
@@ -379,7 +391,7 @@ CONTAINS
     INTEGER                                  :: imo, nmo, nomo, stat
     LOGICAL                                  :: equal_size, failure, is_large
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
-                                                lengthscale, mu, nelec
+                                                lengthscale, nelec
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dfde
 
@@ -387,38 +399,44 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mo_set%eigenvalues),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mo_set%occupation_numbers),cp_failure_level,routineP,error,failure)
+    mo_set%occupation_numbers(:) = 0.0_dp
+
+    ! Quick return, if no electrons are available
+    IF (mo_set%nelectron == 0) RETURN
 
     nomo = NINT(mo_set%nelectron/mo_set%maxocc)
     nmo  = SIZE(mo_set%eigenvalues)
 
-    ! Check and initialize MO occupations
-    CPPrecondition(ASSOCIATED(mo_set%occupation_numbers),cp_failure_level,routineP,error,failure)
-    CPPrecondition((SIZE(mo_set%occupation_numbers) >= nmo),cp_failure_level,routineP,error,failure)
-    mo_set%occupation_numbers(:) = 0.0_dp
+    CPPrecondition((nmo >= nomo),cp_failure_level,routineP,error,failure)
+    CPPrecondition((SIZE(mo_set%occupation_numbers) == nmo),cp_failure_level,routineP,error,failure)
+
+    ! Initialize MO occupations
     mo_set%occupation_numbers(1:nomo) =  mo_set%maxocc
     ! zeros don't count as uniform
-    mo_set%uniform_occupation = ALL(mo_set%occupation_numbers==mo_set%maxocc)
+    !MK mo_set%uniform_occupation = ALL(mo_set%occupation_numbers==mo_set%maxocc)
 
     mo_set%homo = nomo
     mo_set%lfomo = nomo + 1
+    mo_set%mu = mo_set%eigenvalues(nomo)
 
-    ! check consistency of the array lengths
+    ! Check consistency of the array lengths
     IF (PRESENT(eval_deriv)) THEN
-        equal_size=SIZE(mo_set%occupation_numbers,1)==SIZE(eval_deriv,1)
-        CPPrecondition(equal_size,cp_failure_level,routineP,error,failure)
-    ENDIF
+      equal_size = (SIZE(mo_set%occupation_numbers,1) == SIZE(eval_deriv,1))
+      CPPrecondition(equal_size,cp_failure_level,routineP,error,failure)
+    END IF
 
     ! Quick return, if no smearing information is supplied (TO BE FIXED, smear should become non-optional...)
     IF (.NOT.PRESENT(smear)) THEN
       ! there is no dependence of the energy on the eigenvalues
       IF (PRESENT(eval_deriv)) THEN
-         eval_deriv = 0.0_dp
-      ENDIF
+        eval_deriv = 0.0_dp
+      END IF
       RETURN
     END IF
 
     ! Check if proper eigenvalues are already available
-    IF ((smear%method /= smear_list).AND.(nmo>0)) THEN
+    IF (smear%method /= smear_list) THEN
       IF ((ABS(mo_set%eigenvalues(1)) < 1.0E-12_dp).AND.&
           (ABS(mo_set%eigenvalues(nmo)) < 1.0E-12_dp)) THEN
         RETURN
@@ -431,7 +449,7 @@ CONTAINS
       CASE (smear_fermi_dirac)
         Nelec = mo_set%nelectron
         IF (.NOT. PRESENT(eval_deriv)) THEN
-          CALL FermiFixed(mo_set%occupation_numbers,mu,mo_set%kTS,mo_set%eigenvalues,Nelec, &
+          CALL FermiFixed(mo_set%occupation_numbers,mo_set%mu,mo_set%kTS,mo_set%eigenvalues,Nelec, &
                           smear%electronic_temperature,mo_set%maxocc)
         ELSE
           ! could be a relatively large matrix, but one could get rid of it by never storing it
@@ -441,17 +459,17 @@ CONTAINS
           ! lengthscale could become a parameter, but this is pretty good
           lengthscale=10*smear%electronic_temperature
 
-          CALL FermiFixedDeriv(dfde,mo_set%occupation_numbers,mu,mo_set%kTS,mo_set%eigenvalues,Nelec, &
+          CALL FermiFixedDeriv(dfde,mo_set%occupation_numbers,mo_set%mu,mo_set%kTS,mo_set%eigenvalues,Nelec, &
                                smear%electronic_temperature,mo_set%maxocc,lengthscale)
 
           ! deriv of E_{KS}-kT*S wrt to f_i
-          eval_deriv=eval_deriv - mo_set%eigenvalues + mu
+          eval_deriv=eval_deriv - mo_set%eigenvalues + mo_set%mu
           ! correspondingly the deriv of  E_{KS}-kT*S wrt to e_i
           eval_deriv=MATMUL(TRANSPOSE(dfde),eval_deriv)
 
           DEALLOCATE(dfde,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ENDIF
+        END IF
 
         ! Find the lowest fractional occupied MO (LFOMO)
         DO imo=1,nmo
@@ -566,7 +584,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
                         eigenvalues,occupation_numbers,uniform_occupation,&
-                        kTS, error)
+                        kTS,mu,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc
@@ -576,7 +594,7 @@ CONTAINS
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
     LOGICAL, INTENT(IN), OPTIONAL            :: uniform_occupation
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kTS
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kTS, mu
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_set', &
@@ -607,6 +625,7 @@ CONTAINS
     END IF
     IF(PRESENT(uniform_occupation)) mo_set%uniform_occupation = uniform_occupation
     IF(PRESENT(kTS)) mo_set%kTS = kTS
+    IF(PRESENT(mu)) mo_set%mu = mu
 
   END SUBROUTINE set_mo_set
 
@@ -916,8 +935,8 @@ CPSourceFileRef,&
     IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
 
     DO ispin = 1,nspin
-        CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,&
-                            4,6,dft_section,error=error)
+      CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,4,&
+                        dft_section,error=error)
     END DO
 
     CALL timestop(0.0_dp,handle)
@@ -1263,15 +1282,14 @@ CPSourceFileRef,&
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,particle_set,&
-                                         before,after,dft_section,spin,last,&
-                                         error)
+                                         before,dft_section,spin,last,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    INTEGER, INTENT(IN)                      :: before, after
+    INTEGER, INTENT(IN)                      :: before
     TYPE(section_vals_type), POINTER         :: dft_section
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: spin
     LOGICAL, INTENT(IN), OPTIONAL            :: last
@@ -1282,7 +1300,7 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=12)                        :: symbol
     CHARACTER(LEN=12), DIMENSION(:), POINTER :: bcgf_symbol
-    CHARACTER(LEN=16)                        :: fmtstr5
+    CHARACTER(LEN=16)                        :: fmtstr5, fmtstr6
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=2*default_string_length)   :: name
     CHARACTER(LEN=22)                        :: fmtstr2
@@ -1290,10 +1308,11 @@ CPSourceFileRef,&
     CHARACTER(LEN=27)                        :: fmtstr4
     CHARACTER(LEN=38)                        :: fmtstr3
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: bsgf_symbol
-    INTEGER :: from, iatom, icgf, ico, icol, imo, irow, iset, isgf, ishell, &
-      iso, istat, iw, jcol, left, lmax, lshell, natom, ncgf, ncol, &
-      ncol_global, nrow_global, nset, nsgf, right, scf_step, to, width
-    INTEGER, DIMENSION(:), POINTER           :: nshell
+    INTEGER :: after, first_mo, from, iatom, icgf, ico, icol, imo, irow, &
+      iset, isgf, ishell, iso, istat, iw, jcol, last_mo, left, lmax, lshell, &
+      natom, ncgf, ncol, ncol_global, nrow_global, nset, nsgf, right, &
+      scf_step, to, width
+    INTEGER, DIMENSION(:), POINTER           :: mo_index_range, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
     LOGICAL                                  :: failure, ionode, my_last, &
                                                 p_cart, p_eval, p_evec, &
@@ -1303,7 +1322,12 @@ CPSourceFileRef,&
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
-    NULLIFY(logger)
+    NULLIFY (bcgf_symbol)
+    NULLIFY (bsgf_symbol)
+    NULLIFY (logger)
+    NULLIFY (mo_index_range)
+    NULLIFY (nshell)
+
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     failure = .FALSE.
@@ -1311,8 +1335,12 @@ CPSourceFileRef,&
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVECTORS",l_val=p_evec,error=error)
     CALL section_vals_val_get(dft_section,"PRINT%MO%OCCUPATION_NUMBERS",l_val=p_occ,error=error)
     CALL section_vals_val_get(dft_section,"PRINT%MO%CARTESIAN",l_val=p_cart,error=error)
+    CALL section_vals_val_get(dft_section,"PRINT%MO%MO_INDEX_RANGE",i_vals=mo_index_range,error=error)
+    CALL section_vals_val_get(dft_section,"PRINT%MO%NDIGITS",i_val=after,error=error)
+    after = MIN(MAX(after,1),16)
     should_output = BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
                           "PRINT%MO",error=error),cp_p_file)
+
 
     IF (PRESENT(last)) THEN
       my_last = last
@@ -1471,14 +1499,25 @@ CPSourceFileRef,&
         WRITE (UNIT=iw,FMT="(/,/,T2,A)") TRIM(name)
       END IF
 
+      ! Check if only a subset of the MOs has to be printed
+      IF ((mo_index_range(1) > 0).AND.&
+          (mo_index_range(2) > 0).AND.&
+          (mo_index_range(2) >= mo_index_range(1))) THEN
+        first_mo = MAX(1,mo_index_range(1))
+        last_mo = MIN(mo_set%nmo,mo_index_range(2))
+      ELSE
+        first_mo = 1
+        last_mo = mo_set%nmo
+      END IF
+
       IF (p_evec) THEN
 
         ! Print full MO information
 
-        DO icol=1,mo_set%nmo,ncol
+        DO icol=first_mo,last_mo,ncol
 
           from = icol
-          to = MIN((from+ncol-1),mo_set%nmo)
+          to = MIN((from+ncol-1),last_mo)
 
           WRITE (UNIT=iw,FMT=fmtstr1) (jcol,jcol=from,to)
           WRITE (UNIT=iw,FMT=fmtstr2) (mo_set%eigenvalues(jcol),jcol=from,to)
@@ -1605,23 +1644,25 @@ CPSourceFileRef,&
 
       ELSE IF (p_occ.OR.p_eval) THEN
 
-        CALL section_vals_val_get(dft_section,"PRINT%MO%NDIGITS",i_val=right,error=error)
-        right = MIN(MAX(right,1),18)
         fmtstr4 = "(T2,I9,2X,F28.  ,1X,F24.  )"
-        WRITE (UNIT=fmtstr4(15:16),FMT="(I2)") right
-        WRITE (UNIT=fmtstr4(25:26),FMT="(I2)") right
+        WRITE (UNIT=fmtstr4(15:16),FMT="(I2)") after
+        WRITE (UNIT=fmtstr4(25:26),FMT="(I2)") after
         WRITE (UNIT=iw,FMT="(/,A)")&
           "# MO index          MO eigenvalue [a.u.]            MO occupation"
-        DO imo=1,mo_set%nmo
+        DO imo=first_mo,last_mo
           WRITE (UNIT=iw,FMT=fmtstr4)&
             imo,mo_set%eigenvalues(imo),mo_set%occupation_numbers(imo)
         END DO
         fmtstr5 = "(A,T42,F24.  ,/)"
-        WRITE (UNIT=fmtstr5(12:13),FMT="(I2)") right
+        WRITE (UNIT=fmtstr5(12:13),FMT="(I2)") after
         WRITE (UNIT=iw,FMT=fmtstr5)&
           "# Sum",accurate_sum(mo_set%occupation_numbers(:))
 
       END IF ! p_evec
+
+      fmtstr6 = "(A,T17,F24.  ,/)"
+      WRITE (UNIT=fmtstr6(12:13),FMT="(I2)") after
+      WRITE (UNIT=iw,FMT=fmtstr6) "  Fermi energy:",mo_set%mu
 
     END IF ! iw
 

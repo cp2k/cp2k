@@ -552,13 +552,13 @@ CONTAINS
 
           ! another heavy weight print object, print controlled by dft_section
           IF (SIZE(mos) > 1) THEN
-             CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,&
-                               4,6,dft_section,spin="ALPHA",last=.FALSE.,error=error)
-             CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,&
-                               4,6,dft_section,spin="BETA",last=.FALSE.,error=error)
+             CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
+                               dft_section,spin="ALPHA",last=.FALSE.,error=error)
+             CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,4,&
+                               dft_section,spin="BETA",last=.FALSE.,error=error)
           ELSE
-             CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,&
-                               4,6,dft_section,last=.FALSE.,error=error)
+             CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
+                               dft_section,last=.FALSE.,error=error)
           END IF
 
           ! ** calculation of the harris energy correction ***
@@ -681,7 +681,7 @@ CONTAINS
 
           !   *** Write WaveFunction restart file ***
           CALL write_mo_set(mos,particle_set,dft_section=dft_section,scp=scp,scp_env=scp_env,&
-               atomic_kind_set=atomic_kind_set,error=error)
+                            atomic_kind_set=atomic_kind_set,error=error)
 
           !   *** Exit if we have finished with the SCF inner loop ***
           IF (exit_inner_loop) THEN
