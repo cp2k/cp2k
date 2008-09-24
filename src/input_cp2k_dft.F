@@ -2098,7 +2098,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RC_INTERACTION",&
-            description="Cutoff radius for localization",&
+            description="Cutoff radius for Exchange and Core Hamiltonian terms.",&
             usage="RC_INTERACTION {real} ",unit_str="bohr",default_r_val=24._dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
