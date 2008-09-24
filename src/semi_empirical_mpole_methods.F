@@ -60,7 +60,7 @@ CONTAINS
     INTEGER                                  :: a, b, i, ind1, ind2, j, &
                                                 natorb, ndim
     LOGICAL                                  :: failure
-    REAL(KINd=dp)                            :: dlm, tmp
+    REAL(KIND=dp)                            :: dlm, tmp
     REAL(KIND=dp), DIMENSION(6, 0:2)         :: amn
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
@@ -89,7 +89,11 @@ CONTAINS
              mpole%indj = j
              a = loc_index(i)
              b = loc_index(j)
-             
+             mpole%c  = HUGE(0.0_dp)
+             mpole%d  = HUGE(0.0_dp)
+             mpole%qs = HUGE(0.0_dp)
+             mpole%qc = HUGE(0.0_dp)
+
              ! Charge
              IF (alm(ind1,0,0)/=0.0_dp) THEN
                 dlm = 1.0_dp/SQRT(REAL((2*0+1),KIND=dp))
@@ -154,9 +158,9 @@ CONTAINS
     qcart(3,2) =    qsph(2)
     qcart(3,3) =    qsph(1)
     ! Symmetrize tensor
-    qcart(1,2) = qcart(1,2)
-    qcart(1,3) = qcart(1,3)
-    qcart(2,3) = qcart(2,3)
+    qcart(1,2) = qcart(2,1)
+    qcart(1,3) = qcart(3,1)
+    qcart(2,3) = qcart(3,2)
 
   END SUBROUTINE quadrupole_sph_to_cart
 

@@ -9,6 +9,7 @@
 !> \author HAF
 ! *****************************************************************************
 MODULE fist_nonbond_env_types
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -186,9 +187,11 @@ CONTAINS
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, potparm, nonbonded14,&
-       nonbonded, mm_section, ewald_env, error)
+  SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, atomic_kind_set, potparm,&
+       nonbonded14, nonbonded, mm_section, ewald_env, error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(pair_potential_pp_type), OPTIONAL, &
       POINTER                                :: potparm
     LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
@@ -215,8 +218,8 @@ CONTAINS
     NULLIFY(fist_nonbond_env%r_last_update_pbc)
     NULLIFY(fist_nonbond_env%rshell_last_update_pbc)
     NULLIFY(fist_nonbond_env%rcore_last_update_pbc)
-    CALL init_fist_nonbond_env( fist_nonbond_env, potparm, nonbonded14,&
-         nonbonded, mm_section, ewald_env, error)
+    CALL init_fist_nonbond_env( fist_nonbond_env, atomic_kind_set, potparm,&
+         nonbonded14, nonbonded, mm_section, ewald_env, error)
   END SUBROUTINE fist_nonbond_env_create
 
 ! *****************************************************************************
@@ -225,10 +228,12 @@ CONTAINS
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
 ! *****************************************************************************
-  SUBROUTINE init_fist_nonbond_env ( fist_nonbond_env, potparm, nonbonded14,&
-     nonbonded, mm_section, ewald_env, error)
+  SUBROUTINE init_fist_nonbond_env ( fist_nonbond_env, atomic_kind_set, potparm,&
+       nonbonded14, nonbonded, mm_section, ewald_env, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(pair_potential_pp_type), OPTIONAL, &
       POINTER                                :: potparm
     LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
@@ -240,7 +245,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idim, jdim, natom_types, stat
-    LOGICAL                                  :: failure, use_potparm
+    LOGICAL                                  :: check, failure, use_potparm
     REAL(KIND=dp)                            :: ewald_rcut, fac, rcut, tmp, &
                                                 verlet_skin
 
@@ -272,7 +277,12 @@ CONTAINS
        CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
        CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
             r_val=verlet_skin,error=error)
-       IF (use_potparm) natom_types = SIZE(potparm%pot, 1)
+       ! Determine size of kind arrays
+       natom_types = SIZE(atomic_kind_set)
+       IF (use_potparm) THEN
+          check = (SIZE(potparm%pot,1)==natom_types)
+          CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       END IF
        ALLOCATE ( fist_nonbond_env%rlist_cutsq(natom_types, natom_types), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE ( fist_nonbond_env%rlist_lowsq(natom_types, natom_types), stat=stat)

@@ -1,0 +1,58 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD MNDO
+      &SE
+        DO_EWALD T
+        RC_COULOMB [angstrom] 15.0
+        RC_RANGE               0.001
+        &PRINT
+          &EWALD_INFO OFF
+          &END
+        &END
+      &END
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC
+      &OT
+        PRECONDITIONER FULL_SINGLE_INVERSE
+        MINIMIZER DIIS
+        N_DIIS 9
+      &END
+      &PRINT
+         &RESTART OFF
+         &END
+      &END
+    &END SCF
+    &POISSON
+      &EWALD
+        &MULTIPOLES
+          MAX_MULTIPOLE_EXPANSION QUADRUPOLE
+        &END
+        EWALD_TYPE ewald
+        ALPHA  .5
+        GMAX   21
+      &END EWALD
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    O   0.000000    0.000000    0.0
+    O   0.000000    0.000000    1.48
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O
+#  RUN_TYPE ENERGY_FORCE
+  RUN_TYPE DEBUG
+&END GLOBAL
+&DEBUG
+&END

@@ -1,0 +1,54 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    CHARGE 2
+    &QS
+      METHOD MNDO
+      &SE
+        DO_EWALD 
+        RC_COULOMB [angstrom] 11.1
+        RC_RANGE               0.01
+        &PRINT
+          &EWALD_INFO
+          &END
+        &END
+      &END
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-5
+      SCF_GUESS ATOMIC
+      &PRINT
+         &RESTART OFF
+         &END
+      &END
+    &END SCF
+    &POISSON
+      &EWALD
+        &MULTIPOLES
+          MAX_MULTIPOLE_EXPANSION QUADRUPOLE
+        &END
+        EWALD_TYPE ewald
+        ALPHA  .5
+        GMAX   21
+      &END EWALD
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 50.0 50.0 50.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+    H   0.000000   0.000000   0.000000  
+    H   0.000000   0.000000   12.000000  
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O
+  RUN_TYPE DEBUG
+&END GLOBAL
+&DEBUG
+&END

@@ -1,0 +1,49 @@
+
+&FORCE_EVAL
+  METHOD Fist
+  &MM
+    &FORCEFIELD
+      &BOND
+        ATOMS H H
+        K 0.0
+        R0 1.8
+      &END BOND
+      &CHARGE
+        ATOM H
+        CHARGE 1.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          atoms H H
+          EPSILON 0.0
+          SIGMA 1.0
+          RCUT 10.0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        &MULTIPOLES
+          MAX_MULTIPOLE_EXPANSION QUADRUPOLE
+        &END
+        EWALD_TYPE ewald
+        ALPHA .5
+        GMAX 21
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 50.0 50.0 50.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+    H   0.000000   0.000000   0.000000  
+    H   0.000000   0.000000   12.000000  
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O
+&END GLOBAL

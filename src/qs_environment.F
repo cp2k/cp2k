@@ -707,9 +707,8 @@ CONTAINS
           ! Initialize ewald grids
           CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
           ! Setup the nonbond environment (real space part of Ewald)
-          CALL fist_nonbond_env_create(se_nonbond_env, nonbonded14=.FALSE.,&
-               nonbonded=.TRUE., mm_section=se_section, ewald_env=ewald_env,&
-               error=error)
+          CALL fist_nonbond_env_create(se_nonbond_env, atomic_kind_set, nonbonded14=.FALSE.,&
+               nonbonded=.TRUE., mm_section=se_section, ewald_env=ewald_env, error=error)
           ! Create and Setup NDDO multipole environment
           CALL nddo_mpole_setup(se_nddo_mpole, natom, error)
           CALL set_qs_env(qs_env,ewald_env=ewald_env, ewald_pw=ewald_pw,&

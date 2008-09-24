@@ -151,11 +151,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_sp_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: l1, l1max, l1min, l2, l2max, &
-                                                l2min, lij, lkl, lmin, m, mm
-    REAL(KIND=dp)                            :: add, ccc, chrg, dij, dkl, &
-                                                fact_ij, fact_kl, pij, pkl, &
-                                                s1, sum
+    INTEGER                                  :: ccc, l1, l1max, l1min, l2, &
+                                                l2max, l2min, lij, lkl, lmin, &
+                                                m, mm
+    REAL(KIND=dp)                            :: add, chrg, dij, dkl, fact_ij, &
+                                                fact_kl, pij, pkl, s1, sum
 
     l1min = ABS (li-lj)
     l1max = li + lj

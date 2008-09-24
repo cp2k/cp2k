@@ -76,9 +76,9 @@ CONTAINS
 !>      08.2006 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE build_fist_neighbor_lists(atomic_kind_set,particle_set,&
-       local_particles,cell,r_max, r_minsq, nonbonded,para_env,&
-       build_from_scratch,geo_check,mm_section,pot_type,error)
+  SUBROUTINE build_fist_neighbor_lists(atomic_kind_set,particle_set,local_particles,&
+       cell,r_max, r_minsq, nonbonded,para_env,build_from_scratch,geo_check,mm_section,&
+       pot_type,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

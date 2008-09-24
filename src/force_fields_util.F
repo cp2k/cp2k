@@ -282,8 +282,8 @@ CONTAINS
             error)
     END IF
     ! Create non bond environment
-    CALL fist_nonbond_env_create (fist_nonbond_env, potparm_nonbond, ff_type%nonbonded14, &
-         ff_type%nonbonded, mm_section, ewald_env, error )
+    CALL fist_nonbond_env_create (fist_nonbond_env, atomic_kind_set, potparm_nonbond,&
+         ff_type%nonbonded14, ff_type%nonbonded, mm_section, ewald_env, error )
 
     ! Release all spline_environments
     IF (ff_type%nonbonded) THEN
@@ -351,8 +351,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Compute the total qeff charges for each molecule kind and total system
 ! *****************************************************************************
-  SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
-       molecule_kind_set,molecule_set,mm_section,ff_type,error)
+  SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,molecule_kind_set,&
+       molecule_set,mm_section,ff_type,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set

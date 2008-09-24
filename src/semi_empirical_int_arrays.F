@@ -27,7 +27,7 @@ MODULE semi_empirical_int_arrays
   
   ! Mapping index for orbital ordering
   INTEGER, DIMENSION(9), PUBLIC        :: se_orbital_pointer=(/1,4,2,3,9,8,7,6,5/)
-  INTEGER, DIMENSION(9), PUBLIC        :: se_map_alm        =(/1,4,2,3,7,6,8,5,9/)
+  INTEGER, DIMENSION(9), PUBLIC        :: se_map_alm        =(/1,3,4,2,8,6,5,7,9/)
 
   ! Arrays to treat the invertion of the reference frame for the integrals
   ! Using the same indexing convention of the integrals
@@ -59,7 +59,7 @@ MODULE semi_empirical_int_arrays
   ! Clm coefficients for sp-orbitals: see original paper TCA77
   INTEGER,       DIMENSION (45,0:2,-2:2),  PUBLIC :: clm_sp
   ! alm coefficients: see Laino and Hutter (periodic SE)
-  INTEGER,       DIMENSION (45,0:2,-2:2),  PUBLIC :: alm
+  REAL(KIND=dp), DIMENSION (45,0:2,-2:2),  PUBLIC :: alm
 
   ! These values are absolutely arbitrary and are used only for a proper
   ! tag of the integrals

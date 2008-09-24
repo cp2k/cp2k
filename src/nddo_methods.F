@@ -175,25 +175,29 @@ CONTAINS
                 CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
              END DO
           END IF
+
           ! Evaluate Coulomb Long-Range
           CALL build_fock_matrix_coulomb_lr(qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
                just_energy,error)
-          ! Debug statements
-          IF (debug_coulomb_lr) THEN
-             WRITE(*,*)"ENERGY::",0.5_dp*energy%hartree
-             CALL mp_abort("debug coulomb long-range")
-          END IF
        END IF
+
        ! Compute the Hartree energy
        DO ispin=1,nspins
           CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,&
                para_env=para_env,error=error)
           energy%hartree = energy%hartree + ecoul
+
           ! Debug statements
           IF (debug_coulomb_lr) THEN
              WRITE(*,*)ispin,"ECOUL ",ecoul
           END IF
        END DO
+
+       ! Debug statements
+       IF (debug_coulomb_lr) THEN
+          WRITE(*,*)"TOTAL ENE",0.5_dp*energy%hartree
+          STOP
+       END IF
 
        ! QM/MM
        IF (qs_env%qmmm) THEN
@@ -232,7 +236,7 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%DETAILED_ENERGY", error=error)
 
-       ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
+       ! Here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
           DO ispin=1,SIZE(mo_derivs)
@@ -713,7 +717,7 @@ CONTAINS
 
     INTEGER :: atom_a, ewald_type, forces_g_size, handle, iatom, ikind, &
       ilist, indi, indj, ispin, itype, iw, jint, natoms, natorb_a, nkind, &
-      nlocal_particles, nparticle_local, nspins, size_1c_int, stat
+      nlocal_particles, node, nparticle_local, nspins, size_1c_int, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, defined, do_ewald, &
                                                 failure
@@ -752,7 +756,6 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,"I","",handle)
-    CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force,particle_set, diagmat_ks, diagmat_p,local_particles,&
             se_control, ewald_env, ewald_pw, se_nddo_mpole, se_nonbond_env, se_section, mpole,&
@@ -799,7 +802,14 @@ CONTAINS
                                   "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
        END DO
        
-       itype    = get_se_type(dft_control%qs_control%method_id)
+       ! Check for implemented SE methods
+       SELECT CASE (dft_control%qs_control%method_id)
+       CASE(do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
+            do_method_rm1, do_method_mndod)
+          itype    = get_se_type(dft_control%qs_control%method_id)
+       CASE DEFAULT
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
 
        ! Zero arrays and possibly build neighbor lists
        energy_local = 0.0_dp
@@ -810,9 +820,7 @@ CONTAINS
        CALL list_control ( atomic_kind_set, particle_set, local_particles, &
             cell, se_nonbond_env, para_env, se_section, error=error)
 
-       fac  = 1.0_dp
        enuc = 0.0_dp
-       IF (nspins == 1) fac = 2.0_dp
        DO ispin = 1, nspins
           se_nddo_mpole%charge     = 0.0_dp
           se_nddo_mpole%dipole     = 0.0_dp
@@ -835,51 +843,43 @@ CONTAINS
                                     BLOCK=pa_block_a)
                 CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
 
-                SELECT CASE (dft_control%qs_control%method_id)
-                CASE(do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
-                     do_method_rm1, do_method_mndod)
-                
-                   size_1c_int = SIZE(se_kind_a%w_mpole)
-                   DO jint = 1, size_1c_int
-                      mpole => se_kind_a%w_mpole(jint)%mpole
-                      indi  = se_orbital_pointer(mpole%indi)
-                      indj  = se_orbital_pointer(mpole%indj)
-                      ! Charge
-                      WRITE(*,*)iatom, mpole%task, se_kind_a%zeff
-                      WRITE(*,*)mpole%c, pa_block_a(indi,indj), indi, indj
-                      WRITE(*,*)mpole%d
-                      WRITE(*,*)mpole%qc
-                      WRITE(*,*)mpole%qs
-                      IF (mpole%task(1)) THEN
-                         se_nddo_mpole%charge(iatom)          = se_nddo_mpole%charge(iatom)   +&
-                                                                ! Electrons 
-                                                                pa_block_a(indi,indj)*mpole%c +&
-                                                                ! Nuclei
-                                                                se_kind_a%zeff
-                      END IF
-                      ! Dipole
-                      IF (mpole%task(2)) THEN
-                         se_nddo_mpole%dipole(:,iatom)        = se_nddo_mpole%dipole(:,iatom) +&
-                                                                pa_block_a(indi,indj)*mpole%d(:)
-                      END IF
 
-                      ! Quadrupole
-                      IF (mpole%task(3)) THEN
-                         qsph = mpole%qs * pa_block_a(indi,indj)
-                         CALL quadrupole_sph_to_cart(qcart, qsph, error)
-                         se_nddo_mpole%quadrupole(:,:,iatom)  = se_nddo_mpole%quadrupole(:,:,iatom) + &
-                                                                qcart
-                      END IF
-                   END DO
-                CASE DEFAULT
-                   CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                END SELECT
+                ! Nuclei
+                se_nddo_mpole%charge(iatom)                = se_kind_a%zeff
+                ! Electrons
+                size_1c_int = SIZE(se_kind_a%w_mpole)
+                DO jint = 1, size_1c_int
+                   mpole => se_kind_a%w_mpole(jint)%mpole
+                   indi  = se_orbital_pointer(mpole%indi)
+                   indj  = se_orbital_pointer(mpole%indj)
+                   fac   = 1.0_dp
+                   IF (indi/=indj) fac = 2.0_dp
+
+                   ! Charge
+                   IF (mpole%task(1)) THEN
+                      se_nddo_mpole%charge(iatom)          = se_nddo_mpole%charge(iatom)   +&
+                                                             fac*pa_block_a(indi,indj)*mpole%c
+                   END IF
+
+                   ! Dipole
+                   IF (mpole%task(2)) THEN
+                      se_nddo_mpole%dipole(:,iatom)        = se_nddo_mpole%dipole(:,iatom) +&
+                                                             fac*pa_block_a(indi,indj)*mpole%d(:)
+                   END IF
+                   
+                   ! Quadrupole
+                   IF (mpole%task(3)) THEN
+                      qsph = fac*mpole%qs * pa_block_a(indi,indj)
+                      CALL quadrupole_sph_to_cart(qcart, qsph, error)
+                      se_nddo_mpole%quadrupole(:,:,iatom)  = se_nddo_mpole%quadrupole(:,:,iatom) +&
+                                                             qcart
+                   END IF
+                END DO
              END DO
           END DO
-
-          WRITE(*,*)se_nddo_mpole%charge
-          WRITE(*,*)se_nddo_mpole%dipole
-          WRITE(*,*)se_nddo_mpole%quadrupole
+          CALL mp_sum(se_nddo_mpole%charge, para_env%group)
+          CALL mp_sum(se_nddo_mpole%dipole, para_env%group)
+          CALL mp_sum(se_nddo_mpole%quadrupole, para_env%group)
 
           ! Ewald Multipoles Sum
           iw = cp_print_key_unit_nr(logger,se_section,"PRINT%EWALD_INFO",extension=".seLog",error=error)
@@ -903,25 +903,29 @@ CONTAINS
                   particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
                   do_forces=.TRUE., do_stress=.FALSE., do_efield=.TRUE., charges=se_nddo_mpole%charge,&
                   dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
-                  forces_local=forces_r, forces_glob=forces_g, efield0=se_nddo_mpole%efield0,&
+                  forces_local=forces_g, forces_glob=forces_r, efield0=se_nddo_mpole%efield0,&
                   efield1=se_nddo_mpole%efield1, efield2=se_nddo_mpole%efield2, iw=iw, &
-                  do_debug=.FALSE.,error=error)
+                  do_debug=.TRUE.,error=error)
+             ! Only SR force have to be summed up.. the one in g-space are already fully local..
+             CALL mp_sum(forces_r, para_env%group)
           ELSE
              CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
                   particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, task,&
                   do_forces=.FALSE., do_stress=.FALSE., do_efield=.TRUE., charges=se_nddo_mpole%charge,&
                   dipoles=se_nddo_mpole%dipole, quadrupoles=se_nddo_mpole%quadrupole,&
                   efield0=se_nddo_mpole%efield0, efield1=se_nddo_mpole%efield1,&
-                  efield2=se_nddo_mpole%efield2, iw=iw, do_debug=.FALSE.,error=error)
+                  efield2=se_nddo_mpole%efield2, iw=iw, do_debug=.TRUE.,error=error)
           END IF
           CALL cp_print_key_finished_output(iw,logger,se_section,"PRINT%EWALD_INFO",error=error)
 
-          WRITE(*,*)"FIELDS"
-          WRITE(*,*)se_nddo_mpole%efield0
-          WRITE(*,*)se_nddo_mpole%efield1
-          WRITE(*,*)se_nddo_mpole%efield2
+          ! Debug Statements
+          IF (debug_coulomb_lr) THEN
+             CALL mp_sum(energy_glob,para_env%group)
+             WRITE(*,*)"TOTAL ENERGY AFTER EWALD:",energy_local+ energy_glob+ e_neut+ e_self
+          END IF
 
           ! Modify the KS matrix and possibly compute derivatives
+          node = 0
           DO ikind=1,nkind
              atomic_kind => atomic_kind_set(ikind)
              CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
@@ -931,62 +935,64 @@ CONTAINS
              
              nparticle_local = local_particles%n_el(ikind)
              DO ilist=1, nparticle_local
+                node  = node + 1
                 iatom = local_particles%list(ikind)%array(ilist)
                 IF ( nspins >= 1 ) THEN
-                   CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                   CALL get_block_node(matrix=diagmat_ks(ispin)%matrix,&
                                        block_row=iatom,&
                                        block_col=iatom,&
                                        BLOCK=ksa_block_a)
                    CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
                 END IF
- 
+
                 ! Modify Hamiltonian Matrix accordingly potential, field and electric field gradient
-                SELECT CASE (dft_control%qs_control%method_id)
-                CASE(do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
-                     do_method_rm1, do_method_mndod)
+                size_1c_int = SIZE(se_kind_a%w_mpole)
+                DO jint = 1, size_1c_int
+                   tmp   =  0.0_dp
+                   mpole => se_kind_a%w_mpole(jint)%mpole
+                   indi  =  se_orbital_pointer(mpole%indi)
+                   indj  =  se_orbital_pointer(mpole%indj)
 
-                   size_1c_int = SIZE(se_kind_a%w_mpole)
-                   DO jint = 1, size_1c_int
-                      mpole => se_kind_a%w_mpole(jint)%mpole
-                      indi  = se_orbital_pointer(mpole%indi)
-                      indj  = se_orbital_pointer(mpole%indj)
-
-                      ! Charge
-                      tmp = 0.0_dp
-                      IF (mpole%task(1)) THEN
-                         tmp   = tmp + mpole%c * se_nddo_mpole%efield0(iatom)
-                      END IF
-
-                      ! Dipole
-                      IF (mpole%task(2)) THEN
-                         tmp   = tmp - SUM(mpole%d * se_nddo_mpole%efield1(:,iatom))
-                      END IF
-
-                      ! Quadrupole
-                      IF (mpole%task(3)) THEN
-                         tmp   = tmp - (1.0_dp/3.0_dp) * SUM(mpole%qc * RESHAPE(se_nddo_mpole%efield2(:,iatom),(/3,3/)))
-                      END IF
-
-                      ksa_block_a(indi, indj) = ksa_block_a(indi, indj) + tmp
-                      ksa_block_a(indj, indi) = ksa_block_a(indi, indj)
-                   END DO
-                CASE DEFAULT
-                   CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                END SELECT
+                   ! Charge
+                   IF (mpole%task(1)) THEN
+                      tmp   = tmp + mpole%c*se_nddo_mpole%efield0(iatom)
+                   END IF
+                   
+                   ! Dipole
+                   IF (mpole%task(2)) THEN
+                      tmp   = tmp - DOT_PRODUCT(mpole%d,se_nddo_mpole%efield1(:,iatom))
+                   END IF
+                   
+                   ! Quadrupole
+                   IF (mpole%task(3)) THEN
+                      tmp   = tmp - (1.0_dp/3.0_dp) * SUM(mpole%qc * RESHAPE(se_nddo_mpole%efield2(:,iatom),(/3,3/)))
+                   END IF
+                   
+                   ksa_block_a(indi, indj) = ksa_block_a(indi, indj) + tmp
+                   ksa_block_a(indj, indi) = ksa_block_a(indi, indj)
+                END DO
 
                 ! Nuclear term and forces
                 enuc = enuc + se_kind_a%zeff * se_nddo_mpole%efield0(iatom)
                 IF(calculate_forces) THEN
                    atom_a   = atom_of_kind(iatom)
-                   force_a  = forces_r(1:3,iatom) + forces_g(1:3,ilist)
-                         
+                   force_a  = forces_r(1:3,iatom) + forces_g(1:3,node)
+
                    ! Derivatives of the periodic Coulomb Terms
                    force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_a(:)
-                END IF
+                END IF                
              END DO
           END DO
        END DO
+       ! Sum nuclear energy contribution
+       CALL mp_sum(enuc, para_env%group)
+       energy%hartree = energy%hartree + enuc
 
+       ! Debug Statements
+       IF (debug_coulomb_lr) THEN
+          WRITE(*,*)"ENUC: ",enuc
+       END IF
+       
        ! Deallocate diagonal block matrix
        DO ispin = 1, nspins
           CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,.FALSE.,error=error)
@@ -1005,11 +1011,7 @@ CONTAINS
           DEALLOCATE(forces_r,stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       
-       energy%hartree = energy%hartree + enuc
-       WRITE(*,*)"ENUC  ",enuc
     END IF
-    
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE build_fock_matrix_coulomb_lr
  

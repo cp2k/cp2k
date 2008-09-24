@@ -118,9 +118,8 @@ CONTAINS
                               potparm=potparm,&
                               last_update=last_update,error=error)
     
-    nparticle_kind = 1
     nparticle      = SIZE(particle_set)
-    IF (ASSOCIATED(potparm)) nparticle_kind = SIZE(atomic_kind_set)
+    nparticle_kind = SIZE(atomic_kind_set)
     nshell = 0
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          shell_present=shell_present, shell_adiabatic=shell_adiabatic)
