@@ -3,6 +3,8 @@
 # in case a new directory is added just drop it at the end of the list..
 # the order will be regularly checked and modified...
 QS/regtest-sym
+QS/regtest-gapw-4
+QS/regtest-hfx
 Fist/regtest
 Fist/regtest-7
 Fist/regtest-5
@@ -36,8 +38,6 @@ QS/regtest-epr-2
 NEB/regtest-1
 QS/regtest-ot-refine
 MC/regtest
-QS/regtest-hfx
-QS/regtest-gapw-4
 Fist/regtest-4
 DFTB/regtest-scc
 QMMM/SE/regtest_2
