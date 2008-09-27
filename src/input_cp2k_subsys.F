@@ -155,7 +155,8 @@ CONTAINS
 
        CALL keyword_create(keyword, name="PERIODIC",&
             description="Specify the directions on wich apply PBC. Important notice, "//&
-                        " this only applies to the generation of the pair lists."//&
+                        " this applies to the generation of the pair lists as well as to the application"//&
+                        " of the periodic boundary conditions to positions."//&
                         " See the POISSON section to specify the periodicity used for the electrostatics."//&
                         " Typically the settings should be the same.",&
             usage="PERIODIC (x|y|z|xy|xz|yz|xyz|none)",&
