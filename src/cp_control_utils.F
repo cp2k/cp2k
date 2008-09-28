@@ -78,10 +78,9 @@ CONTAINS
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvec
-    INTEGER, DIMENSION(:), POINTER           :: ivec
     TYPE(section_vals_type), POINTER         :: scf_section, scp_section, &
                                                 tmp_section, xc_fun_section, &
-                                                xc_section, low_spin_roks_section
+                                                xc_section
     TYPE(xc_rho_cflags_type)                 :: needs
 
     failure=.FALSE.

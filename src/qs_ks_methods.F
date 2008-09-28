@@ -1443,32 +1443,31 @@ CONTAINS
     CHARACTER(*), PARAMETER :: routineN = 'low_spin_roks', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp), DIMENSION(:), POINTER   :: energy_scaling
-    INTEGER, DIMENSION(:,:,:), POINTER     :: occupations
-    INTEGER                                :: Nterms,Nelectron
-
-    INTEGER                                  :: handle, i, Iorb, k_alpha, &
-                                                k_beta, Norb, stat, Nspin, ispin, iterm, k, n_rep
-    LOGICAL                                  :: failure, uniform_occupation
-    REAL(KIND=dp)                            :: total_rho, exc
+    INTEGER                                  :: handle, ispin, iterm, k, &
+                                                k_alpha, k_beta, n_rep, &
+                                                Nelectron, Nspin, Nterms, stat
+    INTEGER, DIMENSION(:), POINTER           :: ivec
+    INTEGER, DIMENSION(:, :, :), POINTER     :: occupations
+    LOGICAL                                  :: failure, in_range, &
+                                                uniform_occupation
+    REAL(KIND=dp)                            :: exc, total_rho
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_scaling, rvec, scaling
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
-    TYPE(cp_fm_type), POINTER                :: fm_scaled, fm_deriv, mo_coeff
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: scaling
+    TYPE(cp_fm_type), POINTER                :: fm_deriv, fm_scaled, mo_coeff
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: work_v_rspace
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r, tau, vxc, &
                                                 vxc_tau
-    TYPE(pw_p_type)                          :: work_v_rspace
     TYPE(pw_pool_type), POINTER              :: xc_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), POINTER, DIMENSION(:) :: matrix_p,matrix_h
-    TYPE(section_vals_type), POINTER         :: input, xc_section,low_spin_roks_section
-    INTEGER, DIMENSION(:), POINTER           :: ivec
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: rvec
-    LOGICAL :: in_range
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_p
+    TYPE(section_vals_type), POINTER         :: input, low_spin_roks_section, &
+                                                xc_section
 
     IF (.NOT. dft_control%low_spin_roks) RETURN
     failure=.FALSE.
