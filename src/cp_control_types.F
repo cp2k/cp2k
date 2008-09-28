@@ -298,7 +298,8 @@ MODULE cp_control_types
                                           scp,&
                                           apply_finite_field,&
                                           do_wfn_fitting,&
-                                          smear
+                                          smear,&
+                                          low_spin_roks
   END TYPE dft_control_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'

@@ -1163,6 +1163,10 @@ CONTAINS
           ENDDO
        ENDIF
 
+       ! deal with low spin roks
+        CALL low_spin_roks(energy,qs_env,dft_control,just_energy,&
+                                  calculate_forces,auxbas_pw_pool,error)
+
        ! deal with sic on explicit orbitals
        CALL sic_explicit_orbitals(energy,qs_env,dft_control,poisson_env,just_energy,&
                                   calculate_forces,auxbas_pw_pool,error)
@@ -1424,6 +1428,228 @@ CONTAINS
   END SUBROUTINE pw_hfx
 
 ! *****************************************************************************
+!> \brief do ROKS calculations yielding low spin states
+! *****************************************************************************
+  SUBROUTINE low_spin_roks(energy,qs_env,dft_control,just_energy,&
+                               calculate_forces,auxbas_pw_pool,error)
+
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(*), PARAMETER :: routineN = 'low_spin_roks', &
+      routineP = moduleN//':'//routineN
+
+    REAL(KIND=dp), DIMENSION(:), POINTER   :: energy_scaling
+    INTEGER, DIMENSION(:,:,:), POINTER     :: occupations
+    INTEGER                                :: Nterms,Nelectron
+
+    INTEGER                                  :: handle, i, Iorb, k_alpha, &
+                                                k_beta, Norb, stat, Nspin, ispin, iterm, k, n_rep
+    LOGICAL                                  :: failure, uniform_occupation
+    REAL(KIND=dp)                            :: total_rho, exc
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs
+    TYPE(cp_fm_type), POINTER                :: fm_scaled, fm_deriv, mo_coeff
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: scaling
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r, tau, vxc, &
+                                                vxc_tau
+    TYPE(pw_p_type)                          :: work_v_rspace
+    TYPE(pw_pool_type), POINTER              :: xc_pw_pool
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), POINTER, DIMENSION(:) :: matrix_p,matrix_h
+    TYPE(section_vals_type), POINTER         :: input, xc_section,low_spin_roks_section
+    INTEGER, DIMENSION(:), POINTER           :: ivec
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rvec
+    LOGICAL :: in_range
+
+    IF (.NOT. dft_control%low_spin_roks) RETURN
+    failure=.FALSE.
+
+    CALL timeset(routineN,handle)
+
+    CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,rho=rho,pw_env=pw_env, &
+                    input=input, cell=cell, error=error)
+    xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+
+    ! some assumptions need to be checked
+    ! we have two spins
+    CPPrecondition(SIZE(mo_array,1)==2,cp_failure_level,routineP,error,failure)
+    Nspin=2
+    ! we want uniform occupations
+    CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
+    CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
+    CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff, uniform_occupation=uniform_occupation)
+    CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
+
+    ! basic info
+    CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
+    CALL cp_fm_get_info(mo_coeff,ncol_global=k_alpha,error=error)
+    CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff)
+    CALL cp_fm_get_info(mo_coeff,ncol_global=k_beta,error=error)
+
+    ! read the input
+    low_spin_roks_section => section_vals_get_subs_vals(input,"DFT%LOW_SPIN_ROKS", error=error)
+
+    CALL section_vals_val_get(low_spin_roks_section,"ENERGY_SCALING",r_vals=rvec,error=error)
+    Nterms=SIZE(rvec)
+    ALLOCATE(energy_scaling(Nterms))
+    energy_scaling=rvec !? just wondering, should this add up to 1, in which case we should cpp?
+
+    CALL section_vals_val_get(low_spin_roks_section,"SPIN_CONFIGURATION",n_rep_val=n_rep,error=error)
+    CPPostcondition(n_rep==Nterms, cp_failure_level, routineP, error, failure)
+    CALL section_vals_val_get(low_spin_roks_section,"SPIN_CONFIGURATION",i_rep_val=1,i_vals=ivec,error=error)
+    Nelectron=SIZE(ivec)
+    CPPostcondition(Nelectron==k_alpha-k_beta, cp_failure_level, routineP, error, failure)
+    ALLOCATE(occupations(2,Nelectron,Nterms))
+    occupations=0
+    DO iterm=1,Nterms
+       CALL section_vals_val_get(low_spin_roks_section,"SPIN_CONFIGURATION",i_rep_val=iterm,i_vals=ivec,error=error)
+       CPPostcondition(Nelectron==SIZE(ivec), cp_failure_level, routineP, error, failure)
+       in_range=ALL(ivec>=1) .AND. ALL(ivec<=2)
+       CPPostcondition(in_range, cp_failure_level, routineP, error, failure)
+       DO k=1,Nelectron
+          occupations(ivec(k),k,iterm)=1 
+       ENDDO
+    ENDDO
+
+    ! set up general data structures
+    ! density matrices, kohn-sham matrices
+    ALLOCATE(matrix_p(Nspin),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ispin=1,Nspin
+       NULLIFY(matrix_p(ispin)%matrix)
+       CALL replicate_matrix_structure(source=rho%rho_ao(1)%matrix,&
+                                       TARGET=matrix_p(ispin)%matrix,&
+                                       target_name="density matrix low spin roks",error=error)
+    ENDDO
+
+    ALLOCATE(matrix_h(Nspin),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ispin=1,Nspin
+       NULLIFY(matrix_h(ispin)%matrix)
+       CALL replicate_matrix_structure(source=rho%rho_ao(1)%matrix,&
+                                       TARGET=matrix_h(ispin)%matrix,&
+                                       target_name="KS matrix low spin roks",error=error)
+    ENDDO
+
+    ! grids in real and g space for rho and vxc
+    ! tau functionals are not supported
+    NULLIFY(tau,vxc_tau,vxc)
+    CALL pw_env_get(pw_env,xc_pw_pool=xc_pw_pool, error=error)
+
+    ALLOCATE(rho_r(Nspin),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(rho_g(Nspin),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ispin=1,Nspin
+       CALL pw_pool_create_pw(auxbas_pw_pool,rho_r(ispin)%pw,&
+                            use_data=REALDATA3D,&
+                            in_space=REALSPACE,error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool,rho_g(ispin)%pw,&
+                            use_data=COMPLEXDATA1D,&
+                            in_space=RECIPROCALSPACE,error=error)
+    ENDDO
+    CALL pw_pool_create_pw(auxbas_pw_pool,work_v_rspace%pw,&
+                            use_data=REALDATA3D,&
+                            in_space=REALSPACE,error=error)
+
+    ! get mo matrices needed to construct the density matrices
+    ! we will base all on the alpha spin matrix, obviously possible in ROKS
+    CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
+    CALL cp_fm_create(fm_scaled,mo_coeff%matrix_struct,error=error)
+    CALL cp_fm_create(fm_deriv,mo_coeff%matrix_struct,error=error)
+    ALLOCATE(scaling(k_alpha),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! for each term, add it with the given scaling factor to the energy, and compute the required derivatives
+    DO iterm=1,Nterms
+
+       DO ispin=1,Nspin
+          ! compute the proper density matrices with the required occupations
+          CALL set_matrix(matrix_p(ispin)%matrix,0.0_dp)
+          scaling=1.0_dp
+          scaling(k_alpha-Nelectron+1:k_alpha)=occupations(ispin,:,iterm)
+          CALL cp_fm_to_fm(mo_coeff,fm_scaled,error=error)
+          CALL cp_fm_column_scale(fm_scaled,scaling)
+          CALL cp_sm_plus_fm_fm_t(sparse_matrix=matrix_p(ispin)%matrix,&
+                               matrix_v=mo_coeff, matrix_g=fm_scaled,&
+                               ncol=k_alpha,error=error)
+          ! compute the densities on the grid
+          CALL calculate_rho_elec(matrix_p=matrix_p(ispin)%matrix,&
+                rho=rho_r(ispin),rho_gspace=rho_g(ispin), total_rho=total_rho,&
+                qs_env=qs_env, error=error)
+       ENDDO
+
+       ! compute the exchange energies / potential if needed
+       IF (just_energy) THEN
+           exc=xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section,&
+                   cell=cell, pw_pool=xc_pw_pool, error=error)
+       ELSE
+           CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r,&
+                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, cell=cell, &
+                   pw_pool=xc_pw_pool, error=error)
+       END IF
+
+       energy%exc = energy%exc + energy_scaling(iterm) * exc
+
+       ! add the corresponding derivatives to the MO derivatives
+       IF (.NOT. just_energy) THEN
+           ! get the potential in matrix form
+           DO ispin=1,Nspin
+              ! use a work_v_rspace
+              work_v_rspace%pw%cr3d = (energy_scaling(iterm) * vxc(ispin) % pw %pw_grid%dvol)* &
+                                      vxc(ispin) % pw % cr3d 
+              ! zero first ?!
+              CALL set_matrix(matrix_h(ispin)%matrix,0.0_dp)
+              CALL integrate_v_rspace(v_rspace=work_v_rspace,p=matrix_p(ispin),h=matrix_h(ispin),&
+                                      qs_env=qs_env,calculate_forces=calculate_forces,error=error) 
+              CALL pw_pool_give_back_pw(auxbas_pw_pool,vxc(ispin)%pw,error=error)
+           ENDDO
+           DEALLOCATE(vxc)
+
+           ! add this to the mo_derivs, again based on the alpha mo_coeff
+           DO ispin=1,Nspin
+              CALL cp_sm_fm_multiply(matrix_h(ispin)%matrix,mo_coeff,fm_deriv, k_alpha, error=error)
+              scaling=1.0_dp
+              scaling(k_alpha-Nelectron+1:k_alpha)=occupations(ispin,:,iterm)
+              CALL cp_fm_column_scale(fm_deriv,scaling)
+              CALL cp_fm_scale_and_add(1.0_dp,mo_derivs(1)%matrix, &
+                                       1.0_dp,fm_deriv,error=error)
+           ENDDO
+
+       ENDIF
+
+    ENDDO
+
+    ! release allocated memory
+    DO ispin=1,Nspin
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r(ispin)%pw,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_g(ispin)%pw,error=error)
+       CALL deallocate_matrix(matrix_p(ispin)%matrix,error=error)
+       CALL deallocate_matrix(matrix_h(ispin)%matrix,error=error)
+    ENDDO
+    DEALLOCATE(rho_r,rho_g,matrix_p,matrix_h)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,work_v_rspace%pw,error=error)
+
+    CALL cp_fm_release(fm_deriv,error=error)
+    CALL cp_fm_release(fm_scaled,error=error)
+
+    DEALLOCATE(occupations)
+    DEALLOCATE(energy_scaling)
+    DEALLOCATE(scaling)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE low_spin_roks
+! *****************************************************************************
 !> \brief do sic calculations on explicit orbitals
 ! *****************************************************************************
   SUBROUTINE sic_explicit_orbitals(energy,qs_env,dft_control,poisson_env,just_energy,&
@@ -1659,6 +1885,7 @@ CONTAINS
        energy%exc = energy%exc - dft_control % sic_scaling_b * exc
 
        IF (.NOT. just_energy) THEN
+           ! note, orb_h (which is being pointed to with orb_h_p) is zeroed above
            CALL integrate_v_rspace(v_rspace=work_v_rspace,p=orb_density_matrix_p,h=orb_h_p,&
                                    qs_env=qs_env,calculate_forces=calculate_forces,error=error) 
 

@@ -78,9 +78,10 @@ CONTAINS
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvec
+    INTEGER, DIMENSION(:), POINTER           :: ivec
     TYPE(section_vals_type), POINTER         :: scf_section, scp_section, &
                                                 tmp_section, xc_fun_section, &
-                                                xc_section
+                                                xc_section, low_spin_roks_section
     TYPE(xc_rho_cflags_type)                 :: needs
 
     failure=.FALSE.
@@ -176,6 +177,10 @@ CPSourceFileRef,&
 
     CALL section_vals_val_get(dft_section,"CHARGE",i_val=dft_control%charge,error=error)
     CALL section_vals_val_get(dft_section,"MULTIPLICITY",i_val=dft_control%multiplicity,error=error)
+
+    ! check for the presence of the low spin roks section
+    tmp_section => section_vals_get_subs_vals(dft_section,"LOW_SPIN_ROKS",error=error)
+    CALL section_vals_get(tmp_section,explicit=dft_control%low_spin_roks,error=error)
 
     dft_control%sic_method_id = sic_none
     dft_control%sic_scaling_a = 1.0_dp

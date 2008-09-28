@@ -385,6 +385,10 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_low_spin_roks_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_field_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -4521,6 +4525,50 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_sic_section
+
+! *****************************************************************************
+!> \brief creates the low spin roks section
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE create_low_spin_roks_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_low_spin_roks_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"LOW_SPIN_ROKS",&
+            description="Specify the details of the low spin ROKS method."//&
+                        "In particular, one can specify various terms added to the energy of the high spin roks configuration"//&
+                        " with a energy scaling factor, and a prescription of the spin state.",&
+            n_keywords=6, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword,name="ENERGY_SCALING",&
+            description="The scaling factors for each term added to the total energy."//&
+                        "This list should contain one number for each term added to the total energy.",&
+            usage="ENERGY_SCALING 1.0 -1.0 ",&
+            n_var=-1,type_of_var=real_t,repeats=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="SPIN_CONFIGURATION",&
+            description="for each singly occupied orbital, specify if this should be an alpha (=1) or a beta (=2) orbital"//&
+                        "This keyword should be repeated, each repetition corresponding to an additional term." ,&
+            usage="SPIN_CONFIGURATION 1 2",&
+            n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_low_spin_roks_section
 
 ! *****************************************************************************
 !> \brief creates the section for adiabatic hybrid functionals

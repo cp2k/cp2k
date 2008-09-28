@@ -1591,6 +1591,14 @@ END SUBROUTINE qs_scf_print_summary
        ENDDO
     END SELECT
 
+    ! another safety check
+    IF (dft_control%low_spin_roks) THEN
+       CPPrecondition(scf_env%method==ot_method_nr,cp_failure_level,routineP,error,failure)
+       do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
+       CPPrecondition(do_rotation,cp_failure_level,routineP,error,failure)
+    ENDIF
+  
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE init_scf_loop
