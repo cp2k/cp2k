@@ -361,7 +361,7 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              intensities=  0._dp
              Hint1      = Hessian
-             CALL diamat_all(Hint1,H_eigval1)
+             CALL diamat_all(Hint1,H_eigval1,error=error)
              IF (output_unit>0) THEN
                 WRITE(output_unit,'(T2,"VIB| Cartesian Low frequencies ---",4G12.5)')&
                      (H_eigval1(i),i=1,MIN(9,ncoord))
@@ -373,7 +373,7 @@ CONTAINS
                       dip_deriv(i,:)=MATMUL(tmp_dip(:,i,1),D)
                    END DO
                 END IF
-                CALL diamat_all(Hint2,H_eigval2)
+                CALL diamat_all(Hint2,H_eigval2,error=error)
                 IF (output_unit>0) THEN
                    WRITE(output_unit,'(T2,"VIB| Frequencies after removal of the rotations and translations")')
                    ! Frequency at the moment are in a.u.

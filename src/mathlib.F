@@ -14,13 +14,10 @@ MODULE mathlib
 
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             dp_size,&
-                                             int_size
+                                             dp
   USE mathconstants,                   ONLY: euler,&
                                              fac
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -90,8 +87,6 @@ CONTAINS
     REAL(KIND=dp)                            :: length_of_a, length_of_b
     REAL(KIND=dp), DIMENSION(SIZE(a, 1))     :: a_norm, b_norm
 
-!   ---------------------------------------------------------------------------
-
     length_of_a = SQRT(DOT_PRODUCT(a,a))
     length_of_b = SQRT(DOT_PRODUCT(b,b))
 
@@ -116,8 +111,6 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: n, k
     REAL(KIND=dp)                            :: n_over_k
-
-!   ---------------------------------------------------------------------------
 
     IF ((k >= 0).AND.(k <= n)) THEN
        n_over_k = fac(n)/(fac(n-k)*fac(k))
@@ -144,11 +137,8 @@ CONTAINS
     REAL(KIND=dp)                            :: cosp, cost, length_of_a, sinp
     REAL(KIND=dp), DIMENSION(3)              :: d
 
-!   ---------------------------------------------------------------------------
-!   *** Check the length of the vector a ***
-
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
-
+    ! Check the length of the vector a
     IF (length_of_a > eps_geo) THEN
 
        d(:) = a(:)/length_of_a
@@ -166,11 +156,8 @@ CONTAINS
        rotmat(3,1) = d(3)*d(1)*cost - d(2)*sinp
        rotmat(3,2) = d(3)*d(2)*cost + d(1)*sinp
        rotmat(3,3) = d(3)*d(3)*cost + cosp
-
     ELSE
-
        CALL unit_matrix(rotmat)
-
     END IF
 
   END SUBROUTINE build_rotmat
@@ -185,8 +172,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: a
     REAL(KIND=dp)                            :: det_a
-
-!   ---------------------------------------------------------------------------
 
     det_a = a(1,1)*(a(2,2)*a(3,3) - a(2,3)*a(3,2)) +&
             a(1,2)*(a(2,3)*a(3,1) - a(2,1)*a(3,3)) +&
@@ -203,8 +188,6 @@ CONTAINS
   FUNCTION det_3x3_2(a1,a2,a3) RESULT(det_a)
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a1, a2, a3
     REAL(KIND=dp)                            :: det_a
-
-!   ---------------------------------------------------------------------------
 
     det_a = a1(1)*(a2(2)*a3(3) - a3(2)*a2(3)) +&
             a2(1)*(a3(2)*a1(3) - a1(2)*a3(3)) +&
@@ -225,40 +208,38 @@ CONTAINS
 !>      - eigval  : Eigenvalues of the matrix a (output).
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE diamat_all(a,eigval,dac)
+  SUBROUTINE diamat_all(a,eigval,dac,error)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigval
     LOGICAL, INTENT(IN), OPTIONAL            :: dac
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'diamat_all', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, info, istat, liwork, &
-                                                lwork, n, nb
+    INTEGER                                  :: handle, info, liwork, lwork, &
+                                                n, nb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     INTEGER, EXTERNAL                        :: ilaenv
-    LOGICAL                                  :: divide_and_conquer
+    LOGICAL                                  :: divide_and_conquer, failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
 
     EXTERNAL dsyev,dsyevd
 
-    !   ---------------------------------------------------------------------------
+    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     !   *** Get the size of the matrix a ***
-
     n = SIZE(a,1)
 
     !   *** Check the size of matrix a ***
-
     IF (SIZE(a,2) /= n) THEN
        CALL stop_program(moduleN,routineN,__LINE__,&
             "Check the size of matrix a (parameter #1)")
     END IF
 
     !   *** Check the size of vector eigval ***
-
     IF (SIZE(eigval) /= n) THEN
        CALL stop_program(moduleN,routineN,__LINE__,&
             "The dimension of vector eigval is too small")
@@ -284,13 +265,11 @@ CONTAINS
 
     !   *** Allocate work storage ***
 
-    ALLOCATE (work(lwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "work",lwork*dp_size)
+    ALLOCATE (work(lwork),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (divide_and_conquer) THEN
-       ALLOCATE (iwork(liwork),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-            "iwork",liwork*int_size)
+       ALLOCATE (iwork(liwork),STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     !   *** Diagonalize the matrix a ***
@@ -313,13 +292,12 @@ CONTAINS
 
     !   *** Release work storage ***
 
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "work")
+    DEALLOCATE (work,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
     IF (divide_and_conquer) THEN
-       DEALLOCATE (iwork,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-            "iwork")
+       DEALLOCATE (iwork,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL timestop(handle)
@@ -341,15 +319,12 @@ CONTAINS
     REAL(KIND=dp)                            :: det_abcd
     REAL(KIND=dp), DIMENSION(3)              :: abc, bcd
 
-!   ---------------------------------------------------------------------------
-!   *** Calculate the normal vectors of the planes ***
-!   *** defined by the points a,b,c and b,c,d      ***
-
     abc = vector_product(bc,-ab)
     bcd = vector_product(cd,-bc)
+    !   *** Calculate the normal vectors of the planes ***
+    !   *** defined by the points a,b,c and b,c,d      ***
 
     det_abcd = det_3x3(abc,bcd,-bc)
-
     dihedral_angle_abcd = SIGN(1.0_dp,det_abcd)*angle(abc,bcd)
 
   END FUNCTION dihedral_angle
@@ -373,11 +348,9 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: radius, threshold, prefactor
     REAL(KIND=dp)                            :: exponent
 
-!   ---------------------------------------------------------------------------
-
     exponent = 0.0_dp
 
-    IF (radius < 1.0E-6_dp) RETURN
+    IF (radius    < 1.0E-06_dp) RETURN
     IF (threshold < 1.0E-12_dp) RETURN
 
     exponent = LOG(ABS(prefactor)*radius**l/threshold)/radius**2
@@ -397,8 +370,6 @@ CONTAINS
       DIMENSION(MIN(SIZE(a, 1), SIZE(a, 2))) :: a_diag
 
     INTEGER                                  :: i, n
-
-!   ---------------------------------------------------------------------------
 
     n = MIN(SIZE(a,1),SIZE(a,2))
 
@@ -421,8 +392,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3)           :: a_inv
 
     REAL(KIND=dp)                            :: det_a
-
-!   ---------------------------------------------------------------------------
 
     det_a = 1.0_dp/det_3x3(a)
 
@@ -456,22 +425,24 @@ CONTAINS
 !>       -            "T" => invert transpose(a)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE invert_matrix(a,a_inverse,error,option)
+  SUBROUTINE invert_matrix(a,a_inverse,eval_error,option, error)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: a
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: a_inverse
-    REAL(KIND=dp), INTENT(OUT)               :: error
+    REAL(KIND=dp), INTENT(OUT)               :: eval_error
     CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: option
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'invert_matrix', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1)                         :: norm, trans
     CHARACTER(LEN=80)                        :: message
-    INTEGER                                  :: info, istat, iter, n
+    INTEGER                                  :: info, iter, n, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv, iwork
-    REAL(KIND=dp)                            :: a_norm, old_error, r_cond
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a_norm, old_eval_error, r_cond
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: berr, ferr, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: a_lu, b
@@ -481,10 +452,8 @@ CONTAINS
 
     EXTERNAL dgecon,dgerfs,dgetrf,dgetrs
 
-    !   ---------------------------------------------------------------------------
-
+    failure = .FALSE.
     !   *** Check for optional parameter ***
-
     IF (PRESENT(option)) THEN
        trans = option
     ELSE
@@ -492,11 +461,9 @@ CONTAINS
     END IF
 
     !   *** Get the dimension of matrix a ***
-
     n = SIZE(a,1)
 
     !   *** Check array dimensions ***
-
     IF (n == 0) THEN
        CALL stop_program(moduleN,routineN,__LINE__,&
             "Matrix to be inverted of zero size")
@@ -514,35 +481,27 @@ CONTAINS
     END IF
 
     !   *** Allocate work storage ***
+    ALLOCATE (a_lu(n,n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE (a_lu(n,n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "a_lu",n*n*dp_size)
+    ALLOCATE (b(n,n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE (b(n,n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "b",n*n*dp_size)
+    ALLOCATE (berr(n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE (berr(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "berr",n*dp_size)
+    ALLOCATE (ferr(n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE (ferr(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "ferr",n*dp_size)
+    ALLOCATE (ipiv(n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    
+    ALLOCATE (iwork(n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE (ipiv(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "ipiv",n*int_size)
-
-    ALLOCATE (iwork(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "iwork",n*int_size)
-
-    ALLOCATE (work(4*n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "work",4*n*int_size)
-
+    ALLOCATE (work(4*n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    
     a_lu(1:n,1:n) = a(1:n,1:n)
 
     !   *** Compute the LU factorization of the matrix a ***
@@ -594,10 +553,9 @@ CONTAINS
     END IF
 
     !   *** Improve the computed solution iteratively ***
-
     CALL unit_matrix(b) ! Initialize right-hand sides
 
-    error = 0.0_dp
+    eval_error = 0.0_dp
 
     DO iter=1,10
 
@@ -609,37 +567,29 @@ CONTAINS
                "Improving the computed solution in dgerfs failed")
        END IF
 
-       old_error = error
-       error = MAXVAL(ferr)
+       old_eval_error = eval_error
+       eval_error = MAXVAL(ferr)
 
-       IF (ABS(error - old_error) <= EPSILON(1.0_dp)) EXIT
+       IF (ABS(eval_error - old_eval_error) <= EPSILON(1.0_dp)) EXIT
 
     END DO
 
     !   *** Release work storage ***
-
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "work")
-    DEALLOCATE (iwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "iwork")
-    DEALLOCATE (ipiv,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "ipiv")
-    DEALLOCATE (ferr,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "ferr")
-    DEALLOCATE (berr,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "berr")
-    DEALLOCATE (b,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "b")
-    DEALLOCATE (a_lu,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "a_lu")
-
+    DEALLOCATE (work,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (iwork,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (ipiv,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (ferr,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (berr,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (b,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (a_lu,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    
   END SUBROUTINE invert_matrix
 
 ! *****************************************************************************
@@ -660,7 +610,7 @@ CONTAINS
 !>       - threshold  : Threshold value for eigenvector quenching (input).
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE power_matrix(a,a_power,exponent,threshold,n_dependent,dac)
+  SUBROUTINE power_matrix(a,a_power,exponent,threshold,n_dependent,dac,error)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -669,21 +619,20 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: threshold
     INTEGER, INTENT(OUT), OPTIONAL           :: n_dependent
     LOGICAL, INTENT(IN), OPTIONAL            :: dac
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'power_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat, n, n_dep
-    LOGICAL                                  :: divide_and_conquer
+    INTEGER                                  :: i, n, n_dep, stat
+    LOGICAL                                  :: divide_and_conquer, failure
     REAL(KIND=dp)                            :: eps_eigval, expa
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigval
 
     EXTERNAL dsyrk
 
-    !   ---------------------------------------------------------------------------
-
+    failure = .FALSE.
     !   *** Define the threshold for the eigenvalue quenching ***
-
     IF (PRESENT(threshold)) THEN
        eps_eigval = threshold
     ELSE
@@ -691,11 +640,9 @@ CONTAINS
     END IF
 
     !   *** Get the dimension of matrix a ***
-
     n = SIZE(a,1)
 
     !   *** Check array dimensions ***
-
     IF (n /= SIZE(a,2)) THEN
        CALL stop_program(moduleN,routineN,__LINE__,&
             "Check the array bounds of parameter #1")
@@ -708,13 +655,10 @@ CONTAINS
     END IF
 
     !   *** Allocate work storage ***
-
-    ALLOCATE (eigval(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "eigval",n*dp_size)
+    ALLOCATE (eigval(n),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     !   *** Check, if the divide-and-conquer algorithm is requested ***
-
     IF (PRESENT(dac)) THEN
        divide_and_conquer = dac
     ELSE
@@ -722,11 +666,9 @@ CONTAINS
     END IF
 
     !   *** Compute the eigenvectors and eigenvalues of the matrix a ***
-
-    CALL diamat_all(a,eigval,divide_and_conquer)
+    CALL diamat_all(a,eigval,divide_and_conquer,error=error)
 
     !   *** Build a**exponent with eigenvector quenching ***
-
     expa = 0.5_dp*exponent
 
     n_dep = 0
@@ -746,18 +688,14 @@ CONTAINS
     END IF
 
     !   *** a_power <- a*Transpose(a) ***
-
     CALL dsyrk("U","N",n,n,1.0_dp,a(1,1),n,0.0_dp,a_power(1,1),n)
 
     !   *** Copy upper triangle of matrix a_power to lower triangle ***
-
     CALL symmetrize_matrix(a_power,"upper_to_lower")
 
     !   *** Release work storage ***
-
-    DEALLOCATE (eigval,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
-         "eigval")
+    DEALLOCATE (eigval,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE power_matrix
 
@@ -776,8 +714,6 @@ CONTAINS
     REAL(KIND=dp)                            :: length_of_b, scapro
     REAL(KIND=dp), DIMENSION(3)              :: d
 
-!   ---------------------------------------------------------------------------
-
     length_of_b = SQRT(b(1)*b(1) + b(2)*b(2) + b(3)*b(3))
 
     IF (length_of_b > eps_geo) THEN
@@ -785,7 +721,6 @@ CONTAINS
        d(:) = b(:)/length_of_b
 
        !     *** Calculate the mirror image a_mirror of the vector a ***
-
        scapro = a(1)*d(1) + a(2)*d(2) + a(3)*d(3)
 
        a_mirror(:) = a(:) - 2.0_dp*scapro*d(:)
@@ -815,18 +750,13 @@ CONTAINS
     REAL(KIND=dp)                            :: length_of_b
     REAL(KIND=dp), DIMENSION(3, 3)           :: rotmat
 
-!   ---------------------------------------------------------------------------
-
     length_of_b = SQRT(b(1)*b(1) + b(2)*b(2) + b(3)*b(3))
-
     IF (length_of_b > eps_geo) THEN
 
        !     *** Build up the rotation matrix rotmat ***
-
        CALL build_rotmat(phi,b,rotmat)
 
        !     *** Rotate the vector a by phi about the axis defined by vector b ***
-
        a_rot(:) = MATMUL(rotmat,a)
 
     ELSE
@@ -850,10 +780,7 @@ CONTAINS
 
     INTEGER                                  :: i, n
 
-!   ---------------------------------------------------------------------------
-
     n = MIN(SIZE(a,1),SIZE(a,2))
-
     DO i=1,n
        a(i,i) = b
     END DO
@@ -876,10 +803,7 @@ CONTAINS
 
     INTEGER                                  :: i, n
 
-!   ---------------------------------------------------------------------------
-
     n = MIN(SIZE(a,1),SIZE(a,2))
-
     IF (SIZE(b) == n) THEN
        DO i=1,n
           a(i,i) = b(i)
@@ -907,8 +831,6 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: message
     INTEGER                                  :: i, n
-
-!   ---------------------------------------------------------------------------
 
     n = MIN(SIZE(a,1),SIZE(a,2))
 
@@ -946,10 +868,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
 
-!   ---------------------------------------------------------------------------
-
     a(:,:) = 0.0_dp
-
     CALL set_diag(a,1.0_dp)
 
   END SUBROUTINE unit_matrix
@@ -963,8 +882,6 @@ CONTAINS
   FUNCTION vector_product(a,b) RESULT(c)
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a, b
     REAL(KIND=dp), DIMENSION(3)              :: c
-
-!   ---------------------------------------------------------------------------
 
     c(1) = a(2)*b(3) - a(3)*b(2)
     c(2) = a(3)*b(1) - a(1)*b(3)
@@ -1001,7 +918,6 @@ CONTAINS
     ELSE
        GCD=l
     ENDIF
-    RETURN
   END FUNCTION gcd
 
 ! *****************************************************************************
@@ -1020,11 +936,7 @@ CONTAINS
        ! could overflow
        lcm = ABS(a*b)/tmp
     END IF
-
-    RETURN
   END FUNCTION lcm
-
-  !****f* mathlib/ei [1.0] *
 
 ! *****************************************************************************
 !> \brief computes the exponential integral
@@ -1133,8 +1045,6 @@ CONTAINS
     END DO
   END FUNCTION transpose_3d
 
-  !****f* mathlib/expint [1.0] *
-
 ! *****************************************************************************
 !> \brief computes the exponential integral
 !>      En(x) = Int(exp(-x*t)/t^n,t=1..infinity)  x>0, n=0,1,..
@@ -1208,23 +1118,22 @@ CONTAINS
     RETURN
   END FUNCTION expint
 
-  SUBROUTINE jacobi(a,d,v)
-
-  ! Purpose: Jacobi matrix diagonalization. The eigenvalues are returned in
-  !          vector d and the eigenvectors are returned in matrix v in ascending
-  !          order.
-
-  ! History: - Creation (20.11.98, Matthias Krack)
-
 ! *****************************************************************************
+!> \brief  Jacobi matrix diagonalization. The eigenvalues are returned in
+!>         vector d and the eigenvectors are returned in matrix v in ascending
+!>         order.
+!>
+!> \par History
+!>         - Creation (20.11.98, Matthias Krack)
+! *****************************************************************************
+  SUBROUTINE jacobi(a,d,v)
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: a
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: d
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: v
 
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(INOUT) :: a
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: d
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(OUT)   :: v
-
-    INTEGER :: n
-
-! -----------------------------------------------------------------------------
+    INTEGER                                  :: n
 
     n = SIZE(d(:))
 
@@ -1234,18 +1143,16 @@ CONTAINS
     ! *** Sort eigenvalues and eigenvector in ascending order ***
     CALL eigsrt(n,d,v)
 
-    ! *****************************************************************************
+  END SUBROUTINE jacobi
 
-    CONTAINS
-
-    ! *****************************************************************************
-
-      SUBROUTINE diag(n,a,d,v)
-
-        !   Purpose: Diagonalize matrix a. The eigenvalues are returned in vector d
-        !            and the eigenvectors are returned in matrix v.
-
-        !   History: - Creation (20.11.98, Matthias Krack)
+! *****************************************************************************
+!> \brief  Diagonalize matrix a. The eigenvalues are returned in vector d
+!>         and the eigenvectors are returned in matrix v.
+!>
+!> \par History
+!>         - Creation (20.11.98, Matthias Krack)
+! *****************************************************************************
+  SUBROUTINE diag(n,a,d,v)
 
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(n, n), &
@@ -1259,40 +1166,36 @@ CONTAINS
                                                 tau, theta, tresh
     REAL(KIND=dp), DIMENSION(n)              :: b, z
 
-!   ---------------------------------------------------------------------------
-!   *** Initialization ***
+    CALL unit_matrix(v(:,:))
 
-        CALL unit_matrix(v(:,:))
+    b(:) = get_diag(a(:,:))
+    d(:) = b(:)
+    z(:) = 0.0_dp
 
-        b(:) = get_diag(a(:,:))
-        d(:) = b(:)
-        z(:) = 0.0_dp
-
-        !   *** Go for 50 iterations ***
-
-        DO i=1,50
-          d_min = MAX(1.0E-3_dp,MINVAL(ABS(d(:))))
-          a_max = 0.0_dp
-          DO ip=1,n-1
-            a_max = MAX(a_max,MAXVAL(ABS(a(ip,ip+1:n))))
-          END DO
-          IF (a_max < 1.0E-10_dp*d_min) RETURN
-          tresh = MERGE(a_max,0.0_dp,(i < 4))
-          DO ip=1,n-1
-            DO iq=ip+1,n
-              g = 100.0_dp*ABS(a(ip,iq))
-              IF ((i > 4).AND.&
+    !   *** Go for 50 iterations ***
+    DO i=1,50
+       d_min = MAX(1.0E-3_dp,MINVAL(ABS(d(:))))
+       a_max = 0.0_dp
+       DO ip=1,n-1
+          a_max = MAX(a_max,MAXVAL(ABS(a(ip,ip+1:n))))
+       END DO
+       IF (a_max < 1.0E-10_dp*d_min) RETURN
+       tresh = MERGE(a_max,0.0_dp,(i < 4))
+       DO ip=1,n-1
+          DO iq=ip+1,n
+             g = 100.0_dp*ABS(a(ip,iq))
+             IF ((i > 4).AND.&
                   ((ABS(d(ip)) + g) == ABS(d(ip))).AND.&
                   ((ABS(d(iq)) + g) == ABS(d(iq)))) THEN
                 a(ip,iq) = 0.0_dp
-              ELSE IF (ABS(a(ip,iq)) > tresh) THEN
+             ELSE IF (ABS(a(ip,iq)) > tresh) THEN
                 h = d(iq) - d(ip)
                 IF ((ABS(h) + g) == ABS(h)) THEN
-                  t = a(ip,iq)/h
+                   t = a(ip,iq)/h
                 ELSE
-                  theta = 0.5_dp*h/a(ip,iq)
-                  t = 1.0_dp/(ABS(theta) + SQRT(1.0_dp + theta**2))
-                  IF (theta < 0.0_dp) t = -t
+                   theta = 0.5_dp*h/a(ip,iq)
+                   t = 1.0_dp/(ABS(theta) + SQRT(1.0_dp + theta**2))
+                   IF (theta < 0.0_dp) t = -t
                 END IF
                 c = 1.0_dp/SQRT(1.0_dp + t**2)
                 s = t*c
@@ -1307,47 +1210,44 @@ CONTAINS
                 CALL jrotate(a(ip,ip+1:iq-1),a(ip+1:iq-1,iq),s,tau)
                 CALL jrotate(a(ip,iq+1:n),a(iq,iq+1:n),s,tau)
                 CALL jrotate(v(:,ip),v(:,iq),s,tau)
-              END IF
-            END DO
+             END IF
           END DO
-          b(:) = b(:) + z(:)
-          d(:) = b(:)
-          z(:) = 0.0_dp
-        END DO
+       END DO
+       b(:) = b(:) + z(:)
+       d(:) = b(:)
+       z(:) = 0.0_dp
+    END DO
+    WRITE (6,'(/,T2,A,/)') '*** Too many iterations in jacobi ***'
 
-        WRITE (6,'(/,T2,A,/)') '*** Too many iterations in jacobi ***'
+  END SUBROUTINE diag
 
-      END SUBROUTINE diag
-
-      SUBROUTINE jrotate(a,b,ss,tt)
-
-        !   Purpose: Perform a Jacobi rotation of the vectors a and b.
-
-        !   History: - Creation (20.11.98, Matthias Krack)
-
-        !   ***************************************************************************
-
+! *****************************************************************************
+!> \brief  Perform a Jacobi rotation of the vectors a and b.
+!>
+!> \par History
+!>         - Creation (20.11.98, Matthias Krack)
+! *****************************************************************************
+  SUBROUTINE jrotate(a,b,ss,tt)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: a, b
     REAL(KIND=dp), INTENT(IN)                :: ss, tt
 
     REAL(KIND=dp), DIMENSION(SIZE(a))        :: c
 
-!   ---------------------------------------------------------------------------
+    c(:) = a(:)
+    a(:) = a(:) - ss*(b(:) + a(:)*tt)
+    b(:) = b(:) + ss*(c(:) - b(:)*tt)
 
-          c(:) = a(:)
-          a(:) = a(:) - ss*(b(:) + a(:)*tt)
-          b(:) = b(:) + ss*(c(:) - b(:)*tt)
+  END SUBROUTINE jrotate
 
-      END SUBROUTINE jrotate
-
-      SUBROUTINE eigsrt(n,d,v)
-
-        !   Purpose: Sort the values in vector d in ascending order and swap the
-        !            corresponding columns of matrix v.
-
-        !   History: - Creation (20.11.98, Matthias Krack)
-
+! *****************************************************************************
+!> \brief Sort the values in vector d in ascending order and swap the
+!>        corresponding columns of matrix v. 
+!>
+!> \par History
+!>         - Creation (20.11.98, Matthias Krack)
+! *****************************************************************************
+  SUBROUTINE eigsrt(n,d,v)
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: d
@@ -1356,20 +1256,22 @@ CONTAINS
 
     INTEGER                                  :: i, j
 
-          DO i=1,n-1
-            j = SUM(MINLOC(d(i:n))) + i - 1
-            IF (j /= i) THEN
-              CALL swap(d(i),d(j))
-              CALL swap(v(:,i),v(:,j))
-            END IF
-          END DO
+    DO i=1,n-1
+       j = SUM(MINLOC(d(i:n))) + i - 1
+       IF (j /= i) THEN
+          CALL swap(d(i),d(j))
+          CALL swap(v(:,i),v(:,j))
+       END IF
+    END DO
 
-      END SUBROUTINE eigsrt
+  END SUBROUTINE eigsrt
 
-   END SUBROUTINE jacobi
-
-!   ***************************************************************************
-
+! *****************************************************************************
+!> \brief Swap two scalars
+!>
+!> \par History
+!>         - Creation (20.11.98, Matthias Krack)
+! *****************************************************************************
    SUBROUTINE swap_scalar(a,b)
     REAL(KIND=dp), INTENT(INOUT)             :: a, b
 
@@ -1381,6 +1283,12 @@ CONTAINS
 
    END SUBROUTINE swap_scalar
 
+! *****************************************************************************
+!> \brief Swap two vectors
+!>
+!> \par History
+!>         - Creation (20.11.98, Matthias Krack)
+! *****************************************************************************
    SUBROUTINE swap_vector(a,b)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: a, b
@@ -1388,19 +1296,19 @@ CONTAINS
     INTEGER                                  :: i, n
     REAL(KIND=dp)                            :: c
 
-    n = SIZE(a(:))
+    n = SIZE(a)
 
-    IF (n /= SIZE(b(:))) THEN
+    IF (n /= SIZE(b)) THEN
       CALL stop_program("SUBROUTINE swap_vector (MODULE mathlib)",&
                         "Check the array bounds of the parameters")
     END IF
 
     DO i=1,n
-      c = a(i)
-      a(i) = b(i)
-      b(i) = c
+       c = a(i)
+       a(i) = b(i)
+       b(i) = c
     END DO
 
-   END SUBROUTINE swap_vector
+  END SUBROUTINE swap_vector
 
 END MODULE mathlib

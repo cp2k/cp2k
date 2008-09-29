@@ -109,7 +109,7 @@ CONTAINS
           Ip(2,3) = Ip(2,3) - mass * ( rm(2)*rm(3) )
        END DO
        ! Diagonalize the Inertia Tensor
-       CALL diamat_all(Ip,Ip_eigval)
+       CALL diamat_all(Ip,Ip_eigval,error=error)
        IF (iw>0) THEN
           WRITE(iw,'(T2,A,3F12.6)')"ROT| Rotational Analysis Info "
           WRITE(iw,'(T2,A)')"ROT| Principal axes and moments of inertia in atomic units:"

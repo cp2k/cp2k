@@ -237,7 +237,7 @@ CONTAINS
           END DO
        END DO
 
-       CALL diamat_all(eigvec,eigval,dac=.FALSE.)
+       CALL diamat_all(eigvec,eigval,dac=.FALSE.,error=error)
        CALL set_hes_eig(ndf,eigval,work)
        dx = eigval 
        CALL rat_fun_opt(ndf,dg,eigval,work,eigvec,g)

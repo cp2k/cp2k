@@ -1106,7 +1106,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 #else
     sign=.TRUE.
     CALL invert_matrix(matrix_a%local_data,matrix_inverse%local_data,&
-                       error=eps1)
+                       eval_error=eps1,error=error)
     CALL cp_fm_lu_decompose(matrix_lu,determinant,correct_sign=sign)
 #endif
    CALL cp_fm_release(matrix_lu,error=error)

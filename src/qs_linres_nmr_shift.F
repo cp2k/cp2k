@@ -801,7 +801,7 @@ CONTAINS
             & + ( chi_tensor_loc_tmp(:,:) + TRANSPOSE(chi_tensor_loc_tmp(:,:)) ) / 2.0_dp 
     ENDIF
     chi_tmp(:,:) = chi_sym_tot(:,:)
-    CALL diamat_all(chi_tmp,eig)
+    CALL diamat_all(chi_tmp,eig,error=error)
     chi_iso   = (eig(1)+ eig(2)+eig(3))/3.0_dp
     chi_aniso =  eig(3)-(eig(2)+eig(1))/2.0_dp
     !
@@ -911,7 +911,7 @@ CONTAINS
              atom_kind => particle_set(iatom)%atomic_kind
              CALL get_atomic_kind(atom_kind,name=name,element_symbol=element_symbol)
              shift_sym_tot(:,:) = 0.5_dp * (chemical_shift_tot(:,:,ir) + TRANSPOSE(chemical_shift_tot(:,:,ir)))
-             CALL  diamat_all(shift_sym_tot,eig)
+             CALL  diamat_all(shift_sym_tot,eig,error=error)
              shift_iso   = (eig(1) + eig(2) + eig(3)) / 3.0_dp
              shift_aniso =  eig(3)-(eig(2)+eig(1))/2.0_dp
 

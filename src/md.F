@@ -718,12 +718,13 @@ CPSourceFileRef,&
 !>      2007-11-9: created
 !> \author Toon Verstraelen <Toon.Verstraelen@gmail.com>
 ! *****************************************************************************
-  SUBROUTINE compute_vang(part,is_fixed,rcom,vang)
+  SUBROUTINE compute_vang(part,is_fixed,rcom,vang,error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
     INTEGER, DIMENSION(:), INTENT(IN)        :: is_fixed
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rcom
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: vang
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_vang', &
       routineP = moduleN//':'//routineN
@@ -763,7 +764,7 @@ CPSourceFileRef,&
     ! Take the safest route, i.e. diagonalize the inertia tensor and solve
     ! the angular velocity only with the non-zero eigenvalues. A plain inversion
     ! would fail for linear molecules.
-    CALL diamat_all(iner, evals)
+    CALL diamat_all(iner, evals,error=error)
 
     vang(:) = 0.0_dp
     DO i=1,3
@@ -1060,7 +1061,7 @@ CPSourceFileRef,&
        CALL force_env_get(force_env, cell=cell, error=error)
        IF (SUM(cell%perd(1:3)) == 0 .AND. simpar%angvel_zero) THEN
           CALL compute_rcom(part,is_fixed,rcom)
-          CALL compute_vang(part,is_fixed,rcom,vang)
+          CALL compute_vang(part,is_fixed,rcom,vang,error)
           CALL subtract_vang(part,is_fixed,rcom,vang)
        END IF
 
@@ -1092,7 +1093,7 @@ CPSourceFileRef,&
        CALL force_env_get(force_env, cell=cell, error=error)
        IF (SUM(cell%perd(1:3)) == 0) THEN
           CALL compute_rcom(part,is_fixed,rcom)
-          CALL compute_vang(part,is_fixed,rcom,vang)
+          CALL compute_vang(part,is_fixed,rcom,vang,error)
           WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' COM position:', rcom ( 1 ), rcom ( 2 ), rcom ( 3 )
           WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' Angular velocity:', vang ( 1 ), vang ( 2 ), vang ( 3 )
        END IF

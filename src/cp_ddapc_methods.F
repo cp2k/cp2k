@@ -495,7 +495,7 @@ CONTAINS
           ALLOCATE(AmE(ndim), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           Amw = Am
-          CALL diamat_all(Amw, AmE)
+          CALL diamat_all(Amw, AmE,error=error)
           condition_number = MAXVAL(ABS(AmE))/MINVAL(ABS(AmE))
           WRITE(iw,'(T3,A,3E15.9)')" Eigenvalues of Matrix A:",AmE
           WRITE(iw,'(T3,A,3E15.9)')" Condition number:",condition_number
@@ -508,7 +508,7 @@ CONTAINS
           DEALLOCATE(AmE, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       CALL invert_matrix(Am, AmI, inv_error, "N")
+       CALL invert_matrix(Am, AmI, inv_error, "N",error=error)
        IF (iw>0) THEN
           WRITE(iw,'(T3,A,F15.9)')" Error inverting the A matrix: ", inv_error
        END IF

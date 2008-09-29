@@ -478,7 +478,7 @@ CONTAINS
 
           !     *** Compute inverse of the transpose ***
           IF (eps_svd.EQ.0.0_dp) THEN
-             CALL invert_matrix(smat,gcc,my_error,"T")
+             CALL invert_matrix(smat,gcc,my_error,"T",error=error)
           ELSE
              work=TRANSPOSE(smat)
              ! workspace query

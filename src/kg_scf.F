@@ -298,8 +298,6 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, scf_section
 
-!   ---------------------------------------------------------------------------
-
     NULLIFY(dft_control,scf_control,ks_env,qs_env)
     NULLIFY(rho, matrix_h, matrix_ks, matrix_p, matrix_s, kg_fm)
     NULLIFY(dft_section,scf_section)
@@ -507,7 +505,7 @@ CONTAINS
 
                !     *** Solve the linear DIIS equation system ***
 
-               CALL diamat_all(diis_m1_global(1:nb1,1:nb1),diis_ev_global(1:nb1))
+               CALL diamat_all(diis_m1_global(1:nb1,1:nb1),diis_ev_global(1:nb1),error=error)
                diis_m2_global(1:nb1,1:nb1) = diis_m1_global(1:nb1,1:nb1)
                DO jb=1,nb1
                  IF (ABS(diis_ev_global(jb)) < 1.0E-12_dp) THEN

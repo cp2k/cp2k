@@ -174,7 +174,7 @@ CONTAINS
        M(4,3) = M(3,4)
        ! Solve the eigenvalue problem for M
        Z = M
-       CALL diamat_all(Z,lambda)
+       CALL diamat_all(Z,lambda,error=error)
        ! Pick the correct eigenvectors
        S =  1.0_dp
        IF (Z(1,1) .LT. 0.0_dp) S = -1.0_dp

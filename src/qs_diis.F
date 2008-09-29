@@ -491,7 +491,7 @@ CONTAINS
 
       ! Solve the linear DIIS equation system
 
-      CALL diamat_all(b(1:nb1,1:nb1),ev(1:nb1))
+      CALL diamat_all(b(1:nb1,1:nb1),ev(1:nb1),error=error)
 
       a(1:nb1,1:nb1) = b(1:nb1,1:nb1)
 

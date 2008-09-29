@@ -247,7 +247,7 @@ CONTAINS
     W_mat(1,2)=Wda
 
 !!  solve WC=SCN
-    CALL diamat_all (S_mat,eigenv,.TRUE.)
+    CALL diamat_all (S_mat,eigenv,.TRUE.,error=error)
     ! U = S**(-1/2)
     U=0.0_dp
     U(1,1)=1.0_dp/SQRT(eigenv(1))
@@ -256,7 +256,7 @@ CONTAINS
     U=MATMUL(S_mat,tmp_mat)
     tmp_mat=MATMUL(W_mat,U)
     W_mat=MATMUL(U,tmp_mat)
-    CALL diamat_all (W_mat,eigenv,.TRUE.)
+    CALL diamat_all (W_mat,eigenv,.TRUE.,error=error)
     tmp_mat=MATMUL(U,W_mat)
 
     W_mat(1,1)=qs_env%energy%total

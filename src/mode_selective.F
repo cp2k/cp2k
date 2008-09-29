@@ -501,7 +501,7 @@ CONTAINS
        END DO
 
 
-       CALL diamat_all(ms_vib%hes_bfgs,ms_vib%eig_bfgs)
+       CALL diamat_all(ms_vib%hes_bfgs,ms_vib%eig_bfgs,error=error)
        tmp=0._dp
        IF(ms_vib%select_id==1) my_val=(ms_vib%sel_freq/vibfac)**2/massunit
        IF(ms_vib%select_id==2) my_val=(((ms_vib%f_range(2)+ms_vib%f_range(1))*0.5_dp)/vibfac)**2/massunit
@@ -633,7 +633,7 @@ CONTAINS
     
     CALL dgemm('T','N',ms_vib%mat_size,ms_vib%mat_size,SIZE(ms_vib%s_mat,1),1._dp,ms_vib%b_mat,SIZE(ms_vib%b_mat,1),&
          ms_vib%s_mat,SIZE(ms_vib%s_mat,1),0._dp,approx_H,ms_vib%mat_size)
-    CALL diamat_all(approx_H,eigenval)
+    CALL diamat_all(approx_H,eigenval,error=error)
 
     CALL select_vector(ms_vib,nrep,mass,ncoord,approx_H,eigenval,ind,ms_vib%b_vec,error=error)
     IF(ms_vib%initial_guess.NE.4)THEN
@@ -920,18 +920,15 @@ CONTAINS
          ms_vib%s_mat,SIZE(ms_vib%s_mat,1),0._dp,approx_H,ms_vib%mat_size)
     H_save=approx_H
 
-    CALL diamat_all(approx_H,eigenval)
+    CALL diamat_all(approx_H,eigenval,error=error)
 
     !!!!!!!!!!!! select eigenvalue(s) and vector(s) and calculate the new displacement vector
-
     ALLOCATE(ind(ms_vib%mat_size),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(residuum(SIZE(ms_vib%s_mat,1),nrep),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL select_vector(ms_vib,nrep,mass,ncoord,approx_H,eigenval,ind,residuum,criteria,error)
-
-
     
     DO i=1,nrep
        DO j=1,natoms

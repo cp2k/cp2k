@@ -193,7 +193,7 @@ CONTAINS
           WRITE(unit_nr,"(3(A,f15.10))")" ZX=",g_sym(3,1),&
                " ZY=",g_sym(3,2)," ZZ=",g_sym(3,3)+epr_env%g_free_factor
    
-          CALL diamat_all(g_sym,eigenv_g)
+          CALL diamat_all(g_sym,eigenv_g,error=error)
           eigenv_g(:) = eigenv_g(:)*1.0e6_dp
    
           WRITE(unit_nr,"(T2,A)") "delta_g principal values in ppm"
