@@ -171,6 +171,15 @@ CPSourceFileRef,&
     ! Fill multipolar expansion of atomic orbitals charge distributions
     CALL semi_empirical_mpole_p_setup(sep%w_mpole, sep, error)
 
+    ! Get the value of the size of CORE integral array
+    sep%core_size = 0
+    IF (sep%natorb>0) sep%core_size = 1
+    IF (sep%natorb>1) sep%core_size = 4
+    IF (sep%dorb)     sep%core_size =10
+    
+    ! Get size of the all possible combinations of atomic orbitals
+    sep%atm_int_size = (sep%natorb+1)*sep%natorb/2
+
   END SUBROUTINE se_param_set_default
 
 ! *****************************************************************************

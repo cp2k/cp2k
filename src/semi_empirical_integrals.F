@@ -136,7 +136,7 @@ CONTAINS
                 nbits        = EXPONENT(store_int_env%max_val_buffer(store_int_env%nbuffer)/eps_storage) + 1
                 buffer_left  = nints
                 buffer_start = 1
-                DO WHILE (buffer_left > 0 )
+                DO WHILE (buffer_left > 0)
                    buffer_size = MIN(buffer_left, cache_size)
                    CALL hfx_get_mult_cache_elements(w(buffer_start:), &
                                                     buffer_size, nbits, &
@@ -240,7 +240,6 @@ CONTAINS
           CALL rotnuc_low (sepi,sepj,rij,e1b,e2a,itype,anag,shortrange,taper,error)
           ! Store integrals if we did not go overflow
           IF (.NOT.buffer_overflow) THEN
-             w = 0.0_dp
              IF (PRESENT(e1b)) w(        1:nints_1) = e1b(1:nints_1)
              IF (PRESENT(e2a)) w(nints_1+1:nints  ) = e2a(1:nints_2)
              

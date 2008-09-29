@@ -89,7 +89,6 @@ CONTAINS
 
     NULLIFY(ij_matrix)
     rij  =  DOT_PRODUCT(rijv,rijv)
-    w    = 0.0_dp
     IF (rij > rij_threshold) THEN
        ! The repulsion integrals over molecular frame (w) are stored in the
        ! order in which they will later be used.  ie.  (i,j/k,l) where
@@ -108,10 +107,12 @@ CONTAINS
        ii = sepi%natorb
        kk = sepj%natorb
        IF (ii*kk > 0) THEN
-          limij = indexb(ii, ii)
-          limkl = indexb(kk, kk)
+          limij = sepi%atm_int_size
+          limkl = sepj%atm_int_size
           istep = limkl * limij
-          ww(1:istep) = 0.0_dp
+          DO i1 = 1, istep 
+             ww(i1) = 0.0_dp
+          END DO
 
           ! First step in rotation of integrals
           CALL rot_2el_2c_first(sepi, sepj, rijv, shortrange, taper, .FALSE., ii, kk, rep, &
@@ -199,8 +200,6 @@ CONTAINS
        CALL rotmat_release(ij_matrix, error)
     
        ! Store two electron integrals in the triangular format
-       limij = (ii*(ii+1))/2
-       limkl = (kk*(kk+1))/2
        CALL store_2el_2c_diag(limij, limkl, ww, w, error=error)
     ENDIF
   END SUBROUTINE rotint_num
@@ -232,33 +231,43 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'terep_num', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i, i1, ij, j1, k1, kl, l1
     LOGICAL                                  :: failure, longrange
     REAL(KIND=dp)                            :: ft
     REAL(KIND=dp), DIMENSION(491)            :: rep_lr
 
     failure   = .FALSE.
     longrange = .FALSE.
+    ft        = taper_eval(taper, rij, error)
     IF (PRESENT(do_longrange))  longrange = do_longrange
-    rep       = 0.0_dp
+
     ! Contribution from sp shells
-    CALL terep_sp_num(sepi, sepj, rij, rep(1:34), longrange, error=error)
+    CALL terep_sp_num(sepi, sepj, rij, rep, longrange, ft=ft, error=error)
 
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d shells
-       CALL terep_d_num (sepi, sepj, rij, rep, longrange, error=error )
+       CALL terep_d_num (sepi, sepj, rij, rep, longrange, ft=ft, error=error)
     END IF
 
     ! Evaluate only the shortrange part of the integral if requested
     IF ( shortrange ) THEN
        CALL terep_num(sepi, sepj, rij, rep_lr, taper, shortrange=.FALSE.,&
                       do_longrange=.TRUE., error=error)
-       rep = rep - rep_lr
-    END IF
-
-    ! Tapering function
-    IF (.NOT.longrange) THEN
-       ft = taper_eval(taper, rij, error)
-       rep(:) = ft*rep(:)
+       ! Correct Integral
+       DO i1 = 1, sepi%natorb
+          DO j1 = 1, i1
+             ij = indexa(i1, j1)
+             DO k1 = 1, sepj%natorb
+                DO l1 = 1, k1
+                   kl = indexa(k1, l1)
+                   i = ijkl_ind(ij, kl)
+                   IF (i /= 0) THEN
+                      rep(i) =   rep(i) -   rep_lr(i)
+                   END IF
+                END DO
+             END DO
+          END DO
+       END DO
     END IF
 
   END SUBROUTINE terep_num
@@ -276,11 +285,12 @@ CONTAINS
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 ! *****************************************************************************
-  SUBROUTINE terep_sp_num (sepi, sepj, rij, rep, longrange, error )
+  SUBROUTINE terep_sp_num (sepi, sepj, rij, rep, longrange, ft, error )
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
-    REAL(dp), DIMENSION(34), INTENT(INOUT)   :: rep
+    REAL(dp), DIMENSION(491), INTENT(OUT)    :: rep
     LOGICAL, INTENT(IN)                      :: longrange
+    REAL(dp), INTENT(IN)                     :: ft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'terep_sp_num', &
@@ -290,6 +300,7 @@ CONTAINS
                                                 lastj, li, lj, lk, ll, nold, &
                                                 numb
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: tmp
 
     failure = .FALSE.
     lasti = sepi%natorb
@@ -313,8 +324,9 @@ CONTAINS
                    ELSE IF (nold < 0) THEN
                       rep(numb) = -rep(-nold)
                    ELSE IF (nold == 0) THEN
-                      rep(numb) = ijkl_sp (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
-                                           longrange, do_method_undef, error)
+                      tmp = ijkl_sp (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
+                                     longrange, do_method_undef, error) * ft
+                      rep(numb) = tmp
                    END IF
                 END IF
              END DO
@@ -336,11 +348,12 @@ CONTAINS
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 ! *****************************************************************************
-  SUBROUTINE terep_d_num (sepi, sepj, rij, rep, longrange, error )
+  SUBROUTINE terep_d_num (sepi, sepj, rij, rep, longrange, ft, error )
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(INOUT)  :: rep
     LOGICAL, INTENT(IN)                      :: longrange
+    REAL(dp), INTENT(IN)                     :: ft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'terep_d_num', &
@@ -350,6 +363,7 @@ CONTAINS
                                                 lastj, li, lj, lk, ll, nold, &
                                                 numb
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: tmp
 
     failure = .FALSE.
     lasti = sepi%natorb
@@ -374,8 +388,9 @@ CONTAINS
                    ELSE IF (nold <-34) THEN
                       rep(numb) = -rep(-nold)
                    ELSE IF (nold == 0) THEN
-                      rep(numb) = ijkl_d (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
-                                          longrange, do_method_undef, error)
+                      tmp = ijkl_d (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
+                                    longrange, do_method_undef, error) * ft
+                      rep(numb) = tmp
                    END IF
                 END IF
              END DO
@@ -425,12 +440,7 @@ CONTAINS
     l_e1b  = PRESENT(e1b)
     l_e2a  = PRESENT(e2a)
     rij    =  DOT_PRODUCT(rijv,rijv)
-    IF (l_e1b) THEN
-       e1b =  0.0_dp
-    END IF
-    IF (l_e2a) THEN
-       e2a =  0.0_dp
-    END IF
+
     IF (rij > rij_threshold) THEN
        rij = SQRT(rij)
        ! Create the rotation matrix 
@@ -448,7 +458,6 @@ CONTAINS
        task (2)         = l_e2a
        DO n = 1, 2
           IF (.NOT.task(n)) CYCLE
-          tmp = 0.0_dp
           DO i = 1, last_orbital(n)
              ind1 = i - 1
              DO j = 1, i
@@ -487,8 +496,16 @@ CONTAINS
                 END IF
              END DO
           END DO
-          IF (n==1) e1b = -tmp
-          IF (n==2) e2a = -tmp
+          IF (n==1) THEN 
+             DO i = 1, sepi%atm_int_size
+                e1b(i) = -tmp(i)
+             END DO
+          END IF
+          IF (n==2) THEN 
+             DO i = 1, sepj%atm_int_size
+                e2a(i) = -tmp(i)
+             END DO
+          END IF
        END DO
        CALL rotmat_release(ij_matrix, error)
     END IF
@@ -700,6 +717,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_num', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i
     LOGICAL                                  :: failure, l_core, l_ssss, &
                                                 longrange
     REAL(KIND=dp)                            :: ft, ssss_lr
@@ -710,12 +728,6 @@ CONTAINS
     IF (PRESENT(do_longrange))  longrange = do_longrange
     l_core  = PRESENT(core)
     l_ssss  = PRESENT(ssss)
-    IF (l_core) THEN
-       core  = 0.0_dp
-    END IF
-    IF (l_ssss) THEN
-       ssss  = 0.0_dp
-    END IF
 
     ! Contribution from the sp shells
     CALL nucint_sp_num(sepi, sepj, rij, ssss, core, itype, longrange, error=error)
@@ -735,7 +747,12 @@ CONTAINS
        IF (l_core) THEN
           CALL nucint_num(sepi, sepj, rij, core=core_lr, itype=itype, taper=taper, shortrange=.FALSE., &
                do_longrange=.TRUE., error=error)
-          core = core - core_lr
+          DO i = 1, sepi%core_size
+                         core(i,1) =  core(i,1) -  core_lr(i,1)
+          END DO
+          DO i = 1, sepj%core_size
+                         core(i,2) =  core(i,2) -  core_lr(i,2)
+          END DO
        END IF
     END IF
 
@@ -747,14 +764,13 @@ CONTAINS
           ssss = ft*ssss
        END IF
        IF (l_core) THEN
-          core(:,:) = ft*core(:,:)
+          DO i = 1, sepi%core_size
+             core(i,1)  = ft*core(i,1)
+          END DO
+          DO i = 1, sepj%core_size
+             core(i,2)  = ft*core(i,2)
+          END DO
        END IF
-    END IF
-
-    IF (l_core) THEN
-       ! If no orbitals are present on the atom let's zero the integral contribution
-       IF (sepi%natorb == -1) core(:,1) = 0.0_dp
-       IF (sepj%natorb == -1) core(:,2) = 0.0_dp
     END IF
 
   END SUBROUTINE nucint_num
@@ -877,17 +893,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_d_num', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ij, kl
+    INTEGER                                  :: ij, kl
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     ! Check if d-orbitals are present
     IF (sepi%dorb.OR.sepj%dorb) THEN
-       DO i = 5, 10
-          core(i, 1) = 0.0_dp
-          core(i, 2) = 0.0_dp
-       END DO
-       !
        ij = indexa(1, 1)
        IF (sepj%dorb) THEN
           !  <S S | D S>
@@ -949,19 +960,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'drotint_num', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
+    INTEGER                                  :: i, j, nsize
     REAL(dp)                                 :: od
     REAL(dp), DIMENSION(2025)                :: wm, wp
     REAL(dp), DIMENSION(3)                   :: rr
 
-    od = 0.5_dp/delta
+    od    = 0.5_dp/delta
+    nsize = sepi%atm_int_size*sepj%atm_int_size
     DO i=1,3
        rr=r
        rr(i)=rr(i)+delta
        CALL rotint_num(sepi,sepj,rr,wp,shortrange,taper=taper,error=error)
        rr(i)=rr(i)-2._dp*delta
        CALL rotint_num(sepi,sepj,rr,wm,shortrange,taper=taper,error=error)
-       dw(i,:) = od * (wp(:) - wm(:))
+       DO j = 1, nsize
+          dw(i,j) = od * (wp(j) - wm(j))
+       END DO
     END DO
 
   END SUBROUTINE drotint_num
@@ -983,7 +997,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'drotnuc_num', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
+    INTEGER                                  :: i, j
     LOGICAL                                  :: l_de1b, l_de2a
     REAL(dp)                                 :: od
     REAL(dp), DIMENSION(3)                   :: rr
@@ -1000,10 +1014,14 @@ CONTAINS
        rr(i)=rr(i)-2._dp*delta
        CALL rotnuc_num(sepi,sepj,rr,e1m,e2m,itype,shortrange,taper=taper,error=error)
        IF (l_de1b) THEN
-          de1b(i,:) = od * (e1p(:) - e1m(:))
+          DO j = 1, sepi%atm_int_size
+             de1b(i,j) = od * (e1p(j) - e1m(j))
+          END DO
        END IF
        IF (l_de2a) THEN
-          de2a(i,:) = od * (e2p(:) - e2m(:))
+          DO j = 1, sepj%atm_int_size
+             de2a(i,j) = od * (e2p(j) - e2m(j))
+          END DO
        END IF
     END DO
   END SUBROUTINE drotnuc_num

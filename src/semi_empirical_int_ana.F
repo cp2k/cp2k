@@ -115,19 +115,7 @@ CONTAINS
     l_de1b = PRESENT(de1b)
     l_de2a = PRESENT(de2a)
     lgrad  = l_de1b.OR.l_de2a
-    ! Zeros all arrays
-    IF (l_e1b) THEN
-       e1b =   0._dp
-    END IF
-    IF (l_e2a) THEN
-       e2a =   0._dp
-    END IF
-    IF (l_de1b) THEN
-       de1b =  0._dp
-    END IF
-    IF (l_de2a) THEN
-       de2a =  0._dp
-    END IF
+
     IF (rij > rij_threshold) THEN
        ! Compute Integrals in diatomic frame opportunely inverted
        rij  = SQRT(rij)
@@ -137,7 +125,9 @@ CONTAINS
             error=error)
 
        IF (lgrad) THEN
-          drij(:) = rijv/rij
+          drij(1) = rijv(1)/rij
+          drij(2) = rijv(2)/rij
+          drij(3) = rijv(3)/rij
           ! Possibly Invert Frame
           IF (invert) THEN
              xtmp=drij(3)
@@ -156,7 +146,6 @@ CONTAINS
        task (2)         = l_e2a
        DO n = 1, 2
           IF (.NOT.task(n)) CYCLE
-          tmp = 0.0_dp
           DO i = 1, last_orbital(n)
              ind1 = i - 1
              DO j = 1, i
@@ -195,8 +184,16 @@ CONTAINS
                 END IF
              END DO
           END DO
-          IF (n==1) e1b = -tmp
-          IF (n==2) e2a = -tmp
+          IF (n==1) THEN 
+             DO i = 1, sepi%atm_int_size
+                e1b(i) = -tmp(i)
+             END DO
+          END IF
+          IF (n==2) THEN 
+             DO i = 1, sepj%atm_int_size
+                e2a(i) = -tmp(i)
+             END DO
+          END IF
        END DO
        IF (invert.AND.l_e1b)  CALL invert_integral  (sepi, sepi, int1el=e1b, error=error)
        IF (invert.AND.l_e2a)  CALL invert_integral  (sepj, sepj, int1el=e2a, error=error)
@@ -206,7 +203,6 @@ CONTAINS
        task (2)         = l_de2a
        DO n = 1, 2
           IF (.NOT.task(n)) CYCLE
-          tmp_d = 0.0_dp
           DO i = 1, last_orbital(n)
              ind1 = i - 1
              DO j = 1, i
@@ -216,46 +212,106 @@ CONTAINS
                 IF (ind2 == 0) THEN
                    IF (ind1 == 0) THEN
                       ! Type of Integral (SS/)
-                      tmp_d(:,m) = dcore(1, n)*drij
+                      tmp_d(1,m) = dcore(1, n)*drij(1)
+                      tmp_d(2,m) = dcore(1, n)*drij(2)
+                      tmp_d(3,m) = dcore(1, n)*drij(3)
                    ELSE IF (ind1 < 4) THEN
                       ! Type of Integral (SP/)
-                      tmp_d(:,m) = ij_matrix%sp_d(:, 1, ind1) *  core(2, n)           + &
-                                   ij_matrix%sp  (   1, ind1) * dcore(2, n) * drij
+                      tmp_d(1,m) = ij_matrix%sp_d(1, 1, ind1) *  core(2, n)           + &
+                                   ij_matrix%sp  (   1, ind1) * dcore(2, n) * drij(1)
+
+                      tmp_d(2,m) = ij_matrix%sp_d(2, 1, ind1) *  core(2, n)           + &
+                                   ij_matrix%sp  (   1, ind1) * dcore(2, n) * drij(2)
+
+                      tmp_d(3,m) = ij_matrix%sp_d(3, 1, ind1) *  core(2, n)           + &
+                                   ij_matrix%sp  (   1, ind1) * dcore(2, n) * drij(3)
                    ELSE
                       ! Type of Integral (SD/)
-                      tmp_d(:,m) = ij_matrix%sd_d(:, 1, ind1-3) *  core(5, n)         + &
-                                   ij_matrix%sd  (   1, ind1-3) * dcore(5, n) * drij
+                      tmp_d(1,m) = ij_matrix%sd_d(1, 1, ind1-3) *  core(5, n)         + &
+                                   ij_matrix%sd  (   1, ind1-3) * dcore(5, n) * drij(1)
+
+                      tmp_d(2,m) = ij_matrix%sd_d(2, 1, ind1-3) *  core(5, n)         + &
+                                   ij_matrix%sd  (   1, ind1-3) * dcore(5, n) * drij(2)
+
+                      tmp_d(3,m) = ij_matrix%sd_d(3, 1, ind1-3) *  core(5, n)         + &
+                                   ij_matrix%sd  (   1, ind1-3) * dcore(5, n) * drij(3)
                    END IF
                 ELSE IF (ind2 < 4) THEN
                    IF (ind1 < 4) THEN
                       ! Type of Integral (PP/)
                       ipp = indpp(ind1, ind2)
-                      tmp_d(:,m) = dcore(3, n) * drij *  ij_matrix%pp  (   ipp, 1, 1) + &
-                                    core(3, n)        *  ij_matrix%pp_d(:, ipp, 1, 1) + &
-                                   dcore(4, n) * drij * (ij_matrix%pp  (   ipp, 2, 2)+ij_matrix%pp  (   ipp, 3, 3)) + &
-                                    core(4, n) *        (ij_matrix%pp_d(:, ipp, 2, 2)+ij_matrix%pp_d(:, ipp, 3, 3))
+                      tmp_d(1,m) = dcore(3, n) * drij(1) *  ij_matrix%pp  (   ipp, 1, 1) + &
+                                    core(3, n)           *  ij_matrix%pp_d(1, ipp, 1, 1) + &
+                                   dcore(4, n) * drij(1) * (ij_matrix%pp  (   ipp, 2, 2)+ij_matrix%pp  (   ipp, 3, 3)) + &
+                                    core(4, n) *           (ij_matrix%pp_d(1, ipp, 2, 2)+ij_matrix%pp_d(1, ipp, 3, 3))
+
+                      tmp_d(2,m) = dcore(3, n) * drij(2) *  ij_matrix%pp  (   ipp, 1, 1) + &
+                                    core(3, n)           *  ij_matrix%pp_d(2, ipp, 1, 1) + &
+                                   dcore(4, n) * drij(2) * (ij_matrix%pp  (   ipp, 2, 2)+ij_matrix%pp  (   ipp, 3, 3)) + &
+                                    core(4, n) *           (ij_matrix%pp_d(2, ipp, 2, 2)+ij_matrix%pp_d(2, ipp, 3, 3))
+
+                      tmp_d(3,m) = dcore(3, n) * drij(3) *  ij_matrix%pp  (   ipp, 1, 1) + &
+                                    core(3, n)           *  ij_matrix%pp_d(3, ipp, 1, 1) + &
+                                   dcore(4, n) * drij(3) * (ij_matrix%pp  (   ipp, 2, 2)+ij_matrix%pp  (   ipp, 3, 3)) + &
+                                    core(4, n) *           (ij_matrix%pp_d(3, ipp, 2, 2)+ij_matrix%pp_d(3, ipp, 3, 3))
                    ELSE
                       ! Type of Integral (PD/)
                       idp = inddp(ind1-3, ind2)
-                      tmp_d(:,m) = dcore(6, n) * drij *  ij_matrix%pd  (   idp, 1, 1) + &
-                                    core(6, n) *         ij_matrix%pd_d(:, idp, 1, 1) + &
-                                   dcore(8, n) * drij * (ij_matrix%pd  (   idp, 2, 2)+ij_matrix%pd  (   idp, 3, 3)) + &
-                                    core(8, n) *        (ij_matrix%pd_d(:, idp, 2, 2)+ij_matrix%pd_d(:, idp, 3, 3)) 
+                      tmp_d(1,m) = dcore(6, n) * drij(1) *  ij_matrix%pd  (   idp, 1, 1) + &
+                                    core(6, n) *            ij_matrix%pd_d(1, idp, 1, 1) + &
+                                   dcore(8, n) * drij(1) * (ij_matrix%pd  (   idp, 2, 2)+ij_matrix%pd  (   idp, 3, 3)) + &
+                                    core(8, n) *           (ij_matrix%pd_d(1, idp, 2, 2)+ij_matrix%pd_d(1, idp, 3, 3))
+
+                      tmp_d(2,m) = dcore(6, n) * drij(2) *  ij_matrix%pd  (   idp, 1, 1) + &
+                                    core(6, n) *            ij_matrix%pd_d(2, idp, 1, 1) + &
+                                   dcore(8, n) * drij(2) * (ij_matrix%pd  (   idp, 2, 2)+ij_matrix%pd  (   idp, 3, 3)) + &
+                                    core(8, n) *           (ij_matrix%pd_d(2, idp, 2, 2)+ij_matrix%pd_d(2, idp, 3, 3))
+
+                      tmp_d(3,m) = dcore(6, n) * drij(3) *  ij_matrix%pd  (   idp, 1, 1) + &
+                                    core(6, n) *            ij_matrix%pd_d(3, idp, 1, 1) + &
+                                   dcore(8, n) * drij(3) * (ij_matrix%pd  (   idp, 2, 2)+ij_matrix%pd  (   idp, 3, 3)) + &
+                                    core(8, n) *           (ij_matrix%pd_d(3, idp, 2, 2)+ij_matrix%pd_d(3, idp, 3, 3))
                    END IF
                 ELSE
                    ! Type of Integral (DD/)
                    idd = inddd(ind1-3, ind2-3)
-                   tmp_d(:,m) = dcore( 7, n) * drij *  ij_matrix%dd  (   idd, 1, 1) + &
-                                 core( 7, n) *         ij_matrix%dd_d(:, idd, 1, 1) + &
-                                dcore( 9, n) * drij * (ij_matrix%dd  (   idd, 2, 2)+ij_matrix%dd  (   idd, 3, 3)) + &
-                                 core( 9, n) *        (ij_matrix%dd_d(:, idd, 2, 2)+ij_matrix%dd_d(:, idd, 3, 3)) + &
-                                dcore(10, n) * drij * (ij_matrix%dd  (   idd, 4, 4)+ij_matrix%dd  (   idd, 5, 5)) + &
-                                 core(10, n) *        (ij_matrix%dd_d(:, idd, 4, 4)+ij_matrix%dd_d(:, idd, 5, 5))
+                   tmp_d(1,m) = dcore( 7, n) * drij(1) *  ij_matrix%dd  (   idd, 1, 1) + &
+                                 core( 7, n) *            ij_matrix%dd_d(1, idd, 1, 1) + &
+                                dcore( 9, n) * drij(1) * (ij_matrix%dd  (   idd, 2, 2)+ij_matrix%dd  (   idd, 3, 3)) + &
+                                 core( 9, n) *           (ij_matrix%dd_d(1, idd, 2, 2)+ij_matrix%dd_d(1, idd, 3, 3)) + &
+                                dcore(10, n) * drij(1) * (ij_matrix%dd  (   idd, 4, 4)+ij_matrix%dd  (   idd, 5, 5)) + &
+                                 core(10, n) *           (ij_matrix%dd_d(1, idd, 4, 4)+ij_matrix%dd_d(1, idd, 5, 5))
+
+                   tmp_d(2,m) = dcore( 7, n) * drij(2) *  ij_matrix%dd  (   idd, 1, 1) + &
+                                 core( 7, n) *            ij_matrix%dd_d(2, idd, 1, 1) + &
+                                dcore( 9, n) * drij(2) * (ij_matrix%dd  (   idd, 2, 2)+ij_matrix%dd  (   idd, 3, 3)) + &
+                                 core( 9, n) *           (ij_matrix%dd_d(2, idd, 2, 2)+ij_matrix%dd_d(2, idd, 3, 3)) + &
+                                dcore(10, n) * drij(2) * (ij_matrix%dd  (   idd, 4, 4)+ij_matrix%dd  (   idd, 5, 5)) + &
+                                 core(10, n) *           (ij_matrix%dd_d(2, idd, 4, 4)+ij_matrix%dd_d(2, idd, 5, 5))
+
+                   tmp_d(3,m) = dcore( 7, n) * drij(3) *  ij_matrix%dd  (   idd, 1, 1) + &
+                                 core( 7, n) *            ij_matrix%dd_d(3, idd, 1, 1) + &
+                                dcore( 9, n) * drij(3) * (ij_matrix%dd  (   idd, 2, 2)+ij_matrix%dd  (   idd, 3, 3)) + &
+                                 core( 9, n) *           (ij_matrix%dd_d(3, idd, 2, 2)+ij_matrix%dd_d(3, idd, 3, 3)) + &
+                                dcore(10, n) * drij(3) * (ij_matrix%dd  (   idd, 4, 4)+ij_matrix%dd  (   idd, 5, 5)) + &
+                                 core(10, n) *           (ij_matrix%dd_d(3, idd, 4, 4)+ij_matrix%dd_d(3, idd, 5, 5))
                 END IF
              END DO
           END DO
-          IF (n==1) de1b = -tmp_d
-          IF (n==2) de2a = -tmp_d
+          IF (n==1) THEN 
+             DO i = 1, sepi%atm_int_size
+                de1b(1,i) = -tmp_d(1,i)
+                de1b(2,i) = -tmp_d(2,i)
+                de1b(3,i) = -tmp_d(3,i)
+             END DO
+          END IF
+          IF (n==2) THEN 
+             DO i = 1, sepj%atm_int_size
+                de2a(1,i) = -tmp_d(1,i)
+                de2a(2,i) = -tmp_d(2,i)
+                de2a(3,i) = -tmp_d(3,i)
+             END DO
+          END IF
        END DO
        IF (invert.AND.l_de1b) CALL invert_derivative(sepi, sepi, dint1el=de1b, error=error)
        IF (invert.AND.l_de2a) CALL invert_derivative(sepj, sepj, dint1el=de2a, error=error)
@@ -320,12 +376,6 @@ CONTAINS
     ! Initialization
     l_enuc = PRESENT(enuc)
     l_denuc= PRESENT(denuc)
-    IF (l_enuc) THEN
-       enuc =  0._dp
-    END IF
-    IF (l_denuc) THEN
-       denuc = 0._dp
-    END IF
     IF ((rij > rij_threshold).AND.(l_enuc.OR.l_denuc)) THEN
        ! Compute Integrals in diatomic frame
        rij  = SQRT(rij)
@@ -393,13 +443,31 @@ CONTAINS
                 CASE (9,17,35,53)
                    nt=4
                 END SELECT
-                fni1(:) = sepi%bfn1(:,nt)
-                fni2(:) = sepi%bfn2(:,nt)
-                fni3(:) = sepi%bfn3(:,nt)
+                fni1(1) = sepi%bfn1(1,nt)
+                fni1(2) = sepi%bfn1(2,nt)
+                fni1(3) = sepi%bfn1(3,nt)
+                fni1(4) = sepi%bfn1(4,nt)
+                fni2(1) = sepi%bfn2(1,nt)
+                fni2(2) = sepi%bfn2(2,nt)
+                fni2(3) = sepi%bfn2(3,nt)
+                fni2(4) = sepi%bfn2(4,nt)
+                fni3(1) = sepi%bfn3(1,nt)
+                fni3(2) = sepi%bfn3(2,nt)
+                fni3(3) = sepi%bfn3(3,nt)
+                fni3(4) = sepi%bfn3(4,nt)
              ELSE
-                fni1(:) = sepi%fn1(:)
-                fni2(:) = sepi%fn2(:)
-                fni3(:) = sepi%fn3(:)
+                fni1(1) = sepi%fn1(1)
+                fni1(2) = sepi%fn1(2)
+                fni1(3) = sepi%fn1(3)
+                fni1(4) = sepi%fn1(4)
+                fni2(1) = sepi%fn2(1)
+                fni2(2) = sepi%fn2(2)
+                fni2(3) = sepi%fn2(3)
+                fni2(4) = sepi%fn2(4)
+                fni3(1) = sepi%fn3(1)
+                fni3(2) = sepi%fn3(2)
+                fni3(3) = sepi%fn3(3)
+                fni3(4) = sepi%fn3(4)
              END IF
              IF(itype == do_method_am1 .AND. sepj%z == 5) THEN
                 !special case AM1 Boron
@@ -413,13 +481,31 @@ CONTAINS
                 CASE (9,17,35,53)
                    nt=4
                 END SELECT
-                fnj1(:) = sepj%bfn1(:,nt)
-                fnj2(:) = sepj%bfn2(:,nt)
-                fnj3(:) = sepj%bfn3(:,nt)
+                fnj1(1) = sepj%bfn1(1,nt)
+                fnj1(2) = sepj%bfn1(2,nt)
+                fnj1(3) = sepj%bfn1(3,nt)
+                fnj1(4) = sepj%bfn1(4,nt)
+                fnj2(1) = sepj%bfn2(1,nt)
+                fnj2(2) = sepj%bfn2(2,nt)
+                fnj2(3) = sepj%bfn2(3,nt)
+                fnj2(4) = sepj%bfn2(4,nt)
+                fnj3(1) = sepj%bfn3(1,nt)
+                fnj3(2) = sepj%bfn3(2,nt)
+                fnj3(3) = sepj%bfn3(3,nt)
+                fnj3(4) = sepj%bfn3(4,nt)
              ELSE
-                fnj1(:) = sepj%fn1(:)
-                fnj2(:) = sepj%fn2(:)
-                fnj3(:) = sepj%fn3(:)
+                fnj1(1) = sepj%fn1(1)
+                fnj1(2) = sepj%fn1(2)
+                fnj1(3) = sepj%fn1(3)
+                fnj1(4) = sepj%fn1(4)
+                fnj2(1) = sepj%fn2(1)
+                fnj2(2) = sepj%fn2(2)
+                fnj2(3) = sepj%fn2(3)
+                fnj2(4) = sepj%fn2(4)
+                fnj3(1) = sepj%fn3(1)
+                fnj3(2) = sepj%fn3(2)
+                fnj3(3) = sepj%fn3(3)
+                fnj3(4) = sepj%fn3(4)
              END IF
              ! AM1/PM3/PDG correction to nuclear repulsion
              DO ig=1,SIZE(fni1)
@@ -535,9 +621,12 @@ CONTAINS
           enuc=enuc_loc+scale+qcorr
        END IF
        IF (l_denuc) THEN
-          drij(:) = rijv/rij
+          drij(1) = rijv(1)/rij
+          drij(2) = rijv(2)/rij
+          drij(3) = rijv(3)/rij
           denuc = (denuc_loc + dscale + dqcorr)*drij
        END IF
+       ! Debug statement
        IF (debug_this_module) THEN
           CALL check_dcorecore_ana(sepi, sepj, rijv, itype, shortrange, taper, enuc, denuc, error)
        END IF
@@ -572,10 +661,12 @@ CONTAINS
     failure = .FALSE.
     ! One-electron integral
     IF (PRESENT(int1el)) THEN
-       fdim   = (sepi%natorb+1)*sepi%natorb/2
+       fdim   = sepi%atm_int_size
        ndim   = 0
-       tmp1el(1:fdim) = 0.0_dp
-       DO i = 1, sepi%natorb             
+       DO i = 1, fdim
+          tmp1el(i) = 0.0_dp
+       END DO
+       DO i = 1, sepi%natorb
        DO j = 1, i
           ndim = ndim + 1
           
@@ -595,19 +686,23 @@ CONTAINS
           END DO
        END DO
        END DO
-       int1el(1:fdim) = tmp1el(1:fdim)
+       DO i = 1, fdim
+          int1el(i) = tmp1el(i)
+       END DO
     END IF
 
     ! Two electron integrals
     IF (PRESENT(int2el)) THEN
-       sdim   = (sepi%natorb+1)*sepi%natorb/2
-       tdim   = (sepj%natorb+1)*sepj%natorb/2
+       sdim   = sepi%atm_int_size
+       tdim   = sepj%atm_int_size
        fdim   = sdim*tdim
        ndim   = 0
-       tmp2el(1:fdim) = 0.0_dp
-       DO i = 1, sepi%natorb             
+       DO i = 1, fdim
+          tmp2el(i) = 0.0_dp
+       END DO
+       DO i = 1, sepi%natorb
        DO j = 1, i
-          DO k = 1, sepj%natorb             
+          DO k = 1, sepj%natorb
           DO l = 1, k
              ndim = ndim + 1
 
@@ -645,7 +740,9 @@ CONTAINS
           END DO
        END DO
        END DO
-       int2el(1:fdim) = tmp2el(1:fdim)
+       DO i = 1, fdim
+          int2el(i) = tmp2el(i)
+       END DO
     END IF
   END SUBROUTINE invert_integral
   
@@ -739,6 +836,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_ana', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i
     LOGICAL                                  :: failure, l_core, l_ssss, &
                                                 longrange
     REAL(KIND=dp)                            :: dft, dssss_lr, ft, ssss_lr
@@ -749,20 +847,8 @@ CONTAINS
     IF (PRESENT(do_longrange))  longrange = do_longrange
     CPPrecondition(PRESENT(core).EQV.PRESENT(dcore),cp_failure_level,routineP,error,failure)
     CPPrecondition(PRESENT(ssss).EQV.PRESENT(dssss),cp_failure_level,routineP,error,failure)
-    l_core   = PRESENT( core)
-    l_ssss   = PRESENT( ssss)
-    IF (l_core) THEN
-       core  = 0.0_dp
-    END IF
-    IF (l_core.AND.lgrad) THEN 
-       dcore = 0.0_dp
-    END IF
-    IF (l_ssss) THEN
-       ssss  = 0.0_dp
-    END IF
-    IF (l_ssss.AND.lgrad) THEN
-       dssss = 0.0_dp
-    END IF
+    l_core   = PRESENT(core)
+    l_ssss   = PRESENT(ssss)
     
     ! Value of the integrals for sp shell
     CALL  nucint_sp_num(sepi, sepj, rij, ssss,  core, itype, longrange, error=error)
@@ -793,8 +879,20 @@ CONTAINS
        IF (l_core) THEN
           CALL dnucint_ana( sepi, sepj, rij, core=core_lr, dcore=dcore_lr, itype=itype,&
                taper=taper, shortrange=.FALSE., do_longrange=.TRUE., lgrad=lgrad, error=error )
-                      core =  core -  core_lr
-          IF (lgrad) dcore = dcore - dcore_lr
+          DO i = 1, sepi%core_size
+             core(i,1) =  core(i,1) -  core_lr(i,1)
+          END DO
+          DO i = 1, sepj%core_size
+             core(i,2) =  core(i,2) -  core_lr(i,2)
+          END DO
+          IF (lgrad) THEN 
+             DO i = 1, sepi%core_size
+                dcore(i,1) = dcore(i,1) - dcore_lr(i,1)
+             END DO
+             DO i = 1, sepj%core_size
+                dcore(i,2) = dcore(i,2) - dcore_lr(i,2)
+             END DO
+          END IF
        END IF
     END IF
 
@@ -804,34 +902,32 @@ CONTAINS
        dft= 0.0_dp
        IF (itype/=do_method_pchg) THEN
           ft = taper_eval (taper, rij, error)
-          dft= dtaper_eval (taper, rij, error)
+          dft= dtaper_eval(taper, rij, error)
        END IF
        IF (lgrad) THEN
           IF (l_core) THEN
-             dcore(:,:) = ft*dcore(:,:)+dft*core(:,:)
+             DO i = 1, sepi%core_size
+                dcore(i,1) = ft*dcore(i,1)+dft*core(i,1)
+             END DO
+             DO i = 1, sepj%core_size
+                dcore(i,2) = ft*dcore(i,2)+dft*core(i,2)
+             END DO
           END IF
           IF (l_ssss) THEN
              dssss      = ft*dssss+dft*ssss
           END IF
        END IF
        IF (l_core) THEN
-          core(:,:)  = ft*core(:,:)
+          DO i = 1, sepi%core_size
+             core(i,1)  = ft*core(i,1)
+          END DO
+          DO i = 1, sepj%core_size
+             core(i,2)  = ft*core(i,2)
+          END DO
        END IF
        IF (l_ssss) THEN
-          ssss       = ft*ssss
+          ssss          = ft*ssss
        END IF
-    END IF
-
-    IF (l_core) THEN
-       IF (lgrad) THEN
-          ! If no orbitals are present on the atom let's zero the integral contribution
-          IF (sepi%natorb == -1) dcore(:,1) = 0.0_dp
-          IF (sepj%natorb == -1) dcore(:,2) = 0.0_dp
-       END IF
-
-       ! If no orbitals are present on the atom let's zero the integral contribution
-       IF (sepi%natorb == -1) core(:,1) = 0.0_dp
-       IF (sepj%natorb == -1) core(:,2) = 0.0_dp
     END IF
 
     ! Debug Procedure.. Check valifity of analytical gradients of nucint
@@ -963,17 +1059,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_d_ana', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ij, kl
+    INTEGER                                  :: ij, kl
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     ! Check if d-orbitals are present
     IF (sepi%dorb.OR.sepj%dorb) THEN
-       DO i = 5, 10
-          dcore(i, 1) = 0.0_dp
-          dcore(i, 2) = 0.0_dp
-       END DO
-       !
        ij = indexa(1, 1)
        IF (sepj%dorb) THEN
           !  <S S | D S>
@@ -1068,8 +1159,6 @@ CONTAINS
     NULLIFY(ij_matrix)
     l_w   = PRESENT(w)
     lgrad = PRESENT(dw)
-    IF (l_w)    w = 0.0_dp
-    IF (lgrad) dw = 0.0_dp
     IF (.NOT.(l_w.OR.lgrad)) RETURN
     
     rij = DOT_PRODUCT(rijv, rijv)
@@ -1088,7 +1177,9 @@ CONTAINS
        CALL dterep_ana(sepi,sepj,rij,rep,rep_d,taper,shortrange,lgrad=lgrad,error=error)
 
        IF (lgrad) THEN
-          drij(:) = rijv/rij
+          drij(1) = rijv(1)/rij
+          drij(2) = rijv(2)/rij
+          drij(3) = rijv(3)/rij
           ! Possibly Invert Frame
           IF (invert) THEN
              xtmp=drij(3)
@@ -1107,11 +1198,12 @@ CONTAINS
        IF (l_w) THEN
           ! Rotate Integrals
           IF (ii*kk > 0) THEN
-             limij = indexb(ii, ii)
-             limkl = indexb(kk, kk)
+             limij = sepi%atm_int_size
+             limkl = sepj%atm_int_size
              istep = limkl * limij
-             ww(1:istep) = 0.0_dp
-             
+             DO i1 = 1, istep 
+                ww(i1) = 0.0_dp
+             END DO
              ! Second step in rotation of integrals
              DO i1 = 1, ii
                 DO j1 = 1, i1
@@ -1191,8 +1283,6 @@ CONTAINS
                 END DO
              END DO
              ! Store two electron integrals in the triangular format
-             limij = (ii*(ii+1))/2
-             limkl = (kk*(kk+1))/2
              CALL store_2el_2c_diag(limij, limkl, ww(1:istep), w, error=error)
              IF (invert) CALL invert_integral(sepi, sepj, int2el=w, error=error)
           END IF
@@ -1208,10 +1298,14 @@ CONTAINS
           dw = 0.0_dp
           ! Rotate Integrals derivatives
           IF (ii*kk > 0) THEN
-             limij = indexb(ii, ii)
-             limkl = indexb(kk, kk)
+             limij = sepi%atm_int_size
+             limkl = sepj%atm_int_size
              istep = limkl * limij
-             ww_d(:,1:istep) = 0.0_dp
+             DO i1 = 1, istep 
+                ww_d(1,i1) = 0.0_dp
+                ww_d(2,i1) = 0.0_dp
+                ww_d(3,i1) = 0.0_dp
+             END DO
              
              ! Second step in rotation of integrals
              DO i1 = 1, ii
@@ -1223,37 +1317,55 @@ CONTAINS
                       DO l = 1, k
                          kl = indexb(k, l)
                          IF (logv_d(ij, kl)) THEN
-                            wrepp_d = v_d(:,ij, kl)
-                            wrepp   =   v(  ij, kl)
+                            wrepp_d(1) = v_d(1,ij, kl)
+                            wrepp_d(2) = v_d(2,ij, kl)
+                            wrepp_d(3) = v_d(3,ij, kl)
+                            wrepp      =   v(  ij, kl)
                             SELECT CASE (mm)
                             CASE(1)
                                ! (SS/)
                                i = 1
                                j = 1
                                iw_loc = (indexb(i,j)-1) * limkl + kl
-                               ww_d(:, iw_loc) = wrepp_d
+                               ww_d(1, iw_loc) = wrepp_d(1)
+                               ww_d(2, iw_loc) = wrepp_d(2)
+                               ww_d(3, iw_loc) = wrepp_d(3)
                             CASE(2)
                                ! (SP/)
                                j = 1
                                DO i = 1, 3
                                   iw_loc = (indexb(i+1,j)-1) * limkl + kl
-                                  ww_d(:, iw_loc) = ww_d(:, iw_loc) + ij_matrix%sp_d(:, i1-1, i) * wrepp +&
-                                                                      ij_matrix%sp  (   i1-1, i) * wrepp_d
+                                  ww_d(1, iw_loc) = ww_d(1, iw_loc) + ij_matrix%sp_d(1, i1-1, i) * wrepp +&
+                                                                      ij_matrix%sp  (   i1-1, i) * wrepp_d(1)
+
+                                  ww_d(2, iw_loc) = ww_d(2, iw_loc) + ij_matrix%sp_d(2, i1-1, i) * wrepp +&
+                                                                      ij_matrix%sp  (   i1-1, i) * wrepp_d(2)
+
+                                  ww_d(3, iw_loc) = ww_d(3, iw_loc) + ij_matrix%sp_d(3, i1-1, i) * wrepp +&
+                                                                      ij_matrix%sp  (   i1-1, i) * wrepp_d(3)
                                END DO
                             CASE(3)
                                ! (PP/)
                                DO i = 1, 3
-                                  cc   = ij_matrix%pp  (   i, i1-1, j1-1)
-                                  cc_d = ij_matrix%pp_d(:, i, i1-1, j1-1)
-                                  iw_loc = (indexb(i+1,i+1)-1) * limkl + kl
-                                  ww_d(:, iw_loc) = ww_d(:, iw_loc) + cc_d * wrepp + cc *wrepp_d
+                                  cc      = ij_matrix%pp  (   i, i1-1, j1-1)
+                                  cc_d(1) = ij_matrix%pp_d(1, i, i1-1, j1-1)
+                                  cc_d(2) = ij_matrix%pp_d(2, i, i1-1, j1-1)
+                                  cc_d(3) = ij_matrix%pp_d(3, i, i1-1, j1-1)
+                                  iw_loc  = (indexb(i+1,i+1)-1) * limkl + kl
+                                  ww_d(1, iw_loc) = ww_d(1, iw_loc) + cc_d(1) * wrepp + cc *wrepp_d(1)
+                                  ww_d(2, iw_loc) = ww_d(2, iw_loc) + cc_d(2) * wrepp + cc *wrepp_d(2)
+                                  ww_d(3, iw_loc) = ww_d(3, iw_loc) + cc_d(3) * wrepp + cc *wrepp_d(3)
                                   iminus = i - 1
                                   IF (iminus /= 0) THEN
                                      DO j = 1, iminus
-                                        cc   = ij_matrix%pp  (   1+i+j, i1-1, j1-1)
-                                        cc_d = ij_matrix%pp_d(:, 1+i+j, i1-1, j1-1)
+                                        cc      = ij_matrix%pp  (   1+i+j, i1-1, j1-1)
+                                        cc_d(1) = ij_matrix%pp_d(1, 1+i+j, i1-1, j1-1)
+                                        cc_d(2) = ij_matrix%pp_d(2, 1+i+j, i1-1, j1-1)
+                                        cc_d(3) = ij_matrix%pp_d(3, 1+i+j, i1-1, j1-1)
                                         iw_loc = (indexb(i+1,j+1)-1) * limkl + kl
-                                        ww_d(:, iw_loc) = ww_d(:, iw_loc) + cc_d * wrepp + cc * wrepp_d
+                                        ww_d(1, iw_loc) = ww_d(1, iw_loc) + cc_d(1) * wrepp + cc * wrepp_d(1)
+                                        ww_d(2, iw_loc) = ww_d(2, iw_loc) + cc_d(2) * wrepp + cc * wrepp_d(2)
+                                        ww_d(3, iw_loc) = ww_d(3, iw_loc) + cc_d(3) * wrepp + cc * wrepp_d(3)
                                      END DO
                                   END IF
                                END DO
@@ -1262,8 +1374,14 @@ CONTAINS
                                j = 1
                                DO i = 1, 5
                                   iw_loc = (indexb(i+4,j)-1) * limkl + kl
-                                  ww_d(:, iw_loc) = ww_d(:, iw_loc) + ij_matrix%sd_d(:, i1-4, i) * wrepp +&
-                                                                      ij_matrix%sd  (   i1-4, i) * wrepp_d
+                                  ww_d(1, iw_loc) = ww_d(1, iw_loc) + ij_matrix%sd_d(1, i1-4, i) * wrepp +&
+                                                                      ij_matrix%sd  (   i1-4, i) * wrepp_d(1)
+
+                                  ww_d(2, iw_loc) = ww_d(2, iw_loc) + ij_matrix%sd_d(2, i1-4, i) * wrepp +&
+                                                                      ij_matrix%sd  (   i1-4, i) * wrepp_d(2)
+
+                                  ww_d(3, iw_loc) = ww_d(3, iw_loc) + ij_matrix%sd_d(3, i1-4, i) * wrepp +&
+                                                                      ij_matrix%sd  (   i1-4, i) * wrepp_d(3)
                                END DO
                             CASE(5)
                                ! (DP/)
@@ -1271,8 +1389,14 @@ CONTAINS
                                   DO j = 1, 3
                                      iw_loc = (indexb(i+4,j+1)-1) * limkl + kl
                                      ij1 = 3 * (i-1) + j
-                                     ww_d(:, iw_loc) = ww_d(:, iw_loc) + ij_matrix%pd_d(:, ij1, i1-4, j1-1) * wrepp +&
-                                                                         ij_matrix%pd  (   ij1, i1-4, j1-1) * wrepp_d
+                                     ww_d(1, iw_loc) = ww_d(1, iw_loc) + ij_matrix%pd_d(1, ij1, i1-4, j1-1) * wrepp +&
+                                                                         ij_matrix%pd  (   ij1, i1-4, j1-1) * wrepp_d(1)
+
+                                     ww_d(2, iw_loc) = ww_d(2, iw_loc) + ij_matrix%pd_d(2, ij1, i1-4, j1-1) * wrepp +&
+                                                                         ij_matrix%pd  (   ij1, i1-4, j1-1) * wrepp_d(2)
+
+                                     ww_d(3, iw_loc) = ww_d(3, iw_loc) + ij_matrix%pd_d(3, ij1, i1-4, j1-1) * wrepp +&
+                                                                         ij_matrix%pd  (   ij1, i1-4, j1-1) * wrepp_d(3)
                                   END DO
                                END DO
                             CASE(6)
@@ -1281,15 +1405,21 @@ CONTAINS
                                   cc   = ij_matrix%dd  (   i, i1-4, j1-4)
                                   cc_d = ij_matrix%dd_d(:, i, i1-4, j1-4)
                                   iw_loc = (indexb(i+4,i+4)-1) * limkl + kl
-                                  ww_d(:, iw_loc) = ww_d(:, iw_loc) + cc_d * wrepp + cc * wrepp_d
+                                  ww_d(1, iw_loc) = ww_d(1, iw_loc) + cc_d(1) * wrepp + cc * wrepp_d(1)
+                                  ww_d(2, iw_loc) = ww_d(2, iw_loc) + cc_d(2) * wrepp + cc * wrepp_d(2)
+                                  ww_d(3, iw_loc) = ww_d(3, iw_loc) + cc_d(3) * wrepp + cc * wrepp_d(3)
                                   iminus = i - 1
                                   IF (iminus /= 0) THEN
                                      DO j = 1, iminus
                                         ij1 = inddd(i, j)
-                                        cc   = ij_matrix%dd  (   ij1, i1-4, j1-4)
-                                        cc_d = ij_matrix%dd_d(:, ij1, i1-4, j1-4)
+                                        cc      = ij_matrix%dd  (   ij1, i1-4, j1-4)
+                                        cc_d(1) = ij_matrix%dd_d(1, ij1, i1-4, j1-4)
+                                        cc_d(2) = ij_matrix%dd_d(2, ij1, i1-4, j1-4)
+                                        cc_d(3) = ij_matrix%dd_d(3, ij1, i1-4, j1-4)
                                         iw_loc = (indexb(i+4,j+4)-1) * limkl + kl
-                                        ww_d(:, iw_loc) = ww_d(:, iw_loc) + cc_d * wrepp + cc * wrepp_d
+                                        ww_d(1, iw_loc) = ww_d(1, iw_loc) + cc_d(1) * wrepp + cc * wrepp_d(1)
+                                        ww_d(2, iw_loc) = ww_d(2, iw_loc) + cc_d(2) * wrepp + cc * wrepp_d(2)
+                                        ww_d(3, iw_loc) = ww_d(3, iw_loc) + cc_d(3) * wrepp + cc * wrepp_d(3)
                                      END DO
                                   END IF
                                END DO
@@ -1300,8 +1430,6 @@ CONTAINS
                 END DO
              END DO
              ! Store two electron integrals in the triangular format
-             limij = (ii*(ii+1))/2
-             limkl = (kk*(kk+1))/2
              CALL store_2el_2c_diag(limij, limkl, ww_dx=ww_d(1,1:istep), ww_dy=ww_d(2,1:istep), ww_dz=ww_d(3,1:istep),&
                   dw=dw, error=error)
              IF (invert) CALL invert_derivative(sepi, sepj, dint2el=dw, error=error)
@@ -1346,52 +1474,71 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dterep_ana', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i, i1, ij, j1, k1, kl, l1
     LOGICAL                                  :: failure, longrange
     REAL(dp), DIMENSION(491)                 :: rep_d_lr, rep_lr
     REAL(KIND=dp)                            :: dft, ft
 
-    failure = .FALSE.
+    failure   = .FALSE.
     longrange = .FALSE.
+    ft        = taper_eval(taper,rij,error)
     IF (PRESENT(do_longrange))  longrange = do_longrange
-    rep   = 0.0_dp
-    IF (lgrad) THEN
-       rep_d = 0.0_dp
-    END IF
 
     ! Integral Values for sp shells only
-    CALL  terep_sp_num(sepi, sepj, rij,   rep(1:34), longrange, error=error)
+    CALL  terep_sp_num(sepi, sepj, rij, rep, longrange, ft=ft, error=error)
 
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d-orbitals
-       CALL  terep_d_num (sepi, sepj, rij, rep,   longrange, error=error )
+       CALL  terep_d_num (sepi, sepj, rij, rep, longrange, ft=ft, error=error)
     END IF
 
     IF (lgrad) THEN
+       dft= dtaper_eval(taper,rij,error)
        ! Integral Derivatives
-       CALL dterep_sp_ana(sepi, sepj, rij, rep_d(1:34), longrange, error=error)
+       CALL dterep_sp_ana(sepi, sepj, rij, rep_d, rep, longrange, ft, dft, error=error)
 
        IF (sepi%dorb.OR.sepj%dorb) THEN
           ! Compute the derivatives from d-orbitals
-          CALL dterep_d_ana (sepi, sepj, rij, rep_d, longrange, error=error )
+          CALL dterep_d_ana (sepi, sepj, rij, rep_d, rep, longrange, ft, dft, error=error)
        END IF
     END IF
 
     IF (shortrange) THEN
        CALL dterep_ana ( sepi, sepj, rij, rep_lr, rep_d_lr, taper, shortrange=.FALSE.,&
             do_longrange=.TRUE., lgrad=lgrad, error=error)
-       ! Correct Integral and Derivatives values
-                   rep  =   rep -   rep_lr
-       IF (lgrad) rep_d = rep_d - rep_d_lr
-    END IF
 
-    ! Tapering function
-    IF (.NOT.longrange) THEN
-       ft =  taper_eval(taper,rij,error)
-       dft= dtaper_eval(taper,rij,error)
+       ! Correct Integral and Derivatives values
+       DO i1 = 1, sepi%natorb
+          DO j1 = 1, i1
+             ij = indexa(i1, j1)
+             DO k1 = 1, sepj%natorb
+                DO l1 = 1, k1
+                   kl = indexa(k1, l1)
+                   i = ijkl_ind(ij, kl)
+                   IF (i /= 0) THEN
+                      rep(i) =   rep(i) -   rep_lr(i)
+                   END IF
+                END DO
+             END DO
+          END DO
+       END DO
+       ! Derivatives
        IF (lgrad) THEN
-          rep_d(:) = dft*rep(:)+ft*rep_d(:)
+          DO i1 = 1, sepi%natorb
+             DO j1 = 1, i1
+                ij = indexa(i1, j1)
+                DO k1 = 1, sepj%natorb
+                   DO l1 = 1, k1
+                      kl = indexa(k1, l1)
+                      i = ijkl_ind(ij, kl)
+                      IF (i /= 0) THEN
+                         rep_d(i) = rep_d(i) - rep_d_lr(i)
+                      END IF
+                   END DO
+                END DO
+             END DO
+          END DO
        END IF
-       rep(:) = ft*rep(:)
     END IF
 
     ! Possibly debug 2el 2cent integrals and derivatives
@@ -1421,11 +1568,13 @@ CONTAINS
 !>      05.2008 Teodoro Laino [tlaino] - University of Zurich: major rewriting
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE dterep_sp_ana ( sepi, sepj, rij, drep, longrange, error)
+  SUBROUTINE dterep_sp_ana ( sepi, sepj, rij, drep, rep, longrange, ft, dft, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
-    REAL(dp), DIMENSION(34), INTENT(INOUT)   :: drep
+    REAL(dp), DIMENSION(491), INTENT(OUT)    :: drep
+    REAL(dp), DIMENSION(491), INTENT(IN)     :: rep
     LOGICAL, INTENT(IN)                      :: longrange
+    REAL(dp), INTENT(IN)                     :: ft, dft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dterep_sp_ana', &
@@ -1435,6 +1584,7 @@ CONTAINS
                                                 lastj, li, lj, lk, ll, nold, &
                                                 numb
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: tmp
 
     failure = .FALSE.
     lasti = sepi%natorb
@@ -1458,8 +1608,9 @@ CONTAINS
                    ELSE IF (nold < 0) THEN
                       drep(numb) = -drep(-nold)
                    ELSE IF (nold == 0) THEN
-                      drep(numb) = d_ijkl_sp (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
-                                              longrange, do_method_undef, error)
+                      tmp = d_ijkl_sp (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
+                                       longrange, do_method_undef, error)
+                      drep(numb) = dft*rep(numb)+ft*tmp
                    END IF
                 END IF
              END DO
@@ -1481,11 +1632,13 @@ CONTAINS
 !>      Teodoro Laino (05.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integral derivatives for d-orbitals
 ! *****************************************************************************
-  SUBROUTINE dterep_d_ana (sepi, sepj, rij, drep, longrange, error )
+  SUBROUTINE dterep_d_ana (sepi, sepj, rij, drep, rep, longrange, ft, dft, error )
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(INOUT)  :: drep
+    REAL(dp), DIMENSION(491), INTENT(IN)     :: rep
     LOGICAL, INTENT(IN)                      :: longrange
+    REAL(dp), INTENT(IN)                     :: ft, dft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dterep_d_ana', &
@@ -1495,6 +1648,7 @@ CONTAINS
                                                 lastj, li, lj, lk, ll, nold, &
                                                 numb
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: tmp
 
     failure = .FALSE.
     lasti = sepi%natorb
@@ -1519,8 +1673,9 @@ CONTAINS
                    ELSE IF (nold <-34) THEN
                       drep(numb) = -drep(-nold)
                    ELSE IF (nold == 0) THEN
-                      drep(numb) = d_ijkl_d (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
-                                             longrange, do_method_undef, error)
+                      tmp = d_ijkl_d (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
+                                      longrange, do_method_undef, error)
+                      drep(numb) = dft*rep(numb)+ft*tmp
                    END IF
                 END IF
              END DO

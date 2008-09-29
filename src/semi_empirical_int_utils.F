@@ -1083,289 +1083,132 @@ CONTAINS
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(ij_matrix),cp_failure_level,routineP,error,failure)
-    ! Compute Geomtric data and interatomic distance
-    !     CA  = COS(PHI)    , SA  = SIN(PHI)
-    !     CB  = COS(THETA)  , SB  = SIN(THETA)
-    !     C2A = COS(2*PHI)  , S2A = SIN(2*PHI)
-    !     C2B = COS(2*THETA), S2B = SIN(2*PHI)
-    eval    = .TRUE.
-    dbg_inv = .FALSE.
-    pt5sq3  = 0.5_dp*SQRT(3.0_dp)
-    imap(1) = 1
-    imap(2) = 2
-    imap(3) = 3
-    check   = rjiv(3)/r
-    IF (PRESENT(debug_invert)) dbg_inv = debug_invert
-    ! Check for special case: both atoms lie on the Z Axis
-    IF (ABS(check) > 0.99999999_dp) THEN
-       IF (PRESENT(do_invert)) THEN
+    IF ((sepi%natorb>1).OR.(sepj%natorb>1)) THEN
+       ! Compute Geomtric data and interatomic distance
+       !     CA  = COS(PHI)    , SA  = SIN(PHI)
+       !     CB  = COS(THETA)  , SB  = SIN(THETA)
+       !     C2A = COS(2*PHI)  , S2A = SIN(2*PHI)
+       !     C2B = COS(2*THETA), S2B = SIN(2*PHI)
+       eval    = .TRUE.
+       dbg_inv = .FALSE.
+       pt5sq3  = 0.5_dp*SQRT(3.0_dp)
+       imap(1) = 1
+       imap(2) = 2
+       imap(3) = 3
+       check   = rjiv(3)/r
+       IF (PRESENT(debug_invert)) dbg_inv = debug_invert
+       ! Check for special case: both atoms lie on the Z Axis
+       IF (ABS(check) > 0.99999999_dp) THEN
+          IF (PRESENT(do_invert)) THEN
+             imap(1)   = 3
+             imap(2)   = 2
+             imap(3)   = 1
+             eval      = .TRUE.
+             do_invert = .TRUE.
+          ELSE
+             sa      =  0.0_dp
+             sb      =  0.0_dp
+             IF      (check < 0.0_dp) THEN
+                ca   = -1.0_dp
+                cb   = -1.0_dp
+             ELSE IF (check > 0.0_dp) THEN
+                ca   =  1.0_dp
+                cb   =  1.0_dp
+             ELSE
+                ca   =  0.0_dp
+                cb   =  0.0_dp
+             END IF
+             eval    = .FALSE.
+          END IF
+       ELSE
+          IF (PRESENT(do_invert)) do_invert = .FALSE.
+       END IF
+       IF (dbg_inv) THEN
+          ! When debugging the derivatives of the rotation matrix we must possibly force
+          ! the inversion of the reference frame
+          CPPostcondition(.NOT.do_derivatives,cp_failure_level,routineP,error,failure)
           imap(1)   = 3
           imap(2)   = 2
           imap(3)   = 1
           eval      = .TRUE.
-          do_invert = .TRUE.
-       ELSE
-          sa      =  0.0_dp
-          sb      =  0.0_dp
-          IF      (check < 0.0_dp) THEN
-             ca   = -1.0_dp
-             cb   = -1.0_dp
-          ELSE IF (check > 0.0_dp) THEN
-             ca   =  1.0_dp
-             cb   =  1.0_dp
-          ELSE
-             ca   =  0.0_dp
-             cb   =  0.0_dp
-          END IF
-          eval    = .FALSE.
        END IF
-    ELSE
-       IF (PRESENT(do_invert)) do_invert = .FALSE.
-    END IF
-    IF (dbg_inv) THEN
-       ! When debugging the derivatives of the rotation matrix we must possibly force
-       ! the inversion of the reference frame
-       CPPostcondition(.NOT.do_derivatives,cp_failure_level,routineP,error,failure)
-       imap(1)   = 3
-       imap(2)   = 2
-       imap(3)   = 1
-       eval      = .TRUE.
-    END IF
-    IF (eval) THEN
-       x11   = rjiv(imap(1))
-       x22   = rjiv(imap(2))
-       x33   = rjiv(imap(3))
-       cb    = x33/r
-       b     = x11**2 + x22**2
-       sqb   = SQRT(b)
-       ca    = x11/sqb
-       sa    = x22/sqb
-       sb    = sqb/r
-    END IF
-    ! Calculate rotation matrix elements
-    p(1, 1) =  ca * sb
-    p(2, 1) =  ca * cb
-    p(3, 1) = -sa
-    p(1, 2) =  sa * sb
-    p(2, 2) =  sa * cb
-    p(3, 2) =  ca
-    p(1, 3) =  cb
-    p(2, 3) = -sb
-    p(3, 3) =  0.0_dp
-    IF (sepi%dorb.OR.sepj%dorb) THEN
-       ca2 = ca**2
-       cb2 = cb**2
-       sb2 = sb**2
-       c2a = 2.0_dp * ca2 - 1.0_dp
-       c2b = 2.0_dp * cb2 - 1.0_dp
-       s2a = 2.0_dp * sa * ca
-       s2b = 2.0_dp * sb * cb
-       d(1, 1) =  pt5sq3 * c2a * sb2
-       d(2, 1) =  0.5_dp * c2a * s2b
-       d(3, 1) = -s2a * sb
-       d(4, 1) =  c2a * (cb2+0.5_dp*sb2)
-       d(5, 1) = -s2a * cb
-       d(1, 2) =  pt5sq3 * ca * s2b
-       d(2, 2) =  ca * c2b
-       d(3, 2) = -sa * cb
-       d(4, 2) = -0.5_dp * ca * s2b
-       d(5, 2) =  sa * sb
-       d(1, 3) =  cb2 - 0.5_dp * sb2
-       d(2, 3) = -pt5sq3 * s2b
-       d(3, 3) =  0.0_dp
-       d(4, 3) =  pt5sq3 * sb2
-       d(5, 3) =  0.0_dp
-       d(1, 4) =  pt5sq3 * sa * s2b
-       d(2, 4) =  sa * c2b
-       d(3, 4) =  ca * cb
-       d(4, 4) = -0.5_dp * sa * s2b
-       d(5, 4) = -ca * sb
-       d(1, 5) =  pt5sq3 * s2a * sb2
-       d(2, 5) =  0.5_dp * s2a * s2b
-       d(3, 5) =  c2a * sb
-       d(4, 5) =  s2a * (cb2+0.5_dp*sb2)
-       d(5, 5) =  c2a * cb
-    END IF
-    !  Rotation Elements for : S-P
-    DO k = 1, 3
-       DO l = 1, 3
-          ij_matrix%sp(k, l) = p(k, l)
-       END DO
-    END DO
-    !  Rotation Elements for : P-P
-    DO k = 1, 3
-       ij_matrix%pp(1, k, k) = p(k, 1) * p(k, 1)
-       ij_matrix%pp(2, k, k) = p(k, 2) * p(k, 2)
-       ij_matrix%pp(3, k, k) = p(k, 3) * p(k, 3)
-       ij_matrix%pp(4, k, k) = p(k, 1) * p(k, 2)
-       ij_matrix%pp(5, k, k) = p(k, 1) * p(k, 3)
-       ij_matrix%pp(6, k, k) = p(k, 2) * p(k, 3)
-       IF (k /= 1) THEN
-          DO l = 1, k - 1
-             ij_matrix%pp(1, k, l) = 2.0_dp * p(k, 1) * p(l, 1)
-             ij_matrix%pp(2, k, l) = 2.0_dp * p(k, 2) * p(l, 2)
-             ij_matrix%pp(3, k, l) = 2.0_dp * p(k, 3) * p(l, 3)
-             ij_matrix%pp(4, k, l) = p(k, 1) * p(l, 2) + p(k, 2) * p(l, 1)
-             ij_matrix%pp(5, k, l) = p(k, 1) * p(l, 3) + p(k, 3) * p(l, 1)
-             ij_matrix%pp(6, k, l) = p(k, 2) * p(l, 3) + p(k, 3) * p(l, 2)
-          END DO
+       IF (eval) THEN
+          x11   = rjiv(imap(1))
+          x22   = rjiv(imap(2))
+          x33   = rjiv(imap(3))
+          cb    = x33/r
+          b     = x11**2 + x22**2
+          sqb   = SQRT(b)
+          ca    = x11/sqb
+          sa    = x22/sqb
+          sb    = sqb/r
        END IF
-    END DO
-    IF (sepi%dorb.OR.sepj%dorb) THEN
-       !  Rotation Elements for : S-D
-       DO k = 1, 5
-          DO l = 1, 5
-             ij_matrix%sd(k, l) = d(k, l)
-          END DO
-       END DO
-       !  Rotation Elements for : D-P
-       DO k = 1, 5
-          DO l = 1, 3
-             ij_matrix%pd( 1, k, l) = d(k, 1) * p(l, 1)
-             ij_matrix%pd( 2, k, l) = d(k, 1) * p(l, 2)
-             ij_matrix%pd( 3, k, l) = d(k, 1) * p(l, 3)
-             ij_matrix%pd( 4, k, l) = d(k, 2) * p(l, 1)
-             ij_matrix%pd( 5, k, l) = d(k, 2) * p(l, 2)
-             ij_matrix%pd( 6, k, l) = d(k, 2) * p(l, 3)
-             ij_matrix%pd( 7, k, l) = d(k, 3) * p(l, 1)
-             ij_matrix%pd( 8, k, l) = d(k, 3) * p(l, 2)
-             ij_matrix%pd( 9, k, l) = d(k, 3) * p(l, 3)
-             ij_matrix%pd(10, k, l) = d(k, 4) * p(l, 1)
-             ij_matrix%pd(11, k, l) = d(k, 4) * p(l, 2)
-             ij_matrix%pd(12, k, l) = d(k, 4) * p(l, 3)
-             ij_matrix%pd(13, k, l) = d(k, 5) * p(l, 1)
-             ij_matrix%pd(14, k, l) = d(k, 5) * p(l, 2)
-             ij_matrix%pd(15, k, l) = d(k, 5) * p(l, 3)
-          END DO
-       END DO
-       !  Rotation Elements for : D-D
-       DO k = 1, 5
-          ij_matrix%dd( 1, k, k) = d(k, 1) * d(k, 1)
-          ij_matrix%dd( 2, k, k) = d(k, 2) * d(k, 2)
-          ij_matrix%dd( 3, k, k) = d(k, 3) * d(k, 3)
-          ij_matrix%dd( 4, k, k) = d(k, 4) * d(k, 4)
-          ij_matrix%dd( 5, k, k) = d(k, 5) * d(k, 5)
-          ij_matrix%dd( 6, k, k) = d(k, 1) * d(k, 2)
-          ij_matrix%dd( 7, k, k) = d(k, 1) * d(k, 3)
-          ij_matrix%dd( 8, k, k) = d(k, 2) * d(k, 3)
-          ij_matrix%dd( 9, k, k) = d(k, 1) * d(k, 4)
-          ij_matrix%dd(10, k, k) = d(k, 2) * d(k, 4)
-          ij_matrix%dd(11, k, k) = d(k, 3) * d(k, 4)
-          ij_matrix%dd(12, k, k) = d(k, 1) * d(k, 5)
-          ij_matrix%dd(13, k, k) = d(k, 2) * d(k, 5)
-          ij_matrix%dd(14, k, k) = d(k, 3) * d(k, 5)
-          ij_matrix%dd(15, k, k) = d(k, 4) * d(k, 5)
-          IF (k /= 1) THEN
-             DO l = 1, k - 1
-                ij_matrix%dd( 1, k, l) = 2.0_dp  * d(k, 1) * d(l, 1)
-                ij_matrix%dd( 2, k, l) = 2.0_dp  * d(k, 2) * d(l, 2)
-                ij_matrix%dd( 3, k, l) = 2.0_dp  * d(k, 3) * d(l, 3)
-                ij_matrix%dd( 4, k, l) = 2.0_dp  * d(k, 4) * d(l, 4)
-                ij_matrix%dd( 5, k, l) = 2.0_dp  * d(k, 5) * d(l, 5)
-                ij_matrix%dd( 6, k, l) = d(k, 1) * d(l, 2) + d(k, 2) * d(l, 1)
-                ij_matrix%dd( 7, k, l) = d(k, 1) * d(l, 3) + d(k, 3) * d(l, 1)
-                ij_matrix%dd( 8, k, l) = d(k, 2) * d(l, 3) + d(k, 3) * d(l, 2)
-                ij_matrix%dd( 9, k, l) = d(k, 1) * d(l, 4) + d(k, 4) * d(l, 1)
-                ij_matrix%dd(10, k, l) = d(k, 2) * d(l, 4) + d(k, 4) * d(l, 2)
-                ij_matrix%dd(11, k, l) = d(k, 3) * d(l, 4) + d(k, 4) * d(l, 3)
-                ij_matrix%dd(12, k, l) = d(k, 1) * d(l, 5) + d(k, 5) * d(l, 1)
-                ij_matrix%dd(13, k, l) = d(k, 2) * d(l, 5) + d(k, 5) * d(l, 2)
-                ij_matrix%dd(14, k, l) = d(k, 3) * d(l, 5) + d(k, 5) * d(l, 3)
-                ij_matrix%dd(15, k, l) = d(k, 4) * d(l, 5) + d(k, 5) * d(l, 4)
-             END DO
-          END IF
-       END DO
-    ELSE
-       ij_matrix%sd = 0.0_dp
-       ij_matrix%pd = 0.0_dp
-       ij_matrix%dd = 0.0_dp
-    END IF
-    ! Evaluate Derivatives if required
-    IF (do_derivatives) THEN
-       ! This condition is necessary because derivatives uses the invertion of the
-       ! axis for treating the divergence point along z-axis
-       CPPostcondition(eval,cp_failure_level,routineP,error,failure)
-       x11_d = 0.0_dp; x11_d(1) = 1.0_dp
-       x22_d = 0.0_dp; x22_d(2) = 1.0_dp
-       x33_d = 0.0_dp; x33_d(3) = 1.0_dp
-       r_d   = (/x11,x22,x33/)/r
-       b_d   = 2.0_dp*(x11*x11_d + x22*x22_d)
-       sqb_d = (0.5_dp/sqb)*b_d
-       r2i   = 1.0_dp/r**2
-       sqb2i = 1.0_dp/sqb**2
-       cb_d  = (x33_d*r-x33*r_d)*r2i
-       ca_d  = (x11_d*sqb-x11*sqb_d)*sqb2i
-       sa_d  = (x22_d*sqb-x22*sqb_d)*sqb2i
-       sb_d  = (sqb_d*r-sqb*r_d)*r2i
-       ! Calculate derivatives of rotation matrix elements
-       p_d(:, 1, 1) =  ca_d * sb + ca * sb_d
-       p_d(:, 2, 1) =  ca_d * cb + ca * cb_d
-       p_d(:, 3, 1) = -sa_d
-       p_d(:, 1, 2) =  sa_d * sb + sa * sb_d
-       p_d(:, 2, 2) =  sa_d * cb + sa * cb_d
-       p_d(:, 3, 2) =  ca_d
-       p_d(:, 1, 3) =  cb_d
-       p_d(:, 2, 3) = -sb_d
-       p_d(:, 3, 3) =  0.0_dp
+       ! Calculate rotation matrix elements
+       p(1, 1) =  ca * sb
+       p(2, 1) =  ca * cb
+       p(3, 1) = -sa
+       p(1, 2) =  sa * sb
+       p(2, 2) =  sa * cb
+       p(3, 2) =  ca
+       p(1, 3) =  cb
+       p(2, 3) = -sb
+       p(3, 3) =  0.0_dp
        IF (sepi%dorb.OR.sepj%dorb) THEN
-          ca2_d = 2.0_dp * ca * ca_d
-          cb2_d = 2.0_dp * cb * cb_d
-          sb2_d = 2.0_dp * sb * sb_d
-          c2a_d = 2.0_dp * ca2_d
-          c2b_d = 2.0_dp * cb2_d
-          s2a_d = 2.0_dp * ( sa_d * ca + sa * ca_d )
-          s2b_d = 2.0_dp * ( sb_d * cb + sb * cb_d )
-          d_d(:, 1, 1) =  pt5sq3 * ( c2a_d * sb2 + c2a * sb2_d )
-          d_d(:, 2, 1) =  0.5_dp * ( c2a_d * s2b + c2a * s2b_d )
-          d_d(:, 3, 1) = -s2a_d * sb - s2a * sb_d
-          d_d(:, 4, 1) =  c2a_d * (cb2+0.5_dp*sb2) + c2a * (cb2_d+0.5_dp*sb2_d)
-          d_d(:, 5, 1) = -s2a_d * cb - s2a * cb_d
-          d_d(:, 1, 2) =  pt5sq3 * ( ca_d * s2b + ca * s2b_d )
-          d_d(:, 2, 2) =  ca_d * c2b + ca * c2b_d
-          d_d(:, 3, 2) = -sa_d * cb - sa * cb_d
-          d_d(:, 4, 2) = -0.5_dp * ( ca_d * s2b + ca * s2b_d ) 
-          d_d(:, 5, 2) =  sa_d * sb + sa * sb_d
-          d_d(:, 1, 3) =  cb2_d - 0.5_dp * sb2_d
-          d_d(:, 2, 3) = -pt5sq3 * s2b_d
-          d_d(:, 3, 3) =  0.0_dp
-          d_d(:, 4, 3) =  pt5sq3 * sb2_d
-          d_d(:, 5, 3) =  0.0_dp
-          d_d(:, 1, 4) =  pt5sq3 * ( sa_d * s2b + sa * s2b_d )  
-          d_d(:, 2, 4) =  sa_d * c2b + sa * c2b_d
-          d_d(:, 3, 4) =  ca_d * cb + ca * cb_d 
-          d_d(:, 4, 4) = -0.5_dp * ( sa_d * s2b + sa * s2b_d )
-          d_d(:, 5, 4) = -ca_d * sb -ca * sb_d
-          d_d(:, 1, 5) =  pt5sq3 * ( s2a_d * sb2 + s2a * sb2_d )
-          d_d(:, 2, 5) =  0.5_dp * ( s2a_d * s2b + s2a * s2b_d )
-          d_d(:, 3, 5) =  c2a_d * sb + c2a * sb_d 
-          d_d(:, 4, 5) =  s2a_d * (cb2+0.5_dp*sb2) + s2a * (cb2_d+0.5_dp*sb2_d)
-          d_d(:, 5, 5) =  c2a_d * cb + c2a * cb_d 
+          ca2 = ca**2
+          cb2 = cb**2
+          sb2 = sb**2
+          c2a = 2.0_dp * ca2 - 1.0_dp
+          c2b = 2.0_dp * cb2 - 1.0_dp
+          s2a = 2.0_dp * sa * ca
+          s2b = 2.0_dp * sb * cb
+          d(1, 1) =  pt5sq3 * c2a * sb2
+          d(2, 1) =  0.5_dp * c2a * s2b
+          d(3, 1) = -s2a * sb
+          d(4, 1) =  c2a * (cb2+0.5_dp*sb2)
+          d(5, 1) = -s2a * cb
+          d(1, 2) =  pt5sq3 * ca * s2b
+          d(2, 2) =  ca * c2b
+          d(3, 2) = -sa * cb
+          d(4, 2) = -0.5_dp * ca * s2b
+          d(5, 2) =  sa * sb
+          d(1, 3) =  cb2 - 0.5_dp * sb2
+          d(2, 3) = -pt5sq3 * s2b
+          d(3, 3) =  0.0_dp
+          d(4, 3) =  pt5sq3 * sb2
+          d(5, 3) =  0.0_dp
+          d(1, 4) =  pt5sq3 * sa * s2b
+          d(2, 4) =  sa * c2b
+          d(3, 4) =  ca * cb
+          d(4, 4) = -0.5_dp * sa * s2b
+          d(5, 4) = -ca * sb
+          d(1, 5) =  pt5sq3 * s2a * sb2
+          d(2, 5) =  0.5_dp * s2a * s2b
+          d(3, 5) =  c2a * sb
+          d(4, 5) =  s2a * (cb2+0.5_dp*sb2)
+          d(5, 5) =  c2a * cb
        END IF
-       !  Derivative for Rotation Elements for : S-P
+       !  Rotation Elements for : S-P
        DO k = 1, 3
           DO l = 1, 3
-             ij_matrix%sp_d(:, k, l) = p_d(:, k, l)
+             ij_matrix%sp(k, l) = p(k, l)
           END DO
        END DO
-       !  Derivative for Rotation Elements for : P-P
+       !  Rotation Elements for : P-P
        DO k = 1, 3
-          ij_matrix%pp_d(:, 1, k, k) = p_d(:, k, 1) * p(k, 1) +  p(k, 1) * p_d(:, k, 1)
-          ij_matrix%pp_d(:, 2, k, k) = p_d(:, k, 2) * p(k, 2) +  p(k, 2) * p_d(:, k, 2)
-          ij_matrix%pp_d(:, 3, k, k) = p_d(:, k, 3) * p(k, 3) +  p(k, 3) * p_d(:, k, 3)
-          ij_matrix%pp_d(:, 4, k, k) = p_d(:, k, 1) * p(k, 2) +  p(k, 1) * p_d(:, k, 2)
-          ij_matrix%pp_d(:, 5, k, k) = p_d(:, k, 1) * p(k, 3) +  p(k, 1) * p_d(:, k, 3)
-          ij_matrix%pp_d(:, 6, k, k) = p_d(:, k, 2) * p(k, 3) +  p(k, 2) * p_d(:, k, 3)
+          ij_matrix%pp(1, k, k) = p(k, 1) * p(k, 1)
+          ij_matrix%pp(2, k, k) = p(k, 2) * p(k, 2)
+          ij_matrix%pp(3, k, k) = p(k, 3) * p(k, 3)
+          ij_matrix%pp(4, k, k) = p(k, 1) * p(k, 2)
+          ij_matrix%pp(5, k, k) = p(k, 1) * p(k, 3)
+          ij_matrix%pp(6, k, k) = p(k, 2) * p(k, 3)
           IF (k /= 1) THEN
              DO l = 1, k - 1
-                ij_matrix%pp_d(:, 1, k, l) = 2.0_dp * ( p_d(:, k, 1) * p(l, 1) + p(k, 1) * p_d(:, l, 1) ) 
-                ij_matrix%pp_d(:, 2, k, l) = 2.0_dp * ( p_d(:, k, 2) * p(l, 2) + p(k, 2) * p_d(:, l, 2) )
-                ij_matrix%pp_d(:, 3, k, l) = 2.0_dp * ( p_d(:, k, 3) * p(l, 3) + p(k, 3) * p_d(:, l, 3) )
-                ij_matrix%pp_d(:, 4, k, l) = ( p_d(:, k, 1) * p(l, 2) + p(k, 1) * p_d(:, l, 2) ) + &
-                                             ( p_d(:, k, 2) * p(l, 1) + p(k, 2) * p_d(:, l, 1) ) 
-                ij_matrix%pp_d(:, 5, k, l) = ( p_d(:, k, 1) * p(l, 3) + p(k, 1) * p_d(:, l, 3) ) + &
-                                             ( p_d(:, k, 3) * p(l, 1) + p(k, 3) * p_d(:, l, 1) ) 
-                ij_matrix%pp_d(:, 6, k, l) = ( p_d(:, k, 2) * p(l, 3) + p(k, 2) * p_d(:, l, 3) ) + &
-                                             ( p_d(:, k, 3) * p(l, 2) + p(k, 3) * p_d(:, l, 2) ) 
+                ij_matrix%pp(1, k, l) = 2.0_dp * p(k, 1) * p(l, 1)
+                ij_matrix%pp(2, k, l) = 2.0_dp * p(k, 2) * p(l, 2)
+                ij_matrix%pp(3, k, l) = 2.0_dp * p(k, 3) * p(l, 3)
+                ij_matrix%pp(4, k, l) = p(k, 1) * p(l, 2) + p(k, 2) * p(l, 1)
+                ij_matrix%pp(5, k, l) = p(k, 1) * p(l, 3) + p(k, 3) * p(l, 1)
+                ij_matrix%pp(6, k, l) = p(k, 2) * p(l, 3) + p(k, 3) * p(l, 2)
              END DO
           END IF
        END DO
@@ -1373,86 +1216,236 @@ CONTAINS
           !  Rotation Elements for : S-D
           DO k = 1, 5
              DO l = 1, 5
-                ij_matrix%sd_d(:, k, l) = d_d(:, k, l)
+                ij_matrix%sd(k, l) = d(k, l)
              END DO
           END DO
           !  Rotation Elements for : D-P
           DO k = 1, 5
              DO l = 1, 3
-                ij_matrix%pd_d(:,  1, k, l) = ( d_d(:, k, 1) * p(l, 1) + d(k, 1) * p_d(:, l, 1) )
-                ij_matrix%pd_d(:,  2, k, l) = ( d_d(:, k, 1) * p(l, 2) + d(k, 1) * p_d(:, l, 2) )
-                ij_matrix%pd_d(:,  3, k, l) = ( d_d(:, k, 1) * p(l, 3) + d(k, 1) * p_d(:, l, 3) )
-                ij_matrix%pd_d(:,  4, k, l) = ( d_d(:, k, 2) * p(l, 1) + d(k, 2) * p_d(:, l, 1) )
-                ij_matrix%pd_d(:,  5, k, l) = ( d_d(:, k, 2) * p(l, 2) + d(k, 2) * p_d(:, l, 2) )
-                ij_matrix%pd_d(:,  6, k, l) = ( d_d(:, k, 2) * p(l, 3) + d(k, 2) * p_d(:, l, 3) )
-                ij_matrix%pd_d(:,  7, k, l) = ( d_d(:, k, 3) * p(l, 1) + d(k, 3) * p_d(:, l, 1) )
-                ij_matrix%pd_d(:,  8, k, l) = ( d_d(:, k, 3) * p(l, 2) + d(k, 3) * p_d(:, l, 2) )
-                ij_matrix%pd_d(:,  9, k, l) = ( d_d(:, k, 3) * p(l, 3) + d(k, 3) * p_d(:, l, 3) )
-                ij_matrix%pd_d(:, 10, k, l) = ( d_d(:, k, 4) * p(l, 1) + d(k, 4) * p_d(:, l, 1) )
-                ij_matrix%pd_d(:, 11, k, l) = ( d_d(:, k, 4) * p(l, 2) + d(k, 4) * p_d(:, l, 2) )
-                ij_matrix%pd_d(:, 12, k, l) = ( d_d(:, k, 4) * p(l, 3) + d(k, 4) * p_d(:, l, 3) )
-                ij_matrix%pd_d(:, 13, k, l) = ( d_d(:, k, 5) * p(l, 1) + d(k, 5) * p_d(:, l, 1) )
-                ij_matrix%pd_d(:, 14, k, l) = ( d_d(:, k, 5) * p(l, 2) + d(k, 5) * p_d(:, l, 2) )
-                ij_matrix%pd_d(:, 15, k, l) = ( d_d(:, k, 5) * p(l, 3) + d(k, 5) * p_d(:, l, 3) )
+                ij_matrix%pd( 1, k, l) = d(k, 1) * p(l, 1)
+                ij_matrix%pd( 2, k, l) = d(k, 1) * p(l, 2)
+                ij_matrix%pd( 3, k, l) = d(k, 1) * p(l, 3)
+                ij_matrix%pd( 4, k, l) = d(k, 2) * p(l, 1)
+                ij_matrix%pd( 5, k, l) = d(k, 2) * p(l, 2)
+                ij_matrix%pd( 6, k, l) = d(k, 2) * p(l, 3)
+                ij_matrix%pd( 7, k, l) = d(k, 3) * p(l, 1)
+                ij_matrix%pd( 8, k, l) = d(k, 3) * p(l, 2)
+                ij_matrix%pd( 9, k, l) = d(k, 3) * p(l, 3)
+                ij_matrix%pd(10, k, l) = d(k, 4) * p(l, 1)
+                ij_matrix%pd(11, k, l) = d(k, 4) * p(l, 2)
+                ij_matrix%pd(12, k, l) = d(k, 4) * p(l, 3)
+                ij_matrix%pd(13, k, l) = d(k, 5) * p(l, 1)
+                ij_matrix%pd(14, k, l) = d(k, 5) * p(l, 2)
+                ij_matrix%pd(15, k, l) = d(k, 5) * p(l, 3)
              END DO
           END DO
           !  Rotation Elements for : D-D
           DO k = 1, 5
-             ij_matrix%dd_d(:,  1, k, k) = ( d_d(:, k, 1) * d(k, 1) + d(k, 1) * d_d(:, k, 1) ) 
-             ij_matrix%dd_d(:,  2, k, k) = ( d_d(:, k, 2) * d(k, 2) + d(k, 2) * d_d(:, k, 2) )
-             ij_matrix%dd_d(:,  3, k, k) = ( d_d(:, k, 3) * d(k, 3) + d(k, 3) * d_d(:, k, 3) )
-             ij_matrix%dd_d(:,  4, k, k) = ( d_d(:, k, 4) * d(k, 4) + d(k, 4) * d_d(:, k, 4) )
-             ij_matrix%dd_d(:,  5, k, k) = ( d_d(:, k, 5) * d(k, 5) + d(k, 5) * d_d(:, k, 5) )
-             ij_matrix%dd_d(:,  6, k, k) = ( d_d(:, k, 1) * d(k, 2) + d(k, 1) * d_d(:, k, 2) )
-             ij_matrix%dd_d(:,  7, k, k) = ( d_d(:, k, 1) * d(k, 3) + d(k, 1) * d_d(:, k, 3) )
-             ij_matrix%dd_d(:,  8, k, k) = ( d_d(:, k, 2) * d(k, 3) + d(k, 2) * d_d(:, k, 3) )
-             ij_matrix%dd_d(:,  9, k, k) = ( d_d(:, k, 1) * d(k, 4) + d(k, 1) * d_d(:, k, 4) )
-             ij_matrix%dd_d(:, 10, k, k) = ( d_d(:, k, 2) * d(k, 4) + d(k, 2) * d_d(:, k, 4) )
-             ij_matrix%dd_d(:, 11, k, k) = ( d_d(:, k, 3) * d(k, 4) + d(k, 3) * d_d(:, k, 4) )
-             ij_matrix%dd_d(:, 12, k, k) = ( d_d(:, k, 1) * d(k, 5) + d(k, 1) * d_d(:, k, 5) )
-             ij_matrix%dd_d(:, 13, k, k) = ( d_d(:, k, 2) * d(k, 5) + d(k, 2) * d_d(:, k, 5) )
-             ij_matrix%dd_d(:, 14, k, k) = ( d_d(:, k, 3) * d(k, 5) + d(k, 3) * d_d(:, k, 5) )
-             ij_matrix%dd_d(:, 15, k, k) = ( d_d(:, k, 4) * d(k, 5) + d(k, 4) * d_d(:, k, 5) )
+             ij_matrix%dd( 1, k, k) = d(k, 1) * d(k, 1)
+             ij_matrix%dd( 2, k, k) = d(k, 2) * d(k, 2)
+             ij_matrix%dd( 3, k, k) = d(k, 3) * d(k, 3)
+             ij_matrix%dd( 4, k, k) = d(k, 4) * d(k, 4)
+             ij_matrix%dd( 5, k, k) = d(k, 5) * d(k, 5)
+             ij_matrix%dd( 6, k, k) = d(k, 1) * d(k, 2)
+             ij_matrix%dd( 7, k, k) = d(k, 1) * d(k, 3)
+             ij_matrix%dd( 8, k, k) = d(k, 2) * d(k, 3)
+             ij_matrix%dd( 9, k, k) = d(k, 1) * d(k, 4)
+             ij_matrix%dd(10, k, k) = d(k, 2) * d(k, 4)
+             ij_matrix%dd(11, k, k) = d(k, 3) * d(k, 4)
+             ij_matrix%dd(12, k, k) = d(k, 1) * d(k, 5)
+             ij_matrix%dd(13, k, k) = d(k, 2) * d(k, 5)
+             ij_matrix%dd(14, k, k) = d(k, 3) * d(k, 5)
+             ij_matrix%dd(15, k, k) = d(k, 4) * d(k, 5)
              IF (k /= 1) THEN
                 DO l = 1, k - 1
-                   ij_matrix%dd_d(:,  1, k, l) = 2.0_dp  * ( d_d(:, k, 1) * d(l, 1) + d(k, 1) * d_d(:, l, 1) )
-                   ij_matrix%dd_d(:,  2, k, l) = 2.0_dp  * ( d_d(:, k, 2) * d(l, 2) + d(k, 2) * d_d(:, l, 2) )
-                   ij_matrix%dd_d(:,  3, k, l) = 2.0_dp  * ( d_d(:, k, 3) * d(l, 3) + d(k, 3) * d_d(:, l, 3) )
-                   ij_matrix%dd_d(:,  4, k, l) = 2.0_dp  * ( d_d(:, k, 4) * d(l, 4) + d(k, 4) * d_d(:, l, 4) )
-                   ij_matrix%dd_d(:,  5, k, l) = 2.0_dp  * ( d_d(:, k, 5) * d(l, 5) + d(k, 5) * d_d(:, l, 5) )
-                   ij_matrix%dd_d(:,  6, k, l) = ( d_d(:, k, 1) * d(l, 2) + d(k, 1) * d_d(:, l, 2) ) + &
-                                                 ( d_d(:, k, 2) * d(l, 1) + d(k, 2) * d_d(:, l, 1) )
-                   ij_matrix%dd_d(:,  7, k, l) = ( d_d(:, k, 1) * d(l, 3) + d(k, 1) * d_d(:, l, 3) ) + &
-                                                 ( d_d(:, k, 3) * d(l, 1) + d(k, 3) * d_d(:, l, 1) )
-                   ij_matrix%dd_d(:,  8, k, l) = ( d_d(:, k, 2) * d(l, 3) + d(k, 2) * d_d(:, l, 3) ) + &
-                                                 ( d_d(:, k, 3) * d(l, 2) + d(k, 3) * d_d(:, l, 2) )
-                   ij_matrix%dd_d(:,  9, k, l) = ( d_d(:, k, 1) * d(l, 4) + d(k, 1) * d_d(:, l, 4) ) + &
-                                                 ( d_d(:, k, 4) * d(l, 1) + d(k, 4) * d_d(:, l, 1) )
-                   ij_matrix%dd_d(:, 10, k, l) = ( d_d(:, k, 2) * d(l, 4) + d(k, 2) * d_d(:, l, 4) ) + &
-                                                 ( d_d(:, k, 4) * d(l, 2) + d(k, 4) * d_d(:, l, 2) )
-                   ij_matrix%dd_d(:, 11, k, l) = ( d_d(:, k, 3) * d(l, 4) + d(k, 3) * d_d(:, l, 4) ) + &
-                                                 ( d_d(:, k, 4) * d(l, 3) + d(k, 4) * d_d(:, l, 3) )
-                   ij_matrix%dd_d(:, 12, k, l) = ( d_d(:, k, 1) * d(l, 5) + d(k, 1) * d_d(:, l, 5) ) + &
-                                                 ( d_d(:, k, 5) * d(l, 1) + d(k, 5) * d_d(:, l, 1) )
-                   ij_matrix%dd_d(:, 13, k, l) = ( d_d(:, k, 2) * d(l, 5) + d(k, 2) * d_d(:, l, 5) ) + &
-                                                 ( d_d(:, k, 5) * d(l, 2) + d(k, 5) * d_d(:, l, 2) )
-                   ij_matrix%dd_d(:, 14, k, l) = ( d_d(:, k, 3) * d(l, 5) + d(k, 3) * d_d(:, l, 5) ) + &
-                                                 ( d_d(:, k, 5) * d(l, 3) + d(k, 5) * d_d(:, l, 3) )
-                   ij_matrix%dd_d(:, 15, k, l) = ( d_d(:, k, 4) * d(l, 5) + d(k, 4) * d_d(:, l, 5) ) + &
-                                                 ( d_d(:, k, 5) * d(l, 4) + d(k, 5) * d_d(:, l, 4) )
+                   ij_matrix%dd( 1, k, l) = 2.0_dp  * d(k, 1) * d(l, 1)
+                   ij_matrix%dd( 2, k, l) = 2.0_dp  * d(k, 2) * d(l, 2)
+                   ij_matrix%dd( 3, k, l) = 2.0_dp  * d(k, 3) * d(l, 3)
+                   ij_matrix%dd( 4, k, l) = 2.0_dp  * d(k, 4) * d(l, 4)
+                   ij_matrix%dd( 5, k, l) = 2.0_dp  * d(k, 5) * d(l, 5)
+                   ij_matrix%dd( 6, k, l) = d(k, 1) * d(l, 2) + d(k, 2) * d(l, 1)
+                   ij_matrix%dd( 7, k, l) = d(k, 1) * d(l, 3) + d(k, 3) * d(l, 1)
+                   ij_matrix%dd( 8, k, l) = d(k, 2) * d(l, 3) + d(k, 3) * d(l, 2)
+                   ij_matrix%dd( 9, k, l) = d(k, 1) * d(l, 4) + d(k, 4) * d(l, 1)
+                   ij_matrix%dd(10, k, l) = d(k, 2) * d(l, 4) + d(k, 4) * d(l, 2)
+                   ij_matrix%dd(11, k, l) = d(k, 3) * d(l, 4) + d(k, 4) * d(l, 3)
+                   ij_matrix%dd(12, k, l) = d(k, 1) * d(l, 5) + d(k, 5) * d(l, 1)
+                   ij_matrix%dd(13, k, l) = d(k, 2) * d(l, 5) + d(k, 5) * d(l, 2)
+                   ij_matrix%dd(14, k, l) = d(k, 3) * d(l, 5) + d(k, 5) * d(l, 3)
+                   ij_matrix%dd(15, k, l) = d(k, 4) * d(l, 5) + d(k, 5) * d(l, 4)
                 END DO
              END IF
           END DO
-       ELSE
-          ij_matrix%sd_d = 0.0_dp
-          ij_matrix%pd_d = 0.0_dp
-          ij_matrix%dd_d = 0.0_dp
        END IF
-       IF (debug_this_module) THEN 
-          CALL check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert=do_invert, error=error)
+       ! Evaluate Derivatives if required
+       IF (do_derivatives) THEN
+          ! This condition is necessary because derivatives uses the invertion of the
+          ! axis for treating the divergence point along z-axis
+          CPPostcondition(eval,cp_failure_level,routineP,error,failure)
+          x11_d = 0.0_dp; x11_d(1) = 1.0_dp
+          x22_d = 0.0_dp; x22_d(2) = 1.0_dp
+          x33_d = 0.0_dp; x33_d(3) = 1.0_dp
+          r_d   = (/x11,x22,x33/)/r
+          b_d   = 2.0_dp*(x11*x11_d + x22*x22_d)
+          sqb_d = (0.5_dp/sqb)*b_d
+          r2i   = 1.0_dp/r**2
+          sqb2i = 1.0_dp/sqb**2
+          cb_d  = (x33_d*r-x33*r_d)*r2i
+          ca_d  = (x11_d*sqb-x11*sqb_d)*sqb2i
+          sa_d  = (x22_d*sqb-x22*sqb_d)*sqb2i
+          sb_d  = (sqb_d*r-sqb*r_d)*r2i
+          ! Calculate derivatives of rotation matrix elements
+          p_d(:, 1, 1) =  ca_d * sb + ca * sb_d
+          p_d(:, 2, 1) =  ca_d * cb + ca * cb_d
+          p_d(:, 3, 1) = -sa_d
+          p_d(:, 1, 2) =  sa_d * sb + sa * sb_d
+          p_d(:, 2, 2) =  sa_d * cb + sa * cb_d
+          p_d(:, 3, 2) =  ca_d
+          p_d(:, 1, 3) =  cb_d
+          p_d(:, 2, 3) = -sb_d
+          p_d(:, 3, 3) =  0.0_dp
+          IF (sepi%dorb.OR.sepj%dorb) THEN
+             ca2_d = 2.0_dp * ca * ca_d
+             cb2_d = 2.0_dp * cb * cb_d
+             sb2_d = 2.0_dp * sb * sb_d
+             c2a_d = 2.0_dp * ca2_d
+             c2b_d = 2.0_dp * cb2_d
+             s2a_d = 2.0_dp * ( sa_d * ca + sa * ca_d )
+             s2b_d = 2.0_dp * ( sb_d * cb + sb * cb_d )
+             d_d(:, 1, 1) =  pt5sq3 * ( c2a_d * sb2 + c2a * sb2_d )
+             d_d(:, 2, 1) =  0.5_dp * ( c2a_d * s2b + c2a * s2b_d )
+             d_d(:, 3, 1) = -s2a_d * sb - s2a * sb_d
+             d_d(:, 4, 1) =  c2a_d * (cb2+0.5_dp*sb2) + c2a * (cb2_d+0.5_dp*sb2_d)
+             d_d(:, 5, 1) = -s2a_d * cb - s2a * cb_d
+             d_d(:, 1, 2) =  pt5sq3 * ( ca_d * s2b + ca * s2b_d )
+             d_d(:, 2, 2) =  ca_d * c2b + ca * c2b_d
+             d_d(:, 3, 2) = -sa_d * cb - sa * cb_d
+             d_d(:, 4, 2) = -0.5_dp * ( ca_d * s2b + ca * s2b_d ) 
+             d_d(:, 5, 2) =  sa_d * sb + sa * sb_d
+             d_d(:, 1, 3) =  cb2_d - 0.5_dp * sb2_d
+             d_d(:, 2, 3) = -pt5sq3 * s2b_d
+             d_d(:, 3, 3) =  0.0_dp
+             d_d(:, 4, 3) =  pt5sq3 * sb2_d
+             d_d(:, 5, 3) =  0.0_dp
+             d_d(:, 1, 4) =  pt5sq3 * ( sa_d * s2b + sa * s2b_d )  
+             d_d(:, 2, 4) =  sa_d * c2b + sa * c2b_d
+             d_d(:, 3, 4) =  ca_d * cb + ca * cb_d 
+             d_d(:, 4, 4) = -0.5_dp * ( sa_d * s2b + sa * s2b_d )
+             d_d(:, 5, 4) = -ca_d * sb -ca * sb_d
+             d_d(:, 1, 5) =  pt5sq3 * ( s2a_d * sb2 + s2a * sb2_d )
+             d_d(:, 2, 5) =  0.5_dp * ( s2a_d * s2b + s2a * s2b_d )
+             d_d(:, 3, 5) =  c2a_d * sb + c2a * sb_d 
+             d_d(:, 4, 5) =  s2a_d * (cb2+0.5_dp*sb2) + s2a * (cb2_d+0.5_dp*sb2_d)
+             d_d(:, 5, 5) =  c2a_d * cb + c2a * cb_d 
+          END IF
+          !  Derivative for Rotation Elements for : S-P
+          DO k = 1, 3
+             DO l = 1, 3
+                ij_matrix%sp_d(:, k, l) = p_d(:, k, l)
+             END DO
+          END DO
+          !  Derivative for Rotation Elements for : P-P
+          DO k = 1, 3
+             ij_matrix%pp_d(:, 1, k, k) = p_d(:, k, 1) * p(k, 1) +  p(k, 1) * p_d(:, k, 1)
+             ij_matrix%pp_d(:, 2, k, k) = p_d(:, k, 2) * p(k, 2) +  p(k, 2) * p_d(:, k, 2)
+             ij_matrix%pp_d(:, 3, k, k) = p_d(:, k, 3) * p(k, 3) +  p(k, 3) * p_d(:, k, 3)
+             ij_matrix%pp_d(:, 4, k, k) = p_d(:, k, 1) * p(k, 2) +  p(k, 1) * p_d(:, k, 2)
+             ij_matrix%pp_d(:, 5, k, k) = p_d(:, k, 1) * p(k, 3) +  p(k, 1) * p_d(:, k, 3)
+             ij_matrix%pp_d(:, 6, k, k) = p_d(:, k, 2) * p(k, 3) +  p(k, 2) * p_d(:, k, 3)
+             IF (k /= 1) THEN
+                DO l = 1, k - 1
+                   ij_matrix%pp_d(:, 1, k, l) = 2.0_dp * ( p_d(:, k, 1) * p(l, 1) + p(k, 1) * p_d(:, l, 1) ) 
+                   ij_matrix%pp_d(:, 2, k, l) = 2.0_dp * ( p_d(:, k, 2) * p(l, 2) + p(k, 2) * p_d(:, l, 2) )
+                   ij_matrix%pp_d(:, 3, k, l) = 2.0_dp * ( p_d(:, k, 3) * p(l, 3) + p(k, 3) * p_d(:, l, 3) )
+                   ij_matrix%pp_d(:, 4, k, l) = ( p_d(:, k, 1) * p(l, 2) + p(k, 1) * p_d(:, l, 2) ) + &
+                                                ( p_d(:, k, 2) * p(l, 1) + p(k, 2) * p_d(:, l, 1) ) 
+                   ij_matrix%pp_d(:, 5, k, l) = ( p_d(:, k, 1) * p(l, 3) + p(k, 1) * p_d(:, l, 3) ) + &
+                                                ( p_d(:, k, 3) * p(l, 1) + p(k, 3) * p_d(:, l, 1) ) 
+                   ij_matrix%pp_d(:, 6, k, l) = ( p_d(:, k, 2) * p(l, 3) + p(k, 2) * p_d(:, l, 3) ) + &
+                                                ( p_d(:, k, 3) * p(l, 2) + p(k, 3) * p_d(:, l, 2) ) 
+                END DO
+             END IF
+          END DO
+          IF (sepi%dorb.OR.sepj%dorb) THEN
+             !  Rotation Elements for : S-D
+             DO k = 1, 5
+                DO l = 1, 5
+                   ij_matrix%sd_d(:, k, l) = d_d(:, k, l)
+                END DO
+             END DO
+             !  Rotation Elements for : D-P
+             DO k = 1, 5
+                DO l = 1, 3
+                   ij_matrix%pd_d(:,  1, k, l) = ( d_d(:, k, 1) * p(l, 1) + d(k, 1) * p_d(:, l, 1) )
+                   ij_matrix%pd_d(:,  2, k, l) = ( d_d(:, k, 1) * p(l, 2) + d(k, 1) * p_d(:, l, 2) )
+                   ij_matrix%pd_d(:,  3, k, l) = ( d_d(:, k, 1) * p(l, 3) + d(k, 1) * p_d(:, l, 3) )
+                   ij_matrix%pd_d(:,  4, k, l) = ( d_d(:, k, 2) * p(l, 1) + d(k, 2) * p_d(:, l, 1) )
+                   ij_matrix%pd_d(:,  5, k, l) = ( d_d(:, k, 2) * p(l, 2) + d(k, 2) * p_d(:, l, 2) )
+                   ij_matrix%pd_d(:,  6, k, l) = ( d_d(:, k, 2) * p(l, 3) + d(k, 2) * p_d(:, l, 3) )
+                   ij_matrix%pd_d(:,  7, k, l) = ( d_d(:, k, 3) * p(l, 1) + d(k, 3) * p_d(:, l, 1) )
+                   ij_matrix%pd_d(:,  8, k, l) = ( d_d(:, k, 3) * p(l, 2) + d(k, 3) * p_d(:, l, 2) )
+                   ij_matrix%pd_d(:,  9, k, l) = ( d_d(:, k, 3) * p(l, 3) + d(k, 3) * p_d(:, l, 3) )
+                   ij_matrix%pd_d(:, 10, k, l) = ( d_d(:, k, 4) * p(l, 1) + d(k, 4) * p_d(:, l, 1) )
+                   ij_matrix%pd_d(:, 11, k, l) = ( d_d(:, k, 4) * p(l, 2) + d(k, 4) * p_d(:, l, 2) )
+                   ij_matrix%pd_d(:, 12, k, l) = ( d_d(:, k, 4) * p(l, 3) + d(k, 4) * p_d(:, l, 3) )
+                   ij_matrix%pd_d(:, 13, k, l) = ( d_d(:, k, 5) * p(l, 1) + d(k, 5) * p_d(:, l, 1) )
+                   ij_matrix%pd_d(:, 14, k, l) = ( d_d(:, k, 5) * p(l, 2) + d(k, 5) * p_d(:, l, 2) )
+                   ij_matrix%pd_d(:, 15, k, l) = ( d_d(:, k, 5) * p(l, 3) + d(k, 5) * p_d(:, l, 3) )
+                END DO
+             END DO
+             !  Rotation Elements for : D-D
+             DO k = 1, 5
+                ij_matrix%dd_d(:,  1, k, k) = ( d_d(:, k, 1) * d(k, 1) + d(k, 1) * d_d(:, k, 1) ) 
+                ij_matrix%dd_d(:,  2, k, k) = ( d_d(:, k, 2) * d(k, 2) + d(k, 2) * d_d(:, k, 2) )
+                ij_matrix%dd_d(:,  3, k, k) = ( d_d(:, k, 3) * d(k, 3) + d(k, 3) * d_d(:, k, 3) )
+                ij_matrix%dd_d(:,  4, k, k) = ( d_d(:, k, 4) * d(k, 4) + d(k, 4) * d_d(:, k, 4) )
+                ij_matrix%dd_d(:,  5, k, k) = ( d_d(:, k, 5) * d(k, 5) + d(k, 5) * d_d(:, k, 5) )
+                ij_matrix%dd_d(:,  6, k, k) = ( d_d(:, k, 1) * d(k, 2) + d(k, 1) * d_d(:, k, 2) )
+                ij_matrix%dd_d(:,  7, k, k) = ( d_d(:, k, 1) * d(k, 3) + d(k, 1) * d_d(:, k, 3) )
+                ij_matrix%dd_d(:,  8, k, k) = ( d_d(:, k, 2) * d(k, 3) + d(k, 2) * d_d(:, k, 3) )
+                ij_matrix%dd_d(:,  9, k, k) = ( d_d(:, k, 1) * d(k, 4) + d(k, 1) * d_d(:, k, 4) )
+                ij_matrix%dd_d(:, 10, k, k) = ( d_d(:, k, 2) * d(k, 4) + d(k, 2) * d_d(:, k, 4) )
+                ij_matrix%dd_d(:, 11, k, k) = ( d_d(:, k, 3) * d(k, 4) + d(k, 3) * d_d(:, k, 4) )
+                ij_matrix%dd_d(:, 12, k, k) = ( d_d(:, k, 1) * d(k, 5) + d(k, 1) * d_d(:, k, 5) )
+                ij_matrix%dd_d(:, 13, k, k) = ( d_d(:, k, 2) * d(k, 5) + d(k, 2) * d_d(:, k, 5) )
+                ij_matrix%dd_d(:, 14, k, k) = ( d_d(:, k, 3) * d(k, 5) + d(k, 3) * d_d(:, k, 5) )
+                ij_matrix%dd_d(:, 15, k, k) = ( d_d(:, k, 4) * d(k, 5) + d(k, 4) * d_d(:, k, 5) )
+                IF (k /= 1) THEN
+                   DO l = 1, k - 1
+                      ij_matrix%dd_d(:,  1, k, l) = 2.0_dp  * ( d_d(:, k, 1) * d(l, 1) + d(k, 1) * d_d(:, l, 1) )
+                      ij_matrix%dd_d(:,  2, k, l) = 2.0_dp  * ( d_d(:, k, 2) * d(l, 2) + d(k, 2) * d_d(:, l, 2) )
+                      ij_matrix%dd_d(:,  3, k, l) = 2.0_dp  * ( d_d(:, k, 3) * d(l, 3) + d(k, 3) * d_d(:, l, 3) )
+                      ij_matrix%dd_d(:,  4, k, l) = 2.0_dp  * ( d_d(:, k, 4) * d(l, 4) + d(k, 4) * d_d(:, l, 4) )
+                      ij_matrix%dd_d(:,  5, k, l) = 2.0_dp  * ( d_d(:, k, 5) * d(l, 5) + d(k, 5) * d_d(:, l, 5) )
+                      ij_matrix%dd_d(:,  6, k, l) = ( d_d(:, k, 1) * d(l, 2) + d(k, 1) * d_d(:, l, 2) ) + &
+                                                    ( d_d(:, k, 2) * d(l, 1) + d(k, 2) * d_d(:, l, 1) )
+                      ij_matrix%dd_d(:,  7, k, l) = ( d_d(:, k, 1) * d(l, 3) + d(k, 1) * d_d(:, l, 3) ) + &
+                                                    ( d_d(:, k, 3) * d(l, 1) + d(k, 3) * d_d(:, l, 1) )
+                      ij_matrix%dd_d(:,  8, k, l) = ( d_d(:, k, 2) * d(l, 3) + d(k, 2) * d_d(:, l, 3) ) + &
+                                                    ( d_d(:, k, 3) * d(l, 2) + d(k, 3) * d_d(:, l, 2) )
+                      ij_matrix%dd_d(:,  9, k, l) = ( d_d(:, k, 1) * d(l, 4) + d(k, 1) * d_d(:, l, 4) ) + &
+                                                    ( d_d(:, k, 4) * d(l, 1) + d(k, 4) * d_d(:, l, 1) )
+                      ij_matrix%dd_d(:, 10, k, l) = ( d_d(:, k, 2) * d(l, 4) + d(k, 2) * d_d(:, l, 4) ) + &
+                                                    ( d_d(:, k, 4) * d(l, 2) + d(k, 4) * d_d(:, l, 2) )
+                      ij_matrix%dd_d(:, 11, k, l) = ( d_d(:, k, 3) * d(l, 4) + d(k, 3) * d_d(:, l, 4) ) + &
+                                                    ( d_d(:, k, 4) * d(l, 3) + d(k, 4) * d_d(:, l, 3) )
+                      ij_matrix%dd_d(:, 12, k, l) = ( d_d(:, k, 1) * d(l, 5) + d(k, 1) * d_d(:, l, 5) ) + &
+                                                    ( d_d(:, k, 5) * d(l, 1) + d(k, 5) * d_d(:, l, 1) )
+                      ij_matrix%dd_d(:, 13, k, l) = ( d_d(:, k, 2) * d(l, 5) + d(k, 2) * d_d(:, l, 5) ) + &
+                                                    ( d_d(:, k, 5) * d(l, 2) + d(k, 5) * d_d(:, l, 2) )
+                      ij_matrix%dd_d(:, 14, k, l) = ( d_d(:, k, 3) * d(l, 5) + d(k, 3) * d_d(:, l, 5) ) + &
+                                                    ( d_d(:, k, 5) * d(l, 3) + d(k, 5) * d_d(:, l, 3) )
+                      ij_matrix%dd_d(:, 15, k, l) = ( d_d(:, k, 4) * d(l, 5) + d(k, 4) * d_d(:, l, 5) ) + &
+                                                    ( d_d(:, k, 5) * d(l, 4) + d(k, 5) * d_d(:, l, 4) )
+                   END DO
+                END IF
+             END DO
+          END IF
+          IF (debug_this_module) THEN 
+             CALL check_rotmat_der(sepi, sepj, rjiv, ij_matrix, do_invert=do_invert, error=error)
+          END IF
        END IF
     END IF
-
   END SUBROUTINE rotmat
 
 ! *****************************************************************************
@@ -1506,7 +1499,7 @@ CONTAINS
     DO i = 1, 45
        DO k = 1, limkl
           logv(i, k) = .FALSE.
-          v(i, k) = 0.0_dp
+          v(i, k)    = 0.0_dp
        END DO
     END DO
     !

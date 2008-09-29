@@ -47,6 +47,7 @@ MODULE semi_empirical_types
 ! *****************************************************************************
   TYPE semi_empirical_type
     INTEGER                                :: typ
+    INTEGER                                :: core_size, atm_int_size
     CHARACTER(LEN=default_string_length)   :: name
     LOGICAL                                :: defined, dorb, extended_basis_set
     INTEGER                                :: z
@@ -204,13 +205,15 @@ CONTAINS
     sep%defined            = .FALSE.
     sep%dorb               = .FALSE.
     sep%extended_basis_set = .FALSE.
-    sep%name    = ""
-    sep%typ     = HUGE(0)
-    sep%z       = HUGE(0)
-    sep%zeff    = HUGE(0.0_dp)
-    sep%natorb  = 0
-    sep%ngauss  = 0
-    sep%eheat   = HUGE(0.0_dp)
+    sep%name          = ""
+    sep%typ           = HUGE(0)
+    sep%core_size     = HUGE(0)
+    sep%atm_int_size  = HUGE(0)
+    sep%z             = HUGE(0)
+    sep%zeff          = HUGE(0.0_dp)
+    sep%natorb        = 0
+    sep%ngauss        = 0
+    sep%eheat         = HUGE(0.0_dp)
 
     sep%zn            = 0.0_dp
     sep%sto_exponents = 0.0_dp
@@ -457,16 +460,6 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(rotmat),cp_failure_level,routineP,error,failure)
     ALLOCATE (rotmat,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    rotmat%sp   = 0.0_dp
-    rotmat%pp   = 0.0_dp
-    rotmat%sd   = 0.0_dp
-    rotmat%pd   = 0.0_dp
-    rotmat%dd   = 0.0_dp
-    rotmat%sp_d = 0.0_dp
-    rotmat%pp_d = 0.0_dp
-    rotmat%sd_d = 0.0_dp
-    rotmat%pd_d = 0.0_dp
-    rotmat%dd_d = 0.0_dp
 
   END SUBROUTINE rotmat_create
 
