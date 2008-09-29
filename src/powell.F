@@ -662,7 +662,7 @@ CONTAINS
           IF (j < idz) temp=-one 
           hdiag=hdiag+temp*zmat(k,j)**2 
         END DO
-        temp=dabs(beta*hdiag+vlag(k)**2) 
+        temp=ABS(beta*hdiag+vlag(k)**2) 
         distsq=zero 
         DO j=1,n 
           distsq=distsq+(xpt(k,j)-xopt(j))**2 
@@ -787,7 +787,7 @@ CONTAINS
 !     iteration, which will generate a "model step".                    
 !                                                                       
       IF (knew > 0) THEN 
-        dstep=MAX(MIN(tenth*dsqrt(distsq),half*delta),rho) 
+        dstep=MAX(MIN(tenth*SQRT(distsq),half*delta),rho) 
         dsq=dstep*dstep 
         GOTO 120 
       END IF 
@@ -1259,7 +1259,7 @@ CONTAINS
           tempb=tempb+w(i)*w(i) 
         END DO
         IF (iterc >= n) EXIT mainloop
-        IF (iterc >= 1) densav=dmax1(densav,denold) 
+        IF (iterc >= 1) densav=INT(MAX(densav,denold))
         IF (ABS(denmax) <= 1.1_dp*ABS(densav)) EXIT mainloop
         densav=denmax 
 !                                                                       
