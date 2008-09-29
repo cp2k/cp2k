@@ -1259,7 +1259,7 @@ CONTAINS
           tempb=tempb+w(i)*w(i) 
         END DO
         IF (iterc >= n) EXIT mainloop
-        IF (iterc >= 1) densav=INT(MAX(densav,denold))
+        IF (iterc >= 1) densav=MAX(densav,denold)
         IF (ABS(denmax) <= 1.1_dp*ABS(densav)) EXIT mainloop
         densav=denmax 
 !                                                                       
