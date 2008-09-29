@@ -5,6 +5,7 @@
 
 ! *****************************************************************************
 MODULE atom
+  USE atom_fit,                        ONLY: atom_fit_density
   USE atom_operators,                  ONLY: atom_int_release,&
                                              atom_int_setup,&
                                              atom_ppint_release,&
@@ -43,7 +44,8 @@ MODULE atom
   USE header,                          ONLY: atom_footer,&
                                              atom_header
   USE input_constants,                 ONLY: &
-       atom_energy_run, atom_no_run, do_analytic, do_dkh2_atom, &
+       atom_energy_run, atom_no_run, do_analytic, do_dkh0_atom, do_dkh1_atom, &
+       do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom, &
        do_nonrel_atom, do_numeric, do_rhf_atom, do_rks_atom, do_rohf_atom, &
        do_semi_analytic, do_uhf_atom, do_uks_atom, do_zoramp_atom
   USE input_section_types,             ONLY: section_vals_get,&
@@ -159,7 +161,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER                                  :: do_eri, handle, i, ierr, im, &
                                                 in, iw, k, maxl, mb, mo, &
-                                                n_meth, n_rep, zcore, zval, zz
+                                                n_meth, n_rep, num_gto, &
+                                                zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, failure, &
@@ -322,7 +325,7 @@ CONTAINS
           ! potential
           CALL atom_ppint_setup(ae_int,ae_basis,potential=ae_pot,error=error)
           ! relativistic correction terms
-          CALL atom_relint_setup(ae_int,pp_basis,method_section,im,error=error)
+          CALL atom_relint_setup(ae_int,ae_basis,method_section,im,zcore=REAL(zval,dp),error=error)
           !
           CALL set_atom(atom_info(in,im)%atom,basis=ae_basis,integrals=ae_int,potential=ae_pot,error=error)
           state%maxn_calc(:) = MIN( state%maxn_calc(:), ae_basis%nbas(:) )
@@ -340,6 +343,14 @@ CONTAINS
 
         !Calculate the electronic structure
         CALL atom_electronic_structure(atom_info(in,im)%atom,atom_section,error)
+
+        ! perform a fit of the total electronic density
+        iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_DENSITY",extension=".log",error=error)
+        IF (iw>0) THEN
+          CALL section_vals_val_get(atom_section,"PRINT%FIT_DENSITY%NUM_GTO", i_val=num_gto, error=error)
+          CALL atom_fit_density(atom_info(in,im)%atom,atom_section,num_gto,iw,error)
+        END IF
+        CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_DENSITY",error=error)
 
       END DO
     END DO
@@ -466,8 +477,10 @@ CONTAINS
             hcore%op = atom%integrals%kin - atom%zcore*atom%integrals%core
           CASE (do_zoramp_atom)
             hcore%op = atom%integrals%kin + atom%integrals%tzora - atom%zcore*atom%integrals%core
-          CASE (do_dkh2_atom)
-            CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+          CASE (do_dkh0_atom)
+            hcore%op = atom%integrals%hdkh - atom%zcore*atom%integrals%core
+          CASE (do_dkh1_atom,do_dkh2_atom,do_dkh3_atom,do_dkh4_atom,do_dkh5_atom)
+            hcore%op = atom%integrals%hdkh
         END SELECT
       CASE (GTH_PSEUDO)
         hcore%op = atom%integrals%kin + atom%integrals%core + atom%integrals%hnl
@@ -478,8 +491,8 @@ CONTAINS
     END IF
 
     ! initial guess
-    CALL atom_solve(hcore%op,atom%integrals%ovlp,atom%orbitals%wfn,atom%orbitals%ener,&
-                    atom%basis%nbas,atom%state%maxl_calc,error)
+    CALL atom_solve(hcore%op,atom%integrals%utrans,atom%orbitals%wfn,atom%orbitals%ener,&
+                    atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc,error)
     CALL atom_denmat(atom%orbitals%pmat,atom%orbitals%wfn,atom%basis%nbas,atom%state%occupation,&
                      atom%state%maxl_occ,atom%state%maxn_occ,error)
 
@@ -590,7 +603,8 @@ CONTAINS
       fmat%op = hcore%op + jmat%op + kmat%op + xcmat%op
 
       ! calculate error matrix
-      CALL err_matrix(jmat%op,deps,fmat%op,atom%orbitals%pmat,atom%integrals%ovlp,atom%basis%nbas,error)
+      CALL err_matrix(jmat%op,deps,fmat%op,atom%orbitals%pmat,atom%integrals%utrans,&
+                      atom%integrals%uptrans,atom%basis%nbas,atom%integrals%nne,error)
 
       iter = iter + 1
 
@@ -603,8 +617,8 @@ CONTAINS
       CALL atom_opt (fmat%op,history,deps,error)
 
       ! Solve HF/KS equations
-      CALL atom_solve(fmat%op,atom%integrals%ovlp,atom%orbitals%wfn,atom%orbitals%ener,&
-                      atom%basis%nbas,atom%state%maxl_calc,error)
+      CALL atom_solve(fmat%op,atom%integrals%utrans,atom%orbitals%wfn,atom%orbitals%ener,&
+                      atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc,error)
       CALL atom_denmat(atom%orbitals%pmat,atom%orbitals%wfn,atom%basis%nbas,atom%state%occupation,&
                        atom%state%maxl_occ,atom%state%maxn_occ,error)
 

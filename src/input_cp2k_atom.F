@@ -190,6 +190,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
@@ -201,7 +202,7 @@ CONTAINS
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(print_key)
+       NULLIFY(print_key, keyword)
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_BANNER",&
             description="Controls the printing of the banner of the ATOM program",&
@@ -230,6 +231,20 @@ CONTAINS
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"FIT_DENSITY",&
+            description="FIT the total electronic density to a linear combination of Gaussian functions",&
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL keyword_create(keyword, name="NUM_GTO",&
+            description="Number of Gaussian type functions for density fit",&
+            usage="NUM_GTO integer ",type_of_var=integer_t,&
+            default_i_val=40,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
 
        CALL cp_print_key_section_create(print_key,"SCF_INFO",&
             description="Controls the printing of SCF information",&
@@ -419,6 +434,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="EPS_EIGENVALUE",&
+            description="Cutoff of overlap matrix eigenvalues included into basis",&
+            usage="EPS_EIGENVALUE real",&
+            default_r_val=1.e-10_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        NULLIFY(subsection)
        CALL create_basis_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -478,8 +500,14 @@ CONTAINS
             default_i_val=do_nonrel_atom,&
             enum_c_vals=(/"OFF                      ",&
                           "ZORA(MP)                 ",&
-                          "DKH(2)                   "/),&
-            enum_i_vals= (/ do_nonrel_atom, do_zoramp_atom, do_dkh2_atom /),&
+                          "DKH(0)                   ",&
+                          "DKH(1)                   ",&
+                          "DKH(2)                   ",&
+                          "DKH(3)                   ",&
+                          "DKH(4)                   ",&
+                          "DKH(5)                   "/),&
+            enum_i_vals= (/ do_nonrel_atom, do_zoramp_atom, do_dkh0_atom,&
+            do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom /),&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

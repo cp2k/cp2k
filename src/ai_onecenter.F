@@ -38,11 +38,11 @@ MODULE ai_onecenter
 
   PRIVATE
   PUBLIC :: sg_overlap, sg_kinetic, sg_nuclear, sg_erf, sg_gpot, &
-            sg_proj_ol, sg_conf, sg_coulomb, sg_exchange
+            sg_proj_ol, sg_conf, sg_coulomb, sg_exchange, sg_kinnuc
   PUBLIC :: sto_overlap, sto_kinetic, sto_nuclear, sto_erf, sto_gpot, &
             sto_proj_ol, sto_conf, sto_coulomb, sto_exchange
   PUBLIC :: num_overlap, num_kinetic, num_nuclear, num_erf, num_gpot, &
-            num_proj_ol, num_conf, num_coulomb, num_exchange
+            num_proj_ol, num_conf, num_coulomb, num_exchange, num_kinnuc
 
 !******************************************************************************
 
@@ -143,6 +143,49 @@ SUBROUTINE sg_nuclear ( umat, l, pa, pb )
   END DO
 
 END SUBROUTINE sg_nuclear
+
+!------------------------------------------------------------------------------
+!
+!  U(l,pq) = l!/2 / (p+q)^l * [4/(p+q)^2 *pq*(l+1) + 1]
+!
+!------------------------------------------------------------------------------
+SUBROUTINE sg_kinnuc ( umat, l, pa, pb )
+
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: umat
+    INTEGER, INTENT(IN)                      :: l
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pa, pb
+
+    INTEGER                                  :: ip, iq, m, n
+    REAL(KIND=dp)                            :: ppq, pq, tld
+
+!------------------------------------------------------------------------------
+
+  n = SIZE ( pa )
+  m = SIZE ( pb )
+
+  IF ( n > SIZE ( umat, 1 ) .OR. m > SIZE ( umat, 2 ) ) STOP
+
+  IF ( l > 0 ) THEN
+    tld = 0.5_dp*fac(l)
+    DO iq = 1, m
+      DO ip = 1, n
+        ppq = pa(ip)+pb(iq)
+        pq = pa(ip)*pb(iq)
+        umat ( ip, iq ) = tld / ppq**l * (4._dp/ppq**2*pq*REAL(l+1,dp)+1._dp)
+      END DO
+    END DO
+  ELSE
+    DO iq = 1, m
+      DO ip = 1, n
+        ppq = pa(ip)+pb(iq)
+        pq = pa(ip)*pb(iq)
+        umat ( ip, iq ) = 2._dp*pq/ppq**2
+      END DO
+    END DO
+  END IF
+
+END SUBROUTINE sg_kinnuc
 
 !------------------------------------------------------------------------------
 ! 
@@ -839,7 +882,7 @@ SUBROUTINE num_kinetic ( kmat, l, ra, dra, rb, drb, r, wr )
   DO iq = 1, m
     DO ip = 1, n
       kmat ( ip, iq ) = 0.5_dp*SUM(wr(:)*dra(:,ip)*drb(:,iq) &
-                                   +REAL(l*(l+1),dp)*ra(:,ip)*rb(:,iq)/r(:)**2)
+                           +wr(:)*REAL(l*(l+1),dp)*ra(:,ip)*rb(:,iq)/r(:)**2)
     END DO
   END DO
 
@@ -875,6 +918,38 @@ SUBROUTINE num_nuclear ( umat, l, ra, rb, r, wr )
   END DO
 
 END SUBROUTINE num_nuclear
+
+!------------------------------------------------------------------------------
+!
+!  U(l,pq) = INT(u dRa(u) dRb(u))du + l(l+1) * INT(Ra(u) Rb(u) / u)du
+!
+!------------------------------------------------------------------------------
+SUBROUTINE num_kinnuc ( umat, l, ra, dra, rb, drb, r, wr )
+
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: umat
+    INTEGER, INTENT(IN)                      :: l
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: ra, dra, rb, drb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, wr
+
+    INTEGER                                  :: ip, iq, m, n
+
+!------------------------------------------------------------------------------
+
+  n = SIZE ( ra, 2 )
+  m = SIZE ( rb, 2 )
+
+  IF ( n > SIZE ( umat, 1 ) .OR. m > SIZE ( umat, 2 ) ) STOP
+
+  DO iq = 1, m
+    DO ip = 1, n
+      umat ( ip, iq ) = SUM(wr(:)*dra(:,ip)*drb(:,iq)/r(:) &
+                          +wr(:)*REAL(l*(l+1),dp)*ra(:,ip)*rb(:,iq)/r(:)**3)
+    END DO
+  END DO
+
+END SUBROUTINE num_kinnuc
 
 !------------------------------------------------------------------------------
 ! 

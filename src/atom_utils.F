@@ -277,14 +277,14 @@ CONTAINS
 
   END SUBROUTINE atom_density
 ! *****************************************************************************
-  SUBROUTINE atom_solve(hmat,smat,orb,ener,maxn,maxl,error)
+  SUBROUTINE atom_solve(hmat,umat,orb,ener,nb,nv,maxl,error)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
-      INTENT(IN)                             :: hmat, smat
+      INTENT(IN)                             :: hmat, umat
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(INOUT)                          :: orb
     REAL(KIND=dp), DIMENSION(:, 0:), &
       INTENT(INOUT)                          :: ener
-    INTEGER, DIMENSION(0:), INTENT(IN)       :: maxn
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: nb, nv
     INTEGER, INTENT(IN)                      :: maxl
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -295,25 +295,27 @@ CONTAINS
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: w, work
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: a, s
+      DIMENSION(:, :)                        :: a
+
+    CPPrecondition(ALL(n >= nv),cp_failure_level,routineP,error,failure)
 
     orb = 0._dp
     DO l=0,maxl
-      n = maxn(l)
-      IF ( n > 0 ) THEN
-        lwork = 10*n
-        ALLOCATE(a(n,n),s(n,n),w(n),work(lwork),STAT=ierr)
+      n = nb(l)
+      m = nv(l)
+      IF ( n > 0 .AND. m > 0 ) THEN
+        lwork = 10*m
+        ALLOCATE(a(n,n),w(n),work(lwork),STAT=ierr)
         CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-        a(1:n,1:n) = hmat(1:n,1:n,l)
-        s(1:n,1:n) = smat(1:n,1:n,l)
+        a(1:m,1:m) = MATMUL(TRANSPOSE(umat(1:n,1:m,l)),MATMUL(hmat(1:n,1:n,l),umat(1:n,1:m,l)))
+        CALL lapack_ssyev ( "V", "U", m, a(1:m,1:m), m, w(1:m), work, lwork, info )
+        a(1:n,1:m) = MATMUL(umat(1:n,1:m,l),a(1:m,1:m))
 
-        CALL lapack_ssygv(1,"V","U",n,a,n,s,n,w,work,lwork,info)
-        CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
-
-        m = MIN(n,SIZE(orb,2))
+        m = MIN(m,SIZE(orb,2))
         orb(1:n,1:m,l) = a(1:n,1:m)
         ener(1:m,l) = w(1:m)
-        DEALLOCATE(a,s,w,work,STAT=ierr)
+
+        DEALLOCATE(a,w,work,STAT=ierr)
         CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
       END IF
     END DO
@@ -738,26 +740,41 @@ CONTAINS
 
   END SUBROUTINE eeri_contract
 ! *****************************************************************************
-  SUBROUTINE err_matrix(emat,demax,kmat,pmat,smat,nval,error)
+  SUBROUTINE err_matrix(emat,demax,kmat,pmat,umat,upmat,nval,nbs,error)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(OUT)                            :: emat
     REAL(KIND=dp), INTENT(OUT)               :: demax
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
-      INTENT(IN)                             :: kmat, pmat, smat
-    INTEGER, DIMENSION(0:), INTENT(IN)       :: nval
+      INTENT(IN)                             :: kmat, pmat, umat, upmat
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: nval, nbs
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'err_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: l, n
+    INTEGER                                  :: ierr, l, m, n
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: tkmat, tpmat
 
     emat = 0._dp
     DO l=0,3
       n = nval(l)
-      emat(1:n,1:n,l) = MATMUL(MATMUL(kmat(1:n,1:n,l),pmat(1:n,1:n,l)),smat(1:n,1:n,l))
-      emat(1:n,1:n,l) = emat(1:n,1:n,l) - &
-                        MATMUL(MATMUL(smat(1:n,1:n,l),pmat(1:n,1:n,l)),kmat(1:n,1:n,l))
+      m = nbs(l)
+      IF (m > 0) THEN
+        ALLOCATE(tkmat(1:m,1:m),tpmat(1:m,1:m),STAT=ierr)
+        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        tkmat = 0._dp
+        tpmat = 0._dp
+        tkmat(1:m,1:m) = MATMUL(TRANSPOSE(umat(1:n,1:m,l)),MATMUL(kmat(1:n,1:n,l),umat(1:n,1:m,l)))
+        tpmat(1:m,1:m) = MATMUL(TRANSPOSE(umat(1:n,1:m,l)),MATMUL(pmat(1:n,1:n,l),umat(1:n,1:m,l)))
+        tpmat(1:m,1:m) = MATMUL(upmat(1:m,1:m,l),MATMUL(tpmat(1:m,1:m),upmat(1:m,1:m,l)))
+
+        emat(1:m,1:m,l) = MATMUL(tkmat(1:m,1:m),tpmat(1:m,1:m)) - MATMUL(tpmat(1:m,1:m),tkmat(1:m,1:m))
+
+        DEALLOCATE(tkmat,tpmat,STAT=ierr)
+        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      END IF
     END DO
     demax = MAXVAL(ABS(emat))
 

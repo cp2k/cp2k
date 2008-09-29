@@ -69,6 +69,7 @@ MODULE atom_types
     REAL(KIND=dp),DIMENSION(:,:),POINTER          :: as         !STO exponents
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: bf         !num. bsf
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: dbf        !derivatives (num)
+    REAL(KIND=dp)                                 :: eps_eig
     TYPE(grid_atom_type),POINTER                  :: grid
   END TYPE atom_basis_type
 
@@ -117,8 +118,9 @@ MODULE atom_types
     LOGICAL                                       :: eri_coulomb
     LOGICAL                                       :: eri_exchange
     LOGICAL                                       :: all_nu
-    INTEGER, DIMENSION(0:3)                       :: n
+    INTEGER, DIMENSION(0:3)                       :: n, nne
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: ovlp, kin, core
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: utrans, uptrans
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: hnl
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: conf
     TYPE(eri),DIMENSION(20)                       :: ceri
@@ -127,6 +129,7 @@ MODULE atom_types
     INTEGER                                       :: zorastat=0
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: tzora
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: hdkh
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: dpot
   END TYPE atom_integrals
 
 !> Holds atomic orbitals and energies
@@ -271,6 +274,7 @@ CONTAINS
     basis%grid%nr = ngp
 
     CALL section_vals_val_get(basis_section,"BASIS_TYPE",i_val=basistype,error=error)
+    CALL section_vals_val_get(basis_section,"EPS_EIGENVALUE",r_val=basis%eps_eig,error=error)
     SELECT CASE (basistype)
       CASE DEFAULT
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
