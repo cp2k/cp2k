@@ -39,10 +39,10 @@ MODULE pw_env_methods
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
   USE input_constants,                 ONLY: &
-       use_mt, use_wavelet, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
-       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
-       xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, &
-       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
+       use_mt, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
+       xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
+       xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, &
+       xc_rho_spline2_smooth, xc_rho_spline3_smooth
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -386,7 +386,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         ENDIF
 
         ! If splines are required
-        ! or if wavelet is used 
         ! FIXME.... should only be true for the highest grid 
         IF (splines_required) THEN
           distribution_layout = (/para_env%num_pe,1/)            
