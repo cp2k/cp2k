@@ -95,3 +95,5 @@ water_colv_excl_qm.inp
 water_fixd_excl_mm.inp
 water_fixd_excl_qm.inp
 water_g3x3_excl_qm.inp
+# numerics
+Si_tersoff_qmmm.inp

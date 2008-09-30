@@ -8,6 +8,8 @@
 !> \author JGH
 !> \par History
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : d-orbitals
+!>      Teodoro Laino (09.2008) [tlaino] - University of Zurich : Speed-up
+!>      Teodoro Laino (09.2008) [tlaino] - University of Zurich : Periodic SE
 ! *****************************************************************************
 MODULE nddo_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -569,19 +571,20 @@ CONTAINS
                       ELSE
                          switch = .TRUE.
                       END IF
-                      IF ( nspins >= 1 ) THEN
-                         CALL get_block_node(matrix=diagmat_p(1)%matrix,&
-                                             block_row=jatom,&
-                                             block_col=jatom,&
-                                             BLOCK=pb_block_a)
-                         CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
-                         CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
-                                             block_row=jatom,&
-                                             block_col=jatom,&
-                                             BLOCK=ksb_block_a)
-                         CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
-                         p_block_tot_b(1:SIZE(pb_block_a,1),1:SIZE(pb_block_a,2)) = 2.0_dp * pb_block_a
-                      END IF
+                      ! Retrieve blocks for KS and P
+                      CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                                          block_row=jatom,&
+                                          block_col=jatom,&
+                                          BLOCK=pb_block_a)
+                      CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
+                      CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                                          block_row=jatom,&
+                                          block_col=jatom,&
+                                          BLOCK=ksb_block_a)
+                      CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
+                      p_block_tot_b(1:SIZE(pb_block_a,1),1:SIZE(pb_block_a,2)) = 2.0_dp * pb_block_a
+
+                      ! Handle more than one configuration
                       IF ( nspins >= 2 ) THEN
                          CALL get_block_node(matrix=diagmat_p(2)%matrix,&
                                              block_row=jatom,&
@@ -621,16 +624,16 @@ CONTAINS
                          END IF
                          ! Coulomb Terms
                          IF      ( nspins == 1 ) THEN
-                            CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, ksa_block_a,&
-                                 p_block_tot_b, ksb_block_a, factor=0.5_dp, anag=anag, shortrange=do_ewald, taper=taper,&
+                            CALL fock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, ksa_block_a, p_block_tot_b,&
+                                 ksb_block_a, factor=0.5_dp, anag=anag, shortrange=do_ewald, taper=taper,&
                                  store_int_env=store_int_env, error=error)
                          ELSE IF ( nspins == 2 ) THEN
-                            CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, ksa_block_a,&
-                                 p_block_tot_b, ksb_block_a, factor=1.0_dp, anag=anag, shortrange=do_ewald, taper=taper,&
+                            CALL fock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, ksa_block_a, p_block_tot_b,&
+                                 ksb_block_a, factor=1.0_dp, anag=anag, shortrange=do_ewald, taper=taper,&
                                  store_int_env=store_int_env, error=error)
  
-                            CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_b, ksa_block_b,&
-                                 p_block_tot_b, ksb_block_b, factor=1.0_dp, anag=anag, shortrange=do_ewald, taper=taper,&
+                            CALL fock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, ksa_block_b, p_block_tot_b,&
+                                 ksb_block_b, factor=1.0_dp, anag=anag, shortrange=do_ewald, taper=taper,&
                                  store_int_env=store_int_env, error=error)
                          END IF
  
@@ -667,17 +670,14 @@ CONTAINS
                             ! Derivatives of the Coulomb Terms
                             force_ab = 0._dp
                             IF      ( nspins == 1 ) THEN
-                               CALL dfock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, p_block_tot_b,&
-                                    factor=0.25_dp, anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta,&
-                                    error=error)
+                               CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.25_dp,&
+                                    anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
                             ELSE IF ( nspins == 2 ) THEN
-                               CALL dfock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_a, p_block_tot_b,&
-                                    factor=0.5_dp, anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta,&
-                                    error=error)
+                               CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp,&
+                                    anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
                                
-                               CALL dfock2(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, pa_block_b, p_block_tot_b,&
-                                    factor=0.5_dp, anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta,&
-                                    error=error)
+                               CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp,&
+                                    anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
                             END IF
                             IF ( switch ) THEN 
                                force_ab(1) = -force_ab(1)
@@ -1065,6 +1065,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, iab, iatom, icol, ikind, ilist, inode, &
       irow, jatom, jkind, natom, natorb_a, natorb_b, nkind, nlist, nnode, &
       nspins, stat
+    INTEGER, DIMENSION(2)                    :: size_p_block_a
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
                                                 failure, switch
@@ -1160,19 +1161,22 @@ CONTAINS
                       icol = iatom
                       switch = .TRUE.
                    END IF
-                   IF ( nspins >= 1 ) THEN
-                      CALL get_block_node(matrix=ks_matrix(1)%matrix,&
-                                          block_row=irow,&
-                                          block_col=icol,&
-                                          BLOCK=ks_block_a)
-                      CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
-                      CALL get_block_node(matrix=matrix_p(1)%matrix,&
-                                          block_row=irow,&
-                                          block_col=icol,&
-                                          BLOCK=p_block_a)
-                      CPPostcondition(ASSOCIATED(p_block_a),cp_failure_level,routineP,error,failure)
-                      p_block_tot(1:SIZE(p_block_a,1),1:SIZE(p_block_a,2)) = 2.0_dp * p_block_a
-                   END IF
+                   ! Retrieve blocks for KS and P
+                   CALL get_block_node(matrix=ks_matrix(1)%matrix,&
+                                       block_row=irow,&
+                                       block_col=icol,&
+                                       BLOCK=ks_block_a)
+                   CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
+                   CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                                       block_row=irow,&
+                                       block_col=icol,&
+                                       BLOCK=p_block_a)
+                   CPPostcondition(ASSOCIATED(p_block_a),cp_failure_level,routineP,error,failure)
+                   size_p_block_a(1) = SIZE(p_block_a,1)
+                   size_p_block_a(2) = SIZE(p_block_a,2)
+                   p_block_tot(1:size_p_block_a(1),1:size_p_block_a(2)) = 2.0_dp * p_block_a
+                   
+                   ! Handle more configurations
                    IF ( nspins >= 2 ) THEN
                       CALL get_block_node(matrix=ks_matrix(2)%matrix,&
                                           block_row=irow,&
@@ -1184,7 +1188,7 @@ CONTAINS
                                           block_col=icol,&
                                           BLOCK=p_block_b)
                       CPPostcondition(ASSOCIATED(p_block_b),cp_failure_level,routineP,error,failure)
-                      check = (SIZE(p_block_a,1)==SIZE(p_block_b,1)).AND.(SIZE(p_block_a,2)==SIZE(p_block_b,2))
+                      check = (size_p_block_a(1)==SIZE(p_block_b,1)).AND.(size_p_block_a(2)==SIZE(p_block_b,2))
                       CPPostcondition(check,cp_failure_level,routineP,error,failure)
                       p_block_tot(1:SIZE(p_block_a,1),1:SIZE(p_block_a,2)) = p_block_a + p_block_b
                    END IF
@@ -1201,31 +1205,34 @@ CONTAINS
                    ELSE
                       ! Exchange Terms
                       IF      ( nspins == 1 ) THEN
-                         CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot, p_block_a, ks_block_a,&
-                              factor=0.5_dp, anag=anag, shortrange=.FALSE., taper=taper,&
-                              store_int_env=store_int_env, error=error)
+                         CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a, ks_block_a,&
+                              factor=0.5_dp, anag=anag, shortrange=.FALSE., taper=taper, store_int_env=store_int_env,&
+                              error=error)
                       ELSE IF ( nspins == 2 ) THEN
-                         CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot, p_block_a, ks_block_a,&
-                              factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper,&
-                              store_int_env=store_int_env, error=error)
+                         CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a, ks_block_a,&
+                              factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper, store_int_env=store_int_env,&
+                              error=error)
                          
-                         CALL fock2(se_kind_a, se_kind_b, rij, switch, p_block_tot, p_block_b, ks_block_b,&
-                              factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper,&
-                              store_int_env=store_int_env, error=error)
+                         CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_b, ks_block_b,&
+                              factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper, store_int_env=store_int_env,&
+                              error=error)
                       END IF
                       IF(calculate_forces) THEN
                          atom_a = atom_of_kind(iatom)
                          atom_b = atom_of_kind(jatom)
                          force_ab = 0.0_dp
                          IF      ( nspins == 1 ) THEN
-                            CALL dfock2(se_kind_a, se_kind_b, rij, switch, p_block_tot, p_block_a, factor=0.5_dp,&
-                                 anag=anag, shortrange=.FALSE., taper=taper, force=force_ab, delta=delta, error=error)
+                            CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a,&
+                                 factor=0.5_dp, anag=anag, shortrange=.FALSE., taper=taper, force=force_ab, delta=delta,&
+                                 error=error)
                          ELSE IF ( nspins == 2 ) THEN
-                            CALL dfock2(se_kind_a, se_kind_b, rij, switch, p_block_tot, p_block_a, factor=1.0_dp,&
-                                 anag=anag, shortrange=.FALSE., taper=taper, force=force_ab, delta=delta, error=error)
+                            CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a,&
+                                 factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper, force=force_ab, delta=delta,&
+                                 error=error)
                             
-                            CALL dfock2(se_kind_a, se_kind_b, rij, switch, p_block_tot, p_block_b, factor=1.0_dp,&
-                                 anag=anag, shortrange=.FALSE., taper=taper, force=force_ab, delta=delta, error=error)
+                            CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_b,&
+                                 factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper, force=force_ab, delta=delta,&
+                                 error=error)
                          END IF
                          IF (switch) THEN
                             force_ab(1) = -force_ab(1)
@@ -1262,15 +1269,22 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE fock2_1el (sepi, sepj, rij, ksi_block, ksj_block, pi_block,&
-       pj_block, ecore, itype, anag, shortrange, taper, store_int_env,&
-       error)
+  SUBROUTINE fock2_1el (sepi, sepj, rij, ksi_block, ksj_block, pi_block, pj_block,&
+       ecore, itype, anag, shortrange, taper, store_int_env, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: ksi_block, ksj_block
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: pi_block, pj_block
+    REAL(KIND=dp), &
+      DIMENSION(sepi%natorb, sepi%natorb), &
+      INTENT(INOUT)                          :: ksi_block
+    REAL(KIND=dp), &
+      DIMENSION(sepj%natorb, sepj%natorb), &
+      INTENT(INOUT)                          :: ksj_block
+    REAL(KIND=dp), &
+      DIMENSION(sepi%natorb, sepi%natorb), &
+      INTENT(IN)                             :: pi_block
+    REAL(KIND=dp), &
+      DIMENSION(sepj%natorb, sepj%natorb), &
+      INTENT(IN)                             :: pj_block
     REAL(KIND=dp), INTENT(INOUT)             :: ecore
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: anag, shortrange
@@ -1337,8 +1351,12 @@ CONTAINS
        shortrange, taper, force, delta, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: pi_block, pj_block
+    REAL(KIND=dp), &
+      DIMENSION(sepi%natorb, sepi%natorb), &
+      INTENT(IN)                             :: pi_block
+    REAL(KIND=dp), &
+      DIMENSION(sepj%natorb, sepj%natorb), &
+      INTENT(IN)                             :: pj_block
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: anag, shortrange
     TYPE(taper_type), POINTER                :: taper
@@ -1352,6 +1370,7 @@ CONTAINS
 
     INTEGER                                  :: i1, i1L, i2, j1, j1L
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(3, 45)          :: de1b, de2a
 
     failure = .FALSE.
@@ -1366,9 +1385,10 @@ CONTAINS
        DO j1L = 1, i1L-1
           j1 = se_orbital_pointer(j1L)
           i2 = i2 + 1
-          force(1) = force(1) - 2.0_dp * de1b(1,i2) * pi_block(i1,j1)
-          force(2) = force(2) - 2.0_dp * de1b(2,i2) * pi_block(i1,j1)
-          force(3) = force(3) - 2.0_dp * de1b(3,i2) * pi_block(i1,j1)
+          tmp= 2.0_dp * pi_block(i1,j1)
+          force(1) = force(1) - de1b(1,i2) * tmp 
+          force(2) = force(2) - de1b(2,i2) * tmp
+          force(3) = force(3) - de1b(3,i2) * tmp
        END DO
        j1 = se_orbital_pointer(j1L)
        i2 = i2 + 1
@@ -1385,9 +1405,10 @@ CONTAINS
        DO j1L = 1, i1L-1
           j1 = se_orbital_pointer(j1L)
           i2 = i2 + 1
-          force(1) = force(1) - 2.0_dp * de2a(1,i2) * pj_block(i1,j1)
-          force(2) = force(2) - 2.0_dp * de2a(2,i2) * pj_block(i1,j1)
-          force(3) = force(3) - 2.0_dp * de2a(3,i2) * pj_block(i1,j1)
+          tmp= 2.0_dp * pj_block(i1,j1)
+          force(1) = force(1) - de2a(1,i2) * tmp
+          force(2) = force(2) - de2a(2,i2) * tmp
+          force(3) = force(3) - de2a(3,i2) * tmp
        END DO
        j1 = se_orbital_pointer(j1L)
        i2 = i2 + 1
@@ -1405,9 +1426,13 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fock1_2el(sep, p_tot, p_mat, f_mat, factor, error)
     TYPE(semi_empirical_type), POINTER       :: sep
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: p_tot, p_mat
-    REAL(KIND=dp), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(45, 45), &
+      INTENT(IN)                             :: p_tot
+    REAL(KIND=dp), &
+      DIMENSION(sep%natorb, sep%natorb), &
+      INTENT(IN)                             :: p_mat
+    REAL(KIND=dp), &
+      DIMENSION(sep%natorb, sep%natorb), &
       INTENT(INOUT)                          :: f_mat
     REAL(KIND=dp), INTENT(IN)                :: factor
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1464,42 +1489,41 @@ CONTAINS
   END SUBROUTINE fock1_2el
 
 ! *****************************************************************************
-!> \brief Construction of 2-center Fock Matrix - General Driver
+!> \brief Construction of 2-center Fock Matrix - Coulomb Terms
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE fock2(sepi, sepj, rij, switch, pi_tot, pi_mat, fi_mat, pj_tot, fj_mat, &
+  SUBROUTINE fock2C(sepi, sepj, rij, switch, pi_tot, fi_mat, pj_tot, fj_mat, &
        factor, anag, shortrange, taper, store_int_env, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rij
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: pi_tot, pi_mat
-    REAL(KIND=dp), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(45, 45), &
+      INTENT(IN)                             :: pi_tot
+    REAL(KIND=dp), &
+      DIMENSION(sepi%natorb, sepi%natorb), &
       INTENT(INOUT)                          :: fi_mat
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN), OPTIONAL                   :: pj_tot
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT), OPTIONAL                :: fj_mat
+    REAL(KIND=dp), DIMENSION(45, 45), &
+      INTENT(IN)                             :: pj_tot
+    REAL(KIND=dp), &
+      DIMENSION(sepj%natorb, sepj%natorb), &
+      INTENT(INOUT)                          :: fj_mat
     REAL(KIND=dp), INTENT(IN)                :: factor
     LOGICAL, INTENT(IN)                      :: anag, shortrange
     TYPE(taper_type), POINTER                :: taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fock2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'fock2C', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
                                                 lL, natorb(2)
-    LOGICAL                                  :: failure, task_coulomb
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, aa, bb, irij(3)
     REAL(KIND=dp), DIMENSION(2025)           :: w
 
-    failure = .FALSE.
-    CPPrecondition(PRESENT(pj_tot).EQV.PRESENT(fj_mat),cp_failure_level,routineP,error,failure)
-    task_coulomb = PRESENT(pj_tot)
-    
+    failure = .FALSE.    
     ! Evaluate integrals
     IF (.NOT.switch) THEN
        CALL rotint (sepi,sepj, rij,w,anag=anag,shortrange=shortrange,taper=taper,&
@@ -1534,48 +1558,37 @@ CONTAINS
                 END IF
                 kr = kr + 1
                 a = w(kr)*factor
-                IF (task_coulomb) THEN
-                   ! Coulomb
-                   IF (.NOT.switch) THEN
-                      fi_mat(i,j) = fi_mat(i,j) + bb * a * pj_tot(k,l)
-                      fj_mat(k,l) = fj_mat(k,l) + aa * a * pi_tot(i,j)
-                      fi_mat(j,i) = fi_mat(i,j)
-                      fj_mat(l,k) = fj_mat(k,l)
-                   ELSE
-                      fj_mat(i,j) = fj_mat(i,j) + bb * a * pi_tot(k,l)
-                      fi_mat(k,l) = fi_mat(k,l) + aa * a * pj_tot(i,j)
-                      fj_mat(j,i) = fj_mat(i,j)
-                      fi_mat(l,k) = fi_mat(k,l)
-                   END IF
+                ! Coulomb
+                IF (.NOT.switch) THEN
+                   fi_mat(i,j) = fi_mat(i,j) + bb * a * pj_tot(k,l)
+                   fj_mat(k,l) = fj_mat(k,l) + aa * a * pi_tot(i,j)
+                   fi_mat(j,i) = fi_mat(i,j)
+                   fj_mat(l,k) = fj_mat(k,l)
                 ELSE
-                   ! Exchange
-                   a = a * aa * bb * 0.25_dp
-                   fi_mat(i,k) = fi_mat(i,k) - a * pi_mat(j,l)
-                   fi_mat(i,l) = fi_mat(i,l) - a * pi_mat(j,k)
-                   fi_mat(j,k) = fi_mat(j,k) - a * pi_mat(i,l)
-                   fi_mat(j,l) = fi_mat(j,l) - a * pi_mat(i,k)
+                   fj_mat(i,j) = fj_mat(i,j) + bb * a * pi_tot(k,l)
+                   fi_mat(k,l) = fi_mat(k,l) + aa * a * pj_tot(i,j)
+                   fj_mat(j,i) = fj_mat(i,j)
+                   fi_mat(l,k) = fi_mat(k,l)
                 END IF
              END DO
           END DO
        END DO
     END DO
 
-  END SUBROUTINE fock2
+  END SUBROUTINE fock2C
 
 ! *****************************************************************************
-!> \brief Derivatives of 2-center Fock Matrix - General Driver
+!> \brief Derivatives of 2-center Fock Matrix - Coulomb Terms
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE dfock2(sepi, sepj, rij, switch, pi_tot, pi_mat, pj_tot, &
-       factor, anag, shortrange, taper, force, delta, error)
+  SUBROUTINE dfock2C(sepi, sepj, rij, switch, pi_tot, pj_tot, factor, anag,&
+       shortrange, taper, force, delta, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rij
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: pi_tot, pi_mat
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN), OPTIONAL                   :: pj_tot
+    REAL(KIND=dp), DIMENSION(45, 45), &
+      INTENT(IN)                             :: pi_tot, pj_tot
     REAL(KIND=dp), INTENT(IN)                :: factor
     LOGICAL, INTENT(IN)                      :: anag, shortrange
     TYPE(taper_type), POINTER                :: taper
@@ -1584,20 +1597,18 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: delta
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dfock2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dfock2C', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
                                                 lL, natorb(2)
-    LOGICAL                                  :: failure, task_coulomb
-    REAL(KIND=dp)                            :: aa, bb, irij(3)
-    REAL(KIND=dp), DIMENSION(3)              :: a
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: aa, bb, tmp
+    REAL(KIND=dp), DIMENSION(3)              :: a, irij
     REAL(KIND=dp), DIMENSION(3, 2025)        :: dw
 
     failure = .FALSE.
-    task_coulomb = PRESENT(pj_tot)
-    
-    ! Evaluate integrals
+    ! Evaluate integrals' derivatives
     IF (.NOT.switch) THEN
        CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,shortrange=shortrange,taper=taper,error=error)
     ELSE
@@ -1629,41 +1640,206 @@ CONTAINS
                    bb = 1.0_dp
                 END IF
                 kr = kr + 1
-                a = dw(:,kr)*factor
-                IF (task_coulomb) THEN
-                   ! Coulomb
-                   IF (.NOT.switch) THEN
-                      force(1) = force(1) + bb * aa * a(1) * pj_tot(k,l) * pi_tot(i,j)
-                      force(2) = force(2) + bb * aa * a(2) * pj_tot(k,l) * pi_tot(i,j)
-                      force(3) = force(3) + bb * aa * a(3) * pj_tot(k,l) * pi_tot(i,j)
-                   ELSE
-                      force(1) = force(1) + bb * aa * a(1) * pi_tot(k,l) * pj_tot(i,j)
-                      force(2) = force(2) + bb * aa * a(2) * pi_tot(k,l) * pj_tot(i,j)
-                      force(3) = force(3) + bb * aa * a(3) * pi_tot(k,l) * pj_tot(i,j)
-                   END IF
+                a(1) = dw(1,kr)*factor
+                a(2) = dw(2,kr)*factor
+                a(3) = dw(3,kr)*factor
+                ! Coulomb
+                IF (.NOT.switch) THEN
+                   tmp = bb * aa * pj_tot(k,l) * pi_tot(i,j)
+                   force(1) = force(1) + a(1) * tmp
+                   force(2) = force(2) + a(2) * tmp
+                   force(3) = force(3) + a(3) * tmp
                 ELSE
-                   ! Exchange
-                   a = a * aa * bb * 0.25_dp
-                   force(1) = force(1) - a(1) * pi_mat(j,l) * pi_mat(i,k)
-                   force(1) = force(1) - a(1) * pi_mat(j,k) * pi_mat(i,l)
-                   force(1) = force(1) - a(1) * pi_mat(i,l) * pi_mat(j,k)
-                   force(1) = force(1) - a(1) * pi_mat(i,k) * pi_mat(j,l)
-
-                   force(2) = force(2) - a(2) * pi_mat(j,l) * pi_mat(i,k)
-                   force(2) = force(2) - a(2) * pi_mat(j,k) * pi_mat(i,l)
-                   force(2) = force(2) - a(2) * pi_mat(i,l) * pi_mat(j,k)
-                   force(2) = force(2) - a(2) * pi_mat(i,k) * pi_mat(j,l)
-
-                   force(3) = force(3) - a(3) * pi_mat(j,l) * pi_mat(i,k)
-                   force(3) = force(3) - a(3) * pi_mat(j,k) * pi_mat(i,l)
-                   force(3) = force(3) - a(3) * pi_mat(i,l) * pi_mat(j,k)
-                   force(3) = force(3) - a(3) * pi_mat(i,k) * pi_mat(j,l)
+                   tmp = bb * aa * pi_tot(k,l) * pj_tot(i,j)
+                   force(1) = force(1) + a(1) * tmp
+                   force(2) = force(2) + a(2) * tmp
+                   force(3) = force(3) + a(3) * tmp
                 END IF
              END DO
           END DO
        END DO
     END DO
-  END SUBROUTINE dfock2
+  END SUBROUTINE dfock2C
+
+! *****************************************************************************
+!> \brief Construction of 2-center Fock Matrix - General Driver
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 04.2008 [tlaino]
+! *****************************************************************************
+  SUBROUTINE fock2E(sepi, sepj, rij, switch, isize, pi_tot, pi_mat, fi_mat, factor,&
+       anag, shortrange, taper, store_int_env, error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
+    LOGICAL, INTENT(IN)                      :: switch
+    INTEGER, DIMENSION(2), INTENT(IN)        :: isize
+    REAL(KIND=dp), DIMENSION(45, 45), &
+      INTENT(IN)                             :: pi_tot
+    REAL(KIND=dp), &
+      DIMENSION(isize(1), isize(2)), &
+      INTENT(IN)                             :: pi_mat
+    REAL(KIND=dp), &
+      DIMENSION(isize(1), isize(2)), &
+      INTENT(INOUT)                          :: fi_mat
+    REAL(KIND=dp), INTENT(IN)                :: factor
+    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    TYPE(taper_type), POINTER                :: taper
+    TYPE(semi_empirical_si_type), POINTER    :: store_int_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fock2E', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
+                                                lL, natorb(2)
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a, aa, bb, irij(3)
+    REAL(KIND=dp), DIMENSION(2025)           :: w
+
+    failure = .FALSE.
+    ! Evaluate integrals
+    IF (.NOT.switch) THEN
+       CALL rotint (sepi,sepj, rij,w,anag=anag,shortrange=shortrange,taper=taper,&
+            store_int_env=store_int_env, error=error)
+    ELSE
+       irij = -rij
+       CALL rotint (sepj,sepi,irij,w,anag=anag,shortrange=shortrange,taper=taper,&
+            store_int_env=store_int_env, error=error)
+    END IF
+    kr = 0
+    natorb(1) = sepi%natorb
+    natorb(2) = sepj%natorb
+    IF (switch) THEN
+       natorb(1) = sepj%natorb
+       natorb(2) = sepi%natorb
+    END IF
+    DO iL = 1, natorb(1)
+       i = se_orbital_pointer(iL)
+       aa = 2.0_dp
+       DO jL = 1, iL
+          j = se_orbital_pointer(jL)
+          IF (i == j) THEN
+             aa = 1.0_dp
+          END IF
+          DO kL = 1, natorb(2)
+             k = se_orbital_pointer(kL)
+             bb = 2.0_dp
+             DO lL = 1, kL
+                l = se_orbital_pointer(lL)
+                IF (k == l) THEN
+                   bb = 1.0_dp
+                END IF
+                kr = kr + 1
+                a = w(kr)*factor
+                ! Exchange
+                a = a * aa * bb * 0.25_dp
+                fi_mat(i,k) = fi_mat(i,k) - a * pi_mat(j,l)
+                fi_mat(i,l) = fi_mat(i,l) - a * pi_mat(j,k)
+                fi_mat(j,k) = fi_mat(j,k) - a * pi_mat(i,l)
+                fi_mat(j,l) = fi_mat(j,l) - a * pi_mat(i,k)
+             END DO
+          END DO
+       END DO
+    END DO
+
+  END SUBROUTINE fock2E
+
+! *****************************************************************************
+!> \brief Derivatives of 2-center Fock Matrix - General Driver
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 04.2008 [tlaino]
+! *****************************************************************************
+  SUBROUTINE dfock2E(sepi, sepj, rij, switch, isize, pi_tot, pi_mat, factor, anag,&
+       shortrange, taper, force, delta, error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
+    LOGICAL, INTENT(IN)                      :: switch
+    INTEGER, DIMENSION(2), INTENT(IN)        :: isize
+    REAL(KIND=dp), DIMENSION(45, 45), &
+      INTENT(IN)                             :: pi_tot
+    REAL(KIND=dp), &
+      DIMENSION(isize(1), isize(2)), &
+      INTENT(IN)                             :: pi_mat
+    REAL(KIND=dp), INTENT(IN)                :: factor
+    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    TYPE(taper_type), POINTER                :: taper
+    REAL(KIND=dp), DIMENSION(3), &
+      INTENT(INOUT)                          :: force
+    REAL(KIND=dp), INTENT(IN)                :: delta
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dfock2E', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
+                                                lL, natorb(2)
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: aa, bb, tmp, tmp1, tmp2, &
+                                                tmp3, tmp4
+    REAL(KIND=dp), DIMENSION(3)              :: a, irij
+    REAL(KIND=dp), DIMENSION(3, 2025)        :: dw
+
+    failure = .FALSE.
+    ! Evaluate integrals' derivatives
+    IF (.NOT.switch) THEN
+       CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,shortrange=shortrange,taper=taper,error=error)
+    ELSE
+       irij = -rij
+       CALL drotint (sepj,sepi,irij,dw,delta,anag=anag,shortrange=shortrange,taper=taper,error=error)
+    END IF
+
+    kr = 0
+    natorb(1) = sepi%natorb
+    natorb(2) = sepj%natorb
+    IF (switch) THEN
+       natorb(1) = sepj%natorb
+       natorb(2) = sepi%natorb
+    END IF
+    DO iL = 1, natorb(1)
+       i = se_orbital_pointer(iL)
+       aa = 2.0_dp
+       DO jL = 1, iL
+          j = se_orbital_pointer(jL)
+          IF (i == j) THEN
+             aa = 1.0_dp
+          END IF
+          DO kL = 1, natorb(2)
+             k = se_orbital_pointer(kL)
+             bb = 2.0_dp
+             DO lL = 1, kL
+                l = se_orbital_pointer(lL)
+                IF (k == l) THEN
+                   bb = 1.0_dp
+                END IF
+                kr   = kr + 1
+                tmp  = factor * aa * bb * 0.25_dp
+                a(1) = dw(1,kr)*tmp
+                a(2) = dw(2,kr)*tmp
+                a(3) = dw(3,kr)*tmp
+                ! Exchange
+                tmp1 = pi_mat(j,l) * pi_mat(i,k)
+                tmp2 = pi_mat(j,k) * pi_mat(i,l)
+                tmp3 = pi_mat(i,l) * pi_mat(j,k)
+                tmp4 = pi_mat(i,k) * pi_mat(j,l)
+
+                force(1) = force(1) - a(1) * tmp1
+                force(1) = force(1) - a(1) * tmp2
+                force(1) = force(1) - a(1) * tmp3
+                force(1) = force(1) - a(1) * tmp4
+                
+                force(2) = force(2) - a(2) * tmp1
+                force(2) = force(2) - a(2) * tmp2
+                force(2) = force(2) - a(2) * tmp3
+                force(2) = force(2) - a(2) * tmp4
+                
+                force(3) = force(3) - a(3) * tmp1
+                force(3) = force(3) - a(3) * tmp2
+                force(3) = force(3) - a(3) * tmp3
+                force(3) = force(3) - a(3) * tmp4
+             END DO
+          END DO
+       END DO
+    END DO
+  END SUBROUTINE dfock2E
 
 END MODULE nddo_methods
 
