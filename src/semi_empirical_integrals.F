@@ -38,7 +38,7 @@ MODULE semi_empirical_integrals
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_integrals'
-  PUBLIC :: rotint, rotnuc, drotint, drotnuc, corecore, dcorecore
+  PUBLIC :: rotint, rotnuc, corecore, drotint, drotnuc, dcorecore
 
 CONTAINS
 
@@ -50,8 +50,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE rotint(sepi,sepj,rij,w,anag,shortrange,taper,store_int_env,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
-    REAL(dp), DIMENSION(:), INTENT(OUT)      :: w
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
+    REAL(dp), DIMENSION(2025), INTENT(OUT)   :: w
     LOGICAL                                  :: anag, shortrange
     TYPE(taper_type), POINTER                :: taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -83,7 +83,11 @@ CONTAINS
              buffer_overflow = .FALSE.
           END IF
           ! Compute Integrals
-          CALL rotint_low (sepi,sepj,rij,w,anag,shortrange,taper,error)
+          IF (anag) THEN
+             CALL rotint_ana (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
+          ELSE
+             CALL rotint_num (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
+          END IF
           ! Store integrals if we did not go overflow
           IF (.NOT.buffer_overflow) THEN
              IF (store_int_env%compress) THEN
@@ -155,37 +159,21 @@ CONTAINS
                 store_int_env%memory_parameter%actual_memory_usage = memory_usage + nints
              END IF
           ELSE
-             CALL rotint_low (sepi,sepj,rij,w,anag,shortrange,taper,error)
+             IF (anag) THEN
+                CALL rotint_ana (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
+             ELSE
+                CALL rotint_num (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
+             END IF
           END IF
        END IF
     ELSE
-       CALL rotint_low (sepi,sepj,rij,w,anag,shortrange,taper,error)
+       IF (anag) THEN
+          CALL rotint_ana (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
+       ELSE
+          CALL rotint_num (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
+       END IF
     END IF
   END SUBROUTINE rotint
-
-! *****************************************************************************
-!> \brief wrapper for numerical/analytical routines - Low level
-!> \author Teodoro Laino [tlaino] - University of Zurich
-!> \date   05.2008
-! *****************************************************************************
-  SUBROUTINE rotint_low (sepi,sepj,rij,w,anag,shortrange,taper,error)
-    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
-    REAL(dp), DIMENSION(:), INTENT(OUT)      :: w
-    LOGICAL                                  :: anag, shortrange
-    TYPE(taper_type), POINTER                :: taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rotint_low', &
-      routineP = moduleN//':'//routineN
-
-    IF (anag) THEN
-       CALL rotint_ana (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
-    ELSE
-       CALL rotint_num (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
-    END IF
-
-  END SUBROUTINE rotint_low
 
 ! *****************************************************************************
 !> \brief wrapper for numerical/analytical 1 center 1 electron integrals
@@ -194,7 +182,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE rotnuc (sepi,sepj,rij,e1b,e2a,itype,anag,shortrange,taper,store_int_env,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(45), INTENT(OUT), &
       OPTIONAL                               :: e1b, e2a
     INTEGER, INTENT(IN)                      :: itype
@@ -237,7 +225,13 @@ CONTAINS
              buffer_overflow = .FALSE.
           END IF
           ! Compute Integrals
-          CALL rotnuc_low (sepi,sepj,rij,e1b,e2a,itype,anag,shortrange,taper,error)
+          IF (anag) THEN
+             CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+                  shortrange=shortrange, taper=taper, error=error)
+          ELSE
+             CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+                  shortrange=shortrange, taper=taper, error=error)    
+          END IF
           ! Store integrals if we did not go overflow
           IF (.NOT.buffer_overflow) THEN
              IF (PRESENT(e1b)) w(        1:nints_1) = e1b(1:nints_1)
@@ -314,42 +308,26 @@ CONTAINS
              IF (PRESENT(e1b)) e1b(1:nints_1) = w(        1:nints_1)
              IF (PRESENT(e2a)) e2a(1:nints_2) = w(nints_1+1:nints  )
           ELSE
-             CALL rotnuc_low (sepi,sepj,rij,e1b,e2a,itype,anag,shortrange,taper,error)
+             IF (anag) THEN
+                CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+                     shortrange=shortrange, taper=taper, error=error)
+             ELSE
+                CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+                     shortrange=shortrange, taper=taper, error=error)    
+             END IF
           END IF
        END IF
     ELSE
-       CALL rotnuc_low (sepi,sepj,rij,e1b,e2a,itype,anag,shortrange,taper,error)
+       IF (anag) THEN
+          CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+               shortrange=shortrange, taper=taper, error=error)
+       ELSE
+          CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+               shortrange=shortrange, taper=taper, error=error)    
+       END IF
     END IF
 
   END SUBROUTINE rotnuc
-
-! *****************************************************************************
-!> \brief wrapper for numerical/analytical  - Low level
-!> \author Teodoro Laino [tlaino] - University of Zurich
-!> \date   05.2008
-! *****************************************************************************
-  SUBROUTINE rotnuc_low (sepi,sepj,rij,e1b,e2a,itype,anag,shortrange,taper,error)
-    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
-    REAL(dp), DIMENSION(45), INTENT(OUT), &
-      OPTIONAL                               :: e1b, e2a
-    INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: anag, shortrange
-    TYPE(taper_type), POINTER                :: taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc_low', &
-      routineP = moduleN//':'//routineN
-
-    IF (anag) THEN
-       CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-            shortrange=shortrange, taper=taper, error=error)
-    ELSE
-       CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-            shortrange=shortrange, taper=taper, error=error)    
-    END IF
-
-  END SUBROUTINE rotnuc_low
 
 ! *****************************************************************************
 !> \brief  wrapper for numerical/analytical routines
@@ -361,7 +339,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE corecore (sepi,sepj,rij,enuc,itype,anag,shortrange,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), INTENT(OUT)                    :: enuc
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: anag, shortrange
@@ -376,7 +354,7 @@ CONTAINS
             taper=taper, error=error)
     ELSE
        CALL corecore_num (sepi,sepj,rij,enuc=enuc,itype=itype,shortrange=shortrange,&
-            taper=taper, error=error)    
+            taper=taper, error=error)
     END IF
 
   END SUBROUTINE corecore
@@ -388,8 +366,9 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE drotint (sepi,sepj,rij,dw,delta,anag,shortrange,taper, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
-    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: dw
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
+    REAL(dp), DIMENSION(3, 2025), &
+      INTENT(OUT)                            :: dw
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: anag, shortrange
     TYPE(taper_type), POINTER                :: taper
@@ -413,7 +392,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE drotnuc (sepi,sepj,rij,de1b,de2a,itype,delta,anag,shortrange,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3, 45), &
       INTENT(OUT), OPTIONAL                  :: de1b, de2a
     INTEGER, INTENT(IN)                      :: itype
@@ -442,8 +421,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dcorecore (sepi,sepj,rij,denuc,itype,delta,anag,shortrange,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
-    REAL(dp), DIMENSION(:), INTENT(OUT)      :: denuc
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
+    REAL(dp), DIMENSION(3), INTENT(OUT)      :: denuc
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: anag, shortrange
@@ -458,7 +437,7 @@ CONTAINS
             taper=taper, error=error)
     ELSE
        CALL dcorecore_num (sepi,sepj,rij,denuc=denuc,delta=delta,itype=itype,&
-            shortrange=shortrange,taper=taper, error=error)    
+            shortrange=shortrange,taper=taper, error=error)
     END IF
 
   END SUBROUTINE dcorecore

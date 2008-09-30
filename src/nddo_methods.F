@@ -373,8 +373,16 @@ CONTAINS
                             
                             CALL dcorecore (se_kind_a,se_kind_b,rij,denuc=force_ab,itype=itype,delta=delta,&
                                  anag=anag,shortrange=do_ewald,taper=taper,error=error)
-                            force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
-                            force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + force_ab(:)
+
+                            ! Sum up force components
+                            force(ikind)%all_potential(1,atom_a) = force(ikind)%all_potential(1,atom_a) - force_ab(1)
+                            force(jkind)%all_potential(1,atom_b) = force(jkind)%all_potential(1,atom_b) + force_ab(1)
+
+                            force(ikind)%all_potential(2,atom_a) = force(ikind)%all_potential(2,atom_a) - force_ab(2)
+                            force(jkind)%all_potential(2,atom_b) = force(jkind)%all_potential(2,atom_b) + force_ab(2)
+
+                            force(ikind)%all_potential(3,atom_a) = force(ikind)%all_potential(3,atom_a) - force_ab(3)
+                            force(jkind)%all_potential(3,atom_b) = force(jkind)%all_potential(3,atom_b) + force_ab(3)
                          END IF
                       CASE DEFAULT
                          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -642,9 +650,19 @@ CONTAINS
                                CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_block_b, pb_block_b, itype=itype, anag=anag,&
                                     shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
                             END IF
-                            force_ab = -force_ab
-                            force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
-                            force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + force_ab(:)
+                            force_ab(1) = -force_ab(1)
+                            force_ab(2) = -force_ab(2)
+                            force_ab(3) = -force_ab(3)
+
+                            ! Sum up force components
+                            force(ikind)%all_potential(1,atom_a) = force(ikind)%all_potential(1,atom_a) - force_ab(1)
+                            force(jkind)%all_potential(1,atom_b) = force(jkind)%all_potential(1,atom_b) + force_ab(1)
+
+                            force(ikind)%all_potential(2,atom_a) = force(ikind)%all_potential(2,atom_a) - force_ab(2)
+                            force(jkind)%all_potential(2,atom_b) = force(jkind)%all_potential(2,atom_b) + force_ab(2)
+
+                            force(ikind)%all_potential(3,atom_a) = force(ikind)%all_potential(3,atom_a) - force_ab(3)
+                            force(jkind)%all_potential(3,atom_b) = force(jkind)%all_potential(3,atom_b) + force_ab(3)
  
                             ! Derivatives of the Coulomb Terms
                             force_ab = 0._dp
@@ -661,9 +679,20 @@ CONTAINS
                                     factor=0.5_dp, anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta,&
                                     error=error)
                             END IF
-                            IF ( switch ) force_ab = -force_ab
-                            force(ikind)%rho_elec(:,atom_a) = force(ikind)%rho_elec(:,atom_a) - force_ab(:)
-                            force(jkind)%rho_elec(:,atom_b) = force(jkind)%rho_elec(:,atom_b) + force_ab(:)
+                            IF ( switch ) THEN 
+                               force_ab(1) = -force_ab(1)
+                               force_ab(2) = -force_ab(2)
+                               force_ab(3) = -force_ab(3)
+                            END IF
+                            ! Sum up force components
+                            force(ikind)%rho_elec(1,atom_a) = force(ikind)%rho_elec(1,atom_a) - force_ab(1)
+                            force(jkind)%rho_elec(1,atom_b) = force(jkind)%rho_elec(1,atom_b) + force_ab(1)
+
+                            force(ikind)%rho_elec(2,atom_a) = force(ikind)%rho_elec(2,atom_a) - force_ab(2)
+                            force(jkind)%rho_elec(2,atom_b) = force(jkind)%rho_elec(2,atom_b) + force_ab(2)
+
+                            force(ikind)%rho_elec(3,atom_a) = force(ikind)%rho_elec(3,atom_a) - force_ab(3)
+                            force(jkind)%rho_elec(3,atom_b) = force(jkind)%rho_elec(3,atom_b) + force_ab(3)
                          END IF
                       CASE DEFAULT
                          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -1198,9 +1227,19 @@ CONTAINS
                             CALL dfock2(se_kind_a, se_kind_b, rij, switch, p_block_tot, p_block_b, factor=1.0_dp,&
                                  anag=anag, shortrange=.FALSE., taper=taper, force=force_ab, delta=delta, error=error)
                          END IF
-                         IF (switch) force_ab = -force_ab
-                         force(ikind)%rho_elec(:,atom_a) = force(ikind)%rho_elec(:,atom_a) - force_ab(:)
-                         force(jkind)%rho_elec(:,atom_b) = force(jkind)%rho_elec(:,atom_b) + force_ab(:)
+                         IF (switch) THEN
+                            force_ab(1) = -force_ab(1)
+                            force_ab(2) = -force_ab(2)
+                            force_ab(3) = -force_ab(3)
+                         END IF
+                         force(ikind)%rho_elec(1,atom_a) = force(ikind)%rho_elec(1,atom_a) - force_ab(1)
+                         force(jkind)%rho_elec(1,atom_b) = force(jkind)%rho_elec(1,atom_b) + force_ab(1)
+
+                         force(ikind)%rho_elec(2,atom_a) = force(ikind)%rho_elec(2,atom_a) - force_ab(2)
+                         force(jkind)%rho_elec(2,atom_b) = force(jkind)%rho_elec(2,atom_b) + force_ab(2)
+
+                         force(ikind)%rho_elec(3,atom_a) = force(ikind)%rho_elec(3,atom_a) - force_ab(3)
+                         force(jkind)%rho_elec(3,atom_b) = force(jkind)%rho_elec(3,atom_b) + force_ab(3)
                       END IF
                    END IF
                    sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -1327,11 +1366,15 @@ CONTAINS
        DO j1L = 1, i1L-1
           j1 = se_orbital_pointer(j1L)
           i2 = i2 + 1
-          force = force - 2.0_dp * de1b(:,i2) * pi_block(i1,j1)
+          force(1) = force(1) - 2.0_dp * de1b(1,i2) * pi_block(i1,j1)
+          force(2) = force(2) - 2.0_dp * de1b(2,i2) * pi_block(i1,j1)
+          force(3) = force(3) - 2.0_dp * de1b(3,i2) * pi_block(i1,j1)
        END DO
        j1 = se_orbital_pointer(j1L)
        i2 = i2 + 1
-       force = force - de1b(:,i2) * pi_block(i1,j1)
+       force(1) = force(1) - de1b(1,i2) * pi_block(i1,j1)
+       force(2) = force(2) - de1b(2,i2) * pi_block(i1,j1)
+       force(3) = force(3) - de1b(3,i2) * pi_block(i1,j1)
     END DO
     !
     ! Add the electron-nuclear attraction term for atom sepj
@@ -1342,11 +1385,15 @@ CONTAINS
        DO j1L = 1, i1L-1
           j1 = se_orbital_pointer(j1L)
           i2 = i2 + 1
-          force = force - 2.0_dp * de2a(:,i2) * pj_block(i1,j1)
+          force(1) = force(1) - 2.0_dp * de2a(1,i2) * pj_block(i1,j1)
+          force(2) = force(2) - 2.0_dp * de2a(2,i2) * pj_block(i1,j1)
+          force(3) = force(3) - 2.0_dp * de2a(3,i2) * pj_block(i1,j1)
        END DO
        j1 = se_orbital_pointer(j1L)
        i2 = i2 + 1
-       force = force - de2a(:,i2) * pj_block(i1,j1)
+       force(1) = force(1) - de2a(1,i2) * pj_block(i1,j1)
+       force(2) = force(2) - de2a(2,i2) * pj_block(i1,j1)
+       force(3) = force(3) - de2a(3,i2) * pj_block(i1,j1)
     END DO
     
   END SUBROUTINE dfock2_1el
@@ -1446,7 +1493,7 @@ CONTAINS
     INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
                                                 lL, natorb(2)
     LOGICAL                                  :: failure, task_coulomb
-    REAL(KIND=dp)                            :: a, aa, bb
+    REAL(KIND=dp)                            :: a, aa, bb, irij(3)
     REAL(KIND=dp), DIMENSION(2025)           :: w
 
     failure = .FALSE.
@@ -1458,7 +1505,8 @@ CONTAINS
        CALL rotint (sepi,sepj, rij,w,anag=anag,shortrange=shortrange,taper=taper,&
             store_int_env=store_int_env, error=error)
     ELSE
-       CALL rotint (sepj,sepi,-rij,w,anag=anag,shortrange=shortrange,taper=taper,&
+       irij = -rij
+       CALL rotint (sepj,sepi,irij,w,anag=anag,shortrange=shortrange,taper=taper,&
             store_int_env=store_int_env, error=error)
     END IF
     kr = 0
@@ -1542,7 +1590,7 @@ CONTAINS
     INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
                                                 lL, natorb(2)
     LOGICAL                                  :: failure, task_coulomb
-    REAL(KIND=dp)                            :: aa, bb
+    REAL(KIND=dp)                            :: aa, bb, irij(3)
     REAL(KIND=dp), DIMENSION(3)              :: a
     REAL(KIND=dp), DIMENSION(3, 2025)        :: dw
 
@@ -1553,7 +1601,8 @@ CONTAINS
     IF (.NOT.switch) THEN
        CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,shortrange=shortrange,taper=taper,error=error)
     ELSE
-       CALL drotint (sepj,sepi,-rij,dw,delta,anag=anag,shortrange=shortrange,taper=taper,error=error)
+       irij = -rij
+       CALL drotint (sepj,sepi,irij,dw,delta,anag=anag,shortrange=shortrange,taper=taper,error=error)
     END IF
 
     kr = 0
@@ -1584,17 +1633,31 @@ CONTAINS
                 IF (task_coulomb) THEN
                    ! Coulomb
                    IF (.NOT.switch) THEN
-                      force = force + bb * aa * a * pj_tot(k,l) * pi_tot(i,j)
+                      force(1) = force(1) + bb * aa * a(1) * pj_tot(k,l) * pi_tot(i,j)
+                      force(2) = force(2) + bb * aa * a(2) * pj_tot(k,l) * pi_tot(i,j)
+                      force(3) = force(3) + bb * aa * a(3) * pj_tot(k,l) * pi_tot(i,j)
                    ELSE
-                      force = force + bb * aa * a * pi_tot(k,l) * pj_tot(i,j)
+                      force(1) = force(1) + bb * aa * a(1) * pi_tot(k,l) * pj_tot(i,j)
+                      force(2) = force(2) + bb * aa * a(2) * pi_tot(k,l) * pj_tot(i,j)
+                      force(3) = force(3) + bb * aa * a(3) * pi_tot(k,l) * pj_tot(i,j)
                    END IF
                 ELSE
                    ! Exchange
                    a = a * aa * bb * 0.25_dp
-                   force = force - a * pi_mat(j,l) * pi_mat(i,k)
-                   force = force - a * pi_mat(j,k) * pi_mat(i,l)
-                   force = force - a * pi_mat(i,l) * pi_mat(j,k)
-                   force = force - a * pi_mat(i,k) * pi_mat(j,l)
+                   force(1) = force(1) - a(1) * pi_mat(j,l) * pi_mat(i,k)
+                   force(1) = force(1) - a(1) * pi_mat(j,k) * pi_mat(i,l)
+                   force(1) = force(1) - a(1) * pi_mat(i,l) * pi_mat(j,k)
+                   force(1) = force(1) - a(1) * pi_mat(i,k) * pi_mat(j,l)
+
+                   force(2) = force(2) - a(2) * pi_mat(j,l) * pi_mat(i,k)
+                   force(2) = force(2) - a(2) * pi_mat(j,k) * pi_mat(i,l)
+                   force(2) = force(2) - a(2) * pi_mat(i,l) * pi_mat(j,k)
+                   force(2) = force(2) - a(2) * pi_mat(i,k) * pi_mat(j,l)
+
+                   force(3) = force(3) - a(3) * pi_mat(j,l) * pi_mat(i,k)
+                   force(3) = force(3) - a(3) * pi_mat(j,k) * pi_mat(i,l)
+                   force(3) = force(3) - a(3) * pi_mat(i,l) * pi_mat(j,k)
+                   force(3) = force(3) - a(3) * pi_mat(i,k) * pi_mat(j,l)
                 END IF
              END DO
           END DO

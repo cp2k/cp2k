@@ -1496,8 +1496,8 @@ CONTAINS
        CPPostcondition(PRESENT(  drij),cp_failure_level,routineP,error,failure)
     END IF
     limkl = indexb(kk, kk)
-    DO i = 1, 45
-       DO k = 1, limkl
+    DO k = 1, limkl
+       DO i = 1, 45
           logv(i, k) = .FALSE.
           v(i, k)    = 0.0_dp
        END DO
@@ -1588,10 +1588,12 @@ CONTAINS
     END DO
     ! Gradients
     IF (lgrad) THEN
-       DO i = 1, 45
-          DO k = 1, limkl
+       DO k = 1, limkl
+          DO i = 1, 45
              logv_d(i, k) = .FALSE.
-             v_d(:, i, k) = 0.0_dp
+             v_d(1, i, k) = 0.0_dp
+             v_d(2, i, k) = 0.0_dp
+             v_d(3, i, k) = 0.0_dp
           END DO
        END DO
        DO i1 = 1, ii
@@ -1611,70 +1613,170 @@ CONTAINS
                       mm = int2c_type(ll)
                       !
                       IF (mm == 1) THEN
-                         v_d(:, ij, 1) = wrepp_d
+                         v_d(1, ij, 1) = wrepp_d(1)
+                         v_d(2, ij, 1) = wrepp_d(2)
+                         v_d(3, ij, 1) = wrepp_d(3)
                       ELSE IF (mm == 2) THEN
                          k = k1 - 1
-                         v_d(:, ij,  2) = v_d(:, ij,  2) + ij_matrix%sp_d(:, k, 1) * wrepp + ij_matrix%sp(k, 1) * wrepp_d
-                         v_d(:, ij,  4) = v_d(:, ij,  4) + ij_matrix%sp_d(:, k, 2) * wrepp + ij_matrix%sp(k, 2) * wrepp_d
-                         v_d(:, ij,  7) = v_d(:, ij,  7) + ij_matrix%sp_d(:, k, 3) * wrepp + ij_matrix%sp(k, 3) * wrepp_d
+                         v_d(1, ij,  2) = v_d(1, ij,  2) + ij_matrix%sp_d(1, k, 1) * wrepp + ij_matrix%sp(k, 1) * wrepp_d(1)
+                         v_d(1, ij,  4) = v_d(1, ij,  4) + ij_matrix%sp_d(1, k, 2) * wrepp + ij_matrix%sp(k, 2) * wrepp_d(1)
+                         v_d(1, ij,  7) = v_d(1, ij,  7) + ij_matrix%sp_d(1, k, 3) * wrepp + ij_matrix%sp(k, 3) * wrepp_d(1)
+
+                         v_d(2, ij,  2) = v_d(2, ij,  2) + ij_matrix%sp_d(2, k, 1) * wrepp + ij_matrix%sp(k, 1) * wrepp_d(2)
+                         v_d(2, ij,  4) = v_d(2, ij,  4) + ij_matrix%sp_d(2, k, 2) * wrepp + ij_matrix%sp(k, 2) * wrepp_d(2)
+                         v_d(2, ij,  7) = v_d(2, ij,  7) + ij_matrix%sp_d(2, k, 3) * wrepp + ij_matrix%sp(k, 3) * wrepp_d(2)
+
+                         v_d(3, ij,  2) = v_d(3, ij,  2) + ij_matrix%sp_d(3, k, 1) * wrepp + ij_matrix%sp(k, 1) * wrepp_d(3)
+                         v_d(3, ij,  4) = v_d(3, ij,  4) + ij_matrix%sp_d(3, k, 2) * wrepp + ij_matrix%sp(k, 2) * wrepp_d(3)
+                         v_d(3, ij,  7) = v_d(3, ij,  7) + ij_matrix%sp_d(3, k, 3) * wrepp + ij_matrix%sp(k, 3) * wrepp_d(3)
                       ELSE IF (mm == 3) THEN
                          k = k1 - 1
                          l = l1 - 1
-                         v_d(:, ij,  3) = v_d(:, ij,  3) + ij_matrix%pp_d(:, 1, k, l) * wrepp + ij_matrix%pp(1, k, l) * wrepp_d
-                         v_d(:, ij,  6) = v_d(:, ij,  6) + ij_matrix%pp_d(:, 2, k, l) * wrepp + ij_matrix%pp(2, k, l) * wrepp_d
-                         v_d(:, ij, 10) = v_d(:, ij, 10) + ij_matrix%pp_d(:, 3, k, l) * wrepp + ij_matrix%pp(3, k, l) * wrepp_d
-                         v_d(:, ij,  5) = v_d(:, ij,  5) + ij_matrix%pp_d(:, 4, k, l) * wrepp + ij_matrix%pp(4, k, l) * wrepp_d
-                         v_d(:, ij,  8) = v_d(:, ij,  8) + ij_matrix%pp_d(:, 5, k, l) * wrepp + ij_matrix%pp(5, k, l) * wrepp_d
-                         v_d(:, ij,  9) = v_d(:, ij,  9) + ij_matrix%pp_d(:, 6, k, l) * wrepp + ij_matrix%pp(6, k, l) * wrepp_d
+                         v_d(1, ij,  3) = v_d(1, ij,  3) + ij_matrix%pp_d(1, 1, k, l) * wrepp + ij_matrix%pp(1, k, l) * wrepp_d(1)
+                         v_d(1, ij,  6) = v_d(1, ij,  6) + ij_matrix%pp_d(1, 2, k, l) * wrepp + ij_matrix%pp(2, k, l) * wrepp_d(1)
+                         v_d(1, ij, 10) = v_d(1, ij, 10) + ij_matrix%pp_d(1, 3, k, l) * wrepp + ij_matrix%pp(3, k, l) * wrepp_d(1)
+                         v_d(1, ij,  5) = v_d(1, ij,  5) + ij_matrix%pp_d(1, 4, k, l) * wrepp + ij_matrix%pp(4, k, l) * wrepp_d(1)
+                         v_d(1, ij,  8) = v_d(1, ij,  8) + ij_matrix%pp_d(1, 5, k, l) * wrepp + ij_matrix%pp(5, k, l) * wrepp_d(1)
+                         v_d(1, ij,  9) = v_d(1, ij,  9) + ij_matrix%pp_d(1, 6, k, l) * wrepp + ij_matrix%pp(6, k, l) * wrepp_d(1)
+
+                         v_d(2, ij,  3) = v_d(2, ij,  3) + ij_matrix%pp_d(2, 1, k, l) * wrepp + ij_matrix%pp(1, k, l) * wrepp_d(2)
+                         v_d(2, ij,  6) = v_d(2, ij,  6) + ij_matrix%pp_d(2, 2, k, l) * wrepp + ij_matrix%pp(2, k, l) * wrepp_d(2)
+                         v_d(2, ij, 10) = v_d(2, ij, 10) + ij_matrix%pp_d(2, 3, k, l) * wrepp + ij_matrix%pp(3, k, l) * wrepp_d(2)
+                         v_d(2, ij,  5) = v_d(2, ij,  5) + ij_matrix%pp_d(2, 4, k, l) * wrepp + ij_matrix%pp(4, k, l) * wrepp_d(2)
+                         v_d(2, ij,  8) = v_d(2, ij,  8) + ij_matrix%pp_d(2, 5, k, l) * wrepp + ij_matrix%pp(5, k, l) * wrepp_d(2)
+                         v_d(2, ij,  9) = v_d(2, ij,  9) + ij_matrix%pp_d(2, 6, k, l) * wrepp + ij_matrix%pp(6, k, l) * wrepp_d(2)
+
+                         v_d(3, ij,  3) = v_d(3, ij,  3) + ij_matrix%pp_d(3, 1, k, l) * wrepp + ij_matrix%pp(1, k, l) * wrepp_d(3)
+                         v_d(3, ij,  6) = v_d(3, ij,  6) + ij_matrix%pp_d(3, 2, k, l) * wrepp + ij_matrix%pp(2, k, l) * wrepp_d(3)
+                         v_d(3, ij, 10) = v_d(3, ij, 10) + ij_matrix%pp_d(3, 3, k, l) * wrepp + ij_matrix%pp(3, k, l) * wrepp_d(3)
+                         v_d(3, ij,  5) = v_d(3, ij,  5) + ij_matrix%pp_d(3, 4, k, l) * wrepp + ij_matrix%pp(4, k, l) * wrepp_d(3)
+                         v_d(3, ij,  8) = v_d(3, ij,  8) + ij_matrix%pp_d(3, 5, k, l) * wrepp + ij_matrix%pp(5, k, l) * wrepp_d(3)
+                         v_d(3, ij,  9) = v_d(3, ij,  9) + ij_matrix%pp_d(3, 6, k, l) * wrepp + ij_matrix%pp(6, k, l) * wrepp_d(3)
                       ELSE IF (mm == 4) THEN
                          k = k1 - 4
-                         v_d(:, ij, 11) = v_d(:, ij, 11) + ij_matrix%sd_d(:, k, 1) * wrepp + ij_matrix%sd(k, 1) * wrepp_d
-                         v_d(:, ij, 16) = v_d(:, ij, 16) + ij_matrix%sd_d(:, k, 2) * wrepp + ij_matrix%sd(k, 2) * wrepp_d
-                         v_d(:, ij, 22) = v_d(:, ij, 22) + ij_matrix%sd_d(:, k, 3) * wrepp + ij_matrix%sd(k, 3) * wrepp_d
-                         v_d(:, ij, 29) = v_d(:, ij, 29) + ij_matrix%sd_d(:, k, 4) * wrepp + ij_matrix%sd(k, 4) * wrepp_d
-                         v_d(:, ij, 37) = v_d(:, ij, 37) + ij_matrix%sd_d(:, k, 5) * wrepp + ij_matrix%sd(k, 5) * wrepp_d
+                         v_d(1, ij, 11) = v_d(1, ij, 11) + ij_matrix%sd_d(1, k, 1) * wrepp + ij_matrix%sd(k, 1) * wrepp_d(1)
+                         v_d(1, ij, 16) = v_d(1, ij, 16) + ij_matrix%sd_d(1, k, 2) * wrepp + ij_matrix%sd(k, 2) * wrepp_d(1)
+                         v_d(1, ij, 22) = v_d(1, ij, 22) + ij_matrix%sd_d(1, k, 3) * wrepp + ij_matrix%sd(k, 3) * wrepp_d(1)
+                         v_d(1, ij, 29) = v_d(1, ij, 29) + ij_matrix%sd_d(1, k, 4) * wrepp + ij_matrix%sd(k, 4) * wrepp_d(1)
+                         v_d(1, ij, 37) = v_d(1, ij, 37) + ij_matrix%sd_d(1, k, 5) * wrepp + ij_matrix%sd(k, 5) * wrepp_d(1)
+
+                         v_d(2, ij, 11) = v_d(2, ij, 11) + ij_matrix%sd_d(2, k, 1) * wrepp + ij_matrix%sd(k, 1) * wrepp_d(2)
+                         v_d(2, ij, 16) = v_d(2, ij, 16) + ij_matrix%sd_d(2, k, 2) * wrepp + ij_matrix%sd(k, 2) * wrepp_d(2)
+                         v_d(2, ij, 22) = v_d(2, ij, 22) + ij_matrix%sd_d(2, k, 3) * wrepp + ij_matrix%sd(k, 3) * wrepp_d(2)
+                         v_d(2, ij, 29) = v_d(2, ij, 29) + ij_matrix%sd_d(2, k, 4) * wrepp + ij_matrix%sd(k, 4) * wrepp_d(2)
+                         v_d(2, ij, 37) = v_d(2, ij, 37) + ij_matrix%sd_d(2, k, 5) * wrepp + ij_matrix%sd(k, 5) * wrepp_d(2)
+
+                         v_d(3, ij, 11) = v_d(3, ij, 11) + ij_matrix%sd_d(3, k, 1) * wrepp + ij_matrix%sd(k, 1) * wrepp_d(3)
+                         v_d(3, ij, 16) = v_d(3, ij, 16) + ij_matrix%sd_d(3, k, 2) * wrepp + ij_matrix%sd(k, 2) * wrepp_d(3)
+                         v_d(3, ij, 22) = v_d(3, ij, 22) + ij_matrix%sd_d(3, k, 3) * wrepp + ij_matrix%sd(k, 3) * wrepp_d(3)
+                         v_d(3, ij, 29) = v_d(3, ij, 29) + ij_matrix%sd_d(3, k, 4) * wrepp + ij_matrix%sd(k, 4) * wrepp_d(3)
+                         v_d(3, ij, 37) = v_d(3, ij, 37) + ij_matrix%sd_d(3, k, 5) * wrepp + ij_matrix%sd(k, 5) * wrepp_d(3)
                       ELSE IF (mm == 5) THEN
                          k = k1 - 4
                          l = l1 - 1
-                         v_d(:, ij, 12) = v_d(:, ij, 12) + ij_matrix%pd_d(:,  1, k, l) * wrepp + ij_matrix%pd( 1, k, l) * wrepp_d
-                         v_d(:, ij, 13) = v_d(:, ij, 13) + ij_matrix%pd_d(:,  2, k, l) * wrepp + ij_matrix%pd( 2, k, l) * wrepp_d
-                         v_d(:, ij, 14) = v_d(:, ij, 14) + ij_matrix%pd_d(:,  3, k, l) * wrepp + ij_matrix%pd( 3, k, l) * wrepp_d
-                         v_d(:, ij, 17) = v_d(:, ij, 17) + ij_matrix%pd_d(:,  4, k, l) * wrepp + ij_matrix%pd( 4, k, l) * wrepp_d
-                         v_d(:, ij, 18) = v_d(:, ij, 18) + ij_matrix%pd_d(:,  5, k, l) * wrepp + ij_matrix%pd( 5, k, l) * wrepp_d
-                         v_d(:, ij, 19) = v_d(:, ij, 19) + ij_matrix%pd_d(:,  6, k, l) * wrepp + ij_matrix%pd( 6, k, l) * wrepp_d
-                         v_d(:, ij, 23) = v_d(:, ij, 23) + ij_matrix%pd_d(:,  7, k, l) * wrepp + ij_matrix%pd( 7, k, l) * wrepp_d
-                         v_d(:, ij, 24) = v_d(:, ij, 24) + ij_matrix%pd_d(:,  8, k, l) * wrepp + ij_matrix%pd( 8, k, l) * wrepp_d
-                         v_d(:, ij, 25) = v_d(:, ij, 25) + ij_matrix%pd_d(:,  9, k, l) * wrepp + ij_matrix%pd( 9, k, l) * wrepp_d
-                         v_d(:, ij, 30) = v_d(:, ij, 30) + ij_matrix%pd_d(:, 10, k, l) * wrepp + ij_matrix%pd(10, k, l) * wrepp_d
-                         v_d(:, ij, 31) = v_d(:, ij, 31) + ij_matrix%pd_d(:, 11, k, l) * wrepp + ij_matrix%pd(11, k, l) * wrepp_d
-                         v_d(:, ij, 32) = v_d(:, ij, 32) + ij_matrix%pd_d(:, 12, k, l) * wrepp + ij_matrix%pd(12, k, l) * wrepp_d
-                         v_d(:, ij, 38) = v_d(:, ij, 38) + ij_matrix%pd_d(:, 13, k, l) * wrepp + ij_matrix%pd(13, k, l) * wrepp_d
-                         v_d(:, ij, 39) = v_d(:, ij, 39) + ij_matrix%pd_d(:, 14, k, l) * wrepp + ij_matrix%pd(14, k, l) * wrepp_d
-                         v_d(:, ij, 40) = v_d(:, ij, 40) + ij_matrix%pd_d(:, 15, k, l) * wrepp + ij_matrix%pd(15, k, l) * wrepp_d
+                         v_d(1, ij, 12) = v_d(1, ij, 12) + ij_matrix%pd_d(1,  1, k, l) * wrepp + ij_matrix%pd( 1, k, l) * wrepp_d(1)
+                         v_d(1, ij, 13) = v_d(1, ij, 13) + ij_matrix%pd_d(1,  2, k, l) * wrepp + ij_matrix%pd( 2, k, l) * wrepp_d(1)
+                         v_d(1, ij, 14) = v_d(1, ij, 14) + ij_matrix%pd_d(1,  3, k, l) * wrepp + ij_matrix%pd( 3, k, l) * wrepp_d(1)
+                         v_d(1, ij, 17) = v_d(1, ij, 17) + ij_matrix%pd_d(1,  4, k, l) * wrepp + ij_matrix%pd( 4, k, l) * wrepp_d(1)
+                         v_d(1, ij, 18) = v_d(1, ij, 18) + ij_matrix%pd_d(1,  5, k, l) * wrepp + ij_matrix%pd( 5, k, l) * wrepp_d(1)
+                         v_d(1, ij, 19) = v_d(1, ij, 19) + ij_matrix%pd_d(1,  6, k, l) * wrepp + ij_matrix%pd( 6, k, l) * wrepp_d(1)
+                         v_d(1, ij, 23) = v_d(1, ij, 23) + ij_matrix%pd_d(1,  7, k, l) * wrepp + ij_matrix%pd( 7, k, l) * wrepp_d(1)
+                         v_d(1, ij, 24) = v_d(1, ij, 24) + ij_matrix%pd_d(1,  8, k, l) * wrepp + ij_matrix%pd( 8, k, l) * wrepp_d(1)
+                         v_d(1, ij, 25) = v_d(1, ij, 25) + ij_matrix%pd_d(1,  9, k, l) * wrepp + ij_matrix%pd( 9, k, l) * wrepp_d(1)
+                         v_d(1, ij, 30) = v_d(1, ij, 30) + ij_matrix%pd_d(1, 10, k, l) * wrepp + ij_matrix%pd(10, k, l) * wrepp_d(1)
+                         v_d(1, ij, 31) = v_d(1, ij, 31) + ij_matrix%pd_d(1, 11, k, l) * wrepp + ij_matrix%pd(11, k, l) * wrepp_d(1)
+                         v_d(1, ij, 32) = v_d(1, ij, 32) + ij_matrix%pd_d(1, 12, k, l) * wrepp + ij_matrix%pd(12, k, l) * wrepp_d(1)
+                         v_d(1, ij, 38) = v_d(1, ij, 38) + ij_matrix%pd_d(1, 13, k, l) * wrepp + ij_matrix%pd(13, k, l) * wrepp_d(1)
+                         v_d(1, ij, 39) = v_d(1, ij, 39) + ij_matrix%pd_d(1, 14, k, l) * wrepp + ij_matrix%pd(14, k, l) * wrepp_d(1)
+                         v_d(1, ij, 40) = v_d(1, ij, 40) + ij_matrix%pd_d(1, 15, k, l) * wrepp + ij_matrix%pd(15, k, l) * wrepp_d(1)
+
+                         v_d(2, ij, 12) = v_d(2, ij, 12) + ij_matrix%pd_d(2,  1, k, l) * wrepp + ij_matrix%pd( 1, k, l) * wrepp_d(2)
+                         v_d(2, ij, 13) = v_d(2, ij, 13) + ij_matrix%pd_d(2,  2, k, l) * wrepp + ij_matrix%pd( 2, k, l) * wrepp_d(2)
+                         v_d(2, ij, 14) = v_d(2, ij, 14) + ij_matrix%pd_d(2,  3, k, l) * wrepp + ij_matrix%pd( 3, k, l) * wrepp_d(2)
+                         v_d(2, ij, 17) = v_d(2, ij, 17) + ij_matrix%pd_d(2,  4, k, l) * wrepp + ij_matrix%pd( 4, k, l) * wrepp_d(2)
+                         v_d(2, ij, 18) = v_d(2, ij, 18) + ij_matrix%pd_d(2,  5, k, l) * wrepp + ij_matrix%pd( 5, k, l) * wrepp_d(2)
+                         v_d(2, ij, 19) = v_d(2, ij, 19) + ij_matrix%pd_d(2,  6, k, l) * wrepp + ij_matrix%pd( 6, k, l) * wrepp_d(2)
+                         v_d(2, ij, 23) = v_d(2, ij, 23) + ij_matrix%pd_d(2,  7, k, l) * wrepp + ij_matrix%pd( 7, k, l) * wrepp_d(2)
+                         v_d(2, ij, 24) = v_d(2, ij, 24) + ij_matrix%pd_d(2,  8, k, l) * wrepp + ij_matrix%pd( 8, k, l) * wrepp_d(2)
+                         v_d(2, ij, 25) = v_d(2, ij, 25) + ij_matrix%pd_d(2,  9, k, l) * wrepp + ij_matrix%pd( 9, k, l) * wrepp_d(2)
+                         v_d(2, ij, 30) = v_d(2, ij, 30) + ij_matrix%pd_d(2, 10, k, l) * wrepp + ij_matrix%pd(10, k, l) * wrepp_d(2)
+                         v_d(2, ij, 31) = v_d(2, ij, 31) + ij_matrix%pd_d(2, 11, k, l) * wrepp + ij_matrix%pd(11, k, l) * wrepp_d(2)
+                         v_d(2, ij, 32) = v_d(2, ij, 32) + ij_matrix%pd_d(2, 12, k, l) * wrepp + ij_matrix%pd(12, k, l) * wrepp_d(2)
+                         v_d(2, ij, 38) = v_d(2, ij, 38) + ij_matrix%pd_d(2, 13, k, l) * wrepp + ij_matrix%pd(13, k, l) * wrepp_d(2)
+                         v_d(2, ij, 39) = v_d(2, ij, 39) + ij_matrix%pd_d(2, 14, k, l) * wrepp + ij_matrix%pd(14, k, l) * wrepp_d(2)
+                         v_d(2, ij, 40) = v_d(2, ij, 40) + ij_matrix%pd_d(2, 15, k, l) * wrepp + ij_matrix%pd(15, k, l) * wrepp_d(2)
+
+                         v_d(3, ij, 12) = v_d(3, ij, 12) + ij_matrix%pd_d(3,  1, k, l) * wrepp + ij_matrix%pd( 1, k, l) * wrepp_d(3)
+                         v_d(3, ij, 13) = v_d(3, ij, 13) + ij_matrix%pd_d(3,  2, k, l) * wrepp + ij_matrix%pd( 2, k, l) * wrepp_d(3)
+                         v_d(3, ij, 14) = v_d(3, ij, 14) + ij_matrix%pd_d(3,  3, k, l) * wrepp + ij_matrix%pd( 3, k, l) * wrepp_d(3)
+                         v_d(3, ij, 17) = v_d(3, ij, 17) + ij_matrix%pd_d(3,  4, k, l) * wrepp + ij_matrix%pd( 4, k, l) * wrepp_d(3)
+                         v_d(3, ij, 18) = v_d(3, ij, 18) + ij_matrix%pd_d(3,  5, k, l) * wrepp + ij_matrix%pd( 5, k, l) * wrepp_d(3)
+                         v_d(3, ij, 19) = v_d(3, ij, 19) + ij_matrix%pd_d(3,  6, k, l) * wrepp + ij_matrix%pd( 6, k, l) * wrepp_d(3)
+                         v_d(3, ij, 23) = v_d(3, ij, 23) + ij_matrix%pd_d(3,  7, k, l) * wrepp + ij_matrix%pd( 7, k, l) * wrepp_d(3)
+                         v_d(3, ij, 24) = v_d(3, ij, 24) + ij_matrix%pd_d(3,  8, k, l) * wrepp + ij_matrix%pd( 8, k, l) * wrepp_d(3)
+                         v_d(3, ij, 25) = v_d(3, ij, 25) + ij_matrix%pd_d(3,  9, k, l) * wrepp + ij_matrix%pd( 9, k, l) * wrepp_d(3)
+                         v_d(3, ij, 30) = v_d(3, ij, 30) + ij_matrix%pd_d(3, 10, k, l) * wrepp + ij_matrix%pd(10, k, l) * wrepp_d(3)
+                         v_d(3, ij, 31) = v_d(3, ij, 31) + ij_matrix%pd_d(3, 11, k, l) * wrepp + ij_matrix%pd(11, k, l) * wrepp_d(3)
+                         v_d(3, ij, 32) = v_d(3, ij, 32) + ij_matrix%pd_d(3, 12, k, l) * wrepp + ij_matrix%pd(12, k, l) * wrepp_d(3)
+                         v_d(3, ij, 38) = v_d(3, ij, 38) + ij_matrix%pd_d(3, 13, k, l) * wrepp + ij_matrix%pd(13, k, l) * wrepp_d(3)
+                         v_d(3, ij, 39) = v_d(3, ij, 39) + ij_matrix%pd_d(3, 14, k, l) * wrepp + ij_matrix%pd(14, k, l) * wrepp_d(3)
+                         v_d(3, ij, 40) = v_d(3, ij, 40) + ij_matrix%pd_d(3, 15, k, l) * wrepp + ij_matrix%pd(15, k, l) * wrepp_d(3)
                       ELSE IF (mm == 6) THEN
                          k = k1 - 4
                          l = l1 - 4
-                         v_d(:, ij, 15) = v_d(:, ij, 15) + ij_matrix%dd_d(:,  1, k, l) * wrepp + ij_matrix%dd( 1, k, l) * wrepp_d
-                         v_d(:, ij, 21) = v_d(:, ij, 21) + ij_matrix%dd_d(:,  2, k, l) * wrepp + ij_matrix%dd( 2, k, l) * wrepp_d
-                         v_d(:, ij, 28) = v_d(:, ij, 28) + ij_matrix%dd_d(:,  3, k, l) * wrepp + ij_matrix%dd( 3, k, l) * wrepp_d
-                         v_d(:, ij, 36) = v_d(:, ij, 36) + ij_matrix%dd_d(:,  4, k, l) * wrepp + ij_matrix%dd( 4, k, l) * wrepp_d
-                         v_d(:, ij, 45) = v_d(:, ij, 45) + ij_matrix%dd_d(:,  5, k, l) * wrepp + ij_matrix%dd( 5, k, l) * wrepp_d
-                         v_d(:, ij, 20) = v_d(:, ij, 20) + ij_matrix%dd_d(:,  6, k, l) * wrepp + ij_matrix%dd( 6, k, l) * wrepp_d
-                         v_d(:, ij, 26) = v_d(:, ij, 26) + ij_matrix%dd_d(:,  7, k, l) * wrepp + ij_matrix%dd( 7, k, l) * wrepp_d
-                         v_d(:, ij, 27) = v_d(:, ij, 27) + ij_matrix%dd_d(:,  8, k, l) * wrepp + ij_matrix%dd( 8, k, l) * wrepp_d
-                         v_d(:, ij, 33) = v_d(:, ij, 33) + ij_matrix%dd_d(:,  9, k, l) * wrepp + ij_matrix%dd( 9, k, l) * wrepp_d
-                         v_d(:, ij, 34) = v_d(:, ij, 34) + ij_matrix%dd_d(:, 10, k, l) * wrepp + ij_matrix%dd(10, k, l) * wrepp_d
-                         v_d(:, ij, 35) = v_d(:, ij, 35) + ij_matrix%dd_d(:, 11, k, l) * wrepp + ij_matrix%dd(11, k, l) * wrepp_d
-                         v_d(:, ij, 41) = v_d(:, ij, 41) + ij_matrix%dd_d(:, 12, k, l) * wrepp + ij_matrix%dd(12, k, l) * wrepp_d
-                         v_d(:, ij, 42) = v_d(:, ij, 42) + ij_matrix%dd_d(:, 13, k, l) * wrepp + ij_matrix%dd(13, k, l) * wrepp_d
-                         v_d(:, ij, 43) = v_d(:, ij, 43) + ij_matrix%dd_d(:, 14, k, l) * wrepp + ij_matrix%dd(14, k, l) * wrepp_d
-                         v_d(:, ij, 44) = v_d(:, ij, 44) + ij_matrix%dd_d(:, 15, k, l) * wrepp + ij_matrix%dd(15, k, l) * wrepp_d
+                         v_d(1, ij, 15) = v_d(1, ij, 15) + ij_matrix%dd_d(1,  1, k, l) * wrepp + ij_matrix%dd( 1, k, l) * wrepp_d(1)
+                         v_d(1, ij, 21) = v_d(1, ij, 21) + ij_matrix%dd_d(1,  2, k, l) * wrepp + ij_matrix%dd( 2, k, l) * wrepp_d(1)
+                         v_d(1, ij, 28) = v_d(1, ij, 28) + ij_matrix%dd_d(1,  3, k, l) * wrepp + ij_matrix%dd( 3, k, l) * wrepp_d(1)
+                         v_d(1, ij, 36) = v_d(1, ij, 36) + ij_matrix%dd_d(1,  4, k, l) * wrepp + ij_matrix%dd( 4, k, l) * wrepp_d(1)
+                         v_d(1, ij, 45) = v_d(1, ij, 45) + ij_matrix%dd_d(1,  5, k, l) * wrepp + ij_matrix%dd( 5, k, l) * wrepp_d(1)
+                         v_d(1, ij, 20) = v_d(1, ij, 20) + ij_matrix%dd_d(1,  6, k, l) * wrepp + ij_matrix%dd( 6, k, l) * wrepp_d(1)
+                         v_d(1, ij, 26) = v_d(1, ij, 26) + ij_matrix%dd_d(1,  7, k, l) * wrepp + ij_matrix%dd( 7, k, l) * wrepp_d(1)
+                         v_d(1, ij, 27) = v_d(1, ij, 27) + ij_matrix%dd_d(1,  8, k, l) * wrepp + ij_matrix%dd( 8, k, l) * wrepp_d(1)
+                         v_d(1, ij, 33) = v_d(1, ij, 33) + ij_matrix%dd_d(1,  9, k, l) * wrepp + ij_matrix%dd( 9, k, l) * wrepp_d(1)
+                         v_d(1, ij, 34) = v_d(1, ij, 34) + ij_matrix%dd_d(1, 10, k, l) * wrepp + ij_matrix%dd(10, k, l) * wrepp_d(1)
+                         v_d(1, ij, 35) = v_d(1, ij, 35) + ij_matrix%dd_d(1, 11, k, l) * wrepp + ij_matrix%dd(11, k, l) * wrepp_d(1)
+                         v_d(1, ij, 41) = v_d(1, ij, 41) + ij_matrix%dd_d(1, 12, k, l) * wrepp + ij_matrix%dd(12, k, l) * wrepp_d(1)
+                         v_d(1, ij, 42) = v_d(1, ij, 42) + ij_matrix%dd_d(1, 13, k, l) * wrepp + ij_matrix%dd(13, k, l) * wrepp_d(1)
+                         v_d(1, ij, 43) = v_d(1, ij, 43) + ij_matrix%dd_d(1, 14, k, l) * wrepp + ij_matrix%dd(14, k, l) * wrepp_d(1)
+                         v_d(1, ij, 44) = v_d(1, ij, 44) + ij_matrix%dd_d(1, 15, k, l) * wrepp + ij_matrix%dd(15, k, l) * wrepp_d(1)
+
+                         v_d(2, ij, 15) = v_d(2, ij, 15) + ij_matrix%dd_d(2,  1, k, l) * wrepp + ij_matrix%dd( 1, k, l) * wrepp_d(2)
+                         v_d(2, ij, 21) = v_d(2, ij, 21) + ij_matrix%dd_d(2,  2, k, l) * wrepp + ij_matrix%dd( 2, k, l) * wrepp_d(2)
+                         v_d(2, ij, 28) = v_d(2, ij, 28) + ij_matrix%dd_d(2,  3, k, l) * wrepp + ij_matrix%dd( 3, k, l) * wrepp_d(2)
+                         v_d(2, ij, 36) = v_d(2, ij, 36) + ij_matrix%dd_d(2,  4, k, l) * wrepp + ij_matrix%dd( 4, k, l) * wrepp_d(2)
+                         v_d(2, ij, 45) = v_d(2, ij, 45) + ij_matrix%dd_d(2,  5, k, l) * wrepp + ij_matrix%dd( 5, k, l) * wrepp_d(2)
+                         v_d(2, ij, 20) = v_d(2, ij, 20) + ij_matrix%dd_d(2,  6, k, l) * wrepp + ij_matrix%dd( 6, k, l) * wrepp_d(2)
+                         v_d(2, ij, 26) = v_d(2, ij, 26) + ij_matrix%dd_d(2,  7, k, l) * wrepp + ij_matrix%dd( 7, k, l) * wrepp_d(2)
+                         v_d(2, ij, 27) = v_d(2, ij, 27) + ij_matrix%dd_d(2,  8, k, l) * wrepp + ij_matrix%dd( 8, k, l) * wrepp_d(2)
+                         v_d(2, ij, 33) = v_d(2, ij, 33) + ij_matrix%dd_d(2,  9, k, l) * wrepp + ij_matrix%dd( 9, k, l) * wrepp_d(2)
+                         v_d(2, ij, 34) = v_d(2, ij, 34) + ij_matrix%dd_d(2, 10, k, l) * wrepp + ij_matrix%dd(10, k, l) * wrepp_d(2)
+                         v_d(2, ij, 35) = v_d(2, ij, 35) + ij_matrix%dd_d(2, 11, k, l) * wrepp + ij_matrix%dd(11, k, l) * wrepp_d(2)
+                         v_d(2, ij, 41) = v_d(2, ij, 41) + ij_matrix%dd_d(2, 12, k, l) * wrepp + ij_matrix%dd(12, k, l) * wrepp_d(2)
+                         v_d(2, ij, 42) = v_d(2, ij, 42) + ij_matrix%dd_d(2, 13, k, l) * wrepp + ij_matrix%dd(13, k, l) * wrepp_d(2)
+                         v_d(2, ij, 43) = v_d(2, ij, 43) + ij_matrix%dd_d(2, 14, k, l) * wrepp + ij_matrix%dd(14, k, l) * wrepp_d(2)
+                         v_d(2, ij, 44) = v_d(2, ij, 44) + ij_matrix%dd_d(2, 15, k, l) * wrepp + ij_matrix%dd(15, k, l) * wrepp_d(2)
+
+                         v_d(3, ij, 15) = v_d(3, ij, 15) + ij_matrix%dd_d(3,  1, k, l) * wrepp + ij_matrix%dd( 1, k, l) * wrepp_d(3)
+                         v_d(3, ij, 21) = v_d(3, ij, 21) + ij_matrix%dd_d(3,  2, k, l) * wrepp + ij_matrix%dd( 2, k, l) * wrepp_d(3)
+                         v_d(3, ij, 28) = v_d(3, ij, 28) + ij_matrix%dd_d(3,  3, k, l) * wrepp + ij_matrix%dd( 3, k, l) * wrepp_d(3)
+                         v_d(3, ij, 36) = v_d(3, ij, 36) + ij_matrix%dd_d(3,  4, k, l) * wrepp + ij_matrix%dd( 4, k, l) * wrepp_d(3)
+                         v_d(3, ij, 45) = v_d(3, ij, 45) + ij_matrix%dd_d(3,  5, k, l) * wrepp + ij_matrix%dd( 5, k, l) * wrepp_d(3)
+                         v_d(3, ij, 20) = v_d(3, ij, 20) + ij_matrix%dd_d(3,  6, k, l) * wrepp + ij_matrix%dd( 6, k, l) * wrepp_d(3)
+                         v_d(3, ij, 26) = v_d(3, ij, 26) + ij_matrix%dd_d(3,  7, k, l) * wrepp + ij_matrix%dd( 7, k, l) * wrepp_d(3)
+                         v_d(3, ij, 27) = v_d(3, ij, 27) + ij_matrix%dd_d(3,  8, k, l) * wrepp + ij_matrix%dd( 8, k, l) * wrepp_d(3)
+                         v_d(3, ij, 33) = v_d(3, ij, 33) + ij_matrix%dd_d(3,  9, k, l) * wrepp + ij_matrix%dd( 9, k, l) * wrepp_d(3)
+                         v_d(3, ij, 34) = v_d(3, ij, 34) + ij_matrix%dd_d(3, 10, k, l) * wrepp + ij_matrix%dd(10, k, l) * wrepp_d(3)
+                         v_d(3, ij, 35) = v_d(3, ij, 35) + ij_matrix%dd_d(3, 11, k, l) * wrepp + ij_matrix%dd(11, k, l) * wrepp_d(3)
+                         v_d(3, ij, 41) = v_d(3, ij, 41) + ij_matrix%dd_d(3, 12, k, l) * wrepp + ij_matrix%dd(12, k, l) * wrepp_d(3)
+                         v_d(3, ij, 42) = v_d(3, ij, 42) + ij_matrix%dd_d(3, 13, k, l) * wrepp + ij_matrix%dd(13, k, l) * wrepp_d(3)
+                         v_d(3, ij, 43) = v_d(3, ij, 43) + ij_matrix%dd_d(3, 14, k, l) * wrepp + ij_matrix%dd(14, k, l) * wrepp_d(3)
+                         v_d(3, ij, 44) = v_d(3, ij, 44) + ij_matrix%dd_d(3, 15, k, l) * wrepp + ij_matrix%dd(15, k, l) * wrepp_d(3)
                       END IF
                    END IF
                 END DO
              END DO
              DO kl = 1, limkl
-                logv_d(ij, kl) = (ANY(ABS(v_d(:, ij, kl)) > 0.0_dp))
+                logv_d(ij, kl) = (ANY(ABS(v_d(1:3, ij, kl)) > 0.0_dp))
              END DO
           END DO
        END DO
