@@ -222,66 +222,101 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, shortrange, taper, invert, i
 END SUBROUTINE rot_2el_2c_first_debug
 
 ! *****************************************************************************
-!> \brief Check Numerical Vs Analytical
+!> \brief Check Numerical Vs Analytical ssss
 !> \note
 !>      Debug routine
 !> \par History
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-SUBROUTINE check_dnucint_ana (sepi,sepj,r,dssss,dcore,itype,shortrange,taper,error)
+SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,shortrange,taper,error)
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE semi_empirical_int_num,          ONLY: nucint_num
+  USE semi_empirical_int_num,          ONLY: ssss_nucint_num
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                              taper_type
 #include "cp_common_uses.h"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), INTENT(IN)                     :: r
-  REAL(dp), INTENT(IN), OPTIONAL           :: dssss
-  REAL(dp), DIMENSION(10, 2), INTENT(IN),&
-       OPTIONAL                            :: dcore
+  REAL(dp), INTENT(IN)                     :: dssss
   INTEGER, INTENT(IN)                      :: itype
   LOGICAL, INTENT(IN)                      :: shortrange
   TYPE(taper_type), POINTER                :: taper
   TYPE(cp_error_type), INTENT(inout)       :: error
 
   CHARACTER(len=*), PARAMETER :: moduleN='semi_empirical_int_debug',&
-       routineN = 'check_dnucint_ana', routineP = moduleN//':'//routineN
+       routineN = 'check_dssss_nucint_ana', routineP = moduleN//':'//routineN
 
   INTEGER                                  :: i, j
   REAL(dp)                                 :: delta, nssss, od, rn, ssssm, ssssp
+  LOGICAL                                  :: check_value
+
+  delta = 1.0E-8_dp
+  od = 0.5_dp/delta
+  rn = r + delta
+  CALL ssss_nucint_num(sepi,sepj,rn,ssssp,itype,taper,shortrange,error=error)
+  rn = r - delta
+  CALL ssss_nucint_num(sepi,sepj,rn,ssssm,itype,taper,shortrange,error=error)
+  nssss = od * (ssssp - ssssm)
+  ! check
+  WRITE(*,*)"DEBUG::"//routineP
+  IF (.NOT.check_value(nssss, dssss, delta, 0.1_dp)) THEN
+     WRITE(*,*)"ERROR for SSSS derivative SSSS"
+     STOP
+  END IF
+END SUBROUTINE check_dssss_nucint_ana
+
+! *****************************************************************************
+!> \brief Check Numerical Vs Analytical core
+!> \note
+!>      Debug routine
+!> \par History
+!>      04.2008 created [tlaino]
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
+SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,shortrange,taper,error)
+  USE f77_blas
+  USE kinds,                           ONLY: dp
+  USE semi_empirical_int_num,          ONLY: core_nucint_num
+  USE semi_empirical_types,            ONLY: semi_empirical_type,&
+                                             taper_type
+#include "cp_common_uses.h"
+  IMPLICIT NONE
+  TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+  REAL(dp), INTENT(IN)                     :: r
+  REAL(dp), DIMENSION(10, 2), INTENT(IN)   :: dcore
+  INTEGER, INTENT(IN)                      :: itype
+  LOGICAL, INTENT(IN)                      :: shortrange
+  TYPE(taper_type), POINTER                :: taper
+  TYPE(cp_error_type), INTENT(inout)       :: error
+
+  CHARACTER(len=*), PARAMETER :: moduleN='semi_empirical_int_debug',&
+       routineN = 'check_dcore_nucint_ana', routineP = moduleN//':'//routineN
+
+  INTEGER                                  :: i, j
+  REAL(dp)                                 :: delta, od, rn
   REAL(dp), DIMENSION(10, 2)               :: corem, corep, ncore
   LOGICAL                                  :: check_value
 
   delta = 1.0E-8_dp
   od = 0.5_dp/delta
   rn = r + delta
-  CALL nucint_num(sepi,sepj,rn,ssssp,corep,itype,taper,shortrange,error=error)
+  CALL core_nucint_num(sepi,sepj,rn,corep,itype,taper,shortrange,error=error)
   rn = r - delta
-  CALL nucint_num(sepi,sepj,rn,ssssm,corem,itype,taper,shortrange,error=error)
+  CALL core_nucint_num(sepi,sepj,rn,corem,itype,taper,shortrange,error=error)
   ncore = od * (corep - corem)
-  nssss = od * (ssssp - ssssm)
   ! check
   WRITE(*,*)"DEBUG::"//routineP
-  IF (PRESENT(dcore)) THEN
-     DO i = 1, 2
-        DO j = 1, 10
-           IF (.NOT.check_value(ncore(j,i), dcore(j,i), delta, 0.1_dp)) THEN
-              WRITE(*,*)"ERROR for CORE derivative CORE(j,i), j,i::",j,i
-              STOP
-           END IF
-        END DO
+  DO i = 1, 2
+     DO j = 1, 10
+        IF (.NOT.check_value(ncore(j,i), dcore(j,i), delta, 0.1_dp)) THEN
+           WRITE(*,*)"ERROR for CORE derivative CORE(j,i), j,i::",j,i
+           STOP
+        END IF
      END DO
-  END IF
-  IF (PRESENT(dssss)) THEN
-     IF (.NOT.check_value(nssss, dssss, delta, 0.1_dp)) THEN
-        WRITE(*,*)"ERROR for SSSS derivative SSSS"
-        STOP
-     END IF
-  END IF
-END SUBROUTINE check_dnucint_ana
+  END DO
+END SUBROUTINE check_dcore_nucint_ana
 
 ! *****************************************************************************
 !> \brief Low level comparison function between numberical and analytical values

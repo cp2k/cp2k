@@ -136,7 +136,7 @@ CONTAINS
           END IF
        END IF
        
-       CALL dnucint_ana(sepi,sepj,rij,core=core,dcore=dcore,itype=itype,taper=taper,&
+       CALL dcore_nucint_ana(sepi,sepj,rij,core=core,dcore=dcore,itype=itype,taper=taper,&
             shortrange=shortrange,lgrad=lgrad,error=error)
 
        ! Copy parameters over to arrays for do loop.
@@ -379,10 +379,10 @@ CONTAINS
     IF ((rij > rij_threshold).AND.(l_enuc.OR.l_denuc)) THEN
        ! Compute Integrals in diatomic frame
        rij  = SQRT(rij)
-       CALL dnucint_ana(sepi,sepj,rij,ssss=ssss,dssss=dssss,itype=itype,taper=taper,&
+       CALL dssss_nucint_ana(sepi,sepj,rij,ssss=ssss,dssss=dssss,itype=itype,taper=taper,&
             shortrange=.FALSE.,lgrad=l_denuc,error=error)
        IF (shortrange) THEN
-          CALL dnucint_ana(sepi,sepj,rij,ssss=ssss_sr,dssss=dssss_sr,itype=itype,&
+          CALL dssss_nucint_ana(sepi,sepj,rij,ssss=ssss_sr,dssss=dssss_sr,itype=itype,&
                taper=taper, shortrange=shortrange,lgrad=l_denuc,error=error)
        ELSE
           ssss_sr  = ssss
@@ -794,6 +794,85 @@ CONTAINS
   END SUBROUTINE invert_derivative
 
 ! *****************************************************************************
+!> \brief Calculates the ssss integral and analytical derivatives (main driver)
+!> \param on input rij     = interatomic distance
+!>                sepi    = paramters of atom i
+!>                sepj    = paramters of atom j
+!>                itype   = type of semi_empirical model
+!>                          extension to the original routine to compute qm/mm integrals
+!>      on output ssss    = derivative of (ssss) integral
+!>                          derivatives are intended w.r.t. rij
+!> \note
+!>      Analytical version - Analytical evaluation of gradients
+!>      Teodoro Laino - Zurich University 04.2007
+!>      
+!> \par History
+!>      03.2007 created [tlaino]
+!>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
+!>                 for computing integrals
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
+  RECURSIVE SUBROUTINE dssss_nucint_ana(sepi, sepj, rij, ssss, dssss, itype,&
+       taper, shortrange, do_longrange, lgrad, error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), INTENT(IN)                     :: rij
+    REAL(dp), INTENT(OUT)                    :: ssss, dssss
+    INTEGER, INTENT(IN)                      :: itype
+    TYPE(taper_type), POINTER                :: taper
+    LOGICAL, INTENT(IN)                      :: shortrange
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
+    LOGICAL, INTENT(IN)                      :: lgrad
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dssss_nucint_ana', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, longrange
+    REAL(KIND=dp)                            :: dft, dssss_lr, ft, ssss_lr
+
+    failure   = .FALSE.
+    longrange = .FALSE.
+    IF (PRESENT(do_longrange))  longrange = do_longrange
+    
+    ! Value of the integrals for sp shell
+    CALL  nucint_sp_num(sepi, sepj, rij, ssss=ssss, itype=itype, longrange=longrange,&
+                        error=error)
+
+    IF (lgrad) THEN
+       ! Integrals derivatives for sp shell
+       CALL dnucint_sp_ana(sepi, sepj, rij, dssss=dssss, itype=itype, longrange=longrange,&
+                           error=error)
+    END IF
+
+    ! Modify integrals in case of short-range request
+    IF (shortrange) THEN
+       CALL dssss_nucint_ana( sepi, sepj, rij, ssss=ssss_lr, dssss=dssss_lr, itype=itype,&
+            taper=taper, shortrange=.FALSE., do_longrange=.TRUE., lgrad=lgrad, error=error)
+                   ssss =  ssss -  ssss_lr
+       IF (lgrad) dssss = dssss - dssss_lr
+    END IF
+
+    ! Tapering function
+    IF (.NOT.longrange) THEN
+       ft = 1.0_dp
+       dft= 0.0_dp
+       IF (itype/=do_method_pchg) THEN
+          ft = taper_eval (taper, rij, error)
+          dft= dtaper_eval(taper, rij, error)
+       END IF
+       IF (lgrad) THEN
+          dssss = ft*dssss+dft*ssss
+       END IF
+       ssss     = ft*ssss
+    END IF
+
+    ! Debug Procedure.. Check valifity of analytical gradients of nucint
+    IF (debug_this_module.AND.lgrad) THEN
+       CALL check_dssss_nucint_ana(sepi,sepj,rij,dssss,itype,shortrange,taper=taper,error=error)
+    END IF
+  END SUBROUTINE dssss_nucint_ana
+
+! *****************************************************************************
 !> \brief Calculates the nuclear attraction integrals and analytical integrals (main driver)
 !> \param on input rij     = interatomic distance
 !>                sepi    = paramters of atom i
@@ -801,7 +880,6 @@ CONTAINS
 !>                itype   = type of semi_empirical model
 !>                          extension to the original routine to compute qm/mm integrals
 !>      on output core    = derivative of 4 X 2 array of electron-core attraction integrals
-!>                ssss    = derivative of (ssss) integral
 !>                          derivatives are intended w.r.t. rij
 !>         The storage of the nuclear attraction integrals  core(kl/ij) iS
 !>         (SS/)=1,   (SO/)=2,   (OO/)=3,   (PP/)=4
@@ -816,16 +894,11 @@ CONTAINS
 !>                 for computing integrals
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE dnucint_ana ( sepi, sepj, rij, ssss, core, dssss, dcore, itype,&
+  RECURSIVE SUBROUTINE dcore_nucint_ana ( sepi, sepj, rij, core, dcore, itype,&
        taper, shortrange, do_longrange, lgrad, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
-    REAL(dp), INTENT(OUT), OPTIONAL          :: ssss
-    REAL(dp), DIMENSION(10, 2), &
-      INTENT(OUT), OPTIONAL                  :: core
-    REAL(dp), INTENT(OUT), OPTIONAL          :: dssss
-    REAL(dp), DIMENSION(10, 2), &
-      INTENT(OUT), OPTIONAL                  :: dcore
+    REAL(dp), DIMENSION(10, 2), INTENT(OUT)  :: core, dcore
     INTEGER, INTENT(IN)                      :: itype
     TYPE(taper_type), POINTER                :: taper
     LOGICAL, INTENT(IN)                      :: shortrange
@@ -833,66 +906,55 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: lgrad
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_ana', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dcore_nucint_ana', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, l_core, l_ssss, &
-                                                longrange
-    REAL(KIND=dp)                            :: dft, dssss_lr, ft, ssss_lr
+    LOGICAL                                  :: failure, longrange
+    REAL(KIND=dp)                            :: dft, ft
     REAL(KIND=dp), DIMENSION(10, 2)          :: core_lr, dcore_lr
 
-    failure = .FALSE.
+    failure   = .FALSE.
     longrange = .FALSE.
     IF (PRESENT(do_longrange))  longrange = do_longrange
-    CPPrecondition(PRESENT(core).EQV.PRESENT(dcore),cp_failure_level,routineP,error,failure)
-    CPPrecondition(PRESENT(ssss).EQV.PRESENT(dssss),cp_failure_level,routineP,error,failure)
-    l_core   = PRESENT(core)
-    l_ssss   = PRESENT(ssss)
     
     ! Value of the integrals for sp shell
-    CALL  nucint_sp_num(sepi, sepj, rij, ssss,  core, itype, longrange, error=error)
+    CALL  nucint_sp_num(sepi, sepj, rij, core=core, itype=itype, longrange=longrange,&
+                        error=error)
 
-    IF ((sepi%dorb.OR.sepj%dorb).AND.l_core) THEN
+    IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d-orbitals
        CALL  nucint_d_num(sepi, sepj, rij, core, itype, longrange, error=error)
     END IF
     
     IF (lgrad) THEN
        ! Integrals derivatives for sp shell
-       CALL dnucint_sp_ana(sepi, sepj, rij,dssss, dcore, itype, longrange, error=error)
+       CALL dnucint_sp_ana(sepi, sepj, rij, dcore=dcore, itype=itype, longrange=longrange,&
+                           error=error)
 
-       IF ((sepi%dorb.OR.sepj%dorb).AND.l_core) THEN
+       IF (sepi%dorb.OR.sepj%dorb) THEN
           ! Integral derivatives involving d-orbitals
-          CALL dnucint_d_ana(sepi, sepj, rij,dcore, itype, longrange, error=error)
+          CALL dnucint_d_ana(sepi, sepj, rij, dcore, itype, longrange, error=error)
        END IF
     END IF
 
     ! Modify integrals in case of short-range request
     IF (shortrange) THEN
-       IF (l_ssss) THEN
-          CALL dnucint_ana( sepi, sepj, rij, ssss=ssss_lr, dssss=dssss_lr, itype=itype,&
-               taper=taper, shortrange=.FALSE., do_longrange=.TRUE., lgrad=lgrad, error=error )
-                      ssss =  ssss -  ssss_lr
-          IF (lgrad) dssss = dssss - dssss_lr
-       END IF
-       IF (l_core) THEN
-          CALL dnucint_ana( sepi, sepj, rij, core=core_lr, dcore=dcore_lr, itype=itype,&
-               taper=taper, shortrange=.FALSE., do_longrange=.TRUE., lgrad=lgrad, error=error )
+       CALL dcore_nucint_ana( sepi, sepj, rij, core=core_lr, dcore=dcore_lr, itype=itype,&
+            taper=taper, shortrange=.FALSE., do_longrange=.TRUE., lgrad=lgrad, error=error )
+       DO i = 1, sepi%core_size
+          core(i,1) =  core(i,1) -  core_lr(i,1)
+       END DO
+       DO i = 1, sepj%core_size
+          core(i,2) =  core(i,2) -  core_lr(i,2)
+       END DO
+       IF (lgrad) THEN 
           DO i = 1, sepi%core_size
-             core(i,1) =  core(i,1) -  core_lr(i,1)
+             dcore(i,1) = dcore(i,1) - dcore_lr(i,1)
           END DO
           DO i = 1, sepj%core_size
-             core(i,2) =  core(i,2) -  core_lr(i,2)
+             dcore(i,2) = dcore(i,2) - dcore_lr(i,2)
           END DO
-          IF (lgrad) THEN 
-             DO i = 1, sepi%core_size
-                dcore(i,1) = dcore(i,1) - dcore_lr(i,1)
-             END DO
-             DO i = 1, sepj%core_size
-                dcore(i,2) = dcore(i,2) - dcore_lr(i,2)
-             END DO
-          END IF
        END IF
     END IF
 
@@ -905,36 +967,26 @@ CONTAINS
           dft= dtaper_eval(taper, rij, error)
        END IF
        IF (lgrad) THEN
-          IF (l_core) THEN
-             DO i = 1, sepi%core_size
-                dcore(i,1) = ft*dcore(i,1)+dft*core(i,1)
-             END DO
-             DO i = 1, sepj%core_size
-                dcore(i,2) = ft*dcore(i,2)+dft*core(i,2)
-             END DO
-          END IF
-          IF (l_ssss) THEN
-             dssss      = ft*dssss+dft*ssss
-          END IF
-       END IF
-       IF (l_core) THEN
           DO i = 1, sepi%core_size
-             core(i,1)  = ft*core(i,1)
+             dcore(i,1) = ft*dcore(i,1)+dft*core(i,1)
           END DO
           DO i = 1, sepj%core_size
-             core(i,2)  = ft*core(i,2)
+             dcore(i,2) = ft*dcore(i,2)+dft*core(i,2)
           END DO
        END IF
-       IF (l_ssss) THEN
-          ssss          = ft*ssss
-       END IF
+       DO i = 1, sepi%core_size
+          core(i,1)     = ft*core(i,1)
+       END DO
+       DO i = 1, sepj%core_size
+          core(i,2)     = ft*core(i,2)
+       END DO
     END IF
 
     ! Debug Procedure.. Check valifity of analytical gradients of nucint
     IF (debug_this_module.AND.lgrad) THEN
-       CALL check_dnucint_ana(sepi,sepj,rij,dssss,dcore,itype,shortrange,taper=taper,error=error)
+       CALL check_dcore_nucint_ana(sepi,sepj,rij,dcore,itype,shortrange,taper=taper,error=error)
     END IF
-  END SUBROUTINE dnucint_ana
+  END SUBROUTINE dcore_nucint_ana
 
 ! *****************************************************************************
 !> \brief Calculates the nuclear attraction integrals and derivatives for sp basis

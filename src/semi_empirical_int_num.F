@@ -45,10 +45,11 @@ MODULE semi_empirical_int_num
   PRIVATE
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_num'
-  PUBLIC :: rotint_num,  rotnuc_num,  corecore_num,&
-           drotint_num, drotnuc_num, dcorecore_num,&
-            nucint_num,  terep_num,  nucint_sp_num,&
-          terep_sp_num, terep_d_num,  nucint_d_num 
+  PUBLIC :: rotint_num,      rotnuc_num,   corecore_num,&
+           drotint_num,     drotnuc_num,  dcorecore_num,&
+       ssss_nucint_num, core_nucint_num,      terep_num,&
+         nucint_sp_num,    terep_sp_num,    terep_d_num,&
+          nucint_d_num 
 
 CONTAINS
 
@@ -448,7 +449,7 @@ CONTAINS
        CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
 
        ! Compute Integrals in Diatomic Frame
-       CALL nucint_num(sepi,sepj,rij,core=core,itype=itype,taper=taper,shortrange=shortrange,&
+       CALL core_nucint_num(sepi,sepj,rij,core=core,itype=itype,taper=taper,shortrange=shortrange,&
             error=error)
        
        ! Copy parameters over to arrays for do loop.
@@ -548,10 +549,10 @@ CONTAINS
     IF (rij > rij_threshold) THEN
        rij = SQRT(rij)
 
-       CALL nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,taper=taper,shortrange=.FALSE.,&
+       CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,taper=taper,shortrange=.FALSE.,&
             error=error)
        IF (shortrange) THEN
-          CALL nucint_num(sepi,sepj,rij,ssss=ssss_sr,itype=itype,taper=taper,&
+          CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss_sr,itype=itype,taper=taper,&
                shortrange=shortrange,error=error)
        ELSE
           ssss_sr = ssss
@@ -687,7 +688,61 @@ CONTAINS
   END SUBROUTINE corecore_num
 
 ! *****************************************************************************
-!> \brief Calculates the nuclear attraction integrals (main driver)
+!> \brief Calculates the SSSS integrals (main driver)
+!> \param on input rij     = interatomic distance
+!>                sepi    = paramters of atom i
+!>                sepj    = paramters of atom j
+!>                itype   = type of semi_empirical model
+!>                          extension to the original routine to compute qm/mm integrals
+!>         do_longrange   = requests only the evaluation of the long range part (recursive use only)
+!>
+!>      on output ssss    = derivative of (ssss) integral
+!>                          derivatives are intended w.r.t. rij
+!> \par History
+!>      03.2008 created [tlaino]
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
+  RECURSIVE SUBROUTINE ssss_nucint_num(sepi, sepj, rij, ssss, itype, taper, shortrange, do_longrange, error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), INTENT(IN)                     :: rij
+    REAL(dp), INTENT(OUT)                    :: ssss
+    INTEGER, INTENT(IN)                      :: itype
+    TYPE(taper_type), POINTER                :: taper
+    LOGICAL, INTENT(IN)                      :: shortrange
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ssss_nucint_num', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, longrange
+    REAL(KIND=dp)                            :: ft, ssss_lr
+
+    failure   = .FALSE.
+    longrange = .FALSE.
+    IF (PRESENT(do_longrange))  longrange = do_longrange
+
+    ! Contribution from the sp shells
+    CALL nucint_sp_num(sepi, sepj, rij, ssss=ssss, itype=itype, longrange=longrange, error=error)
+
+    ! Modify integrals in case of short-range request (compute the LR part and subtract from the integral)
+    IF (shortrange) THEN
+       CALL ssss_nucint_num(sepi, sepj, rij, ssss=ssss_lr, itype=itype, taper=taper, shortrange=.FALSE.,&
+            do_longrange=.TRUE., error=error)
+       ssss = ssss - ssss_lr
+    END IF
+
+    ! Tapering function
+    IF (.NOT.longrange) THEN
+       ft = 1.0_dp
+       IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
+       ssss = ft*ssss
+    END IF
+
+  END SUBROUTINE ssss_nucint_num
+
+! *****************************************************************************
+!> \brief Calculates the nuclear attraction integrals CORE (main driver)
 !> \param on input rij     = interatomic distance
 !>                sepi    = paramters of atom i
 !>                sepj    = paramters of atom j
@@ -696,85 +751,67 @@ CONTAINS
 !>         do_longrange   = requests only the evaluation of the long range part (recursive use only)
 !>
 !>      on output core    = derivative of 4 X 2 array of electron-core attraction integrals
-!>                ssss    = derivative of (ssss) integral
 !>                          derivatives are intended w.r.t. rij
 !> \par History
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE nucint_num(sepi, sepj, rij, ssss, core, itype, taper, shortrange, do_longrange, error)
+  RECURSIVE SUBROUTINE core_nucint_num(sepi, sepj, rij, core, itype, taper, shortrange, do_longrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
-    REAL(dp), INTENT(OUT), OPTIONAL          :: ssss
-    REAL(dp), DIMENSION(10, 2), &
-      INTENT(OUT), OPTIONAL                  :: core
+    REAL(dp), DIMENSION(10, 2), INTENT(OUT)  :: core
     INTEGER, INTENT(IN)                      :: itype
     TYPE(taper_type), POINTER                :: taper
     LOGICAL, INTENT(IN)                      :: shortrange
     LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'nucint_num', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'core_nucint_num', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, l_core, l_ssss, &
-                                                longrange
-    REAL(KIND=dp)                            :: ft, ssss_lr
+    LOGICAL                                  :: failure, longrange
+    REAL(KIND=dp)                            :: ft
     REAL(KIND=dp), DIMENSION(10, 2)          :: core_lr
 
     failure   = .FALSE.
     longrange = .FALSE.
     IF (PRESENT(do_longrange))  longrange = do_longrange
-    l_core  = PRESENT(core)
-    l_ssss  = PRESENT(ssss)
 
     ! Contribution from the sp shells
-    CALL nucint_sp_num(sepi, sepj, rij, ssss, core, itype, longrange, error=error)
+    CALL nucint_sp_num(sepi, sepj, rij, core=core, itype=itype, longrange=longrange, error=error)
 
-    IF ((sepi%dorb.OR.sepj%dorb).AND.l_core) THEN
+    IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d shells
        CALL nucint_d_num(sepi, sepj, rij, core, itype, longrange, error=error)
     END IF
 
     ! Modify integrals in case of short-range request (compute the LR part and subtract from the integral)
     IF (shortrange) THEN
-       IF (l_ssss) THEN
-          CALL nucint_num(sepi, sepj, rij, ssss=ssss_lr, itype=itype, taper=taper, shortrange=.FALSE.,&
-               do_longrange=.TRUE., error=error)
-          ssss = ssss - ssss_lr
-       END IF
-       IF (l_core) THEN
-          CALL nucint_num(sepi, sepj, rij, core=core_lr, itype=itype, taper=taper, shortrange=.FALSE., &
-               do_longrange=.TRUE., error=error)
-          DO i = 1, sepi%core_size
-                         core(i,1) =  core(i,1) -  core_lr(i,1)
-          END DO
-          DO i = 1, sepj%core_size
-                         core(i,2) =  core(i,2) -  core_lr(i,2)
-          END DO
-       END IF
+       CALL core_nucint_num(sepi, sepj, rij, core=core_lr, itype=itype, taper=taper, shortrange=.FALSE., &
+            do_longrange=.TRUE., error=error)
+       DO i = 1, sepi%core_size
+          core(i,1) =  core(i,1) -  core_lr(i,1)
+       END DO
+       DO i = 1, sepj%core_size
+          core(i,2) =  core(i,2) -  core_lr(i,2)
+       END DO
     END IF
 
     ! Tapering function
     IF (.NOT.longrange) THEN
        ft = 1.0_dp
        IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
-       IF (l_ssss) THEN
-          ssss = ft*ssss
-       END IF
-       IF (l_core) THEN
-          DO i = 1, sepi%core_size
-             core(i,1)  = ft*core(i,1)
-          END DO
-          DO i = 1, sepj%core_size
-             core(i,2)  = ft*core(i,2)
-          END DO
-       END IF
+       DO i = 1, sepi%core_size
+          core(i,1)  = ft*core(i,1)
+       END DO
+       DO i = 1, sepj%core_size
+          core(i,2)  = ft*core(i,2)
+       END DO
     END IF
 
-  END SUBROUTINE nucint_num
-
+  END SUBROUTINE core_nucint_num
+  
 ! *****************************************************************************
 !> \brief Calculates the nuclear attraction integrals for sp basis
 !> \param on input rij   = interatomic distance

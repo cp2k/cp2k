@@ -26,15 +26,15 @@ INTERFACE check_rotmat_der
 END INTERFACE check_rotmat_der
 
 ! *****************************************************************************
-!> \brief Check Numerical Vs Analytical NUCINT
+!> \brief Check Numerical Vs Analytical NUCINT ssss
 !> \note
 !>      Debug routine
 !> \par History
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-INTERFACE check_dnucint_ana
-  SUBROUTINE check_dnucint_ana (sepi,sepj,r,dssss,dcore,itype,shortrange,taper,error)
+INTERFACE check_dssss_nucint_ana
+  SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,shortrange,taper,error)
     USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
@@ -43,15 +43,39 @@ INTERFACE check_dnucint_ana
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: r
-    REAL(dp), INTENT(IN), OPTIONAL           :: dssss
-    REAL(dp), DIMENSION(10, 2), INTENT(IN),&
-         OPTIONAL                            :: dcore
+    REAL(dp), INTENT(IN)                     :: dssss
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
-  END SUBROUTINE check_dnucint_ana
-END INTERFACE check_dnucint_ana
+  END SUBROUTINE check_dssss_nucint_ana
+END INTERFACE check_dssss_nucint_ana
+
+! *****************************************************************************
+!> \brief Check Numerical Vs Analytical NUCINT core
+!> \note
+!>      Debug routine
+!> \par History
+!>      04.2008 created [tlaino]
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
+INTERFACE check_dcore_nucint_ana
+  SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,shortrange,taper,error)
+    USE f77_blas
+    USE kinds,                           ONLY: dp
+    USE semi_empirical_types,            ONLY: semi_empirical_type,&
+                                               taper_type
+#include "cp_common_uses.h"
+    IMPLICIT NONE
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), INTENT(IN)                     :: r
+    REAL(dp), DIMENSION(10, 2), INTENT(IN)   :: dcore
+    INTEGER, INTENT(IN)                      :: itype
+    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+  END SUBROUTINE check_dcore_nucint_ana
+END INTERFACE check_dcore_nucint_ana
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical ROTNUC
