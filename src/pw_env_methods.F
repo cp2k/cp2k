@@ -162,7 +162,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
     LOGICAL :: efg_present, failure, linres_present, odd, should_output, &
-      spherical, splines_required, uf_grid, use_ref_cell, wavelet_active
+      spherical, splines_required, uf_grid, use_ref_cell
     REAL(KIND=dp)                            :: alpha, core_charge, cutilev, &
                                                 max_rpgf0_s, maxradius, &
                                                 my_cut, rel_cutoff, zet0_s, &
@@ -367,12 +367,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      IF (efg_present) THEN
         splines_required=splines_required.OR..TRUE.
      ENDIF
-     ! the wavelet solver doesn't like ray distributed pw grids either (gives wrong results)
-     IF (section_get_ival(input,"DFT%POISSON%POISSON_SOLVER",error=error)==use_wavelet) THEN
-        wavelet_active=.TRUE.
-     ELSE
-        wavelet_active=.FALSE.
-     ENDIF
      
      DO igrid_level=1,ngrid_level
         CALL pw_grid_create(pw_grid,para_env%group,error=error)
@@ -394,7 +388,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         ! If splines are required
         ! or if wavelet is used 
         ! FIXME.... should only be true for the highest grid 
-        IF (splines_required.OR.wavelet_active) THEN
+        IF (splines_required) THEN
           distribution_layout = (/para_env%num_pe,1/)            
         ENDIF
 

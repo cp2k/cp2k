@@ -114,9 +114,6 @@ CONTAINS
 
     nproc=PRODUCT(pw_grid % para % rs_dims)
 
-    ! looks like we get wrong results for ray distributed pw_grids
-    CPPrecondition(pw_grid % para % rs_dims(2).EQ.1,cp_failure_level,routineP,error,failure)
-
     iproc=pw_grid % para % rs_mpo
 
     IF (.NOT.failure) THEN
@@ -292,6 +289,7 @@ CONTAINS
           END DO
        END DO
 
+
        IF(wavelet%geocode=='S'.OR.wavelet%geocode=='F')THEN
           max_val_low=0._dp
           max_val_up=0._dp
@@ -376,7 +374,6 @@ CONTAINS
           sdispl(i)=sdispl(i-1)+scount(i-1)
           rdispl(i)=rdispl(i-1)+rcount(i-1)
        END DO
-       
        CALL mp_alltoall(sbuf,scount,sdispl,rbuf,rcount,rdispl,pw_grid%para%rs_group)
        !!!! and now, how to put the right cubes to the right position!!!!!!
 
@@ -434,7 +431,7 @@ CONTAINS
                                                 m2, md2, nproc
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
                                                 sdispl, tmp
-    INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy
+    INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy,min_x,min_y
     INTEGER, DIMENSION(3)                    :: lb, ub
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
@@ -470,15 +467,8 @@ CONTAINS
           loz=0
        END IF
 
-       DO i=1, pw_grid % npts ( 1 )
-          DO j=1, pw_grid % npts ( 2 )
-             DO k=1,loz
-                sbuf(ii)= wavelet%rho_z_sliced(i,j,k)
-                ii=ii+1
-             END DO
-          END DO
-       END DO
-
+       min_x=get_limit ( pw_grid % npts ( 1 ), pw_grid % para % rs_dims ( 1 ), 0 )
+       min_y=get_limit ( pw_grid % npts ( 2 ) , pw_grid % para % rs_dims ( 2 ), 0 )
        DO i = 0,pw_grid % para % rs_dims(1)-1
           DO j= 0, pw_grid % para % rs_dims(2)-1
              cart_pos=(/i,j/)
@@ -502,12 +492,19 @@ CONTAINS
              loy = get_limit ( pw_grid % npts ( 2 ) , pw_grid % para % rs_dims ( 2 ), j )
              IF((lox(2).GE.lox(1)).AND.(loy(2).GE.loy(1)))THEN             
                 scount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*loz)
+                DO k=lox(1)-min_x(1)+1,lox(2)-min_x(1)+1
+                   DO l=loy(1)-min_y(1)+1,loy(2)-min_y(1)+1
+                      DO m=1,loz
+                         sbuf(ii)= wavelet%rho_z_sliced(k,l,m)
+                         ii=ii+1
+                      END DO
+                   END DO
+                END DO
              ELSE           
                 scount(dest+1)=0
              END IF 
           END DO
        END DO
-
        sdispl(1)=0
        rdispl(1)=0
        DO i = 2,nproc
