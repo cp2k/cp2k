@@ -236,7 +236,7 @@ CONTAINS
          description="how to distribute the processors on the 2d grid needed "//&
          "by BLACS (and thus SCALAPACK)", usage="BLACS_GRID SQUARE",&
          default_i_val=blacs_square,enum_c_vals=s2a("SQUARE","ROW","COLUMN"),&
-         enum_desc=s2a("Distribution by marix blocks", "Distribution by matrix rows",&
+         enum_desc=s2a("Distribution by matrix blocks", "Distribution by matrix rows",&
          "Distribution by matrix columns"), &
          enum_i_vals=(/blacs_square,blacs_row,blacs_col/), error=error)
     CALL section_add_keyword(section,keyword,error=error)

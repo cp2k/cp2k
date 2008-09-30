@@ -709,7 +709,7 @@ SUBROUTINE rotate_molecule(r,mass,natoms,rng_stream,error)
       rand=next_random_number(rng_stream,error=error)
       dgamma=pi*(rand-0.5E0_dp)*2.0E0_dp
 
-! *** set up the rotation marix ***
+! *** set up the rotation matrix ***
 
       cosdg = COS( dgamma )
       sindg = SIN( dgamma )
