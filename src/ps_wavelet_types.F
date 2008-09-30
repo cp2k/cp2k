@@ -431,7 +431,8 @@ CONTAINS
                                                 m2, md2, nproc
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
                                                 sdispl, tmp
-    INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy,min_x,min_y
+    INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy, min_x, &
+                                                min_y
     INTEGER, DIMENSION(3)                    :: lb, ub
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
