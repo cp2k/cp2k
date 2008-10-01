@@ -845,7 +845,7 @@ CONTAINS
     ft = 1.0_dp
     dft= 0.0_dp
     IF (itype/=do_method_pchg) THEN
-       ft = taper_eval (taper, rij, error)
+       ft =  taper_eval(taper, rij, error)
        dft= dtaper_eval(taper, rij, error)
     END IF
     IF (lgrad) THEN
@@ -925,7 +925,7 @@ CONTAINS
     ft = 1.0_dp
     dft= 0.0_dp
     IF (itype/=do_method_pchg) THEN
-       ft = taper_eval (taper, rij, error)
+       ft =  taper_eval(taper, rij, error)
        dft= dtaper_eval(taper, rij, error)
     END IF
     IF (lgrad) THEN
@@ -1485,22 +1485,31 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dterep_ana', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i, ij, j, k, kl, l, lasti, &
+                                                lastj, li, lj, lk, ll, numb
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dft, ft
 
-    failure   = .FALSE.
-    ft        = taper_eval(taper,rij,error)
+    failure = .FALSE.
+    IF (lgrad) THEN 
+       ft   = 1.0_dp
+    ELSE
+       ft   =  taper_eval(taper,rij,error)
+    END IF
 
     ! Integral Values for sp shells only
     CALL  terep_sp_num(sepi, sepj, rij, rep, shortrange=shortrange, ft=ft, error=error)
-
+    
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d-orbitals
        CALL  terep_d_num (sepi, sepj, rij, rep, shortrange=shortrange, ft=ft, error=error)
     END IF
 
     IF (lgrad) THEN
-       dft= dtaper_eval(taper,rij,error)
+       ! If we compute gradients the situ
+       ft   =  taper_eval(taper,rij,error)
+       dft  = dtaper_eval(taper,rij,error)
+
        ! Integral Derivatives
        CALL dterep_sp_ana(sepi, sepj, rij, rep_d, rep, shortrange, ft, dft, error=error)
 
@@ -1508,6 +1517,26 @@ CONTAINS
           ! Compute the derivatives from d-orbitals
           CALL dterep_d_ana (sepi, sepj, rij, rep_d, rep, shortrange, ft, dft, error=error)
        END IF
+       
+       ! Tapering Integral values
+       lasti = sepi%natorb
+       lastj = sepj%natorb
+       DO i = 1, lasti
+          li = l_index(i)
+          DO j = 1, i
+             lj = l_index(j)
+             ij = indexa(i, j)
+             DO k = 1, lastj
+                lk = l_index(k)
+                DO l = 1, k
+                   ll = l_index(l)
+                   kl = indexa(k, l)
+                   numb = ijkl_ind(ij, kl)
+                   IF (numb>0) rep(numb) = rep(numb)*ft
+                END DO
+             END DO
+          END DO
+       END DO
     END IF
 
     ! Possibly debug 2el 2cent integrals and derivatives
