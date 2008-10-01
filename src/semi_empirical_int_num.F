@@ -212,7 +212,6 @@ CONTAINS
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
 !>         shortrange    = requests only the evaluation of the short range part
-!>        do_longrange   = requests only the evaluation of the long range part (recursive use only)
 !>
 !>     on output ri      = array of two-electron repulsion integrals
 !>
@@ -220,55 +219,29 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE terep_num(sepi, sepj, rij, rep, taper, shortrange, do_longrange, error)
+  SUBROUTINE terep_num(sepi, sepj, rij, rep, taper, shortrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(OUT)    :: rep
     TYPE(taper_type), POINTER                :: taper
     LOGICAL, INTENT(IN)                      :: shortrange
-    LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'terep_num', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i1, ij, j1, k1, kl, l1
-    LOGICAL                                  :: failure, longrange
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ft
-    REAL(KIND=dp), DIMENSION(491)            :: rep_lr
 
     failure   = .FALSE.
-    longrange = .FALSE.
     ft        = taper_eval(taper, rij, error)
-    IF (PRESENT(do_longrange))  longrange = do_longrange
 
     ! Contribution from sp shells
-    CALL terep_sp_num(sepi, sepj, rij, rep, longrange, ft=ft, error=error)
+    CALL terep_sp_num(sepi, sepj, rij, rep, shortrange=shortrange, ft=ft, error=error)
 
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d shells
-       CALL terep_d_num (sepi, sepj, rij, rep, longrange, ft=ft, error=error)
-    END IF
-
-    ! Evaluate only the shortrange part of the integral if requested
-    IF ( shortrange ) THEN
-       CALL terep_num(sepi, sepj, rij, rep_lr, taper, shortrange=.FALSE.,&
-                      do_longrange=.TRUE., error=error)
-       ! Correct Integral
-       DO i1 = 1, sepi%natorb
-          DO j1 = 1, i1
-             ij = indexa(i1, j1)
-             DO k1 = 1, sepj%natorb
-                DO l1 = 1, k1
-                   kl = indexa(k1, l1)
-                   i = ijkl_ind(ij, kl)
-                   IF (i /= 0) THEN
-                      rep(i) =   rep(i) -   rep_lr(i)
-                   END IF
-                END DO
-             END DO
-          END DO
-       END DO
+       CALL terep_d_num (sepi, sepj, rij, rep, shortrange=shortrange, ft=ft, error=error)
     END IF
 
   END SUBROUTINE terep_num
@@ -278,7 +251,7 @@ CONTAINS
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>           longrange   = requests only the evaluation of the long range part
+!>         shortrange    = requests only the evaluation of the short range part
 !>
 !>     on output rep     = array of two-electron repulsion integrals
 !>
@@ -286,11 +259,11 @@ CONTAINS
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 ! *****************************************************************************
-  SUBROUTINE terep_sp_num (sepi, sepj, rij, rep, longrange, ft, error )
+  SUBROUTINE terep_sp_num (sepi, sepj, rij, rep, shortrange, ft, error )
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(OUT)    :: rep
-    LOGICAL, INTENT(IN)                      :: longrange
+    LOGICAL, INTENT(IN)                      :: shortrange
     REAL(dp), INTENT(IN)                     :: ft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -326,7 +299,7 @@ CONTAINS
                       rep(numb) = -rep(-nold)
                    ELSE IF (nold == 0) THEN
                       tmp = ijkl_sp (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
-                                     longrange, do_method_undef, error) * ft
+                                     shortrange, do_method_undef, error) * ft
                       rep(numb) = tmp
                    END IF
                 END IF
@@ -341,7 +314,7 @@ CONTAINS
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>           longrange   = requests only the evaluation of the long range part
+!>         shortrange    = requests only the evaluation of the short range part
 !>
 !>     on output rep     = array of two-electron repulsion integrals
 !>
@@ -349,11 +322,11 @@ CONTAINS
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 ! *****************************************************************************
-  SUBROUTINE terep_d_num (sepi, sepj, rij, rep, longrange, ft, error )
+  SUBROUTINE terep_d_num (sepi, sepj, rij, rep, shortrange, ft, error )
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(INOUT)  :: rep
-    LOGICAL, INTENT(IN)                      :: longrange
+    LOGICAL, INTENT(IN)                      :: shortrange
     REAL(dp), INTENT(IN)                     :: ft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -390,7 +363,7 @@ CONTAINS
                       rep(numb) = -rep(-nold)
                    ELSE IF (nold == 0) THEN
                       tmp = ijkl_d (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
-                                    longrange, do_method_undef, error) * ft
+                                    shortrange, do_method_undef, error) * ft
                       rep(numb) = tmp
                    END IF
                 END IF
@@ -517,6 +490,7 @@ CONTAINS
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j
+!>           shortrange    = requests only the evaluation of the short range part
 !>
 !>    on output     enuc= nuclear-nuclear repulsion term.
 !>
@@ -689,12 +663,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the SSSS integrals (main driver)
-!> \param on input rij     = interatomic distance
+!> \param on input rij    = interatomic distance
 !>                sepi    = paramters of atom i
 !>                sepj    = paramters of atom j
 !>                itype   = type of semi_empirical model
 !>                          extension to the original routine to compute qm/mm integrals
-!>         do_longrange   = requests only the evaluation of the long range part (recursive use only)
+!>           shortrange   = requests only the evaluation of the short range part
 !>
 !>      on output ssss    = derivative of (ssss) integral
 !>                          derivatives are intended w.r.t. rij
@@ -702,53 +676,41 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE ssss_nucint_num(sepi, sepj, rij, ssss, itype, taper, shortrange, do_longrange, error)
+  SUBROUTINE ssss_nucint_num(sepi, sepj, rij, ssss, itype, taper, shortrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(OUT)                    :: ssss
     INTEGER, INTENT(IN)                      :: itype
     TYPE(taper_type), POINTER                :: taper
     LOGICAL, INTENT(IN)                      :: shortrange
-    LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ssss_nucint_num', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, longrange
-    REAL(KIND=dp)                            :: ft, ssss_lr
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: ft
 
     failure   = .FALSE.
-    longrange = .FALSE.
-    IF (PRESENT(do_longrange))  longrange = do_longrange
 
     ! Contribution from the sp shells
-    CALL nucint_sp_num(sepi, sepj, rij, ssss=ssss, itype=itype, longrange=longrange, error=error)
-
-    ! Modify integrals in case of short-range request (compute the LR part and subtract from the integral)
-    IF (shortrange) THEN
-       CALL ssss_nucint_num(sepi, sepj, rij, ssss=ssss_lr, itype=itype, taper=taper, shortrange=.FALSE.,&
-            do_longrange=.TRUE., error=error)
-       ssss = ssss - ssss_lr
-    END IF
+    CALL nucint_sp_num(sepi, sepj, rij, ssss=ssss, itype=itype, shortrange=shortrange, error=error)
 
     ! Tapering function
-    IF (.NOT.longrange) THEN
-       ft = 1.0_dp
-       IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
-       ssss = ft*ssss
-    END IF
+    ft = 1.0_dp
+    IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
+    ssss = ft*ssss
 
   END SUBROUTINE ssss_nucint_num
 
 ! *****************************************************************************
 !> \brief Calculates the nuclear attraction integrals CORE (main driver)
-!> \param on input rij     = interatomic distance
+!> \param on input rij    = interatomic distance
 !>                sepi    = paramters of atom i
 !>                sepj    = paramters of atom j
 !>                itype   = type of semi_empirical model
 !>                          extension to the original routine to compute qm/mm integrals
-!>         do_longrange   = requests only the evaluation of the long range part (recursive use only)
+!>           shortrange   = requests only the evaluation of the short range part
 !>
 !>      on output core    = derivative of 4 X 2 array of electron-core attraction integrals
 !>                          derivatives are intended w.r.t. rij
@@ -756,59 +718,40 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE core_nucint_num(sepi, sepj, rij, core, itype, taper, shortrange, do_longrange, error)
+  SUBROUTINE core_nucint_num(sepi, sepj, rij, core, itype, taper, shortrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(10, 2), INTENT(OUT)  :: core
     INTEGER, INTENT(IN)                      :: itype
     TYPE(taper_type), POINTER                :: taper
     LOGICAL, INTENT(IN)                      :: shortrange
-    LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'core_nucint_num', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, longrange
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ft
-    REAL(KIND=dp), DIMENSION(10, 2)          :: core_lr
 
     failure   = .FALSE.
-    longrange = .FALSE.
-    IF (PRESENT(do_longrange))  longrange = do_longrange
-
     ! Contribution from the sp shells
-    CALL nucint_sp_num(sepi, sepj, rij, core=core, itype=itype, longrange=longrange, error=error)
+    CALL nucint_sp_num(sepi, sepj, rij, core=core, itype=itype, shortrange=shortrange, error=error)
 
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d shells
-       CALL nucint_d_num(sepi, sepj, rij, core, itype, longrange, error=error)
-    END IF
-
-    ! Modify integrals in case of short-range request (compute the LR part and subtract from the integral)
-    IF (shortrange) THEN
-       CALL core_nucint_num(sepi, sepj, rij, core=core_lr, itype=itype, taper=taper, shortrange=.FALSE., &
-            do_longrange=.TRUE., error=error)
-       DO i = 1, sepi%core_size
-          core(i,1) =  core(i,1) -  core_lr(i,1)
-       END DO
-       DO i = 1, sepj%core_size
-          core(i,2) =  core(i,2) -  core_lr(i,2)
-       END DO
+       CALL nucint_d_num(sepi, sepj, rij, core, itype, shortrange, error=error)
     END IF
 
     ! Tapering function
-    IF (.NOT.longrange) THEN
-       ft = 1.0_dp
-       IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
-       DO i = 1, sepi%core_size
-          core(i,1)  = ft*core(i,1)
-       END DO
-       DO i = 1, sepj%core_size
-          core(i,2)  = ft*core(i,2)
-       END DO
-    END IF
+    ft = 1.0_dp
+    IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
+    DO i = 1, sepi%core_size
+       core(i,1)  = ft*core(i,1)
+    END DO
+    DO i = 1, sepj%core_size
+       core(i,2)  = ft*core(i,2)
+    END DO
 
   END SUBROUTINE core_nucint_num
   
@@ -819,8 +762,8 @@ CONTAINS
 !>                sepj   = paramters of atom j
 !>                itype  = type of semi_empirical model
 !>                         extension to the original routine to compute qm/mm integrals
-!>        short_range    = requests only the evaluation of the short range part
-!>           longrange   = requests only the evaluation of the long range part
+!>        shortrange     = requests only the evaluation of the short range part
+!>
 !>      on output core   = 4 X 2 array of electron-core attraction integrals
 !>                ssss   = (ssss) integral
 !>                          derivatives are intended w.r.t. rij
@@ -835,14 +778,14 @@ CONTAINS
 !>      Teodoro Laino (04.2008) [tlaino] - Totally rewritten: nothing to do with
 !>                    the old version
 ! *****************************************************************************
-  SUBROUTINE nucint_sp_num( sepi, sepj, rij, ssss, core, itype, longrange, error)
+  SUBROUTINE nucint_sp_num( sepi, sepj, rij, ssss, core, itype, shortrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(INOUT), OPTIONAL        :: ssss
     REAL(dp), DIMENSION(10, 2), &
       INTENT(INOUT), OPTIONAL                :: core
     INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: longrange
+    LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_sp_num', &
@@ -862,38 +805,38 @@ CONTAINS
     ij = indexa(1, 1)
     IF (l_ssss) THEN
        ! Store the value for <S  S  | S  S  > (Used for computing the core-core interactions)
-       ssss = ijkl_sp (sepi, sepj, ij, ij, 0, 0, 0, 0, -1, rij, longrange, itype, error)
+       ssss = ijkl_sp (sepi, sepj, ij, ij, 0, 0, 0, 0, -1, rij, shortrange, itype, error)
     END IF
 
     IF (l_core) THEN
        !     <S  S  | S  S  >
        kl = indexa(1, 1)
-       core(1,1)    = ijkl_sp (sepi, sepj, kl, ij, 0, 0, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
+       core(1,1)    = ijkl_sp (sepi, sepj, kl, ij, 0, 0, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
        IF (si) THEN
           !  <S  P  | S  S  >
           kl = indexa(2, 1)
-          core(2,1) = ijkl_sp (sepi, sepj, kl, ij, 0, 1, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
+          core(2,1) = ijkl_sp (sepi, sepj, kl, ij, 0, 1, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
           !  <P  P  | S  S  >
           kl = indexa(2, 2)
-          core(3,1) = ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
+          core(3,1) = ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
           !  <P+ P+ | S  S  >
           kl = indexa(3, 3)
-          core(4,1) = ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
+          core(4,1) = ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
        END IF
 
        !     <S  S  | S  S  >
        kl = indexa(1, 1)
-       core(1,2)    = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 0, 1, rij, longrange, itype, error) * sepi%zeff
+       core(1,2)    = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 0, 1, rij, shortrange, itype, error) * sepi%zeff
        IF (sj) THEN
           !  <S  S  | S  P  >
           kl = indexa(2, 1)
-          core(2,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 1, 1, rij, longrange, itype, error) * sepi%zeff
+          core(2,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 1, 1, rij, shortrange, itype, error) * sepi%zeff
           !  <S  S  | P  P  >
           kl = indexa(2, 2)
-          core(3,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, longrange, itype, error) * sepi%zeff
+          core(3,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, shortrange, itype, error) * sepi%zeff
           !  <S  S  | P+ P+ >
           kl = indexa(3, 3)
-          core(4,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, longrange, itype, error) * sepi%zeff
+          core(4,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, shortrange, itype, error) * sepi%zeff
        END IF
     END IF
 
@@ -906,8 +849,7 @@ CONTAINS
 !>                sepj   = paramters of atom j
 !>                itype  = type of semi_empirical model
 !>                         extension to the original routine to compute qm/mm integrals
-!>        short_range    = requests only the evaluation of the short range part
-!>          longrange    = requests only the evaluation of the long range part
+!>          shortrange   = requests only the evaluation of the short range part
 !>      on output core   = 4 X 2 array of electron-core attraction integrals
 !>
 !>         The storage of the nuclear attraction integrals  core(kl/ij) iS
@@ -918,13 +860,13 @@ CONTAINS
 !> \author
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich 
 ! *****************************************************************************
-  SUBROUTINE nucint_d_num( sepi, sepj, rij, core, itype, longrange, error)
+  SUBROUTINE nucint_d_num( sepi, sepj, rij, core, itype, shortrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(10, 2), &
       INTENT(INOUT)                          :: core
     INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: longrange
+    LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_d_num', &
@@ -940,42 +882,42 @@ CONTAINS
        IF (sepj%dorb) THEN
           !  <S S | D S>
           kl = indexa(5, 1)
-          core(5, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, longrange, itype, error) * sepi%zeff
+          core(5, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, shortrange, itype, error) * sepi%zeff
           !  <S S | D P >
           kl = indexa(5, 2)
-          core(6, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, longrange, itype, error) * sepi%zeff
+          core(6, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, shortrange, itype, error) * sepi%zeff
           !  <S S | D D >
           kl = indexa(5, 5)
-          core(7, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, longrange, itype, error) * sepi%zeff
+          core(7, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, shortrange, itype, error) * sepi%zeff
           !  <S S | D+P+>
           kl = indexa(6, 3)
-          core(8, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, longrange, itype, error) * sepi%zeff
+          core(8, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, shortrange, itype, error) * sepi%zeff
           !  <S S | D+D+>
           kl = indexa(6, 6)
-          core(9, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, longrange, itype, error) * sepi%zeff
+          core(9, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, shortrange, itype, error) * sepi%zeff
           !  <S S | D#D#>
           kl = indexa(8, 8)
-          core(10, 2)= ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, longrange, itype, error) * sepi%zeff
+          core(10, 2)= ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, shortrange, itype, error) * sepi%zeff
        END IF
        IF (sepi%dorb) THEN
           !  <D S | S S>
           kl = indexa(5, 1)
-          core(5, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
+          core(5, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
           !  <D P | S S >
           kl = indexa(5, 2)
-          core(6, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
+          core(6, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
           !  <D D | S S >
           kl = indexa(5, 5)
-          core(7, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
+          core(7, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
           !  <D+P+| S S >
           kl = indexa(6, 3)
-          core(8, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
+          core(8, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
           !  <D+D+| S S >
           kl = indexa(6, 6)
-          core(9, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
+          core(9, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
           !  <D#D#| S S >
           kl = indexa(8, 8)
-          core(10, 1)= ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, longrange, itype, error) * sepj%zeff
+          core(10, 1)= ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
        END IF
 
     END IF

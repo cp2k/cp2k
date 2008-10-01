@@ -85,11 +85,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, error) RESULT(res)
+  FUNCTION ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    LOGICAL, INTENT(IN)                      :: longrange
+    LOGICAL, INTENT(IN)                      :: shortrange
     INTEGER, INTENT(IN)                      :: itype
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -97,7 +97,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_sp', &
       routineP = moduleN//':'//routineN
 
-    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, charg_int_nri, error)
+    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, charg_int_nri, error)
 
   END FUNCTION ijkl_sp
 
@@ -111,11 +111,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 05.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION d_ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, error) RESULT(res)
+  FUNCTION d_ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    LOGICAL, INTENT(IN)                      :: longrange
+    LOGICAL, INTENT(IN)                      :: shortrange
     INTEGER, INTENT(IN)                      :: itype
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -123,7 +123,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_sp', &
       routineP = moduleN//':'//routineN
 
-    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, dcharg_int_nri, error)
+    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, dcharg_int_nri, error)
 
   END FUNCTION d_ijkl_sp
 
@@ -138,11 +138,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 05.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, eval, error) RESULT(res)
+  FUNCTION ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, eval, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    LOGICAL, INTENT(IN)                      :: longrange
+    LOGICAL, INTENT(IN)                      :: shortrange
     INTEGER, INTENT(IN)                      :: itype
     REAL(KIND=dp)                            :: eval
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -175,6 +175,7 @@ CONTAINS
     fact_kl = 1.0_dp
     IF (lij==3) fact_ij = SQRT(2.0_dp)
     IF (lkl==3) fact_kl = SQRT(2.0_dp)
+    ! Standard value of the integral
     DO l1 = l1min, l1max
        IF (l1 == 0) THEN
           IF (lij == 1) THEN
@@ -208,13 +209,13 @@ CONTAINS
              dkl = sepj%cs(lkl)*fact_kl
              pkl = sepj%ko(lkl)
           END IF
-          IF (longrange.OR.(itype==do_method_pchg)) THEN
+          IF (itype==do_method_pchg) THEN
              add = 0.0_dp
           ELSE
              add = (pij+pkl) ** 2
           END IF
           lmin = MAX(l1, l2)
-          s1 = 0.0_dp
+          s1   = 0.0_dp
           DO m = -lmin, lmin
              ccc = clm_sp(ij, l1, m) * clm_sp(kl, l2, m)
              IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
@@ -227,6 +228,36 @@ CONTAINS
        END DO
     END DO
     res = sum
+    ! Shortrange: Possibly computes pure Coulomb and subtract from the original integral value
+    IF (shortrange) THEN
+       sum = 0.0_dp
+       dij = 0.0_dp
+       dkl = 0.0_dp
+       DO l1 = l1min, l1max
+          IF (l1 /= 0) THEN
+             dij = sepi%cs(lij)*fact_ij
+          END IF
+          !
+          DO l2 = l2min, l2max
+             IF (l2 /= 0) THEN
+                dkl = sepj%cs(lkl)*fact_kl
+             END IF
+             add  = 0.0_dp
+             lmin = MAX(l1, l2)
+             s1   = 0.0_dp
+             DO m = -lmin, lmin
+                ccc = clm_sp(ij, l1, m) * clm_sp(kl, l2, m)
+                IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
+                   mm   = ABS (m)
+                   chrg = eval(r, l1, l2, clm_sp(ij, l1, m), clm_sp(kl, l2, m), dij, dkl, add, error)
+                   s1   = s1 + chrg
+                END IF
+             END DO
+             sum = sum + s1
+          END DO
+       END DO
+       res = res - sum
+    END IF
   END FUNCTION ijkl_sp_low
 
 ! *****************************************************************************
@@ -638,11 +669,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, error) RESULT(res)
+  FUNCTION ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    LOGICAL, INTENT(IN)                      :: longrange
+    LOGICAL, INTENT(IN)                      :: shortrange
     INTEGER, INTENT(IN)                      :: itype
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -650,7 +681,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_d', &
       routineP = moduleN//':'//routineN
 
-    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, charg_int_ri, error)
+    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, charg_int_ri, error)
 
   END FUNCTION ijkl_d
 
@@ -670,11 +701,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION d_ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, error) RESULT(res)
+  FUNCTION d_ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    LOGICAL, INTENT(IN)                      :: longrange
+    LOGICAL, INTENT(IN)                      :: shortrange
     INTEGER, INTENT(IN)                      :: itype
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -682,7 +713,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_d', &
       routineP = moduleN//':'//routineN
 
-    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, dcharg_int_ri, error)
+    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, dcharg_int_ri, error)
 
   END FUNCTION d_ijkl_d
 
@@ -702,11 +733,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, eval, error) RESULT(res)
+  FUNCTION ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, eval, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    LOGICAL, INTENT(IN)                      :: longrange
+    LOGICAL, INTENT(IN)                      :: shortrange
     INTEGER, INTENT(IN)                      :: itype
     REAL(KIND=dp)                            :: eval
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -734,6 +765,7 @@ CONTAINS
     sum = 0.0_dp
     dij = 0.0_dp
     dkl = 0.0_dp
+    ! Standard value of the integral
     DO l1 = l1min, l1max
        IF (l1 == 0) THEN
           IF (lij == 1) THEN
@@ -767,7 +799,7 @@ CONTAINS
              dkl = sepj%cs(lkl)
              pkl = sepj%ko(lkl)
           END IF
-          IF (longrange.OR.(itype==do_method_pchg)) THEN
+          IF (itype==do_method_pchg) THEN
              add = 0.0_dp
           ELSE
              add = (pij+pkl) ** 2
@@ -786,6 +818,36 @@ CONTAINS
        END DO
     END DO
     res = sum
+    ! Shortrange: Possibly computes pure Coulomb and subtract from the original integral valeu
+    IF (shortrange) THEN
+       sum = 0.0_dp
+       dij = 0.0_dp
+       dkl = 0.0_dp
+       DO l1 = l1min, l1max
+          IF (l1 /= 0) THEN
+             dij = sepi%cs(lij)
+          END IF
+          !
+          DO l2 = l2min, l2max
+             IF (l2 /= 0) THEN
+                dkl = sepj%cs(lkl)
+             END IF
+             add  = 0.0_dp
+             lmin = MIN(l1, l2)
+             s1   = 0.0_dp
+             DO m = -lmin, lmin
+                ccc = clm_d(ij, l1, m) * clm_d(kl, l2, m)
+                IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
+                   mm   = ABS (m)
+                   chrg = eval(r, l1, l2, mm, dij, dkl, add, error)
+                   s1   = s1 + chrg * ccc
+                END IF
+             END DO
+             sum = sum + s1
+          END DO
+       END DO
+       res = res - sum
+    END IF
   END FUNCTION ijkl_d_low
   
 ! *****************************************************************************
