@@ -161,10 +161,10 @@ CONTAINS
        END DO
 
        CALL semi_empirical_si_initialize(store_int_env, ks_env%s_mstruct_changed, error)
-       CALL build_fock_matrix_exchange(qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
-            just_energy,store_int_env,error)
+       CALL build_fock_matrix_exchange(qs_env,ks_matrix,matrix_p,calculate_forces,&
+            store_int_env,error)
        CALL build_fock_matrix_coulomb(qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
-            just_energy,store_int_env,error)
+            store_int_env,error)
        CALL semi_empirical_si_finalize(store_int_env, ks_env%s_mstruct_changed, error)
 
        ! Long Range
@@ -179,8 +179,7 @@ CONTAINS
           END IF
 
           ! Evaluate Coulomb Long-Range
-          CALL build_fock_matrix_coulomb_lr(qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
-               just_energy,error)
+          CALL build_fock_matrix_coulomb_lr(qs_env,ks_matrix,matrix_p,energy,calculate_forces,error)
        END IF
 
        ! Compute the Hartree energy
@@ -413,13 +412,13 @@ CONTAINS
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coulomb (qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
-       just_energy,store_int_env,error)
+       store_int_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
-    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -732,13 +731,13 @@ CONTAINS
 !> \date   08.2008 [created]
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coulomb_lr (qs_env, ks_matrix, matrix_p, energy,&
-       calculate_forces, just_energy, error)
+       calculate_forces, error)
    
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
-    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coulomb_lr', &
@@ -1048,14 +1047,13 @@ CONTAINS
 !> \brief Construction of the Exchange part of the Fock matrix
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE build_fock_matrix_exchange (qs_env, ks_matrix, matrix_p, energy, calculate_forces,&
-       just_energy, store_int_env, error)
+  SUBROUTINE build_fock_matrix_exchange (qs_env, ks_matrix, matrix_p, calculate_forces,&
+       store_int_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_p
-    TYPE(qs_energy_type), POINTER            :: energy
-    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
