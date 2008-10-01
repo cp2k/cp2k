@@ -1347,7 +1347,6 @@ CONTAINS
 
        ! Gradients if requested
        IF (lgrad) THEN
-          dw = 0.0_dp
           ! Rotate Integrals derivatives
           IF (ii*kk > 0) THEN
              limij = sepi%atm_int_size
