@@ -20,10 +20,8 @@ MODULE realspace_grid_types
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp,&
-                                             int_8
+  USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: det_3x3
-  USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: &
        mp_alltoall, mp_cart_coords, mp_cart_create, mp_cart_shift, &
        mp_comm_dup, mp_comm_free, mp_environ, mp_isendrecv, mp_max, mp_min, &
@@ -55,7 +53,6 @@ MODULE realspace_grid_types
             rs_grid_retain,&
             rs_grid_release,&
             rs_grid_print, &
-            rs_find_node,&
             init_input_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
@@ -1565,142 +1562,6 @@ SUBROUTINE rs_grid_release(rs_grid,error)
     END IF
     NULLIFY(rs_grid)
 END SUBROUTINE rs_grid_release
-
-! *****************************************************************************
-!> \brief determines the rank of the processor who's real rs grid contains point
-!> \par History
-!>      11.2007 created [MattW]
-!> \author MattW
-! *****************************************************************************
-SUBROUTINE rs_find_node(rs,point,dest,ntasks,tasks,lb_cube,ub_cube,added_tasks)
-
-    TYPE(realspace_grid_type), POINTER       :: rs
-    INTEGER, DIMENSION(3), INTENT(IN)        :: point
-    INTEGER, INTENT(OUT)                     :: dest
-    INTEGER, INTENT(INOUT), OPTIONAL         :: ntasks
-    INTEGER(kind=int_8), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: tasks
-    INTEGER, DIMENSION(3), OPTIONAL          :: lb_cube, ub_cube
-    INTEGER, OPTIONAL                        :: added_tasks
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_find_node', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: curr_tasks, dir, i, istat
-    INTEGER, ALLOCATABLE                     :: lb(:,:), pos(:,:), ub(:,:)
-    INTEGER, DIMENSION(3)                    :: coords
-
-!  CPPrecondition(rs%distributed,cp_failure_level,routineP,error,failure)
-
-  ALLOCATE(pos(0:rs%group_size-1,2), stat=istat)
-  IF (istat.NE.0) CALL stop_program("rs_find_node","pos")
-  ALLOCATE(lb(0:rs%group_size-1,3), stat=istat)
-  IF (istat.NE.0) CALL stop_program("rs_find_node","lb")
-  ALLOCATE(ub(0:rs%group_size-1,3), stat=istat)
-  IF (istat.NE.0) CALL stop_program("rs_find_node","ub")
-
-  dest = -1
-
-  DO i = 0, rs % group_size - 1
-     
-     CALL mp_cart_coords(rs % group, i, coords)
-     !calculate the real rs grid points on each processor
-     DO dir = 1,3
-        pos (i,:) = get_limit ( rs %  npts ( dir ), rs % group_dim ( dir ), coords(dir) )
-        pos (i,:) = pos (i,:) - rs %  npts (dir) / 2 - 1
-        lb(i,dir) = pos(i,1)
-        ub(i,dir) = pos(i,2)
-     ENDDO
-
-     !try to exit quickly if we don't need the generalised collocation
-     ! integration routines
-     ! check whether the point is local to proc i
-     IF ( ALL (point.GE.lb(i,:)) .AND. ALL (point.LE.ub(i,:) ) ) THEN
-        IF(.NOT. PRESENT(tasks))THEN
-           CALL stop_program("rs_find_node","no tasks sent to routine")
-        !ELSE IF ( .NOT. rs%orthorhombic ) THEN
-        !   !standard distributed collocation/integration
-        !   tasks(4,ntasks)=1
-        !   tasks(1,ntasks)=i
-        !   added_tasks = 1
-        !   dest=i
-        !   EXIT
-        ELSE IF ( ALL ( (lb(i,:)-rs%border) .LE. point(:)+lb_cube(:) ) .AND. &
-             ALL ( (ub(i,:)+rs%border) .GE. point(:)+ub_cube(:) ) ) THEN
-           !standard distributed collocation/integration
-           tasks(4,ntasks)=1
-           tasks(1,ntasks)=i
-           added_tasks = 1
-           dest=i
-           EXIT
-        ELSE
-           !generalised collocation/integration needed
-           !let the fun commence....
-           tasks(4,ntasks)=2
-           tasks(1,ntasks)=i
-           dest=i
-           added_tasks = 1
-        ENDIF
-            !write(6,*)"found general lbs ubs cube",lb(i,3)-rs%border,point(3)+lb_cube(3),ub(i,3)+rs%border,point(3)+ub_cube(3),&
-            !     lb_cube(3),ub_cube(3)
-
-     ENDIF
-
-  ENDDO
-
-  IF (tasks(4,ntasks) .EQ. 2 ) THEN
-     !how elegant
-     IF(ub_cube(1)+point(1).GT.rs%ub(1)) THEN
-        ub_cube(1)=ub_cube(1)-rs%npts(1)
-     ENDIF
-     IF(lb_cube(1)+point(1).LT.rs%lb(1)) THEN
-        lb_cube(1)=lb_cube(1)+rs%npts(1)
-     ENDIF
-     IF(ub_cube(2)+point(2).GT.rs%ub(2)) THEN
-        ub_cube(2)=ub_cube(2)-rs%npts(2)
-     ENDIF
-     IF(lb_cube(2)+point(2).LT.rs%lb(2)) THEN
-        lb_cube(2)=lb_cube(2)+rs%npts(2)
-     ENDIF
-     IF(ub_cube(3)+point(3).GT.rs%ub(3)) THEN
-        ub_cube(3)=ub_cube(3)-rs%npts(3)
-     ENDIF
-     IF(lb_cube(3)+point(3).LT.rs%lb(3)) THEN
-        lb_cube(3)=lb_cube(3)+rs%npts(3)
-     ENDIF
-
-     ! find all procs that should collocate this poinst
-     DO i = 0, rs % group_size - 1
-        ! check there is some density to be mapped on this proc
-        IF ((lb(i,1) .GT. ub_cube(1)+point(1)) .AND. &
-             (ub(i,1) .LT. lb_cube(1)+point(1))) CYCLE 
-        IF ((lb(i,2) .GT. ub_cube(2)+point(2)) .AND. &
-             (ub(i,2) .LT. lb_cube(2)+point(2))) CYCLE 
-        IF ((lb(i,3) .GT. ub_cube(3)+point(3)) .AND. &
-             (ub(i,3) .LT. lb_cube(3)+point(3))) CYCLE 
-
-        ! avoid double counting
-        IF ( i .EQ. dest) CYCLE
-
-        ntasks=ntasks+1
-        added_tasks=added_tasks+1
-        IF ( ntasks > SIZE(tasks,2)) THEN
-           curr_tasks = (SIZE(tasks,2)+1000)*2
-           CALL reallocate(tasks,1,5,1,curr_tasks)
-        END IF
-        tasks(1,ntasks)=i
-        tasks(4,ntasks)=2
-     ENDDO
-  ENDIF
-
-  DEALLOCATE(pos, stat=istat)
-  IF (istat.NE.0) CALL stop_program("rs_find_node","pos")
-  DEALLOCATE(lb, stat=istat)
-  IF (istat.NE.0) CALL stop_program("rs_find_node","lb")
-  DEALLOCATE(ub, stat=istat)
-  IF (istat.NE.0) CALL stop_program("rs_find_node","ub")
-
-END SUBROUTINE rs_find_node
 
 END MODULE realspace_grid_types
 

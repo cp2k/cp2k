@@ -54,8 +54,7 @@ MODULE qs_linres_current
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE cube_utils,                      ONLY: cube_info_type
-  USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
-                                             gridlevel_info_type
+  USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
@@ -109,19 +108,16 @@ MODULE qs_linres_current
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
-                                             rs_find_node,&
                                              rs_grid_zero
   USE realspace_task_selection,        ONLY: distribute_matrix,&
                                              int2pair,&
-                                             pair2int,&
                                              rs_get_my_tasks
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, allocate_matrix_set, &
        deallocate_matrix, deallocate_matrix_set, get_block_node, &
        real_matrix_p_type, real_matrix_type, replicate_matrix_structure, &
        set_matrix
-  USE task_list_methods,               ONLY: estimate_task_cost,&
-                                             get_task_bounds
+  USE task_list_methods,               ONLY: task_list_inner_loop
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -670,28 +666,27 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, added_tasks, bcol, brow, cost, curr_tasks, dest, dir, &
-      handle, i, iatom, iatom_old, igrid_level, iiB, iiiB, ikind, ikind_old, &
-      ilist, inode, ipgf, iset, iset_old, istat, itask, ithread, j, jatom, &
-      jatom_old, jkind, jkind_old, jpgf, jset, jset_old, lb_cube(3), maxco, &
-      maxpgf, maxset, maxsgf, maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, &
-      ncob, nkind, nlist, nnode, nseta, nsetb, ntasks, nthread, sgfa, sgfb, &
-      stat, tp(3), ub_cube(3)
+    INTEGER :: ab, bcol, brow, curr_tasks, handle, i, iatom, iatom_old, &
+      igrid_level, iiB, iiiB, ikind, ikind_old, ilist, inode, ipgf, iset, &
+      iset_old, istat, itask, ithread, jatom, jatom_old, jkind, jkind_old, &
+      jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, maxsgf_set, na1, &
+      na2, natom, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, nseta, nsetb, &
+      ntasks, nthread, sgfa, sgfb, stat
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, &
       map_consistent, my_minimum_image, my_soft
-    REAL(KIND=dp)                            :: dab, eps_rho_rspace, &
+    REAL(KIND=dp)                            :: eps_rho_rspace, &
                                                 kind_radius_a, kind_radius_b, &
                                                 Lxo2, Lyo2, Lzo2, rab2, &
                                                 scale, zetp
-    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb, rp
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: dist_ab, jp_block, &
       jp_block_rii, jp_block_riii, jpab, jpab_ii, jpab_iii, jpblock, &
@@ -1018,90 +1013,9 @@ CONTAINS
                    END IF
                 END IF
 
-                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                dab = SQRT(rab2)
-
-                loop_iset : DO iset=1,nseta
-                   IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE
-
-                   loop_jset: DO jset = 1,nsetb
-                      IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-
-                      loop_ipgf: DO ipgf=1,npgfa(iset)
-                         IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
-
-                         loop_jpgf: DO jpgf=1,npgfb(jset)
-                            IF (rpgfa(ipgf,iset) + rpgfb(jpgf,jset) < dab) CYCLE
-
-                            zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
-
-                            IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
-                               igrid_level = 1
-                            ELSE
-                               igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-                            ENDIF
-
-                            ntasks = ntasks + 1
-                            IF ( ntasks > curr_tasks ) THEN
-                               curr_tasks = curr_tasks*mult_tasks
-                               CALL reallocate(tasks,1,5,1,curr_tasks)
-                               CALL reallocate(dist_ab,1,3,1,curr_tasks)
-                            END IF
-
-                            rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
-                            rp(:) = pbc(rp,cell)
-                            DO dir = 1,3
-                               tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%npts(dir))
-                               tp(dir) = MODULO ( tp(dir), rs_rho(igrid_level)%rs_grid%npts(dir) )
-                               tp(dir) = tp(dir) + rs_rho(igrid_level)%rs_grid%lb(dir)
-                            END DO
-
-                            IF(rs_rho(igrid_level)%rs_grid%distributed) THEN
-                               ! find the bounds required for proper collocation
-                               CALL get_task_bounds(rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                                    la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                                    lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                                    ra,rab,rab2,dft_control%qs_control%eps_rho_rspace,&
-                                    lb_cube,ub_cube)
-                               ! finds the node(s) that need to process this task
-                               ! on exit tasks(4,:) is 1 for distributed tasks and 2 for generalised tasks
-                               CALL rs_find_node(rs_rho(igrid_level)%rs_grid,tp,dest,&
-                                    ntasks=ntasks,tasks=tasks,lb_cube=lb_cube,ub_cube=ub_cube,added_tasks=added_tasks)
-                               IF ( ntasks > curr_tasks ) THEN
-                                  curr_tasks = (curr_tasks+add_tasks)*mult_tasks
-                                  CALL reallocate(dist_ab,1,3,1,curr_tasks)
-                               END IF
-                            ELSE
-                               dest =  rs_rho(igrid_level)%rs_grid%my_pos
-                               tasks (1,ntasks) = dest
-                               tasks(4,ntasks) = 0
-                               added_tasks = 1
-                            ENDIF
-
-                            ! cost_factor for this task
-                            CALL estimate_task_cost(cost,rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                                 la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                                 lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                                 ra,rab,rab2,dft_control%qs_control%eps_rho_rspace)
-
-                            DO j= 1, added_tasks
-                               tasks (2,ntasks-added_tasks+j) = rs_rho(igrid_level)% rs_grid % my_pos
-                               tasks (5,ntasks-added_tasks+j) = cost
-                               !encode the atom pairs and basis info as a single long integer
-                               CALL pair2int(tasks(3,ntasks-added_tasks+j),igrid_level,&
-                                    iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
-                               dist_ab (1,ntasks-added_tasks+j) = rab(1)
-                               dist_ab (2,ntasks-added_tasks+j) = rab(2)
-                               dist_ab (3,ntasks-added_tasks+j) = rab(3)
-                            ENDDO
-                           
-                         END DO loop_jpgf
-
-                      END DO loop_ipgf
-
-                   END DO loop_jset
-
-                END DO loop_iset
+                CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_rho,dft_control,cube_info,gridlevel_info,cell,&
+                                  iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
+                                  la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nseta,nsetb)
 
                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
 
