@@ -109,15 +109,15 @@ MODULE qs_linres_current
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs_grid_zero
-  USE realspace_task_selection,        ONLY: distribute_matrix,&
-                                             int2pair,&
-                                             rs_get_my_tasks
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, allocate_matrix_set, &
        deallocate_matrix, deallocate_matrix_set, get_block_node, &
        real_matrix_p_type, real_matrix_type, replicate_matrix_structure, &
        set_matrix
-  USE task_list_methods,               ONLY: task_list_inner_loop
+  USE task_list_methods,               ONLY: distribute_matrix,&
+                                             int2pair,&
+                                             rs_get_my_tasks,&
+                                             task_list_inner_loop
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&

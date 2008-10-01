@@ -89,12 +89,12 @@ MODULE qs_integrate_potential
                                              realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs_pw_transfer
-  USE realspace_task_selection,        ONLY: distribute_matrix,&
-                                             int2pair
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, allocate_matrix_set, &
        deallocate_matrix, deallocate_matrix_set, get_block_node, &
        real_matrix_p_type, real_matrix_type, replicate_matrix
+  USE task_list_methods,               ONLY: distribute_matrix,&
+                                             int2pair
   USE task_list_types,                 ONLY: task_list_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

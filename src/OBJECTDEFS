@@ -510,7 +510,6 @@ OBJECTS_GENERIC =\
  qs_wf_history_types.o\
  realspace_grid_cube.o\
  realspace_grid_types.o\
- realspace_task_selection.o\
  reference_manager.o\
  reftraj_types.o\
  reftraj_util.o\

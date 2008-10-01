@@ -114,12 +114,12 @@ MODULE qs_collocate_density
                                              rs2pw,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
-  USE realspace_task_selection,        ONLY: distribute_matrix,&
-                                             int2pair
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              get_block_node,&
                                              real_matrix_type,&
                                              replicate_matrix
+  USE task_list_methods,               ONLY: distribute_matrix,&
+                                             int2pair
   USE task_list_types,                 ONLY: task_list_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
