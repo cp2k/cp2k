@@ -10,6 +10,7 @@
 MODULE ewalds_multipole
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE bibliography,                    ONLY: Aguado2003,&
+                                             Laino2008,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
@@ -123,6 +124,8 @@ CONTAINS
                                                 efield2_lr, efield2_sr
 
     failure = .FALSE.
+    CALL cite_reference(Aguado2003)
+    CALL cite_reference(Laino2008)
     CALL timeset(routineN,'I','',handle)
     CPPostcondition(ASSOCIATED(nonbond_env),cp_failure_level,routineP,error,failure)
     check_debug  = (debug_this_module.OR.debug_r_space.OR.debug_g_space.OR.debug_e_field.OR.debug_e_field_en)&
@@ -334,7 +337,6 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset ( routineN, handle )
-    CALL cite_reference(Aguado2003)
     NULLIFY(nonbonded,r_last_update, r_last_update_pbc)
     do_efield0 = do_efield.AND.ASSOCIATED(efield0)
     do_efield1 = do_efield.AND.ASSOCIATED(efield1)
@@ -1415,7 +1417,6 @@ CONTAINS
     TYPE(structure_factor_type)              :: exp_igr
 
     CALL timeset ( routineN, 'E', 'Mflops', handle )
-    CALL cite_reference(Aguado2003)
     flops = 0.0_dp
     do_efield0 = do_efield.AND.ASSOCIATED(efield0)
     do_efield1 = do_efield.AND.ASSOCIATED(efield1)

@@ -10,13 +10,9 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_cp2k_poisson
-  USE bibliography,                    ONLY: Darden1993,&
-                                             Essmann1995,&
-                                             Ewald1921,&
-                                             Genovese2006,&
-                                             Genovese2007,&
-                                             Martyna1999,&
-                                             Toukmaji1996
+  USE bibliography,                    ONLY: &
+       Aguado2003, Darden1993, Essmann1995, Ewald1921, Genovese2006, &
+       Genovese2007, Laino2008, Martyna1999, Toukmaji1996
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -154,7 +150,6 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword, subsection)
-
        CALL keyword_create(keyword, name="RCUT",&
             description="Real space cutoff for the Ewald sum.",&
             usage="RCUT {real}", n_var=1, type_of_var=real_t,&
@@ -280,7 +275,7 @@ SUBROUTINE create_ewald_section(section,error)
     CALL section_create(section,name="ewald",&
          description="Ewald parameters controlling electrostatic only for CLASSICAL MM.",&
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-         citations=(/Ewald1921,Darden1993,Essmann1995,Toukmaji1996/),&
+         citations=(/Ewald1921,Darden1993,Essmann1995,Toukmaji1996,Laino2008/),&
          error=error)
 
     NULLIFY(keyword,print_key,subsection)
@@ -359,7 +354,7 @@ SUBROUTINE create_ewald_section(section,error)
     CALL section_create(subsection,name="MULTIPOLES",&
          description="Enables the use of multipoles in the treatment of the electrostatics.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-         error=error)
+         citations=(/Aguado2003,Laino2008/), error=error)
     
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
          description="Controls the activation of the Multipoles",&
