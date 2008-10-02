@@ -500,9 +500,8 @@ CONTAINS
           WRITE(179,FMT='(A)') "None"
        ENDIF
        WRITE(179,FMT='(A)') &
-            '<BR><hr>Back to the <A HREF="http://cp2k.berlios.de/index.html">CP2K homepage</A>, '// &
-            'the latest version of <A HREF="http://cp2k.berlios.de/input/index.html">this manual</A>, '//&
-            'or maybe even <A HREF="http://cp2k.berlios.de/input/'//TRIM(location(depth+1))//'">the current section</A>.'
+            '<BR><hr>Back to the <A HREF="http://cp2k.berlios.de/index.html">CP2K homepage</A> or '// &
+            'the latest version of <A HREF="http://cp2k.berlios.de/manual/index.html">this manual</A>'
        WRITE(179,FMT='(A)') "</BODY></HTML>"
        CLOSE(unit=179)
        DO isub=1,section%n_subsections
