@@ -63,9 +63,8 @@ MODULE task_list_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'task_list_methods'
 
   PUBLIC :: generate_qs_task_list,&
-            estimate_task_cost,&
             task_list_inner_loop
-  PUBLIC :: rs_get_my_tasks,&
+  PUBLIC :: distribute_tasks,&
             pair2int,&
             int2pair,&
             distribute_matrix
@@ -304,7 +303,7 @@ CONTAINS
     END DO loop_ikind
 
     ! redistribute the task list so that all tasks map on the local rs grids
-    CALL rs_get_my_tasks (rs_rho(1)%rs_grid,distributed_rs_grids,ntasks, natoms,&
+    CALL distribute_tasks (rs_rho(1)%rs_grid,distributed_rs_grids,ntasks, natoms,&
             maxset,maxpgf, tasks, rval=dist_ab, atom_pair_send=atom_pair_send,&
             atom_pair_recv=atom_pair_recv, error=error)
 
@@ -345,16 +344,12 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'task_list_inner_loop', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: add_tasks = 1000, &
-                                                max_tasks = 2000
-    REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER                                  :: added_tasks, cost, dest, dir, &
-                                                igrid_level, ipgf, iset, j, &
+    INTEGER                                  :: cost, cube_center(3), &
+                                                igrid_level, ipgf, iset, &
                                                 jpgf, jset, lb_cube(3), &
-                                                tp(3), ub_cube(3)
-    REAL(KIND=dp)                            :: dab, rab2, zetp
-    REAL(KIND=dp), DIMENSION(3)              :: rp
+                                                ub_cube(3)
+    REAL(KIND=dp)                            :: dab, rab2, radius, zetp
 
     rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
     dab = SQRT(rab2)
@@ -382,67 +377,15 @@ CONTAINS
                    igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
                 ENDIF
 
-                ntasks = ntasks + 1
-                IF ( ntasks > curr_tasks ) THEN
-                   curr_tasks = (curr_tasks+add_tasks)*mult_tasks
-                   CALL reallocate(tasks,1,5,1,curr_tasks)
-                   CALL reallocate(dist_ab,1,3,1,curr_tasks)
-                END IF
-
-                DO dir = 1,3
-                   rp(:) = ra(:) + zetb(jpgf,jset)/zetp*rab(:)
-                   rp(:) = pbc(rp,cell)
-                   tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),rp)*rs_rho(igrid_level)%rs_grid%npts(dir))
-                   tp(dir) = MODULO ( tp(dir), rs_rho(igrid_level)%rs_grid%npts(dir) )
-                   tp(dir) = tp(dir) + rs_rho(igrid_level)%rs_grid%lb(dir)
-                END DO
-
-                IF(rs_rho(igrid_level)%rs_grid%distributed) THEN
-                   
-                   ! find the bounds required for proper collocation
-                   CALL get_task_bounds(rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                        ra,rab,rab2,dft_control%qs_control%eps_rho_rspace,&
-                        lb_cube,ub_cube)
-
-                   ! finds the node(s) that need to process this task
-                   ! on exit tasks(4,:) is 1 for distributed tasks and 2 for generalised tasks 
-                   CALL rs_find_node(rs_rho(igrid_level)%rs_grid,tp,dest,&
-                        ntasks=ntasks,tasks=tasks,lb_cube=lb_cube,ub_cube=ub_cube,added_tasks=added_tasks)
-                   
-                   IF ( ntasks > curr_tasks ) THEN
-                      curr_tasks = (curr_tasks+add_tasks)*mult_tasks
-                      CALL reallocate(dist_ab,1,3,1,curr_tasks)
-                   END IF
-
-                ELSE
-                   dest =  rs_rho(igrid_level)%rs_grid%my_pos
-                   tasks (1,ntasks) = dest
-                   tasks(4,ntasks) = 0
-                   added_tasks = 1
-                ENDIF
-
-                ! cost_factor for this task
-                CALL estimate_task_cost(cost,rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                     la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                     lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                     ra,rab,rab2,dft_control%qs_control%eps_rho_rspace)
-                
-                DO j= 1, added_tasks
-
-                   tasks (2,ntasks-added_tasks+j) = rs_rho(igrid_level)% rs_grid % my_pos
-                   tasks (5,ntasks-added_tasks+j) = cost
-
-                   !encode the atom pairs and basis info as a single long integer
-                   CALL pair2int(tasks(3,ntasks-added_tasks+j),igrid_level,&
-                        iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
-                   
-                   dist_ab (1,ntasks-added_tasks+j) = rab(1)
-                   dist_ab (2,ntasks-added_tasks+j) = rab(2)
-                   dist_ab (3,ntasks-added_tasks+j) = rab(3)
-
-                ENDDO
+                CALL compute_pgf_properties(cube_center,lb_cube,ub_cube,radius, cost,&
+                           cell,rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                           ra,rab,rab2,dft_control%qs_control%eps_rho_rspace)
+   
+                CALL pgf_to_tasks(tasks,dist_ab,ntasks,curr_tasks,&
+                          rab,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf,&
+                          rs_rho(igrid_level)%rs_grid,igrid_level,cube_center,lb_cube,ub_cube,cost)
 
              END DO loop_jpgf
 
@@ -455,7 +398,9 @@ CONTAINS
   END SUBROUTINE task_list_inner_loop
 
 ! *****************************************************************************
-!> \brief tries to predict the time needed for processing this task
+!> \brief combines the calculation of several basic properties of a given pgf:
+!>  its center, the bounding cube, the radius, the cost, 
+!>  tries to predict the time needed for processing this task
 !>      in this way an improved load balance might be obtained
 !> \note
 !>      -) this requires the radius to be computed in the same way as
@@ -468,12 +413,16 @@ CONTAINS
 !>         fitting the measured data on an opteron/g95 using the expression
 !>         a*(l+b)(r+c)**3+d which is based on the innerloop of the collocating routines
 !> \par History
-!>      01.2008 created [Joost VandeVondele]
+!>      10.2008 refactored [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE estimate_task_cost(cost,rsgrid,cube_info,la_max,zeta,la_min,lb_max,zetb,lb_min,ra,rab,rab2,eps,flux_info)
+  SUBROUTINE compute_pgf_properties(cube_center,lb_cube,ub_cube,radius, cost,&
+               cell,rs_grid,cube_info,la_max,zeta,la_min,lb_max,zetb,lb_min,ra,rab,rab2,eps)
 
+    INTEGER, DIMENSION(3), INTENT(OUT)       :: cube_center, lb_cube, ub_cube
+    REAL(KIND=dp), INTENT(OUT)               :: radius
     INTEGER, INTENT(OUT)                     :: cost
-    TYPE(realspace_grid_type), POINTER       :: rsgrid
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -481,170 +430,182 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: zetb
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), INTENT(IN)                :: ra(3), rab(3), rab2, eps
-    INTEGER, OPTIONAL                        :: flux_info
 
-    INTEGER                                  :: cmax, cubecenter(3), i, Iopt, &
-                                                lb_cube(3), ng(3), Nopt, &
-                                                options(6), ub_cube(3)
+    INTEGER                                  :: cmax, extent(3), flux_info, &
+                                                i, iopt, Nopt, options(6)
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
     LOGICAL                                  :: fits(-1:1,3)
-    REAL(KIND=dp)                            :: cutoff, dr(3), f, prefactor, &
-                                                radius, rap(3), rb(3), &
-                                                rbp(3), rp(3), rtmp, zetp
+    REAL(KIND=dp)                            :: cutoff, f, prefactor, rb(3), &
+                                                rtmp, zetp
+    REAL(KIND=dp), DIMENSION(3)              :: rp
+
+! the radius for this task
 
     zetp = zeta + zetb
-    f    = zetb/zetp
-    rap(:)    = f*rab(:)
-    rbp(:)    = rap(:) - rab(:)
-    rp(:)     = ra(:) + rap(:)
-    rb(:)     = ra(:)+rab(:)
+    rp(:) = ra(:) + zetb/zetp*rab(:)
+    rb(:) = ra(:)+rab(:)
     cutoff    = 1.0_dp
+    f         = zetb/zetp
     prefactor = EXP(-zeta*f*rab2)
     radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
-               zetp=zetp,eps=eps,&
-               prefactor=prefactor,cutoff=cutoff)
+               zetp=zetp,eps=eps, prefactor=prefactor,cutoff=cutoff)
 
-    IF (PRESENT(flux_info)) flux_info=0
-    IF (radius .LE. 0.0_dp) THEN
-       ! nevertheless a small cost (this is rare, but might need tuning).
-       ! actually, we should remove these from the task list ?
-       cost=20
-    ELSE
-       ! a bit overkill, we only need cmax
-       IF (rsgrid%orthorhombic ) THEN
-          CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
-       ELSE
-          ! untested so far
-          CALL return_cube_nonortho(cube_info,radius,lb_cube,ub_cube,rp)
-       ENDIF
-       cmax=MAXVAL(((ub_cube-lb_cube)+1)/2)
+    ! compute cube_center, the center of the gaussian product to map (folded to within the unit cell)
+    cube_center(:) = FLOOR(MATMUL(cell%h_inv,pbc(rp,cell))*rs_grid%npts(:))
+    cube_center(:) = MODULO ( cube_center(:), rs_grid%npts(:) )
+    cube_center(:) = cube_center(:) + rs_grid%lb(:)
 
-       cost=CEILING((REAL(la_max+lb_max+1+2,KIND=dp)*(cmax+2)**3*7.0_dp+30000.0_dp)/1000.0_dp)
-
-       IF (PRESENT(flux_info)) THEN
-          ! find the center, only ortho case...
-          dr(1)=rsgrid%dh(1,1) 
-          dr(2)=rsgrid%dh(2,2) 
-          dr(3)=rsgrid%dh(3,3) 
-          ng   = rsgrid%npts
-          cubecenter(:) = MODULO(FLOOR(rp(:)/dr(:)),ng(:))+rsgrid%lb(:)
-          DO i=1,3
-             IF (rsgrid % perd ( i ) ==  1) THEN
-                fits(:,i)=.TRUE.
-             ELSE
-                ! fits the local grid (we assume this is true)
-                fits(0,i)=(cubecenter(i)+lb_cube(i)>=rsgrid%lb_local(i) .AND. cubecenter(i)+ub_cube(i)<=rsgrid%ub_local(i))
-                ! fits the left neighbor (i.e. the upper bound is smaller than what the neighbor has
-                fits(-1,i)=cubecenter(i)+ub_cube(i)<=rsgrid%lb_real(i)-1+rsgrid%border
-                fits( 1,i)=cubecenter(i)+lb_cube(i)>=rsgrid%ub_real(i)+1-rsgrid%border
-             ENDIF
-          ENDDO
-
-          Nopt=0   
-          IF (fits(-1,1) .AND. rsgrid % perd ( 1 ) == 0) THEN
-             flux_info=1
-             Nopt=Nopt+1
-             options(Nopt)=flux_info
-          ENDIF
-          IF (fits( 1,1) .AND. rsgrid % perd ( 1 ) == 0) THEN
-             flux_info=2
-             Nopt=Nopt+1
-             options(Nopt)=flux_info
-          ENDIF
-          IF (fits(-1,2) .AND. rsgrid % perd ( 2 ) == 0) THEN
-             flux_info=3
-             Nopt=Nopt+1
-             options(Nopt)=flux_info
-          ENDIF
-          IF (fits( 1,2) .AND. rsgrid % perd ( 2 ) == 0) THEN
-             flux_info=4
-             Nopt=Nopt+1
-             options(Nopt)=flux_info
-          ENDIF
-          IF (fits(-1,3) .AND. rsgrid % perd ( 3 ) == 0) THEN
-             flux_info=5
-             Nopt=Nopt+1
-             options(Nopt)=flux_info
-          ENDIF
-          IF (fits( 1,3) .AND. rsgrid % perd ( 3 ) == 0) THEN
-             flux_info=6
-             Nopt=Nopt+1
-             options(Nopt)=flux_info
-          ENDIF
-          ! randomly selecting one of the possible neighbors, this might not be optimal
-          IF (Nopt>0) THEN
-             DO
-               CALL RANDOM_NUMBER(rtmp)
-               iopt=CEILING(rtmp*Nopt)
-               IF (iopt>0 .AND. iopt<=nopt) EXIT          
-             ENDDO
-             flux_info=options(iopt)
-          ENDIF
-       ENDIF
-       
-    ENDIF
-
-  END SUBROUTINE estimate_task_cost
-
-! *****************************************************************************
-!> \brief checks whether the task requires the use of the generalised collocation routines
-!> 
-!> \note
-!>      -) this requires the radius to be computed in the same way as
-!>      collocate_pgf_product_rspace, we should factor that part into a subroutine
-!>      -) in principle, the computed radius could be recycled in integrate_pgf/collocate_pgf if it is certainly
-!>         the same, this could lead to a small speedup
-!> \par History
-!>      02.2008 created [MattW]
-! *****************************************************************************
-  SUBROUTINE get_task_bounds(rsgrid,cube_info,la_max,zeta,la_min,lb_max,zetb,lb_min,ra,rab,rab2,eps,lb_cube,ub_cube)
-
-    TYPE(realspace_grid_type), POINTER       :: rsgrid
-    TYPE(cube_info_type), INTENT(IN)         :: cube_info
-    INTEGER, INTENT(IN)                      :: la_max
-    REAL(KIND=dp), INTENT(IN)                :: zeta
-    INTEGER, INTENT(IN)                      :: la_min, lb_max
-    REAL(KIND=dp), INTENT(IN)                :: zetb
-    INTEGER, INTENT(IN)                      :: lb_min
-    REAL(KIND=dp), INTENT(IN)                :: ra(3), rab(3), rab2, eps
-    INTEGER                                  :: lb_cube(3), ub_cube(3)
-
-    INTEGER                                  :: extent(3)
-    INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
-    REAL(KIND=dp)                            :: cutoff, f, prefactor, radius, &
-                                                rap(3), rb(3), rbp(3), rp(3), &
-                                                zetp
-
-    zetp = zeta + zetb
-    f    = zetb/zetp
-    rap(:)    = f*rab(:)
-    rbp(:)    = rap(:) - rab(:)
-    rp(:)     = ra(:) + rap(:)
-    rb(:)     = ra(:)+rab(:)
-    cutoff    = 0.0_dp
-    prefactor = EXP(-zeta*f*rab2)
-    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
-               zetp=zetp,eps=eps,&
-               prefactor=prefactor,cutoff=cutoff)
-
-    IF (rsgrid%orthorhombic ) THEN
+    ! the corresponding bounds of the cube (relative to cube_center)
+    IF (rs_grid%orthorhombic ) THEN
        CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
     ELSE
        ! untested so far
        CALL return_cube_nonortho(cube_info,radius,lb_cube,ub_cube,rp)
-       extent(:)  = ub_cube(:) - lb_cube(:) 
+       extent(:)  = ub_cube(:) - lb_cube(:)
        lb_cube(:) = -extent(:) / 2 - 1
        ub_cube(:) = extent(:) / 2
     ENDIF
 
-    ! are the bounds relative to (0,0,0)??
-    ! the answer is yes for ortho, but no for nonortho!!
-    ub_cube(:) = ub_cube(:)
-    lb_cube(:) = lb_cube(:)
+    ! this can also be used to estimate the cost (of a non-generalised collocation-task in the ortho case)
+    ! this is the cost of a task, and should also be moved to pgf_to_tasks
+    cmax=MAXVAL(((ub_cube-lb_cube)+1)/2)
+    cost=CEILING((REAL(la_max+lb_max+1+2,KIND=dp)*(cmax+2)**3*7.0_dp+30000.0_dp)/1000.0_dp)
 
-    !write(6,*)"cube bounds", lb_cube(:), ub_cube(:)
+    ! this computes somehow alternative locations, and should instead go to pgf_to_tasks
+    IF (.FALSE.) THEN
+       DO i=1,3
+          IF (rs_grid % perd ( i ) ==  1) THEN
+             fits(:,i)=.TRUE.
+          ELSE
+             ! fits the local grid (we assume this is true)
+             fits(0,i)=(cube_center(i)+lb_cube(i)>=rs_grid%lb_local(i) .AND. cube_center(i)+ub_cube(i)<=rs_grid%ub_local(i))
+             ! fits the left neighbor (i.e. the upper bound is smaller than what the neighbor has
+             fits(-1,i)=cube_center(i)+ub_cube(i)<=rs_grid%lb_real(i)-1+rs_grid%border
+             fits( 1,i)=cube_center(i)+lb_cube(i)>=rs_grid%ub_real(i)+1-rs_grid%border
+          ENDIF
+       ENDDO
 
-    END SUBROUTINE get_task_bounds
+       Nopt=0
+       IF (fits(-1,1) .AND. rs_grid % perd ( 1 ) == 0) THEN
+          flux_info=1
+          Nopt=Nopt+1
+          options(Nopt)=flux_info
+       ENDIF
+       IF (fits( 1,1) .AND. rs_grid % perd ( 1 ) == 0) THEN
+          flux_info=2
+          Nopt=Nopt+1
+          options(Nopt)=flux_info
+       ENDIF
+       IF (fits(-1,2) .AND. rs_grid % perd ( 2 ) == 0) THEN
+          flux_info=3
+          Nopt=Nopt+1
+          options(Nopt)=flux_info
+       ENDIF
+       IF (fits( 1,2) .AND. rs_grid % perd ( 2 ) == 0) THEN
+          flux_info=4
+          Nopt=Nopt+1
+          options(Nopt)=flux_info
+       ENDIF
+       IF (fits(-1,3) .AND. rs_grid % perd ( 3 ) == 0) THEN
+          flux_info=5
+          Nopt=Nopt+1
+          options(Nopt)=flux_info
+       ENDIF
+       IF (fits( 1,3) .AND. rs_grid % perd ( 3 ) == 0) THEN
+          flux_info=6
+          Nopt=Nopt+1
+          options(Nopt)=flux_info
+       ENDIF
+       ! randomly selecting one of the possible neighbors, this might not be optimal
+       IF (Nopt>0) THEN
+          DO
+            CALL RANDOM_NUMBER(rtmp)
+            iopt=CEILING(rtmp*Nopt)
+            IF (iopt>0 .AND. iopt<=nopt) EXIT
+          ENDDO
+          flux_info=options(iopt)
+       ENDIF
+    ENDIF
+
+  END SUBROUTINE compute_pgf_properties
+
+! *****************************************************************************
+!> \brief pgf_to_tasks converts a given pgf to one or more tasks, in particular
+!>        this determines by which CPUs a given pgf gets collocated
+!>        the format of the task array is as follows
+!>        tasks(1,i) := destination
+!>        tasks(2,i) := source
+!>        tasks(3,i) := compressed type (iatom, jatom, ....)
+!>        tasks(4,i) := type (0: replicated, 1: distributed local, 2: distributed generalised)
+!>        tasks(5,i) := cost
+!>
+!> \par History
+!>      10.2008 Refactored based on earlier routines by MattW [Joost VandeVondele]
+! *****************************************************************************
+  SUBROUTINE pgf_to_tasks(tasks,dist_ab,ntasks,curr_tasks,&
+                          rab,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf,&
+                          rs_grid,igrid_level,cube_center,lb_cube,ub_cube,cost)
+
+    INTEGER(kind=int_8), DIMENSION(:, :), &
+      POINTER                                :: tasks
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab
+    INTEGER, INTENT(INOUT)                   :: ntasks, curr_tasks
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    INTEGER, INTENT(IN)                      :: iatom, jatom, iset, jset, &
+                                                ipgf, jpgf, natoms, maxset, &
+                                                maxpgf
+    TYPE(realspace_grid_type), POINTER       :: rs_grid
+    INTEGER, INTENT(IN)                      :: igrid_level
+    INTEGER, DIMENSION(3), INTENT(IN)        :: cube_center, lb_cube, ub_cube
+    INTEGER, INTENT(IN)                      :: cost
+
+    INTEGER, PARAMETER                       :: add_tasks = 1000
+    REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
+
+    INTEGER                                  :: added_tasks, dest, j
+
+    ntasks = ntasks + 1
+    IF ( ntasks > curr_tasks ) THEN
+       curr_tasks = (curr_tasks+add_tasks)*mult_tasks
+       CALL reallocate(tasks,1,5,1,curr_tasks)
+       CALL reallocate(dist_ab,1,3,1,curr_tasks)
+    END IF
+
+    IF(rs_grid%distributed) THEN
+
+       ! finds the node(s) that need to process this task
+       ! on exit tasks(4,:) is 1 for distributed tasks and 2 for generalised tasks
+       CALL rs_find_node(rs_grid,cube_center,dest,&
+            ntasks=ntasks,tasks=tasks,lb_cube=lb_cube,ub_cube=ub_cube,added_tasks=added_tasks)
+
+       IF ( ntasks > curr_tasks ) THEN
+          curr_tasks = (curr_tasks+add_tasks)*mult_tasks
+          CALL reallocate(dist_ab,1,3,1,curr_tasks)
+       END IF
+
+    ELSE
+       dest =  rs_grid%my_pos
+       tasks(1,ntasks) = dest
+       tasks(4,ntasks) = 0
+       added_tasks = 1
+    ENDIF
+
+    DO j= 1, added_tasks
+
+       tasks (2,ntasks-added_tasks+j) = rs_grid % my_pos
+       tasks (5,ntasks-added_tasks+j) = cost
+
+       !encode the atom pairs and basis info as a single long integer
+       CALL pair2int(tasks(3,ntasks-added_tasks+j),igrid_level,&
+            iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+
+       dist_ab (1,ntasks-added_tasks+j) = rab(1)
+       dist_ab (2,ntasks-added_tasks+j) = rab(2)
+       dist_ab (3,ntasks-added_tasks+j) = rab(3)
+
+    ENDDO
+
+  END SUBROUTINE pgf_to_tasks
 
 ! *****************************************************************************
 !> \brief converts a pgf index pair (ipgf,iset,iatom),(jpgf,jset,jatom)
@@ -668,7 +629,7 @@ CONTAINS
     natom8=natom ; maxset8=maxset ; maxpgf8=maxpgf
     !
     ! this encoding yields the right order of the tasks for collocation after the sort
-    ! in rs_get_my_tasks. E.g. for a atom pair, all sets and pgfs are computed in one go.
+    ! in distribute_tasks. E.g. for a atom pair, all sets and pgfs are computed in one go.
     ! The exception is the gridlevel. Tasks are first ordered wrt to grid_level. This implies
     ! that a given density matrix block will be decontracted several times, but cache effects on the 
     ! grid make up for this.
@@ -721,7 +682,7 @@ CONTAINS
 !>      none
 !> \author MattW 21/11/2007
 ! *****************************************************************************
-  SUBROUTINE rs_get_my_tasks ( rs, distributed_grids, ntasks, natoms,&
+  SUBROUTINE distribute_tasks ( rs, distributed_grids, ntasks, natoms,&
        maxset,maxpgf,  tasks, rval, atom_pair_send, atom_pair_recv,&
        symmetric, error)
 
@@ -736,7 +697,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_get_my_tasks', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribute_tasks', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: average_tasks, count, handle, i, j, k, l, no_overloaded, &
@@ -1121,7 +1082,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE rs_get_my_tasks
+  END SUBROUTINE distribute_tasks
 
 ! *****************************************************************************
 SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, my_symmetric, natoms, maxset, maxpgf)
@@ -1390,10 +1351,10 @@ END SUBROUTINE distribute_matrix
 !>      11.2007 created [MattW]
 !> \author MattW
 ! *****************************************************************************
-SUBROUTINE rs_find_node(rs,point,dest,ntasks,tasks,lb_cube,ub_cube,added_tasks)
+SUBROUTINE rs_find_node(rs_grid,cube_center,dest,ntasks,tasks,lb_cube,ub_cube,added_tasks)
 
-    TYPE(realspace_grid_type), POINTER       :: rs
-    INTEGER, DIMENSION(3), INTENT(IN)        :: point
+    TYPE(realspace_grid_type), POINTER       :: rs_grid
+    INTEGER, DIMENSION(3), INTENT(IN)        :: cube_center
     INTEGER, INTENT(OUT)                     :: dest
     INTEGER, INTENT(INOUT), OPTIONAL         :: ntasks
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -1408,32 +1369,32 @@ SUBROUTINE rs_find_node(rs,point,dest,ntasks,tasks,lb_cube,ub_cube,added_tasks)
     INTEGER, ALLOCATABLE                     :: lb(:,:), pos(:,:), ub(:,:)
     INTEGER, DIMENSION(3)                    :: coords
 
-  ALLOCATE(pos(0:rs%group_size-1,2), stat=istat)
+  ALLOCATE(pos(2,0:rs_grid%group_size-1), stat=istat)
   IF (istat.NE.0) CALL stop_program("rs_find_node","pos")
-  ALLOCATE(lb(0:rs%group_size-1,3), stat=istat)
+  ALLOCATE(lb(3,0:rs_grid%group_size-1), stat=istat)
   IF (istat.NE.0) CALL stop_program("rs_find_node","lb")
-  ALLOCATE(ub(0:rs%group_size-1,3), stat=istat)
+  ALLOCATE(ub(3,0:rs_grid%group_size-1), stat=istat)
   IF (istat.NE.0) CALL stop_program("rs_find_node","ub")
 
   dest = -1
 
-  DO i = 0, rs % group_size - 1
+  DO i = 0, rs_grid % group_size - 1
      
-     CALL mp_cart_coords(rs % group, i, coords)
+     CALL mp_cart_coords(rs_grid % group, i, coords)
      !calculate the real rs grid points on each processor
      DO dir = 1,3
-        pos (i,:) = get_limit ( rs %  npts ( dir ), rs % group_dim ( dir ), coords(dir) )
-        pos (i,:) = pos (i,:) - rs %  npts (dir) / 2 - 1
-        lb(i,dir) = pos(i,1)
-        ub(i,dir) = pos(i,2)
+        pos (:,i) = get_limit ( rs_grid %  npts ( dir ), rs_grid % group_dim ( dir ), coords(dir) )
+        pos (:,i) = pos (:,i) - rs_grid %  npts (dir) / 2 - 1
+        lb(dir,i) = pos(1,i)
+        ub(dir,i) = pos(2,i)
      ENDDO
 
      !try to exit quickly if we don't need the generalised collocation
      ! integration routines
-     ! check whether the point is local to proc i
-     IF ( ALL (point.GE.lb(i,:)) .AND. ALL (point.LE.ub(i,:) ) ) THEN
-        IF ( ALL ( (lb(i,:)-rs%border) .LE. point(:)+lb_cube(:) ) .AND. &
-             ALL ( (ub(i,:)+rs%border) .GE. point(:)+ub_cube(:) ) ) THEN
+     ! check whether the cube_center is local to proc i
+     IF ( ALL (cube_center.GE.lb(:,i)) .AND. ALL (cube_center.LE.ub(:,i) ) ) THEN
+        IF ( ALL ( (lb(:,i)-rs_grid%border) .LE. cube_center(:)+lb_cube(:) ) .AND. &
+             ALL ( (ub(:,i)+rs_grid%border) .GE. cube_center(:)+ub_cube(:) ) ) THEN
            !standard distributed collocation/integration
            tasks(4,ntasks)=1
            tasks(1,ntasks)=i
@@ -1452,36 +1413,38 @@ SUBROUTINE rs_find_node(rs,point,dest,ntasks,tasks,lb_cube,ub_cube,added_tasks)
 
   ENDDO
 
+  ! if we have generalised collocation, identify all CPUs that are required 
+  ! a CPU is required if part of its 'real' domain overlaps with the cube
   IF (tasks(4,ntasks) .EQ. 2 ) THEN
-     !how elegant
-     IF(ub_cube(1)+point(1).GT.rs%ub(1)) THEN
-        ub_cube(1)=ub_cube(1)-rs%npts(1)
+     !how elegant !XXXX this seems not correct in general XXXX ?
+     IF(ub_cube(1)+cube_center(1).GT.rs_grid%ub(1)) THEN
+        ub_cube(1)=ub_cube(1)-rs_grid%npts(1)
      ENDIF
-     IF(lb_cube(1)+point(1).LT.rs%lb(1)) THEN
-        lb_cube(1)=lb_cube(1)+rs%npts(1)
+     IF(lb_cube(1)+cube_center(1).LT.rs_grid%lb(1)) THEN
+        lb_cube(1)=lb_cube(1)+rs_grid%npts(1)
      ENDIF
-     IF(ub_cube(2)+point(2).GT.rs%ub(2)) THEN
-        ub_cube(2)=ub_cube(2)-rs%npts(2)
+     IF(ub_cube(2)+cube_center(2).GT.rs_grid%ub(2)) THEN
+        ub_cube(2)=ub_cube(2)-rs_grid%npts(2)
      ENDIF
-     IF(lb_cube(2)+point(2).LT.rs%lb(2)) THEN
-        lb_cube(2)=lb_cube(2)+rs%npts(2)
+     IF(lb_cube(2)+cube_center(2).LT.rs_grid%lb(2)) THEN
+        lb_cube(2)=lb_cube(2)+rs_grid%npts(2)
      ENDIF
-     IF(ub_cube(3)+point(3).GT.rs%ub(3)) THEN
-        ub_cube(3)=ub_cube(3)-rs%npts(3)
+     IF(ub_cube(3)+cube_center(3).GT.rs_grid%ub(3)) THEN
+        ub_cube(3)=ub_cube(3)-rs_grid%npts(3)
      ENDIF
-     IF(lb_cube(3)+point(3).LT.rs%lb(3)) THEN
-        lb_cube(3)=lb_cube(3)+rs%npts(3)
+     IF(lb_cube(3)+cube_center(3).LT.rs_grid%lb(3)) THEN
+        lb_cube(3)=lb_cube(3)+rs_grid%npts(3)
      ENDIF
 
      ! find all procs that should collocate this poinst
-     DO i = 0, rs % group_size - 1
+     DO i = 0, rs_grid % group_size - 1
         ! check there is some density to be mapped on this proc
-        IF ((lb(i,1) .GT. ub_cube(1)+point(1)) .AND. &
-             (ub(i,1) .LT. lb_cube(1)+point(1))) CYCLE 
-        IF ((lb(i,2) .GT. ub_cube(2)+point(2)) .AND. &
-             (ub(i,2) .LT. lb_cube(2)+point(2))) CYCLE 
-        IF ((lb(i,3) .GT. ub_cube(3)+point(3)) .AND. &
-             (ub(i,3) .LT. lb_cube(3)+point(3))) CYCLE 
+        IF ((lb(1,i) .GT. ub_cube(1)+cube_center(1)) .AND. &
+             (ub(1,i) .LT. lb_cube(1)+cube_center(1))) CYCLE 
+        IF ((lb(2,i) .GT. ub_cube(2)+cube_center(2)) .AND. &
+             (ub(2,i) .LT. lb_cube(2)+cube_center(2))) CYCLE 
+        IF ((lb(3,i) .GT. ub_cube(3)+cube_center(3)) .AND. &
+             (ub(3,i) .LT. lb_cube(3)+cube_center(3))) CYCLE 
 
         ! avoid double counting
         IF ( i .EQ. dest) CYCLE

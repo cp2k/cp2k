@@ -115,8 +115,8 @@ MODULE qs_linres_current
        real_matrix_p_type, real_matrix_type, replicate_matrix_structure, &
        set_matrix
   USE task_list_methods,               ONLY: distribute_matrix,&
+                                             distribute_tasks,&
                                              int2pair,&
-                                             rs_get_my_tasks,&
                                              task_list_inner_loop
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -843,7 +843,7 @@ CONTAINS
 
     !   *** Initialize working density matrix ***
 
-    ! distributed rs grids require a matrix that will be changed (rs_get_my_tasks)
+    ! distributed rs grids require a matrix that will be changed (distribute_tasks)
     ! whereas this is not the case for replicated grids
     IF (distributed_rs_grids) THEN
        CALL allocate_matrix(matrix=deltajp,&
@@ -1030,7 +1030,7 @@ CONTAINS
     END DO loop_ikind
 
     ! sorts / redistributes the task list
-    CALL rs_get_my_tasks ( rs_rho(1)%rs_grid, distributed_rs_grids, ntasks, natom,&
+    CALL distribute_tasks ( rs_rho(1)%rs_grid, distributed_rs_grids, ntasks, natom,&
             maxset, maxpgf, tasks, dist_ab, atom_pair_send, atom_pair_recv,&
             .FALSE. , error)
 
