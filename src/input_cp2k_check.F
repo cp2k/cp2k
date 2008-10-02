@@ -842,9 +842,6 @@ CPSourceFileRef,&
             "MOTION%BAND%REPLICA",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
        section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%BAND%REPLICA",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
             "MOTION%MD%BAROSTAT%MASS",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
        section_to_delete => section_vals_get_subs_vals(input_file,&
