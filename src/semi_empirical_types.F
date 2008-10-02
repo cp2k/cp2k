@@ -414,7 +414,7 @@ CONTAINS
     IF (range > EPSILON(0.0_dp)) THEN
        taper%apply_taper = .TRUE.
        CPPrecondition(range>0.0_dp,cp_failure_level,routineP,error,failure)
-       taper%r0     = rc - 20.0_dp * range
+       taper%r0     = 2.0_dp*rc - 20.0_dp * range
        taper%rscale = 1.0_dp/range
     ELSE
        taper%apply_taper = .FALSE.

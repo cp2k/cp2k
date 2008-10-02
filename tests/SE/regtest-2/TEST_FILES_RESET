@@ -134,3 +134,6 @@ nh4.inp
 st.inp
 # numerics
 hcl_ot.inp
+# 
+md.inp
+scan_zn_1w_cp2k.inp

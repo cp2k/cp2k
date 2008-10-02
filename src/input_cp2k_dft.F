@@ -2116,20 +2116,20 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RC_INTERACTION",&
-            description="Cutoff radius for Exchange and Core Hamiltonian terms.",&
+            description="Atomic Cutoff Radius for Exchange and Core Hamiltonian terms.",&
             usage="RC_INTERACTION {real} ",unit_str="bohr",default_r_val=24._dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RC_COULOMB",&
-            description="Cutoff radius for Coulomb interactions",&
+            description="Atomic Cutoff Radius for Coulomb interactions.",&
             usage="RC_COULOMB {real} ",unit_str="bohr",default_r_val=24._dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RC_RANGE",&
             description="Range of cutoff switch function (tapering): 0.5*(1-TANH((r-r0)/RC_RANGE)), "//&
-            "where r0=RC_COULOMB-20*RC_RANGE. ",&
+            "where r0=2*RC_COULOMB-20*RC_RANGE. ",&
             usage="RC_RANGE {real} ",unit_str="bohr",default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
