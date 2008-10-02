@@ -31,8 +31,7 @@ MODULE task_list_methods
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_alltoall,&
-                                             mp_cart_coords
+  USE message_passing,                 ONLY: mp_alltoall
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -52,8 +51,7 @@ MODULE task_list_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: get_limit,&
-                                             sort
+  USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -562,7 +560,7 @@ CONTAINS
     INTEGER, PARAMETER                       :: add_tasks = 1000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER                                  :: added_tasks, dest, j
+    INTEGER                                  :: added_tasks, j
 
     ntasks = ntasks + 1
     IF ( ntasks > curr_tasks ) THEN
@@ -575,7 +573,7 @@ CONTAINS
 
        ! finds the node(s) that need to process this task
        ! on exit tasks(4,:) is 1 for distributed tasks and 2 for generalised tasks
-       CALL rs_find_node(rs_grid,cube_center,dest,&
+       CALL rs_find_node(rs_grid,cube_center, &
             ntasks=ntasks,tasks=tasks,lb_cube=lb_cube,ub_cube=ub_cube,added_tasks=added_tasks)
 
        IF ( ntasks > curr_tasks ) THEN
@@ -584,8 +582,7 @@ CONTAINS
        END IF
 
     ELSE
-       dest =  rs_grid%my_pos
-       tasks(1,ntasks) = dest
+       tasks(1,ntasks) = rs_grid%my_pos
        tasks(4,ntasks) = 0
        added_tasks = 1
     ENDIF
@@ -1349,123 +1346,74 @@ END SUBROUTINE distribute_matrix
 !> \brief determines the rank of the processor who's real rs grid contains point
 !> \par History
 !>      11.2007 created [MattW]
+!>      10.2008 rewritten [Joost VandeVondele]
 !> \author MattW
 ! *****************************************************************************
-SUBROUTINE rs_find_node(rs_grid,cube_center,dest,ntasks,tasks,lb_cube,ub_cube,added_tasks)
+SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_tasks)
 
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     INTEGER, DIMENSION(3), INTENT(IN)        :: cube_center
-    INTEGER, INTENT(OUT)                     :: dest
-    INTEGER, INTENT(INOUT), OPTIONAL         :: ntasks
+    INTEGER, INTENT(INOUT)                   :: ntasks
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
-    INTEGER, DIMENSION(3), OPTIONAL          :: lb_cube, ub_cube
-    INTEGER, OPTIONAL                        :: added_tasks
+    INTEGER, DIMENSION(3), INTENT(IN)        :: lb_cube, ub_cube
+    INTEGER, INTENT(OUT)                     :: added_tasks
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_find_node', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: curr_tasks, dir, i, istat
-    INTEGER, ALLOCATABLE                     :: lb(:,:), pos(:,:), ub(:,:)
-    INTEGER, DIMENSION(3)                    :: coords
+    INTEGER                                  :: curr_tasks, dest, i, lbc(3), &
+                                                ubc(3)
 
-  ALLOCATE(pos(2,0:rs_grid%group_size-1), stat=istat)
-  IF (istat.NE.0) CALL stop_program("rs_find_node","pos")
-  ALLOCATE(lb(3,0:rs_grid%group_size-1), stat=istat)
-  IF (istat.NE.0) CALL stop_program("rs_find_node","lb")
-  ALLOCATE(ub(3,0:rs_grid%group_size-1), stat=istat)
-  IF (istat.NE.0) CALL stop_program("rs_find_node","ub")
+    dest=rs_grid%coord2rank(rs_grid % x2coord(cube_center(1)), &
+                            rs_grid % y2coord(cube_center(2)), &
+                            rs_grid % z2coord(cube_center(3)))
+    tasks(1,ntasks)=dest
+    added_tasks = 1
 
-  dest = -1
+    ! the real cube coordinates
+    lbc=lb_cube+cube_center
+    ubc=ub_cube+cube_center
 
-  DO i = 0, rs_grid % group_size - 1
-     
-     CALL mp_cart_coords(rs_grid % group, i, coords)
-     !calculate the real rs grid points on each processor
-     DO dir = 1,3
-        pos (:,i) = get_limit ( rs_grid %  npts ( dir ), rs_grid % group_dim ( dir ), coords(dir) )
-        pos (:,i) = pos (:,i) - rs_grid %  npts (dir) / 2 - 1
-        lb(dir,i) = pos(1,i)
-        ub(dir,i) = pos(2,i)
-     ENDDO
+    IF ( ALL ( (rs_grid % lb_global(:,dest)-rs_grid%border) .LE. lbc )  .AND. &
+         ALL ( (rs_grid % ub_global(:,dest)+rs_grid%border) .GE. ubc )) THEN
+       !standard distributed collocation/integration
+       tasks(4,ntasks)=1
+    ELSE
+       !generalised collocation/integration needed
+       tasks(4,ntasks)=2
 
-     !try to exit quickly if we don't need the generalised collocation
-     ! integration routines
-     ! check whether the cube_center is local to proc i
-     IF ( ALL (cube_center.GE.lb(:,i)) .AND. ALL (cube_center.LE.ub(:,i) ) ) THEN
-        IF ( ALL ( (lb(:,i)-rs_grid%border) .LE. cube_center(:)+lb_cube(:) ) .AND. &
-             ALL ( (ub(:,i)+rs_grid%border) .GE. cube_center(:)+ub_cube(:) ) ) THEN
-           !standard distributed collocation/integration
-           tasks(4,ntasks)=1
-           tasks(1,ntasks)=i
-           added_tasks = 1
-           dest=i
-           EXIT
-        ELSE
-           !generalised collocation/integration needed
-           !let the fun commence....
-           tasks(4,ntasks)=2
-           tasks(1,ntasks)=i
-           dest=i
-           added_tasks = 1
-        ENDIF
-     ENDIF
+       ! if we have generalised collocation, identify all CPUs that are required 
+       ! a CPU is required if part of its 'real' domain overlaps with the cube
+       ! this code should be streamlined later on (seems to return too many CPUs)
+       ! and certainly could use part of the halo for collocation
 
-  ENDDO
+       !how elegant !XXXX this seems not correct in general XXXX ?
+       IF(ubc(1).GT.rs_grid%ub(1)) ubc(1)=ubc(1)-rs_grid%npts(1)
+       IF(lbc(1).LT.rs_grid%lb(1)) lbc(1)=lbc(1)+rs_grid%npts(1)
+       IF(ubc(2).GT.rs_grid%ub(2)) ubc(2)=ubc(2)-rs_grid%npts(2)
+       IF(lbc(2).LT.rs_grid%lb(2)) lbc(2)=lbc(2)+rs_grid%npts(2)
+       IF(ubc(3).GT.rs_grid%ub(3)) ubc(3)=ubc(3)-rs_grid%npts(3)
+       IF(lbc(3).LT.rs_grid%lb(3)) lbc(3)=lbc(3)+rs_grid%npts(3)
 
-  ! if we have generalised collocation, identify all CPUs that are required 
-  ! a CPU is required if part of its 'real' domain overlaps with the cube
-  IF (tasks(4,ntasks) .EQ. 2 ) THEN
-     !how elegant !XXXX this seems not correct in general XXXX ?
-     IF(ub_cube(1)+cube_center(1).GT.rs_grid%ub(1)) THEN
-        ub_cube(1)=ub_cube(1)-rs_grid%npts(1)
-     ENDIF
-     IF(lb_cube(1)+cube_center(1).LT.rs_grid%lb(1)) THEN
-        lb_cube(1)=lb_cube(1)+rs_grid%npts(1)
-     ENDIF
-     IF(ub_cube(2)+cube_center(2).GT.rs_grid%ub(2)) THEN
-        ub_cube(2)=ub_cube(2)-rs_grid%npts(2)
-     ENDIF
-     IF(lb_cube(2)+cube_center(2).LT.rs_grid%lb(2)) THEN
-        lb_cube(2)=lb_cube(2)+rs_grid%npts(2)
-     ENDIF
-     IF(ub_cube(3)+cube_center(3).GT.rs_grid%ub(3)) THEN
-        ub_cube(3)=ub_cube(3)-rs_grid%npts(3)
-     ENDIF
-     IF(lb_cube(3)+cube_center(3).LT.rs_grid%lb(3)) THEN
-        lb_cube(3)=lb_cube(3)+rs_grid%npts(3)
-     ENDIF
+       ! find all procs that should collocate this point
+       DO i = 0, rs_grid % group_size - 1
+          ! avoid double counting
+          IF ( i .EQ. dest) CYCLE
+          ! check there is some density to be mapped on this proc
+          IF (ANY((rs_grid%lb_global(:,i) .GT. ubc) .AND. (rs_grid%ub_global(:,i) .LT. lbc))) CYCLE
 
-     ! find all procs that should collocate this poinst
-     DO i = 0, rs_grid % group_size - 1
-        ! check there is some density to be mapped on this proc
-        IF ((lb(1,i) .GT. ub_cube(1)+cube_center(1)) .AND. &
-             (ub(1,i) .LT. lb_cube(1)+cube_center(1))) CYCLE 
-        IF ((lb(2,i) .GT. ub_cube(2)+cube_center(2)) .AND. &
-             (ub(2,i) .LT. lb_cube(2)+cube_center(2))) CYCLE 
-        IF ((lb(3,i) .GT. ub_cube(3)+cube_center(3)) .AND. &
-             (ub(3,i) .LT. lb_cube(3)+cube_center(3))) CYCLE 
-
-        ! avoid double counting
-        IF ( i .EQ. dest) CYCLE
-
-        ntasks=ntasks+1
-        added_tasks=added_tasks+1
-        IF ( ntasks > SIZE(tasks,2)) THEN
-           curr_tasks = (SIZE(tasks,2)+1000)*2
-           CALL reallocate(tasks,1,5,1,curr_tasks)
-        END IF
-        tasks(1,ntasks)=i
-        tasks(4,ntasks)=2
-     ENDDO
-  ENDIF
-
-  DEALLOCATE(pos, stat=istat)
-  IF (istat.NE.0) CALL stop_program("rs_find_node","pos")
-  DEALLOCATE(lb, stat=istat)
-  IF (istat.NE.0) CALL stop_program("rs_find_node","lb")
-  DEALLOCATE(ub, stat=istat)
-  IF (istat.NE.0) CALL stop_program("rs_find_node","ub")
+          ! we add a task for this proc
+          ntasks=ntasks+1
+          added_tasks=added_tasks+1
+          IF ( ntasks > SIZE(tasks,2)) THEN
+             curr_tasks = (SIZE(tasks,2)+1000)*2
+             CALL reallocate(tasks,1,5,1,curr_tasks)
+          END IF
+          tasks(1,ntasks)=i
+          tasks(4,ntasks)=2
+       ENDDO
+    ENDIF
 
 END SUBROUTINE rs_find_node
 

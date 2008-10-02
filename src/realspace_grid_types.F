@@ -100,6 +100,8 @@ MODULE realspace_grid_types
 
      LOGICAL :: parallel                                 ! whether the corresponding pw grid is distributed
      LOGICAL :: distributed                              ! whether the rs grid is distributed
+     ! these MPI related quantities are only meaningful depending on how the grid has been layed out
+     ! they are most useful for fully distributed grids, where they reflect the topology of the grid
      INTEGER :: group
      INTEGER :: my_pos
      LOGICAL :: group_head
@@ -107,6 +109,17 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (3) :: group_dim
      INTEGER, DIMENSION (3) :: group_coor
      INTEGER, DIMENSION (3) :: neighbours
+     ! only meaningful on distributed grids
+     ! a list of bounds for each CPU
+     INTEGER, DIMENSION (:,:), POINTER :: lb_global
+     INTEGER, DIMENSION (:,:), POINTER :: ub_global
+     ! a mapping from linear rank to 3d coord
+     INTEGER, DIMENSION (:,:), POINTER :: rank2coord
+     INTEGER, DIMENSION (:,:,:), POINTER :: coord2rank
+     ! a mapping from index to rank (which allows to figure out easily on which rank a given point of the grid is)
+     INTEGER, DIMENSION (:), POINTER :: x2coord
+     INTEGER, DIMENSION (:), POINTER :: y2coord
+     INTEGER, DIMENSION (:), POINTER :: z2coord
 
   END TYPE realspace_grid_type
 
@@ -203,8 +216,11 @@ END SUBROUTINE init_input_type
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dir, handle, i, j, k, l, lb( 2 ), n_slices(3), &
-      n_slices_tmp(3), neighbours(3), nmin, nsmax, pos( 3 ), stat
+    INTEGER                                  :: dir, handle, i, j, k, l, &
+                                                lb( 2 ), n_slices(3), &
+                                                n_slices_tmp(3), &
+                                                neighbours(3), nmin, nsmax, &
+                                                stat
     LOGICAL                                  :: failure, overlap
     REAL(KIND=dp)                            :: ratio, ratio_best, volume, &
                                                 volume_dist
@@ -219,6 +235,8 @@ END SUBROUTINE init_input_type
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL mp_sync(pw_grid % para % group)
+
+    NULLIFY(rs % rank2coord,rs % coord2rank,rs % lb_global,rs % ub_global,rs % x2coord,rs % y2coord,rs % z2coord)
 
     rs % dh = pw_grid%dh
     rs % dh_inv = pw_grid%dh_inv
@@ -251,14 +269,6 @@ END SUBROUTINE init_input_type
        rs % group_coor = 0
        rs % my_pos = 0
     ELSE
-       ! IF ( .NOT. ALL ( pw_grid % bounds ( 1, 2:3 ) == &
-       !      pw_grid % bounds_local ( 1, 2:3 ) .AND. &
-       !      pw_grid % bounds ( 2, 2:3 ) == &
-       !      pw_grid % bounds_local ( 2, 2:3 ) ) ) THEN
-       !    CALL stop_program ( routineN, &
-       !         "This pw type not supported" )
-       ! END IF
- 
        ! group size of rs grid
        ! global grid dimensions are still the same
        rs % group_size = pw_grid % para % group_size
@@ -356,7 +366,7 @@ END SUBROUTINE init_input_type
           rs % ub_real = rs % ub
           rs % parallel = .TRUE.
           rs % distributed = .FALSE.
-          CALL mp_comm_dup( pw_grid % para % rs_group , rs % group )
+          CALL mp_comm_dup( pw_grid % para % group , rs % group )
           CALL mp_environ(rs % group_size, rs % my_pos, rs % group )
           rs % group_head = pw_grid % para % group_head
           rs % group_coor ( : ) = 0
@@ -376,36 +386,84 @@ END SUBROUTINE init_input_type
           rs % distributed = .TRUE.
           ! the new cartesian group
           CALL mp_cart_create ( pw_grid % para % group, 3, &
-               rs % group_dim, pos, rs % group )
+               rs % group_dim, rs % group_coor, rs % group )
           CALL mp_environ(rs % group_size, rs % my_pos, rs % group )
           ! for output would be needed to have this pw_grid % para % group_head
-          rs % group_head = ALL ( pos == 0 ) 
-          rs % group_coor = pos
-          ! local dimensions of the grid
-          rs % npts_local = pw_grid % npts
-          rs % lb_local = rs % lb
-          rs % ub_local = rs % ub
-          rs % lb_real = rs % lb
-          rs % ub_real = rs % ub
-          DO dir = 1,3
+          rs % group_head = ALL ( rs % group_coor == 0 )
+
+          ! set up global info about the distribution
+          ALLOCATE( rs % rank2coord(3,0:rs % group_size-1),STAT=stat)
+          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % rank2coord" )
+          ALLOCATE( rs % coord2rank(0:rs % group_dim(1),0:rs % group_dim(2),0:rs % group_dim(3)),STAT=stat)
+          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % coord2rank" )
+          ALLOCATE( rs % lb_global(3,0:rs % group_size-1),STAT=stat)
+          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % lb_global" )
+          ALLOCATE( rs % ub_global(3,0:rs % group_size-1),STAT=stat)
+          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % ub_global" )
+          ALLOCATE( rs % x2coord(rs % lb(1):rs % ub(1)),STAT=stat)
+          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % x2coord" )
+          ALLOCATE( rs % y2coord(rs % lb(2):rs % ub(2)),STAT=stat)
+          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % y2coord" )
+          ALLOCATE( rs % z2coord(rs % lb(3):rs % ub(3)),STAT=stat)
+          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % z2coord" )
+
+          DO i=0, rs% group_size - 1
+             CALL mp_cart_coords(rs % group, i, rs % rank2coord(:,i) )
+             rs % coord2rank(rs % rank2coord(1,i),rs % rank2coord(2,i),rs % rank2coord(3,i))=i
+             ! the lb_global and ub_global correspond to lb_real and ub_real of each task
+             rs % lb_global(:,i) = rs % lb
+             rs % ub_global(:,i) = rs % ub
+             DO dir = 1,3
+                IF (rs % group_dim(dir).GT.1) THEN
+                   lb = get_limit ( rs % npts ( dir ), rs % group_dim ( dir ), rs % rank2coord ( dir, i ) )
+                   rs % lb_global ( dir, i ) = lb ( 1 ) + rs % lb ( dir ) - 1
+                   rs % ub_global ( dir, i ) = lb ( 2 ) + rs % lb ( dir ) - 1
+                ENDIF
+             ENDDO
+          ENDDO
+
+          ! map a grid point to a CPU coord
+          DO dir=1,3
+             DO l=0,rs % group_dim ( dir )-1
+               IF (rs % group_dim(dir).GT.1) THEN
+                   lb = get_limit ( rs % npts ( dir ), rs % group_dim ( dir ), l ) 
+                   lb = lb + rs % lb ( dir ) - 1
+               ELSE
+                   lb(1) = rs % lb ( dir )
+                   lb(2) = rs % ub ( dir )
+               ENDIF
+               SELECT CASE(dir)
+               CASE(1)
+                 rs % x2coord(lb(1):lb(2))=l
+               CASE(2)
+                 rs % y2coord(lb(1):lb(2))=l
+               CASE(3)
+                 rs % z2coord(lb(1):lb(2))=l
+               END SELECT
+             ENDDO
+          ENDDO
+
+          ! extract some more derived quantities about the local grid
+          rs % lb_real = rs % lb_global ( :, rs % my_pos )
+          rs % ub_real = rs % ub_global ( :, rs % my_pos )
+          rs % lb_local = rs % lb_real - rs % border * ( 1 - rs % perd )
+          rs % ub_local = rs % ub_real + rs % border * ( 1 - rs % perd )
+          rs % npts_local = rs % ub_local - rs % lb_local +1
+          rs % ngpts_local = PRODUCT ( rs % npts_local )
+
+          ! an upper bound for the number of neighbors the border is overlapping with
+          DO dir=1,3
              rs % neighbours(dir) = 0
-             IF (n_slices(dir).GT.1) THEN             
+             IF (n_slices(dir).GT.1) THEN
                 neighbours(dir) = HUGE(0)
                 DO l=0,n_slices(dir)-1
                    lb = get_limit ( rs % npts ( dir ),  n_slices( dir ), l )
                    neighbours(dir) = MIN(lb (2) -lb (1) + 1, neighbours(dir) )
                 ENDDO
-                rs % neighbours(dir) =  (nmin + neighbours(dir) - 1)/neighbours(dir)
-
-                lb = get_limit ( rs % npts ( dir ), rs % group_dim ( dir ), pos ( dir ) )
-                rs % npts_local ( dir ) = 2 * rs % border + ( lb ( 2 ) - lb ( 1 ) + 1 )
-                rs % lb_local ( dir ) = lb ( 1 ) + rs % lb ( dir ) - rs % border - 1
-                rs % ub_local ( dir ) = lb ( 2 ) + rs % lb ( dir ) + rs % border - 1
-                rs % lb_real ( dir ) = rs % lb_local(dir) + rs % border 
-                rs % ub_real ( dir ) = rs % ub_local(dir) - rs % border                
+                rs % neighbours(dir) =  (rs % border + neighbours(dir) - 1)/neighbours(dir)
              ENDIF
           ENDDO
-          rs % ngpts_local = PRODUCT ( rs % npts_local )
+
        END IF
 
     END IF
@@ -1555,6 +1613,23 @@ SUBROUTINE rs_grid_release(rs_grid,error)
             ! release the group communicator
             CALL mp_comm_free ( rs_grid % group )
          END IF
+
+         IF (rs_grid % distributed) THEN
+            DEALLOCATE ( rs_grid % rank2coord , STAT = stat )
+            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % rank2coord" )
+            DEALLOCATE ( rs_grid % coord2rank , STAT = stat )
+            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % coord2rank" )
+            DEALLOCATE ( rs_grid % lb_global , STAT = stat )
+            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % lb_global" )
+            DEALLOCATE ( rs_grid % ub_global , STAT = stat )
+            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % ub_global" )
+            DEALLOCATE ( rs_grid % x2coord , STAT = stat )
+            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % x2coord" )
+            DEALLOCATE ( rs_grid % y2coord , STAT = stat )
+            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % y2coord" )
+            DEALLOCATE ( rs_grid % z2coord , STAT = stat )
+            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % z2coord" )
+         ENDIF
 
          DEALLOCATE(rs_grid, stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
