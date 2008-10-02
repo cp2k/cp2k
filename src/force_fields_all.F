@@ -1633,9 +1633,10 @@ CPSourceFileRef,&
     INTEGER                                  :: handle2, i, ilink, j, stat
     INTEGER, DIMENSION(:), POINTER           :: my_atom_list
     LOGICAL                                  :: failure, found, found_p, &
-                                                is_link_atom, only_manybody, &
-                                                only_qm
-    REAL(KIND=dp)                            :: chrg_tot, scale_factor
+                                                is_link_atom, is_shell, &
+                                                only_manybody, only_qm
+    REAL(KIND=dp)                            :: chrg_tot, cs_charge, &
+                                                scale_factor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
@@ -1655,12 +1656,13 @@ CPSourceFileRef,&
        CALL get_potential(potential=elp_potential,&
                           qeff=charge(i))
 
-       found = .FALSE.
-       only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
+       is_shell = .FALSE.
+       found    = .FALSE.
+       only_qm  = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
        CALL uppercase(atmname)
        IF(charge(i)/=-HUGE(0.0_dp)) found = .TRUE.
 
-       ! always have the input param last to overwrite all the other ones
+       ! Always have the input param last to overwrite all the other ones
        IF(ASSOCIATED(inp_info%charge_atm)) THEN
           DO j=1,SIZE(inp_info%charge_atm)
              IF (iw>0) WRITE(iw,*)"Charge Checking ::",TRIM(inp_info%charge_atm(j)),atmname
@@ -1675,6 +1677,29 @@ CPSourceFileRef,&
              END IF
           END DO
        END IF
+       ! Check if the ATOM type has a core-shell associated.. In this case
+       ! print a warning: the CHARGE will not be used if defined.. or we can
+       ! even skip its definition..
+       IF(ASSOCIATED(inp_info%shell_list)) THEN
+          DO j=1,SIZE(inp_info%shell_list)                   
+             IF((inp_info%shell_list(j)%atm_name)==atmname) THEN
+                is_shell  = .TRUE.
+                cs_charge = inp_info%shell_list(j)%shell%charge_core+&
+                            inp_info%shell_list(j)%shell%charge_shell
+                charge(i) = 0.0_dp
+                IF (found) THEN
+                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                        "CORE-SHELL model defined for KIND ("//TRIM(atmname)//")"//&
+                        " ignoring charge definition! "//&
+CPSourceFileRef,&
+                        only_ionode=.TRUE.)
+                ELSE
+                   found = .TRUE.
+                END IF
+             END IF
+          END DO
+       END IF
+       ! Check if the potential really requires the charge definition..
        IF (ASSOCIATED(inp_info%nonbonded)) THEN
           IF (ASSOCIATED(inp_info%nonbonded%pot)) THEN
              ! Let's find the nonbonded potential where this atom is involved
@@ -1727,7 +1752,14 @@ CPSourceFileRef,&
 
        CALL set_potential(potential=elp_potential,qeff=charge(i))
        CALL set_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
-       IF (found) chrg_tot = chrg_tot + atomic_kind%natom*charge(i)
+       ! Sum up total charges for IO
+       IF (found) THEN 
+          IF (is_shell) THEN
+             chrg_tot = chrg_tot + atomic_kind%natom*cs_charge
+          ELSE
+             chrg_tot = chrg_tot + atomic_kind%natom*charge(i)
+          END IF
+       END IF
     END DO
     ! Print Total Charge of the system
     IF (iw4>0) THEN
@@ -1736,7 +1768,6 @@ CPSourceFileRef,&
     DEALLOCATE (charge,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle2)
-
   END SUBROUTINE force_field_pack_ch
 
 ! *****************************************************************************
