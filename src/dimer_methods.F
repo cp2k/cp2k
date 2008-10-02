@@ -25,6 +25,8 @@ MODULE dimer_methods
   USE input_constants,                 ONLY: do_first_rotation_step,&
                                              do_second_rotation_step,&
                                              do_third_rotation_step
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE motion_utils,                    ONLY: rot_ana,&
                                              thrs_motion
@@ -66,9 +68,10 @@ CONTAINS
     REAL(KIND=dp)                            :: angle1, angle2, f1, norm
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dimer_env_type), POINTER            :: dimer_env
+    TYPE(section_vals_type), POINTER         :: print_section
 
     failure=.FALSE.
-    NULLIFY(dimer_env,logger)
+    NULLIFY(dimer_env,logger, print_section)
     CALL timeset(routineN,"I","",handle)
     logger => cp_error_get_logger(error)
 
@@ -157,13 +160,14 @@ CONTAINS
           dimer_env%rot%rotation_step = do_first_rotation_step
        END IF
 
+       print_section => section_vals_get_subs_vals(gopt_env%gopt_dimer_env%geo_section,"PRINT",error=error)
        ! Correcting gradients for Translation
        IF (dimer_env%rot%curvature>0) THEN
           gradient =  - DOT_PRODUCT(dimer_env%rot%g0,dimer_env%nvec)*dimer_env%nvec
-          CALL remove_rot_transl_component(gopt_env, gradient, iw, error)
+          CALL remove_rot_transl_component(gopt_env, gradient, print_section, error)
        ELSE
           gradient =  dimer_env%rot%g0 - 2.0_dp*DOT_PRODUCT(dimer_env%rot%g0,dimer_env%nvec)*dimer_env%nvec 
-          CALL remove_rot_transl_component(gopt_env, gradient, iw, error)
+          CALL remove_rot_transl_component(gopt_env, gradient, print_section, error)
        END IF
        IF (debug_this_module.AND.(iw>0)) THEN
           WRITE(iw,*)"final gradient:",gradient
@@ -185,10 +189,10 @@ CONTAINS
 !>      none
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
-  SUBROUTINE  remove_rot_transl_component (gopt_env,gradient,iw,error)
+  SUBROUTINE  remove_rot_transl_component (gopt_env,gradient,print_section,error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:)              :: gradient
-    INTEGER                                  :: iw
+    TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'remove_rot_transl_component', &
@@ -212,9 +216,9 @@ CONTAINS
     norm_gradient_old = SQRT(DOT_PRODUCT(gradient,gradient))
     IF (norm_gradient_old>0.0_dp) THEN
        IF (natoms>1) THEN
-          CALL rot_ana(particles%els, mat, dof, iw, keep_rotations=.FALSE., mass_weighted=.FALSE.,&
-               natoms=natoms, error=error)
-          
+          CALL rot_ana(particles%els, mat, dof, print_section, keep_rotations=.FALSE.,&
+               mass_weighted=.FALSE., natoms=natoms, error=error)
+
           ! Orthogonalize gradient with respect to the full set of Roto-Trasl vectors
           ALLOCATE(D(3*natoms,dof),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

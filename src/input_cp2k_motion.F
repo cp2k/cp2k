@@ -986,12 +986,26 @@ CONTAINS
             n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
             error=error)
        NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"program_run_info",&
+
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of basic information during the Geometry Optimization", &
             print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection3,print_key,error=error)
-       CALL section_release(print_key,error=error)        
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"ROTATIONAL_INFO",&
+            description="Controls the printing basic info during the cleaning of the "//&
+            "rotational degrees of freedom.", print_level=low_print_level,&
+            add_last=add_last_numeric,filename="__STD_OUT__",error=error)
+       CALL keyword_create(keyword, name="COORDINATES",&
+            description="Prints atomic coordinates after rotation",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection3,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL section_add_subsection(subsection2,subsection3,error=error)
        CALL section_release(subsection3,error=error)
        CALL section_add_subsection(subsection,subsection2,error=error)

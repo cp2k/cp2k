@@ -70,6 +70,11 @@
               TYPE 2PNT
             &END
           &END
+          &PRINT
+            &ROTATIONAL_INFO
+              COORDINATES
+            &END
+          &END
         &END
       &END
     &END

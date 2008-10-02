@@ -701,8 +701,9 @@ CONTAINS
     logger => cp_error_get_logger(error)
     CALL section_vals_val_get(ms_vib_section,"RESTART_FILE_NAME",c_val=ms_filename,&
             error=error)
-    IF(ms_filename=="") output_molden=cp_print_key_unit_nr(logger,input,"VIBRATIONAL_ANALYSIS%MOLDEN_VIB",&
-         extension=".mol",file_status='UNKNOWN',file_action="READ",error=error)
+    IF(ms_filename=="") output_molden=cp_print_key_unit_nr(logger,input,&
+         "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB",extension=".mol",file_status='UNKNOWN',&
+         file_action="READ",error=error)
     IF(ionode)THEN
 
        IF(ms_filename=="") THEN
@@ -811,7 +812,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     END IF
-    IF(ms_filename=="")CALL cp_print_key_finished_output(output_molden,logger,input,"VIBRATIONAL_ANALYSIS%MOLDEN_VIB",error=error)
+    IF(ms_filename=="")CALL cp_print_key_finished_output(output_molden,logger,input,&
+         "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB",error=error)
   END SUBROUTINE molden_guess
 
 ! *****************************************************************************
@@ -1272,7 +1274,7 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    iw=cp_print_key_unit_nr(logger,input,"VIBRATIONAL_ANALYSIS%MOLDEN_VIB",&
+    iw=cp_print_key_unit_nr(logger,input,"VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB",&
             extension=".mol",file_status='REPLACE',error=error)
 
     IF(iw.GT.0)THEN
@@ -1310,7 +1312,7 @@ CONTAINS
           END DO
        END IF
     END IF
-    CALL cp_print_key_finished_output(iw,logger,input,"VIBRATIONAL_ANALYSIS%MOLDEN_VIB",error=error)
+    CALL cp_print_key_finished_output(iw,logger,input,"VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB",error=error)
   END SUBROUTINE molden_out
 
 ! *****************************************************************************

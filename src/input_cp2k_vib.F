@@ -55,7 +55,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -65,7 +65,7 @@ CONTAINS
             description="Section to setup parameters to perform a Normal Modes analysis.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             supported_feature=.TRUE.,error=error)
-       NULLIFY(keyword, print_key,subsection)
+       NULLIFY(keyword, subsection)
        
        CALL keyword_create(keyword, name="DX",&
             description="Specify the increment to be used to construct the HESSIAN with "//&
@@ -94,6 +94,44 @@ CONTAINS
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., supported_feature=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       
+       CALL create_mode_selective_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_print_vib_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+    END IF
+  END SUBROUTINE create_vib_section
+
+! *****************************************************************************
+!> \brief Create the print section for VIB
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] - 10.2008
+! *****************************************************************************
+  SUBROUTINE create_print_vib_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_print_vib_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="PRINT",&
+            description="Section controlling the print information during a vibrational "//&
+            "analysis.",n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            supported_feature=.TRUE.,error=error)
+       NULLIFY(keyword, print_key)
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing basic info about the vibrational method", &
@@ -108,13 +146,23 @@ CONTAINS
             supported_feature=.TRUE., error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-       
-       CALL create_mode_selective_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
+
+       CALL cp_print_key_section_create(print_key,"ROTATIONAL_INFO",&
+            description="Controls the printing basic info during the cleaning of the "//&
+            "rotational degrees of freedom.", &
+            print_level=debug_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+            supported_feature=.TRUE., error=error)
+       ! Print_key keywords
+       CALL keyword_create(keyword, name="COORDINATES",&
+            description="Prints atomic coordinates after rotation",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
     END IF
-  END SUBROUTINE create_vib_section
+  END SUBROUTINE create_print_vib_section
 
 ! *****************************************************************************
 !> \brief Create the input section for MODE selective

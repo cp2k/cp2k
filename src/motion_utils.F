@@ -57,12 +57,12 @@ CONTAINS
 !>      rotating frame
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
-  SUBROUTINE rot_ana(particles, mat, dof, iw, keep_rotations, mass_weighted, natoms, error)
+  SUBROUTINE rot_ana(particles, mat, dof, print_section, keep_rotations, mass_weighted, natoms, error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat
     INTEGER, INTENT(OUT)                     :: dof
-    INTEGER, INTENT(IN)                      :: iw
+    TYPE(section_vals_type), POINTER         :: print_section
     LOGICAL, INTENT(IN)                      :: keep_rotations, mass_weighted
     INTEGER, INTENT(IN)                      :: natoms
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -71,15 +71,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iparticle, iseq, &
-                                                j, k, lrot(3), stat
+                                                iw, j, k, lrot(3), stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cp(3), Ip(3,3), Ip_eigval(3), &
                                                 mass, masst, norm, rcom(3), &
                                                 rm(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Rot, Tr
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,"I","",handle)
+    logger => cp_error_get_logger(error)
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(particles),cp_failure_level,routineP,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(mat),cp_failure_level,routineP,error,failure)
@@ -110,6 +112,7 @@ CONTAINS
        END DO
        ! Diagonalize the Inertia Tensor
        CALL diamat_all(Ip,Ip_eigval,error=error)
+       iw=cp_print_key_unit_nr(logger,print_section,"ROTATIONAL_INFO",extension=".vibLog",error=error)
        IF (iw>0) THEN
           WRITE(iw,'(T2,A,3F12.6)')"ROT| Rotational Analysis Info "
           WRITE(iw,'(T2,A)')"ROT| Principal axes and moments of inertia in atomic units:"
@@ -119,6 +122,8 @@ CONTAINS
           WRITE(iw,'(T2,A,T30,3(3X,F12.6))')"ROT|      Y",Ip(2,1),Ip(2,2),Ip(2,3)
           WRITE(iw,'(T2,A,T30,3(3X,F12.6))')"ROT|      Z",Ip(3,1),Ip(3,2),Ip(3,3)
        END IF
+       CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO",error=error)
+       iw=cp_print_key_unit_nr(logger,print_section,"ROTATIONAL_INFO/COORDINATES",extension=".vibLog",error=error)
        IF (iw>0) THEN
           WRITE(iw,'(/,T2,A)')"ROT| Standard Molecule Orientation - ANGSTROM "
           DO iparticle = 1, natoms
@@ -127,6 +132,7 @@ CONTAINS
                   MATMUL(particles(iparticle)%r,Ip)*angstrom
           END DO
        END IF
+       CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO/COORDINATES",error=error)
     END IF
     ! Build up the Translational vectors
     ALLOCATE(Tr(natoms*3,3),stat=stat)
@@ -193,11 +199,13 @@ CONTAINS
        END DO
     END IF
     dof = dof + COUNT(lrot==1)
+    iw=cp_print_key_unit_nr(logger,print_section,"ROTATIONAL_INFO",extension=".vibLog",error=error)
     IF (iw>0) THEN
        WRITE(iw,'(T2,A,I6)')"ROT| Numer of Rotovibrational vectors:",dof
        IF (dof==5) WRITE(iw,'(T2,A)')"ROT| Linear Molecule detected.."
        IF (dof==3.AND.(.NOT.keep_rotations)) WRITE(iw,'(T2,A)')"ROT| Single Atom detected.." 
     END IF
+    CALL cp_print_key_finished_output(iw,logger,print_section,"ROTATIONAL_INFO",error=error)
     ! Give back the vectors generating the rototranslating Frame
     ALLOCATE(mat(natoms*3,dof),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

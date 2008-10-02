@@ -111,26 +111,23 @@ CONTAINS
       POINTER                                :: particles
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                mode_tracking_section
+                                                mode_tracking_section, &
+                                                print_section
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       NULLIFY(D, RotTrM, logger, subsys, f_env, particles, rep_env, intensities)
+       NULLIFY(D, RotTrM, logger, subsys, f_env, particles, rep_env, intensities, print_section)
        logger => cp_error_get_logger(error)
-       output_unit=cp_print_key_unit_nr(logger,input,"VIBRATIONAL_ANALYSIS%PROGRAM_RUN_INFO",&
-            extension=".vibLog",error=error)
+       print_section => section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS%PRINT",error=error)
+       output_unit=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".vibLog",error=error)
 
-       CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%DX",&
-            r_val=dx, error=error)
-       CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%NPROC_REP",&
-            i_val=prep, error=error)
-       CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%FULLY_PERIODIC",&
-            l_val=keep_rotations, error=error)
-       CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%INTENSITIES",&
-            l_val=calc_intens, error=error)
+       CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%DX",r_val=dx, error=error)
+       CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%NPROC_REP",i_val=prep, error=error)
+       CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%FULLY_PERIODIC",l_val=keep_rotations, error=error)
+       CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%INTENSITIES",l_val=calc_intens, error=error)
        mode_tracking_section=>section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS%MODE_SELECTIVE",&
-                              error=error)
+            error=error)
        CALL section_vals_get(mode_tracking_section,explicit=do_mode_tracking, error=error)
        nrep = MAX(1,para_env%num_pe/prep)
        IF (output_unit>0) THEN
@@ -195,7 +192,7 @@ CONTAINS
                 ALLOCATE(RotTrM(natoms*3,nRotTrM),stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ELSE
-                CALL rot_ana(particles,RotTrM,nRotTrM,output_unit,&
+                CALL rot_ana(particles,RotTrM,nRotTrM,print_section,&
                      keep_rotations,mass_weighted=.TRUE.,natoms=natoms,error=error)
              END IF
              ! Generate the suitable rototranslating basis set
@@ -453,7 +450,7 @@ CONTAINS
              CALL f_env_rm_defaults(f_env,new_error,ierr)
           END IF
        END IF
-       CALL cp_print_key_finished_output(output_unit,logger,input,"VIBRATIONAL_ANALYSIS%PROGRAM_RUN_INFO",error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,print_section,"PROGRAM_RUN_INFO",error=error)
        CALL rep_env_release(rep_env,error=error)
     END IF
     CALL timestop(0.0_dp,handle)
