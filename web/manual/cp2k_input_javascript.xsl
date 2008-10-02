@@ -683,7 +683,11 @@
       </ul>
       which can be downloaded from
       <a href="http://sourceforge.net/projects/saxon">http://sourceforge.net/projects/saxon</a>.<br/>
-      The latter choice might be more convenient, if you have Java installed anyway.<br/>
+      The latter choice might be more convenient, if you have the Java Runtime Environment 1.5 or higher installed anyway.<br/>
+      You may check your installed Java version with:
+      <ul class="none">
+       <li><big class="tt">java -version</big></li>
+      </ul>
      </li>
      <li>
       Launch your favorite web browser and load the <big class="tt">index.html</big> file generated in the
