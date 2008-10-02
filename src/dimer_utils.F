@@ -13,6 +13,7 @@ MODULE dimer_utils
   USE dimer_types,                     ONLY: dimer_env_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_remove_values,&
                                              section_vals_type,&
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
@@ -87,10 +88,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
     TYPE(section_vals_type), POINTER         :: nvec_section
 
+    failure = .FALSE.
     nvec_section => section_vals_get_subs_vals(motion_section,&
          "GEO_OPT%TRANSITION_STATE%DIMER%DIMER_VECTOR", error=error)
-
-    failure = .FALSE.
+    ! Clean the content of the section first..
+    CALL section_vals_remove_values(nvec_section,error)
+    ! Fill in the section with the present values..
     size_array = 6
     isize      = 0
     i_rep_val  = 0
