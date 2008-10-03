@@ -86,8 +86,8 @@ CONTAINS
     CHARACTER(LEN=1), DIMENSION(3)           :: lab = (/"X","Y","Z"/)
     CHARACTER(LEN=description_length)        :: description
     INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, &
-      iparticle1, iparticle2, iseq, iw, j, k, n_rep, natoms, ncoord, nrep, &
-      nres, nRotTrM, nvib, output_molden, output_unit, prep, stat
+      iparticle1, iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, &
+      nRotTrM, nvib, output_molden, output_unit, prep, stat
     INTEGER, DIMENSION(:), POINTER           :: Clist, Mlist
     LOGICAL                                  :: calc_intens, &
                                                 do_mode_tracking, failure, &
@@ -136,8 +136,6 @@ CONTAINS
        END IF
        ! Just one force_env allowed
        force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL",error=error)
-       CALL section_vals_get(force_env_section,n_repetition=n_rep,error=error)
-       CPPostcondition(n_rep==1,cp_failure_level,routineP,error,failure)       
        ! Create Replica Environments
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
             nrep=nrep,prep=prep,error=error)

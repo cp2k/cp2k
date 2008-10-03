@@ -32,8 +32,7 @@ MODULE neb_methods
   USE input_constants,                 ONLY: band_diis_opt,&
                                              band_md_opt,&
                                              do_sm
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -81,8 +80,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'neb', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ierr, irep, iw, &
-                                                nrep, output_unit, prep, stat
+    INTEGER                                  :: handle, i, ierr, iw, nrep, &
+                                                output_unit, prep, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, vels
     TYPE(cp_error_type)                      :: new_error
@@ -123,8 +122,6 @@ CONTAINS
        END IF
        ! Just one force_env allowed
        force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL",error=error)
-       CALL section_vals_get(force_env_section,n_repetition=irep,error=error)
-       CPPostcondition(irep==1,cp_failure_level,routineP,error,failure)
        ! Create Replica Environments
        IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. START"
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&

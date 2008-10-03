@@ -51,6 +51,7 @@ DFTB/regtest-nonscc
 SE/regtest
 QS/regtest-nmr-3
 KG/regtest
+NEB/regtest-4
 NEB/regtest-3
 Fist/regtest-8
 FE/regtest-1
