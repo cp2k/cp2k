@@ -93,13 +93,12 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, curr_tasks, handle, iatom, igrid_level, ikind, ilist, &
-      inode, jatom, jkind, maxpgf, maxset, my_basis_set_id, natoms, nkind, &
-      nlist, nnode, nseta, nsetb
+    INTEGER :: ab, curr_tasks, handle, iatom, ikind, ilist, inode, jatom, &
+      jkind, maxpgf, maxset, my_basis_set_id, natoms, nkind, nlist, nnode, &
+      nseta, nsetb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb
-    LOGICAL                                  :: distributed_rs_grids, &
-                                                failure, my_soft
+    LOGICAL                                  :: failure, my_soft
     REAL(KIND=dp)                            :: kind_radius_a, kind_radius_b
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
@@ -163,14 +162,7 @@ CONTAINS
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
 
-    ! *** figure out if we have distributed grids
-    distributed_rs_grids=.FALSE.
     CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       IF ( rs_rho(igrid_level)%rs_grid%distributed ) THEN
-          distributed_rs_grids=.TRUE.
-       ENDIF
-    END DO
 
     ! find maximum numbers
     nkind = SIZE(atomic_kind_set)
@@ -205,7 +197,7 @@ CONTAINS
 
     ! construct a list of all tasks
     IF (.NOT.ASSOCIATED(tasks)) THEN
-       CALL reallocate(tasks,1,5,1,max_tasks)
+       CALL reallocate(tasks,1,6,1,max_tasks)
        CALL reallocate(dist_ab,1,3,1,max_tasks)
     ENDIF
     ntasks = 0
@@ -301,7 +293,7 @@ CONTAINS
     END DO loop_ikind
 
     ! redistribute the task list so that all tasks map on the local rs grids
-    CALL distribute_tasks (rs_rho(1)%rs_grid,distributed_rs_grids,ntasks, natoms,&
+    CALL distribute_tasks (rs_rho,ntasks, natoms,&
             maxset,maxpgf, tasks, rval=dist_ab, atom_pair_send=atom_pair_send,&
             atom_pair_recv=atom_pair_recv, error=error)
 
@@ -429,12 +421,10 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), INTENT(IN)                :: ra(3), rab(3), rab2, eps
 
-    INTEGER                                  :: cmax, extent(3), flux_info, &
-                                                i, iopt, Nopt, options(6)
+    INTEGER                                  :: cmax, extent(3)
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
-    LOGICAL                                  :: fits(-1:1,3)
     REAL(KIND=dp)                            :: cutoff, f, prefactor, rb(3), &
-                                                rtmp, zetp
+                                                zetp
     REAL(KIND=dp), DIMENSION(3)              :: rp
 
 ! the radius for this task
@@ -469,62 +459,6 @@ CONTAINS
     cmax=MAXVAL(((ub_cube-lb_cube)+1)/2)
     cost=CEILING((REAL(la_max+lb_max+1+2,KIND=dp)*(cmax+2)**3*7.0_dp+30000.0_dp)/1000.0_dp)
 
-    ! this computes somehow alternative locations, and should instead go to pgf_to_tasks
-    IF (.FALSE.) THEN
-       DO i=1,3
-          IF (rs_grid % perd ( i ) ==  1) THEN
-             fits(:,i)=.TRUE.
-          ELSE
-             ! fits the local grid (we assume this is true)
-             fits(0,i)=(cube_center(i)+lb_cube(i)>=rs_grid%lb_local(i) .AND. cube_center(i)+ub_cube(i)<=rs_grid%ub_local(i))
-             ! fits the left neighbor (i.e. the upper bound is smaller than what the neighbor has
-             fits(-1,i)=cube_center(i)+ub_cube(i)<=rs_grid%lb_real(i)-1+rs_grid%border
-             fits( 1,i)=cube_center(i)+lb_cube(i)>=rs_grid%ub_real(i)+1-rs_grid%border
-          ENDIF
-       ENDDO
-
-       Nopt=0
-       IF (fits(-1,1) .AND. rs_grid % perd ( 1 ) == 0) THEN
-          flux_info=1
-          Nopt=Nopt+1
-          options(Nopt)=flux_info
-       ENDIF
-       IF (fits( 1,1) .AND. rs_grid % perd ( 1 ) == 0) THEN
-          flux_info=2
-          Nopt=Nopt+1
-          options(Nopt)=flux_info
-       ENDIF
-       IF (fits(-1,2) .AND. rs_grid % perd ( 2 ) == 0) THEN
-          flux_info=3
-          Nopt=Nopt+1
-          options(Nopt)=flux_info
-       ENDIF
-       IF (fits( 1,2) .AND. rs_grid % perd ( 2 ) == 0) THEN
-          flux_info=4
-          Nopt=Nopt+1
-          options(Nopt)=flux_info
-       ENDIF
-       IF (fits(-1,3) .AND. rs_grid % perd ( 3 ) == 0) THEN
-          flux_info=5
-          Nopt=Nopt+1
-          options(Nopt)=flux_info
-       ENDIF
-       IF (fits( 1,3) .AND. rs_grid % perd ( 3 ) == 0) THEN
-          flux_info=6
-          Nopt=Nopt+1
-          options(Nopt)=flux_info
-       ENDIF
-       ! randomly selecting one of the possible neighbors, this might not be optimal
-       IF (Nopt>0) THEN
-          DO
-            CALL RANDOM_NUMBER(rtmp)
-            iopt=CEILING(rtmp*Nopt)
-            IF (iopt>0 .AND. iopt<=nopt) EXIT
-          ENDDO
-          flux_info=options(iopt)
-       ENDIF
-    ENDIF
-
   END SUBROUTINE compute_pgf_properties
 
 ! *****************************************************************************
@@ -536,6 +470,7 @@ CONTAINS
 !>        tasks(3,i) := compressed type (iatom, jatom, ....)
 !>        tasks(4,i) := type (0: replicated, 1: distributed local, 2: distributed generalised)
 !>        tasks(5,i) := cost
+!>        tasks(6,i) := alternate destination code (0 if none availabe)
 !>
 !> \par History
 !>      10.2008 Refactored based on earlier routines by MattW [Joost VandeVondele]
@@ -565,7 +500,7 @@ CONTAINS
     ntasks = ntasks + 1
     IF ( ntasks > curr_tasks ) THEN
        curr_tasks = (curr_tasks+add_tasks)*mult_tasks
-       CALL reallocate(tasks,1,5,1,curr_tasks)
+       CALL reallocate(tasks,1,6,1,curr_tasks)
        CALL reallocate(dist_ab,1,3,1,curr_tasks)
     END IF
 
@@ -584,6 +519,7 @@ CONTAINS
     ELSE
        tasks(1,ntasks) = rs_grid%my_pos
        tasks(4,ntasks) = 0
+       tasks(6,ntasks) = 0
        added_tasks = 1
     ENDIF
 
@@ -679,12 +615,12 @@ CONTAINS
 !>      none
 !> \author MattW 21/11/2007
 ! *****************************************************************************
-  SUBROUTINE distribute_tasks ( rs, distributed_grids, ntasks, natoms,&
+  SUBROUTINE distribute_tasks ( rs_rho, ntasks, natoms,&
        maxset,maxpgf,  tasks, rval, atom_pair_send, atom_pair_recv,&
        symmetric, error)
 
-    TYPE(realspace_grid_type), POINTER       :: rs
-    LOGICAL                                  :: distributed_grids
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_rho
     INTEGER                                  :: ntasks, natoms, maxset, maxpgf
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
@@ -697,10 +633,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_tasks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, k, l, &
-                                                no_overloaded, &
-                                                no_underloaded, ntasks_recv, &
-                                                proc_receiving, stat, task_dim
+    INTEGER :: handle, i, igrid_level, j, k, l, no_overloaded, &
+      no_underloaded, ntasks_recv, proc_receiving, stat, task_dim
     INTEGER(KIND=int_8)                      :: average_cost, cost_task_rep, &
                                                 count, offset, &
                                                 total_cost_global, &
@@ -713,13 +647,25 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, recv_disps, &
                                                 recv_sizes, send_disps, &
                                                 send_sizes
-    LOGICAL                                  :: my_symmetric, send
+    LOGICAL                                  :: distributed_grids, &
+                                                my_symmetric, send
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
+    TYPE(realspace_grid_type), POINTER       :: rs
 
     CALL timeset(routineN,'I',' ',handle)
 
     IF ( .NOT. ASSOCIATED ( tasks ) ) &
          CALL stop_program ( "get_my_tasks", "tasks not associated" )
+
+    ! *** figure out if we have distributed grids
+    distributed_grids=.FALSE.
+    DO igrid_level=1,SIZE(rs_rho)
+       IF ( rs_rho(igrid_level)%rs_grid%distributed ) THEN
+          distributed_grids=.TRUE.
+       ENDIF
+    END DO
+
+    rs=>rs_rho(1)%rs_grid
 
     IF(PRESENT(symmetric) )THEN
        my_symmetric = symmetric
@@ -1355,9 +1301,12 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_find_node', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: add_tasks = 1000
+    REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER                                  :: curr_tasks, dest, i, lbc(3), &
-                                                ubc(3)
+    INTEGER                                  :: bit_index, curr_tasks, dest, &
+                                                i, lbc(3), ubc(3)
+    INTEGER(KIND=int_8)                      :: bit_pattern
 
     dest=rs_grid%coord2rank(rs_grid % x2coord(cube_center(1)), &
                             rs_grid % y2coord(cube_center(2)), &
@@ -1373,9 +1322,53 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
          ALL ( (rs_grid % ub_global(:,dest)+rs_grid%border) .GE. ubc )) THEN
        !standard distributed collocation/integration
        tasks(4,ntasks)=1
+       tasks(6,ntasks)=0
+
+       ! here we figure out if there is an alternate location for this task
+       ! i.e. even though the cube_center is not in the real local domain,
+       ! it might fully fit in the halo of the neighbor
+       ! if its radius is smaller than the maximum radius
+       ! the list of possible neighbors is stored here as a bit pattern
+       ! to reconstruct what the rank of the neigbor is,
+       ! we can use (note this requires the correct rs_grid)
+       !  IF (BTEST(bit_pattern,0)) rank=rs_grid_locate_rank(rs_grid,tasks(1,ntasks),(/-1,0,0/))
+       !  IF (BTEST(bit_pattern,1)) rank=rs_grid_locate_rank(rs_grid,tasks(1,ntasks),(/+1,0,0/))
+       !  IF (BTEST(bit_pattern,2)) rank=rs_grid_locate_rank(rs_grid,tasks(1,ntasks),(/0,-1,0/))
+       !  IF (BTEST(bit_pattern,3)) rank=rs_grid_locate_rank(rs_grid,tasks(1,ntasks),(/0,+1,0/))
+       !  IF (BTEST(bit_pattern,4)) rank=rs_grid_locate_rank(rs_grid,tasks(1,ntasks),(/0,0,-1/))
+       !  IF (BTEST(bit_pattern,5)) rank=rs_grid_locate_rank(rs_grid,tasks(1,ntasks),(/0,0,+1/))
+       bit_index=0
+       bit_pattern=0
+       DO i=1,3
+          IF (rs_grid % perd ( i ) ==  1) THEN
+             bit_pattern=IBCLR(bit_pattern,bit_index)
+             bit_index=bit_index+1 
+             bit_pattern=IBCLR(bit_pattern,bit_index)
+             bit_index=bit_index+1 
+          ELSE
+             ! fits the left neighbor ?
+             IF (ubc(i)<=rs_grid%lb_global(i,dest)-1+rs_grid%border) THEN
+                bit_pattern=IBSET(bit_pattern,bit_index)
+                bit_index=bit_index+1
+             ELSE
+                bit_pattern=IBCLR(bit_pattern,bit_index)
+                bit_index=bit_index+1
+             ENDIF
+             ! fits the right neighbor ? 
+             IF (lbc(i)>=rs_grid%ub_global(i,dest)+1-rs_grid%border) THEN
+                bit_pattern=IBSET(bit_pattern,bit_index)
+                bit_index=bit_index+1
+             ELSE
+                bit_pattern=IBCLR(bit_pattern,bit_index)
+                bit_index=bit_index+1
+             ENDIF
+          ENDIF
+       ENDDO
+
     ELSE
        !generalised collocation/integration needed
        tasks(4,ntasks)=2
+       tasks(6,ntasks)=0
 
        ! if we have generalised collocation, identify all CPUs that are required 
        ! a CPU is required if part of its 'real' domain overlaps with the cube
@@ -1401,11 +1394,12 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
           ntasks=ntasks+1
           added_tasks=added_tasks+1
           IF ( ntasks > SIZE(tasks,2)) THEN
-             curr_tasks = (SIZE(tasks,2)+1000)*2
-             CALL reallocate(tasks,1,5,1,curr_tasks)
+             curr_tasks = (SIZE(tasks,2)+add_tasks)*mult_tasks
+             CALL reallocate(tasks,1,6,1,curr_tasks)
           END IF
           tasks(1,ntasks)=i
           tasks(4,ntasks)=2
+          tasks(6,ntasks)=0
        ENDDO
     ENDIF
 

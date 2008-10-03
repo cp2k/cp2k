@@ -814,7 +814,7 @@ CONTAINS
     CALL reallocate(jpabt_ii,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(jpabt_iii,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
-    CALL reallocate(tasks,1,5,1,max_tasks)
+    CALL reallocate(tasks,1,6,1,max_tasks)
     CALL reallocate(dist_ab,1,3,1,max_tasks)
 
     tasks = 0
@@ -1030,7 +1030,7 @@ CONTAINS
     END DO loop_ikind
 
     ! sorts / redistributes the task list
-    CALL distribute_tasks ( rs_rho(1)%rs_grid, distributed_rs_grids, ntasks, natom,&
+    CALL distribute_tasks ( rs_rho, ntasks, natom,&
             maxset, maxpgf, tasks, dist_ab, atom_pair_send, atom_pair_recv,&
             .FALSE. , error)
 

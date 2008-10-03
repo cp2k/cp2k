@@ -53,6 +53,7 @@ MODULE realspace_grid_types
             rs_grid_retain,&
             rs_grid_release,&
             rs_grid_print, &
+            rs_grid_locate_rank, &
             init_input_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
@@ -198,6 +199,22 @@ SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,higher_gr
      IF (ALL(higher_grid_layout>0)) input_settings%distribution_layout=higher_grid_layout
    ENDIF
 END SUBROUTINE init_input_type
+
+! *****************************************************************************
+!> \brief returns the 1D rank of the task which is a cartesian shift away from 1D rank rank_in
+!>        only possible if rs_grid is a distributed grid
+! *****************************************************************************
+FUNCTION rs_grid_locate_rank(rs_grid,rank_in,shift) RESULT(rank_out)
+    TYPE(realspace_grid_type), POINTER       :: rs_grid
+    INTEGER, INTENT(IN)                      :: rank_in
+    INTEGER, DIMENSION(3), INTENT(IN)        :: shift
+    INTEGER                                  :: rank_out
+
+    INTEGER                                  :: coord(3)
+
+  coord=MODULO(rs_grid%rank2coord(:,rank_in)+shift,rs_grid%group_dim)
+  rank_out=rs_grid%coord2rank(coord(1),coord(2),coord(3))
+END FUNCTION rs_grid_locate_rank
 
 ! *****************************************************************************
 !> \brief Determine the setup of real space grids
