@@ -1573,7 +1573,7 @@ CONTAINS
         END DO
       ELSE
         ! this takes partial grid + border regions into account
-        offset=MODULO(cubecenter(i),ng(i))+1+rsgrid%lb(i)-rsgrid%lb_local(i)
+        offset=MODULO(cubecenter(i)+lb_cube(i)+rsgrid%lb(i)-rsgrid%lb_local(i),ng(i))+1-lb_cube(i)
         DO ig=lb_cube(i),ub_cube(i)
            map(ig,i) = ig+offset
         END DO
