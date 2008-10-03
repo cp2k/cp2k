@@ -697,12 +697,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_tasks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: average_tasks, count, handle, i, j, k, l, no_overloaded, &
-      no_underloaded, ntasks_dist, ntasks_recv, ntasks_rep, offset, &
-      proc_receiving, stat, task_dim, total_tasks
+    INTEGER :: handle, i, j, k, l, no_overloaded, &
+      no_underloaded, ntasks_recv, proc_receiving, stat, task_dim
+    INTEGER(KIND=int_8) :: total_cost_local, total_cost_global, average_cost, cost_task_rep, count, offset
     INTEGER(kind=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: recv_buf_i, send_buf_i, &
-                                                taskid, tasks_required
+                                                taskid, load_imbalance
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, recv_disps, &
@@ -733,10 +733,12 @@ CONTAINS
        ALLOCATE(recv_disps(rs%group_size),STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%group_size)
 
-       ! communication step 1 : compute the number of tasks we will send to each cpu
-       !                       and send this information around
+!
+! part 1, load balance on the replicated tasks, i.e. after this step replicated tasks can have 
+!         a destination that is different from their source
+!
 
-       ! tell targets how many tasks they're going to receive
+       ! allocate buffers
        send_sizes = 1
        recv_sizes = 1
        send_disps(1)=0
@@ -745,74 +747,72 @@ CONTAINS
           send_disps(i) = send_disps(i-1) + send_sizes(i-1)
           recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
        ENDDO
-
-       ! allocate buffers
        ALLOCATE(send_buf_i(rs%group_size),STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%group_size)
        ALLOCATE(recv_buf_i(rs%group_size),STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%group_size)
 
-       ! fill send buffer
+! communication step 1 : compute the total local cost of the tasks 
+!                        each proc needs to know the amount of work he will receive
+
+
+       ! send buffer now contains for each target the cost of the tasks it will receive
        send_buf_i=0
        DO i = 1, ntasks
           send_buf_i( tasks(1,i)+1 ) = send_buf_i( tasks(1,i)+1 ) + tasks(5,i) 
        END DO
+       CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % group)
+       total_cost_local = SUM(recv_buf_i)
 
+! communication step 2 : compute the global cost of the tasks
+
+       ! after this step, the recv buffer contains the local cost for each CPU
+       send_buf_i = total_cost_local
        CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % group)
 
-       ! communication step 2 : check the balance of tasks across the processors
-       ! use replicated tasks, which can be performed on any proc, to rebalance if needed 
+       total_cost_global = SUM(recv_buf_i)
+       average_cost = total_cost_global / rs%group_size
 
-       ntasks_rep = 0
-       ntasks_dist = 0
-       DO i = 1, ntasks
-          IF(tasks(4,i) .EQ. 0 ) THEN
-             ntasks_rep = ntasks_rep + tasks(5,i)
-          ELSE
-             ntasks_dist = ntasks_dist + tasks(5,i)
-          ENDIF
-       ENDDO
+!
+! compute how to redistribute the replicated tasks so that the average cost is reached
+!
 
-       ! write(6,*) "I'm proc",rs%my_pos,"my tasks would be", sum(recv_buf_i),ntasks_rep, sum(recv_buf_i)-ntasks_rep
-
-       ! pass around the number of tasks each processor would have to work on 
-       send_buf_i = SUM(recv_buf_i)
-       CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % group)
-
-       total_tasks = SUM(recv_buf_i)
-       average_tasks = total_tasks / rs%group_size
-
-       ALLOCATE(tasks_required(rs%group_size),STAT=stat)
+       ! load imbalance measures the load of a given CPU relative to the optimal load distribution (load=average)
+       ALLOCATE(load_imbalance(rs%group_size),STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","index",rs%group_size)
-       ALLOCATE(INDEX(rs%group_size),STAT=stat)
-       IF (stat/=0) CALL stop_memory("get_my_tasks","tasks_required",rs%group_size)
+       ALLOCATE(index(rs%group_size),STAT=stat)
+       IF (stat/=0) CALL stop_memory("get_my_tasks","load_imbalance",rs%group_size)
 
-       tasks_required = recv_buf_i - average_tasks
+       load_imbalance = recv_buf_i - average_cost
        no_overloaded = 0
        no_underloaded = 0
 
        DO i = 1, rs%group_size
-          IF (tasks_required(i) .GT. 0 ) no_overloaded = no_overloaded + 1
-          IF (tasks_required(i) .LT. 0 ) no_underloaded = no_underloaded + 1
+          IF (load_imbalance(i) .GT. 0 ) no_overloaded = no_overloaded + 1
+          IF (load_imbalance(i) .LT. 0 ) no_underloaded = no_underloaded + 1
        ENDDO
 
        ! sort the recv_buffer on number of tasks, gives us index which provides a 
        ! mapping between processor ranks and how overloaded the processor
        CALL sort(recv_buf_i,SIZE(recv_buf_i),index)
 
-       ! find out the number of replicated tasks each overloaded proc has
-       send_buf_i = ntasks_rep
+       ! find out the number of replicated tasks each proc has
+       cost_task_rep = 0
+       DO i = 1, ntasks
+          IF(tasks(4,i) .EQ. 0 ) THEN
+             cost_task_rep = cost_task_rep + tasks(5,i)
+          ENDIF
+       ENDDO
+
+       ! now, correct the load imbalance for the overloaded CPUs
+       ! they will send away not more than the total load of replicated tasks
+       send_buf_i = cost_task_rep
        CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % group)
        DO i = 1, rs%group_size
           ! At the moment we can only offload replicated tasks
-          IF(tasks_required(i) .GT. 0)&
-               tasks_required(i) = MIN( tasks_required(i),recv_buf_i(i))
+          IF(load_imbalance(i) .GT. 0)&
+               load_imbalance(i) = MIN( load_imbalance(i),recv_buf_i(i))
        ENDDO
-
-       !write(6,*)"number of tasks should be",average_tasks
-       !write(6,*) " tasks required", rs%my_pos, tasks_required
-       !write(6,*) "recv buf",rs%my_pos, recv_buf_i
-       !write(6,*) "index",rs%my_pos, index
 
        ! simplest algorithm I can think of of is that the processor with the most
        ! excess tasks fills up the process needing most, then moves on to next most.
@@ -820,7 +820,7 @@ CONTAINS
        ! task balancing will be incomplete
 
        ! only need to do anything if I've excess tasks
-       IF (tasks_required( rs%my_pos + 1 ) .GT. 0 ) THEN
+       IF (load_imbalance( rs%my_pos + 1 ) .GT. 0 ) THEN
 
           count = 0 ! weighted amount of tasks offloaded
           offset = 0 ! no of underloaded processes already filled by other more overloaded procs
@@ -830,14 +830,14 @@ CONTAINS
              IF ( INDEX(i) .EQ. rs%my_pos+1 ) THEN
                 EXIT
              ELSE
-                offset = offset + tasks_required ( INDEX (i) )
+                offset = offset + load_imbalance ( INDEX (i) )
              ENDIF
           ENDDO
 
           ! find my starting processor to send to 
           proc_receiving = HUGE(proc_receiving)
           DO i = 1, no_underloaded
-             offset = offset + tasks_required ( INDEX (i) )
+             offset = offset + load_imbalance ( INDEX (i) )
              IF ( offset .LE. 0 ) THEN
                 proc_receiving = i
                 EXIT
@@ -845,44 +845,36 @@ CONTAINS
           ENDDO
 
           ! offset now contains minus the number of tasks proc_receiving requires
-          ! we fill this up then move to next most underloaded proc
+          ! we fill this up by adjusting the destination of tasks on the replicated grid, then move to next most underloaded proc
           DO j = 1, ntasks
              IF (tasks(4,j) .EQ. 0 ) THEN
                 !just avoid sending to non existing procs due to integer truncation in the computation of the average
                 IF(proc_receiving .GT. no_underloaded) EXIT
+                ! set new destination
                 tasks (1,j) = INDEX ( proc_receiving ) - 1
                 offset = offset + tasks(5,j)
                 count = count + tasks(5,j)
-                IF(count .GE. tasks_required (rs%my_pos + 1 ) ) EXIT
+                IF(count .GE. load_imbalance (rs%my_pos + 1 ) ) EXIT
                 IF(offset .GT. 0 ) THEN
                    proc_receiving = proc_receiving + 1
                    !just avoid sending to non existing procs due to integer truncation in the computation of the average
                    IF(proc_receiving .GT. no_underloaded) EXIT
-                   offset = tasks_required ( INDEX ( proc_receiving ) )
+                   offset = load_imbalance ( INDEX ( proc_receiving ) )
                 ENDIF
-             ELSE
-                CYCLE
              ENDIF
           ENDDO
        ENDIF
 
        DEALLOCATE(index,STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","index",rs%group_size)
-       DEALLOCATE(tasks_required,STAT=stat)
-       IF (stat/=0) CALL stop_memory("get_my_tasks","tasks_required",rs%group_size)
+       DEALLOCATE(load_imbalance,STAT=stat)
+       IF (stat/=0) CALL stop_memory("get_my_tasks","load_imbalance",rs%group_size)
 
-       ! done with load rebalancing
-       ! for the time being just redo step 1  with the new task lists
-       send_sizes = 1
-       recv_sizes = 1
-       send_disps(1)=0
-       recv_disps(1)=0
-       DO i = 2, rs % group_size
-          send_disps(i) = send_disps(i-1) + send_sizes(i-1)
-          recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
-       ENDDO
+!
+! part 2, the actual redistribution according to the previously determined destination 
+!
 
-       ! fill send buffer
+       ! fill send buffer, now counting how many tasks will be send
        send_buf_i=0
        DO i = 1, ntasks
           send_buf_i( tasks(1,i)+1 ) = send_buf_i( tasks(1,i)+1 ) + 1 
@@ -932,8 +924,7 @@ CONTAINS
        ENDDO
 
        ! do communication
-       CALL mp_alltoall(send_buf_i, send_sizes, send_disps,&
-            recv_buf_i, recv_sizes, recv_disps, rs % group)
+       CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % group)
 
        DEALLOCATE(send_buf_i,STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf",rs%group_size)
@@ -1005,25 +996,26 @@ CONTAINS
        DEALLOCATE(recv_buf_r,STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf_r",rs%group_size)
 
-       ! prepare to send matrices
-
-       ! calculate list of atom pairs I'll be sending
+!
+! tasks list are complete, we can compute the list of atomic blocks (atom pairs)
+! we will be sending. These lists are needed for redistribute_matrix.
+!
        ALLOCATE(atom_pair_send(ntasks),STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","atom_pair_send",rs%group_size)
-
        ALLOCATE(atom_pair_recv(ntasks_recv),STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","atom_pair_recv",rs%group_size)
 
        send = .TRUE.
-
        CALL get_atom_pair ( atom_pair_send, tasks, send,&
             my_symmetric, natoms, maxset, maxpgf )
 
        send = .FALSE.
-
        CALL get_atom_pair ( atom_pair_recv, tasks_recv, send,&
             my_symmetric, natoms, maxset, maxpgf )
 
+!
+! cleanup
+!
        DEALLOCATE(send_sizes,STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%group_size)
        DEALLOCATE(recv_sizes,STAT=stat)
@@ -1042,6 +1034,10 @@ CONTAINS
 
     ENDIF
 
+    !
+    ! here we sort the task list we will process locally.
+    ! the sort is determined by pair2int
+    !
     ALLOCATE(taskid(ntasks_recv),STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","taskid",rs%group_size)
     ALLOCATE(INDEX(ntasks_recv),STAT=stat)
@@ -1063,19 +1059,12 @@ CONTAINS
     DEALLOCATE(index,STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","index",rs%group_size)
 
+    !
+    ! final lists are ready 
+    !
+
     tasks=>tasks_recv
     ntasks=ntasks_recv
-
-    ! j=0 ; k=0
-    ! DO i = 1, ntasks
-    !    if ( tasks(4,i) .EQ. 1  ) THEN
-    !       j = j + 1
-    !    ELSE
-    !       k = k + 1
-    !    ENDIF
-    ! ENDDO
-    ! 
-    ! write(6,*)"I'm node",rs%my_pos,"no tasks after are: total, rep , dist",ntasks, k, j
 
     CALL timestop(0.0_dp,handle)
 
@@ -1127,7 +1116,7 @@ SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, my_symmetric, natoms, maxs
   ALLOCATE(INDEX(SIZE(atom_pair)),STAT=stat)
   IF (stat/=0) CALL stop_memory("get_atom_pair","index",SIZE(atom_pair))  
 
-  ! find unique atom pairs that I'm sending
+  ! find unique atom pairs that I'm sending/receiving
   CALL sort(atom_pair,SIZE(atom_pair),index)
 
   DEALLOCATE(index,STAT=stat)
