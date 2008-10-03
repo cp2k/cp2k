@@ -697,12 +697,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_tasks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, j, k, l, no_overloaded, &
-      no_underloaded, ntasks_recv, proc_receiving, stat, task_dim
-    INTEGER(KIND=int_8) :: total_cost_local, total_cost_global, average_cost, cost_task_rep, count, offset
+    INTEGER                                  :: handle, i, j, k, l, &
+                                                no_overloaded, &
+                                                no_underloaded, ntasks_recv, &
+                                                proc_receiving, stat, task_dim
+    INTEGER(KIND=int_8)                      :: average_cost, cost_task_rep, &
+                                                count, offset, &
+                                                total_cost_global, &
+                                                total_cost_local
     INTEGER(kind=int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: recv_buf_i, send_buf_i, &
-                                                taskid, load_imbalance
+      DIMENSION(:)                           :: load_imbalance, recv_buf_i, &
+                                                send_buf_i, taskid
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, recv_disps, &
@@ -780,7 +785,7 @@ CONTAINS
        ! load imbalance measures the load of a given CPU relative to the optimal load distribution (load=average)
        ALLOCATE(load_imbalance(rs%group_size),STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","index",rs%group_size)
-       ALLOCATE(index(rs%group_size),STAT=stat)
+       ALLOCATE(INDEX(rs%group_size),STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","load_imbalance",rs%group_size)
 
        load_imbalance = recv_buf_i - average_cost
