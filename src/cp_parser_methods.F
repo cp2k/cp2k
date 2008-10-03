@@ -259,6 +259,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
+       parser%buffer%input_lines = ""
        IF (parser%para_env%mepos==parser%para_env%source) THEN
           iline = 0
           istat = 0
