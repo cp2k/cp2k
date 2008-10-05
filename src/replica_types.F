@@ -27,10 +27,9 @@ MODULE replica_types
                                              cp_para_env_write
   USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                              cp_para_env_type
+  USE cp_result_methods,               ONLY: cp_results_mp_bcast
   USE cp_result_types,                 ONLY: cp_result_p_type,&
-                                             cp_result_release,&
-                                             cp_result_type,&
-                                             put_results
+                                             cp_result_release
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get,&
@@ -39,11 +38,9 @@ MODULE replica_types
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE message_passing,                 ONLY: MPI_COMM_NULL,&
-                                             mp_alltoall,&
                                              mp_cart_create,&
                                              mp_cart_sub,&
-                                             mp_sum,&
-                                             mp_sync
+                                             mp_sum
   USE qs_wf_history_types,             ONLY: qs_wf_history_p_type,&
                                              wfi_release
   USE timings,                         ONLY: timeset,&
@@ -60,7 +57,7 @@ MODULE replica_types
 
   PUBLIC :: replica_env_type,replica_env_p_type
   PUBLIC :: rep_env_retain, rep_env_release,rep_env_write
-  PUBLIC :: rep_env_sync, rep_env_calc_e_f,rep_env_sync_type
+  PUBLIC :: rep_env_sync, rep_env_calc_e_f,rep_env_sync_results
   PUBLIC :: rep_envs_get_rep_env, rep_env_create,rep_env_local_index
 
 ! *****************************************************************************
@@ -93,15 +90,17 @@ MODULE replica_types
 !> \author fawzi
 ! *****************************************************************************
   TYPE replica_env_type
-     INTEGER :: ref_count, id_nr, f_env_id, nrep,nat,ndim
-     REAL(kind=dp), DIMENSION(:,:), POINTER :: r,v,f
-     LOGICAL :: sync_v, keep_wf_history
+     INTEGER                                           :: ref_count, id_nr, f_env_id,&
+                                                          nrep, nat, ndim
+     REAL(kind=dp), DIMENSION(:,:), POINTER            :: r,v,f
+     LOGICAL                                           :: sync_v, keep_wf_history
      TYPE(qs_wf_history_p_type), DIMENSION(:), POINTER :: wf_history
-     TYPE(cp_result_p_type),DIMENSION(:),POINTER :: results
-     INTEGER, DIMENSION(:), POINTER :: local_rep_indices
-     INTEGER, DIMENSION(:), POINTER :: replica_owner,row_rank,col_rank
-     TYPE(cp_para_cart_type), POINTER :: cart
-     TYPE(cp_para_env_type), POINTER :: para_env, para_env_f,para_env_inter_rep
+     TYPE(cp_result_p_type),DIMENSION(:),POINTER       :: results
+     INTEGER, DIMENSION(:), POINTER                    :: local_rep_indices
+     INTEGER, DIMENSION(:), POINTER                    :: replica_owner,row_rank,col_rank
+     TYPE(cp_para_cart_type), POINTER                  :: cart
+     TYPE(cp_para_env_type), POINTER                   :: para_env, para_env_f,&
+                                                          para_env_inter_rep
   END TYPE replica_env_type
 
 ! *****************************************************************************
@@ -112,7 +111,7 @@ MODULE replica_types
 !> \author fawzi
 ! *****************************************************************************
   TYPE replica_env_p_type
-     TYPE(replica_env_type), POINTER :: rep_env
+     TYPE(replica_env_type), POINTER                   :: rep_env
   END TYPE replica_env_p_type
 
   TYPE(replica_env_p_type), POINTER, DIMENSION(:), PRIVATE :: rep_envs
@@ -531,112 +530,34 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author fschiff
 ! *****************************************************************************
-  SUBROUTINE rep_env_sync_type(rep_env,results,error)
+  SUBROUTINE rep_env_sync_results(rep_env,results,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(cp_result_p_type), DIMENSION(:), &
       POINTER                                :: results
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_sync_type', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_sync_results', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(30), ALLOCATABLE, DIMENSION(:) :: rbuf_list
-    INTEGER                                  :: handle, irep, nrep, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rbuf_map, rcount, &
-                                                rdispl_list, rdispl_map, &
-                                                scount, sdispl, size_list, &
-                                                size_map
+    INTEGER                                  :: handle, irep, nrep, source
     LOGICAL                                  :: failure
-    TYPE(cp_result_type), POINTER            :: loc_res
 
     failure=.FALSE.
     CALL timeset(routineN,"I","",handle)
     nrep=rep_env%nrep
-    NULLIFY(loc_res)
     CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(results)==rep_env%nrep,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       ALLOCATE(size_list(nrep),stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       ALLOCATE(size_map(nrep),stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       ALLOCATE(scount(nrep),stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       ALLOCATE(rcount(nrep),stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)     
-       ALLOCATE(sdispl(nrep),stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       ALLOCATE(rdispl_map(nrep),stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error) 
-       ALLOCATE(rdispl_list(nrep),stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error) 
-       size_list=0
-       size_map=0
-       DO irep=1,nrep
-          IF (rep_env%replica_owner(irep)==rep_env%cart%mepos(2)) THEN
-             size_list(irep)=SIZE(results(irep)%results%result_list)
-             size_map(irep)=SIZE(results(irep)%results%desc_map)        
-             loc_res=>results(irep)%results
-          END IF
+       DO irep=1, nrep
+          source = 0
+          IF (rep_env%replica_owner(irep)==rep_env%cart%mepos(2)) source = rep_env%para_env_inter_rep%mepos
+          CALL mp_sum(source, rep_env%para_env_inter_rep%group)
+          CALL cp_results_mp_bcast(results(irep)%results, source, rep_env%para_env_inter_rep, error)
        END DO
-       CALL mp_sync(rep_env%para_env_inter_rep%group)
-       CALL mp_sum(size_list,rep_env%para_env_inter_rep%group)
-       CALL mp_sum(size_map,rep_env%para_env_inter_rep%group)
-       CALL mp_sync(rep_env%para_env_inter_rep%group)
-       ALLOCATE(rbuf_map(SUM(size_map)),stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       ALLOCATE(rbuf_list(SUM(size_list)),stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       scount(:)=SIZE(loc_res%desc_map)
-       sdispl(:)=0
-       rcount(:)=size_map(:)
-       rdispl_map(1)=0
-       DO irep=2,nrep
-          rdispl_map(irep)=rdispl_map(irep-1)+rcount(irep-1)
-       END DO
-
-       CALL mp_sync(rep_env%para_env_inter_rep%group)
-       CALL mp_alltoall(loc_res%desc_map,scount,sdispl,rbuf_map,rcount,rdispl_map,&
-            rep_env%para_env_inter_rep%group)
-
-       scount(:)=SIZE(loc_res%result_list)
-       rcount(:)=size_list(:)
-       rdispl_list(1)=0
-
-       DO irep=2,nrep
-          rdispl_list(irep)=rdispl_list(irep-1)+rcount(irep-1)
-       END DO
-       CALL mp_sync(rep_env%para_env_inter_rep%group)
-       CALL mp_alltoall(loc_res%result_list,scount,sdispl,rbuf_list,rcount,rdispl_list,&
-            LEN(loc_res%result_list(1)),rep_env%para_env_inter_rep%group)     
-
-       DO irep=1,nrep
-          CALL put_results(results(irep)%results,rbuf_list,rbuf_map,size_list(irep),size_map(irep),&
-               rdispl_list(irep),rdispl_map(irep),error)
-       END DO
-
-       DEALLOCATE(size_list,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       DEALLOCATE(size_map,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       DEALLOCATE(scount,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       DEALLOCATE(rcount,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)     
-       DEALLOCATE(sdispl,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       DEALLOCATE(rdispl_list,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       DEALLOCATE(rdispl_map,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)     
-       DEALLOCATE(rbuf_map,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       DEALLOCATE(rbuf_list,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
     CALL timestop(0.0_dp,handle)
-  END SUBROUTINE rep_env_sync_type
+  END SUBROUTINE rep_env_sync_results
 
 ! *****************************************************************************
 !> \brief evaluates the forces

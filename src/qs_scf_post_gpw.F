@@ -36,7 +36,7 @@ MODULE qs_scf_post_gpw
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: erase_result,&
+  USE cp_result_methods,               ONLY: cp_results_erase,&
                                              get_results,&
                                              put_results
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
@@ -884,7 +884,7 @@ CPSourceFileRef,&
        END IF
        CALL cp_print_key_finished_output(unit_nr,logger,input,&
             "DFT%PRINT%LOCALIZATION",on_file=.TRUE.,error=error)
-       CALL erase_result(qs_env%results,description,error=error)
+       CALL cp_results_erase(qs_env%results,description,error=error)
        CALL put_results(qs_env%results,description,dipole,error)
     END IF
 

@@ -20,8 +20,7 @@ MODULE vibrational_analysis
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: description_length,&
-                                             get_results
+  USE cp_result_methods,               ONLY: get_results
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -36,7 +35,8 @@ MODULE vibrational_analysis
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_sum
@@ -84,7 +84,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1), DIMENSION(3)           :: lab = (/"X","Y","Z"/)
-    CHARACTER(LEN=description_length)        :: description
+    CHARACTER(LEN=default_string_length)     :: description
     INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, &
       iparticle1, iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, &
       nRotTrM, nvib, output_molden, output_unit, prep, stat

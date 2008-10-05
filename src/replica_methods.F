@@ -40,7 +40,7 @@ MODULE replica_methods
                                              rep_env_create,&
                                              rep_env_release,&
                                              rep_env_sync,&
-                                             rep_env_sync_type,&
+                                             rep_env_sync_results,&
                                              rep_env_write,&
                                              rep_envs_get_rep_env,&
                                              replica_env_type
@@ -127,7 +127,7 @@ CONTAINS
           END IF
           ALLOCATE(rep_env%results(rep_env%nrep),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-          DO i=1,SIZE(rep_env%results)
+          DO i=1, rep_env%nrep
              NULLIFY(rep_env%results(i)%results)
              IF (i==1) THEN
                 CALL force_env_get(f_env%force_env,&
@@ -135,8 +135,7 @@ CONTAINS
                      error=error)
                 CALL cp_result_retain(rep_env%results(i)%results,error)
              ELSE
-                CALL cp_result_create(rep_env%results(i)%results,&
-                     error)
+                CALL cp_result_create(rep_env%results(i)%results,error)
              END IF
           END DO
        END IF
@@ -416,7 +415,7 @@ CONTAINS
        END DO
        IF (.NOT.failure) THEN
           CALL rep_env_sync(rep_env,rep_env%f,error=error)
-          CALL rep_env_sync_type(rep_env,rep_env%results,error)
+          CALL rep_env_sync_results(rep_env,rep_env%results,error)
        END IF
        CALL cp_error_synchronize_error(error,rep_env%para_env)
     END IF

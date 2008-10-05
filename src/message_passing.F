@@ -115,7 +115,7 @@ MODULE message_passing
   INTERFACE mp_bcast
      MODULE PROCEDURE mp_bcast_i1, mp_bcast_r1, mp_bcast_c1, mp_bcast_z1, &
           mp_bcast_iv, mp_bcast_rv, mp_bcast_cv, mp_bcast_zv, mp_bcast_l, &
-          mp_bcast_rm, mp_bcast_cm, mp_bcast_im, mp_bcast_rm3
+          mp_bcast_lv, mp_bcast_rm, mp_bcast_cm, mp_bcast_im, mp_bcast_rm3
   END INTERFACE
 
   ! needed in case default integer and int_8 are the same
@@ -2028,6 +2028,32 @@ CONTAINS
     CALL timestop_mp(handle)
 #endif
   END SUBROUTINE mp_bcast_l
+! *****************************************************************************
+  SUBROUTINE mp_bcast_lv(msg,source,gid)
+    LOGICAL                                  :: msg(:)
+    INTEGER                                  :: source, gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_lv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = SIZE(msg)
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MPI_LOGICAL,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_l" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*loglen)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_bcast_lv
 ! *****************************************************************************
   SUBROUTINE mp_bcast_z1(msg,source,gid)
     CHARACTER(LEN=*)                         :: msg

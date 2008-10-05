@@ -24,10 +24,9 @@ MODULE force_env_methods
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: cp_result_create,&
-                                             cp_result_type,&
-                                             erase_result,&
-                                             transfer_result_type
+  USE cp_result_types,                 ONLY: cp_result_copy,&
+                                             cp_result_create,&
+                                             cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_p_type,&
                                              cp_subsys_retain,&
@@ -329,8 +328,7 @@ CONTAINS
 
        ! Store results 
        IF(ASSOCIATED(results))THEN
-          CALL erase_result(results=force_env%results,error=error)
-          CALL transfer_result_type(res_target=force_env%results,res_source=results,error=error)
+          CALL cp_result_copy(results_out=force_env%results,results_in=results,error=error)
        END IF
     END IF
 

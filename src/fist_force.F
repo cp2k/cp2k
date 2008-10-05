@@ -21,10 +21,9 @@ MODULE fist_force
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: cp_result_type,&
-                                             description_length,&
-                                             erase_result,&
+  USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
+  USE cp_result_types,                 ONLY: cp_result_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -51,7 +50,8 @@ MODULE fist_force
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE manybody_eam,                    ONLY: density_nonbond
   USE manybody_potential,              ONLY: energy_manybody,&
                                              force_nonbond_manybody
@@ -818,7 +818,7 @@ END SUBROUTINE fist_force_control
     INTEGER, INTENT(IN)                      :: unit_nr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=description_length)        :: description
+    CHARACTER(LEN=default_string_length)     :: description
     COMPLEX(KIND=dp)                         :: dzeta, dzphase(3), zeta, &
                                                 zphase(3)
     COMPLEX(KIND=dp), DIMENSION(3)           :: dggamma, ggamma
@@ -893,7 +893,7 @@ END SUBROUTINE fist_force_control
           dipole_deriv = MATMUL ( cell%hmat, dci )/twopi
        END IF
        CALL get_fist_env( fist_env=fist_env,results=results,error=error)
-       CALL erase_result(results,description,error=error)
+       CALL cp_results_erase(results,description,error=error)
        CALL put_results(results,description,dipole,error=error)
 
        IF (unit_nr>0) THEN
@@ -910,7 +910,7 @@ END SUBROUTINE fist_force_control
           dipole_deriv(:) = dipole_deriv(:) - q * (particle_set(i)%v(:) - drcc)
        END DO
        CALL get_fist_env( fist_env=fist_env,results=results,error=error)
-       CALL erase_result(results,description,error=error)
+       CALL cp_results_erase(results,description,error=error)
        CALL put_results(results,description,dipole,error=error)
 
        IF (unit_nr>0) THEN

@@ -22,14 +22,14 @@ MODULE mode_selective
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: description_length,&
-                                             get_results
+  USE cp_result_methods,               ONLY: get_results
   USE global_types,                    ONLY: global_environment_type
   USE input_constants
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_bcast
@@ -96,7 +96,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ms_vb_anal', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=description_length)        :: description
+    CHARACTER(LEN=default_string_length)     :: description
     INTEGER                                  :: handle, i, ip1, j, n_rep, &
                                                 natoms, ncoord, stat
     LOGICAL                                  :: converged, failure

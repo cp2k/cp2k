@@ -36,12 +36,12 @@ MODULE qs_moments
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: description_length,&
-                                             erase_result,&
+  USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_sum
   USE moments_utils,                   ONLY: get_reference_point
@@ -605,7 +605,7 @@ CONTAINS
 
     CHARACTER(LEN=8), ALLOCATABLE, &
       DIMENSION(:)                           :: rlab
-    CHARACTER(LEN=description_length)        :: description
+    CHARACTER(LEN=default_string_length)     :: description
     COMPLEX(dp)                              :: xphase(3), zdet, zdeta, &
                                                 zi(3), zij(3,3), zijk(3,3,3), &
                                                 zijkl(3,3,3,3), zphase(3), zz
@@ -931,7 +931,7 @@ CONTAINS
 
        rmom(:,3) = rmom(:,1) + rmom(:,2)
        description="[DIPOLE]"
-       CALL erase_result(results=qs_env%results,description=description,error=error)
+       CALL cp_results_erase(results=qs_env%results,description=description,error=error)
        CALL put_results(results=qs_env%results,description=description,&
                         values=rmom(2:4,3),error=error)
        CALL print_moments(unit_number,nmom,rmom,rlab,rcc)
@@ -1003,7 +1003,7 @@ CONTAINS
 
     CHARACTER(LEN=8), ALLOCATABLE, &
       DIMENSION(:)                           :: rlab
-    CHARACTER(LEN=description_length)        :: description
+    CHARACTER(LEN=default_string_length)     :: description
     INTEGER                                  :: handle, i, ia, iatom, ikind, &
                                                 ispin, istat, ix, iy, iz, l, &
                                                 nm, nmom
@@ -1102,7 +1102,7 @@ CONTAINS
        rmom(:,3) = rmom(:,1) + rmom(:,2)
 
        description="[DIPOLE]"
-       CALL erase_result(results=qs_env%results,description=description,error=error)
+       CALL cp_results_erase(results=qs_env%results,description=description,error=error)
        CALL put_results(results=qs_env%results,description=description,&
                         values=rmom(2:4,3),error=error)
        CALL print_moments(unit_number,nmom,rmom,rlab,rcc)
