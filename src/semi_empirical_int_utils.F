@@ -1145,6 +1145,7 @@ CONTAINS
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(ij_matrix),cp_failure_level,routineP,error,failure)
+    IF (PRESENT(do_invert)) do_invert = .FALSE.
     IF ((sepi%natorb>1).OR.(sepj%natorb>1)) THEN
        ! Compute Geomtric data and interatomic distance
        !     CA  = COS(PHI)    , SA  = SIN(PHI)
@@ -1182,8 +1183,6 @@ CONTAINS
              END IF
              eval    = .FALSE.
           END IF
-       ELSE
-          IF (PRESENT(do_invert)) do_invert = .FALSE.
        END IF
        IF (dbg_inv) THEN
           ! When debugging the derivatives of the rotation matrix we must possibly force
