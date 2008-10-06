@@ -509,7 +509,7 @@ CONTAINS
        CASE (dist_colvar_id)
           CALL dist_colvar(colvar,cell,particles=particles,error=error)
        CASE (coord_colvar_id)
-            CALL coordchain_colvar(colvar,cell,particles=particles, error=error)
+            CALL coord_colvar(colvar,cell,particles=particles, error=error)
        CASE (torsion_colvar_id)
           CALL torsion_colvar(colvar, cell, particles=particles, error=error)
        CASE (angle_colvar_id)
@@ -570,7 +570,7 @@ CONTAINS
        CASE (dist_colvar_id)
           CALL dist_colvar(colvar,cell,subsys=subsys,error=error)
        CASE (coord_colvar_id)
-            CALL coordchain_colvar(colvar,cell,subsys=subsys, error=error)
+            CALL coord_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (torsion_colvar_id)
           CALL torsion_colvar(colvar,cell,subsys=subsys, no_riemann_sheet_op=.TRUE.,error=error)
        CASE (angle_colvar_id)
@@ -1549,10 +1549,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the coordination-chain collective variable
 !> \author MI
-!> \note When the third set of atoms is not defined, this variable is equivalent to the simple
-!>       coordination number. Therefore this routine can replace the original coord_colvar
+!> \note When the third set of atoms is not defined, this variable is equivalent
+!>       to the simple coordination number. 
 ! *****************************************************************************
-  SUBROUTINE coordchain_colvar(colvar,cell,subsys,particles,error)
+  SUBROUTINE coord_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
@@ -1560,7 +1560,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'coordchain_colvar', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'coord_colvar', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii, jj, k, kk, &
@@ -1654,9 +1654,6 @@ CONTAINS
     ENDDO
     colvar%ss=ncoord*inv_n_atoms_from
     colvar%dsdr(:,:) = colvar%dsdr(:,:)*inv_n_atoms_from
-
-  END SUBROUTINE coordchain_colvar
-
-
+  END SUBROUTINE coord_colvar
 
 END MODULE colvar_methods
