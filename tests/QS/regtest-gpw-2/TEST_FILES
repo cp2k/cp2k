@@ -35,6 +35,6 @@ H2O-meta_coord_2.inp   2
 hcn_ts.inp         7
 hcn_ts_r.inp       7
 #  chain of two coordination numbers
-hcn_md.inp       1
-hcn_meta_coord.inp   1
+hcn_md.inp               1
+hcn_meta_coord.inp       1
 hcn_meta_chaincoord.inp  1
