@@ -862,7 +862,6 @@ CONTAINS
     INTEGER                                  :: iroll, nmolecule, &
                                                 nmolecule_kind, nparticle, &
                                                 nparticle_kind, nshell
-    INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
     REAL(KIND=dp)                            :: arg_r, arg_v, dt, infree, &
@@ -914,9 +913,9 @@ CONTAINS
     NULLIFY(simpar,virial)
    
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
-         thermostat_part=thermostat_part,&
-         thermostat_baro=thermostat_baro, thermostat_shell=thermostat_shell, npt=npt,&
-         itimes=itimes, first_time=first_time, para_env=para_env, error=error)
+         thermostat_part=thermostat_part, thermostat_baro=thermostat_baro,&
+         thermostat_shell=thermostat_shell, npt=npt, first_time=first_time,&
+         para_env=para_env, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
@@ -1894,7 +1893,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i, iroll, j, nmolecule, &
                                                 nmolecule_kind, nparticle, &
                                                 nparticle_kind, nshell
-    INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
     REAL(KIND=dp)                            :: dt, infree, kin, max_vel, &
@@ -1946,7 +1944,7 @@ CPSourceFileRef,&
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
          thermostat_part=thermostat_part,&
          thermostat_baro=thermostat_baro, thermostat_shell=thermostat_shell,&
-         npt=npt, itimes=itimes, first_time=first_time, para_env=para_env, error=error)
+         npt=npt, first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
