@@ -22,7 +22,7 @@ MODULE metadynamics_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics_types'
 
-  PUBLIC :: hills_env_type, meta_env_type, meta_env_retain, &
+  PUBLIC :: hills_env_type, meta_env_type, meta_env_retain, set_meta_env, &
             meta_env_release, metavar_type, wall_type
 
 ! *****************************************************************************
@@ -53,15 +53,18 @@ MODULE metadynamics_types
 
 ! *****************************************************************************
   TYPE meta_env_type
-     INTEGER       :: ref_count, id_nr
-     LOGICAL       :: do_hills
-     LOGICAL       :: extended_lagrange
-     INTEGER       :: n_colvar
-     REAL(KIND=dp) :: ekin_s,cv_energy, dt
-     REAL(KIND=dp), POINTER :: time
-     LOGICAL       :: tempcontrol, restart
-     REAL(KIND=dp) :: temp_wanted,toll_temp
-     INTEGER       :: n_steps
+     INTEGER                                   :: ref_count, id_nr
+     LOGICAL                                   :: do_hills
+     LOGICAL                                   :: extended_lagrange
+     INTEGER                                   :: n_colvar
+     REAL(KIND=dp)                             :: ekin_s,cv_energy, dt
+     LOGICAL                                   :: tempcontrol, restart
+     REAL(KIND=dp)                             :: temp_wanted,toll_temp
+     INTEGER                                   :: n_steps
+     ! time pointer should never be allocated itself.. that's a quite bad
+     ! choice derived from the md_env.. So whenever the meta_env type is 
+     ! used the pointer time should be pointer to the high level time counter
+     REAL(KIND=dp), POINTER                    :: time
      TYPE(hills_env_type)                      :: hills_env
      TYPE(metavar_type), POINTER, DIMENSION(:) :: metavar
      TYPE(cp_para_env_type), POINTER           :: para_env
@@ -71,12 +74,37 @@ MODULE metadynamics_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief sets the meta_env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author alessandro laio and fawzi mohamed
+! *****************************************************************************
+  SUBROUTINE set_meta_env(meta_env, time, error)
+    TYPE(meta_env_type), POINTER             :: meta_env
+    REAL(KIND=dp), OPTIONAL, POINTER         :: time
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_meta_env', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    IF (ASSOCIATED(meta_env)) THEN
+       IF (PRESENT(time)) THEN
+          NULLIFY(meta_env%time)
+          meta_env%time => time
+       END IF
+    END IF
+  END SUBROUTINE set_meta_env
+
+! *****************************************************************************
 !> \brief retains the meta_env
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
-SUBROUTINE meta_env_retain(meta_env,error)
+  SUBROUTINE meta_env_retain(meta_env,error)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -85,12 +113,12 @@ SUBROUTINE meta_env_retain(meta_env,error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  CPPreconditionNoFail(ASSOCIATED(meta_env),cp_failure_level,routineP,error)
-  CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP,error)
-  meta_env%ref_count=meta_env%ref_count+1
-END SUBROUTINE meta_env_retain
+    CPPreconditionNoFail(ASSOCIATED(meta_env),cp_failure_level,routineP,error)
+    CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP,error)
+    meta_env%ref_count=meta_env%ref_count+1
+  END SUBROUTINE meta_env_retain
 
 ! *****************************************************************************
 !> \brief releases the meta_env
@@ -98,7 +126,7 @@ END SUBROUTINE meta_env_retain
 !>        see module cp_error_handling
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
-SUBROUTINE meta_env_release(meta_env,error)
+  SUBROUTINE meta_env_release(meta_env,error)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -108,41 +136,41 @@ SUBROUTINE meta_env_release(meta_env,error)
     INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  IF (ASSOCIATED(meta_env)) THEN
-     CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP,error)
-     meta_env%ref_count=meta_env%ref_count-1
-     IF (meta_env%ref_count==0) THEN
-        CALL cp_para_env_release(meta_env%para_env,error=error)
-        IF (ASSOCIATED(meta_env%metavar)) THEN
-           DO i = 1, SIZE(meta_env%metavar)
-              IF (ASSOCIATED(meta_env%metavar(i)%walls)) THEN
-                 DEALLOCATE(meta_env%metavar(i)%walls,stat=stat)
-                 CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)  
-              END IF
-           END DO
-           DEALLOCATE(meta_env%metavar,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        END IF
-        IF (ASSOCIATED(meta_env%hills_env%ss_history)) THEN
-           DEALLOCATE(meta_env%hills_env%ss_history,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        END IF
-        IF (ASSOCIATED(meta_env%hills_env%delta_s_history)) THEN
-           DEALLOCATE(meta_env%hills_env%delta_s_history,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        END IF
-        IF (ASSOCIATED(meta_env%hills_env%ww_history)) THEN
-           DEALLOCATE(meta_env%hills_env%ww_history,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        END IF
-        NULLIFY(meta_env%metadyn_section)
-        DEALLOCATE(meta_env, stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-     END IF
-  END IF
-  NULLIFY(meta_env)
-END SUBROUTINE meta_env_release
+    IF (ASSOCIATED(meta_env)) THEN
+       CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP,error)
+       meta_env%ref_count=meta_env%ref_count-1
+       IF (meta_env%ref_count==0) THEN
+          CALL cp_para_env_release(meta_env%para_env,error=error)
+          IF (ASSOCIATED(meta_env%metavar)) THEN
+             DO i = 1, SIZE(meta_env%metavar)
+                IF (ASSOCIATED(meta_env%metavar(i)%walls)) THEN
+                   DEALLOCATE(meta_env%metavar(i)%walls,stat=stat)
+                   CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)  
+                END IF
+             END DO
+             DEALLOCATE(meta_env%metavar,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(meta_env%hills_env%ss_history)) THEN
+             DEALLOCATE(meta_env%hills_env%ss_history,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(meta_env%hills_env%delta_s_history)) THEN
+             DEALLOCATE(meta_env%hills_env%delta_s_history,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(meta_env%hills_env%ww_history)) THEN
+             DEALLOCATE(meta_env%hills_env%ww_history,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          NULLIFY(meta_env%time)
+          NULLIFY(meta_env%metadyn_section)
+          DEALLOCATE(meta_env, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END IF
+    END IF
+  END SUBROUTINE meta_env_release
 
 END MODULE metadynamics_types

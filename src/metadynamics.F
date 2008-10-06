@@ -103,6 +103,7 @@ CONTAINS
     ALLOCATE(meta_env,stat=stat)
     IF (.NOT. failure) THEN
        NULLIFY(meta_env%metadyn_section)
+       NULLIFY(meta_env%time)
        meta_env%metadyn_section => metadyn_section
        meta_env%ref_count=1
        meta_env%restart = .TRUE.
@@ -614,7 +615,7 @@ CONTAINS
             (meta_env%metavar(i)%ss,i=1,meta_env%n_colvar), &
             (meta_env%metavar(i)%ff_s,i=1,meta_env%n_colvar), &
             (meta_env%metavar(i)%ff_hills,i=1,meta_env%n_colvar)
-       CALL m_flush(iw)       
+       CALL m_flush(iw)
     END IF
     CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
          "PRINT%COLVAR", error=error)

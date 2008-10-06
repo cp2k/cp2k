@@ -70,6 +70,7 @@ MODULE md_run
                                              setup_velocities,&
                                              temperature_control
   USE metadynamics,                    ONLY: metadyn_forces
+  USE metadynamics_types,              ONLY: set_meta_env
   USE particle_list_types,             ONLY: particle_list_type
   USE reftraj_types,                   ONLY: create_reftraj,&
                                              reftraj_type,&
@@ -198,7 +199,7 @@ CONTAINS
     CALL cp_add_iter_level(logger%iter_info,"MD",error=error)
     CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)
     ! Read MD section
-    CALL read_md_section ( simpar, root_section, error )
+    CALL read_md_section(simpar, root_section, error)
     ! Setup print_keys
     simpar%info_constraint = cp_print_key_unit_nr(logger,root_section,&
          "MOTION%CONSTRAINT%CONSTRAINT_INFO",&
@@ -261,12 +262,12 @@ CONTAINS
     IF (simpar%ensemble == langevin_ensemble) CALL create_wiener_process(md_env,error)
     time_iter_start=m_walltime()
 
-    CALL get_md_env ( md_env, force_env=force_env, itimes = itimes, &
-                     md_ener=md_ener, t = time, used_time = used_time, error=error )
-    IF(ASSOCIATED(force_env%meta_env)) THEN
-            NULLIFY(force_env%meta_env%time)
-            force_env%meta_env%time =>  time 
-    END IF
+    CALL get_md_env(md_env, force_env=force_env, itimes = itimes, &
+                    md_ener=md_ener, t = time, used_time = used_time, error=error )
+
+    ! Attach the time counter of the meta_env to the one of the MD
+    CALL set_meta_env(force_env%meta_env, time=time, error=error)
+
     ! Initialize the md_ener structure
     CALL initialize_md_ener(md_ener, force_env, simpar, error=error)
 
@@ -302,6 +303,9 @@ CONTAINS
 
     ! Computing Forces at zero MD step
     IF (simpar%ensemble /= reftraj_ensemble) THEN
+       CALL section_vals_val_get(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
+       CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=time,error=error)
+
        IF(save_mem) THEN
           work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
           CALL section_vals_remove_values(work_section, error)
@@ -327,8 +331,6 @@ CONTAINS
        CALL virial_evaluate(atomic_kinds%els, particles%els, local_particles,&
             force_env%virial, force_env%para_env%group, error=error)
 
-       CALL section_vals_val_get(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
-       CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=time,error=error)
        CALL md_energy(md_env,md_ener,error) 
        CALL md_write_output ( md_env, error ) !inits the print env at itimes == 0 also writes trajectories
        md_stride = 1
@@ -346,70 +348,71 @@ CONTAINS
 
     ! Real MD Loop
     DO istep=1, simpar%nsteps, md_stride
-      itimes = itimes + 1
+       ! Increase counters
+       itimes = itimes + 1
+       time   = time + simpar%dt * simpar%dt_fact
 
-      CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
-           iter_nr=itimes,error=error)
-      ! Open possible Shake output units
-      simpar%info_constraint = cp_print_key_unit_nr(&
-           logger,root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",&
-           extension=".shakeLog",log_filename=.FALSE.,error=error)
-      simpar%lagrange_multipliers = cp_print_key_unit_nr(&
-           logger,root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",&
-           extension=".LagrangeMultLog",log_filename=.FALSE.,error=error)
-      simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
-           "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)      
-
-      ! Velocity Verlet Integrator
-      CALL velocity_verlet(md_env,error)
-      time = time + simpar%dt * simpar%dt_fact
-
-      ! Close Shake output if requested...
-      CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
-           root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
-      CALL cp_print_key_finished_output(simpar%lagrange_multipliers, logger,&
-           root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error)
-
-      ! Free Energy calculation
-      CALL free_energy_evaluate(md_env,should_stop,motion_section,error)
-
-      IF (should_stop) EXIT
-      ! Test for <PROJECT_NAME>.EXIT_MD or for WALL_TIME to exit 
-      ! Default:
-      ! IF so we don't overwrite the restart or append to the trajectory
-      ! because the execution could in principle stop inside the SCF where energy
-      ! and forces are not converged. 
-      ! But:
-      ! You can force to print the last step (for example if the method used
-      ! to compute energy and forces is not SCF based) activating the print_key
-      ! MOTION%MD%PRINT%FORCE_LAST.
-      CALL external_control(should_stop,"MD",globenv,error=error)
-      IF (should_stop) THEN
-         CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes,error=error)
-         CALL md_output(md_env,root_section,should_stop,error=error)
-         EXIT
-      END IF
-      
-      IF(simpar%ensemble /= reftraj_ensemble) THEN
-         CALL md_energy(md_env, md_ener, error) 
-         CALL temperature_control(simpar, md_env, md_ener, force_env, logger, error)
-         CALL comvel_control(simpar, md_ener, force_env, logger, error)
-      ELSE
-         CALL md_ener_reftraj(md_env, md_ener, error)
-      END IF
-
-      time_iter_stop=m_walltime()
-      used_time = time_iter_stop - time_iter_start
-      time_iter_start=time_iter_stop
-
-      CALL md_output(md_env,root_section,should_stop,error=error)
-      IF(simpar%ensemble == reftraj_ensemble ) THEN
-         CALL write_output_reftraj(md_env,error=error) 
-      END IF
-
+       CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
+            iter_nr=itimes,error=error)
+       ! Open possible Shake output units
+       simpar%info_constraint = cp_print_key_unit_nr(&
+            logger,root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",&
+            extension=".shakeLog",log_filename=.FALSE.,error=error)
+       simpar%lagrange_multipliers = cp_print_key_unit_nr(&
+            logger,root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",&
+            extension=".LagrangeMultLog",log_filename=.FALSE.,error=error)
+       simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
+            "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)      
+       
+       ! Velocity Verlet Integrator
+       CALL velocity_verlet(md_env,error)
+       
+       ! Close Shake output if requested...
+       CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
+            root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
+       CALL cp_print_key_finished_output(simpar%lagrange_multipliers, logger,&
+            root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error)
+       
+       ! Free Energy calculation
+       CALL free_energy_evaluate(md_env,should_stop,motion_section,error)
+       
+       IF (should_stop) EXIT
+       ! Test for <PROJECT_NAME>.EXIT_MD or for WALL_TIME to exit 
+       ! Default:
+       ! IF so we don't overwrite the restart or append to the trajectory
+       ! because the execution could in principle stop inside the SCF where energy
+       ! and forces are not converged. 
+       ! But:
+       ! You can force to print the last step (for example if the method used
+       ! to compute energy and forces is not SCF based) activating the print_key
+       ! MOTION%MD%PRINT%FORCE_LAST.
+       CALL external_control(should_stop,"MD",globenv,error=error)
+       IF (should_stop) THEN
+          CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes,error=error)
+          CALL md_output(md_env,root_section,should_stop,error=error)
+          EXIT
+       END IF
+       
+       IF(simpar%ensemble /= reftraj_ensemble) THEN
+          CALL md_energy(md_env, md_ener, error) 
+          CALL temperature_control(simpar, md_env, md_ener, force_env, logger, error)
+          CALL comvel_control(simpar, md_ener, force_env, logger, error)
+       ELSE
+          CALL md_ener_reftraj(md_env, md_ener, error)
+       END IF
+       
+       time_iter_stop=m_walltime()
+       used_time = time_iter_stop - time_iter_start
+       time_iter_start=time_iter_stop
+       
+       CALL md_output(md_env,root_section,should_stop,error=error)
+       IF(simpar%ensemble == reftraj_ensemble ) THEN
+          CALL write_output_reftraj(md_env,error=error) 
+       END IF
+       
     END DO
 
-    IF(ASSOCIATED(force_env%meta_env)) NULLIFY(force_env%meta_env%time)
+    ! Remove the iteration level
     CALL cp_rm_iter_level(logger%iter_info,"MD",error=error)
 
     ! Deallocate Thermostats and Barostats
