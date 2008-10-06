@@ -1,0 +1,112 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT 
+      BASIS_SET_FILE_NAME ../GTH_BASIS_SETS 
+      POTENTIAL_FILE_NAME ../GTH_POTENTIALS 
+    &MGRID
+      CUTOFF 50
+    &END MGRID
+    &QS
+      EXTRAPOLATION_ORDER 3
+    &END QS
+
+    &SCF
+      MAX_SCF 10
+      EPS_SCF 1.0E-4
+      SCF_GUESS RESTART
+      &OT
+        PRECONDITIONER FULL_SINGLE_INVERSE
+        MINIMIZER DIIS
+        N_DIIS 7
+      &END OT
+
+      &OUTER_SCF
+        MAX_SCF 1
+        EPS_SCF 1.0E-06
+      &END OUTER_SCF
+      &PRINT
+        &RESTART
+          LOG_PRINT_KEY
+        &END
+      &END
+     &END SCF
+     &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+     &END XC
+     &POISSON
+       POISSON_SOLVER MT
+       PERIODIC NONE
+       &MT
+       &END
+     &END
+
+
+  &END DFT
+
+  &SUBSYS
+    &CELL
+      ABC 8.00 8.00 8.00
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+
+    &COORD
+  N         0.0593260455        0.0917881713       -0.0937926383
+  C         1.2130060606        0.0157919530       -0.0162458915
+  H         2.2699315443       -0.0784274375        0.0784786970
+    &END COORD
+
+    &KIND N
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q5
+    &END KIND
+
+    &KIND C
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+
+  &END SUBSYS
+
+&END FORCE_EVAL
+
+&GLOBAL
+  PROJECT hcn_md
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 10
+    TIMESTEP 0.5
+    TEMPERATURE 50.0
+    TEMP_TOL 100
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON 100.0
+        MTS 2
+      &END NOSE
+    &END
+  &END MD
+&END MOTION
+##&EXT_RESTART
+##   RESTART_FILE_NAME  hcn_md-1.restart
+##   RESTART_COUNTERS
+##   RESTART_POS
+##   RESTART_VEL
+##   RESTART_THERMOSTAT
+##&END EXT_RESTART
+
+
+
+
