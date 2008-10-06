@@ -330,8 +330,8 @@ CONTAINS
 !> \brief Copies the cp_result type
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  SUBROUTINE cp_result_copy(results_out, results_in, error)
-    TYPE(cp_result_type), POINTER            :: results_out, results_in
+  SUBROUTINE cp_result_copy(results_in, results_out, error)
+    TYPE(cp_result_type), POINTER            :: results_in, results_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_copy', &

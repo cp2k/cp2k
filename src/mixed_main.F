@@ -83,7 +83,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
     logger => cp_error_get_logger(error)
-    output_unit=cp_print_key_unit_nr(logger,force_env_section,"MIXED%PROGRAM_RUN_INFO",&
+    output_unit=cp_print_key_unit_nr(logger,force_env_section,"MIXED%PRINT%PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
 
     CALL mixed_env_create( mixed_env, para_env = para_env, error=error)

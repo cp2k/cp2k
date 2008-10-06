@@ -10,10 +10,8 @@
 MODULE mixed_energy_types
 
   USE f77_blas
-  USE kinds,                           ONLY: dp,&
-                                             dp_size
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE kinds,                           ONLY: dp
+  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -32,12 +30,10 @@ MODULE mixed_energy_types
   END TYPE mixed_force_type
 
 ! *** Public data types ***
-
   PUBLIC :: mixed_energy_type,&
             mixed_force_type
 
 ! *** Public subroutines ***
-
   PUBLIC :: allocate_mixed_energy,&
             deallocate_mixed_energy,&
             init_mixed_energy
@@ -50,23 +46,22 @@ CONTAINS
 !> \date    11.06
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE allocate_mixed_energy(mixed_energy)
+  SUBROUTINE allocate_mixed_energy(mixed_energy, error)
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_mixed_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
+    failure = .FALSE.
     IF (.NOT.ASSOCIATED(mixed_energy)) THEN
-      ALLOCATE (mixed_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"mixed_energy",8*dp_size)
+      ALLOCATE (mixed_energy,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-
     CALL init_mixed_energy(mixed_energy)
-
   END SUBROUTINE allocate_mixed_energy
 
 ! *****************************************************************************
@@ -75,24 +70,21 @@ CONTAINS
 !> \date    11.06
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE deallocate_mixed_energy(mixed_energy)
+  SUBROUTINE deallocate_mixed_energy(mixed_energy, error)
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mixed_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
+    failure = .FALSE.
     IF (ASSOCIATED(mixed_energy)) THEN
-      DEALLOCATE (mixed_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"mixed_energy")
-    ELSE
-      CALL stop_program(routineP,"The mixed_energy pointer is not associated "//&
-                                "and cannot be deallocated")
+      DEALLOCATE (mixed_energy,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-
   END SUBROUTINE deallocate_mixed_energy
 
 ! *****************************************************************************
@@ -102,15 +94,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_mixed_energy', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(mixed_energy)) THEN
       mixed_energy%pot = 0.0_dp
     ELSE
       CALL stop_program(routineP,"The mixed_energy pointer is not associated "//&
                                 "and cannot be initialised")
     END IF
-
   END SUBROUTINE init_mixed_energy
 
 END MODULE mixed_energy_types

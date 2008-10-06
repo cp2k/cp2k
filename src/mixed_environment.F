@@ -194,7 +194,7 @@ CONTAINS
     molecule_kind_set => subsys % molecule_kinds_new % els
 
     ! Create the mixed_energy_type
-    CALL allocate_mixed_energy( mixed_energy )
+    CALL allocate_mixed_energy( mixed_energy, error=error)
 
     ! Print the molecule kind set
     CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)

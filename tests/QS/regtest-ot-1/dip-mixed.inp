@@ -1,0 +1,134 @@
+&MULTIPLE_FORCE_EVALS
+   FORCE_EVAL_ORDER 2 3 
+&END
+&FORCE_EVAL
+ METHOD MIXED
+ &MIXED
+   &PRINT
+     &DIPOLE
+     &END
+   &END
+   MIXING_TYPE GENMIX
+   &GENERIC
+     MIXING_FUNCTION X+Y
+     VARIABLES X Y
+   &END GENERIC
+   GROUP_PARTITION 1 1
+ &END
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+ O        -0.0005010000         1.5173980000         0.0000000000
+ H         0.0944820000         0.5534860000         0.0000000000
+ H         0.9013420000         1.8476590000         0.0000000000
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-HCTH120-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-HCTH120-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &QS
+      WF_INTERPOLATION ASPC
+      EXTRAPOLATION_ORDER 3
+    &END QS
+    &SCF
+      &OUTER_SCF
+        EPS_SCF 1.E-2
+        MAX_SCF 5
+      &END OUTER_SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 30
+      EPS_SCF 1.E-2
+      &OT T
+        MINIMIZER DIIS
+        N_DIIS 9
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL HCTH120
+      &END XC_FUNCTIONAL
+    &END XC
+    POTENTIAL_FILE_NAME ./POTENTIAL
+    BASIS_SET_FILE_NAME ./BASIS_SET
+    &PRINT
+      &MOMENTS
+      &END
+    &END
+  &END DFT
+&END FORCE_EVAL
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &PRINT
+      &DIPOLE
+      &END
+    &END
+    &FORCEFIELD
+      &NONBONDED
+        &GENPOT
+          ATOMS O O
+          FUNCTION A+B*EXP(-C*X)
+          VARIABLES X
+          PARAMETERS A B C
+          VALUES  0. 0.11  0.749685866 
+          RCUT 7.
+          RMIN 0.
+          RMAX 10.
+        &END GENPOT
+        &GENPOT
+          ATOMS H H
+          FUNCTION A+B*EXP(-C*X)
+          VARIABLES X
+          PARAMETERS A B C
+          VALUES  0. 0. 0.
+          RCUT 7.
+          RMIN 0.
+          RMAX 10.
+        &END GENPOT
+        &GENPOT
+           ATOMS O H
+           FUNCTION A+B*EXP(-C*X)
+           VARIABLES X
+           PARAMETERS A B C
+           VALUES  0. 0. 0.
+           RCUT 7.
+           RMIN 0.
+           RMAX 10.
+        &END GENPOT
+      &END NONBONDED
+      &CHARGE
+        ATOM O
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.0
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT w2
+  RUN_TYPE ENERGY_FORCE
+  PRINT_LEVEL LOW
+&END GLOBAL
+

@@ -241,6 +241,7 @@ OBJECTS_GENERIC =\
  input_cp2k_force_eval.o\
  input_cp2k_free_energy.o\
  input_cp2k_hfx.o\
+ input_cp2k_mixed.o\
  input_cp2k_mm.o\
  input_cp2k_motion.o\
  input_cp2k_poisson.o\

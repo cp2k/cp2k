@@ -416,7 +416,7 @@ CPSourceFileRef,&
                      results%result_value(i)%value, error)
              END IF
           END DO
-          CALL cp_result_copy(results, clean_results, error)
+          CALL cp_result_copy(clean_results, results, error)
           CALL cp_result_release(clean_results, error)
        END IF
     ELSE

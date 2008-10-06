@@ -20,12 +20,20 @@ MODULE force_env_methods
                                              shake_control
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE constraint_util,                 ONLY: getold
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_result_methods,               ONLY: cp_results_erase,&
+                                             cp_results_mp_bcast,&
+                                             get_results,&
+                                             put_results
   USE cp_result_types,                 ONLY: cp_result_copy,&
                                              cp_result_create,&
+                                             cp_result_p_type,&
+                                             cp_result_release,&
                                              cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_p_type,&
@@ -111,7 +119,8 @@ MODULE force_env_methods
   USE particle_types,                  ONLY: particle_type,&
                                              update_particle_set,&
                                              write_particle_coordinates
-  USE physcon,                         ONLY: pascal
+  USE physcon,                         ONLY: debye,&
+                                             pascal
   USE qmmm_gpw_energy,                 ONLY: qmmm_el_coupling
   USE qmmm_gpw_forces,                 ONLY: qmmm_forces
   USE qmmm_links_methods,              ONLY: qmmm_added_chrg_coord,&
@@ -328,7 +337,7 @@ CONTAINS
 
        ! Store results 
        IF(ASSOCIATED(results))THEN
-          CALL cp_result_copy(results_out=force_env%results,results_in=results,error=error)
+          CALL cp_result_copy(results_in=results,results_out=force_env%results,error=error)
        END IF
     END IF
 
@@ -939,19 +948,24 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: coupling_function
-    CHARACTER(LEN=default_string_length)     :: def_error, this_error
+    CHARACTER(LEN=default_string_length)     :: def_error, description, &
+                                                this_error
     INTEGER :: iforce_eval, iparticle, jparticle, mixing_type, my_group, &
-      natom, nforce_eval, output_unit, stat
+      natom, nforce_eval, output_unit, source, stat, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
     LOGICAL                                  :: check, failure, ionode, &
                                                 virial_consistent
     REAL(KIND=dp) :: coupling_parameter, dedf, der_1, der_2, dx, energy, err, &
       lambda, lerr, restraint_strength, restraint_target, sd
+    REAL(KIND=dp), DIMENSION(3)              :: dip_mix
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energies
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
     TYPE(cell_type), POINTER                 :: cell, cell_mix
     TYPE(cp_error_type)                      :: my_error
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_result_p_type), DIMENSION(:), &
+      POINTER                                :: results
+    TYPE(cp_result_type), POINTER            :: loc_results, results_mix
     TYPE(cp_subsys_p_type), DIMENSION(:), &
       POINTER                                :: subsystems
     TYPE(cp_subsys_type), POINTER            :: subsys_mix
@@ -963,7 +977,7 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
     TYPE(particle_list_type), POINTER        :: particles_mix
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 gen_section, mapping_section, &
-                                                root_section
+                                                mixed_section, root_section
     TYPE(virial_p_type), DIMENSION(:), &
       POINTER                                :: virials
     TYPE(virial_type), POINTER               :: loc_virial, virial_mix
@@ -980,6 +994,7 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
                        force_env_section=force_env_section,&
                        root_section=root_section,&
                        virial=virial_mix,&
+                       results=results_mix,&
                        cell=cell_mix,&
                        error=error)
     CALL cp_subsys_get(subsys=subsys_mix,&
@@ -988,7 +1003,8 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
     NULLIFY(map_index, glob_natoms, global_forces)
     virial_consistent = .TRUE.
     nforce_eval = SIZE(force_env%sub_force_env)
-    mapping_section => section_vals_get_subs_vals(force_env_section,"MIXED%MAPPING",error=error)
+    mixed_section => section_vals_get_subs_vals(force_env_section,"MIXED",error=error)
+    mapping_section => section_vals_get_subs_vals(mixed_section,"MAPPING",error=error)
     ! Global Info
     ALLOCATE(subsystems(nforce_eval), stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1003,11 +1019,15 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(virials(nforce_eval), stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(results(nforce_eval), stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     energies    = 0.0_dp
     glob_natoms = 0
     DO iforce_eval = 1, nforce_eval
-       NULLIFY(subsystems(iforce_eval)%subsys, particles(iforce_eval)%list, virials(iforce_eval)%virial)
+       NULLIFY(subsystems(iforce_eval)%subsys, particles(iforce_eval)%list)
+       NULLIFY(results(iforce_eval)%results, virials(iforce_eval)%virial)
        CALL virial_create (virials(iforce_eval)%virial, error)
+       CALL cp_result_create (results(iforce_eval)%results, error)
        IF (.NOT.ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
        ! From this point on the error is the sub_error
        my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
@@ -1045,10 +1065,12 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
           CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env,&
                              potential_energy=energy,&
                              virial=loc_virial,&
+                             results=loc_results,&
                              error=my_error)
           energies(iforce_eval)    = energy
           glob_natoms(iforce_eval) = natom 
-          CALL cp_virial (loc_virial, virials(iforce_eval)%virial)
+          CALL cp_virial(loc_virial, virials(iforce_eval)%virial)
+          CALL cp_result_copy(loc_results, results(iforce_eval)%results, error)
        END IF
        ! Deallocate map_index array
        IF (ASSOCIATED(map_index)) THEN
@@ -1091,70 +1113,79 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
        CALL mp_sum(virials(iforce_eval)%virial%pv_virial, force_env%para_env%group)
        CALL mp_sum(virials(iforce_eval)%virial%pv_xc, force_env%para_env%group)
        CALL mp_sum(virials(iforce_eval)%virial%pv_constraint, force_env%para_env%group)
+       !Transfer results
+       source = 0
+       IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
+          IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
+               force_env%sub_force_env(iforce_eval)%force_env%para_env%source)&
+                source=force_env%para_env%mepos
+       ENDIF
+       CALL mp_sum(source, force_env%para_env%group)
+       CALL cp_results_mp_bcast(results(iforce_eval)%results, source, force_env%para_env, error)
     END DO
+
     force_env%mixed_env%energies = energies
     ! Start combining the different sub_force_env
     CALL get_mixed_env(mixed_env=force_env%mixed_env,&
                        mixed_energy=mixed_energy,&
                        error=error)
 
-    CALL section_vals_val_get(force_env_section,"MIXED%MIXING_TYPE",i_val=mixing_type,error=error)
+    CALL section_vals_val_get(mixed_section,"MIXING_TYPE",i_val=mixing_type,error=error)
     SELECT CASE(mixing_type)
     CASE(mix_linear_combination)
        ! Support offered only 2 force_eval
        CPPrecondition(nforce_eval==2,cp_failure_level,routineP,error,failure)
-       CALL section_vals_val_get(force_env_section,"MIXED%LINEAR%LAMBDA",&
-            r_val=lambda,error=error)
+       CALL section_vals_val_get(mixed_section,"LINEAR%LAMBDA",r_val=lambda,error=error)
        mixed_energy%pot=lambda*energies(1) + (1.0_dp-lambda)*energies(2)
        ! General Mapping of forces...
-       CALL mixed_map_forces(particles_mix, virial_mix, global_forces, virials, lambda, 1, nforce_eval,&
-            map_index, mapping_section, .TRUE., error)
-       CALL mixed_map_forces(particles_mix, virial_mix, global_forces, virials, (1.0_dp-lambda), 2, nforce_eval,&
-            map_index, mapping_section, .FALSE., error)
+       CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
+            lambda, 1, nforce_eval, map_index, mixed_section, mapping_section, .TRUE., error)
+       CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
+            (1.0_dp-lambda), 2, nforce_eval, map_index, mixed_section, mapping_section, .FALSE., error)
     CASE(mix_minimum)
        ! Support offered only 2 force_eval
        CPPrecondition(nforce_eval==2,cp_failure_level,routineP,error,failure)
        IF (energies(1)<energies(2)) THEN
           mixed_energy%pot=energies(1)
-          CALL mixed_map_forces(particles_mix, virial_mix, global_forces, virials, 1.0_dp, 1, nforce_eval,&
-               map_index, mapping_section, .TRUE., error)
+          CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
+               1.0_dp, 1, nforce_eval, map_index, mixed_section, mapping_section, .TRUE., error)
        ELSE
           mixed_energy%pot=energies(2)
-          CALL mixed_map_forces(particles_mix, virial_mix, global_forces, virials, 1.0_dp, 2, nforce_eval,&
-               map_index, mapping_section, .TRUE., error)
+          CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
+               1.0_dp, 2, nforce_eval, map_index, mixed_section, mapping_section, .TRUE., error)
        ENDIF
     CASE(mix_coupled)
        ! Support offered only 2 force_eval
        CPPrecondition(nforce_eval==2,cp_failure_level,routineP,error,failure)
-       CALL section_vals_val_get(force_env_section,"MIXED%COUPLING%COUPLING_PARAMETER",&
+       CALL section_vals_val_get(mixed_section,"COUPLING%COUPLING_PARAMETER",&
             r_val=coupling_parameter,error=error)
        sd = SQRT((energies(1)-energies(2))**2+4.0_dp*coupling_parameter**2)
        der_1=(1.0_dp-(1.0_dp/(2.0_dp*sd))*2.0_dp*(energies(1)-energies(2)))/2.0_dp
        der_2=(1.0_dp+(1.0_dp/(2.0_dp*sd))*2.0_dp*(energies(1)-energies(2)))/2.0_dp
        mixed_energy%pot=(energies(1)+energies(2)-sd)/2.0_dp
        ! General Mapping of forces...
-       CALL mixed_map_forces(particles_mix, virial_mix, global_forces, virials, der_1, 1, nforce_eval,&
-            map_index, mapping_section, .TRUE., error)
-       CALL mixed_map_forces(particles_mix, virial_mix, global_forces, virials, der_2, 2, nforce_eval,&
-            map_index, mapping_section, .FALSE., error)
+       CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
+            der_1, 1, nforce_eval, map_index, mixed_section, mapping_section, .TRUE., error)
+       CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
+            der_2, 2, nforce_eval, map_index, mixed_section, mapping_section, .FALSE., error)
     CASE(mix_restrained)
        ! Support offered only 2 force_eval
        CPPrecondition(nforce_eval==2,cp_failure_level,routineP,error,failure)
-       CALL section_vals_val_get(force_env_section,"MIXED%RESTRAINT%RESTRAINT_TARGET",&
+       CALL section_vals_val_get(mixed_section,"RESTRAINT%RESTRAINT_TARGET",&
             r_val=restraint_target,error=error)
-       CALL section_vals_val_get(force_env_section,"MIXED%RESTRAINT%RESTRAINT_STRENGTH",&
+       CALL section_vals_val_get(mixed_section,"RESTRAINT%RESTRAINT_STRENGTH",&
             r_val=restraint_strength,error=error)
        mixed_energy%pot=energies(1)+restraint_strength*(energies(1)-energies(2)-restraint_target)**2
        der_2 = -2.0_dp*restraint_strength*(energies(1)-energies(2)-restraint_target)
        der_1 = 1.0_dp - der_2
        ! General Mapping of forces...
-       CALL mixed_map_forces(particles_mix, virial_mix, global_forces, virials, der_1, 1, nforce_eval,&
-            map_index, mapping_section, .TRUE., error)
-       CALL mixed_map_forces(particles_mix, virial_mix, global_forces, virials, der_2, 2, nforce_eval,&
-            map_index, mapping_section, .FALSE., error)
+       CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
+            der_1, 1, nforce_eval, map_index, mixed_section, mapping_section, .TRUE., error)
+       CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
+            der_2, 2, nforce_eval, map_index, mixed_section, mapping_section, .FALSE., error)
     CASE(mix_generic)
        ! Support any number of force_eval sections
-       gen_section => section_vals_get_subs_vals(force_env_section,"MIXED%GENERIC",error=error)
+       gen_section => section_vals_get_subs_vals(mixed_section,"GENERIC",error=error)
        CALL get_generic_info(gen_section, "MIXING_FUNCTION", coupling_function, force_env%mixed_env%par,&
             force_env%mixed_env%val, energies, error=error)
        CALL initf(1)
@@ -1166,6 +1197,7 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
           particles_mix%els(iparticle)%f(:) = 0.0_dp
        END DO
        CALL zero_virial(virial_mix, reset=.FALSE.)
+       CALL cp_results_erase(results_mix, error=error)
        DO iforce_eval = 1, nforce_eval
           CALL section_vals_val_get(gen_section,"DX",r_val=dx,error=error)
           CALL section_vals_val_get(gen_section,"ERROR_LIMIT",r_val=lerr,error=error)
@@ -1181,8 +1213,8 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
                   TRIM(def_error)//' .',error)
           END IF
           ! General Mapping of forces...
-          CALL mixed_map_forces(particles_mix, virial_mix, global_forces, virials, dedf, iforce_eval,&
-               nforce_eval, map_index, mapping_section, .FALSE., error)
+          CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
+               dedf, iforce_eval, nforce_eval, map_index, mixed_section, mapping_section, .FALSE., error)
           force_env%mixed_env%val(iforce_eval) = energies(iforce_eval)
        END DO
        ! Let's store the needed information..
@@ -1198,6 +1230,7 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
        DEALLOCATE(global_forces(iforce_eval)%forces,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL virial_release(virials(iforce_eval)%virial, error=error)
+       CALL cp_result_release(results(iforce_eval)%results, error=error)
     END DO
     DEALLOCATE(global_forces, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1211,6 +1244,18 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(virials, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(results, stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! Print Section
+    unit_nr=cp_print_key_unit_nr(logger,mixed_section,"PRINT%DIPOLE",&
+         extension=".data",middle_name="MIXED_DIPOLE",log_filename=.FALSE.,error=error)
+    IF (unit_nr>0) THEN
+       description ='[DIPOLE]'
+       CALL get_results(results=results_mix,description=description,values=dip_mix,error=error)
+       WRITE(unit_nr,'(/,1X,A,T48,3F11.6)')"MIXED ENV| DIPOLE  ( A.U.)|",dip_mix
+       WRITE(unit_nr,'(  1X,A,T48,3F11.6)')"MIXED ENV| DIPOLE  (Debye)|",dip_mix*debye
+    END IF
+    CALL cp_print_key_finished_output(unit_nr,logger,mixed_section,"PRINT%DIPOLE",error=error)
 END SUBROUTINE mixed_energy_forces
 
 ! *****************************************************************************
@@ -1220,29 +1265,39 @@ END SUBROUTINE mixed_energy_forces
 !>        see module cp_error_handling
 !> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
 ! *****************************************************************************
-  SUBROUTINE mixed_map_forces(particles_mix, virial_mix, global_forces, virials, factor, iforce_eval,&
-     nforce_eval, map_index, mapping_section, overwrite, error)
+  SUBROUTINE mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces,&
+      virials, results, factor, iforce_eval, nforce_eval, map_index, mixed_section,&
+      mapping_section, overwrite, error)
     TYPE(particle_list_type), POINTER        :: particles_mix
     TYPE(virial_type), POINTER               :: virial_mix
+    TYPE(cp_result_type), POINTER            :: results_mix
     TYPE(mixed_force_type), DIMENSION(:), &
       POINTER                                :: global_forces
     TYPE(virial_p_type), DIMENSION(:), &
       POINTER                                :: virials
+    TYPE(cp_result_p_type), DIMENSION(:), &
+      POINTER                                :: results
     REAL(KIND=dp), INTENT(IN)                :: factor
     INTEGER, INTENT(IN)                      :: iforce_eval, nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: map_index
-    TYPE(section_vals_type), POINTER         :: mapping_section
+    TYPE(section_vals_type), POINTER         :: mixed_section, mapping_section
     LOGICAL, INTENT(IN)                      :: overwrite
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_map_forces', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: description
     INTEGER                                  :: iparticle, jparticle, natom, &
-                                                stat
+                                                nres, stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3)              :: dip_mix, dip_tmp
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
 
     failure = .FALSE.
+    NULLIFY(logger, print_key)
+    logger => cp_error_get_logger(error)
     ! Get Mapping index array
     natom = SIZE(global_forces(iforce_eval)%forces,2)
     CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index, error)
@@ -1268,6 +1323,23 @@ END SUBROUTINE mixed_energy_forces
     IF (ASSOCIATED(map_index)) THEN
        DEALLOCATE(map_index, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    ! Collect Requested Results info
+    print_key => section_vals_get_subs_vals(mixed_section,"PRINT%DIPOLE",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
+         cp_p_file)) THEN
+       description ='[DIPOLE]'
+       IF (overwrite) CALL cp_results_erase(results_mix, error=error)
+       CALL get_results(results=results_mix,description=description,n_rep=nres,error=error)
+       CPPrecondition(nres<=1,cp_failure_level,routineP,error,failure)
+       dip_mix = 0.0_dp
+       IF (nres==1) CALL get_results(results=results_mix,description=description,values=dip_mix,error=error)
+       CALL get_results(results=results(iforce_eval)%results,description=description,n_rep=nres,error=error)
+       CALL get_results(results=results(iforce_eval)%results,description=description,&
+            values=dip_tmp,nval=nres,error=error)
+       dip_mix = dip_mix + factor*dip_tmp
+       CALL cp_results_erase(results=results_mix,description=description,error=error)
+       CALL put_results(results=results_mix,description=description,values=dip_mix,error=error)
     END IF
     
   END SUBROUTINE mixed_map_forces
