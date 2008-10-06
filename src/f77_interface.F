@@ -178,8 +178,6 @@ CONTAINS
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
 
-! XXXXXXXXXXXXXXXX not initialised ?
-
     IF (.NOT. module_initialized) THEN
        IF (init_mpi) THEN
           ! get the default system wide communicator
@@ -277,7 +275,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-RECURSIVE SUBROUTINE f_env_dealloc(f_env,error)
+  RECURSIVE SUBROUTINE f_env_dealloc(f_env,error)
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -287,20 +285,20 @@ RECURSIVE SUBROUTINE f_env_dealloc(f_env,error)
     INTEGER                                  :: ierr
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(f_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CALL force_env_release(f_env%force_env,error=error)
-     CALL cp_error_dealloc_ref(f_env%error,error=error)
-     CALL timer_env_release(f_env%timer_env)
-     CALL mp_perf_env_release(f_env%mp_perf_env)
-     IF (f_env%old_path/=f_env%my_path) THEN
-        CALL m_chdir(f_env%old_path,ierr)
-        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-     END IF
-  END IF
-END SUBROUTINE f_env_dealloc
+    CPPrecondition(ASSOCIATED(f_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL force_env_release(f_env%force_env,error=error)
+       CALL cp_error_dealloc_ref(f_env%error,error=error)
+       CALL timer_env_release(f_env%timer_env)
+       CALL mp_perf_env_release(f_env%mp_perf_env)
+       IF (f_env%old_path/=f_env%my_path) THEN
+          CALL m_chdir(f_env%old_path,ierr)
+          CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
+  END SUBROUTINE f_env_dealloc
 
 ! *****************************************************************************
 !> \brief createates a f_env
@@ -312,8 +310,8 @@ END SUBROUTINE f_env_dealloc
 !> \param work_dir directory in whic to run (defaults to the actual directory)
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
-     id_nr,error,old_dir)
+  SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
+       id_nr,error,old_dir)
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: template_error
@@ -330,24 +328,24 @@ SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  ALLOCATE(f_env,stat=stat)
-  CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     f_env%force_env => force_env
-     CALL force_env_retain(f_env%force_env,error=error)
-     CALL cp_error_init(f_env%error,template_error=template_error)
-     f_env%timer_env => timer_env
-     CALL timer_env_retain(f_env%timer_env)
-     f_env%mp_perf_env => mp_perf_env
-     CALL mp_perf_env_retain(f_env%mp_perf_env)
-     f_env%id_nr=id_nr
-     CALL m_getcwd(f_env%my_path)
-     f_env%old_path=f_env%my_path
-     IF (PRESENT(old_dir)) f_env%old_path=old_dir
-  END IF
-END SUBROUTINE f_env_create
+    ALLOCATE(f_env,stat=stat)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       f_env%force_env => force_env
+       CALL force_env_retain(f_env%force_env,error=error)
+       CALL cp_error_init(f_env%error,template_error=template_error)
+       f_env%timer_env => timer_env
+       CALL timer_env_retain(f_env%timer_env)
+       f_env%mp_perf_env => mp_perf_env
+       CALL mp_perf_env_retain(f_env%mp_perf_env)
+       f_env%id_nr=id_nr
+       CALL m_getcwd(f_env%my_path)
+       f_env%old_path=f_env%my_path
+       IF (PRESENT(old_dir)) f_env%old_path=old_dir
+    END IF
+  END SUBROUTINE f_env_create
 
 ! *****************************************************************************
 !> \brief adds the default environments of the f_env to the stack of the
@@ -365,7 +363,7 @@ END SUBROUTINE f_env_create
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE f_env_add_defaults(f_env_id,f_env,new_error, failure, handle)
+  SUBROUTINE f_env_add_defaults(f_env_id,f_env,new_error, failure, handle)
     INTEGER, INTENT(in)                      :: f_env_id
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(cp_error_type), INTENT(out)         :: new_error
@@ -379,34 +377,34 @@ SUBROUTINE f_env_add_defaults(f_env_id,f_env,new_error, failure, handle)
     LOGICAL                                  :: my_failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-  my_failure=.FALSE.
+    my_failure=.FALSE.
 
-  NULLIFY(f_env)
-  f_env_pos = get_pos_of_env(f_env_id)
-  IF (f_env_pos<1) THEN
-     CALL cp_error_init(new_error)
-     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "invalid env_id "//cp_to_string(f_env_id),error=new_error,&
-          failure=failure)
-  ELSE
-     f_env => f_envs(f_env_pos)%f_env
-     CALL cp_error_init(new_error,template_error=f_env%error)
-     logger => cp_error_get_logger(f_env%error)
-     CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,new_error,my_failure)
-     IF (.NOT.my_failure) THEN
-        CALL m_getcwd(f_env%old_path)
-        IF (f_env%old_path/=f_env%my_path) THEN
-           CALL m_chdir(TRIM(f_env%my_path),ierr)
-           CPAssert(ierr==0,cp_failure_level,routineP,new_error,failure)
-        END IF
-        CALL add_mp_perf_env(f_env%mp_perf_env)
-        CALL add_timer_env(f_env%timer_env)
-        CALL cp_add_default_logger(logger)
-        IF (PRESENT(handle)) handle=cp_default_logger_stack_size()
-     END IF
-     CALL cp_error_check(new_error,failure)
-  END IF
-END SUBROUTINE f_env_add_defaults
+    NULLIFY(f_env)
+    f_env_pos = get_pos_of_env(f_env_id)
+    IF (f_env_pos<1) THEN
+       CALL cp_error_init(new_error)
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+            "invalid env_id "//cp_to_string(f_env_id),error=new_error,&
+            failure=failure)
+    ELSE
+       f_env => f_envs(f_env_pos)%f_env
+       CALL cp_error_init(new_error,template_error=f_env%error)
+       logger => cp_error_get_logger(f_env%error)
+       CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,new_error,my_failure)
+       IF (.NOT.my_failure) THEN
+          CALL m_getcwd(f_env%old_path)
+          IF (f_env%old_path/=f_env%my_path) THEN
+             CALL m_chdir(TRIM(f_env%my_path),ierr)
+             CPAssert(ierr==0,cp_failure_level,routineP,new_error,failure)
+          END IF
+          CALL add_mp_perf_env(f_env%mp_perf_env)
+          CALL add_timer_env(f_env%timer_env)
+          CALL cp_add_default_logger(logger)
+          IF (PRESENT(handle)) handle=cp_default_logger_stack_size()
+       END IF
+       CALL cp_error_check(new_error,failure)
+    END IF
+  END SUBROUTINE f_env_add_defaults
 
 ! *****************************************************************************
 !> \brief removes the default environments of the f_env to the stack of the
@@ -424,7 +422,7 @@ END SUBROUTINE f_env_add_defaults
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE f_env_rm_defaults(f_env,error,ierr,handle)
+  SUBROUTINE f_env_rm_defaults(f_env,error,ierr,handle)
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER, INTENT(out), OPTIONAL           :: ierr
@@ -439,54 +437,54 @@ SUBROUTINE f_env_rm_defaults(f_env,error,ierr,handle)
     TYPE(mp_perf_env_type), POINTER          :: d_mp_perf_env
     TYPE(timer_env_type), POINTER            :: d_timer_env
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  IF (ASSOCIATED(f_env)) THEN
-     IF (PRESENT(handle)) THEN
-        CPAssert(handle==cp_default_logger_stack_size(),cp_failure_level,routineP,error,failure)
-     END IF
+    IF (ASSOCIATED(f_env)) THEN
+       IF (PRESENT(handle)) THEN
+          CPAssert(handle==cp_default_logger_stack_size(),cp_failure_level,routineP,error,failure)
+       END IF
 
-     logger => cp_error_get_logger(f_env%error)
-     d_logger => cp_get_default_logger()
-     d_timer_env => get_timer_env()
-     d_mp_perf_env => get_mp_perf_env()
-     CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,error,failure)
-     CPPrecondition(ASSOCIATED(d_logger),cp_failure_level,routineP,error,failure)
-     CPPrecondition(ASSOCIATED(d_timer_env),cp_failure_level,routineP,error,failure)
-     CPPrecondition(ASSOCIATED(d_mp_perf_env),cp_failure_level,routineP,error,failure)
-     IF (.NOT.failure) THEN
-        CPPrecondition(logger%id_nr==d_logger%id_nr,cp_failure_level,routineP,error,failure)
-        CPPrecondition(d_timer_env%id_nr==f_env%timer_env%id_nr,cp_failure_level,routineP,error,failure)
-        CPPrecondition(d_mp_perf_env%id_nr==f_env%mp_perf_env%id_nr,cp_failure_level,routineP,error,failure)
-     END IF
-     IF (f_env%old_path/=f_env%my_path) THEN
-        CALL m_chdir(TRIM(f_env%old_path),ierr2)
-        CPAssert(ierr2==0,cp_failure_level,routineP,error,failure)
-     END IF
-     IF (PRESENT(ierr)) THEN
-       IF (cp_error_get_level(error)>CP_WARNING_LEVEL) THEN
-          ierr=cp_error_get_level(error)
-       ELSE
-          ierr=0
+       logger => cp_error_get_logger(f_env%error)
+       d_logger => cp_get_default_logger()
+       d_timer_env => get_timer_env()
+       d_mp_perf_env => get_mp_perf_env()
+       CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(d_logger),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(d_timer_env),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(d_mp_perf_env),cp_failure_level,routineP,error,failure)
+       IF (.NOT.failure) THEN
+          CPPrecondition(logger%id_nr==d_logger%id_nr,cp_failure_level,routineP,error,failure)
+          CPPrecondition(d_timer_env%id_nr==f_env%timer_env%id_nr,cp_failure_level,routineP,error,failure)
+          CPPrecondition(d_mp_perf_env%id_nr==f_env%mp_perf_env%id_nr,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (f_env%old_path/=f_env%my_path) THEN
+          CALL m_chdir(TRIM(f_env%old_path),ierr2)
+          CPAssert(ierr2==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (PRESENT(ierr)) THEN
+          IF (cp_error_get_level(error)>CP_WARNING_LEVEL) THEN
+             ierr=cp_error_get_level(error)
+          ELSE
+             ierr=0
+          ENDIF
        ENDIF
-     ENDIF
-     CALL cp_error_dealloc_ref(error)
-     IF (.NOT.failure) THEN
-        CALL cp_rm_default_logger()
-        CALL rm_timer_env()
-        CALL rm_mp_perf_env()
-     END IF
-  ELSE
-     IF (PRESENT(ierr)) THEN
-       IF (cp_error_get_level(error)>CP_WARNING_LEVEL) THEN
-          ierr=cp_error_get_level(error)
-       ELSE
-          ierr=0
+       CALL cp_error_dealloc_ref(error)
+       IF (.NOT.failure) THEN
+          CALL cp_rm_default_logger()
+          CALL rm_timer_env()
+          CALL rm_mp_perf_env()
+       END IF
+    ELSE
+       IF (PRESENT(ierr)) THEN
+          IF (cp_error_get_level(error)>CP_WARNING_LEVEL) THEN
+             ierr=cp_error_get_level(error)
+          ELSE
+             ierr=0
+          ENDIF
        ENDIF
-     ENDIF
-     CALL cp_error_dealloc_ref(error)
-  END IF
-END SUBROUTINE f_env_rm_defaults
+       CALL cp_error_dealloc_ref(error)
+    END IF
+  END SUBROUTINE f_env_rm_defaults
 
 ! *****************************************************************************
 !> \brief creates a new force environment using the given input, and writing
@@ -812,7 +810,6 @@ CPSourceFileRef,&
     CALL section_vals_release(root_section,error)
     CALL cp_para_env_release(para_env,error=error)
     CALL f_env_rm_defaults(f_envs(n_f_envs)%f_env,error=error,ierr=ierr)
-
     CALL timestop ( 0.0_dp, handle )
 
   END SUBROUTINE create_force_env
@@ -1394,7 +1391,7 @@ CPSourceFileRef,&
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE do_shake(f_env_id,dt,shake_tol,ierr)
+  SUBROUTINE do_shake(f_env_id,dt,shake_tol,ierr)
     INTEGER, INTENT(in)                      :: f_env_id
     REAL(kind=dp), INTENT(in)                :: dt, shake_tol
     INTEGER, INTENT(out)                     :: ierr
@@ -1406,15 +1403,15 @@ SUBROUTINE do_shake(f_env_id,dt,shake_tol,ierr)
     TYPE(cp_error_type)                      :: error
     TYPE(f_env_type), POINTER                :: f_env
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  NULLIFY(f_env)
-  CALL f_env_add_defaults(f_env_id,f_env,error,failure)
-  IF (.NOT.failure) THEN
-     CALL force_env_shake(f_env%force_env,&
+    NULLIFY(f_env)
+    CALL f_env_add_defaults(f_env_id,f_env,error,failure)
+    IF (.NOT.failure) THEN
+       CALL force_env_shake(f_env%force_env,&
             dt=dt,shake_tol=shake_tol, error=error)
-  END IF
-  CALL f_env_rm_defaults(f_env,error,ierr)
-END SUBROUTINE do_shake
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
+  END SUBROUTINE do_shake
 
 END MODULE f77_interface
