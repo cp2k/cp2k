@@ -705,11 +705,11 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
        IF (ASSOCIATED(colvar%coord_param%i_at_to_b)) THEN
-          DEALLOCATE(colvar%coord_param%i_at_to,stat=stat)
+          DEALLOCATE(colvar%coord_param%i_at_to_b,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
        IF (ASSOCIATED(colvar%coord_param%c_kinds_to_b)) THEN
-          DEALLOCATE(colvar%coord_param%c_kinds_to,stat=stat)
+          DEALLOCATE(colvar%coord_param%c_kinds_to_b,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
        DEALLOCATE(colvar%coord_param, stat=stat)
