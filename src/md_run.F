@@ -263,7 +263,10 @@ CONTAINS
 
     CALL get_md_env ( md_env, force_env=force_env, itimes = itimes, &
                      md_ener=md_ener, t = time, used_time = used_time, error=error )
-
+    IF(ASSOCIATED(force_env%meta_env)) THEN
+            NULLIFY(force_env%meta_env%time)
+            force_env%meta_env%time =>  time 
+    END IF
     ! Initialize the md_ener structure
     CALL initialize_md_ener(md_ener, force_env, simpar, error=error)
 
@@ -406,6 +409,7 @@ CONTAINS
 
     END DO
 
+    IF(ASSOCIATED(force_env%meta_env)) NULLIFY(force_env%meta_env%time)
     CALL cp_rm_iter_level(logger%iter_info,"MD",error=error)
 
     ! Deallocate Thermostats and Barostats

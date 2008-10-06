@@ -77,16 +77,22 @@ MODULE colvar_types
 
 ! *****************************************************************************
   TYPE coord_colvar_type
-     LOGICAL                         :: use_kinds_from, use_kinds_to
+          LOGICAL                    :: do_chain, use_kinds_from, use_kinds_to,&
+                                        use_kinds_to_b
      INTEGER                         :: n_atoms_to,&
                                         n_atoms_from,&
                                         nncrd,&
-                                        ndcrd
+                                        ndcrd,&
+                                        n_atoms_to_b,&
+                                        nncrd_b,&
+                                        ndcrd_b
      INTEGER, POINTER, DIMENSION (:) :: i_at_from,&
-                                        i_at_to
+                                        i_at_to,&
+                                        i_at_to_b
      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: c_kinds_from,&
-                                                                    c_kinds_to
-     REAL(KIND=dp)                   :: r_0
+                                                                    c_kinds_to,&
+                                                                    c_kinds_to_b
+     REAL(KIND=dp)                   :: r_0, r_0_b
   END TYPE coord_colvar_type
 
 ! *****************************************************************************
@@ -387,7 +393,8 @@ CONTAINS
           list(1) = colvar%dist_param%i_at
           list(2) = colvar%dist_param%j_at
        CASE(coord_colvar_id)
-          np = colvar%coord_param%n_atoms_from+colvar%coord_param%n_atoms_to
+          np = colvar%coord_param%n_atoms_from+colvar%coord_param%n_atoms_to&
+              + colvar%coord_param%n_atoms_to_b
           ! Number of real atoms involved in the colvar
           colvar%n_atom_s=0
           DO ii=1,colvar%coord_param%n_atoms_from
@@ -398,6 +405,12 @@ CONTAINS
              i = colvar%coord_param%i_at_to(ii)
              colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
           ENDDO
+          IF(colvar%coord_param%n_atoms_to_b/=0) THEN
+            DO ii=1,colvar%coord_param%n_atoms_to_b
+               i = colvar%coord_param%i_at_to_b(ii)
+               colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+            ENDDO
+          END IF
           ! Create a List of points...
           ALLOCATE(list(np),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
@@ -412,6 +425,13 @@ CONTAINS
              i = colvar%coord_param%i_at_to(ii)
              list(idum) = i
           ENDDO
+          IF(colvar%coord_param%n_atoms_to_b/=0) THEN
+            DO ii=1,colvar%coord_param%n_atoms_to_b
+               idum = idum + 1
+               i = colvar%coord_param%i_at_to_b(ii)
+               list(idum) = i
+            ENDDO
+          END IF
           CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
        CASE(angle_colvar_id)
           np = 3
@@ -684,6 +704,14 @@ CONTAINS
           DEALLOCATE(colvar%coord_param%c_kinds_to,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
+       IF (ASSOCIATED(colvar%coord_param%i_at_to_b)) THEN
+          DEALLOCATE(colvar%coord_param%i_at_to,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(colvar%coord_param%c_kinds_to_b)) THEN
+          DEALLOCATE(colvar%coord_param%c_kinds_to,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END IF
        DEALLOCATE(colvar%coord_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(angle_colvar_id)
@@ -758,14 +786,20 @@ CONTAINS
        colvar_out%dist_param%axis_id = colvar_in%dist_param%axis_id
     CASE(coord_colvar_id)
        colvar_out%coord_param%n_atoms_to   = colvar_in%coord_param%n_atoms_to  
+       colvar_out%coord_param%n_atoms_to_b   = colvar_in%coord_param%n_atoms_to_b  
        colvar_out%coord_param%n_atoms_from = colvar_in%coord_param%n_atoms_from
        colvar_out%coord_param%nncrd        = colvar_in%coord_param%nncrd       
        colvar_out%coord_param%ndcrd        = colvar_in%coord_param%ndcrd       
        colvar_out%coord_param%r_0          = colvar_in%coord_param%r_0
+       colvar_out%coord_param%nncrd_b        = colvar_in%coord_param%nncrd_b       
+       colvar_out%coord_param%ndcrd_b        = colvar_in%coord_param%ndcrd_b       
+       colvar_out%coord_param%r_0_b          = colvar_in%coord_param%r_0_b
        colvar_out%coord_param%use_kinds_from  = colvar_in%coord_param%use_kinds_from
        colvar_out%coord_param%use_kinds_to    = colvar_in%coord_param%use_kinds_to
+       colvar_out%coord_param%use_kinds_to_b    = colvar_in%coord_param%use_kinds_to_b
        NULLIFY(colvar_out%coord_param%c_kinds_from, colvar_out%coord_param%i_at_from)
        NULLIFY(colvar_out%coord_param%c_kinds_to, colvar_out%coord_param%i_at_to)
+       NULLIFY(colvar_out%coord_param%c_kinds_to_b, colvar_out%coord_param%i_at_to_b)
        IF(colvar_in%coord_param%use_kinds_from) THEN
           ! KINDS
           ndim = SIZE(colvar_in%coord_param%c_kinds_from)
@@ -791,6 +825,19 @@ CONTAINS
           ALLOCATE(colvar_out%coord_param%i_at_to(ndim),stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           colvar_out%coord_param%i_at_to      = colvar_in%coord_param%i_at_to + my_offset
+       END IF
+       IF(colvar_in%coord_param%use_kinds_to_b) THEN
+          ! KINDS
+          ndim = SIZE(colvar_in%coord_param%c_kinds_to_b)
+          ALLOCATE(colvar_out%coord_param%c_kinds_to_b(ndim),stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          colvar_out%coord_param%c_kinds_to_b    = colvar_in%coord_param%c_kinds_to_b
+       ELSEIF(ASSOCIATED(colvar_in%coord_param%i_at_to_b)) THEN
+          ! INDEX
+          ndim = SIZE(colvar_in%coord_param%i_at_to_b)
+          ALLOCATE(colvar_out%coord_param%i_at_to_b(ndim),stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          colvar_out%coord_param%i_at_to_b      = colvar_in%coord_param%i_at_to_b + my_offset
        END IF
     CASE(angle_colvar_id)
        colvar_out%angle_param%i_at_angle   = colvar_in%angle_param%i_at_angle + my_offset
@@ -1072,6 +1119,23 @@ CONTAINS
              stat=colvar%coord_param%n_atoms_to
              CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
           END IF
+          ! Atoms to b
+          IF (colvar%coord_param%use_kinds_to_b) THEN
+             colvar%coord_param%use_kinds_to_b = .FALSE.
+             nkinds = SIZE(colvar%coord_param%c_kinds_to_b)
+             DO i = 1, natoms
+                DO j = 1 , nkinds
+                   IF (TRIM(colvar%coord_param%c_kinds_to_b(j))==TRIM(particles(i)%atomic_kind%name)) THEN
+                      CALL reallocate(colvar%coord_param%i_at_to_b, 1, colvar%coord_param%n_atoms_to_b+1)
+                      colvar%coord_param%n_atoms_to_b = colvar%coord_param%n_atoms_to_b + 1
+                      colvar%coord_param%i_at_to_b(colvar%coord_param%n_atoms_to_b) = i
+                   END IF
+                END DO
+             END DO
+             stat=colvar%coord_param%n_atoms_to_b
+             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+          END IF
+
           ! Setup the colvar
           CALL colvar_setup(colvar, error)
        END IF

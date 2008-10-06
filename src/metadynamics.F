@@ -52,6 +52,7 @@ MODULE metadynamics
                                              metavar_type
   USE parallel_rng_types,              ONLY: next_random_number
   USE particle_list_types,             ONLY: particle_list_type
+  USE physcon,                         ONLY: femtoseconds
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -450,7 +451,6 @@ CONTAINS
           cv%vvp = 0.0_dp
        END IF
     ENDDO
-
     ! History dependent forces (evaluated at s0)
     IF(meta_env%do_hills) CALL  hills(meta_env,error)
     
@@ -609,7 +609,7 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
          "PRINT%COLVAR",extension=".metadynLog",error=error)
     IF (iw>0) THEN
-       WRITE(iw,'(f12.1,40f13.5)')dt*meta_env%n_steps, &
+       WRITE(iw,'(f12.1,40f13.5)')meta_env%time*femtoseconds, &
             (meta_env%metavar(i)%ss0,i=1,meta_env%n_colvar), &
             (meta_env%metavar(i)%ss,i=1,meta_env%n_colvar), &
             (meta_env%metavar(i)%ff_s,i=1,meta_env%n_colvar), &
@@ -795,7 +795,7 @@ CONTAINS
             "PRINT%HILLS",extension=".metadynLog",error=error)
        IF (iw>0) THEN
           WRITE(iw,'(f12.1,30f13.5)')&
-               meta_env%dt*meta_env%n_steps,  &
+               meta_env%time*femtoseconds,  &
                (hills_env%ss_history(ih,n_hills),ih=1,n_colvar), &
                (hills_env%delta_s_history(ih,n_hills),ih=1,n_colvar),&
                hills_env%ww_history(n_hills)

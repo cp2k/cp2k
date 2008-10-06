@@ -192,6 +192,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="ATOMS_TO_B",&
+            variants=(/"POINTS_TO_B"/),&
+            description="For the CV given by the multiplication of two coorination numbers,"//&
+            " here specify indexes of the third set of atoms/points. ",&
+            usage="ATOMS_TO_B {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="KINDS_FROM",&
             description="Specify alternatively kinds of atoms building the coordination variable.",&
             usage="KINDS_FROM {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
@@ -202,6 +211,14 @@ CONTAINS
        CALL keyword_create(keyword, name="KINDS_TO",&
             description="Specify alternatively kinds of atoms building the coordination variable.",&
             usage="KINDS_TO {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=char_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="KINDS_TO_B",&
+            description="For the CV given by the multiplication of two coorination numbers,"//&
+           " here specify alternatively kinds of atoms building the coordination variable.",&
+            usage="KINDS_TO_B {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
             n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -233,6 +250,35 @@ CONTAINS
             description="Sets the value of the denominator of the exponential factor"//&
             "in the coordination FUNCTION.",&
             usage="ND {integer}",default_i_val=12,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="R0_B",&
+            variants=(/"R_0_B"/),&
+            description="For the CV given by the multiplication of two coorination numbers,"//&
+            " specify the R0 parameter in the second coordination function.",&
+            usage="R0_B {real}",default_r_val=3.0_dp,&
+            unit_str="bohr",n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NN_B",&
+            variants=(/"EXPON_NUMERATOR_B"/),&
+            description="For the CV given by the multiplication of two coorination numbers,"//&
+            "Sets the value of the numerator of the exponential factor"//&
+            "in the coordination FUNCTION.",&
+            usage="NN_B {integer}",default_i_val=6,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ND_B",&
+            variants=(/"EXPON_DENOMINATOR_B"/),&
+            description="For the CV given by the multiplication of two coorination numbers,"//&
+            "Sets the value of the denominator of the exponential factor"//&
+            "in the coordination FUNCTION.",&
+            usage="ND_B {integer}",default_i_val=12,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

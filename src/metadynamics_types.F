@@ -58,6 +58,7 @@ MODULE metadynamics_types
      LOGICAL       :: extended_lagrange
      INTEGER       :: n_colvar
      REAL(KIND=dp) :: ekin_s,cv_energy, dt
+     REAL(KIND=dp), POINTER :: time
      LOGICAL       :: tempcontrol, restart
      REAL(KIND=dp) :: temp_wanted,toll_temp
      INTEGER       :: n_steps

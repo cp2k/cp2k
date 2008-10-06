@@ -93,7 +93,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: c_kinds
     INTEGER                                  :: handle, iatm, iw, k, kk, &
-                                                n_var, ndim, stat
+                                                n_var, n_var_k, ndim, stat
     INTEGER, DIMENSION(:), POINTER           :: iatms
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(9)                    :: my_subsection
@@ -165,6 +165,7 @@ CONTAINS
        CALL colvar_check_points(colvar, coordination_section, error)
        NULLIFY(colvar%coord_param%i_at_from, colvar%coord_param%c_kinds_from)
        NULLIFY(colvar%coord_param%i_at_to, colvar%coord_param%c_kinds_to)
+       NULLIFY(colvar%coord_param%i_at_to_b, colvar%coord_param%c_kinds_to_b)
        ! This section can be repeated
        CALL section_vals_val_get(coordination_section,"ATOMS_FROM",n_rep_val=n_var,error=error)
        ndim = 0
@@ -229,6 +230,54 @@ CONTAINS
        CALL section_vals_val_get(coordination_section,"R0",r_val=colvar%coord_param%r_0,error=error)
        CALL section_vals_val_get(coordination_section,"NN",i_val=colvar%coord_param%nncrd,error=error)
        CALL section_vals_val_get(coordination_section,"ND",i_val=colvar%coord_param%ndcrd,error=error)
+       ! This section can be repeated
+       CALL section_vals_val_get(coordination_section,"ATOMS_TO_B",n_rep_val=n_var,error=error)
+       CALL section_vals_val_get(coordination_section,"KINDS_TO_B",n_rep_val=n_var_k,error=error)
+       ndim = 0
+       IF (n_var /= 0 .OR. n_var_k /= 0) THEN
+          colvar%coord_param%do_chain = .TRUE.
+          IF (n_var /= 0) THEN
+             ! INDEX LIST
+             DO k = 1, n_var
+                CALL section_vals_val_get(coordination_section,"ATOMS_TO_B",i_rep_val=k,i_vals=iatms,error=error)
+                CALL reallocate(colvar%coord_param%i_at_to_b,1, ndim+SIZE(iatms))
+                colvar%coord_param%i_at_to_b(ndim+1:ndim+SIZE(iatms)) = iatms 
+                ndim = ndim + SIZE(iatms)
+             END DO
+             colvar%coord_param%n_atoms_to_b = ndim
+             colvar%coord_param%use_kinds_to_b = .FALSE.
+          ELSE
+             ! KINDS
+             CALL section_vals_val_get(coordination_section,"KINDS_TO_B",n_rep_val=n_var_k,error=error)
+             CPPostcondition(n_var_k>0,cp_failure_level,routinep,error,failure)
+             DO k = 1, n_var
+                CALL section_vals_val_get(coordination_section,"KINDS_TO_B",i_rep_val=k,c_vals=c_kinds,error=error)
+                CALL reallocate(colvar%coord_param%c_kinds_to_b,1, ndim+SIZE(c_kinds))
+                colvar%coord_param%c_kinds_to_b(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
+                ndim = ndim + SIZE(c_kinds)
+             END DO
+             colvar%coord_param%n_atoms_to_b = 0
+             colvar%coord_param%use_kinds_to_b = .TRUE.
+             ! Uppercase the label
+             DO k = 1, ndim
+                CALL uppercase(colvar%coord_param%c_kinds_to_b(k))
+             END DO
+          END IF
+          ! Let's finish reading the other parameters
+          CALL section_vals_val_get(coordination_section,"R0_B",r_val=colvar%coord_param%r_0_b,error=error)
+          CALL section_vals_val_get(coordination_section,"NN_B",i_val=colvar%coord_param%nncrd_b,error=error)
+          CALL section_vals_val_get(coordination_section,"ND_B",i_val=colvar%coord_param%ndcrd_b,error=error)
+       ELSE
+          colvar%coord_param%do_chain = .FALSE.
+          colvar%coord_param%n_atoms_to_b = 0
+          colvar%coord_param%use_kinds_to_b = .FALSE.
+          NULLIFY(colvar%coord_param%i_at_to_b)
+          NULLIFY(colvar%coord_param%c_kinds_to_b)
+          colvar%coord_param%nncrd_b = 0
+          colvar%coord_param%ndcrd_b = 0
+          colvar%coord_param%r_0_b = 0._dp
+       END IF
+
     ELSE IF (my_subsection(5)) THEN
        ! Distance point from plane
        wrk_section => plane_dist_section
@@ -337,6 +386,9 @@ CONTAINS
           WRITE ( iw, '( A,T65,2I8)' )   ' COLVARS| BOND          >>> '//tag,&
                colvar%dist_param%i_at,colvar%dist_param%j_at
        CASE(coord_colvar_id)
+          IF(colvar%coord_param%do_chain) THEN
+                  WRITE ( iw, '( A)' ) ' COLVARS| COORDINATION CHAIN FC(from->to)*FC(to->to_B)>> '
+          END IF
           IF (colvar%coord_param%use_kinds_from) THEN
              WRITE ( iw, '( A,T71,A10)' )  (' COLVARS| COORDINATION  >>> FROM KINDS',&
                   ADJUSTR(colvar%coord_param%c_kinds_from(kk)(1:10)),&
@@ -358,6 +410,20 @@ CONTAINS
           WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| R0',colvar%coord_param%r_0
           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN',colvar%coord_param%nncrd
           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND',colvar%coord_param%ndcrd
+          IF(colvar%coord_param%do_chain) THEN
+            IF (colvar%coord_param%use_kinds_to_b) THEN
+               WRITE ( iw, '( A,T71,A10)' )  (' COLVARS| COORDINATION  >>>   TO KINDS B',&
+                  ADJUSTR(colvar%coord_param%c_kinds_to_b(kk)(1:10)),&
+                    kk=1,SIZE(colvar%coord_param%c_kinds_to_b))
+            ELSE
+               WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>>   TO '//tag//' B',&
+                  colvar%coord_param%i_at_to_b(kk),&
+                  kk=1,SIZE(colvar%coord_param%i_at_to_b))
+            END IF
+            WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| R0 B',colvar%coord_param%r_0_b
+            WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN B',colvar%coord_param%nncrd_b
+            WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND B',colvar%coord_param%ndcrd_b
+          END IF
        CASE(rotation_colvar_id)
            WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 1 LINE 1  >>> '//tag,&
                colvar%rotation_param%i_at1_bond1
@@ -443,7 +509,7 @@ CONTAINS
        CASE (dist_colvar_id)
           CALL dist_colvar(colvar,cell,particles=particles,error=error)
        CASE (coord_colvar_id)
-          CALL coord_colvar(colvar,cell,particles=particles, error=error)
+            CALL coordchain_colvar(colvar,cell,particles=particles, error=error)
        CASE (torsion_colvar_id)
           CALL torsion_colvar(colvar, cell, particles=particles, error=error)
        CASE (angle_colvar_id)
@@ -504,7 +570,7 @@ CONTAINS
        CASE (dist_colvar_id)
           CALL dist_colvar(colvar,cell,subsys=subsys,error=error)
        CASE (coord_colvar_id)
-          CALL coord_colvar(colvar,cell,subsys=subsys, error=error)
+            CALL coordchain_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (torsion_colvar_id)
           CALL torsion_colvar(colvar,cell,subsys=subsys, no_riemann_sheet_op=.TRUE.,error=error)
        CASE (angle_colvar_id)
@@ -1053,6 +1119,7 @@ CONTAINS
     colvar%ss=ncoord*inv_n_atoms_from
     colvar%dsdr(:,:) = colvar%dsdr(:,:)*inv_n_atoms_from
 
+     
   END SUBROUTINE coord_colvar
 
 ! *****************************************************************************
@@ -1555,5 +1622,118 @@ CONTAINS
     DEALLOCATE ( qloc, stat=stat )
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
   END SUBROUTINE hydronium_colvar
+
+! *****************************************************************************
+!> \brief evaluates the force due (and on) the coordination-chain collective variable
+!> \author MI
+!> \note When the third set of atoms is not defined, this variable is equivalent to the simple
+!>       coordination number. Therefore this routine can replace the original coord_colvar
+! *****************************************************************************
+  SUBROUTINE coordchain_colvar(colvar,cell,subsys,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'coordchain_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, jj, k, kk, &
+                                                n_atoms_from, n_atoms_to_a, &
+                                                n_atoms_to_b, p_a, p_b, q_a, &
+                                                q_b
+    LOGICAL                                  :: failure
+    REAL(dp) :: dfunc_ij, dfunc_jk, func_ij, func_jk, func_k, &
+      inv_n_atoms_from, invden_ij, invden_jk, ncoord, num_ij, num_jk, r_0_a, &
+      r_0_b, rdist_ij, rdist_jk, rij, rjk
+    REAL(dp), DIMENSION(3)                   :: ftmp_i, ftmp_j, ftmp_k, ss, &
+                                                xij, xjk, xpi, xpj, xpk
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+
+    failure=.FALSE.
+    ! If we defined the coordination number with KINDS then we have still
+    ! to fill few missing informations...
+    NULLIFY(particles_i)
+    CPPrecondition(colvar%type_id==coord_colvar_id,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+    n_atoms_to_a=colvar%coord_param%n_atoms_to
+    n_atoms_to_b=colvar%coord_param%n_atoms_to_b
+    n_atoms_from=colvar%coord_param%n_atoms_from
+    p_a=colvar%coord_param%nncrd
+    q_a=colvar%coord_param%ndcrd
+    r_0_a=colvar%coord_param%r_0
+    p_b=colvar%coord_param%nncrd_b
+    q_b=colvar%coord_param%ndcrd_b
+    r_0_b=colvar%coord_param%r_0_b
+
+    ncoord=0.0_dp
+    inv_n_atoms_from=1.0_dp/REAL(n_atoms_from)
+    DO ii=1,n_atoms_from
+       i=colvar%coord_param%i_at_from(ii)
+       CALL get_coordinates(colvar, i, xpi, my_particles)
+       DO jj=1,n_atoms_to_a
+          i=colvar%coord_param%i_at_to(jj)
+          CALL get_coordinates(colvar, i, xpj, my_particles)       
+          ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
+          ss=ss-NINT(ss)
+          xij=MATMUL(cell%hmat,ss)
+          rij=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+          IF(rij < 1.0e-8_dp)CYCLE
+          rdist_ij = rij/r_0_a
+          num_ij=(1.0_dp-rdist_ij**p_a)
+          invden_ij=1.0_dp/(1.0_dp-rdist_ij**q_a)
+          func_ij=num_ij*invden_ij
+          dfunc_ij= (- p_a*rdist_ij **(p_a-1) *invden_ij  &
+               + num_ij*(invden_ij)**2 * q_a *rdist_ij **(q_a-1))/(rij*r_0_a)
+          IF(n_atoms_to_b /=0) THEN
+             func_k = 0.0_dp
+             DO kk = 1,n_atoms_to_b
+               k=colvar%coord_param%i_at_to_b(kk)
+               CALL get_coordinates(colvar, k, xpk, my_particles)       
+               ss=MATMUL(cell%h_inv,xpj(:)-xpk(:))
+               ss=ss-NINT(ss)
+               xjk=MATMUL(cell%hmat,ss)
+               rjk=SQRT(xjk(1)**2+xjk(2)**2+xjk(3)**2)
+               IF(rjk < 1.0e-8_dp)CYCLE
+               rdist_jk = rjk/r_0_b
+               num_jk=(1.0_dp-rdist_jk**p_b)
+               invden_jk=1.0_dp/(1.0_dp-rdist_jk**q_b)
+               func_jk=num_jk*invden_jk
+               dfunc_jk= (- p_b*rdist_jk **(p_b-1) *invden_jk  &
+                  + num_jk*(invden_jk)**2 * q_b *rdist_jk **(q_b-1))/(rjk*r_0_b)
+               func_k = func_k + func_jk
+               ftmp_k = - func_ij * dfunc_jk * xjk
+               CALL put_derivative(colvar, n_atoms_from+n_atoms_to_a+kk, ftmp_k)
+
+               ftmp_j = - dfunc_ij * xij * func_jk + func_ij * dfunc_jk * xjk
+               CALL put_derivative(colvar, n_atoms_from+jj, ftmp_j)
+             END DO
+          ELSE
+            func_k = 1.0_dp
+            dfunc_jk = 0.0_dp
+            ftmp_j = -dfunc_ij*xij
+            CALL put_derivative(colvar, n_atoms_from+jj, ftmp_j)
+          END IF        
+          ncoord=ncoord+func_ij*func_k
+          ftmp_i = dfunc_ij*xij*func_k
+          CALL put_derivative(colvar, ii, ftmp_i)
+       ENDDO
+    ENDDO
+    colvar%ss=ncoord*inv_n_atoms_from
+    colvar%dsdr(:,:) = colvar%dsdr(:,:)*inv_n_atoms_from
+
+  END SUBROUTINE coordchain_colvar
+
+
 
 END MODULE colvar_methods
