@@ -118,7 +118,7 @@ CONTAINS
          DO iparticle_local=1,nparticle_local
             iparticle = local_particles%list(ikind)%array(iparticle_local)
             index = INT ( particle_set(iparticle)%rho / eam%drhoar) + 1
-            IF ( index > 4999 ) index = 5000
+            IF ( index > eam%npoints-1 ) index = eam%npoints
             qr = particle_set(iparticle)%rho  -  eam%rhoval(index)
 
             embed = eam%frho(index) +  qr*eam%frhop(index)

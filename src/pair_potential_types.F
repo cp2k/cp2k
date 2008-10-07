@@ -15,6 +15,7 @@ MODULE pair_potential_types
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE memory_utilities,                ONLY: reallocate
   USE splines_types,                   ONLY: spline_data_p_copy,&
                                              spline_data_p_release,&
                                              spline_data_p_type,&
@@ -140,10 +141,11 @@ MODULE pair_potential_types
 
 ! *****************************************************************************
   TYPE eam_pot_type
-     CHARACTER ( len = default_path_length ) :: eam_file_name
-     REAL ( KIND = dp )                     :: drar, drhoar, acutal
-     REAL ( KIND = dp ), DIMENSION ( 5000 ) :: rho, phi, frho, rhoval, rval
-     REAL ( KIND = dp ), DIMENSION ( 5000 ) :: rhop, phip, frhop
+     CHARACTER (LEN=default_path_length)     :: eam_file_name
+     INTEGER                                 :: npoints
+     REAL (KIND=dp)                          :: drar, drhoar, acutal
+     REAL (KIND=dp),POINTER, DIMENSION(:)    :: rho,  phi,  frho,  rhoval, rval
+     REAL (KIND=dp),POINTER, DIMENSION(:)    :: rhop, phip, frhop
   END TYPE eam_pot_type
 
 ! *****************************************************************************
@@ -301,17 +303,20 @@ CONTAINS
                (pot1%set(i)%goodwin%d  ==pot2%set(i)%goodwin%d  ).AND.&
                (pot1%set(i)%goodwin%dc ==pot2%set(i)%goodwin%dc )) mycompare=.TRUE.
        CASE (ea_type)
-          IF  ((pot1%set(i)%eam%drar  ==pot2%set(i)%eam%drar  ).AND.&
-               (pot1%set(i)%eam%drhoar==pot2%set(i)%eam%drhoar).AND.&
-               (pot1%set(i)%eam%acutal==pot2%set(i)%eam%acutal).AND.&
-               (SUM(ABS(pot1%set(i)%eam%rho   -pot2%set(i)%eam%rho   ))==0.0_dp).AND.&
-               (SUM(ABS(pot1%set(i)%eam%phi   -pot2%set(i)%eam%phi   ))==0.0_dp).AND.&
-               (SUM(ABS(pot1%set(i)%eam%frho  -pot2%set(i)%eam%frho  ))==0.0_dp).AND.&
-               (SUM(ABS(pot1%set(i)%eam%rhoval-pot2%set(i)%eam%rhoval))==0.0_dp).AND.&
-               (SUM(ABS(pot1%set(i)%eam%rval  -pot2%set(i)%eam%rval  ))==0.0_dp).AND.&
-               (SUM(ABS(pot1%set(i)%eam%rhop  -pot2%set(i)%eam%rhop  ))==0.0_dp).AND.&
-               (SUM(ABS(pot1%set(i)%eam%phip  -pot2%set(i)%eam%phip  ))==0.0_dp).AND.&
-               (SUM(ABS(pot1%set(i)%eam%frhop -pot2%set(i)%eam%frhop ))==0.0_dp)) mycompare=.TRUE.
+          ! Compare only if EAM have the same number of points
+          IF (pot1%set(i)%eam%npoints==pot2%set(i)%eam%npoints) THEN
+             IF  ((pot1%set(i)%eam%drar   ==pot2%set(i)%eam%drar  ).AND.&
+                  (pot1%set(i)%eam%drhoar ==pot2%set(i)%eam%drhoar).AND.&
+                  (pot1%set(i)%eam%acutal ==pot2%set(i)%eam%acutal).AND.&
+                  (SUM(ABS(pot1%set(i)%eam%rho   -pot2%set(i)%eam%rho   ))==0.0_dp).AND.&
+                  (SUM(ABS(pot1%set(i)%eam%phi   -pot2%set(i)%eam%phi   ))==0.0_dp).AND.&
+                  (SUM(ABS(pot1%set(i)%eam%frho  -pot2%set(i)%eam%frho  ))==0.0_dp).AND.&
+                  (SUM(ABS(pot1%set(i)%eam%rhoval-pot2%set(i)%eam%rhoval))==0.0_dp).AND.&
+                  (SUM(ABS(pot1%set(i)%eam%rval  -pot2%set(i)%eam%rval  ))==0.0_dp).AND.&
+                  (SUM(ABS(pot1%set(i)%eam%rhop  -pot2%set(i)%eam%rhop  ))==0.0_dp).AND.&
+                  (SUM(ABS(pot1%set(i)%eam%phip  -pot2%set(i)%eam%phip  ))==0.0_dp).AND.&
+                  (SUM(ABS(pot1%set(i)%eam%frhop -pot2%set(i)%eam%frhop ))==0.0_dp)) mycompare=.TRUE.
+          END IF
        CASE (ft_type)
           IF  ((pot1%set(i)%ft%A==pot2%set(i)%ft%A).AND.&
                (pot1%set(i)%ft%B==pot2%set(i)%ft%B).AND.&
@@ -1520,6 +1525,8 @@ CONTAINS
        CPPostcondition(.NOT.ASSOCIATED(eam),cp_failure_level,routineP,error,failure)
        ALLOCATE(eam, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(eam%rho, eam%phi, eam%frho, eam%rhoval, eam%rval,&
+               eam%rhop, eam%phip, eam%frhop)
        CALL pair_potential_eam_clean(eam, error=error)
     END IF
   END SUBROUTINE pair_potential_eam_create
@@ -1546,6 +1553,16 @@ CONTAINS
        eam_dest%drar          = eam_source%drar
        eam_dest%drhoar        = eam_source%drhoar
        eam_dest%acutal        = eam_source%acutal
+       eam_dest%npoints       = eam_source%npoints
+       ! Allocate arrays with the proper size
+       CALL reallocate(eam_dest%rho,   1, eam_dest%npoints)
+       CALL reallocate(eam_dest%rhop,  1, eam_dest%npoints)
+       CALL reallocate(eam_dest%phi,   1, eam_dest%npoints)
+       CALL reallocate(eam_dest%phip,  1, eam_dest%npoints)
+       CALL reallocate(eam_dest%frho,  1, eam_dest%npoints)
+       CALL reallocate(eam_dest%frhop, 1, eam_dest%npoints)
+       CALL reallocate(eam_dest%rval,  1, eam_dest%npoints)
+       CALL reallocate(eam_dest%rhoval,1, eam_dest%npoints)       
        eam_dest%rho           = eam_source%rho
        eam_dest%phi           = eam_source%phi
        eam_dest%frho          = eam_source%frho
@@ -1577,15 +1594,15 @@ CONTAINS
        eam%drar          = 0.0_dp
        eam%drhoar        = 0.0_dp
        eam%acutal        = 0.0_dp
-       ! Arrays
-       eam%rho           = 0.0_dp
-       eam%phi           = 0.0_dp
-       eam%frho          = 0.0_dp
-       eam%rhoval        = 0.0_dp
-       eam%rval          = 0.0_dp
-       eam%rhop          = 0.0_dp
-       eam%phip          = 0.0_dp
-       eam%frhop         = 0.0_dp
+       eam%npoints       = 0
+       CALL reallocate(eam%rho,   1, eam%npoints)
+       CALL reallocate(eam%rhop,  1, eam%npoints)
+       CALL reallocate(eam%phi,   1, eam%npoints)
+       CALL reallocate(eam%phip,  1, eam%npoints)
+       CALL reallocate(eam%frho,  1, eam%npoints)
+       CALL reallocate(eam%frhop, 1, eam%npoints)
+       CALL reallocate(eam%rval,  1, eam%npoints)
+       CALL reallocate(eam%rhoval,1, eam%npoints)
     END IF
   END SUBROUTINE pair_potential_eam_clean
 
@@ -1606,10 +1623,41 @@ CONTAINS
     failure = .FALSE.
     IF (.NOT.failure) THEN
        IF (ASSOCIATED(eam)) THEN
+          IF (ASSOCIATED(eam%rho)) THEN
+             DEALLOCATE(eam%rho, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(eam%rhop)) THEN
+             DEALLOCATE(eam%rhop, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(eam%phi)) THEN
+             DEALLOCATE(eam%phi, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(eam%phip)) THEN
+             DEALLOCATE(eam%phip, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(eam%frho)) THEN
+             DEALLOCATE(eam%frho, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(eam%frhop)) THEN
+             DEALLOCATE(eam%frhop, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(eam%rval)) THEN
+             DEALLOCATE(eam%rval, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(eam%rhoval)) THEN
+             DEALLOCATE(eam%rhoval, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
           DEALLOCATE(eam, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       NULLIFY(eam)
     END IF
   END SUBROUTINE pair_potential_eam_release
 

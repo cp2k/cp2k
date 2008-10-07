@@ -1196,7 +1196,16 @@ CONTAINS
 
        CALL keyword_create(keyword, name="PARM_FILE_NAME",&
             variants=(/"PARMFILE"/),&
-            description="Specifies the filename that contains the parameters of the EAM FF.",&
+            description="Specifies the filename that contains the tabulated EAM potential. "//&
+            "File structure: the first line of the potential file contains a title. "//&
+            "The second line contains: atomic number, mass and lattice constant. "//&
+            "These information are parsed but not used in CP2K. The third line contains: "//&
+            "dr: increment of r for the tabulated values of density and phi (assuming r starts in 0) [angstrom]; "//&
+            "drho: increment of density for the tabulated values of the embedding function (assuming rho starts "//&
+            "in 0) [au_c]; cutoff: cutoff of the EAM potential; npoints: number of points in tabulated. Follow "//&
+            "in order npoints lines for rho [au_c] and its derivative [au_c*angstrom^-1]; npoints lines for "//&
+            "PHI [ev] and its derivative [ev*angstrom^-1] and npoint lines for the embedded function [ev] "//&
+            "and its derivative [ev*au_c^-1].",&
             usage="PARM_FILE_NAME {FILENAME}",default_lc_val=" ",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

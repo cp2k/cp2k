@@ -149,8 +149,8 @@ CONTAINS
     rab = SQRT ( rab2 )
     index = INT ( rab / eam % drar ) + 1
 
-    IF ( index > 5000 ) THEN
-       index = 5000
+    IF ( index > eam%npoints) THEN
+       index = eam%npoints
     ELSEIF ( index < 1 ) THEN
        index = 1
     ENDIF
@@ -186,8 +186,8 @@ CONTAINS
     rab = SQRT ( rab2 )
     index = INT ( rab / eam % drar ) + 1
 
-    IF ( index > 5000 ) THEN
-       index = 5000
+    IF ( index > eam%npoints ) THEN
+       index = eam%npoints
     ELSEIF ( index < 1 ) THEN
        index = 1
     ENDIF

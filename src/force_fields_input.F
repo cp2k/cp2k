@@ -23,7 +23,6 @@ MODULE force_fields_input
                                              Yamada2000,&
                                              cite_reference
   USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE cp_files,                        ONLY: open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -51,7 +50,6 @@ MODULE force_fields_input
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_bcast
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, do_potential_single_allocation, ea_type, &
        eam_pot_type, ft_pot_type, ft_type, gp_type, gw_type, ip_type, &
@@ -1360,8 +1358,6 @@ CPSourceFileRef,&
        CALL parser_get_next_line(parser,1,error=error)
        CALL parser_get_object(parser,ntype,error=error)
        CALL reallocate(namearray,1,ntype)
-       !ALLOCATE(namearray(ntype),stat=stat)
-       !CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO itype=1,ntype
           CALL parser_get_next_line(parser,1,error=error)
           CALL parser_get_object(parser,namearray(itype),lower_to_upper=.TRUE.,error=error)
@@ -1981,148 +1977,65 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_eam_data', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: title3
-    INTEGER                                  :: handle, i, iw, ntyp, stat, &
-                                                unit_number
+    INTEGER                                  :: handle, i, iw
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: acutal, drar, drhoar, rlatt, &
-                                                rmass
-    REAL(KINd=dp), DIMENSION(:), POINTER     :: frho, frhop, phi, phip, rho, &
-                                                rhop, rhoval, rval
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_parser_type), POINTER            :: parser
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
+    NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
-    NULLIFY ( rval, rhoval, phi, phip, frho, frhop, rho, rhop )
     IF (.NOT.failure) THEN
-       IF ( para_env%ionode ) THEN
-          ALLOCATE ( rho ( 5000 ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          rho=0.0_dp
-          ALLOCATE ( rhop ( 5000 ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          rhop=0.0_dp
-          ALLOCATE ( rval ( 5000 ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          rval=0.0_dp
-          ALLOCATE ( rhoval ( 5000 ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          rhoval=0.0_dp
-          ALLOCATE ( phi ( 5000 ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          phi=0.0_dp
-          ALLOCATE ( phip ( 5000 ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          phip=0.0_dp
-          ALLOCATE ( frho ( 5000 ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          frho=0.0_dp
-          ALLOCATE ( frhop ( 5000 ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          frhop=0.0_dp
+       IF (iw>0) WRITE ( iw, * ) "Reading EAM data from: ",TRIM(eam%eam_file_name)
+       CALL parser_create(parser,TRIM(eam%eam_file_name),para_env=para_env,error=error)
 
-          CALL open_file(file_name=TRIM(eam % eam_file_name),&
-               file_form="FORMATTED",&
-               file_position="REWIND",&
-               file_status="OLD",&
-               unit_number=unit_number)
-          READ ( unit_number, '(A72)' ) title3
-          IF (iw>0) THEN 
-             WRITE ( iw, * ) "Reading EAM data from: ",TRIM(eam % eam_file_name)
-             WRITE ( iw, * ) "Title: ",title3
-          END IF
-          READ ( unit_number, * ) ntyp,rmass,rlatt
+       CALL parser_get_next_line(parser,1,error=error)
+       IF (iw>0)  WRITE(iw,*) "Title: ",parser%input_line
 
-          READ ( unit_number, * ) drar, drhoar, acutal
-          CALL convert_to_cp2k_units ( "ANGSTROM", length = drar )
-          CALL convert_to_cp2k_units ( "ANGSTROM", length = acutal )
+       CALL parser_get_next_line(parser,2,error=error)
+       READ(parser%input_line,*) eam%drar, eam%drhoar, eam%acutal, eam%npoints
+       CALL convert_to_cp2k_units ("ANGSTROM",length=eam%drar )
+       CALL convert_to_cp2k_units ("ANGSTROM",length=eam%acutal )
+       ! Relocating arrays with the right size
+       CALL reallocate(eam%rho, 1, eam%npoints)
+       CALL reallocate(eam%rhop, 1, eam%npoints)
+       CALL reallocate(eam%rval, 1, eam%npoints)
+       CALL reallocate(eam%rhoval, 1, eam%npoints)
+       CALL reallocate(eam%phi, 1, eam%npoints)
+       CALL reallocate(eam%phip, 1, eam%npoints)
+       CALL reallocate(eam%frho, 1, eam%npoints)
+       CALL reallocate(eam%frhop, 1, eam%npoints)
+       ! Reading density and derivative of density (with respect to r)
+       DO i = 1,eam%npoints
+          CALL parser_get_next_line(parser,1,error=error)
+          READ (parser%input_line,*) eam%rho(i), eam%rhop(i)
+          CALL convert_to_cp2k_units ("ANGSTROM",length=eam%rhop(i), l_power=-1 )
+          eam%rval(i)   = REAL(i-1,KIND=dp)*eam%drar
+          eam%rhoval(i) = REAL(i-1,KIND=dp)*eam%drhoar
+       END DO
+       ! Reading pair potential PHI and its derivative (with respect to r)
+       DO i = 1,eam%npoints
+          CALL parser_get_next_line(parser,1,error=error)
+          READ (parser%input_line,*) eam%phi(i), eam%phip(i)
+          CALL convert_to_cp2k_units ("EV",energy=eam%phi(i))
+          CALL convert_to_cp2k_units ("EV",energy=eam%phip(i))
+          CALL convert_to_cp2k_units ("ANGSTROM",length=eam%phip(i),l_power=-1)
+       END DO
+       ! Reading embedded function and its derivative (with respect to density)
+       DO i = 1,eam%npoints
+          CALL parser_get_next_line(parser,1,error=error)
+          READ (parser%input_line,*) eam%frho(i), eam%frhop(i)
+          CALL convert_to_cp2k_units ("EV",energy=eam%frho(i))
+          CALL convert_to_cp2k_units ("EV",energy=eam%frhop(i))
+       END DO
 
-          DO i = 1,5000
-             READ ( unit_number, * ) rho(i), rhop(i)
-             CALL convert_to_cp2k_units ( "ANGSTROM", length = rhop ( i ), l_power = -1 )
-             rval(i) = REAL ( i-1 ) * drar
-             rhoval(i) = REAL ( i-1 )* drhoar
-          END DO
-          !
-          DO i = 1,5000
-             READ ( unit_number, * ) phi(i), phip(i)
-             CALL convert_to_cp2k_units ( "EV", energy = phi ( i ) )
-             CALL convert_to_cp2k_units ( "EV", energy = phip ( i ) )
-             CALL convert_to_cp2k_units ( "ANGSTROM", length = phip ( i ), l_power = -1 )
-          END DO
-          !
-          DO i = 1,5000
-             READ ( unit_number, * ) frho(i), frhop(i)
-             CALL convert_to_cp2k_units ( "EV", energy = frho ( i ) )
-             CALL convert_to_cp2k_units ( "EV", energy = frhop ( i ) )
-          END DO
-          !
-          IF (iw>0) WRITE ( iw, * ) 'Finished EAM data'
-          CLOSE ( unit_number )
-       ENDIF
-       CALL mp_bcast ( drar, para_env%source, para_env % group )
-       CALL mp_bcast ( drhoar, para_env % source, para_env % group )
-       CALL mp_bcast ( acutal, para_env % source, para_env % group )
-
-       eam % drar = drar
-       eam % drhoar = drhoar
-       eam % acutal = acutal
-
-       CALL reallocate ( rho, 1, 5000 )
-       CALL mp_bcast ( rho, para_env%source, para_env%group )
-
-       CALL reallocate ( rhop, 1, 5000 )
-       CALL mp_bcast ( rhop, para_env%source, para_env%group )
-
-       CALL reallocate ( rval, 1, 5000 )
-       CALL mp_bcast ( rval, para_env%source, para_env%group )
-
-       CALL reallocate ( rhoval, 1, 5000 )
-       CALL mp_bcast ( rhoval, para_env%source, para_env%group )
-
-       CALL reallocate ( phi, 1, 5000 )
-       CALL mp_bcast ( phi, para_env%source, para_env%group )
-
-       CALL reallocate ( phip, 1, 5000 )
-       CALL mp_bcast ( phip, para_env%source, para_env%group )
-
-       CALL reallocate ( frho, 1, 5000 )
-       CALL mp_bcast ( frho, para_env%source, para_env%group )
-
-       CALL reallocate ( frhop, 1, 5000 )
-       CALL mp_bcast ( frhop, para_env%source, para_env%group )
-
-       eam % rho    = rho
-       eam % rhop   = rhop
-       eam % rval   = rval
-       eam % rhoval = rhoval
-       eam % phi    = phi
-       eam % phip   = phip
-       eam % frho   = frho
-       eam % frhop  = frhop
-
-       DEALLOCATE ( rho, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE ( rhop, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE ( rval, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE ( rhoval, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE ( phi, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE ( phip, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE ( frho, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE ( frhop, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    CALL cp_print_key_finished_output(iw,logger,mm_section,&
-         "PRINT%FF_INFO",error=error)
+       IF (iw>0) WRITE(iw,*)"Finished EAM data"
+       CALL parser_release(parser,error=error)
+     END IF
+    CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%FF_INFO",error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE read_eam_data

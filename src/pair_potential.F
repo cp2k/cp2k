@@ -722,7 +722,7 @@ CPSourceFileRef,&
        CASE (gw_type)
           nvar = 5 + nvar
        CASE (ea_type)
-          nvar = 3 + nvar
+          nvar = 4 + nvar
        CASE (ft_type)
           nvar = 4 + nvar
        CASE (ip_type)
@@ -793,6 +793,7 @@ CPSourceFileRef,&
                       pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%eam%drar
                       pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%eam%drhoar
                       pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%eam%acutal
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%set(1)%eam%npoints
                    CASE (ft_type)
                       pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%ft%A
                       pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%ft%B

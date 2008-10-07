@@ -89,15 +89,15 @@ CONTAINS
        ELSE IF (pot%type(j)==ft_type) THEN
           lvalue = pot%set(j)%ft%a*EXP(-pot%set(j)%ft%b*r) - pot%set(j)%ft%c/r**6 - pot%set(j)%ft%d/r**8
        ELSE IF (pot%type(j)==ea_type) THEN
-          index = INT ( r / pot % set(j) % eam % drar ) + 1
-          IF ( index > 5000 ) THEN
-             index = 5000
+          index = INT ( r / pot%set(j)%eam%drar ) + 1
+          IF ( index > pot%set(j)%eam%npoints ) THEN
+             index = pot%set(j)%eam%npoints
           ELSEIF ( index < 1 ) THEN
              index = 1
           ENDIF
-          qq = r - pot % set(j) % eam % rval (index)
-          pp =  pot % set(j) % eam % phi ( index ) + &
-               qq * pot % set(j) % eam % phip ( index )
+          qq = r - pot%set(j)%eam%rval(index)
+          pp =  pot%set(j)%eam%phi(index) + &
+                qq * pot%set(j)%eam%phip(index)
           lvalue = pp
        ELSE IF (pot%type(j)==b4_type) THEN
          IF(r<=pot%set(j)%buck4r%r1) THEN
