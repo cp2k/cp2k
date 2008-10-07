@@ -1,0 +1,166 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT 
+      BASIS_SET_FILE_NAME ../GTH_BASIS_SETS 
+      POTENTIAL_FILE_NAME ../GTH_POTENTIALS 
+      RESTART_FILE_NAME  hcn_md-RESTART.wfn
+    &MGRID
+      CUTOFF 50
+    &END MGRID
+    &QS
+      EXTRAPOLATION_ORDER 3
+    &END QS
+
+    &SCF
+      MAX_SCF 100
+      EPS_SCF 1.0E-6
+      SCF_GUESS RESTART
+      &OT
+        PRECONDITIONER FULL_SINGLE_INVERSE
+        MINIMIZER DIIS
+        N_DIIS 7
+      &END OT
+
+      &OUTER_SCF
+        MAX_SCF 10
+        EPS_SCF 1.0E-06
+      &END OUTER_SCF
+      &PRINT
+        &RESTART
+          LOG_PRINT_KEY
+        &END
+      &END
+     &END SCF
+     &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+     &END XC
+     &POISSON
+       POISSON_SOLVER MT
+       PERIODIC NONE
+       &MT
+       &END
+     &END
+
+
+  &END DFT
+
+  &SUBSYS
+    &CELL
+      ABC   8.0  8.0  8.0 
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+
+    &COORD
+        N          0.00     0.000    0.0
+        C          1.220   -0.000    0.0
+        H          2.1000   0.000    0.0
+    &END COORD
+
+    &KIND N
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q5
+    &END KIND
+
+    &KIND C
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+
+    &COLVAR
+       &COORDINATION
+          KINDS_FROM  N
+          KINDS_TO   C
+          KINDS_TO_B   H
+          R_0 [angstrom]  1.3
+          NN  10
+          ND  16
+          R_0_B [angstrom]  1.1
+          NN_B  10
+          ND_B  16
+       &END COORDINATION
+    &END COLVAR
+
+
+  &END SUBSYS
+
+&END FORCE_EVAL
+
+&GLOBAL
+  PROJECT hcn_chaincoord_k
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 10
+    TIMESTEP 0.5
+    TEMPERATURE 50.0
+    TEMP_TOL   100
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON 100.0
+        MTS 2
+      &END NOSE
+    &END
+  &END MD
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS  
+      LAGRANGE
+      NT_HILLS 10
+      WW 1.0e-3
+      &METAVAR
+        LAMBDA 1.0
+        MASS 50.0
+        SCALE 0.05
+        COLVAR 1
+        &WALL
+            POSITION 0.0
+            TYPE QUADRATIC
+            &QUADRATIC
+               DIRECTIOn WALL_MINUS
+               K  1.0
+            &END
+        &END
+      &END METAVAR
+#      &METAVAR
+#        LAMBDA 0.1
+#        MASS 10.0
+#        SCALE 0.02
+#        COLVAR 2
+#      &END METAVAR
+      &PRINT
+        &COLVAR
+           COMMON_ITERATION_LEVELS 3
+           &EACH
+             MD 1
+           &END
+        &END
+        &HILLS
+           COMMON_ITERATION_LEVELS 3
+           &EACH
+             MD 1
+           &END
+        &END
+      &END
+    &END METADYN
+  &END
+&END MOTION
+&EXT_RESTART
+  RESTART_FILE_NAME  hcn_md-1.restart
+  RESTART_COUNTERS F
+  RESTART_POS T
+  RESTART_VEL  T
+  RESTART_THERMOSTAT T
+&END EXT_RESTART

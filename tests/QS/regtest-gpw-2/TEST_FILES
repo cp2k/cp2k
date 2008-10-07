@@ -38,3 +38,4 @@ hcn_ts_r.inp       7
 hcn_md.inp               1
 hcn_meta_coord.inp       1
 hcn_meta_chaincoord.inp  1
+hcn_meta_chaincoord_kind.inp 1
