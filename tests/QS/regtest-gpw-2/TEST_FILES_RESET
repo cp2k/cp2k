@@ -462,3 +462,7 @@ hcn_ts_r.inp
 hcn_ts.inp
 #  
 hcn_ts_r.inp
+# original tests UNSTABLE.. results wrong if the regtest directory was not clean..
+hcn_md.inp
+hcn_meta_chaincoord.inp
+hcn_meta_coord.inp
