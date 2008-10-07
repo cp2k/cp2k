@@ -250,7 +250,7 @@ CONTAINS
              ! KINDS
              CALL section_vals_val_get(coordination_section,"KINDS_TO_B",n_rep_val=n_var_k,error=error)
              CPPostcondition(n_var_k>0,cp_failure_level,routinep,error,failure)
-             DO k = 1, n_var
+             DO k = 1, n_var_k
                 CALL section_vals_val_get(coordination_section,"KINDS_TO_B",i_rep_val=k,c_vals=c_kinds,error=error)
                 CALL reallocate(colvar%coord_param%c_kinds_to_b,1, ndim+SIZE(c_kinds))
                 colvar%coord_param%c_kinds_to_b(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
