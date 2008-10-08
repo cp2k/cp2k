@@ -169,3 +169,6 @@ uo2_shell_npe_6.inp
 uo2_shell_nve_vdt.inp
 uo2_shell_nve_vdt_r.inp
 uo2_shell_npt_vdt.inp
+##
+uo2_shell_npt_vdt.inp          2
+uo2_shell_npt_vdt_2.inp         
