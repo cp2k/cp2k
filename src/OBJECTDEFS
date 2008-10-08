@@ -558,6 +558,7 @@ OBJECTS_GENERIC =\
  splines_methods.o\
  splines_types.o\
  spme.o\
+ statistical_methods.o\
  sto_ng.o\
  string_table.o\
  string_utilities.o\

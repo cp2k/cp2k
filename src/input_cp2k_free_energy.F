@@ -314,7 +314,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
@@ -326,15 +325,11 @@ CONTAINS
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        
-       NULLIFY(keyword, subsection)
-       CALL keyword_create(keyword, name="EPS_CONV",&
-            description="Set the relative tolerance for the convergence of the covariance matrix"//&
-            " used to compute the free energy.",&
-            usage="EPS_CONV <REAL>",&
-            default_r_val=1.0E-2_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       
+       NULLIFY(subsection)
+       CALL create_uvar_conv_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)    
+
        CALL create_uvar_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)       
@@ -630,9 +625,91 @@ CONTAINS
             usage="COLVAR {integer}", type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
     END IF
-
   END SUBROUTINE create_uvar_section
+
+! *****************************************************************************
+!> \brief  creates the section specifying parameters to control the convergence
+!>         of the free energy
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teodoro laino [tlaino] 01.2007
+! *****************************************************************************
+  SUBROUTINE create_uvar_conv_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_uvar_conv_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="CONVERGENCE_CONTROL",&
+            description="This section specify parameters controlling the convergence"//&
+            " of the free energy.",&
+            n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="COARSE_GRAINED_WIDTH",&
+            variants=(/"CG_WIDTH"/),&
+            description="Width of segments in MD steps to generate the set of"//&
+            " coarse grained data, providing a correlation independent data set.",&
+            usage="COARSE_GRAINED_WIDTH <INTEGER>", default_i_val=50,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="MAX_COARSE_GRAINED_WIDTH",&
+            variants=(/"MAX_CG_WIDTH"/),&
+            description="Max Width of segments in MD steps to generate the set of"//&
+            " coarse grained data.",&
+            usage="MAX_COARSE_GRAINED_WIDTH <INTEGER>", default_i_val=200,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="COARSE_GRAINED_POINTS",&
+            variants=(/"CG_POINTS"/),&
+            description="Set the minimum amount of coarse grained points to collect"//&
+            " before starting the statistical analysis",&
+            usage="COARSE_GRAINED_POINTS <INTEGER>", default_i_val=30,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="EPS_CONV",&
+            description="Set the relative tolerance for the convergence of the collective"//&
+            " variable averages used to compute the free energy.",&
+            usage="EPS_CONV <REAL>",&
+            default_r_val=1.0E-2_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="K_CONFIDENCE_LIMIT",&
+            description="Set the confidence limit for the Mann-Kendall trend test.",&
+            usage="K_CONFIDENCE_LIMIT <REAL>",&
+            default_r_val=0.90_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SW_CONFIDENCE_LIMIT",&
+            description="Set the confidence limit for the Shapiro-Wilks normality test.",&
+            usage="SW_CONFIDENCE_LIMIT <REAL>",&
+            default_r_val=0.90_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="VN_CONFIDENCE_LIMIT",&
+            description="Set the confidence limit for the Von Neumann serial correlation test.",&
+            usage="VN_CONFIDENCE_LIMIT <REAL>",&
+            default_r_val=0.90_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_uvar_conv_section
 
 END MODULE input_cp2k_free_energy
