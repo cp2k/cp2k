@@ -76,6 +76,7 @@ MODULE md
      REAL (KIND=dp) :: dt
      REAL (KIND=dp) :: dt_fact
      REAL (KIND=dp) :: dr_tol
+     REAL (KIND=dp) :: dsc_tol
      REAL (KIND=dp) :: temp_ext
      REAL (KIND=dp) :: temp_baro_ext
      REAL (KIND=dp) :: temp_baro
@@ -381,6 +382,7 @@ CPSourceFileRef,&
           simpar % variable_dt = .TRUE.
        ELSE
           simpar % variable_dt = .FALSE.
+          simpar%dr_tol = 100.0_dp
        END IF
 
        IF (simpar%ensemble == langevin_ensemble) THEN
@@ -443,6 +445,14 @@ CPSourceFileRef,&
        IF (explicit) THEN
           CALL section_vals_val_get(tmp_section,"TEMPERATURE",r_val=simpar%temp_sh_ext,error=error)
           CALL section_vals_val_get(tmp_section,"TEMP_TOL",r_val=simpar%temp_sh_tol,error=error)
+
+          CALL section_vals_val_get(tmp_section,"DISPLACEMENT_SHELL_TOL",n_rep_val=n_rep,error=error)
+          IF (n_rep==1) THEN
+            CALL section_vals_val_get(tmp_section,"DISPLACEMENT_SHELL_TOL",r_val=simpar%dsc_tol,error=error)
+            simpar % variable_dt = .TRUE.
+          ELSE
+            simpar%dsc_tol = 100.0_dp
+          END IF
        END IF
     END IF
 

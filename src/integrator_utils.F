@@ -21,17 +21,18 @@ MODULE integrator_utils
                                              debug_uniaxial_limit,&
                                              npt_info_type
   USE f77_blas
-  USE input_constants,                 ONLY: npe_f_ensemble,&
-                                             npe_i_ensemble,&
-                                             nph_uniaxial_damped_ensemble,&
-                                             nph_uniaxial_ensemble,&
-                                             npt_f_ensemble,&
-                                             npt_i_ensemble
+  USE input_constants,                 ONLY: &
+       isokin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
+       npt_i_ensemble, nve_ensemble, nvt_ensemble
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matvec_3x3,&
                                              transpose_3d
   USE md,                              ONLY: simulation_parameters_type
-  USE message_passing,                 ONLY: mp_sum
+  USE md_environment_types,            ONLY: get_md_env,&
+                                             md_environment_type
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              global_constraint_type,&
@@ -65,6 +66,10 @@ MODULE integrator_utils
     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: shell_vel
     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: core_pos
     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: core_vel
+    REAL(KIND=dp) :: max_vel, max_vel_sc
+    REAL(KIND=dp) :: arg_r(3), arg_v(3), u(3,3), e_val(3), s, ds
+    REAL(KIND=dp), DIMENSION(3) :: poly_r, &
+                                   poly_v, scale_r, scale_v
   END TYPE tmp_variables_type
 
   INTERFACE set
@@ -81,7 +86,8 @@ MODULE integrator_utils
 
   PUBLIC :: old_variables_type, tmp_variables_type, allocate_old, deallocate_old,&
        allocate_tmp, update_dealloc_tmp, damp_v, set, update_pv, get_s_ds,&
-       rattle_roll_setup, damp_veps, update_veps, vv_first, vv_second
+       rattle_roll_setup, damp_veps, update_veps, vv_first, vv_second,&
+       variable_timestep
 
 CONTAINS
 
@@ -234,6 +240,17 @@ CONTAINS
        tmp%core_vel(:,:) = 0.0_dp
    END IF
 
+   tmp%arg_r = 0.0_dp
+   tmp%arg_v = 0.0_dp
+   tmp%u = 0.0_dp
+   tmp%e_val = 0.0_dp
+   tmp%max_vel = 0.0_dp
+   tmp%max_vel_sc = 0.0_dp
+   tmp%scale_r = 1.0_dp
+   tmp%scale_v = 1.0_dp
+   tmp%poly_r = 1.0_dp
+   tmp%poly_v = 1.0_dp
+
   END SUBROUTINE allocate_tmp
 
 ! *****************************************************************************
@@ -315,10 +332,9 @@ CONTAINS
 !>      - Created [2004-07]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE get_s_ds(tmp, s, ds, nparticle_kind, atomic_kind_set,  local_particles, particle_set,&
+  SUBROUTINE get_s_ds(tmp, nparticle_kind, atomic_kind_set,  local_particles, particle_set,&
        dt, para_env, tmpv)
     TYPE(tmp_variables_type), POINTER        :: tmp
-    REAL(KIND=dp)                            :: s, ds
     INTEGER                                  :: nparticle_kind
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -371,8 +387,8 @@ CONTAINS
     a=a/(2.0_dp*K)
     b=b/(2.0_dp*K)
     rb=SQRT(b)
-    s =(a/b)*(COSH(dt*rb/2.0_dp)-1) +SINH(dt*rb/2.0_dp)/rb
-    ds=(a/b)*(SINH(dt*rb/2.0_dp)*rb)+COSH(dt*rb/2.0_dp)
+    tmp%s =(a/b)*(COSH(dt*rb/2.0_dp)-1) +SINH(dt*rb/2.0_dp)/rb
+    tmp%ds=(a/b)*(SINH(dt*rb/2.0_dp)*rb)+COSH(dt*rb/2.0_dp)
 
   END SUBROUTINE get_s_ds
 
@@ -945,7 +961,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE vv_first ( tmp, atomic_kind_set, local_particles, particle_set, &
        core_particle_set, shell_particle_set, nparticle_kind,&
-       shell_adiabatic, dt, max_vel, poly_r, poly_v, scale_r, scale_v, u )
+       shell_adiabatic, dt, u )
 
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -958,9 +974,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nparticle_kind
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
     REAL(KIND=dp)                            :: dt
-    REAL(KIND=dp), INTENT(OUT)               :: max_vel
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: poly_r(3), poly_v(3), &
-                                                scale_r(3), scale_v(3)
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: u
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vv_first', &
@@ -970,21 +983,14 @@ CONTAINS
                                                 iparticle_local, &
                                                 nparticle_local, shell_index
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp) :: dm, dmc, dms, fac_massc, fac_masss, mass, my_poly_r(3), &
-      my_poly_v(3), my_scale_r(3), my_scale_v(3)
+    REAL(KIND=dp)                            :: dm, dmc, dms, fac_massc, &
+                                                fac_masss, mass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 
     NULLIFY(atomic_kind,shell)
-    my_poly_r = 1.0_dp
-    my_poly_v = 1.0_dp
-    my_scale_r = 1.0_dp
-    my_scale_v = 1.0_dp
-    IF(PRESENT(poly_r)) my_poly_r = poly_r
-    IF(PRESENT(poly_v)) my_poly_v = poly_v
-    IF(PRESENT(scale_r)) my_scale_r = scale_r
-    IF(PRESENT(scale_v)) my_scale_v = scale_v
-    max_vel = 0.0_dp
+    tmp%max_vel = 0.0_dp
+    tmp%max_vel_sc = 0.0_dp
 
     !     *** Velocity Verlet (first part) ***
     IF(shell_adiabatic) THEN
@@ -1005,11 +1011,11 @@ CONTAINS
                    shell_index = particle_set(iparticle)%shell_index
                    ! Transform positions and velocities and forces of the shell
                    CALL transform_first(shell_particle_set,tmp%shell_pos,tmp%shell_vel,&
-                        shell_index,u,dms,dt,poly_v,poly_r,scale_v,scale_r)
+                        shell_index,u,dms,dt,tmp%poly_v,tmp%poly_r,tmp%scale_v,tmp%scale_r)
 
                    ! Transform positions and velocities and forces of the core
                    CALL transform_first(core_particle_set,tmp%core_pos,tmp%core_vel,&
-                        shell_index,u,dmc,dt,poly_v,poly_r,scale_v,scale_r)
+                        shell_index,u,dmc,dt,tmp%poly_v,tmp%poly_r,tmp%scale_v,tmp%scale_r)
 
                    ! Derive velocities and positions of the COM
                    tmp%vel (:,iparticle) = fac_masss*tmp%shell_vel (:,shell_index)+&
@@ -1017,30 +1023,36 @@ CONTAINS
                    tmp%pos (:,iparticle) = fac_masss*tmp%shell_pos (:,shell_index)+&
                         fac_massc*tmp%core_pos (:,shell_index)
                    
-                   max_vel = MAX(max_vel,ABS(tmp%vel(1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
+                   tmp%max_vel = MAX(tmp%max_vel,ABS(tmp%vel(1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
+                   tmp%max_vel_sc = MAX(tmp%max_vel_sc,ABS(tmp%shell_vel(1,shell_index)-tmp%core_vel(1,shell_index)),&
+                                    ABS(tmp%shell_vel(2,shell_index)-tmp%core_vel(2,shell_index)),&
+                                    ABS(tmp%shell_vel(3,shell_index)-tmp%core_vel(3,shell_index)))
                 END DO  ! iparticle_local
              ELSE
                 DO iparticle_local=1,nparticle_local
                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                    shell_index = particle_set(iparticle)%shell_index
                    tmp%shell_vel (:,shell_index) = &
-                        shell_particle_set(shell_index)%v(:) * my_scale_v(:) * my_scale_v(:) +&
-                        my_scale_v(:) * my_poly_v(:) * dms * shell_particle_set(shell_index)%f(:)
+                        shell_particle_set(shell_index)%v(:) * tmp%scale_v(:) * tmp%scale_v(:) +&
+                        tmp%scale_v(:) * tmp%poly_v(:) * dms * shell_particle_set(shell_index)%f(:)
                    tmp%shell_pos (:,shell_index) = &
-                        shell_particle_set(shell_index)%r(:) * my_scale_r(:) * my_scale_r(:)  +&
-                        my_scale_r(:) * my_poly_r(:) *dt * tmp%shell_vel ( :, shell_index )
+                        shell_particle_set(shell_index)%r(:) * tmp%scale_r(:) * tmp%scale_r(:)  +&
+                        tmp%scale_r(:) * tmp%poly_r(:) *dt * tmp%shell_vel ( :, shell_index )
                    tmp%core_vel (:,shell_index) = &
-                        core_particle_set(shell_index)%v(:) * my_scale_v(:) * my_scale_v(:) +&
-                        my_scale_v(:) * my_poly_v(:) *dmc * core_particle_set(shell_index)%f(:)
+                        core_particle_set(shell_index)%v(:) * tmp%scale_v(:) * tmp%scale_v(:) +&
+                        tmp%scale_v(:) * tmp%poly_v(:) *dmc * core_particle_set(shell_index)%f(:)
                    tmp%core_pos (:,shell_index) = &
-                        core_particle_set(shell_index)%r(:) * my_scale_r(:) * my_scale_r(:) +&
-                        my_scale_r(:) * my_poly_r(:) *dt * tmp%core_vel ( :, shell_index )
+                        core_particle_set(shell_index)%r(:) * tmp%scale_r(:) * tmp%scale_r(:) +&
+                        tmp%scale_r(:) * tmp%poly_r(:) *dt * tmp%core_vel ( :, shell_index )
 
                    tmp%vel (:,iparticle) = fac_masss*tmp%shell_vel (:,shell_index)+&
                         fac_massc*tmp%core_vel (:,shell_index)
                    tmp%pos (:,iparticle) = fac_masss*tmp%shell_pos (:,shell_index)+&
                         fac_massc*tmp%core_pos (:,shell_index)
-                   max_vel = MAX(max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
+                   tmp%max_vel = MAX(tmp%max_vel,ABS(tmp%vel(1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
+                   tmp%max_vel_sc = MAX(tmp%max_vel_sc,ABS(tmp%shell_vel(1,shell_index)-tmp%core_vel(1,shell_index)),&
+                                    ABS(tmp%shell_vel(2,shell_index)-tmp%core_vel(2,shell_index)),&
+                                    ABS(tmp%shell_vel(3,shell_index)-tmp%core_vel(3,shell_index)))
                 END DO  ! iparticle_local
              END IF
           ELSE
@@ -1050,31 +1062,31 @@ CONTAINS
                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                    ! Transform positions and velocities and forces
                    CALL transform_first(particle_set,tmp%pos,tmp%vel,&
-                        iparticle,u,dm,dt,poly_v,poly_r,scale_v,scale_r)
-                   max_vel = MAX(max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
+                        iparticle,u,dm,dt,tmp%poly_v,tmp%poly_r,tmp%scale_v,tmp%scale_r)
+                   tmp%max_vel = MAX(tmp%max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
                 END DO  ! iparticle_local
              ELSE
                 DO iparticle_local=1,nparticle_local
                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                    tmp%vel (1,iparticle) = &
-                        particle_set(iparticle)%v(1) * my_scale_v(1) * my_scale_v(1)+&
-                        my_scale_v(1) * my_poly_v(1) * dm * particle_set(iparticle)%f(1)
+                        particle_set(iparticle)%v(1) * tmp%scale_v(1) * tmp%scale_v(1)+&
+                        tmp%scale_v(1) * tmp%poly_v(1) * dm * particle_set(iparticle)%f(1)
                    tmp%vel (2,iparticle) = &
-                        particle_set(iparticle)%v(2) * my_scale_v(2) * my_scale_v(2)+&
-                        my_scale_v(2) * my_poly_v(2) * dm * particle_set(iparticle)%f(2)
+                        particle_set(iparticle)%v(2) * tmp%scale_v(2) * tmp%scale_v(2)+&
+                        tmp%scale_v(2) * tmp%poly_v(2) * dm * particle_set(iparticle)%f(2)
                    tmp%vel (3,iparticle) = &
-                        particle_set(iparticle)%v(3) * my_scale_v(3) * my_scale_v(3)+&
-                        my_scale_v(3) * my_poly_v(3) * dm * particle_set(iparticle)%f(3)
+                        particle_set(iparticle)%v(3) * tmp%scale_v(3) * tmp%scale_v(3)+&
+                        tmp%scale_v(3) * tmp%poly_v(3) * dm * particle_set(iparticle)%f(3)
                    tmp%pos (1,iparticle) = &
-                        particle_set(iparticle)%r(1) * my_scale_r(1) * my_scale_r(1)+&
-                        my_scale_r(1) * my_poly_r(1) * dt * tmp%vel ( 1, iparticle )
+                        particle_set(iparticle)%r(1) * tmp%scale_r(1) * tmp%scale_r(1)+&
+                        tmp%scale_r(1) * tmp%poly_r(1) * dt * tmp%vel ( 1, iparticle )
                    tmp%pos (2,iparticle) = &
-                        particle_set(iparticle)%r(2) * my_scale_r(2) * my_scale_r(2)+&
-                        my_scale_r(2) * my_poly_r(2) * dt * tmp%vel ( 2, iparticle )
+                        particle_set(iparticle)%r(2) * tmp%scale_r(2) * tmp%scale_r(2)+&
+                        tmp%scale_r(2) * tmp%poly_r(2) * dt * tmp%vel ( 2, iparticle )
                    tmp%pos (3,iparticle) = &
-                        particle_set(iparticle)%r(3) * my_scale_r(3) * my_scale_r(3)+&
-                        my_scale_r(3) * my_poly_r(3) * dt * tmp%vel ( 3, iparticle )
-                   max_vel = MAX(max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
+                        particle_set(iparticle)%r(3) * tmp%scale_r(3) * tmp%scale_r(3)+&
+                        tmp%scale_r(3) * tmp%poly_r(3) * dt * tmp%vel ( 3, iparticle )
+                   tmp%max_vel = MAX(tmp%max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
                 END DO  ! iparticle_local
              END IF
           END IF
@@ -1090,31 +1102,31 @@ CONTAINS
                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                 ! Transform positions and velocities and forces
                 CALL transform_first(particle_set,tmp%pos,tmp%vel,&
-                     iparticle,u,dm,dt,poly_v,poly_r,scale_v,scale_r)
-                max_vel = MAX(max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
+                     iparticle,u,dm,dt,tmp%poly_v,tmp%poly_r,tmp%scale_v,tmp%scale_r)
+                tmp%max_vel = MAX(tmp%max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
              END DO  ! iparticle_local
           ELSE
              DO iparticle_local=1,nparticle_local
                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                 tmp%vel (1,iparticle) = &
-                     particle_set(iparticle)%v(1) * my_scale_v(1) * my_scale_v(1)+&
-                     my_scale_v(1) * my_poly_v(1) * dm * particle_set(iparticle)%f(1)
+                     particle_set(iparticle)%v(1) * tmp%scale_v(1) * tmp%scale_v(1)+&
+                     tmp%scale_v(1) * tmp%poly_v(1) * dm * particle_set(iparticle)%f(1)
                 tmp%vel (2,iparticle) = &
-                     particle_set(iparticle)%v(2) * my_scale_v(2) * my_scale_v(2)+&
-                     my_scale_v(2) * my_poly_v(2) * dm * particle_set(iparticle)%f(2)
+                     particle_set(iparticle)%v(2) * tmp%scale_v(2) * tmp%scale_v(2)+&
+                     tmp%scale_v(2) * tmp%poly_v(2) * dm * particle_set(iparticle)%f(2)
                 tmp%vel (3,iparticle) = &
-                     particle_set(iparticle)%v(3) * my_scale_v(3) * my_scale_v(3)+&
-                     my_scale_v(3) * my_poly_v(3) * dm * particle_set(iparticle)%f(3)
+                     particle_set(iparticle)%v(3) * tmp%scale_v(3) * tmp%scale_v(3)+&
+                     tmp%scale_v(3) * tmp%poly_v(3) * dm * particle_set(iparticle)%f(3)
                 tmp%pos (1,iparticle) = &
-                     particle_set(iparticle)%r(1) * my_scale_r(1) * my_scale_r(1)+&
-                     my_scale_r(1) * my_poly_r(1) * dt * tmp%vel ( 1, iparticle )
+                     particle_set(iparticle)%r(1) * tmp%scale_r(1) * tmp%scale_r(1)+&
+                     tmp%scale_r(1) * tmp%poly_r(1) * dt * tmp%vel ( 1, iparticle )
                 tmp%pos (2,iparticle) = &
-                     particle_set(iparticle)%r(2) * my_scale_r(2) * my_scale_r(2)+&
-                     my_scale_r(2) * my_poly_r(2) * dt * tmp%vel ( 2, iparticle )
+                     particle_set(iparticle)%r(2) * tmp%scale_r(2) * tmp%scale_r(2)+&
+                     tmp%scale_r(2) * tmp%poly_r(2) * dt * tmp%vel ( 2, iparticle )
                 tmp%pos (3,iparticle) = &
-                     particle_set(iparticle)%r(3) * my_scale_r(3) * my_scale_r(3)+&
-                     my_scale_r(3) * my_poly_r(3) * dt * tmp%vel ( 3, iparticle )
-                max_vel = MAX(max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
+                     particle_set(iparticle)%r(3) * tmp%scale_r(3) * tmp%scale_r(3)+&
+                     tmp%scale_r(3) * tmp%poly_r(3) * dt * tmp%vel ( 3, iparticle )
+                tmp%max_vel = MAX(tmp%max_vel,ABS(tmp%vel (1,iparticle)),ABS(tmp%vel (2,iparticle)),ABS(tmp%vel (3,iparticle)))
              END DO
           END IF
        END DO
@@ -1131,7 +1143,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE vv_second ( tmp, atomic_kind_set, local_particles, particle_set,&
        core_particle_set, shell_particle_set, nparticle_kind,&
-       shell_adiabatic, dt, poly_v, scale_v, u )
+       shell_adiabatic, dt, u )
 
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1144,7 +1156,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nparticle_kind
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
     REAL(KIND=dp)                            :: dt
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: poly_v(3), scale_v(3)
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: u
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vv_second', &
@@ -1155,16 +1166,11 @@ CONTAINS
                                                 nparticle_local, shell_index
     LOGICAL                                  :: is_shell
     REAL(KIND=dp)                            :: dm, dmc, dms, fac_massc, &
-                                                fac_masss, mass, &
-                                                my_poly_v(3), my_scale_v(3)
+                                                fac_masss, mass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 
     NULLIFY(atomic_kind,shell)
-    my_poly_v = 1.0_dp
-    my_scale_v = 1.0_dp
-    IF(PRESENT(poly_v)) my_poly_v = poly_v
-    IF(PRESENT(scale_v)) my_scale_v = scale_v
 
     !     *** Velocity Verlet (second part) ***
     IF(shell_adiabatic) THEN
@@ -1185,11 +1191,11 @@ CONTAINS
                    shell_index = particle_set(iparticle)%shell_index
                    ! Transform velocities and forces shell
                    CALL transform_second(shell_particle_set,tmp%shell_vel,shell_index,&
-                        u,dms,poly_v,scale_v)
+                        u,dms,tmp%poly_v,tmp%scale_v)
 
                    ! Transform velocities and forces core
                    CALL transform_second(core_particle_set,tmp%core_vel,shell_index,&
-                        u,dmc,poly_v,scale_v)
+                        u,dmc,tmp%poly_v,tmp%scale_v)
 
                    ! Derive velocties of the COM
                    tmp%vel(1,iparticle) = fac_masss*tmp%shell_vel(1,shell_index) + &
@@ -1204,23 +1210,23 @@ CONTAINS
                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                    shell_index = particle_set(iparticle)%shell_index
                    tmp%shell_vel (1,shell_index) = &
-                        tmp%shell_vel (1,shell_index) * my_scale_v(1) * my_scale_v(1) + &
-                        my_scale_v(1) * my_poly_v(1) * dms*shell_particle_set(shell_index)%f(1)
+                        tmp%shell_vel (1,shell_index) * tmp%scale_v(1) * tmp%scale_v(1) + &
+                        tmp%scale_v(1) * tmp%poly_v(1) * dms*shell_particle_set(shell_index)%f(1)
                    tmp%shell_vel (2,shell_index) =&
-                        tmp%shell_vel (2,shell_index) * my_scale_v(2) * my_scale_v(2) + &
-                        my_scale_v(2) * my_poly_v(2) * dms*shell_particle_set(shell_index)%f(2)
+                        tmp%shell_vel (2,shell_index) * tmp%scale_v(2) * tmp%scale_v(2) + &
+                        tmp%scale_v(2) * tmp%poly_v(2) * dms*shell_particle_set(shell_index)%f(2)
                    tmp%shell_vel (3,shell_index) =&
-                        tmp%shell_vel (3,shell_index) * my_scale_v(3) * my_scale_v(3) + &
-                        my_scale_v(3) * my_poly_v(3) * dms*shell_particle_set(shell_index)%f(3)
+                        tmp%shell_vel (3,shell_index) * tmp%scale_v(3) * tmp%scale_v(3) + &
+                        tmp%scale_v(3) * tmp%poly_v(3) * dms*shell_particle_set(shell_index)%f(3)
                    tmp%core_vel (1,shell_index) =&
-                        tmp%core_vel (1,shell_index) * my_scale_v(1) * my_scale_v(1) + &
-                        my_scale_v(1) * my_poly_v(1) * dmc*core_particle_set(shell_index)%f(1)
+                        tmp%core_vel (1,shell_index) * tmp%scale_v(1) * tmp%scale_v(1) + &
+                        tmp%scale_v(1) * tmp%poly_v(1) * dmc*core_particle_set(shell_index)%f(1)
                    tmp%core_vel (2,shell_index) =&
-                        tmp%core_vel (2,shell_index) * my_scale_v(2) * my_scale_v(2)+ &
-                        my_scale_v(2) * my_poly_v(2) * dmc*core_particle_set(shell_index)%f(2)
+                        tmp%core_vel (2,shell_index) * tmp%scale_v(2) * tmp%scale_v(2)+ &
+                        tmp%scale_v(2) * tmp%poly_v(2) * dmc*core_particle_set(shell_index)%f(2)
                    tmp%core_vel (3,shell_index) =&
-                        tmp%core_vel (3,shell_index) * my_scale_v(3) * my_scale_v(3)+ &
-                        my_scale_v(3) * my_poly_v(3) * dmc*core_particle_set(shell_index)%f(3)
+                        tmp%core_vel (3,shell_index) * tmp%scale_v(3) * tmp%scale_v(3)+ &
+                        tmp%scale_v(3) * tmp%poly_v(3) * dmc*core_particle_set(shell_index)%f(3)
 
                    tmp%vel ( 1, iparticle) = fac_masss*tmp%shell_vel (1,shell_index)+ &
                         fac_massc*tmp%core_vel (1,shell_index)
@@ -1237,20 +1243,20 @@ CONTAINS
                 DO iparticle_local=1,nparticle_local
                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                    CALL transform_second(particle_set,tmp%vel,iparticle,&
-                        u,dm,poly_v,scale_v)
+                        u,dm,tmp%poly_v,tmp%scale_v)
                 END DO  ! iparticle_local
              ELSE
                 DO iparticle_local=1,nparticle_local
                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                    tmp%vel ( 1, iparticle) = &
-                        tmp%vel ( 1, iparticle) * my_scale_v(1) * my_scale_v(1)  + &
-                        my_scale_v(1) * my_poly_v(1) * dm*particle_set(iparticle)%f(1)
+                        tmp%vel ( 1, iparticle) * tmp%scale_v(1) * tmp%scale_v(1)  + &
+                        tmp%scale_v(1) * tmp%poly_v(1) * dm*particle_set(iparticle)%f(1)
                    tmp%vel ( 2, iparticle) = &
-                        tmp%vel ( 2, iparticle) * my_scale_v(2) * my_scale_v(1)  + &
-                        my_scale_v(2) * my_poly_v(2) * dm*particle_set(iparticle)%f(2)
+                        tmp%vel ( 2, iparticle) * tmp%scale_v(2) * tmp%scale_v(1)  + &
+                        tmp%scale_v(2) * tmp%poly_v(2) * dm*particle_set(iparticle)%f(2)
                    tmp%vel ( 3, iparticle) = &
-                        tmp%vel ( 3, iparticle) * my_scale_v(3) * my_scale_v(3)  + &
-                        my_scale_v(3) * my_poly_v(3) * dm*particle_set(iparticle)%f(3)
+                        tmp%vel ( 3, iparticle) * tmp%scale_v(3) * tmp%scale_v(3)  + &
+                        tmp%scale_v(3) * tmp%poly_v(3) * dm*particle_set(iparticle)%f(3)
                 END DO  ! iparticle_local
              END IF
           END IF
@@ -1265,20 +1271,20 @@ CONTAINS
              DO iparticle_local=1,nparticle_local
                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                 CALL transform_second(particle_set,tmp%vel,iparticle,&
-                     u,dm,poly_v,scale_v)
+                     u,dm,tmp%poly_v,tmp%scale_v)
              END DO  ! iparticle_local
           ELSE
              DO iparticle_local=1,nparticle_local
                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                 tmp%vel ( 1, iparticle) = &
-                     tmp%vel ( 1, iparticle) * my_scale_v(1) * my_scale_v(1)  + &
-                     my_scale_v(1) * my_poly_v(1) * dm*particle_set(iparticle)%f(1)
+                     tmp%vel ( 1, iparticle) * tmp%scale_v(1) * tmp%scale_v(1)  + &
+                     tmp%scale_v(1) * tmp%poly_v(1) * dm*particle_set(iparticle)%f(1)
                 tmp%vel ( 2, iparticle) = &
-                     tmp%vel ( 2, iparticle) * my_scale_v(2) * my_scale_v(2)  + &
-                     my_scale_v(2) * my_poly_v(2) * dm*particle_set(iparticle)%f(2)
+                     tmp%vel ( 2, iparticle) * tmp%scale_v(2) * tmp%scale_v(2)  + &
+                     tmp%scale_v(2) * tmp%poly_v(2) * dm*particle_set(iparticle)%f(2)
                 tmp%vel ( 3, iparticle) = &
-                     tmp%vel ( 3, iparticle) * my_scale_v(3) * my_scale_v(3)  + &
-                     my_scale_v(3) * my_poly_v(3) * dm*particle_set(iparticle)%f(3)
+                     tmp%vel ( 3, iparticle) * tmp%scale_v(3) * tmp%scale_v(3)  + &
+                     tmp%scale_v(3) * tmp%poly_v(3) * dm*particle_set(iparticle)%f(3)
              END DO  ! iparticle_local
           END IF
        END DO  ! iparticle_kind
@@ -1357,6 +1363,133 @@ CONTAINS
     CALL MATVEC_3x3 (vel ( :, index ), u, uv )
 
   END SUBROUTINE transform_second
+
+! *****************************************************************************
+!> \brief  Compute the timestep rescaling factor
+!> \par History
+!>      none
+!> \author MI (October 2008)
+! *****************************************************************************
+  SUBROUTINE  variable_timestep(md_env,tmp,dt,simpar,para_env,atomic_kind_set, local_particles,&
+      particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
+
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(tmp_variables_type), POINTER        :: tmp
+    REAL(KIND=dp), INTENT(INOUT)             :: dt
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set, &
+                                                core_particle_set, &
+                                                shell_particle_set
+    INTEGER, INTENT(IN)                      :: nparticle_kind
+    LOGICAL, INTENT(IN)                      :: shell_adiabatic
+    TYPE(npt_info_type), OPTIONAL, POINTER   :: npt(:,:)
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'variable_timestep', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: e2 = 1.0_dp/6.0_dp, &
+                                                e4 = e2/20.0_dp, &
+                                                e6 = e4/42.0_dp, &
+                                                e8 = e6/72.0_dp
+
+    REAL(KIND=dp)                            :: arg_r(3), arg_v(3), dt_fact, &
+                                                dt_fact_sc, e_val(3), infree, &
+                                                trvg, u(3,3)
+    REAL(KIND=dp), POINTER                   :: time
+
+    infree = 1.0_dp / REAL ( simpar % nfree, dp )
+    arg_r = tmp%arg_r
+    arg_v = tmp%arg_v
+    u = tmp%u
+    e_val = tmp%e_val
+    
+    simpar%dt_fact = 1.0_dp
+    dt_fact = 1.0_dp
+    dt_fact_sc = 1.0_dp
+    CALL mp_max(tmp%max_vel,para_env%group)
+    IF(tmp%max_vel * dt  > simpar%dr_tol) THEN
+      dt_fact = simpar%dr_tol/tmp%max_vel/dt
+    END IF
+
+    IF(shell_adiabatic) THEN
+      CALL mp_max(tmp%max_vel_sc,para_env%group)
+      IF(tmp%max_vel * dt  > simpar%dsc_tol) THEN
+        dt_fact_sc = simpar%dsc_tol/tmp%max_vel_sc/dt
+      END IF
+    END IF
+    simpar%dt_fact = MIN(dt_fact, dt_fact_sc)
+
+    IF(simpar%dt_fact < 1.0_dp) THEN
+       
+      CALL get_md_env(md_env, t = time, error=error )
+      time = time - dt + dt*simpar%dt_fact
+      ! repeat the first vv half-step with the rescaled time step 
+      dt = dt*simpar%dt_fact
+      SELECT CASE(simpar%ensemble)
+      CASE (nve_ensemble, nvt_ensemble)
+        CALL vv_first(tmp,atomic_kind_set, local_particles, particle_set, &
+             core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+      CASE (isokin_ensemble)
+        tmp%scale_v(1:3) = SQRT(1.0_dp/tmp%ds)
+        tmp%poly_v(1:3) = 2.0_dp*tmp%s/SQRT(tmp%ds)/dt
+        CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
+             core_particle_set, shell_particle_set, nparticle_kind,&
+             shell_adiabatic, dt)
+
+      CASE (npt_i_ensemble, npe_i_ensemble)
+         arg_r = arg_r * simpar%dt_fact*simpar%dt_fact
+         tmp%poly_r(1:3) = 1.0_dp + e2*arg_r(1) + e4*arg_r(1)*arg_r(1) + e6*arg_r(1)**3 + e8*arg_r(1)**4
+         arg_v = arg_v * simpar%dt_fact*simpar%dt_fact
+         tmp%poly_v(1:3) = 1.0_dp + e2*arg_v(1) + e4*arg_v(1)*arg_v(1) + e6*arg_v(1)**3 + e8*arg_v(1)**4
+         tmp%scale_r(1:3) = EXP( 0.5_dp * dt * npt ( 1, 1 ) % v )
+         tmp%scale_v(1:3) = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * &
+                       (1.0_dp + 3.0_dp * infree ) )
+         CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
+             core_particle_set, shell_particle_set, nparticle_kind,&
+             shell_adiabatic, dt )
+        
+      CASE (npt_f_ensemble,npe_f_ensemble)
+         trvg = npt ( 1, 1 ) % v  + npt ( 2, 2 ) % v + npt ( 3, 3 ) % v
+         arg_r(:) = arg_r(:) * simpar%dt_fact*simpar%dt_fact
+         tmp%poly_r = 1._dp + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4
+         tmp%scale_r ( : ) = EXP ( 0.5_dp * dt * e_val ( : ) )
+         arg_v(:) = arg_v(:) * simpar%dt_fact*simpar%dt_fact
+         tmp%poly_v = 1.0_dp + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
+         tmp%scale_v ( : ) = EXP ( -0.25_dp * dt * ( &
+               e_val ( : ) + trvg * infree ) )
+
+         CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
+             core_particle_set, shell_particle_set, nparticle_kind,&
+             shell_adiabatic, dt, u)
+              
+      CASE (nph_uniaxial_ensemble,nph_uniaxial_damped_ensemble)
+          arg_r = arg_r * simpar%dt_fact*simpar%dt_fact
+          tmp%poly_r(1) = 1._dp + e2*arg_r(1) + e4*arg_r(1)*arg_r(1) + e6*arg_r(1)**3 + e8*arg_r(1)**4
+          arg_v(2) = arg_v(2) * simpar%dt_fact*simpar%dt_fact
+          arg_v(1) = arg_v(1) * simpar%dt_fact*simpar%dt_fact
+          tmp%poly_v(1) = 1._dp + e2*arg_v(1) + e4*arg_v(1)*arg_v(1) + e6*arg_v(1)**3 + e8*arg_v(1)**4
+          tmp%poly_v(2) = 1._dp + e2*arg_v(2) + e4*arg_v(2)*arg_v(2) + e6*arg_v(2)**3 + e8*arg_v(2)**4
+          tmp%poly_v(3) = 1._dp + e2*arg_v(2) + e4*arg_v(2)*arg_v(2) + e6*arg_v(2)**3 + e8*arg_v(2)**4
+          tmp%scale_r(1) = EXP( 0.5_dp * dt * npt ( 1, 1 ) % v )
+          tmp%scale_v(1) = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * &
+               (1._dp + infree ) )
+          tmp%scale_v(2) = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * infree )
+          tmp%scale_v(3) = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * infree )
+          CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
+              core_particle_set, shell_particle_set, nparticle_kind,&
+              shell_adiabatic, dt)
+              
+      END SELECT
+
+    END IF
+
+  END SUBROUTINE variable_timestep
 
 END MODULE integrator_utils
 

@@ -1523,7 +1523,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DISPLACEMENT_TOL",&
-            description="This keyword sets a maximum atomic displacement permitted in each Cartesian direction."//&
+            description="This keyword sets a maximum atomic displacement "//&
+            " in each Cartesian direction."//&
             "The maximum velocity is evaluated and if it is too large to remain"//&
             "within the assigned limit, the time step is rescaled accordingly,"//&
             "and the first half step of the velocity verlet is repeated.",&
@@ -2779,6 +2780,18 @@ CONTAINS
             "and additional rescaling of the internal core-shell velocity is needed (TEMP_TOL)",&
             usage="nose_particle LOGICAL",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DISPLACEMENT_SHELL_TOL",&
+            description="This keyword sets a maximum variation of the shell "//&
+            "core distance in each Cartesian direction."//&
+            "The maximum internal core-shell velocity is evaluated and"//&
+            " if it is too large to remain"//&
+            "within the assigned limit, the time step is rescaled accordingly,"//&
+            "and the first half step of the velocity verlet is repeated.",&
+            usage="DISPLACEMENT_SHELL_TOL <REAL>", type_of_var=real_t,&
+            unit_str='angstrom',  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

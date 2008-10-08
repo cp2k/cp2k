@@ -350,7 +350,7 @@ CONTAINS
     DO istep=1, simpar%nsteps, md_stride
        ! Increase counters
        itimes = itimes + 1
-       time   = time + simpar%dt * simpar%dt_fact
+       time = time + simpar%dt
 
        CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
             iter_nr=itimes,error=error)
