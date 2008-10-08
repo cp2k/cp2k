@@ -472,7 +472,8 @@ CPSourceFileRef,&
     simpar % nsteps = 0
     simpar % dt = 0.0_dp
     simpar % dt_fact = 1.0_dp
-    simpar % dr_tol = -1.0_dp
+    simpar % dr_tol = 100.0_dp
+    simpar % dsc_tol = 100.0_dp
     simpar % temp_ext = 0.0_dp
     simpar % temp_baro_ext = 0.0_dp
     simpar % temp_baro = 0.0_dp

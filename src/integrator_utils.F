@@ -1419,7 +1419,7 @@ CONTAINS
 
     IF(shell_adiabatic) THEN
       CALL mp_max(tmp%max_vel_sc,para_env%group)
-      IF(tmp%max_vel * dt  > simpar%dsc_tol) THEN
+      IF(tmp%max_vel_sc * dt  > simpar%dsc_tol) THEN
         dt_fact_sc = simpar%dsc_tol/tmp%max_vel_sc/dt
       END IF
     END IF
