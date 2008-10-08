@@ -83,7 +83,7 @@ MODULE message_passing
 
   ! message passing
   PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
-  PUBLIC :: mp_gather, mp_alltoall, mp_sendrecv, mp_allgather
+  PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather
   PUBLIC :: mp_cart_shift, mp_isend, mp_irecv
   PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall
   PUBLIC :: mp_gatherv
@@ -140,6 +140,9 @@ MODULE message_passing
 
   INTERFACE mp_gather
      MODULE PROCEDURE mp_gather_i, mp_gather_iv, mp_gather_r, mp_gather_rv
+  END INTERFACE
+  INTERFACE mp_scatter
+     MODULE PROCEDURE mp_scatter_iv
   END INTERFACE
 
   INTERFACE mp_gatherv
@@ -3016,6 +3019,36 @@ CONTAINS
     CALL timestop_mp(handle)
 #endif
   END SUBROUTINE mp_min_rv
+
+  SUBROUTINE mp_scatter_iv(msg_scatter,msg,root,gid)
+    INTEGER, INTENT(IN)                      :: msg_scatter(:)
+    INTEGER, INTENT(OUT)                     :: msg( : )
+    INTEGER, INTENT(IN)                      :: root, gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_scatter_iv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    CALL mpi_scatter(msg_scatter,msglen,MPI_INTEGER,msg,&
+         msglen,MPI_INTEGER,root,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_scatter_iv" )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+#else
+    msg = msg_scatter
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_scatter_iv
 
 ! *****************************************************************************
   SUBROUTINE mp_gather_i(msg,msg_gather,root,gid)
