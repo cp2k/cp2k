@@ -453,6 +453,8 @@ CPSourceFileRef,&
           ELSE
             simpar%dsc_tol = 100.0_dp
           END IF
+       ELSE
+          simpar%dsc_tol = 100.0_dp
        END IF
     END IF
 
