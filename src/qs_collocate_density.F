@@ -72,7 +72,6 @@ MODULE qs_collocate_density
                                              pi,&
                                              twopi
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_sync
   USE orbital_pointers,                ONLY: coset,&
                                              indco,&
                                              ncoset
@@ -901,8 +900,6 @@ CONTAINS
 
     DEALLOCATE (pabt,workt,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"pabt,workt")
-
-    CALL mp_sync(para_env%group)
 
     interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",error=error)
     CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section=interp_section,error=error)

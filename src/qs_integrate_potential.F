@@ -62,7 +62,6 @@ MODULE qs_integrate_potential
                                              int_size
   USE mathconstants,                   ONLY: fac
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_sync
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
   USE particle_types,                  ONLY: particle_type
@@ -407,7 +406,6 @@ CONTAINS
          virial=virial,error=error)
     END SELECT
 
-    CALL mp_sync(para_env%group)
     IF (my_compute_tau) THEN
        CALL timeset(routineN,"I","",handle)
     ELSE
@@ -1006,8 +1004,6 @@ CONTAINS
        DEALLOCATE (atom_of_kind,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
     END IF
-
-    CALL mp_sync(para_env%group)
 
     CALL timestop(0.0_dp,handle)
 
