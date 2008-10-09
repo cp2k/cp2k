@@ -110,7 +110,7 @@ CONTAINS
              WRITE(*,*)"COLVAR::",cv%ss(fe_env%nr_points)
           END DO
           stat_sign_points = fe_env%nr_points - fe_env%nr_rejected
-          write(*,*)fe_env%nr_points, stat_sign_points
+          WRITE(*,*)fe_env%nr_points, stat_sign_points
           ! Start statistical analysis when enough CG data points have been collected
           IF ( (fe_env%conv_par%cg_width*fe_env%conv_par%cg_points <= stat_sign_points).AND.&
                (MOD(stat_sign_points,fe_env%conv_par%cg_width)==0) ) THEN
@@ -220,7 +220,7 @@ CONTAINS
     test_std   = .TRUE.
     ncolvar    = fe_env%ncolvar
     ! Number of coarse grained points
-    write(*,*)nr_points, fe_env%conv_par%cg_width
+    WRITE(*,*)nr_points, fe_env%conv_par%cg_width
     ng_points = nr_points/fe_env%conv_par%cg_width
     my_reject = 0
     ! Allocate storage
@@ -379,7 +379,7 @@ CONTAINS
     DO i = 1, ng_points
        istart = fe_env%nr_points -    (i)*fe_env%conv_par%cg_width + 1
        iend   = fe_env%nr_points -  (i-1)*fe_env%conv_par%cg_width 
-       write(*,*)istart, iend
+       WRITE(*,*)istart, iend
        CALL eval_cov_matrix(fe_env,cg_index=i,istart=istart,iend=iend,error=error)
     END DO
 
