@@ -856,7 +856,7 @@ CPSourceFileRef,&
              END IF
           END DO
        ELSE
-          WRITE (output_unit, fmt="(' FUNCTIONAL| NO EXCHAGE-CORRELATION FUNCTIONAL USED.')")
+          WRITE (output_unit, fmt="(' FUNCTIONAL| NO EXCHANGE-CORRELATION FUNCTIONAL USED.')")
        END IF
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
