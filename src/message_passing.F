@@ -85,7 +85,7 @@ MODULE message_passing
   PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
   PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather
   PUBLIC :: mp_cart_shift, mp_isend, mp_irecv
-  PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall
+  PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany
   PUBLIC :: mp_gatherv
   PUBLIC :: mp_sum_i8
   PUBLIC :: mp_send, mp_recv
@@ -186,17 +186,17 @@ MODULE message_passing
 
   INTERFACE mp_isend
 #if defined(__FFTSGL)
-     MODULE PROCEDURE mp_isend_rm2, mp_isend_cv, mp_isend_rm2_lp, mp_isend_cv_lp
+     MODULE PROCEDURE mp_isend_rm3, mp_isend_rm2, mp_isend_cv, mp_isend_rm2_lp, mp_isend_cv_lp
 #else
-     MODULE PROCEDURE mp_isend_rm2, mp_isend_cv
+     MODULE PROCEDURE mp_isend_rm3, mp_isend_rm2, mp_isend_cv
 #endif
   END INTERFACE
 
   INTERFACE mp_irecv
 #if defined(__FFTSGL)
-     MODULE PROCEDURE mp_irecv_rm2, mp_irecv_cv, mp_irecv_rm2_lp, mp_irecv_cv_lp
+     MODULE PROCEDURE mp_irecv_rm3, mp_irecv_rm2, mp_irecv_cv, mp_irecv_rm2_lp, mp_irecv_cv_lp
 #else
-     MODULE PROCEDURE mp_irecv_rm2, mp_irecv_cv
+     MODULE PROCEDURE mp_irecv_rm3, mp_irecv_rm2, mp_irecv_cv
 #endif
   END INTERFACE
 
@@ -3681,7 +3681,56 @@ CONTAINS
 !> \note
 !>      the arguments must be pointers to be sure that we do not get a temporaries.
 !> \author fawzi
+!> \par History
+!>      9.2008 added _rm3 subroutine [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 ! *****************************************************************************
+  SUBROUTINE mp_isend_rm3(msgin,dest,comm,request,tag)
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER  :: msgin
+    INTEGER, INTENT(IN)                      :: dest, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_rm3', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, lower2, lower3,&
+                                                msglen, my_tag
+    REAL(KIND=dp)                            :: foo(1)
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
+
+    msglen = SIZE(msgin,1)*SIZE(msgin,2)*SIZE(msgin,3)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgin,1)
+       lower2=LBOUND(msgin,2)
+       lower3=LBOUND(msgin,3)
+       CALL mpi_isend(msgin(lower1,lower2,lower3),msglen,MP_STD_REAL,dest,my_tag,&
+            comm,request,ierr)
+    ELSE
+       CALL mpi_isend(foo,msglen,MP_STD_REAL,dest,my_tag,&
+            comm,request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isend_rm2" )
+
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+#else
+    ierr=1
+    CALL mp_stop( ierr, "mp_isend called in non parallel case" )
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_isend_rm3
+
   SUBROUTINE mp_isend_rm2(msgin,dest,comm,request,tag)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: msgin
     INTEGER, INTENT(IN)                      :: dest, comm
@@ -3871,7 +3920,55 @@ CONTAINS
 !> \note
 !>      the arguments must be pointers to be sure that we do not get a temporaries.
 !> \author fawzi
+!> \par History
+!>      9.2008 added _rm3 subroutine [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 ! *****************************************************************************
+  SUBROUTINE mp_irecv_rm3(msgout,source,comm,request,tag)
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER  :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_rm3', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, lower1, lower2, lower3, &
+                                                msglen, my_tag
+    REAL(KIND=dp)                            :: foo(1)
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
+
+    msglen = SIZE(msgout,1)*SIZE(msgout,2)*SIZE(msgout,3)
+    IF (msglen>0) THEN
+       lower1=LBOUND(msgout,1)
+       lower2=LBOUND(msgout,2)
+       lower3=LBOUND(msgout,3)
+       CALL mpi_irecv(msgout(lower1,lower2,lower3),msglen,MP_STD_REAL,source, my_tag,&
+            comm,request,ierr)
+    ELSE
+       CALL mpi_irecv(foo,msglen,MP_STD_REAL,source, my_tag,&
+            comm,request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_irecv_rm3" )
+
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+#else
+    CALL mp_abort( "mp_irecv called in non parallel case" )
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_irecv_rm3
+
   SUBROUTINE mp_irecv_rm2(msgout,source,comm,request,tag)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: msgout
     INTEGER, INTENT(IN)                      :: source, comm
@@ -4130,6 +4227,45 @@ CONTAINS
     CALL timestop_mp(handle)
 #endif
   END SUBROUTINE mp_waitall
+
+! *****************************************************************************
+!> \brief waits for completion of any of the given requests
+!> \par History
+!>      09.2008 created 
+!> \author Iain Bethune (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
+! *****************************************************************************
+  SUBROUTINE mp_waitany(requests, completed)
+    INTEGER, DIMENSION(:), INTENT(inout)     :: requests
+    INTEGER, INTENT(out)                     :: completed
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitany', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: count, handle, ierr
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+
+#if defined(__parallel)
+    count=SIZE(requests)
+    ALLOCATE(status(MPI_STATUS_SIZE,count))
+    t_start = m_walltime ( )
+
+    CALL mpi_waitany(count,requests,completed,status,ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_waitany @ mp_waitany" )
+
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=9,count=1,time=t_end-t_start)
+    DEALLOCATE(status)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_waitany
 
 ! *****************************************************************************
 !> \brief splits the given communicator in group in subgroups trying to organize
