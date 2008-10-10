@@ -3685,7 +3685,8 @@ CONTAINS
 !>      9.2008 added _rm3 subroutine [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE mp_isend_rm3(msgin,dest,comm,request,tag)
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER  :: msgin
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: msgin
     INTEGER, INTENT(IN)                      :: dest, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3693,8 +3694,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_rm3', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, lower1, lower2, lower3,&
-                                                msglen, my_tag
+    INTEGER                                  :: handle, ierr, lower1, lower2, &
+                                                lower3, msglen, my_tag
     REAL(KIND=dp)                            :: foo(1)
 
     ierr = 0
@@ -3924,7 +3925,8 @@ CONTAINS
 !>      9.2008 added _rm3 subroutine [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE mp_irecv_rm3(msgout,source,comm,request,tag)
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER  :: msgout
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: msgout
     INTEGER, INTENT(IN)                      :: source, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3932,8 +3934,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_rm3', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, lower1, lower2, lower3, &
-                                                msglen, my_tag
+    INTEGER                                  :: handle, ierr, lower1, lower2, &
+                                                lower3, msglen, my_tag
     REAL(KIND=dp)                            :: foo(1)
 
     ierr = 0
