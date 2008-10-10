@@ -25,7 +25,8 @@ MODULE realspace_grid_types
   USE message_passing,                 ONLY: &
        mp_alltoall, mp_cart_coords, mp_cart_create, mp_cart_shift, &
        mp_comm_dup, mp_comm_free, mp_environ, mp_isendrecv, mp_max, mp_min, &
-       mp_sendrecv, mp_sum, mp_sync, mp_waitall
+       mp_sendrecv, mp_sum, mp_sync, mp_waitall, mp_waitany, &
+       mp_irecv, mp_isend
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL,&
                                              pw_grid_type
   USE pw_methods,                      ONLY: pw_integrate_function
@@ -55,7 +56,7 @@ MODULE realspace_grid_types
             rs_grid_print, &
             rs_grid_locate_rank, &
             init_input_type
-
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
   INTEGER, SAVE, PRIVATE :: last_rs_id=0
   INTEGER, SAVE, PRIVATE :: allocated_rs_grid_count=0
@@ -789,6 +790,7 @@ END FUNCTION rs_grid_locate_rank
 !> \par History
 !>      12.2007 created [Matt Watkins]
 !>      9.2008 reduced amount of halo data sent [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
+!>      10.2008 added non-blocking communication [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE rs_pw_transfer_distributed(rs,pw,dir)
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -799,30 +801,39 @@ END FUNCTION rs_grid_locate_rank
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=200)                       :: error_string
-    INTEGER                                  :: dest, group, i, idir, ierr, &
+    INTEGER                                  :: dest, dest_down, dest_up, group, i, idir, ierr, &
                                                 j, k, my_pw_rank, my_rs_rank, &
                                                 n_shifts, nn, position, &
-                                                source, x, y, z
+                                                source, source_down, source_up, x, y, z, &
+                                                completed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: dshifts, recv_disps, &
                                                 recv_sizes, send_disps, &
                                                 send_sizes, ushifts
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: bounds, recv_tasks, send_tasks
     INTEGER, DIMENSION(2)                    :: neighbours, pos
-    INTEGER, DIMENSION(3) :: coords, lb_recv, lb_recv_new, lb_send, &
-      lb_send_new, ub_recv, ub_recv_new, ub_send, ub_send_new
+    INTEGER, DIMENSION(3)                    :: coords, &
+                                                lb_recv, lb_send, ub_recv, ub_send, &
+                                                lb_recv_down, lb_send_down, ub_recv_down, ub_send_down,  &
+                                                lb_recv_up, lb_send_up, ub_recv_up, ub_send_up
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(3)                    :: halo_swapped
     REAL(KIND=dp)                            :: pw_sum, rs_sum
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf, send_buf
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: recv_buf_3d, send_buf_3d
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :), POINTER            :: recv_buf_3d_up, recv_buf_3d_down, send_buf_3d_up, send_buf_3d_down
     TYPE(cp_error_type)                      :: error
+    INTEGER, DIMENSION(4)                    :: req
 
     IF ( dir == rs2pw ) THEN
 
+
        ! safety check, to be removed once we're absolute sure the routine is correct
-       rs_sum=accurate_sum(rs%r)*ABS(det_3x3(rs%dh))
-       CALL mp_sum(rs_sum,rs%group)
+       IF (debug_this_module) THEN
+         rs_sum=accurate_sum(rs%r)*ABS(det_3x3(rs%dh))
+         CALL mp_sum(rs_sum,rs%group)
+       ENDIF
+
+
 
        halo_swapped = .FALSE.
 
@@ -853,151 +864,165 @@ END FUNCTION rs_grid_locate_rank
                 neighbours = get_limit ( rs % npts ( idir ), rs % group_dim ( idir ), position )
                 ushifts(n_shifts) = ushifts(n_shifts-1) + ( neighbours (2) - neighbours (1) + 1 )
 
+
                 ! The border data has to be send/received from the neighbours
                 ! First we calculate the source and destination processes for the shift
-                ! The first shift is "downwards"
+                ! We do both shifts at once to allow for more overlap of communication and buffer packing/unpacking
 
-                CALL mp_cart_shift ( rs % group, idir -1, -1 * n_shifts, source, dest )
+                CALL mp_cart_shift ( rs % group, idir -1, -1 * n_shifts, source_down, dest_down )
 
-                lb_send ( : ) = rs % lb_local ( : )
-                ub_send ( : ) = rs % ub_local ( : )
-                ub_send ( idir ) = lb_send ( idir ) + rs % border - 1 - dshifts(n_shifts-1)
-
-                lb_recv ( : ) = rs % lb_local ( : )
-                ub_recv ( : ) = rs % ub_local ( : )
-                ub_recv ( idir ) = ub_recv ( idir ) - rs % border
-                lb_recv ( idir ) = ub_recv ( idir ) - rs % border + 1 + ushifts(n_shifts-1)
-
-                lb_send_new ( : ) = rs % lb_local ( : )
-                lb_recv_new ( : ) = rs % lb_local ( : )
-                ub_recv_new ( : ) = rs % ub_local ( : )
-                ub_send_new ( : ) = rs % ub_local ( : )
+                lb_send_down ( : ) = rs % lb_local ( : )
+                lb_recv_down ( : ) = rs % lb_local ( : )
+                ub_recv_down ( : ) = rs % ub_local ( : )
+                ub_send_down ( : ) = rs % ub_local ( : )
 
                 IF(dshifts (n_shifts - 1) .LE. rs % border ) THEN
-                   ub_send_new ( idir ) = lb_send_new ( idir ) + rs % border  - 1 - dshifts(n_shifts-1)
-                   lb_send_new ( idir ) = MAX( lb_send_new ( idir ),&
-                        lb_send_new ( idir ) + rs % border  - dshifts ( n_shifts ) )
-                   
-                   ub_recv_new ( idir ) = ub_recv_new ( idir ) - rs % border
-                   lb_recv_new ( idir ) = MAX(lb_recv_new(idir) + rs % border,&
-                        ub_recv_new ( idir ) - rs % border + 1 + ushifts(n_shifts-1) )
-                ELSE
-                   lb_send_new( idir ) = 0
-                   ub_send_new( idir ) = lb_send_new( idir ) - 1
-                   lb_recv_new( idir ) = 0
-                   ub_recv_new( idir ) = lb_recv_new( idir ) - 1
-                ENDIF
+                   ub_send_down ( idir ) = lb_send_down ( idir ) + rs % border  - 1 - dshifts(n_shifts-1)
+                   lb_send_down ( idir ) = MAX( lb_send_down ( idir ),&
+                        lb_send_down ( idir ) + rs % border  - dshifts ( n_shifts ) )
 
-                lb_send = lb_send_new
-                ub_send = ub_send_new
-                lb_recv = lb_recv_new
-                ub_recv = ub_recv_new
+                   ub_recv_down ( idir ) = ub_recv_down ( idir ) - rs % border
+                   lb_recv_down ( idir ) = MAX(lb_recv_down(idir) + rs % border,&
+                        ub_recv_down ( idir ) - rs % border + 1 + ushifts(n_shifts-1) )
+                ELSE
+                   lb_send_down( idir ) = 0
+                   ub_send_down( idir ) = lb_send_down( idir ) - 1
+                   lb_recv_down( idir ) = 0
+                   ub_recv_down( idir ) = lb_recv_down( idir ) - 1
+                ENDIF
 
                 DO i=1,3
                   IF ( halo_swapped(i) ) THEN
-                    lb_send(i) = rs % lb_real(i)
-                    ub_send(i) = rs % ub_real(i)
-                    lb_recv(i) = rs % lb_real(i)
-                    ub_recv(i) = rs % ub_real(i)
+                    lb_send_down(i) = rs % lb_real(i)
+                    ub_send_down(i) = rs % ub_real(i)
+                    lb_recv_down(i) = rs % lb_real(i)
+                    ub_recv_down(i) = rs % ub_real(i)
                   ENDIF
                 ENDDO
 
-                ! Allocate a scratch arrays to receive the data
-                nn = PRODUCT ( ub_send - lb_send + 1 )
-                ALLOCATE ( send_buf_3d ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d",nn)
-                nn = PRODUCT ( ub_recv - lb_recv + 1 )
-                ALLOCATE ( recv_buf_3d ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d",nn)
-                
-                send_buf_3d = rs % r ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) )
+                ! post the recieve
+                ALLOCATE ( recv_buf_3d_down (lb_recv_down(1):ub_recv_down(1), &
+                           lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ) )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_down")
+                CALL mp_irecv (recv_buf_3d_down, source_down, rs % group, req(1))
 
-                CALL mp_sendrecv ( send_buf_3d, dest, recv_buf_3d, source, rs % group )
 
-                ! only some procs may need later shifts
-                IF(ub_recv(idir).GE.lb_recv(idir))THEN
+                ! now allocate, pack and send the send buffer
+                nn = PRODUCT ( ub_send_down - lb_send_down + 1 )
+                ALLOCATE ( send_buf_3d_down ( lb_send_down(1):ub_send_down(1), &
+                           lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_down",nn)
 
-                   ! Sum the data in the RS Grid
-                   rs % r ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ) = &
-                        rs % r ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ) + recv_buf_3d ( :, :, : )
-                END IF
 
-                DEALLOCATE ( send_buf_3d, STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d")
-                DEALLOCATE ( recv_buf_3d, STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d")
+                send_buf_3d_down = rs % r ( lb_send_down(1):ub_send_down(1), &
+                lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) )
+
+
+                CALL mp_isend (send_buf_3d_down, dest_down, rs % group, req(3))
 
                 ! Now for the other direction
+                CALL mp_cart_shift ( rs % group, idir -1 , n_shifts, source_up, dest_up )
 
-                CALL mp_cart_shift ( rs % group, idir -1 , n_shifts, source, dest )
-
-                lb_send ( : ) = rs % lb_local ( : )
-                ub_send ( : ) = rs % ub_local ( : )
-                lb_send ( idir ) = ub_send ( idir ) - rs % border + 1 + ushifts(n_shifts-1)
-
-                lb_recv ( : ) = rs % lb_local ( : )
-                ub_recv ( : ) = rs % ub_local ( : )
-                lb_recv ( idir ) = lb_recv ( idir ) + rs % border
-                ub_recv ( idir ) = lb_recv ( idir ) + rs % border -1 - dshifts(n_shifts-1)
-
-                lb_send_new ( : ) = rs % lb_local ( : )
-                lb_recv_new ( : ) = rs % lb_local ( : )
-                ub_recv_new ( : ) = rs % ub_local ( : )
-                ub_send_new ( : ) = rs % ub_local ( : )
+                lb_send_up ( : ) = rs % lb_local ( : )
+                lb_recv_up ( : ) = rs % lb_local ( : )
+                ub_recv_up ( : ) = rs % ub_local ( : )
+                ub_send_up ( : ) = rs % ub_local ( : )
 
                 IF (ushifts(n_shifts - 1) .LE. rs % border ) THEN
 
-                   lb_send_new ( idir ) = ub_send_new ( idir ) - rs % border + 1 + ushifts(n_shifts-1)
-                   ub_send_new ( idir ) = MIN( ub_send_new( idir ),&
-                        ub_send_new ( idir ) - rs % border  + ushifts( n_shifts ) )
+                   lb_send_up ( idir ) = ub_send_up ( idir ) - rs % border + 1 + ushifts(n_shifts-1)
+                   ub_send_up ( idir ) = MIN( ub_send_up( idir ),&
+                        ub_send_up ( idir ) - rs % border  + ushifts( n_shifts ) )
 
-                   lb_recv_new ( idir ) = lb_recv_new ( idir ) + rs % border
-                   ub_recv_new ( idir ) = MIN(ub_recv_new (idir)- rs%border,&
-                        lb_recv_new ( idir ) + rs % border - 1 - dshifts(n_shifts-1))
+                   lb_recv_up ( idir ) = lb_recv_up ( idir ) + rs % border
+                   ub_recv_up ( idir ) = MIN(ub_recv_up (idir)- rs%border,&
+                        lb_recv_up ( idir ) + rs % border - 1 - dshifts(n_shifts-1))
                 ELSE
-                   lb_send_new( idir ) = 0
-                   ub_send_new( idir ) = lb_send_new( idir ) - 1
-                   lb_recv_new( idir ) = 0
-                   ub_recv_new( idir ) = lb_recv_new( idir ) - 1
+                   lb_send_up( idir ) = 0
+                   ub_send_up( idir ) = lb_send_up( idir ) - 1
+                   lb_recv_up( idir ) = 0
+                   ub_recv_up( idir ) = lb_recv_up( idir ) - 1
                 ENDIF
-
-                lb_send = lb_send_new
-                ub_send = ub_send_new
-                lb_recv = lb_recv_new
-                ub_recv = ub_recv_new
 
                 DO i=1,3
                   IF ( halo_swapped(i) ) THEN
-                    lb_send(i) = rs % lb_real(i)
-                    ub_send(i) = rs % ub_real(i)
-                    lb_recv(i) = rs % lb_real(i)
-                    ub_recv(i) = rs % ub_real(i)
+                    lb_send_up(i) = rs % lb_real(i)
+                    ub_send_up(i) = rs % ub_real(i)
+                    lb_recv_up(i) = rs % lb_real(i)
+                    ub_recv_up(i) = rs % ub_real(i)
                   ENDIF
                 ENDDO
 
-                nn = PRODUCT ( ub_send - lb_send + 1 )
-                ALLOCATE ( send_buf_3d ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d",nn)
-                nn = PRODUCT ( ub_recv - lb_recv + 1 )
-                ALLOCATE ( recv_buf_3d ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d",nn)
-                
-                send_buf_3d = rs % r ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) )
+                ! post the recieve
+                ALLOCATE ( recv_buf_3d_up (lb_recv_up(1):ub_recv_up(1), &
+                           lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ) )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_up")
+                CALL mp_irecv(recv_buf_3d_up, source_up, rs % group, req(2))
 
-                CALL mp_sendrecv ( send_buf_3d, dest, recv_buf_3d, source, rs % group )
+                ! now allocate,pack and send the send buffer
+                nn = PRODUCT ( ub_send_up - lb_send_up + 1 )
+                ALLOCATE ( send_buf_3d_up ( lb_send_up(1):ub_send_up(1), &
+                           lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_up",nn)
 
-                ! only some procs may need later shifts
-                IF(ub_recv(idir).GE.lb_recv(idir))THEN
 
-                   ! Sum the data in the RS Grid
-                   rs % r ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ) = &
-                        rs % r ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ) + recv_buf_3d ( :, :, : )
-                END IF
+                send_buf_3d_up = rs % r ( lb_send_up(1):ub_send_up(1), lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) )
 
-                DEALLOCATE ( send_buf_3d, STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d")
-                DEALLOCATE ( recv_buf_3d, STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d")
+
+                CALL mp_isend (send_buf_3d_up, dest_up, rs % group, req(4))
+
+                ! wait for a recv to complete, then we can unpack
+
+                DO i=1,2
+
+
+                  CALL mp_waitany (req(1:2),completed)
+
+                  IF ( completed .EQ. 1 ) THEN
+
+
+                    ! only some procs may need later shifts
+                    IF(ub_recv_down(idir).GE.lb_recv_down(idir))THEN
+
+                       ! Sum the data in the RS Grid
+                       rs % r ( lb_recv_down(1):ub_recv_down(1), &
+                                lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ) = &
+                            rs % r ( lb_recv_down(1):ub_recv_down(1), &
+                                     lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ) + &
+                             recv_buf_3d_down (:, :, :)
+                    END IF
+                    DEALLOCATE( recv_buf_3d_down, STAT=ierr)
+                    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_down")
+
+
+                  ELSE
+
+
+                    ! only some procs may need later shifts
+                    IF(ub_recv_up(idir).GE.lb_recv_up(idir))THEN
+ 
+                       ! Sum the data in the RS Grid
+                       rs % r ( lb_recv_up(1):ub_recv_up(1), lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ) = &
+                            rs % r ( lb_recv_up(1):ub_recv_up(1), &
+                                     lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ) + &
+                             recv_buf_3d_up (:, :, :)
+                    END IF
+                    DEALLOCATE( recv_buf_3d_up, STAT=ierr)
+                    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_up")
+
+
+                  END IF
+
+                END DO
+
+                ! make sure the sends have completed before we deallocate
+
+                CALL mp_waitall (req(3:4))
+
+                DEALLOCATE( send_buf_3d_down, STAT=ierr)
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_down")
+                DEALLOCATE( send_buf_3d_up, STAT=ierr)
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_up")
 
              END DO
 
@@ -1011,6 +1036,9 @@ END FUNCTION rs_grid_locate_rank
           halo_swapped(idir) = .TRUE.
 
        END DO
+
+
+
 
        ! This is the real redistribution
 
@@ -1177,13 +1205,15 @@ END FUNCTION rs_grid_locate_rank
        DEALLOCATE ( recv_disps, STAT=ierr)
        IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_disps")
 
-       ! safety check, to be removed once we're absolute sure the routine is correct
-       pw_sum=pw_integrate_function(pw)
-       IF (ABS(pw_sum-rs_sum)/MAX(1.0_dp,ABS(pw_sum),ABS(rs_sum))>EPSILON(rs_sum)*1000) THEN
-           WRITE(error_string,'(A,6(1X,I4.4),3F25.16)') "rs_pw_transfer_distributed", rs %  npts, rs % group_dim,&
-            pw_sum,rs_sum,ABS(pw_sum-rs_sum)
-           CALL stop_program(error_string, &
-                "Please report this bug... quick workaround: use DISTRIBUTION_TYPE REPLICATED")
+       IF (debug_this_module) THEN
+         ! safety check, to be removed once we're absolute sure the routine is correct
+         pw_sum=pw_integrate_function(pw)
+         IF (ABS(pw_sum-rs_sum)/MAX(1.0_dp,ABS(pw_sum),ABS(rs_sum))>EPSILON(rs_sum)*1000) THEN
+             WRITE(error_string,'(A,6(1X,I4.4),3F25.16)') "rs_pw_transfer_distributed", rs %  npts, rs % group_dim,&
+              pw_sum,rs_sum,ABS(pw_sum-rs_sum)
+             CALL stop_program(error_string, &
+                  "Please report this bug... quick workaround: use DISTRIBUTION_TYPE REPLICATED")
+         ENDIF
        ENDIF
 
     ELSE
@@ -1319,6 +1349,7 @@ END FUNCTION rs_grid_locate_rank
 
        ! do the communication
 
+
        CALL mp_alltoall(send_buf, send_sizes, send_disps, recv_buf, recv_sizes, recv_disps, rs % group)
 
        ! do unpacking
@@ -1386,118 +1417,153 @@ END FUNCTION rs_grid_locate_rank
                 ! First we calculate the source and destination processes for the shift
                 ! The first shift is "downwards"
 
-                CALL mp_cart_shift ( rs % group, idir -1, -1 * n_shifts, source, dest )
+                CALL mp_cart_shift ( rs % group, idir -1, -1 * n_shifts, source_down, dest_down )
 
-                   lb_send ( : ) = rs % lb_local ( : )
-                   ub_send ( : ) = rs % ub_local ( : )
-                   lb_recv ( : ) = rs % lb_local ( : )
-                   ub_recv ( : ) = rs % ub_local ( : )
+                lb_send_down ( : ) = rs % lb_local ( : )
+                ub_send_down ( : ) = rs % ub_local ( : )
+                lb_recv_down ( : ) = rs % lb_local ( : )
+                ub_recv_down ( : ) = rs % ub_local ( : )
 
                 IF( dshifts ( n_shifts - 1 ) .LE. rs % border ) THEN
-                   lb_send ( idir ) = lb_send ( idir ) + rs % border 
-                   ub_send ( idir ) = MIN (ub_send (idir) - rs% border,&
-                        lb_send ( idir ) + rs % border - 1 - dshifts (n_shifts - 1))
+                   lb_send_down ( idir ) = lb_send_down ( idir ) + rs % border 
+                   ub_send_down ( idir ) = MIN (ub_send_down (idir) - rs% border,&
+                        lb_send_down ( idir ) + rs % border - 1 - dshifts (n_shifts - 1))
 
-                   lb_recv ( idir ) = ub_recv ( idir ) - rs % border + 1 + ushifts ( n_shifts - 1 ) 
-                   ub_recv ( idir ) = MIN (ub_recv ( idir ),&
-                        ub_recv ( idir ) - rs%border + ushifts ( n_shifts )) 
+                   lb_recv_down ( idir ) = ub_recv_down ( idir ) - rs % border + 1 + ushifts ( n_shifts - 1 ) 
+                   ub_recv_down ( idir ) = MIN (ub_recv_down ( idir ),&
+                        ub_recv_down ( idir ) - rs%border + ushifts ( n_shifts )) 
                 ELSE
-                   lb_send( idir ) = 0
-                   ub_send( idir ) = lb_send( idir ) - 1
-                   lb_recv( idir ) = 0
-                   ub_recv( idir ) = lb_recv( idir ) - 1
+                   lb_send_down( idir ) = 0
+                   ub_send_down( idir ) = lb_send_down( idir ) - 1
+                   lb_recv_down( idir ) = 0
+                   ub_recv_down( idir ) = lb_recv_down( idir ) - 1
                 ENDIF
 
                 DO i=1,3
                   IF ( .NOT. ( halo_swapped(i) .OR. i .EQ. idir ) ) THEN
-                    lb_send(i) = rs % lb_real(i)
-                    ub_send(i) = rs % ub_real(i)
-                    lb_recv(i) = rs % lb_real(i)
-                    ub_recv(i) = rs % ub_real(i)
+                    lb_send_down(i) = rs % lb_real(i)
+                    ub_send_down(i) = rs % ub_real(i)
+                    lb_recv_down(i) = rs % lb_real(i)
+                    ub_recv_down(i) = rs % ub_real(i)
                   ENDIF
                 ENDDO
 
-                nn = PRODUCT ( ub_send - lb_send + 1 )
-                ALLOCATE ( send_buf_3d ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d",nn)
-                nn = PRODUCT ( ub_recv - lb_recv + 1 )
-                ALLOCATE ( recv_buf_3d ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d",nn)
-                
-                send_buf_3d = rs % r ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) )
+                ! allocate the recv buffer
+                nn = PRODUCT ( ub_recv_down - lb_recv_down + 1 )
+                ALLOCATE ( recv_buf_3d_down ( lb_recv_down(1):ub_recv_down(1), &
+                           lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_down",nn)
 
-                CALL mp_sendrecv ( send_buf_3d, dest, recv_buf_3d, source, rs % group )
+                ! recv buffer is now ready, so post the recieve
+                CALL mp_irecv (recv_buf_3d_down, source_down, rs % group, req(1))
 
-                ! only some procs may need later shifts
-                IF(ub_recv(idir).GE.lb_recv(idir))THEN
+                ! now allocate,pack and send the send buffer
+                nn = PRODUCT ( ub_send_down - lb_send_down + 1 )
+                ALLOCATE ( send_buf_3d_down ( lb_send_down(1):ub_send_down(1), &
+                           lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_down",nn)
 
-                   ! Sum the data in the RS Grid
-                   rs % r ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ) =  recv_buf_3d ( :, :, : )
+                send_buf_3d_down = rs % r ( lb_send_down(1):ub_send_down(1), &
+                                       lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) )
 
-                END IF
-
-                DEALLOCATE ( send_buf_3d, STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d")
-                DEALLOCATE ( recv_buf_3d, STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d")
+                CALL mp_isend ( send_buf_3d_down, dest_down, rs % group, req(3))
 
                 ! Now for the other direction
 
-                CALL mp_cart_shift ( rs % group, idir -1 , n_shifts, source, dest )
+                CALL mp_cart_shift ( rs % group, idir -1 , n_shifts, source_up, dest_up )
 
-                   lb_send ( : ) = rs % lb_local ( : )
-                   ub_send ( : ) = rs % ub_local ( : )
-                   lb_recv ( : ) = rs % lb_local ( : )
-                   ub_recv ( : ) = rs % ub_local ( : )
+                lb_send_up ( : ) = rs % lb_local ( : )
+                ub_send_up ( : ) = rs % ub_local ( : )
+                lb_recv_up ( : ) = rs % lb_local ( : )
+                ub_recv_up ( : ) = rs % ub_local ( : )
 
                 IF( ushifts ( n_shifts - 1 ) .LE. rs % border ) THEN
-                   ub_send ( idir ) = ub_send ( idir ) - rs % border 
-                   lb_send ( idir ) = MAX (lb_send( idir) + rs % border,&
-                        ub_send ( idir ) - rs % border + 1 + ushifts (n_shifts - 1) )
+                   ub_send_up ( idir ) = ub_send_up ( idir ) - rs % border 
+                   lb_send_up ( idir ) = MAX (lb_send_up( idir) + rs % border,&
+                        ub_send_up ( idir ) - rs % border + 1 + ushifts (n_shifts - 1) )
 
-                   ub_recv ( idir ) = lb_recv ( idir ) + rs % border - 1 - dshifts ( n_shifts - 1 ) 
-                   lb_recv ( idir ) = MAX (lb_recv ( idir ),&
-                        lb_recv ( idir ) + rs % border - dshifts ( n_shifts )) 
+                   ub_recv_up ( idir ) = lb_recv_up ( idir ) + rs % border - 1 - dshifts ( n_shifts - 1 ) 
+                   lb_recv_up ( idir ) = MAX (lb_recv_up ( idir ),&
+                        lb_recv_up ( idir ) + rs % border - dshifts ( n_shifts )) 
                 ELSE
-                   lb_send( idir ) = 0
-                   ub_send( idir ) = lb_send( idir ) - 1
-                   lb_recv( idir ) = 0
-                   ub_recv( idir ) = lb_recv( idir ) - 1
+                   lb_send_up( idir ) = 0
+                   ub_send_up( idir ) = lb_send( idir ) - 1
+                   lb_recv_up( idir ) = 0
+                   ub_recv_up( idir ) = lb_recv( idir ) - 1
                 ENDIF
 
                 DO i=1,3
                   IF ( .NOT. ( halo_swapped(i) .OR. i .EQ. idir ) ) THEN
-                    lb_send(i) = rs % lb_real(i)
-                    ub_send(i) = rs % ub_real(i)
-                    lb_recv(i) = rs % lb_real(i)
-                    ub_recv(i) = rs % ub_real(i)
+                    lb_send_up(i) = rs % lb_real(i)
+                    ub_send_up(i) = rs % ub_real(i)
+                    lb_recv_up(i) = rs % lb_real(i)
+                    ub_recv_up(i) = rs % ub_real(i)
                   ENDIF
                 ENDDO
 
+                ! allocate the recv buffer
+                nn = PRODUCT ( ub_recv_up - lb_recv_up + 1 )
+                ALLOCATE ( recv_buf_3d_up ( lb_recv_up(1):ub_recv_up(1), &
+                                            lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_up",nn)
 
-                nn = PRODUCT ( ub_send - lb_send + 1 )
-                ALLOCATE ( send_buf_3d ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d",nn)
-                nn = PRODUCT ( ub_recv - lb_recv + 1 )
-                ALLOCATE ( recv_buf_3d ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d",nn)
+                ! recv buffer is now ready, so post the recieve
+                CALL mp_irecv (recv_buf_3d_up, source_up, rs % group, req(2))
 
-                send_buf_3d = rs % r ( lb_send(1):ub_send(1), lb_send(2):ub_send(2), lb_send(3):ub_send(3) )
+                ! now allocate,pack and send the send buffer
+                nn = PRODUCT ( ub_send_up - lb_send_up + 1 )
+                ALLOCATE ( send_buf_3d_up ( lb_send_up(1):ub_send_up(1), &
+                                            lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ), STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_up",nn)
 
-                CALL mp_sendrecv ( send_buf_3d, dest, recv_buf_3d, source, rs % group )
+                send_buf_3d_up = rs % r ( lb_send_up(1):ub_send_up(1), &
+                                          lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) )
 
-                ! only some procs may need later shifts
-                IF(ub_recv(idir).GE.lb_recv(idir))THEN
+                CALL mp_isend ( send_buf_3d_up, dest_up, rs % group, req(4) )
 
-                   ! Add the data to the RS Grid
-                   rs % r ( lb_recv(1):ub_recv(1), lb_recv(2):ub_recv(2), lb_recv(3):ub_recv(3) ) =  recv_buf_3d ( :, :, : )
-                END IF
+                ! wait for a recv to complete, then we can unpack
 
-                DEALLOCATE ( send_buf_3d, STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d")
-                DEALLOCATE ( recv_buf_3d, STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d")
-                   
+                DO i=1,2
+
+                  CALL mp_waitany (req(1:2),completed)
+
+                  IF ( completed .EQ. 1 ) THEN
+
+                    ! only some procs may need later shifts
+                    IF(ub_recv_down(idir).GE.lb_recv_down(idir))THEN
+
+                       ! Sum the data in the RS Grid
+                       rs % r ( lb_recv_down(1):ub_recv_down(1), lb_recv_down(2):ub_recv_down(2), &
+                                lb_recv_down(3):ub_recv_down(3) ) =  recv_buf_3d_down ( :, :, : )
+
+                    END IF
+
+                    DEALLOCATE ( recv_buf_3d_down, STAT=ierr )
+                    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_down")
+
+                  ELSE
+
+                    ! only some procs may need later shifts
+                    IF(ub_recv_up(idir).GE.lb_recv_up(idir))THEN
+
+                       ! Add the data to the RS Grid
+                       rs % r ( lb_recv_up(1):ub_recv_up(1), lb_recv_up(2):ub_recv_up(2), &
+                                lb_recv_up(3):ub_recv_up(3) ) =  recv_buf_3d_up ( :, :, : )
+                    END IF
+
+                    DEALLOCATE ( recv_buf_3d_up, STAT=ierr )
+                    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_up")
+
+                  END IF
+                END DO
+
+                CALL mp_waitall (req(3:4))
+
+                DEALLOCATE ( send_buf_3d_down, STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_down")
+                DEALLOCATE ( send_buf_3d_up, STAT=ierr )
+                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_up")
+
              END DO
 
              DEALLOCATE ( ushifts, STAT=ierr)
