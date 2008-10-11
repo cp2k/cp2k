@@ -634,7 +634,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-
+    NULLIFY(list)
     ! here we create for each cpu (0:ncpu-1) a list of possible destinations.
     ! if a destination would not be in this list, it is a bug
     CALL create_destination_list(list,rs_rho,error)
