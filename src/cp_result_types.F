@@ -337,8 +337,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
-    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, i, ndim, stat
+    LOGICAL                                  :: check, failure
 
     CALL timeset(routineN,"I",'',handle)
     failure=.FALSE.
@@ -346,12 +346,15 @@ CONTAINS
     CPPostcondition(ASSOCIATED(results_out),cp_failure_level,routineP,error,failure)
     CALL cp_result_clean(results_out,error)
     
-    ALLOCATE(results_out%result_label(SIZE(results_in%result_label)),stat=stat)
+    check = SIZE(results_in%result_label)==SIZE(results_in%result_value)
+    CPPostcondition(check,cp_failure_level,routineP,error,failure)
+    ndim  = SIZE(results_in%result_value)
+    ALLOCATE(results_out%result_label(ndim),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(results_out%result_value(SIZE(results_in%result_value)),stat=stat)
+    ALLOCATE(results_out%result_value(ndim),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    results_out%result_label = results_in%result_label
-    DO i = 1, SIZE(results_in%result_value)
+    DO i = 1, ndim
+       results_out%result_label(i) = results_in%result_label(i)
        CALL cp_result_value_create(results_out%result_value(i)%value, error)
        CALL cp_result_value_copy(results_out%result_value(i)%value,&
             results_in%result_value(i)%value, error)
