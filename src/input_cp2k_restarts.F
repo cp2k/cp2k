@@ -43,9 +43,9 @@ MODULE input_cp2k_restarts
                                              multiple_fe_list,&
                                              use_qmmm
   USE input_constants,                 ONLY: &
-       do_thermo_csvr, do_thermo_no_communication, do_thermo_nose, &
-       mol_dyn_run, mon_car_run, pint_run, use_unit_angstrom, use_unit_bohr, &
-       use_unit_scaled_angstrom, use_unit_scaled_bohr
+       do_band_internal, do_thermo_csvr, do_thermo_no_communication, &
+       do_thermo_nose, mol_dyn_run, mon_car_run, pint_run, use_unit_angstrom, &
+       use_unit_bohr, use_unit_scaled_angstrom, use_unit_scaled_bohr
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &
@@ -73,6 +73,7 @@ MODULE input_cp2k_restarts
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE multipole_types,                 ONLY: multipole_type
+  USE neb_types,                       ONLY: neb_var_type
   USE parallel_rng_types,              ONLY: dump_rng_stream,&
                                              rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
@@ -120,8 +121,7 @@ CONTAINS
       POINTER                                :: kg_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(section_vals_type), POINTER         :: root_section
-    REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: coords, vels
+    TYPE(neb_var_type), OPTIONAL, POINTER    :: coords, vels
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart', &
@@ -403,8 +403,7 @@ CONTAINS
       POINTER                                :: kg_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(section_vals_type), POINTER         :: root_section
-    REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: coords, vels
+    TYPE(neb_var_type), OPTIONAL, POINTER    :: coords, vels
     LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -488,8 +487,7 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_logger_type), POINTER            :: logger
-    REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: coords, vels
+    TYPE(neb_var_type), OPTIONAL, POINTER    :: coords, vels
     LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -497,17 +495,19 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: counter, handle, handle2, i, iatom, icoef, iel, ikind, irep, &
-      isec, j, my_itimes, n_el, natom, natom_tot, nhc_len, nkind, nsgf, &
-      nsgf_max, stat, tot_nhcneed
+      isec, j, my_itimes, n_el, natom, natom_tot, nfield, nhc_len, nkind, &
+      nsgf, nsgf_max, stat, tot_nhcneed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
-    INTEGER, POINTER                         :: accepted_md, INDEX(:), &
-                                                itimes, md_approach_nr
+    INTEGER, DIMENSION(:), POINTER           :: lindex
+    INTEGER, POINTER                         :: accepted_md, itimes, &
+                                                md_approach_nr
     LOGICAL                                  :: failure, my_save_mem
     REAL(KIND=dp)                            :: my_t
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pbuffer, pindex, vbuffer, &
                                                 vindex
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, veta
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, &
+                                                veta, wrk
     REAL(KIND=dp), POINTER                   :: t
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -671,7 +671,7 @@ CONTAINS
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
           ALLOCATE (vbuffer(n_el,nsgf_max),STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
-          ALLOCATE (INDEX(n_el),STAT=stat)
+          ALLOCATE (lindex(n_el),STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
           ALLOCATE (cindex(natom_tot),STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
@@ -708,16 +708,16 @@ CONTAINS
               CYCLE 
             ELSE
               iel = iel + 1
-              INDEX ( iel ) = cindex ( iatom )
+              lindex( iel ) = cindex ( iatom )
               pbuffer ( iel, : ) = pindex ( iatom, : )
               vbuffer ( iel, : ) = vindex ( iatom, : )
             END IF
           END DO
           
           work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%RESTART_INDEX",error=error)
-          CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",i_vals_ptr=index,error=error)
+          CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",i_vals_ptr=lindex,error=error)
           work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%COORD",error=error)
-          DO irep = 1, SIZE(index)
+          DO irep = 1, SIZE(lindex)
              ALLOCATE(buffer(SIZE(pbuffer,2)),stat=stat)
              CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
              buffer = pbuffer(irep,:)
@@ -725,7 +725,7 @@ CONTAINS
                   i_rep_val=irep,error=error)    
           END DO
           work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%VELOCITY",error=error)
-          DO irep = 1, SIZE(index)
+          DO irep = 1, SIZE(lindex)
              ALLOCATE(buffer(SIZE(vbuffer,2)),stat=stat)
              CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
              buffer = vbuffer(irep,:)       
@@ -812,26 +812,36 @@ CONTAINS
        IF (PRESENT(coords)) THEN
           ! Allocate possible missing sections
           DO
-             IF (SIZE(coords,2)<=SIZE(replica_section%values,2)) EXIT
+             IF (coords%size_wrk(2)<=SIZE(replica_section%values,2)) EXIT
              CALL section_vals_add_values(replica_section,error=error)
           END DO
           ! Write Values
-          DO isec = 1, SIZE(coords,2)
+          DO isec = 1, coords%size_wrk(2)
              CALL section_vals_val_unset(replica_section,"COORD_FILE_NAME",i_rep_section=isec,error=error) 
              work_section => section_vals_get_subs_vals3(replica_section,"COORD",i_rep_section=isec,error=error)
-             CALL section_neb_coord_val_set(work_section,coords(:,isec),SIZE(coords,1),error)
+             CALL section_neb_coord_val_set(work_section,coords%xyz(:,isec),SIZE(coords%xyz,1),3,error)
+             ! Update Collective Variables
+             IF (coords%in_use==do_band_internal) THEN
+                ALLOCATE(wrk(coords%size_wrk(1)),stat=stat)
+                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+                wrk = coords%wrk(:,isec)
+                CALL section_vals_val_set(replica_section,"COLLECTIVE",r_vals_ptr=wrk,&
+                     i_rep_section=isec,error=error) 
+             END IF
           END DO
        END IF
        IF (PRESENT(vels)) THEN
           ! Allocate possible missing sections
           DO
-             IF (SIZE(vels,2)<=SIZE(replica_section%values,2)) EXIT
+             IF (vels%size_wrk(2)<=SIZE(replica_section%values,2)) EXIT
              CALL section_vals_add_values(replica_section,error=error)
           END DO
+          nfield = 3
+          IF (vels%in_use==do_band_internal) nfield = 1
           ! Write Values
-          DO isec = 1, SIZE(vels,2)
+          DO isec = 1, vels%size_wrk(2)
              work_section => section_vals_get_subs_vals3(replica_section,"VELOCITY",i_rep_section=isec,error=error)
-             CALL section_neb_coord_val_set(work_section,vels(:,isec),SIZE(vels,1),error)
+             CALL section_neb_coord_val_set(work_section,vels%wrk(:,isec),SIZE(vels%wrk,1),nfield,error)
           END DO
        END IF
     END IF
@@ -1169,11 +1179,11 @@ CONTAINS
 !>      12.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE section_neb_coord_val_set(coord_section, coords, nsize, error)
+  SUBROUTINE section_neb_coord_val_set(coord_section, array, nsize, nfield,error)
 
     TYPE(section_vals_type), POINTER         :: coord_section
-    REAL(KIND=dp), DIMENSION(*)              :: coords
-    INTEGER, INTENT(IN)                      :: nsize
+    REAL(KIND=dp), DIMENSION(*)              :: array
+    INTEGER, INTENT(IN)                      :: nsize, nfield
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_neb_coord_val_set', &
@@ -1205,11 +1215,11 @@ CONTAINS
     IF (ASSOCIATED(vals)) THEN
        Nlist = cp_sll_val_get_length(vals,error)
     END IF
-    DO irk=1,nsize/3
-       i = (irk-1)*3
-       ALLOCATE(my_c(3),stat=stat)
+    DO irk=1,nsize/nfield
+       i = (irk-1)*nfield
+       ALLOCATE(my_c(nfield),stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-       my_c = coords(i+1:i+3)
+       my_c = array(i+1:i+nfield)
        CALL val_create(my_val,r_vals_ptr=my_c,error=error)
 
        IF (Nlist /= 0) THEN

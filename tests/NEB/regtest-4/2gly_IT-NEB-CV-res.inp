@@ -1,0 +1,130 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../amber/mol.pot
+      parmtype CHM
+      &SPLINE
+        EMAX_ACCURACY 500.0
+        EMAX_SPLINE  1.0E10
+        EPS_SPLINE 1.0E-5
+        R0_NB 0.0001
+        RCUT_NB  20.0
+      &END
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .36
+        GMAX 29
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &FF_INFO
+        SPLINE_INFO
+      &END
+    &END
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 30.0 30.0 30.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CHARGE_BETA
+      COORD_FILE_NAME ../amber/mol.pdb
+      COORDINATE PDB
+      CONNECTIVITY UPSF
+      CONN_FILE_NAME  ../amber/mol.psf
+      PARA_RES F
+    &END TOPOLOGY
+    &COLVAR
+      &TORSION
+        ATOMS 9 8 10 11
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT GLYGLY
+  RUN_TYPE BAND
+&END GLOBAL
+&MOTION
+  &PRINT
+    &VELOCITIES OFF
+    &END
+  &END
+  &CONSTRAINT
+    &COLLECTIVE
+      TARGET [deg] 0.0
+      MOLECULE 1
+      COLVAR 1
+      &RESTRAINT
+          K   0.5
+      &END
+    &END COLLECTIVE
+  &END
+  &GEO_OPT
+    MAX_ITER 100
+    OPTIMIZER BFGS
+  &END
+  &BAND
+    NPROC_REP 1
+    BAND_TYPE IT-NEB
+    NUMBER_OF_REPLICA 5
+    K_SPRING 0.05
+    &CONVERGENCE_CONTROL
+      #MAX_DR 0.01
+      MAX_FORCE 0.001
+      #RMS_DR 0.02
+      RMS_FORCE 0.0005
+    &END
+    ROTATE_FRAMES T
+    &CI_NEB
+       NSTEPS_IT  5
+    &END
+    &OPTIMIZE_BAND
+      OPT_TYPE MD
+      &MD
+        TIMESTEP 0.5
+        TEMPERATURE 100.0
+        MAX_STEPS 5
+        &VEL_CONTROL
+          ANNEALING 0.95
+          PROJ_VELOCITY_VERLET T
+        &END
+        #&TEMP_CONTROL
+        #  TEMPeRATURE 100.0
+        #  TEMP_TOL 50.
+        #  TEMP_TOL_STEPS 100
+        #&END
+      &END
+    &END
+    USE_COLVARS
+    POT_TYPE ME
+    &REPLICA
+      COORD_FILE_NAME  ../amber/MOL.0.xyz
+    &END
+    &REPLICA
+      COORD_FILE_NAME  ../amber/MOL.1.xyz
+    &END
+    &REPLICA
+      COORD_FILE_NAME  ../amber/MOL.2.xyz
+    &END
+    &REPLICA
+      COORD_FILE_NAME  ../amber/MOL.3.xyz
+    &END
+    &PROGRAM_RUN_INFO 
+      INITIAL_CONFIGURATION_INFO T
+    &END
+    &REPLICA_INFO
+    &END
+    &CONVERGENCE_INFO
+    &END
+  &END BAND
+&END MOTION
+&EXT_RESTART
+ RESTART_FILE_NAME GLYGLY-1.restart
+&END

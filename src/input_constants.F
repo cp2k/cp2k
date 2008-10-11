@@ -90,6 +90,9 @@ MODULE input_constants
   ! BAND
   INTEGER, PARAMETER, PUBLIC           :: band_md_opt=0,&
                                           band_diis_opt=1
+
+  INTEGER, PARAMETER, PUBLIC           :: do_band_cartesian=0,&
+                                          do_band_internal=1
   ! Weight_types
   INTEGER, PARAMETER, PUBLIC :: weight_type_unit=0,&
                                 weight_type_mass=1
@@ -268,6 +271,9 @@ MODULE input_constants
                                 do_d_neb=3,&
                                 do_sm=4,&
                                 do_eb=5
+  INTEGER, PARAMETER, PUBLIC :: pot_neb_full=0,&
+                                pot_neb_fe=1,&
+                                pot_neb_me=2
 
   INTEGER, PARAMETER, PUBLIC :: atomic_guess=1,restart_guess=2,random_guess=3,&
        core_guess=4, densities_guess=5, history_guess=6, no_guess=7, mopac_guess=8

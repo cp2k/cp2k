@@ -39,6 +39,7 @@ OBJECTS_GENERIC =\
  cg_test.o\
  colvar_methods.o\
  colvar_types.o\
+ colvar_utils.o\
  constraint.o\
  constraint_3x3.o\
  constraint_4x6.o\

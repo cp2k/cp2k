@@ -25,7 +25,10 @@ MODULE neb_io
   USE force_env_types,                 ONLY: force_env_get
   USE input_constants,                 ONLY: band_md_opt,&
                                              do_sm,&
-                                             dump_xmol
+                                             dump_xmol,&
+                                             pot_neb_fe,&
+                                             pot_neb_full,&
+                                             pot_neb_me
   USE input_cp2k_motion,               ONLY: create_band_section
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -43,7 +46,8 @@ MODULE neb_io
                                              dp
   USE machine,                         ONLY: m_flush
   USE neb_md_utils,                    ONLY: get_temperatures
-  USE neb_types,                       ONLY: neb_type
+  USE neb_types,                       ONLY: neb_type,&
+                                             neb_var_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates
   USE timings,                         ONLY: timeset,&
@@ -72,7 +76,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_neb_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: explicit, failure
+    TYPE(section_vals_type), POINTER         :: wrk_section
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(neb_env),cp_failure_level,routineP,error,failure)
@@ -87,6 +92,48 @@ CONTAINS
     CALL section_vals_val_get(neb_section,"CI_NEB%NSTEPS_IT",i_val=neb_env%nsteps_it,error=error)
     ! Band Optimization Type
     CALL section_vals_val_get(neb_section,"OPTIMIZE_BAND%OPT_TYPE",i_val=neb_env%opt_type,error=error)
+    ! Use colvars
+    CALL section_vals_val_get(neb_section,"USE_COLVARS",l_val=neb_env%use_colvar,error=error)
+    CALL section_vals_val_get(neb_section,"POT_TYPE",i_val=neb_env%pot_type,error=error)
+    ! Before continuing let's do some consistency check between keywords
+    IF (neb_env%pot_type/=pot_neb_full) THEN
+       ! Requires the use of colvars
+       CALL cp_assert(neb_env%use_colvar,&
+            cp_failure_level,cp_assertion_failed,routineP,&
+            "A potential energy function based on free energy or minimum energy"//&
+            " was requested without enabling the usage of COLVARS. Both methods"//&
+            " are based on COLVARS definition."//&
+ CPSourceFileRef,&
+            error=error,failure=failure)
+       ! Moreover let's check if the proper sections have been defined..
+       SELECT CASE(neb_env%pot_type)
+       CASE(pot_neb_fe)
+          wrk_section => section_vals_get_subs_vals(neb_env%root_section,"MOTION%MD",error=error)
+          CALL section_vals_get(wrk_section,explicit=explicit, error=error)
+          CALL cp_assert(explicit,&
+               cp_failure_level,cp_assertion_failed,routineP,&
+               "A free energy BAND (colvars projected) calculation is requested"//&
+               " but NONE MD section was defined in the input."//&
+ CPSourceFileRef,&
+                error=error,failure=failure)
+       CASE(pot_neb_me)
+          wrk_section => section_vals_get_subs_vals(neb_env%root_section,"MOTION%GEO_OPT",error=error)
+          CALL section_vals_get(wrk_section,explicit=explicit, error=error)
+          CALL cp_assert(explicit,&
+               cp_failure_level,cp_assertion_failed,routineP,&
+               "A minimum energy BAND (colvars projected) calculation is requested"//&
+               " but NONE GEO_OPT section was defined in the input."//&
+ CPSourceFileRef,&
+                error=error,failure=failure)
+       END SELECT
+    ELSE
+       CALL cp_assert(.NOT.neb_env%use_colvar,&
+            cp_failure_level,cp_assertion_failed,routineP,&
+            "A band calculation was requested with a full potential energy. USE_COLVAR cannot"//&
+            " be set for this kind of calculation!"//&
+ CPSourceFileRef,&
+            error=error,failure=failure)       
+    END IF
     ! String Method
     CALL section_vals_val_get(neb_section,"STRING_METHOD%SMOOTHING",r_val=neb_env%smoothing,error=error)
     CALL section_vals_val_get(neb_section,"STRING_METHOD%SPLINE_ORDER",i_val=neb_env%spline_order,error=error)
@@ -103,9 +150,8 @@ CONTAINS
   SUBROUTINE dump_neb_info(neb_env, coords, vels, forces, particle_set, logger,&
        istep, energies, distances, output_unit, error)
     TYPE(neb_type), POINTER                  :: neb_env
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords
-    REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: vels, forces
+    TYPE(neb_var_type), POINTER              :: coords
+    TYPE(neb_var_type), OPTIONAL, POINTER    :: vels, forces
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_logger_type), POINTER            :: logger
@@ -120,8 +166,8 @@ CONTAINS
     CHARACTER(LEN=20)                        :: mytype
     CHARACTER(LEN=default_string_length)     :: line, title
     INTEGER                                  :: crd, ener, frc, handle, i, &
-                                                irep, natom, ndig, ndigl, &
-                                                stat, ttst, vel
+                                                irep, ndig, ndigl, stat, &
+                                                ttst, vel
     LOGICAL                                  :: explicit, failure, lval
     REAL(KIND=dp)                            :: f_ann
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ekin, temperatures
@@ -137,10 +183,9 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
     IF (.NOT.failure) THEN
-       natom = SIZE(coords,1)
-       ndig  = CEILING(LOG10(REAL(SIZE(coords,2)+1,KIND=dp)))
+       ndig  = CEILING(LOG10(REAL(neb_env%number_of_replica+1,KIND=dp)))
        CALL force_env_get(neb_env%force_env, cell=cell, error=error)
-       DO irep = 1, SIZE(coords,2)
+       DO irep = 1, neb_env%number_of_replica
           ndigl = CEILING(LOG10(REAL(irep+1,KIND=dp)))
           WRITE(line,'(A,'//cp_to_string(ndig)//'("0"),T'//cp_to_string(11+ndig+1-ndigl)//',I0)')"Replica_nr_",irep
           crd = cp_print_key_unit_nr(logger,neb_env%motion_print_section,"TRAJECTORY",&
@@ -158,7 +203,7 @@ CONTAINS
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
              CALL write_particle_coordinates(particle_set,crd,&
-                  dump_xmol,"POS",title,cell=cell,array=coords(:,irep))
+                  dump_xmol,"POS",title,cell=cell,array=coords%xyz(:,irep))
              CALL m_flush(crd)             
           END IF
           ! Dump Velocities
@@ -166,7 +211,7 @@ CONTAINS
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
              CALL write_particle_coordinates(particle_set,vel,&
-                  dump_xmol,"VEL",title,cell=cell,array=vels(:,irep))
+                  dump_xmol,"VEL",title,cell=cell,array=vels%xyz(:,irep))
              CALL m_flush(vel)
           END IF
           ! Dump Forces
@@ -174,7 +219,7 @@ CONTAINS
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
              CALL write_particle_coordinates(particle_set,frc,&
-                  dump_xmol,"FRC",title,cell=cell,array=forces(:,irep))
+                  dump_xmol,"FRC",title,cell=cell,array=forces%xyz(:,irep))
              CALL m_flush(frc)
           END IF
           CALL cp_print_key_finished_output(crd,logger,neb_env%motion_print_section,&
@@ -192,9 +237,9 @@ CONTAINS
        IF (output_unit>0) THEN
           tc_section => section_vals_get_subs_vals(neb_env%neb_section,"OPTIMIZE_BAND%MD%TEMP_CONTROL",error=error)
           vc_section => section_vals_get_subs_vals(neb_env%neb_section,"OPTIMIZE_BAND%MD%VEL_CONTROL",error=error)
-          ALLOCATE(temperatures(SIZE(coords,2)),stat=stat)
+          ALLOCATE(temperatures(neb_env%number_of_replica),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(ekin(SIZE(coords,2)),stat=stat)
+          ALLOCATE(ekin(neb_env%number_of_replica),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL get_temperatures(vels,particle_set,temperatures,ekin=ekin,error=error)
           WRITE(output_unit,'(/)',ADVANCE="NO")
@@ -240,8 +285,7 @@ CONTAINS
              END IF
           END IF
           WRITE ( output_unit, '( A,T71,I10 )' )&
-               ' NUMBER OF NEB REPLICA         =', &
-               SIZE(coords,2)
+               ' NUMBER OF NEB REPLICA         =', neb_env%number_of_replica
           WRITE ( output_unit, '( A,T17,4F16.6)' )&
                ' DISTANCES REP =',distances(1:MIN(4,SIZE(distances)))
           IF (SIZE(distances)>4) THEN
@@ -274,7 +318,7 @@ CONTAINS
        ener = cp_print_key_unit_nr(logger,neb_env%neb_section,"ENERGY",&
             extension=".ener",file_form="FORMATTED", error=error)
        IF (ener>0) THEN
-          WRITE(line,'(I0)')2*SIZE(coords,2)-1
+          WRITE(line,'(I0)')2*neb_env%number_of_replica-1
           WRITE(ener,'(I10,'//TRIM(line)//'(1X,F20.9))')istep,&
                energies, distances
        END IF
@@ -294,11 +338,12 @@ CONTAINS
 !> \brief dump coordinates of a replica NEB
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
-  SUBROUTINE dump_replica_coordinates(particle_set, coords, i, ienum, iw)
+  SUBROUTINE dump_replica_coordinates(particle_set, coords, i, ienum, iw, use_colvar)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords
+    TYPE(neb_var_type), POINTER              :: coords
     INTEGER, INTENT(IN)                      :: i, ienum, iw
+    LOGICAL, INTENT(IN)                      :: use_colvar
 
     INTEGER                                  :: j
 
@@ -307,8 +352,12 @@ CONTAINS
        WRITE(iw,'(T2,"NEB|",1X,A,I6,A)')"Geometry for Replica Nr. ",ienum,"."
        DO j = 1, SIZE(particle_set)
           WRITE(iw,'(T2,"NEB|",1X,A10,5X,3F15.9)')TRIM(particle_set(j)%atomic_kind%name),&
-               coords((j-1)*3+1:(j-1)*3+3,i)    
+               coords%xyz((j-1)*3+1:(j-1)*3+3,i)    
        END DO
+       IF (use_colvar) THEN
+          WRITE(iw,'(/,T2,"NEB|",1X,A10)')"COLLECTIVE VARIABLES:"
+          WRITE(iw,'(T2,"NEB|",16X,3F15.9)')(coords%int(j,i),j=1,SIZE(coords%int(:,:),1))
+       END IF
        WRITE(iw,'(T2,"NEB|",75("*"))')
     END IF
   END SUBROUTINE dump_replica_coordinates

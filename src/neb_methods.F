@@ -14,8 +14,12 @@
 !>       Exact results are obtained using:
 !>          EXTRAPOLATION USE_GUESS in QS section (Teo 09.2006)
 !> \author Teodoro Laino 09.2006
+!> \par  History
+!>       - Teodoro Laino 10.2008 [tlaino] - University of Zurich
+!>         Extension to a subspace of collective variables  
 ! *****************************************************************************
 MODULE neb_methods
+  USE colvar_utils,                    ONLY: number_of_colvar
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_print_key_finished_output,&
@@ -31,6 +35,7 @@ MODULE neb_methods
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: band_diis_opt,&
                                              band_md_opt,&
+                                             do_band_cartesian,&
                                              do_sm
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -42,13 +47,17 @@ MODULE neb_methods
                                              control_vels_b
   USE neb_opt_utils,                   ONLY: accept_diis_step,&
                                              neb_ls
-  USE neb_types,                       ONLY: neb_type
+  USE neb_types,                       ONLY: neb_type,&
+                                             neb_var_create,&
+                                             neb_var_release,&
+                                             neb_var_type
   USE neb_utils,                       ONLY: build_replica_coords,&
                                              check_convergence,&
                                              neb_calc_energy_forces,&
                                              reorient_images,&
                                              reparametrize_images
   USE particle_types,                  ONLY: particle_type
+  USE physcon,                         ONLY: massunit
   USE replica_types,                   ONLY: rep_env_create,&
                                              rep_env_release,&
                                              replica_env_type
@@ -80,15 +89,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'neb', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ierr, iw, nrep, &
+    INTEGER                                  :: handle, ierr, iw, nrep, &
                                                 output_unit, prep, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, vels
+    LOGICAL                                  :: check, failure
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(neb_type), POINTER                  :: neb_env
+    TYPE(neb_var_type), POINTER              :: coords, forces, vels
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(replica_env_type), POINTER          :: rep_env
@@ -99,13 +108,13 @@ CONTAINS
     failure = .FALSE.
     IF (.NOT.failure) THEN
        NULLIFY(logger, subsys, f_env, rep_env)
-       NULLIFY(coords, vels, neb_env)
+       NULLIFY(forces, coords, vels, neb_env)
        logger => cp_error_get_logger(error)
        CALL cp_add_iter_level(logger%iter_info,"BAND",error=error)
        motion_section => section_vals_get_subs_vals(input,"MOTION",error=error)
        print_section  => section_vals_get_subs_vals(motion_section,"PRINT",error=error)
        neb_section    => section_vals_get_subs_vals(motion_section,"BAND",error=error)
-       output_unit=cp_print_key_unit_nr(logger,motion_section,"BAND%PROGRAM_RUN_INFO",&
+       output_unit=cp_print_key_unit_nr(logger,neb_section,"PROGRAM_RUN_INFO",&
             extension=".nebLog",error=error)
 
        CALL section_vals_val_get(neb_section,"NPROC_REP",i_val=prep, error=error)
@@ -120,7 +129,6 @@ CONTAINS
                prep," AND THE NUMBER OF REPLICAS:",nrep
           WRITE(output_unit,'(T2,"NEB| ",I0,A)')para_env%num_pe-nrep*prep," PROCESSORS WILL BE WASTED!"
        END IF
-       ! Just one force_env allowed
        force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL",error=error)
        ! Create Replica Environments
        IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. START"
@@ -141,8 +149,20 @@ CONTAINS
           neb_env%force_env_section    => force_env_section
           neb_env%motion_print_section => print_section
           neb_env%neb_section          => neb_section
+          neb_env%nsize_xyz            = rep_env%ndim
+          neb_env%nsize_int            = number_of_colvar(f_env%force_env, error=error)
+          check = (neb_env%nsize_xyz >= neb_env%nsize_int)
+          CPPostcondition(check,cp_failure_level,routineP,error,failure)
+          ! Check that teh used colvar are uniquely determined 
+          check = (number_of_colvar(f_env%force_env, error=error) == &
+                   number_of_colvar(f_env%force_env, unique=.TRUE., error=error))
+          CPPostcondition(check,cp_failure_level,routineP,error,failure)
           CALL read_neb_section(neb_env,neb_section,error=error)
-          ! Collecting the coordinates of the starting replicas of the NEB
+          ! Allocate the principal vectors used in the BAND calculation
+          CALL neb_var_create(coords, neb_env, full_allocation=.TRUE., error=error)
+          CALL neb_var_create(forces, neb_env, error=error)
+          CALL neb_var_create(vels,   neb_env, error=error)
+          ! Collecting the coordinates of the starting replicas of the BAND calculation
           IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. START"
           iw = cp_print_key_unit_nr(logger,motion_section,"BAND%PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO",&
             extension=".nebLog",error=error)
@@ -157,29 +177,27 @@ CONTAINS
           CASE(band_md_opt)
              neb_env%opt_type_label = "MOLECULAR DYNAMICS"
              md_section => section_vals_get_subs_vals(neb_section,"OPTIMIZE_BAND%MD",error=error)
-             CALL neb_md(rep_env, neb_env, coords, vels, particle_set, output_unit,&
+             CALL neb_md(rep_env, neb_env, coords, vels, forces, particle_set, output_unit,&
                   md_section, logger, globenv, error)
           CASE(band_diis_opt)
              neb_env%opt_type_label = "DIIS"
              diis_section => section_vals_get_subs_vals(neb_section,"OPTIMIZE_BAND%DIIS",error=error)
-             CALL neb_diis(rep_env, neb_env, coords, vels, particle_set, output_unit,&
+             CALL neb_diis(rep_env, neb_env, coords, vels, forces, particle_set, output_unit,&
                   diis_section, logger, globenv, error)
           END SELECT
+          ! Release force_eval
           CALL f_env_rm_defaults(f_env,new_error,ierr)
+          ! Release coords, vels and forces
+          CALL neb_var_release(coords, error)
+          CALL neb_var_release(forces, error)
+          CALL neb_var_release(vels,   error)
+          ! At the end let's destroy the environment of the BAND calculation
           DEALLOCATE(neb_env, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF (ASSOCIATED(coords)) THEN
-             DEALLOCATE(coords, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-          IF (ASSOCIATED(vels)) THEN
-             DEALLOCATE(vels, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
        END IF
        CALL rep_env_release(rep_env,error=error)
-       CALL cp_print_key_finished_output(output_unit,logger,motion_section,&
-            "BAND%PROGRAM_RUN_INFO", error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,neb_section,&
+            "PROGRAM_RUN_INFO", error=error)
        CALL cp_rm_iter_level(logger%iter_info,"BAND",error=error)
     END IF
     CALL timestop(0.0_dp,handle)
@@ -189,11 +207,11 @@ CONTAINS
 !> \brief MD type optimization NEB
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
-  SUBROUTINE neb_md(rep_env, neb_env, coords, vels, particle_set, output_unit,&
+  SUBROUTINE neb_md(rep_env, neb_env, coords, vels, forces, particle_set, output_unit,&
        md_section, logger, globenv, error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(neb_type), OPTIONAL, POINTER        :: neb_env
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, vels
+    TYPE(neb_var_type), POINTER              :: coords, vels, forces
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: output_unit
@@ -206,20 +224,21 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ind, iparticle, &
-                                                istep, iw, k, max_steps, stat
+                                                istep, iw, k, max_steps, &
+                                                nfield, ref_dim, stat
     LOGICAL                                  :: converged, failure, &
                                                 should_stop
     REAL(KIND=dp)                            :: dm, dt, my_mass
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mass
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Dcoords, forces
+    TYPE(neb_var_type), POINTER              :: Dcoords
     TYPE(section_vals_type), POINTER         :: tc_section, vc_section
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       NULLIFY(forces, tc_section, vc_section)
+       NULLIFY( Dcoords, tc_section, vc_section)
        CPPostcondition(ASSOCIATED(coords),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(vels),cp_failure_level,routineP,error,failure)
        ! MD band for string methods type does not make anywa sense. Stop calculation.
@@ -236,31 +255,40 @@ CONTAINS
        CALL section_vals_val_get(md_section,"TIMESTEP",r_val=dt, error=error)
        CALL section_vals_val_get(md_section,"MAX_STEPS",i_val=max_steps, error=error)
        ! Initial setup for MD
-       ALLOCATE (forces(3*SIZE(particle_set),SIZE(coords,2)),stat=stat)
+       CALL neb_var_create(Dcoords, neb_env, error=error)
+       ALLOCATE (mass(SIZE(coords%wrk,1),neb_env%number_of_replica),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (Dcoords(3*SIZE(particle_set),SIZE(coords,2)),stat=stat)
+       ALLOCATE (energies(neb_env%number_of_replica),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (mass(3*SIZE(particle_set),SIZE(coords,2)),stat=stat)
+       ALLOCATE (distances(neb_env%number_of_replica-1),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (energies(SIZE(coords,2)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (distances(SIZE(coords,2)-1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! setting up the mass array
-       DO iparticle = 1, SIZE(particle_set)
-          my_mass = particle_set(iparticle)%atomic_kind%mass
+       ! Setting up the mass array
+       IF (neb_env%use_colvar) THEN
+          nfield  = 1
+          ref_dim = neb_env%nsize_int
+       ELSE
+          nfield  = 3
+          ref_dim = neb_env%nsize_xyz
+       END IF
+       DO iparticle = 1, ref_dim/nfield
+          IF (coords%in_use==do_band_cartesian) THEN
+             my_mass = particle_set(iparticle)%atomic_kind%mass
+          ELSE
+             my_mass = massunit
+          END IF
           dm = 0.5_dp*dt/my_mass
-          DO k = 1, 3
-             ind = (iparticle-1)*3 + k
+          DO k = 1, nfield
+             ind = (iparticle-1)*nfield + k
              mass(ind,1) = dm
           END DO
        END DO
+       ! Copying the mass array for all replicas
        DO k = 2, neb_env%number_of_replica
           mass(:,k) = mass(:,k-1)
        END DO
        ! Initializing forces array
        CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
-            output_unit, distances, error=error)
+            output_unit, distances, neb_env%number_of_replica, error=error)
        neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
        CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
             particle_set, iw, error)
@@ -281,16 +309,16 @@ CONTAINS
           ! Save the optimization step counter
           neb_env%istep = istep
           ! Velocity Verlet (first part)
-          vels(:,:)   = vels(:,:)   + mass(:,:) * forces(:,:)
+          vels%wrk(:,:)   = vels%wrk(:,:)   + mass(:,:) * forces%wrk(:,:)
           ! Control on velocity - I part [rescale, annealing]
           CALL control_vels_a(vels, particle_set, tc_section, vc_section, output_unit,&
                istep, error)
           ! Coordinate step
-          Dcoords(:,:) = dt * vels(:,:)
-          coords (:,:) = coords(:,:) + Dcoords(:,:)
+          Dcoords%wrk(:,:) = dt * vels%wrk(:,:)
+          coords %wrk(:,:) = coords%wrk(:,:) + Dcoords%wrk(:,:)
 
           CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
-               output_unit, distances, error=error)
+               output_unit, distances, neb_env%number_of_replica, error=error)
           neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
           CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
                particle_set, iw, error)
@@ -300,7 +328,7 @@ CONTAINS
           ! Control on velocity - II part [check vels VS forces, Steepest Descent like]
           CALL control_vels_b(vels, forces, vc_section, error)
           ! Velocity Verlet (second part)
-          vels(:,:)   = vels(:,:) + mass(:,:) * forces(:,:)
+          vels%wrk(:,:)   = vels%wrk(:,:) + mass(:,:) * forces%wrk(:,:)
           ! Dump Infos
           CALL dump_neb_info(neb_env=neb_env,&
                              coords=coords,&
@@ -316,16 +344,13 @@ CONTAINS
           converged = check_convergence(neb_env, Dcoords, forces, error)
           IF (converged) EXIT
        END DO md_opt_loop
-       DEALLOCATE (Dcoords,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (forces,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (mass,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (energies,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (distances,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL neb_var_release(Dcoords, error)
        CALL cp_print_key_finished_output(iw,logger,neb_env%neb_section,&
             "REPLICA_INFO", error=error)
     END IF
@@ -336,11 +361,11 @@ CONTAINS
 !> \brief DIIS type optimization NEB
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
-  SUBROUTINE neb_diis(rep_env, neb_env, coords, vels, particle_set, output_unit,&
+  SUBROUTINE neb_diis(rep_env, neb_env, coords, vels, forces, particle_set, output_unit,&
        diis_section, logger, globenv, error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(neb_type), OPTIONAL, POINTER        :: neb_env
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, vels
+    TYPE(neb_var_type), POINTER              :: coords, vels, forces
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: output_unit
@@ -362,17 +387,18 @@ CONTAINS
     REAL(KIND=dp)                            :: max_stepsize, norm, stepsize, &
                                                 stepsize0
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: crr, err, forces, sline
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: crr, err
+    TYPE(neb_var_type), POINTER              :: sline
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
+       NULLIFY(sline, crr, err)
        neb_env%opt_type_label = "SD"
        do_ls = .TRUE.
-       vels  = 0.0_dp
-       NULLIFY(forces)
        CPPostcondition(ASSOCIATED(coords),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(vels),cp_failure_level,routineP,error,failure)
+       CPPostcondition(ASSOCIATED(forces),cp_failure_level,routineP,error,failure)
        iw=cp_print_key_unit_nr(logger,neb_env%neb_section,"REPLICA_INFO",&
             extension=".replicaLog",error=error)
        CALL section_vals_val_get(diis_section,"MAX_STEPS",i_val=max_steps, error=error)
@@ -382,30 +408,26 @@ CONTAINS
        CALL section_vals_val_get(diis_section,"NO_LS",l_val=skip_ls, error=error)
        CALL section_vals_val_get(diis_section,"MAX_SD_STEPS",i_val=max_sd_steps, error=error)
        CALL section_vals_val_get(diis_section,"CHECK_DIIS",l_val=check_diis, error=error)
-       stepsize = stepsize0
        ! Initial setup for DIIS
-       ALLOCATE (forces(3*SIZE(particle_set),SIZE(coords,2)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! line search direction
-       ALLOCATE (sline(3*SIZE(particle_set),SIZE(coords,2)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       sline = 0.0_dp
+       stepsize = stepsize0
+       ! Allocate type for Line Search direction
+       CALL neb_var_create(sline, neb_env, full_allocation=.TRUE., error=error)
        ! Array of error vectors
-       ALLOCATE (err(3*SIZE(particle_set)*SIZE(coords,2),n_diis),stat=stat)
+       ALLOCATE (err(PRODUCT(coords%size_wrk),n_diis),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (crr(3*SIZE(particle_set)*SIZE(coords,2),n_diis),stat=stat)
+       ALLOCATE (crr(PRODUCT(coords%size_wrk),n_diis),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE (set_err(n_diis),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (energies(SIZE(coords,2)),stat=stat)
+       ALLOCATE (energies(neb_env%number_of_replica),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (distances(SIZE(coords,2)-1),stat=stat)
+       ALLOCATE (distances(neb_env%number_of_replica-1),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Initializing forces array
        CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
-            output_unit, distances, error=error)
+            output_unit, distances, neb_env%number_of_replica, error=error)
        CALL reparametrize_images(neb_env%reparametrize_frames, neb_env%spline_order,&
-            neb_env%smoothing, coords, sline, distances, output_unit, error)
+            neb_env%smoothing, coords%wrk, sline%wrk, distances, output_unit, error)
        neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
        CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
             particle_set, iw, error)
@@ -430,13 +452,13 @@ CONTAINS
           CALL cp_iterate(logger%iter_info,iter_nr=istep,error=error)
           neb_env%opt_type_label="SD"
           ! Perform one step of SD with line search
-          norm = SQRT(SUM(forces*forces))
+          norm = SQRT(SUM(forces%wrk*forces%wrk))
           IF (norm<EPSILON(0.0_dp)) THEN
              ! Let's handle the case in which the band is already fully optimized
              converged = .TRUE.
              EXIT
           END IF
-          sline = forces / norm
+          sline%wrk = forces%wrk / norm
           IF (do_ls.AND.(.NOT.skip_ls)) THEN
              CALL neb_ls(stepsize, sline, rep_env, neb_env, coords, energies, forces,&
                   vels, particle_set, iw, output_unit, distances, diis_section, error)
@@ -449,7 +471,7 @@ CONTAINS
                   WRITE(output_unit,'(T2,A,T69,F12.6)')"SD| Stepsize in SD no linesearch performed",&
                   stepsize
           END IF
-          sline = stepsize*sline
+          sline%wrk = stepsize*sline%wrk
           diis_on = accept_diis_step(istep>max_sd_steps,n_diis,err,crr,set_err,sline,coords,&
                                      output_unit,check_diis,error)
           IF (diis_on) THEN 
@@ -457,12 +479,12 @@ CONTAINS
           END IF
           do_ls = .TRUE.
           IF (COUNT(set_err==-1)==1) do_ls = .FALSE.
-          coords = coords + sline
+          coords%wrk = coords%wrk + sline%wrk
           ! Compute forces
           CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
-               output_unit, distances, error)
+               output_unit, distances, neb_env%number_of_replica, error)
           CALL reparametrize_images(neb_env%reparametrize_frames, neb_env%spline_order,&
-               neb_env%smoothing, coords, sline, distances, output_unit, error)
+               neb_env%smoothing, coords%wrk, sline%wrk, distances, output_unit, error)
           neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
           CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
                particle_set, iw, error)
@@ -489,16 +511,13 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (distances, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (forces, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (sline, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (err, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (crr, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (set_err, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL neb_var_release(sline, error)
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE neb_diis

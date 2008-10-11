@@ -2375,6 +2375,26 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="USE_COLVARS",&
+            description="Uses a version of the band scheme projected in a subspace of colvars.",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="POT_TYPE",&
+            description="Specifies the type of potential used in the BAND calculation",&
+            usage="POT_TYPE (FULL|FE|ME)",&
+            default_i_val=pot_neb_full,&
+            enum_c_vals=(/"FULL",&
+                          "FE  ",&
+                          "ME  "/),&
+            enum_desc=s2a( "Full potential (no projections in a subspace of colvars)",&
+                           "Free energy (requires a projections in a subspace of colvars)",&
+                           "Minimum energy (requires a projections in a subspace of colvars)"),&
+            enum_i_vals=(/pot_neb_full,pot_neb_fe,pot_neb_me/),error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="ROTATE_FRAMES",&
             description="Compute at each BAND step the RMSD and rotate the frames in order"//&
             " to minimize it.",&
@@ -2469,6 +2489,16 @@ CONTAINS
        CALL section_create(subsection,name="replica",&
             description="Specify coordinates and velocities (possibly) of the replica",&
             repeats=.TRUE., required=.TRUE., error=error)
+       ! Colvar
+       CALL keyword_create(keyword, name="COLLECTIVE",&
+            description="Specifies the value of the collective variables used in the projected"//&
+            " BAND method. The order of the values is the order of the COLLECTIVE section in the"//&
+            " constraints/restraints section",&
+            usage="COLLECTIVE {real} .. {real}",&
+            type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       ! Coordinates read through an external file
        CALL keyword_create(keyword, name="COORD_FILE_NAME",&
             description="Name of the xyz file with coordinates (alternative to &COORD section)",&
             usage="COORD_FILE_NAME <CHAR>",&

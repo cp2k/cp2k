@@ -20,7 +20,8 @@ MODULE neb_opt_utils
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE neb_types,                       ONLY: neb_type
+  USE neb_types,                       ONLY: neb_type,&
+                                             neb_var_type
   USE neb_utils,                       ONLY: neb_calc_energy_forces,&
                                              reorient_images
   USE particle_types,                  ONLY: particle_type
@@ -52,7 +53,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: n_diis
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: err, crr
     INTEGER, DIMENSION(:), POINTER           :: set_err
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sline, coords
+    TYPE(neb_var_type), POINTER              :: sline, coords
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN)                      :: check_diis
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -91,12 +92,12 @@ CONTAINS
        IF (iw>0) WRITE(iw,'(A,I3)')"Entering into the DIIS module. Error vector number:: ",nv
        set_err(nv) = 1
        eps_svd     = 1.0E-10_dp
-       ALLOCATE(step(SIZE(sline,1)*SIZE(sline,2)),stat=stat)
+       ALLOCATE(step(sline%size_wrk(1)*sline%size_wrk(2)),stat=stat)
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(ref(SIZE(sline,1)*SIZE(sline,2)),stat=stat)
+       ALLOCATE(ref(sline%size_wrk(1)*sline%size_wrk(2)),stat=stat)
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       err(:,nv) = RESHAPE(sline,(/SIZE(sline,1)*SIZE(sline,2)/))
-       crr(:,nv) = RESHAPE(coords,(/SIZE(sline,1)*SIZE(sline,2)/))
+       err(:,nv) = RESHAPE(sline%wrk, (/sline%size_wrk(1) *sline%size_wrk(2)/))
+       crr(:,nv) = RESHAPE(coords%wrk,(/coords%size_wrk(1)*coords%size_wrk(2)/))
        jv = n_diis
        IF (ALL(set_err==1).AND.apply_diis) THEN
           IF (iw>0) WRITE(iw,'(A)')"Applying DIIS equations"
@@ -186,7 +187,7 @@ CONTAINS
              ! possibly enlarge the error space
              IF (increase_error) THEN
                 accepted = .TRUE.
-                sline    = RESHAPE(step,(/SIZE(sline,1),SIZE(sline,2)/))
+                sline%wrk  = RESHAPE(step,(/sline%size_wrk(1),sline%size_wrk(2)/))
              ELSE
                 DEALLOCATE(awrk,stat=stat)
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -325,13 +326,13 @@ CONTAINS
                vels, particle_set, iw, output_unit, distances, diis_section, &
                error)
     REAL(KIND=dp), INTENT(INOUT)             :: stepsize
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sline
+    TYPE(neb_var_type), POINTER              :: sline
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(neb_type), OPTIONAL, POINTER        :: neb_env
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords
+    TYPE(neb_var_type), POINTER              :: coords
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: energies
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces, vels
+    TYPE(neb_var_type), POINTER              :: forces, vels
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: iw, output_unit
@@ -354,25 +355,25 @@ CONTAINS
 
     failure  = .FALSE.
     IF (.NOT.failure) THEN
-       ALLOCATE(Icoord(SIZE(coords,1),SIZE(coords,2)),stat=stat)
+       ALLOCATE(Icoord(coords%size_wrk(1),coords%size_wrk(2)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL section_vals_val_get(diis_section,"NP_LS", i_val=np, error=error)
        CALL section_vals_val_get(diis_section,"MAX_STEPSIZE", r_val=max_stepsize, error=error)
-       Icoord = coords
+       Icoord = coords%wrk
        xa = 0.0_dp
-       ya = SUM(sline*forces)
-       xb = xa + MIN(SUM(sline*forces)*stepsize,max_stepsize)
+       ya = SUM(sline%wrk*forces%wrk)
+       xb = xa + MIN(ya*stepsize,max_stepsize)
        xc_cray = xb
        i  = 1
        DO WHILE (i<=np-1)
           i = i + 1
-          coords = Icoord + xb*sline
+          coords%wrk = Icoord + xb*sline%wrk
           CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
-               output_unit, distances, error)
+               output_unit, distances, neb_env%number_of_replica, error)
           neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
           CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
                particle_set, iw, error)
-          yb = SUM(sline*forces)
+          yb = SUM(sline%wrk*forces%wrk)
           a  = (ya-yb)/(2.0_dp*(xa-xb))
           b  = ya - 2.0_dp*a*xa
           xc_cray = -b/(2.0_dp*a)
@@ -397,7 +398,7 @@ CONTAINS
           xb = xc_cray
        END DO
        stepsize = xc_cray
-       coords = Icoord
+       coords%wrk = Icoord
        DEALLOCATE(Icoord,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
