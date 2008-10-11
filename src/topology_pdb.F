@@ -276,7 +276,7 @@ CONTAINS
        my_tag4 = atom_info%element(i)      ; ldum=qmmm_ff_precond_only_qm(my_tag4)
        WRITE(line(1 : 6),'(A6)')"ATOM  "
        WRITE(line(7 :11),'(I5)')i
-       WRITE(line(13:16),'(A4)')TRIM(my_tag1)
+       WRITE(line(13:16),'(A4)')ADJUSTL(my_tag1(1:4))
        WRITE(line(18:20),'(A3)')TRIM(my_tag2)
        WRITE(line(23:26),'(I4)')idres
        WRITE(line(31:38),'(F8.3)')atom_info%r(1,i)*angstrom
