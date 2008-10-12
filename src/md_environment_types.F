@@ -91,9 +91,10 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE md_env_create(md_env, para_env, error)
+  SUBROUTINE md_env_create(md_env, para_env, force_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'md_env_create', &
@@ -145,7 +146,7 @@ CONTAINS
     md_env%t              = 0.0_dp
     md_env%init           = .TRUE.
     md_env%first_time     = .TRUE.
-    CALL create_averages(md_env%averages, error=error)
+    CALL create_averages(md_env%averages, force_env=force_env, error=error)
 
   END SUBROUTINE md_env_create
 

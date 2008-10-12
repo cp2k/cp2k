@@ -425,8 +425,8 @@ CONTAINS
 
        ! Compute average quantities
        delta_t = itimes - itimes_old
-       CALL compute_averages(averages, md_ener, cell, virial, pv_scalar, pv_xx, used_time,&
-            hugoniot, abc, cell_angle, delta_t, error)
+       CALL compute_averages(averages, force_env, md_ener, cell, virial, pv_scalar, pv_xx,&
+            used_time, hugoniot, abc, cell_angle, delta_t, nat, error)
     END IF
     
     ! Print md information

@@ -235,7 +235,7 @@ CPSourceFileRef,&
              ELSE
                 ! Compute the values of the collective variables
                 CALL eval_colvar(neb_env%force_env, coords%xyz(:,i), coords%int(:,i),&
-                     error=error )
+                     error=error)
              END IF
           END IF
           ! Dump cartesian and colvar info..
@@ -624,7 +624,7 @@ CPSourceFileRef,&
           CALL get_energy(rep_env%f_env_id, rep_env%f(n_el+1,j+1), ierr)
           CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
           ! The gradients in the colvar coordinates
-          CALL get_clv_force(f_env, rep_env%f(1:n_el,j+1), rep_env%r(1:n_el,j+1),&
+          CALL get_clv_force(f_env%force_env, rep_env%f(1:n_el,j+1), rep_env%r(1:n_el,j+1),&
                SIZE(coords%xyz,1), SIZE(coords%wrk,1), cvalues(:,j+1), Mmatrix(:,j+1),&
                error)
        ELSE

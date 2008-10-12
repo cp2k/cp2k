@@ -96,8 +96,7 @@ MODULE md_run
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_run'
 
-  PUBLIC :: qs_mol_dyn,&
-            qs_mol_dyn_low
+  PUBLIC :: qs_mol_dyn
 
 CONTAINS
 
@@ -123,7 +122,7 @@ CONTAINS
     NULLIFY(md_env, para_env)
     para_env=> force_env % para_env
     ! Real call to MD driver - Low Level
-    CALL md_env_create(md_env, para_env, error=error)
+    CALL md_env_create(md_env, para_env, force_env=force_env, error=error)
     CALL set_md_env(md_env, averages=averages, error=error)
     CALL qs_mol_dyn_low(md_env, force_env, globenv, error)
     CALL md_env_release(md_env, error=error)

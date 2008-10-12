@@ -126,3 +126,8 @@ H2O-restraint_2.inp
 H2O-restraint_2r.inp
 # constant rootpi corrected 
 H2O-32_SPME_fp.inp
+# numerics avg colvar
+ethene_colv2.inp
+ethene_colv2_npt.inp
+ethene-restraint2.inp
+ethene-restraint.inp

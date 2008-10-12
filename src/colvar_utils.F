@@ -16,7 +16,6 @@ MODULE colvar_utils
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE f77_interface,                   ONLY: f_env_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE kinds,                           ONLY: dp
@@ -80,7 +79,7 @@ CONTAINS
     NULLIFY(subsys, molecules, molecule_kind, molecule, molecule_set, gci)
     CALL timeset ( routineN, 'I', ' ', handle )
     skip_inter_colvar = .FALSE.
-    my_unique = .FALSE.
+    my_unique         = .FALSE.
     IF (PRESENT(only_intra_colvar)) skip_inter_colvar = only_intra_colvar
     IF (PRESENT(unique)) my_unique = unique
     IF (.NOT. failure) THEN
@@ -109,7 +108,7 @@ CONTAINS
           END DO MOL
        END IF
        ! Intermolecular Colvar
-       IF (skip_inter_colvar) THEN
+       IF (.NOT.skip_inter_colvar) THEN
           IF (ASSOCIATED(gci)) THEN
              ntot = ntot + gci%ncolv%ntot
           END IF
@@ -183,14 +182,14 @@ CONTAINS
 !> \brief Computes the values of colvars and the Wilson matrix B and its invers A
 !> \author Teodoro Laino 05.2007 [tlaino] - Zurich University
 ! *****************************************************************************
-  SUBROUTINE eval_colvar ( force_env, coords, cvalues, Bmatrix, Amatrix, MassI, error )
+  SUBROUTINE eval_colvar ( force_env, coords, cvalues, Bmatrix, MassI, Amatrix, error )
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: coords
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: cvalues
     REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: Bmatrix, Amatrix, MassI
+      OPTIONAL, POINTER                      :: Bmatrix, MassI, Amatrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colvar', &
@@ -318,7 +317,7 @@ CONTAINS
           ALLOCATE(Gmatrix_i(n_tot,n_tot), stat=stat)
           CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
           Gmatrix = MATMUL(Bmatrix, TRANSPOSE(Bmatrix))
-          CALL invert_matrix(Gmatrix, Gmatrix_i, inv_error,error=error)
+          CALL invert_matrix(Gmatrix, Gmatrix_i, inv_error, error=error)
           CALL cp_assert(ABS(inv_error)<=1.0E-8_dp,cp_warning_level, cp_assertion_failed, routineP,&
                "Error in inverting the Gmatrix larger than 1.0E-8!"//&
  CPSourceFileRef,&
@@ -490,10 +489,14 @@ CONTAINS
        n_tot = n_tot  + 1
        ival  = ival   + 1
        ! Update colvar
-       CALL colvar_eval_mol_f(lcolv(iconst)%colvar, cell, &
-            particles=particle_set, pos=RESHAPE(coords,(/3,SIZE(particle_set)/)),&
-            fixd_list=fixd_list, error=error)
-
+       IF (PRESENT(coords)) THEN
+          CALL colvar_eval_mol_f(lcolv(iconst)%colvar, cell, particles=particle_set,&
+               pos=RESHAPE(coords,(/3,SIZE(particle_set)/)), fixd_list=fixd_list, &
+               error=error)
+       ELSE
+          CALL colvar_eval_mol_f(lcolv(iconst)%colvar, cell, particles=particle_set,&
+               fixd_list=fixd_list, error=error)
+       END IF
        cvalues(ival) = lcolv(iconst)%colvar%ss
        map(ival)     = colv_list(iconst)%inp_seq_num
        ! Build the Wilson-Eliashevich Matrix
@@ -508,14 +511,15 @@ CONTAINS
   END SUBROUTINE eval_colv_low
 
 ! *****************************************************************************
-!> \brief Computes the forces in the frame of collective variables
+!> \brief Computes the forces in the frame of collective variables, and additional
+!>        also the local metric tensor
 !> \author Teodoro Laino 05.2007
 ! *****************************************************************************
-  SUBROUTINE get_clv_force(f_env, forces, coords, nsize_xyz, nsize_int, cvalues,&
+  SUBROUTINE get_clv_force(force_env, forces, coords, nsize_xyz, nsize_int, cvalues,&
        Mmatrix, error)
-    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT)                          :: forces, coords
+      INTENT(INOUT), OPTIONAL                :: forces, coords
     INTEGER, INTENT(IN)                      :: nsize_xyz, nsize_int
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: cvalues, Mmatrix
@@ -530,29 +534,34 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Amatrix, Bmatrix, MassI
 
     failure = .FALSE.
-    ALLOCATE(Amatrix(nsize_xyz,nsize_int),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(Bmatrix(nsize_int,nsize_xyz),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(MassI(nsize_xyz,nsize_xyz),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(wrk(nsize_int),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ! Compute the transformation matrices and the invese mass diagonal Matrix
-    CALL eval_colvar(f_env%force_env, coords, cvalues, Bmatrix, Amatrix, MassI, error )
+    ! Transform gradients if requested
+    IF (PRESENT(forces)) THEN
+       ALLOCATE(wrk(nsize_int),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(Amatrix(nsize_xyz,nsize_int),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Compute the transformation matrices and the invese mass diagonal Matrix
+       CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI, Amatrix, error)
+       wrk = MATMUL(TRANSPOSE(Amatrix),forces)
+       forces              = 0.0_dp
+       forces(1:nsize_int) = wrk
+       DEALLOCATE(Amatrix, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(wrk, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+    ELSE
+       ! Compute the transformation matrices and the invese mass diagonal Matrix
+       CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI, error=error)
+    END IF
     ! Compute the Metric Tensor
     Mmatrix = RESHAPE(MATMUL(MATMUL(Bmatrix,MassI),TRANSPOSE(Bmatrix)),(/nsize_int*nsize_int/))
-    ! Transform gradients
-    wrk = MATMUL(TRANSPOSE(Amatrix),forces)
-    forces              = 0.0_dp
-    forces(1:nsize_int) = wrk
-    DEALLOCATE(wrk, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
     DEALLOCATE(MassI, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
     DEALLOCATE(Bmatrix, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(Amatrix, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE get_clv_force
 

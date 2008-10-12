@@ -242,7 +242,7 @@ CPSourceFileRef,&
           ! Perform a molecular dynamics
           CALL gopt_new_error_create(new_error, gopt_env%force_env%root_section, para_env,&
                project_name, id_run=mol_dyn_run, error=error)
-          CALL create_averages(averages, virial_avg=.TRUE., error=error)
+          CALL create_averages(averages, virial_avg=.TRUE., force_env=gopt_env%force_env, error=error)
           CALL qs_mol_dyn(gopt_env%force_env, gopt_env%globenv, averages, new_error)
           ! Retrieve the average of the stress tensor and the average of the potential energy
           potential_energy=averages%avepot
