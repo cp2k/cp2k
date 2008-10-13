@@ -11,8 +11,8 @@
 ! *****************************************************************************
 MODULE input_cp2k_poisson
   USE bibliography,                    ONLY: &
-       Aguado2003, Darden1993, Essmann1995, Ewald1921, Genovese2006, &
-       Genovese2007, Laino2008, Martyna1999, Toukmaji1996
+       Aguado2003, Blochl1995, Darden1993, Essmann1995, Ewald1921, &
+       Genovese2006, Genovese2007, Laino2008, Martyna1999, Toukmaji1996
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -82,7 +82,7 @@ CONTAINS
             usage="POISSON_SOLVER char",&
             enum_c_vals=s2a( "PERIODIC", "ANALYTIC", "MT", "MULTIPOLE","WAVELET"),&
             enum_i_vals=(/ use_periodic, use_analytic, use_mt, use_multipole,use_wavelet/),&
-            citations=(/Martyna1999/),&
+            citations=(/Blochl1995,Martyna1999,Genovese2006,Genovese2007/),&
             default_i_val=use_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    

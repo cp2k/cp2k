@@ -11,6 +11,8 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE cp_ddapc
+  USE bibliography,                    ONLY: Blochl1995,&
+                                             cite_reference
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: ddapc_restraint_type,&
                                              dft_control_type
@@ -105,6 +107,7 @@ CONTAINS
       POINTER                                :: rest_mat
 
     CALL timeset(routineN,"I","",handle)
+    CALL cite_reference(Blochl1995)
     ! In case decouple periodic images and/or apply restraints to charges
     failure        = .FALSE.
     logger         => cp_error_get_logger(error)
