@@ -19,7 +19,7 @@ MODULE neb_types
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
   USE input_constants,                 ONLY: do_band_cartesian,&
-                                             do_band_internal
+                                             do_band_collective
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -101,7 +101,7 @@ CONTAINS
           neb_var%xyz = 0.0_dp
        END IF
        IF (neb_env%use_colvar) THEN
-          neb_var%in_use = do_band_internal
+          neb_var%in_use = do_band_collective
           CPPostcondition(neb_env%nsize_int>0,cp_failure_level,routineP,error,failure)
           ALLOCATE(neb_var%int(neb_env%nsize_int, neb_nr_replica),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -144,7 +144,7 @@ CONTAINS
           DEALLOCATE(neb_var%xyz,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       IF (neb_var%in_use==do_band_internal) THEN
+       IF (neb_var%in_use==do_band_collective) THEN
           DEALLOCATE(neb_var%int,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF

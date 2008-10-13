@@ -21,7 +21,7 @@ MODULE neb_md_utils
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: band_md_opt,&
-                                             do_band_internal
+                                             do_band_collective
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -290,7 +290,7 @@ CONTAINS
     IF (PRESENT(ekin))   ekin = 0.0_dp
     temperatures = 0.0_dp
     ref_dim = SIZE(vels%wrk,1)
-    IF (vels%in_use==do_band_internal) THEN
+    IF (vels%in_use==do_band_collective) THEN
        nfield  = 1
     ELSE
        nfield  = 3
@@ -299,7 +299,7 @@ CONTAINS
        akin = 0.0_dp
        DO k = 1, ref_dim/nfield
           kind = (k-1)*nfield
-          IF (vels%in_use==do_band_internal) THEN
+          IF (vels%in_use==do_band_collective) THEN
              mass = massunit
           ELSE
              mass = particle_set(k)%atomic_kind%mass

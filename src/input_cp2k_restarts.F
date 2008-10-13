@@ -43,7 +43,7 @@ MODULE input_cp2k_restarts
                                              multiple_fe_list,&
                                              use_qmmm
   USE input_constants,                 ONLY: &
-       do_band_internal, do_thermo_csvr, do_thermo_no_communication, &
+       do_band_collective, do_thermo_csvr, do_thermo_no_communication, &
        do_thermo_nose, mol_dyn_run, mon_car_run, pint_run, use_unit_angstrom, &
        use_unit_bohr, use_unit_scaled_angstrom, use_unit_scaled_bohr
   USE input_section_types,             ONLY: &
@@ -821,7 +821,7 @@ CONTAINS
              work_section => section_vals_get_subs_vals3(replica_section,"COORD",i_rep_section=isec,error=error)
              CALL section_neb_coord_val_set(work_section,coords%xyz(:,isec),SIZE(coords%xyz,1),3,error)
              ! Update Collective Variables
-             IF (coords%in_use==do_band_internal) THEN
+             IF (coords%in_use==do_band_collective) THEN
                 ALLOCATE(wrk(coords%size_wrk(1)),stat=stat)
                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
                 wrk = coords%wrk(:,isec)
@@ -837,7 +837,7 @@ CONTAINS
              CALL section_vals_add_values(replica_section,error=error)
           END DO
           nfield = 3
-          IF (vels%in_use==do_band_internal) nfield = 1
+          IF (vels%in_use==do_band_collective) nfield = 1
           ! Write Values
           DO isec = 1, vels%size_wrk(2)
              work_section => section_vals_get_subs_vals3(replica_section,"VELOCITY",i_rep_section=isec,error=error)

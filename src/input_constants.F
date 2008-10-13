@@ -92,7 +92,7 @@ MODULE input_constants
                                           band_diis_opt=1
 
   INTEGER, PARAMETER, PUBLIC           :: do_band_cartesian=0,&
-                                          do_band_internal=1
+                                          do_band_collective=1
   ! Weight_types
   INTEGER, PARAMETER, PUBLIC :: weight_type_unit=0,&
                                 weight_type_mass=1
