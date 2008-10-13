@@ -137,59 +137,51 @@ CONTAINS
 
        CALL keyword_create(keyword, name="NT_HILLS",&
             description="Specify the number the interval of time step to spawn the hills.",&
-            usage="NT_HILLS {integer}",&
-            default_i_val=30,error=error)
+            usage="NT_HILLS {integer}",default_i_val=30,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TEMPERATURE",&
             description="If a Lagrangian scheme is used the temperature for the collective "//&
-            "variables is specified. ",&
-            usage="TEMPERATURE {real}",&
+            "variables is specified. ",usage="TEMPERATURE <REAL>",&
             default_r_val=0.0_dp,unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TEMP_TOL",&
             description="If a Lagrangian scheme is used the temperature tolerance for the collective "//&
-            "variables is specified. ",&
-            usage="TEMP_TOL {real}",&
+            "variables is specified. ",usage="TEMP_TOL <REAL>",&
             type_of_var=real_t,unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="WW",&
             description="Specifies the height of the gaussian to spawn. Default 0.1 .",&
-            usage="WW {real}",&
-            default_r_val=0.1_dp,error=error)
+            usage="WW <REAL>",unit_str='hartree',default_r_val=0.1_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DO_HILLS",&
             description="This keyword enables the spawning of the hills. Default .FALSE.",&
-            usage="DO_HILLS",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+            usage="DO_HILLS",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="LAGRANGE",&
             description="Specifies whether an extended-lagrangian should be used. Default .FALSE.",&
-            usage="LAGRANGE",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+            usage="LAGRANGE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,name="step_start_val",&
              description="The starting step value for metadynamics",&
-             usage="step_start_val <integer>",&
-             default_i_val=0,error=error)
+             usage="step_start_val <integer>",default_i_val=0,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,name="nhills_start_val",&
              description="The starting value od previously spawned hills",&
-             usage="nhills_start_val <integer>",&
-             default_i_val=0,error=error)
+             usage="nhills_start_val <integer>",default_i_val=0,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -464,13 +456,13 @@ CONTAINS
        CALL keyword_create(keyword, name="LAMBDA",&
             description="Specifies the lambda parameter of the collective variable in the"//&
             " extended lagrangian scheme.",&
-            usage="LAMBDA {real}",unit_str='internal_cp2k',type_of_var=real_t,error=error)
+            usage="LAMBDA <REAL>",unit_str='internal_cp2k',type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MASS",&
             description="Specifies the mass parameter of the collective variable in the"//&
-            " extended lagrangian scheme.",usage="MASS {real}",unit_str='amu',type_of_var=real_t,error=error)
+            " extended lagrangian scheme.",usage="MASS <REAL>",unit_str='amu',type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -480,7 +472,7 @@ CONTAINS
             "dependent term has the expression: WW * Sum_{j=1}^{nhills} Prod_{k=1}^{ncolvar} "//&
             "[EXP[-0.5*((ss-ss0(k,j))/SCALE(k))^2]], "//&
             "where ncolvar is the number of defined METAVAR and nhills is the number of spawned hills. ",&
-            usage="SCALE {real}",type_of_var=real_t,unit_str='internal_cp2k',error=error)
+            usage="SCALE <REAL>",type_of_var=real_t,unit_str='internal_cp2k',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -512,7 +504,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="POSITION",&
             description="Specify the value of the colvar for the wall position",&
-            usage="POSITION {real}",unit_str='internal_cp2k',&
+            usage="POSITION <REAL>",unit_str='internal_cp2k',&
             type_of_var=real_t,error=error)
        CALL section_add_keyword(wall_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -553,7 +545,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="K",&
             description="Specify the value of the quadratic potential constan: K*(CV-POS)^2",&
-            usage="K {real}",unit_str='internal_cp2k',&
+            usage="K <REAL>",unit_str='hartree',&
             type_of_var=real_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -569,14 +561,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="WW",&
             description="Specify the height of the gaussian: WW*e^(-((CV-POS)/sigma)^2)",&
-            usage="K {real}",unit_str='internal_cp2k',&
+            usage="K <REAL>",unit_str='hartree',&
             type_of_var=real_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SIGMA",&
             description="Specify the width of the gaussian: WW*e^(-((CV-POS)/sigma)^2)",&
-            usage="SIGMA {real}",unit_str='internal_cp2k',&
+            usage="SIGMA <REAL>",unit_str='internal_cp2k',&
             type_of_var=real_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
