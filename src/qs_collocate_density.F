@@ -368,6 +368,7 @@ CONTAINS
     INTEGER                                  :: atom_a, handle, i, iatom, &
                                                 ierr, ikind, ithread, j, &
                                                 natom, npme, nthread
+    INTEGER(KIND=int_8)                      :: subpatch_pattern
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: my_only_nopaw, paw_atom
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
@@ -457,10 +458,11 @@ CONTAINS
             iatom = cores(j)
             atom_a = atom_list(iatom)
             ra(:) = pbc(particle_set(atom_a)%r,cell)
+            subpatch_pattern=0
             CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
                   (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
                   cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
-                  ithread=ithread,use_subpatch=.TRUE.,error=error)
+                  ithread=ithread,use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
 
          END DO
       ENDIF
@@ -877,7 +879,7 @@ CONTAINS
                rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                eps_rho_rspace,&
                ga_gb_function=ga_gb_function, &
-               map_consistent=map_consistent,use_subpatch=use_subpatch,error=error)
+               map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
        ELSE
           rab_inv=-rab
           CALL collocate_pgf_product_rspace(&
@@ -887,7 +889,7 @@ CONTAINS
                rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                eps_rho_rspace,&
                ga_gb_function=ga_gb_function, &
-               map_consistent=map_consistent,use_subpatch=use_subpatch,error=error)
+               map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
        END IF
 
     END DO loop_tasks
@@ -1161,7 +1163,7 @@ CONTAINS
                                           lgrid,ithread,&
                                           map_consistent,&
                                           collocate_rho0,&
-                                          rpgf0_s,idir,ir,use_subpatch,error)
+                                          rpgf0_s,idir,ir,use_subpatch,subpatch_pattern,error)
 
       INTEGER, INTENT(IN)                      :: la_max
       REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1183,6 +1185,7 @@ CONTAINS
       REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
       INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
       LOGICAL, OPTIONAL                        :: use_subpatch
+      INTEGER(KIND=int_8), OPTIONAL, INTENT(IN):: subpatch_pattern
       TYPE(cp_error_type), INTENT(INOUT)       :: error
 
       CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
@@ -1224,6 +1227,7 @@ CONTAINS
     IF(PRESENT(use_subpatch)) THEN 
        IF(use_subpatch)THEN 
          subpatch_collocate = .TRUE.
+         CPPrecondition(PRESENT(subpatch_pattern),cp_failure_level,routineP,error,failure)
        ENDIF
     ENDIF  
 
@@ -1825,6 +1829,15 @@ CONTAINS
         local_b(1,:)=rsgrid%lb_real-rsgrid%lb
         local_b(2,:)=rsgrid%ub_real-rsgrid%lb
         local_s=rsgrid%lb_real-rsgrid%lb_local
+        IF (BTEST(subpatch_pattern,0)) local_b(1,1)=local_b(1,1)-rsgrid%border
+        IF (BTEST(subpatch_pattern,1)) local_b(2,1)=local_b(2,1)+rsgrid%border
+        IF (BTEST(subpatch_pattern,2)) local_b(1,2)=local_b(1,2)-rsgrid%border
+        IF (BTEST(subpatch_pattern,3)) local_b(2,2)=local_b(2,2)+rsgrid%border
+        IF (BTEST(subpatch_pattern,4)) local_b(1,3)=local_b(1,3)-rsgrid%border
+        IF (BTEST(subpatch_pattern,5)) local_b(2,3)=local_b(2,3)+rsgrid%border
+        IF (BTEST(subpatch_pattern,0)) local_s(1)=local_s(1)-rsgrid%border
+        IF (BTEST(subpatch_pattern,2)) local_s(2)=local_s(2)-rsgrid%border
+        IF (BTEST(subpatch_pattern,4)) local_s(3)=local_s(3)-rsgrid%border
         CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
             periodic=periodic,gdim=ng,local_bounds=local_b,local_shift=local_s,&

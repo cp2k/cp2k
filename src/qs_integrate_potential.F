@@ -239,7 +239,7 @@ CONTAINS
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=.TRUE.,force_a=force_a,&
              force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
-             my_virial_b=my_virial_b,use_subpatch=.TRUE.,error=error)
+             my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
 
         force(ikind)%rho_core(:,iatom) =&
           force(ikind)%rho_core(:,iatom) + force_a(:)
@@ -799,7 +799,7 @@ CONTAINS
                      force_a=force_a,force_b=force_b,ithread=ithread,&
                      compute_tau=my_compute_tau,map_consistent=map_consistent,&
                      use_virial=use_virial,my_virial_a=my_virial_a,&
-                     my_virial_b=my_virial_b, use_subpatch=use_subpatch,error=error)
+                     my_virial_b=my_virial_b, use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
              ELSE
                 rab_inv=-rab
                 CALL integrate_pgf_product_rspace(&
@@ -813,7 +813,7 @@ CONTAINS
                      force_a=force_b,force_b=force_a,ithread=ithread,&
                      compute_tau=my_compute_tau,map_consistent=map_consistent,&
                      use_virial=use_virial,my_virial_a=my_virial_b,&
-                     my_virial_b=my_virial_a,use_subpatch=use_subpatch,error=error)
+                     my_virial_b=my_virial_a,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
              END IF
           ELSE
 
@@ -829,7 +829,7 @@ CONTAINS
                      force_a=force_a,force_b=force_b,ithread=ithread,&
                      compute_tau=my_compute_tau,map_consistent=map_consistent,&
                      use_virial=use_virial,my_virial_a=my_virial_a,&
-                     my_virial_b=my_virial_b,use_subpatch=use_subpatch,error=error)
+                     my_virial_b=my_virial_b,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
              ELSE
                 rab_inv=-rab
                 CALL integrate_pgf_product_rspace(&
@@ -843,7 +843,7 @@ CONTAINS
                      force_a=force_b,force_b=force_a,ithread=ithread,&
                      compute_tau=my_compute_tau,map_consistent=map_consistent,&
                      use_virial=use_virial,my_virial_a=my_virial_b,&
-                     my_virial_b=my_virial_a,use_subpatch=use_subpatch,error=error)
+                     my_virial_b=my_virial_a,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
              END IF
           END IF
        ELSE
@@ -858,7 +858,7 @@ CONTAINS
                   calculate_forces=calculate_forces,&
                   force_a=force_a,force_b=force_b,ithread=ithread,&
                   compute_tau=my_compute_tau,&
-                  map_consistent=map_consistent,use_subpatch=use_subpatch,error=error)
+                  map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
           ELSE
              rab_inv=-rab
              CALL integrate_pgf_product_rspace(&
@@ -871,7 +871,7 @@ CONTAINS
                   calculate_forces=calculate_forces,&
                   force_a=force_b,force_b=force_a,ithread=ithread, &
                   compute_tau=my_compute_tau,&
-                  map_consistent=map_consistent,use_subpatch=use_subpatch,error=error)
+                  map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
           END IF
        END IF
 
@@ -1119,7 +1119,7 @@ CONTAINS
                                             calculate_forces,hdab,hadb,force_a,force_b,&
                                             ithread,mytimings,compute_tau,map_consistent,&
                                             collocate_rho0,rpgf0_s,use_virial,my_virial_a,&
-                                            my_virial_b,use_subpatch,error)
+                                            my_virial_b,use_subpatch,subpatch_pattern,error)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1150,6 +1150,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3,3), OPTIONAL  :: my_virial_a, my_virial_b
     TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL, OPTIONAL                        :: use_subpatch
+    INTEGER(KIND=int_8), INTENT(IN), OPTIONAL :: subpatch_pattern
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_pgf_product_rspace', &
       routineP = moduleN//':'//routineN
@@ -1187,14 +1188,17 @@ CONTAINS
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: vab
     REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
+    LOGICAL  :: failure
 
 !   ---------------------------------------------------------------------------
 
+    failure = .FALSE.
     subpatch_integrate = .FALSE.
 
     IF(PRESENT(use_subpatch)) THEN 
        IF(use_subpatch)THEN 
          subpatch_integrate = .TRUE.
+         CPPrecondition(PRESENT(subpatch_pattern),cp_failure_level,routineP,error,failure)
        ENDIF
     ENDIF  
 
@@ -1809,6 +1813,15 @@ CONTAINS
         local_b(1,:)=rsgrid%lb_real-rsgrid%lb
         local_b(2,:)=rsgrid%ub_real-rsgrid%lb
         local_s=rsgrid%lb_real-rsgrid%lb_local
+        IF (BTEST(subpatch_pattern,0)) local_b(1,1)=local_b(1,1)-rsgrid%border
+        IF (BTEST(subpatch_pattern,1)) local_b(2,1)=local_b(2,1)+rsgrid%border
+        IF (BTEST(subpatch_pattern,2)) local_b(1,2)=local_b(1,2)-rsgrid%border
+        IF (BTEST(subpatch_pattern,3)) local_b(2,2)=local_b(2,2)+rsgrid%border
+        IF (BTEST(subpatch_pattern,4)) local_b(1,3)=local_b(1,3)-rsgrid%border
+        IF (BTEST(subpatch_pattern,5)) local_b(2,3)=local_b(2,3)+rsgrid%border
+        IF (BTEST(subpatch_pattern,0)) local_s(1)=local_s(1)-rsgrid%border
+        IF (BTEST(subpatch_pattern,2)) local_s(2)=local_s(2)-rsgrid%border
+        IF (BTEST(subpatch_pattern,4)) local_s(3)=local_s(3)-rsgrid%border
         CALL integrateGaussFull(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
             periodic=periodic,gdim=ng,local_bounds=local_b,local_shift=local_s,&

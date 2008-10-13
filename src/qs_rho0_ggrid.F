@@ -20,7 +20,8 @@ MODULE qs_rho0_ggrid
   USE cube_utils,                      ONLY: cube_info_type
   USE f77_blas
   USE input_constants,                 ONLY: tddfpt_singlet
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE mathconstants,                   ONLY: dfac,&
                                              fourpi
   USE memory_utilities,                ONLY: reallocate
@@ -231,7 +232,7 @@ MODULE qs_rho0_ggrid
            l0_ikind,zet0_s,0,0,0.0_dp,0,&
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
            rs_grid,cell, cube_info(igrid),eps_rho_rspace,ga_gb_function=401,&
-           ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,use_subpatch=.TRUE.,error=error)
+           ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
 
       END DO  !  j
 
@@ -612,7 +613,7 @@ MODULE qs_rho0_ggrid
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=calculate_forces,&
              hdab=hdab,hadb=hadb,ithread=ithread,&
-             collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,use_subpatch=.TRUE.,error=error)
+             collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,error=error)
 
 ! Convert from cartesian to spherical
         IF (calculate_forces) THEN

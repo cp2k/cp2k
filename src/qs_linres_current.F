@@ -1015,7 +1015,7 @@ CONTAINS
 
                 CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_rho,dft_control,cube_info,gridlevel_info,cell,&
                                   iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
-                                  la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nseta,nsetb)
+                                  la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nseta,nsetb,error)
 
                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
 
@@ -1052,6 +1052,9 @@ CONTAINS
     loop_tasks: DO itask = 1,ntasks
 
        CALL int2pair(tasks(3,itask),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+
+       ! apparently generalised collocation not implemented correctly yet
+       CPPostcondition(tasks(4,itask).NE.2,cp_failure_level,routineP,error,failure)
 
        IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN 
 

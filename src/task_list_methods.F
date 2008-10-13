@@ -281,7 +281,7 @@ CONTAINS
 
                 CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_rho,dft_control,cube_info,gridlevel_info,cell,&
                                   iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
-                                  la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nseta,nsetb)
+                                  la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nseta,nsetb,error)
 
                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
 
@@ -312,7 +312,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_rho,dft_control,cube_info,gridlevel_info,cell,&
                                   iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
-                                  la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nseta,nsetb)
+                                  la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nseta,nsetb,error)
 
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
@@ -334,6 +334,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb
     INTEGER                                  :: maxpgf, maxset, natoms, &
                                                 nseta, nsetb
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'task_list_inner_loop', &
       routineP = moduleN//':'//routineN
@@ -378,7 +379,7 @@ CONTAINS
    
                 CALL pgf_to_tasks(tasks,dist_ab,ntasks,curr_tasks,&
                           rab,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf,&
-                          rs_rho(igrid_level)%rs_grid,igrid_level,cube_center,lb_cube,ub_cube,cost)
+                          rs_rho(igrid_level)%rs_grid,igrid_level,cube_center,lb_cube,ub_cube,cost,error)
 
              END DO loop_jpgf
 
@@ -480,7 +481,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE pgf_to_tasks(tasks,dist_ab,ntasks,curr_tasks,&
                           rab,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf,&
-                          rs_grid,igrid_level,cube_center,lb_cube,ub_cube,cost)
+                          rs_grid,igrid_level,cube_center,lb_cube,ub_cube,cost,error)
 
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
@@ -494,6 +495,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: igrid_level
     INTEGER, DIMENSION(3), INTENT(IN)        :: cube_center, lb_cube, ub_cube
     INTEGER, INTENT(IN)                      :: cost
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER, PARAMETER                       :: add_tasks = 1000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
@@ -512,7 +514,7 @@ CONTAINS
        ! finds the node(s) that need to process this task
        ! on exit tasks(4,:) is 1 for distributed tasks and 2 for generalised tasks
        CALL rs_find_node(rs_grid,cube_center, &
-            ntasks=ntasks,tasks=tasks,lb_cube=lb_cube,ub_cube=ub_cube,added_tasks=added_tasks)
+            ntasks=ntasks,tasks=tasks,lb_cube=lb_cube,ub_cube=ub_cube,added_tasks=added_tasks,error=error)
 
        IF ( ntasks > curr_tasks ) THEN
           curr_tasks = (curr_tasks+add_tasks)*mult_tasks
@@ -2086,7 +2088,7 @@ END SUBROUTINE distribute_matrix
 !>      10.2008 rewritten [Joost VandeVondele]
 !> \author MattW
 ! *****************************************************************************
-SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_tasks)
+SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_tasks,error)
 
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     INTEGER, DIMENSION(3), INTENT(IN)        :: cube_center
@@ -2095,21 +2097,25 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
       POINTER                                :: tasks
     INTEGER, DIMENSION(3), INTENT(IN)        :: lb_cube, ub_cube
     INTEGER, INTENT(OUT)                     :: added_tasks
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_find_node', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: add_tasks = 1000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER                                  :: bit_index, curr_tasks, dest, &
-                                                i, lbc(3), ubc(3)
+    INTEGER :: bit_index, coord(3), curr_tasks, dest, i, icoord(3), idest, &
+      itask, ix, iy, iz, lb_coord(3), lb_domain(3), lbc(3), ub_coord(3), &
+      ub_domain(3), ubc(3)
     INTEGER(KIND=int_8)                      :: bit_pattern
+    LOGICAL                                  :: dir_periodic(3), failure
 
-    dest=rs_grid%coord2rank(rs_grid % x2coord(cube_center(1)), &
-                            rs_grid % y2coord(cube_center(2)), &
-                            rs_grid % z2coord(cube_center(3)))
-    tasks(1,ntasks)=dest
-    added_tasks = 1
+    coord(1)=rs_grid % x2coord(cube_center(1))
+    coord(2)=rs_grid % y2coord(cube_center(2))
+    coord(3)=rs_grid % z2coord(cube_center(3))
+    dest=rs_grid%coord2rank(coord(1),coord(2),coord(3))
+
+    failure=.FALSE.
 
     ! the real cube coordinates
     lbc=lb_cube+cube_center
@@ -2118,8 +2124,10 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
     IF ( ALL ( (rs_grid % lb_global(:,dest)-rs_grid%border) .LE. lbc )  .AND. &
          ALL ( (rs_grid % ub_global(:,dest)+rs_grid%border) .GE. ubc )) THEN
        !standard distributed collocation/integration
+       tasks(1,ntasks)=dest
        tasks(4,ntasks)=1
        tasks(6,ntasks)=0
+       added_tasks = 1
 
        ! here we figure out if there is an alternate location for this task
        ! i.e. even though the cube_center is not in the real local domain,
@@ -2165,39 +2173,79 @@ SUBROUTINE rs_find_node(rs_grid,cube_center,ntasks,tasks,lb_cube,ub_cube,added_t
 
     ELSE
        !generalised collocation/integration needed
-       tasks(4,ntasks)=2
-       tasks(6,ntasks)=0
+       ! first we figure out how many neighbors we have to add to include the lbc/ubc
+       ! in the available domains (inclusive of halo points)
+       ! first we 'ignore' periodic boundary conditions
+       ! i.e. ub_coord-lb_coord+1 might be larger than group_dim
+       lb_coord=coord
+       ub_coord=coord
+       lb_domain=rs_grid % lb_global(:,dest) - rs_grid % border
+       ub_domain=rs_grid % ub_global(:,dest) + rs_grid % border
+       DO i=1,3
+          ! only if the grid is not periodic in this direction we need to take care of adding neighbors
+          IF (rs_grid%perd(i)==0) THEN
+             ! if the domain lower bound is greater than the lbc we need to add the size of the neighbor domain
+             DO
+               IF (lb_domain(i)>lbc(i)) THEN
+                  lb_coord(i)=lb_coord(i)-1
+                  icoord=MODULO(lb_coord,rs_grid%group_dim)
+                  idest=rs_grid%coord2rank(icoord(1),icoord(2),icoord(3))
+                  lb_domain(i)=lb_domain(i)-(rs_grid % ub_global(i,idest)-rs_grid % lb_global(i,idest)+1)
+               ELSE
+                  EXIT
+               ENDIF
+             ENDDO
+             ! same for the upper bound
+             DO
+               IF (ub_domain(i)<ubc(i)) THEN
+                  ub_coord(i)=ub_coord(i)+1
+                  icoord=MODULO(ub_coord,rs_grid%group_dim)
+                  idest=rs_grid%coord2rank(icoord(1),icoord(2),icoord(3))
+                  ub_domain(i)=ub_domain(i)+(rs_grid % ub_global(i,idest)-rs_grid % lb_global(i,idest)+1)
+               ELSE
+                  EXIT
+               ENDIF
+             ENDDO
+          ENDIF
+       ENDDO
 
-       ! if we have generalised collocation, identify all CPUs that are required 
-       ! a CPU is required if part of its 'real' domain overlaps with the cube
-       ! this code should be streamlined later on (seems to return too many CPUs)
-       ! and certainly could use part of the halo for collocation
+       ! some care is needed for the periodic boundaries
+       DO i=1,3
+          IF (ub_domain(i)-lb_domain(i)+1>=rs_grid%npts(i)) THEN
+             dir_periodic(i)=.TRUE. 
+             lb_coord(i)=0 
+             ub_coord(i)=rs_grid%group_dim(i)-1
+          ELSE
+             dir_periodic(i)=.FALSE.
+          ENDIF
+       ENDDO
 
-       !how elegant !XXXX this seems not correct in general XXXX ?
-       IF(ubc(1).GT.rs_grid%ub(1)) ubc(1)=ubc(1)-rs_grid%npts(1)
-       IF(lbc(1).LT.rs_grid%lb(1)) lbc(1)=lbc(1)+rs_grid%npts(1)
-       IF(ubc(2).GT.rs_grid%ub(2)) ubc(2)=ubc(2)-rs_grid%npts(2)
-       IF(lbc(2).LT.rs_grid%lb(2)) lbc(2)=lbc(2)+rs_grid%npts(2)
-       IF(ubc(3).GT.rs_grid%ub(3)) ubc(3)=ubc(3)-rs_grid%npts(3)
-       IF(lbc(3).LT.rs_grid%lb(3)) lbc(3)=lbc(3)+rs_grid%npts(3)
-
-       ! find all procs that should collocate this point
-       DO i = 0, rs_grid % group_size - 1
-          ! avoid double counting
-          IF ( i .EQ. dest) CYCLE
-          ! check there is some density to be mapped on this proc
-          IF (ANY((rs_grid%lb_global(:,i) .GT. ubc) .AND. (rs_grid%ub_global(:,i) .LT. lbc))) CYCLE
-
-          ! we add a task for this proc
-          ntasks=ntasks+1
-          added_tasks=added_tasks+1
-          IF ( ntasks > SIZE(tasks,2)) THEN
-             curr_tasks = (SIZE(tasks,2)+add_tasks)*mult_tasks
-             CALL reallocate(tasks,1,6,1,curr_tasks)
-          END IF
-          tasks(1,ntasks)=i
-          tasks(4,ntasks)=2
-          tasks(6,ntasks)=0
+       added_tasks=PRODUCT(ub_coord-lb_coord+1)
+       itask=ntasks
+       ntasks=ntasks+added_tasks-1
+       IF ( ntasks > SIZE(tasks,2)) THEN
+          curr_tasks = (SIZE(tasks,2)+add_tasks)*mult_tasks
+          CALL reallocate(tasks,1,6,1,curr_tasks)
+       END IF
+       DO iz=lb_coord(3),ub_coord(3)
+       DO iy=lb_coord(2),ub_coord(2)
+       DO ix=lb_coord(1),ub_coord(1)
+          icoord=MODULO((/ix,iy,iz/),rs_grid%group_dim)
+          idest =rs_grid%coord2rank(icoord(1),icoord(2),icoord(3))
+          tasks(1,itask)=idest
+          tasks(4,itask)=2
+          tasks(6,itask)=0 
+          ! encode the domain size for this task
+          ! if the bit is set, we need to add the border in that direction
+          IF (ix==lb_coord(1).AND..NOT.dir_periodic(1)) tasks(6,itask)=IBSET(tasks(6,itask),0)
+          IF (ix==ub_coord(1).AND..NOT.dir_periodic(1)) tasks(6,itask)=IBSET(tasks(6,itask),1)
+          IF (iy==lb_coord(2).AND..NOT.dir_periodic(2)) tasks(6,itask)=IBSET(tasks(6,itask),2)
+          IF (iy==ub_coord(2).AND..NOT.dir_periodic(2)) tasks(6,itask)=IBSET(tasks(6,itask),3)
+          IF (iz==lb_coord(3).AND..NOT.dir_periodic(3)) tasks(6,itask)=IBSET(tasks(6,itask),4)
+          IF (iz==ub_coord(3).AND..NOT.dir_periodic(3)) tasks(6,itask)=IBSET(tasks(6,itask),5)
+          itask=itask+1
+       ENDDO
+       ENDDO
        ENDDO
     ENDIF
 
