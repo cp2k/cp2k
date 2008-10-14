@@ -374,13 +374,13 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="fixed_atoms",&
-            description="This section is used to constraint the overall atomic position (X,Y,Z).",&
-            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
+            description="This section is used to constraint the overall atomic position (X,Y,Z). In case "//&
+            "a restraint is specified the value of the TARGET is considered to be the value of the "//&
+            "coordinates at the beginning of the run or alternatively the corresponding value in the section: "//&
+            "FIX_ATOM_RESTART.",n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,error=error)
        NULLIFY(keyword)
 
        ! Section Parameter
