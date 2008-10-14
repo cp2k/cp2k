@@ -652,145 +652,123 @@ CONTAINS
   END SUBROUTINE dump_lagrange_mult
 
 ! *****************************************************************************
+!> \brief Dumps convergence info about shake - intramolecular constraint loop
 !> \par History
-!>      Teodoro Laino [tlaino] 2007 - Dumps more useful info about shake
+!>      Teodoro Laino [tlaino] 2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE shake_int_info(log_unit,i,ishake_int,max_sigma,error)
     INTEGER, INTENT(IN)                      :: log_unit, i, ishake_int
     REAL(KIND=dp), INTENT(IN)                :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=default_string_length)     :: line
-    INTEGER                                  :: my_log_unit
-    TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_int_info', &
+      routineP = moduleN//':'//routineN
 
-! Dump info..
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     IF (log_unit>0) THEN 
+       ! Dump info if requested
        WRITE(log_unit,'("SHAKE_INFO|",2X,2(A,I6),A,F15.9)')&
             "Molecule Nr.:",i," Nr. Iterations:",ishake_int," Max. Err.:",max_sigma
     END IF
     ! Notify a not converged SHAKE
-    IF (ishake_int > Max_Shake_Iter) THEN
-       NULLIFY(logger)
-       logger => cp_error_get_logger(error)
-       my_log_unit= cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-       IF (my_log_unit>0) THEN
-          line = cp_to_string(Max_Shake_Iter)
-          WRITE(my_log_unit,'(T2,"SHAKE_INFO|",2X,A,T80,A)')"WARNING! Shake NOT converged in "//&
-               TRIM(line)//" iterations","!"
-          line = cp_to_string(i)
-          WRITE(my_log_unit,'(T2,"SHAKE_INFO|",2X,A,T80,A)')"WARNING! Shake NOT converged for molecule Nr. "//&
-               TRIM(line),"!"
-          WRITE(my_log_unit,'(T2,"SHAKE_INFO|",2X,A,T80,A)')"WARNING! CP2K GOES but results could be"//&
-               " meaningless","!"
-          WRITE(my_log_unit,FMT='(T2,79("*"))')
-       END IF
-    END IF
+    CALL cp_assert(ishake_int<=Max_Shake_Iter,cp_warning_level,cp_assertion_failed,routineP,&
+         "Shake NOT converged in "//cp_to_string(Max_Shake_Iter)//" iterations in the "//&
+         " intramolecular constraint loop for Molecule nr. "//cp_to_string(i)//&
+         ". CP2K continues but results could be meaningless. "&
+CPSourceFileRef,&
+         only_ionode=.TRUE.)
   END SUBROUTINE shake_int_info
 
 ! *****************************************************************************
+!> \brief Dumps convergence info about shake - intermolecular constraint loop
 !> \par History
-!>      Teodoro Laino [tlaino] 2007 - Dumps more useful info about shake
+!>      Teodoro Laino [tlaino] 2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE shake_ext_info(log_unit,ishake_ext,max_sigma,error)
     INTEGER, INTENT(IN)                      :: log_unit, ishake_ext
     REAL(KIND=dp), INTENT(IN)                :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: my_log_unit
-    TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_ext_info', &
+      routineP = moduleN//':'//routineN
 
-! Dump info..
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     IF (log_unit>0) THEN 
+       ! Dump info if requested
        WRITE(log_unit,'("SHAKE_INFO|",2X,A,I6,A,F15.9)')&
             "External Shake      Nr. Iterations:",ishake_ext,&
             " Max. Err.:",max_sigma
     END IF
     ! Notify a not converged SHAKE
-    IF (ishake_ext > Max_Shake_Iter) THEN
-       NULLIFY(logger)
-       logger => cp_error_get_logger(error)
-       string = cp_to_string(Max_Shake_Iter)
-       my_log_unit= cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-       WRITE(my_log_unit,'(T2,"SHAKE_INFO|",2X,A,T80,A)')"WARNING! Shake NOT converged in "//&
-            TRIM(string)//" iterations in external constraint loop","!"
-       WRITE(my_log_unit,'(T2,"SHAKE_INFO|",2X,A,T80,A)')"WARNING! CP2K GOES but results could be"//&
-            " meaningless","!"
-       WRITE(my_log_unit,FMT='(T2,79("*"))')
-    END IF
+    CALL cp_assert(ishake_ext<=Max_Shake_Iter,cp_warning_level,cp_assertion_failed,routineP,&
+         "Shake NOT converged in "//cp_to_string(Max_Shake_Iter)//" iterations in the "//&
+         " intermolecular constraint. CP2K continues but results could be meaningless. "&
+CPSourceFileRef,&
+         only_ionode=.TRUE.)
   END SUBROUTINE shake_ext_info
 
 ! *****************************************************************************
+!> \brief Dumps convergence info about rattle - intramolecular constraint loop
 !> \par History
-!>      Teodoro Laino [tlaino] 2007 - Dumps more useful info about rattle
+!>      Teodoro Laino [tlaino] 2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE rattle_int_info(log_unit,i,irattle_int,max_sigma,error)
     INTEGER, INTENT(IN)                      :: log_unit, i, irattle_int
     REAL(KIND=dp), INTENT(IN)                :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: my_log_unit
-    TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_int_info', &
+      routineP = moduleN//':'//routineN
 
-! Dump info..
+    LOGICAL                                  :: failure
 
-    IF (log_unit>0) THEN 
+    failure = .FALSE.
+    IF (log_unit>0) THEN
+       ! Dump info if requested
        WRITE(log_unit,'("RATTLE_INFO|",1X,2(A,I6),A,F15.9)')&
             "Molecule Nr.:",i," Nr. Iterations:",irattle_int," Max. Err.:",max_sigma
     END IF
     ! Notify a not converged RATTLE
-    IF (irattle_int > Max_shake_Iter) THEN
-       NULLIFY(logger)
-       logger => cp_error_get_logger(error)
-       my_log_unit= cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-       string = cp_to_string(Max_shake_Iter)
-       WRITE(my_log_unit,'(T2,"RATTLE_INFO|",2X,A,T80,A)')"WARNING! Rattle NOT converged in "//&
-            TRIM(string)//" iterations","!"
-       string = cp_to_string(i)
-       WRITE(my_log_unit,'(T2,"RATTLE_INFO|",2X,A,T80,A)')"WARNING! Rattle NOT converged for molecule Nr. "//&
-            TRIM(string),"!"
-       WRITE(my_log_unit,'(T2,"RATTLE_INFO|",2X,A,T80,A)')"WARNING! CP2K GOES but results could be"//&
-            " meaningless","!"
-       WRITE(my_log_unit,FMT='(T2,79("*"))')
-    END IF
+    CALL cp_assert(irattle_int<=Max_shake_Iter,cp_warning_level,cp_assertion_failed,routineP,&
+         "Rattle NOT converged in "//cp_to_string(Max_Shake_Iter)//" iterations in the "//&
+         " intramolecular constraint loop for Molecule nr. "//cp_to_string(i)//&
+         ". CP2K continues but results could be meaningless. "&
+CPSourceFileRef,&
+         only_ionode=.TRUE.)
   END SUBROUTINE rattle_int_info
 
 ! *****************************************************************************
+!> \brief Dumps convergence info about rattle - intermolecular constraint loop
 !> \par History
-!>      Teodoro Laino [tlaino] 2007 - Dumps more useful info about rattle
+!>      Teodoro Laino [tlaino] 2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE rattle_ext_info(log_unit,irattle_ext,max_sigma,error)
     INTEGER, INTENT(IN)                      :: log_unit, irattle_ext
     REAL(KIND=dp), INTENT(IN)                :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: my_log_unit
-    TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_ext_info', &
+      routineP = moduleN//':'//routineN
 
-! Dump info..
+    LOGICAL                                  :: failure
 
-    IF (log_unit>0) THEN 
+    failure = .FALSE.
+    IF (log_unit>0) THEN
+       ! Dump info if requested
        WRITE(log_unit,'("RATTLE_INFO|",1X,A,I6,A,F15.9)')&
             "External Rattle     Nr. Iterations:",irattle_ext,&
             " Max. Err.:",max_sigma
     END IF
     ! Notify a not converged RATTLE
-    IF (irattle_ext > Max_shake_Iter) THEN
-       NULLIFY(logger)
-       logger => cp_error_get_logger(error)
-       my_log_unit= cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-       string = cp_to_string(Max_shake_Iter)
-       WRITE(my_log_unit,'(T2,"RATTLE_INFO|",2X,A,T80,A)')"WARNING! Rattle not converged in "//&
-            TRIM(string)//" iterations in external constraint loop","!"
-       WRITE(my_log_unit,'(T2,"RATTLE_INFO|",2X,A,T80,A)')"WARNING! CP2K GOES but results could be"//&
-            " meaningless","!"
-       WRITE(my_log_unit,FMT='(T2,79("*"))')
-    END IF
+    CALL cp_assert(irattle_ext<=Max_shake_Iter,cp_warning_level,cp_assertion_failed,routineP,&
+         "Rattle NOT converged in "//cp_to_string(Max_Shake_Iter)//" iterations in the "//&
+         " intermolecular constraint. CP2K continues but results could be meaningless. "&
+CPSourceFileRef,&
+         only_ionode=.TRUE.)
   END SUBROUTINE rattle_ext_info
 
 ! *****************************************************************************
