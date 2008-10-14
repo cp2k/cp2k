@@ -71,9 +71,9 @@ CONTAINS
     CHARACTER(LEN=5)                         :: wildcard
     CHARACTER(LEN=default_path_length)       :: hes_filename
     INTEGER                                  :: handle, handle2, hesunit, &
-                                                hesunit_read, i, indf, istat, &
-                                                its, j, maxiter, ndf, nfree, &
-                                                output_unit
+                                                hesunit_read, i, indf, its, &
+                                                j, maxiter, ndf, nfree, &
+                                                output_unit, stat
     LOGICAL                                  :: conv, failure, hesrest, &
                                                 ionode, should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
@@ -115,10 +115,12 @@ CONTAINS
 
     ndf   = SIZE(x0)
     nfree = gopt_env%nfree
-
+    
     ! Initialize hessian (hes = unitary matrix )
-    ALLOCATE (hes(ndf*(ndf+1)/2),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (hes(ndf*(ndf+1)/2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    WRITE(*,*)ndf*(ndf+1)/2
+
     DO indf=1,ndf
        DO j=1,indf
           i = indf*(indf - 1)/2 + j
@@ -128,44 +130,44 @@ CONTAINS
        hes(i) = one
     END DO
 
-    ALLOCATE (xold(ndf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (xold(ndf),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     xold(:) = x0(:)
 
-    ALLOCATE (g(ndf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (g(ndf),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     g(:) = 0.0_dp
 
-    ALLOCATE (gold(ndf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (gold(ndf),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     gold(:) = 0.0_dp
 
-    ALLOCATE (dx(ndf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (dx(ndf),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     dx(:) = 0.0_dp
 
-    ALLOCATE (hes_mat(ndf,ndf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (hes_mat(ndf,ndf),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     hes_mat(:,:) = 0.0_dp
 
-    ALLOCATE (dg(ndf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (dg(ndf),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     dg(:) = 0.0_dp
 
-    ALLOCATE (eigval(ndf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (eigval(ndf),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     eigval(:) = 0.0_dp
 
-    ALLOCATE (eigvec(ndf,ndf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (eigvec(ndf,ndf),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     eigvec(:,:) = 0.0_dp
 
-    ALLOCATE (work(ndf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (work(ndf),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     work(:) = 0.0_dp
 
-    ALLOCATE (dr(ndf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (dr(ndf),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     dr(:) = 0.0_dp
 
     ! Geometry optimization starts now
@@ -185,18 +187,18 @@ CONTAINS
 
        ! Hessian update/restarting
        IF ((its == 1).AND.hesrest) THEN
-          istat = 0
+          stat = 0
           IF(ionode)THEN
              CALL section_vals_val_get(geo_section,"BFGS%RESTART_FILE_NAME",c_val=hes_filename,&
                   error=error)
              CALL open_file(file_name=hes_filename,file_status="OLD",&
                   file_form="UNFORMATTED", file_action="READ", unit_number=hesunit_read)
-             READ(UNIT=hesunit_read,IOSTAT=istat) hes
+             READ(UNIT=hesunit_read,IOSTAT=stat) hes
              CALL close_file(unit_number=hesunit_read)
           END IF
-          CALL mp_sum(istat,para_env%group)
+          CALL mp_sum(stat,para_env%group)
 
-          IF (istat /= 0) THEN
+          IF (stat /= 0) THEN
              IF (output_unit>0) WRITE(UNIT=output_unit,FMT="(/,T2,A)")"**  Error while reading HESSIAN **"
              conv = .TRUE.
           ELSE
@@ -278,28 +280,28 @@ CONTAINS
     CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,&
          gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos,error)
 
-    DEALLOCATE (hes,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (xold,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (g,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (gold,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (dx,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (hes_mat,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (dg,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (eigval,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (eigvec,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (work,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (dr,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (hes,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (xold,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (g,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (gold,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (dx,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (hes_mat,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (dg,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (eigval,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (eigvec,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (work,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (dr,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
