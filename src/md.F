@@ -386,9 +386,9 @@ CPSourceFileRef,&
        END IF
 
        IF (simpar%ensemble == langevin_ensemble) THEN
-          CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
-          CALL section_vals_val_get(md_section, "NOISY_GAMMA", r_val=simpar%noisy_gamma,error=error)
-          CALL section_vals_val_get(md_section, "SHADOW_GAMMA", r_val=simpar%shadow_gamma,error=error)
+          CALL section_vals_val_get(md_section, "LANGEVIN%GAMMA", r_val=simpar%gamma, error=error)
+          CALL section_vals_val_get(md_section, "LANGEVIN%NOISY_GAMMA", r_val=simpar%noisy_gamma,error=error)
+          CALL section_vals_val_get(md_section, "LANGEVIN%SHADOW_GAMMA", r_val=simpar%shadow_gamma,error=error)
        END IF
 
        tmp_section => section_vals_get_subs_vals(root_section,"MOTION%CONSTRAINT",error=error)
@@ -418,7 +418,7 @@ CPSourceFileRef,&
           CALL section_vals_val_get(tmp_section,"ENERGY",r_val=simpar%e0,error=error)
           CALL section_vals_val_get(tmp_section,"VOLUME",r_val=simpar%v0,error=error)
           CALL section_vals_val_get(tmp_section,"GAMMA",r_val=simpar%gamma_nph,error=error)
-          IF ( simpar % gamma_nph /= 0.0_dp ) simpar % ensemble = nph_uniaxial_damped_ensemble
+          IF (simpar % gamma_nph /= 0.0_dp) simpar%ensemble = nph_uniaxial_damped_ensemble
           CALL section_vals_val_get(tmp_section,"CMASS",r_val=simpar%cmass,error=error)
           CALL section_vals_val_get(tmp_section,"VSHOCK",r_val=simpar%v_shock,error=error)
        END IF

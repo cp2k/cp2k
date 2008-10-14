@@ -1404,20 +1404,18 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER :: baro_section, coeff_section, print_key, &
-      shell_section, subsection, thermo_section, uni_section
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="md",&
-            description="parameters needed perform an md run",&
+       CALL section_create(section,name="MD",&
+            description="This section defines the whole set of parameters needed perform an MD run.",&
             n_keywords=13, n_subsections=6, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword, coeff_section,uni_section, baro_section, thermo_section, &
-            shell_section, subsection)
+       NULLIFY(keyword, subsection)
        CALL keyword_create(keyword, name="ensemble",&
             description="The ensemble/integrator that you want to use for MD propagation",&
             usage="ensemble nve",&
@@ -1430,7 +1428,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="steps",&
-            description="The number of steps to be performed",&
+            description="The number of MD steps to perform",&
             usage="steps 100", default_i_val=3,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1474,7 +1472,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="temp_kind",&         
+       CALL keyword_create(keyword, name="temp_kind",&
             description="Compute the temperature per each kind separately",&         
             usage="temp_kind LOGICAL",&         
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)         
@@ -1533,6 +1531,71 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL create_langevin_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_msst_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_barostat_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_thermostat_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_coeff_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_respa_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_shell_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+
+       CALL create_reftraj_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_md_print_section(subsection, error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection, error=error)
+
+    END IF
+  END SUBROUTINE create_md_section
+
+! *****************************************************************************
+!> \brief Defines LANGEVIN section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_langevin_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_langevin_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
+       CALL section_create(section,name="Langevin",&
+            description="Controls the set of parameters to run a Langevin MD",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       NULLIFY(keyword)
+
        CALL keyword_create(keyword, name="gamma",&
             description="Gamma parameter for the Langevin dynamics",&
             usage="gamma 0.001",&
@@ -1553,40 +1616,35 @@ CONTAINS
             usage="Shadow_Gamma 0.01", default_r_val=0.0_dp, unit_str='fs^-1', error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
+    END IF
+  END SUBROUTINE create_langevin_section
 
-       CALL create_msst_section(uni_section, error=error)
-       CALL section_add_subsection(section, uni_section, error=error)
-       CALL section_release(uni_section,error=error)       
+! *****************************************************************************
+!> \brief Defines print section for MD
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_md_print_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-       CALL create_barostat_section(baro_section, error=error)
-       CALL section_add_subsection(section, baro_section, error=error)
-       CALL section_release(baro_section,error=error)
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_md_print_section', &
+      routineP = moduleN//':'//routineN
 
-       CALL create_thermostat_section(thermo_section, error=error)
-       CALL section_add_subsection(section, thermo_section, error=error)
-       CALL section_release(thermo_section,error=error)
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
 
-       CALL create_coeff_section(coeff_section, error=error)
-       CALL section_add_subsection(section, coeff_section, error=error)
-       CALL section_release(coeff_section,error=error)
+    failure=.FALSE.
 
-       CALL create_respa_section(subsection, error=error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_shell_section(shell_section, error=error)
-       CALL section_add_subsection(section, shell_section, error=error)
-       CALL section_release(shell_section,error=error)       
-
-       CALL create_reftraj_section(subsection, error=error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL section_create(subsection,name="print",&
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
+       CALL section_create(section,name="print",&
             description="Controls the printing properties during an MD run",&
-            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
-       NULLIFY(print_key)
+       NULLIFY(print_key, keyword)
 
        CALL keyword_create(keyword, name="FORCE_LAST",&         
             description="Print the output and restart file if walltime is reached or "//&
@@ -1595,21 +1653,21 @@ CONTAINS
            "match with the print_key iteration number).",&         
             usage="FORCE_LAST LOGICAL",&         
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)         
-       CALL section_add_keyword(subsection,keyword,error=error)         
+       CALL section_add_keyword(section,keyword,error=error)         
        CALL keyword_release(keyword,error=error)   
 
        CALL cp_print_key_section_create(print_key,"ENERGY",&
             description="Controls the output the ener file",&
             print_level=low_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"SHELL_ENERGY",&
             description="Controls the output of the shell-energy file (only if shell-model)",&
             print_level=medium_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"TEMP_KIND",&
@@ -1617,7 +1675,7 @@ CONTAINS
             " computed separately for each kind",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"TEMP_SHELL_KIND",&
@@ -1625,36 +1683,32 @@ CONTAINS
             " shell-core motion computed separately for each kind",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"CENTER_OF_MASS",&
             description="Controls the printing of COM velocity during an MD", &
             print_level=medium_print_level,common_iter_levels=1,&
             filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"COEFFICIENTS",&
             description="Controls the printing of coefficients during an MD run.", &
             print_level=medium_print_level,common_iter_levels=1,&
             filename="",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"program_run_info",&
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of basic and summary information during the"//&
             " Molecular Dynamics", &
             print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)        
-
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection, error=error)
-
     END IF
-  END SUBROUTINE create_md_section
+  END SUBROUTINE create_md_print_section
 
 ! *****************************************************************************
 !> \brief Defines parameters for RESPA integration scheme
@@ -1689,7 +1743,6 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword)
-
        CALL keyword_create(keyword, name="FREQUENCY",&
             description="The number of reference MD steps between two RESPA corrections.",&
             usage="FREQUENCY <INTEGER>", default_i_val=5,error=error)
