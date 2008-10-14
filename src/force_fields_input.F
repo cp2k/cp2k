@@ -1315,8 +1315,6 @@ CPSourceFileRef,&
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(gromos_info_type), POINTER          :: gro_info
 
-!ikuo - Do not change
-
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     NULLIFY(logger,parser)
