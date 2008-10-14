@@ -676,7 +676,7 @@ CONTAINS
     CALL cp_assert(ishake_int<=Max_Shake_Iter,cp_warning_level,cp_assertion_failed,routineP,&
          "Shake NOT converged in "//cp_to_string(Max_Shake_Iter)//" iterations in the "//&
          " intramolecular constraint loop for Molecule nr. "//cp_to_string(i)//&
-         ". CP2K continues but results could be meaningless. "&
+         ". CP2K continues but results could be meaningless. "//&
 CPSourceFileRef,&
          only_ionode=.TRUE.)
   END SUBROUTINE shake_int_info
@@ -706,7 +706,7 @@ CPSourceFileRef,&
     ! Notify a not converged SHAKE
     CALL cp_assert(ishake_ext<=Max_Shake_Iter,cp_warning_level,cp_assertion_failed,routineP,&
          "Shake NOT converged in "//cp_to_string(Max_Shake_Iter)//" iterations in the "//&
-         " intermolecular constraint. CP2K continues but results could be meaningless. "&
+         " intermolecular constraint. CP2K continues but results could be meaningless. "//&
 CPSourceFileRef,&
          only_ionode=.TRUE.)
   END SUBROUTINE shake_ext_info
@@ -736,7 +736,7 @@ CPSourceFileRef,&
     CALL cp_assert(irattle_int<=Max_shake_Iter,cp_warning_level,cp_assertion_failed,routineP,&
          "Rattle NOT converged in "//cp_to_string(Max_Shake_Iter)//" iterations in the "//&
          " intramolecular constraint loop for Molecule nr. "//cp_to_string(i)//&
-         ". CP2K continues but results could be meaningless. "&
+         ". CP2K continues but results could be meaningless. "//&
 CPSourceFileRef,&
          only_ionode=.TRUE.)
   END SUBROUTINE rattle_int_info
@@ -766,7 +766,7 @@ CPSourceFileRef,&
     ! Notify a not converged RATTLE
     CALL cp_assert(irattle_ext<=Max_shake_Iter,cp_warning_level,cp_assertion_failed,routineP,&
          "Rattle NOT converged in "//cp_to_string(Max_Shake_Iter)//" iterations in the "//&
-         " intermolecular constraint. CP2K continues but results could be meaningless. "&
+         " intermolecular constraint. CP2K continues but results could be meaningless. "//&
 CPSourceFileRef,&
          only_ionode=.TRUE.)
   END SUBROUTINE rattle_ext_info
