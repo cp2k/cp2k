@@ -237,7 +237,7 @@ CONTAINS
          routineP=moduleN//':'//routineN
     TYPE(cp_logger_type), POINTER :: logger
 
-    CALL timeset(routineN//','//moduleN,'I',"",handle)
+    CALL timeset(routineN//','//moduleN,handle)
 
     failure=.FALSE.
 
@@ -365,7 +365,7 @@ SUBROUTINE cp_opt_[nametype1]_release(optimizer,error)
   CHARACTER(len=*), PARAMETER :: routineN='cp_opt_[nametype1]_release',&
        routineP=moduleN//':'//routineN
 
-  CALL timeset(routineN//','//moduleN,'I',"",handle)
+  CALL timeset(routineN//','//moduleN,handle)
   failure=.FALSE.
 
   IF (ASSOCIATED(optimizer)) THEN
@@ -458,7 +458,7 @@ END SUBROUTINE cp_opt_[nametype1]_release
          routineP=moduleN//':'//routineN
     failure=.FALSE.
 
-    !  call timeset(routineN//','//moduleN,'I',"",handle)
+    !  call timeset(routineN//','//moduleN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -552,7 +552,7 @@ CPSourceFileRef,&
 
     NULLIFY(logger,xold)
     logger => cp_error_get_logger(error)
-    CALL timeset(routineN//','//moduleN,'I',"",handle)
+    CALL timeset(routineN//','//moduleN,handle)
     failure=.FALSE.
     justEntred=.TRUE.
     is_master=optimizer%master==optimizer%para_env%mepos
@@ -794,7 +794,7 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    !  call timeset(routineN//','//moduleN,'I',"",handle)
+    !  call timeset(routineN//','//moduleN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -846,7 +846,7 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    !call timeset(routineN//','//moduleN,'I',"",handle)
+    !call timeset(routineN//','//moduleN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -883,7 +883,7 @@ CPSourceFileRef,&
          routineP=moduleN//':'//routineN
     failure=.FALSE.
 
-    !  call timeset(routineN//','//moduleN,'I',"",handle)
+    !  call timeset(routineN//','//moduleN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN

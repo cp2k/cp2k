@@ -459,7 +459,7 @@ END SUBROUTINE cp_opt_gopt_release
 
     failure=.FALSE.
 
-    !  call timeset(routineN//','//moduleN,'I',"",handle)
+    !  call timeset(routineN//','//moduleN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -788,7 +788,7 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    !  call timeset(routineN//','//moduleN,'I',"",handle)
+    !  call timeset(routineN//','//moduleN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -840,7 +840,7 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    !call timeset(routineN//','//moduleN,'I',"",handle)
+    !call timeset(routineN//','//moduleN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -878,7 +878,7 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    !  call timeset(routineN//','//moduleN,'I',"",handle)
+    !  call timeset(routineN//','//moduleN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
