@@ -232,7 +232,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset(routineN//','//moduleN,handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
@@ -362,7 +362,7 @@ SUBROUTINE cp_opt_gopt_release(optimizer,error)
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
 
-  CALL timeset(routineN//','//moduleN,handle)
+  CALL timeset(routineN,handle)
   failure=.FALSE.
 
   IF (ASSOCIATED(optimizer)) THEN
@@ -459,7 +459,7 @@ END SUBROUTINE cp_opt_gopt_release
 
     failure=.FALSE.
 
-    !  call timeset(routineN//','//moduleN,handle)
+    !  call timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -546,7 +546,7 @@ CPSourceFileRef,&
 
     NULLIFY(logger,xold)
     logger => cp_error_get_logger(error)
-    CALL timeset(routineN//','//moduleN,handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     justEntred=.TRUE.
     is_master=optimizer%master==optimizer%para_env%mepos
@@ -788,7 +788,7 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    !  call timeset(routineN//','//moduleN,handle)
+    !  call timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -840,7 +840,7 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    !call timeset(routineN//','//moduleN,handle)
+    !call timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -878,7 +878,7 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    !  call timeset(routineN//','//moduleN,handle)
+    !  call timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
