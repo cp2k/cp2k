@@ -798,10 +798,7 @@ def prepareImplicitUses(modules):
 def cleanUse(modulesDict,rest,implicitUses=None,logFile=sys.stdout):
     """Removes the unneded modules (the ones that are not used in rest)"""
     global rUse
-    exceptions={"cp_a_l":1,"cp_to_string":1,"cp_error_type":1,"cp_assert":1,
-                "cp_failure_level":1,"cp_warning_level":1,"cp_note_level":1,
-                "cp_fatal_level":1,"cp_logger_type":1,"timeset":1,"timestop":1,
-                "dp":1,"cp_error_get_logger":1, "cp_error_message":1}
+    exceptions={}
     modules=modulesDict['modules']
     rest=rest.lower()
     for i in range(len(modules)-1,-1,-1):
