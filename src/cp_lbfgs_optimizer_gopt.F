@@ -508,7 +508,7 @@ CPSourceFileRef,&
        END IF
 
     END IF
-    !  call timestop(0.0_dp,handle)
+    !  call timestop(handle)
   END SUBROUTINE cp_opt_gopt_get
 
 ! *****************************************************************************
@@ -804,7 +804,7 @@ CPSourceFileRef,&
        IF (PRESENT(projected_gradient)) &
             projected_gradient=results(4)
     END IF
-    !  call timestop(0.0_dp,handle)
+    !  call timestop(handle)
   END SUBROUTINE cp_opt_gopt_bcast_res
 
 ! *****************************************************************************
@@ -853,7 +853,7 @@ CPSourceFileRef,&
     ELSE
        res=.FALSE.
     END IF
-    !call timestop(0.0_dp,handle)
+    !call timestop(handle)
   END FUNCTION cp_opt_gopt_next
 
 ! *****************************************************************************
@@ -895,7 +895,7 @@ CPSourceFileRef,&
                optimizer%dsave)
        END IF
     END IF
-    ! call timestop(0.0_dp,handle)
+    ! call timestop(handle)
   END SUBROUTINE cp_opt_gopt_stop
 
   ! template def put here so that line numbers in template and derived 

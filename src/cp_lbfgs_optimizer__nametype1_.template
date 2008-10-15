@@ -317,7 +317,7 @@ CONTAINS
        optimizer%status=0
        optimizer%ref_count=1
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_opt_[nametype1]_create
 
 ! *****************************************************************************
@@ -418,7 +418,7 @@ SUBROUTINE cp_opt_[nametype1]_release(optimizer,error)
      END IF
   END IF
   NULLIFY(optimizer)
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE cp_opt_[nametype1]_release
 
 ! *****************************************************************************
@@ -507,7 +507,7 @@ CPSourceFileRef,&
        END IF
 
     END IF
-    !  call timestop(0.0_dp,handle)
+    !  call timestop(handle)
   END SUBROUTINE cp_opt_[nametype1]_get
 
 ! *****************************************************************************
@@ -760,7 +760,7 @@ CPSourceFileRef,&
     IF (PRESENT(projected_gradient)) &
          projected_gradient=optimizer%projected_gradient
     IF (PRESENT(n_iter)) n_iter=optimizer%n_iter
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_opt_[nametype1]_step
 
 ! *****************************************************************************
@@ -810,7 +810,7 @@ CPSourceFileRef,&
        IF (PRESENT(projected_gradient)) &
             projected_gradient=results(4)
     END IF
-    !  call timestop(0.0_dp,handle)
+    !  call timestop(handle)
   END SUBROUTINE cp_opt_[nametype1]_bcast_res
 
 ! *****************************************************************************
@@ -859,7 +859,7 @@ CPSourceFileRef,&
     ELSE
        res=.FALSE.
     END IF
-    !call timestop(0.0_dp,handle)
+    !call timestop(handle)
   END FUNCTION cp_opt_[nametype1]_next
 
 ! *****************************************************************************
@@ -900,7 +900,7 @@ CPSourceFileRef,&
                optimizer%dsave)
        END IF
     END IF
-    ! call timestop(0.0_dp,handle)
+    ! call timestop(handle)
   END SUBROUTINE cp_opt_[nametype1]_stop
 
   ! template def put here so that line numbers in template and derived 
