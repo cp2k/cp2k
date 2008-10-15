@@ -267,7 +267,6 @@ CPSourceFileRef,&
     NULLIFY(mgrid_section, cutofflist)
     mgrid_section => section_vals_get_subs_vals(dft_section,"MGRID",error=error)
 
-    CALL section_vals_get(mgrid_section, explicit=explicit, error=error)
     CALL section_vals_val_get(mgrid_section,"NGRIDS",i_val=ngrid_level,error=error)
     CALL section_vals_val_get(mgrid_section,"MULTIGRID_SET",l_val=multigrid_set,error=error)
     CALL section_vals_val_get(mgrid_section,"CUTOFF",r_val=cutoff,error=error)
@@ -280,6 +279,8 @@ CPSourceFileRef,&
     IF (qs_control%semi_empirical .OR. qs_control%dftb) THEN
        ngrid_level   = 1
        multigrid_set = .FALSE.
+       ! Override default cutoff value unless user specified an explicit argument..
+       CALL section_vals_val_get(mgrid_section,"CUTOFF",explicit=explicit,r_val=cutoff,error=error)
        IF (.NOT.explicit) cutoff = 1.0_dp
     END IF
 
@@ -294,8 +295,7 @@ CPSourceFileRef,&
                "Do not specify cutoffs for the commensurate grids (NYI)")
       ENDIF
 
-      CALL section_vals_val_get(mgrid_section,"MULTIGRID_CUTOFF",&
-           r_vals=cutofflist,error=error)
+      CALL section_vals_val_get(mgrid_section,"MULTIGRID_CUTOFF",r_vals=cutofflist,error=error)
       IF(ASSOCIATED(cutofflist)) THEN
          CALL cp_assert(SIZE(cutofflist,1) == ngrid_level,&
               cp_failure_level,cp_assertion_failed,routineN,&
