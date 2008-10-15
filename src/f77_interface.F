@@ -610,7 +610,7 @@ CONTAINS
     ! echo after check?
     IF (para_env%ionode.and.my_echo) THEN
        CALL section_vals_write(input_file,unit_nr=cp_logger_get_default_unit_nr(logger), &
-               hide_root=.TRUE., error=error)
+               hide_root=.TRUE., hide_defaults=.FALSE., error=error)
     END IF
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     ! root_section => input_file
@@ -1370,7 +1370,7 @@ CPSourceFileRef,&
        IF (my_echo_input.AND.para_env%mepos==para_env%source) THEN
           CALL section_vals_write(input_file,&
                unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.),hide_root=.TRUE.,&
-               error=error)
+               hide_defaults=.FALSE.,error=error)
        END IF
     END IF
     CALL section_vals_release(input_file,error=error)
