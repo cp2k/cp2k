@@ -78,7 +78,7 @@ CONTAINS
       POINTER                                :: sub_force_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(qs_env, sub_force_env)
     !Reference qs_env

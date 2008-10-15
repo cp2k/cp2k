@@ -603,7 +603,7 @@ CPSourceFileRef,&
 
     al=1.0_dp; be=0.0_dp; i0=1; j0=1; tr_a=.FALSE.
     ! can be called too many times, making it a bit useless
-    ! CALL timeset(routineN//','//moduleN,"I","",handle)
+    ! CALL timeset(routineN//','//moduleN,handle)
 
     failure=.FALSE.
 
@@ -1196,7 +1196,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.TRUE.
 
@@ -1266,7 +1266,7 @@ CPSourceFileRef,&
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     ss = 1
     ts = 1

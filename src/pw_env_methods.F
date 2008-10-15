@@ -201,7 +201,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 ! te latter can happen due to the lower precision in the computation of the radius in collocate
 ! parallel cost of rs_pw_transfer goes as safety_factor**3 so it is worthwhile keeping it tight
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
 !
 !

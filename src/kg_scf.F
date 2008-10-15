@@ -155,7 +155,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(scf_control_type), POINTER          :: scf_control
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
@@ -225,7 +225,7 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: my_kg_env
     TYPE(kg_scf_env_type), POINTER           :: scf_env
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
      NULLIFY(scf_env,my_kg_env)
      my_kg_env => kg_env
@@ -319,7 +319,7 @@ CONTAINS
     ! Quick return, if no SCF iteration is requested
     IF (scf_control%max_scf < 1) RETURN
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     energy_only = .FALSE.
 
@@ -390,7 +390,7 @@ CONTAINS
 !   *** SCF loop ***
 
     scf_loop: DO
-       CALL timeset(routineN,"I"," ",handle2)
+       CALL timeset(routineN,handle2)
 
        IF (ionode) CALL m_flush(output_unit)
 
@@ -766,7 +766,7 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(dft_control,kg_fm,scf_control,S_sm_pools)
     NULLIFY(qs_env,ks_env,matrix_ks,matrix_s,logger)
@@ -941,7 +941,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 !
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     nmol_kind = SIZE(kg_fm_mol_set,1)
@@ -1105,7 +1105,7 @@ CONTAINS
             para_env, particle_set, kg_fm_mol_set, &
             matrix_h, matrix_s,matrix_p, scf_control)
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
                     para_env=para_env, particle_set=particle_set, &
@@ -1438,7 +1438,7 @@ CONTAINS
 
 !    -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
@@ -1511,7 +1511,7 @@ CONTAINS
 !
 !    -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(S_sm_pools)
@@ -1581,7 +1581,7 @@ SUBROUTINE kg_scf_env_did_change(scf_env,error)
 
 !    -------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   failure=.FALSE.
 

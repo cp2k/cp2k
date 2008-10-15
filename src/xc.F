@@ -873,7 +873,7 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
     LOGICAL                                  :: failure, lsd
     TYPE(section_vals_type), POINTER         :: xc_fun_sections
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
   failure=.FALSE.
 
   CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
@@ -1170,7 +1170,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
     TYPE(xc_derivative_type), POINTER        :: deriv_att
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
   failure=.FALSE.
   NULLIFY(tmp_g, tmp_r, vxc_g, norm_drho_spin, norm_drho, drho_spin, drhoa, &
        drhob, pos, deriv_set, rho_set, virial_pw)
@@ -1889,7 +1889,7 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
     TYPE(xc_derivative_type), POINTER        :: deriv
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
   NULLIFY(rho_set, deriv_set, deriv,e_0)
   failure=.FALSE.
   exc=0.0_dp
@@ -2002,7 +2002,7 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
 
 ! PARAMETER
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   failure=.FALSE.
   NULLIFY(tmp_r, tmp_r2, tmp_a, tmp_b, e_drhoa, e_drhob, e_norm_drho, &
@@ -3026,7 +3026,7 @@ END SUBROUTINE xc_calc_2nd_deriv
     LOGICAL                                  :: failure, lsd
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r_pw, tau
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 

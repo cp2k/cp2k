@@ -102,7 +102,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: el
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(previous_list,previous_last)
 

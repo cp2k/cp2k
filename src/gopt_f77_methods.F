@@ -97,7 +97,7 @@
     failure=.FALSE.
     NULLIFY(particles, subsys, cell, gradient_ts, virial, averages)
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     CALL force_env_get(gopt_env%force_env, subsys=subsys, cell=cell, error=error)
     CALL cp_subsys_get(subsys, particles=particles, error=error)
     SELECT CASE(gopt_env%type_id)

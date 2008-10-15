@@ -106,7 +106,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: rest_mat
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     CALL cite_reference(Blochl1995)
     ! In case decouple periodic images and/or apply restraints to charges
     failure        = .FALSE.
@@ -238,7 +238,7 @@ CONTAINS
       force_env_section, multipole_section, poisson_section, &
       qmmm_periodic_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure        = .FALSE.
     need_f         = .FALSE. 
     IF (PRESENT(calculate_forces)) need_f   = calculate_forces
@@ -381,7 +381,7 @@ CONTAINS
                                                 force_env_section, &
                                                 restraint_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure        = .FALSE.
     need_f         = .FALSE. 
     IF (PRESENT(calculate_forces)) need_f = calculate_forces
@@ -494,7 +494,7 @@ CONTAINS
                                                 force_env_section, &
                                                 solvation_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure         = .FALSE.
     need_f          = .FALSE. 
     IF (PRESENT(calculate_forces)) need_f = calculate_forces

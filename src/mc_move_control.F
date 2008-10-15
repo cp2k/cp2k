@@ -60,7 +60,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
 ! allocate all the structures
       ALLOCATE (moves,stat=stat)
@@ -202,7 +202,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
 ! allocate all the structures
       DEALLOCATE (moves%bond,stat=stat)
@@ -291,7 +291,7 @@ SUBROUTINE move_q_reinit ( moves , lbias )
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
 ! set all the counters equal to zero
       IF(lbias) THEN
@@ -339,7 +339,7 @@ SUBROUTINE q_move_accept(moves,lbias)
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
       IF(lbias) THEN
 ! change the number of successful moves for the total move counter
@@ -407,7 +407,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_bond      ',&
       moves%bias_bond%successes,moves%bias_bond%attempts
@@ -496,7 +496,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
       NULLIFY(rmangle,rmbond,rmdihedral,rmrot,rmtrans)
 

@@ -820,7 +820,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     failure = .FALSE.
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(cell, dft_control, pw_env, auxbas_rs_pool, auxbas_pw_pool, &
          rho_gspace, rho_rspace, pw_pools, particle_set)

@@ -148,7 +148,7 @@ CONTAINS
                                                 e_rho_rho_rho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(bo)
 
@@ -477,7 +477,7 @@ CONTAINS
                                                 e_bb, e_bbb, rhoa, rhob
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(bo)
 

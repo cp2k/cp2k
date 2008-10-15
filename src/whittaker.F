@@ -118,7 +118,7 @@ CONTAINS
       t46, t5, t50, t51, t52, t56, t6, t61, t7, t8, t9, x
 
 ! -----------------------------------------------------------------------------
-!    CALL timeset(routineN,"I"," ",handle)
+!    CALL timeset(routineN,handle)
 
     IF ( MOD(l,2) /= 0 ) THEN
         CALL stop_program(moduleN,routineN,__LINE__,&
@@ -346,7 +346,7 @@ CONTAINS
                                                 t33, t4, t5, t6, t7, t8, t9, x
 
 ! -----------------------------------------------------------------------------
-!    CALL timeset(routineN,"I"," ",handle)
+!    CALL timeset(routineN,handle)
 
     IF ( MOD(l,2) /= 0 ) THEN
         CALL stop_program(moduleN,routineN,__LINE__,&

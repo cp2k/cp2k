@@ -103,7 +103,7 @@ CONTAINS
     TYPE(taper_type), POINTER                :: taper
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (calc_force) THEN
        NULLIFY (rho, atomic_kind_set, taper)
        NULLIFY (se_kind_a, se_kind_mm)
@@ -275,7 +275,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 45)          :: de1b
     TYPE(qmmm_pot_type), POINTER             :: Pot
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     ! Loop Over MM atoms - parallelization over MM atoms...
     ! Loop over Pot stores atoms with the same charge
     MainLoopPot: DO Ipot = 1, SIZE(Potentials)

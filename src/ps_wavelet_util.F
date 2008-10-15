@@ -340,7 +340,7 @@ CONTAINS
 
 !dimensions of the density in the real space
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     m1=n01
     m2=n03
     m3=n02
@@ -507,7 +507,7 @@ CONTAINS
 
     INTEGER                                  :: handle, j1, j3, jp2
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     IF(nxc.GE.1)THEN
        DO jp2=1,nxc

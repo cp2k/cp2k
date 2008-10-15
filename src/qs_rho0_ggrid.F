@@ -128,7 +128,7 @@ MODULE qs_rho0_ggrid
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(atom_kind,atom_list,cores,pab,Qlm_c)
@@ -413,7 +413,7 @@ MODULE qs_rho0_ggrid
     failure=.FALSE.
     c4pi = fourpi
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,dft_control,para_env,particle_set)
     NULLIFY(cell,force,pw_env,rho0_mpole,rho_atom_set,cores)

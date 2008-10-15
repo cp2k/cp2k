@@ -149,7 +149,7 @@ CONTAINS
 !E_overlap_core
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
@@ -526,7 +526,7 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
     para_env=>qs_env%para_env
 
     failure = .FALSE.
@@ -1008,7 +1008,7 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     para_env=>qs_env%para_env

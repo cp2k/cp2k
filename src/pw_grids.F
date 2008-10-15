@@ -309,7 +309,7 @@ CONTAINS
                                                 my_spherical
     REAL(KIND=dp)                            :: my_cutoff
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     IF ( PRESENT(grid_span) ) THEN
        CALL set_pw_grid_info ( pw_grid, grid_span=grid_span, error=error)
@@ -701,7 +701,7 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     lby = pw_grid % bounds ( 1, 2 )
     lbz = pw_grid % bounds ( 1, 3 )
@@ -1274,7 +1274,7 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -1619,7 +1619,7 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -1889,7 +1889,7 @@ CONTAINS
 
     IF ( pw_grid % para % mode == PW_MODE_LOCAL ) RETURN
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     ny = pw_grid % npts ( 2 )
     nz = pw_grid % npts ( 3 )

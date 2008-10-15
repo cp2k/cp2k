@@ -254,7 +254,7 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: tmp_full, tmp_min
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(p_proj),cp_failure_level,routineP,error,failure)
@@ -343,7 +343,7 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
     LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: keep_row
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   failure=.FALSE.
   NULLIFY(row_indices,col_indices)

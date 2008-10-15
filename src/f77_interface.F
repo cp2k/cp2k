@@ -561,7 +561,7 @@ CONTAINS
        CALL cp_para_env_retain(para_env,error=error)
     END IF
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     
     CALL m_getcwd(old_dir)
     IF (PRESENT(work_dir)) THEN

@@ -187,7 +187,7 @@ CONTAINS
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
@@ -1466,7 +1466,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     ! Deallocate the old neighbor list structure
 
@@ -1847,7 +1847,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     ! Deallocate the old neighbor list structure
 
@@ -2132,7 +2132,7 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     ! Deallocate the old neighbor list structure
 
@@ -2506,7 +2506,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     ! Deallocate the old neighbor list structures
 

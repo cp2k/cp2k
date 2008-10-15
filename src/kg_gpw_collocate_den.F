@@ -167,10 +167,10 @@ CONTAINS
     ENDIF
 
     IF (my_compute_tau) THEN
-       CALL timeset(routineN,"I","",handle)
+       CALL timeset(routineN,handle)
        ga_gb_function = FUNC_DADB
     ELSE
-       CALL timeset(routineN,"I","",handle)
+       CALL timeset(routineN,handle)
        ga_gb_function = FUNC_AB
     ENDIF
 
@@ -680,9 +680,9 @@ CONTAINS
     ENDIF
 
     IF (my_compute_tau) THEN
-       CALL timeset(routineN,"I","",handle)
+       CALL timeset(routineN,handle)
     ELSE
-       CALL timeset(routineN,"I","",handle)
+       CALL timeset(routineN,handle)
     ENDIF
 
     calculate_forces = .FALSE.

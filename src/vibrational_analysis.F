@@ -114,7 +114,7 @@ CONTAINS
                                                 mode_tracking_section, &
                                                 print_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
        NULLIFY(D, RotTrM, logger, subsys, f_env, particles, rep_env, intensities, print_section)
@@ -483,7 +483,7 @@ CONTAINS
       POINTER                                :: particle_set
 
     failure = .FALSE.
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     IF (.NOT. failure) THEN
        CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
 
@@ -611,7 +611,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: D
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     my_full = .TRUE.
     IF (PRESENT(full)) my_full = full

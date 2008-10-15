@@ -68,7 +68,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: g2, gcut2, rc, rc2
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     gcut2 = gcut * gcut
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -130,7 +130,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_bv, my_bvw
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        NULLIFY(my_bv, my_bvw)
        gcut2 = gcut * gcut
@@ -203,7 +203,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT. failure) THEN
        gcut2 = gcut * gcut
        s_dim = rho_tot_g % pw_grid % first_gne0
@@ -286,7 +286,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: gvec, rvec
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        gcut2 = gcut * gcut
        s_dim = rho_tot_g % pw_grid % first_gne0
@@ -368,7 +368,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: gvec, rvec1, rvec2, rvec_diff
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT. failure) THEN
        gcut2 = gcut * gcut
        s_dim = rho_tot_g % pw_grid % first_gne0
@@ -471,7 +471,7 @@ CONTAINS
       DIMENSION(:, :)                        :: Am, AmI, Amw
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT. failure) THEN
        ndim = SIZE(particle_set)*SIZE(radii)
        ALLOCATE(Am(ndim, ndim), stat=stat)
@@ -559,7 +559,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY( EwM, units)
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        CPPostcondition(.NOT.ASSOCIATED(M),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,error,failure)

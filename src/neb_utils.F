@@ -155,7 +155,7 @@ CONTAINS
                                                 replica_section, vel_section
 
     NULLIFY(parser)
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
        CPPostcondition(ASSOCIATED(coords),cp_failure_level,routineP,error,failure)
@@ -358,7 +358,7 @@ CPSourceFileRef,&
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: cvalues, Mmatrix, Mmatrix_tmp
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
        n_int     = neb_env%nsize_int
@@ -507,7 +507,7 @@ CPSourceFileRef,&
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: md_section, root_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
        CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
@@ -586,7 +586,7 @@ CPSourceFileRef,&
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: geoopt_section, root_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
        CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&

@@ -326,7 +326,7 @@ CONTAINS
 !      DIMENSION(:), INTENT(in)               :: projections
 !    TYPE(cp_para_env_type), POINTER          :: para_env
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     ep_env => ep_envs_get_ep_env(ep_env_id)
     NULLIFY(particle_set)
@@ -597,7 +597,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(ks_env, mos, mo_coeff, dft_control,matrix_ks,matrix_s)
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     para_env=>qs_env%para_env
 
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
@@ -687,7 +687,7 @@ CONTAINS
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
     TYPE(replica_env_type), POINTER          :: rep_env
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(sub_orbitals, main_qs_env, sub_proj, logger, orbitals)
@@ -1132,7 +1132,7 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(mos)
@@ -1286,7 +1286,7 @@ CONTAINS
     TYPE(qs_p_projection_p_type), &
       DIMENSION(:), POINTER                  :: sub_proj
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(main_qs_env, sub_proj)
@@ -1398,7 +1398,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s,&
          dft_control, mos, occupation_numbers, S_sm_pools, ks_env)
@@ -1544,7 +1544,7 @@ CONTAINS
 
 !----------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY (logger)
     logger => cp_error_get_logger(error)
@@ -2080,7 +2080,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(weighted_vectors,f_env,maxao_maxmo_fm_pool,mos)
 
@@ -2286,7 +2286,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(f_env, maxao_maxao_fm_pool, maxmo_maxmo_fm_pool, &
          maxao_maxmo_fm_pool, ao_mo_fm_pools, mos, sub_globenv, sub_qs_env)

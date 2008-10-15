@@ -86,7 +86,7 @@ CONTAINS
 
     IF (ncol.EQ.0) RETURN
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
     IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
@@ -138,7 +138,7 @@ CONTAINS
 
     IF (ncol.EQ.0) RETURN
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(fm_struct_tmp)
 
     CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
@@ -285,7 +285,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL cp_fm_syrk("U","N",mo_set%lfomo-1,mo_set%maxocc,mo_set%mo_coeff,&
                     1,1,0.0_dp,density_matrix,error=error)
@@ -326,7 +326,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL set_matrix(density_matrix,0.0_dp)
 
@@ -399,7 +399,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     do_rotation_local=.TRUE.
     IF (PRESENT(do_rotation)) do_rotation_local=do_rotation
@@ -521,7 +521,7 @@ CONTAINS
 
    NULLIFY(tmp_fm_struct,svec,overlap)
 
-   CALL timeset(routineN,"I","",handle)
+   CALL timeset(routineN,handle)
 
    nspin=SIZE(mo_array)
    max_alpha=0.0_dp
@@ -595,7 +595,7 @@ CONTAINS
 
    NULLIFY(tmp_fm_struct,overlap)
 
-   CALL timeset(routineN,"I","",handle)
+   CALL timeset(routineN,handle)
 
    nspin=SIZE(mo_array)
    mo_mag_min= HUGE(0.0_dp)

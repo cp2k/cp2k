@@ -174,7 +174,7 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(thermostats_type), POINTER          :: thermostats
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
 

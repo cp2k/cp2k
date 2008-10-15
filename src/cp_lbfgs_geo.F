@@ -74,7 +74,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: root_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(optimizer, para_env)
     logger => cp_error_get_logger(error)

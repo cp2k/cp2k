@@ -403,7 +403,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
     mepos = logger%para_env%mepos

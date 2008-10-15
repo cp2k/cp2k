@@ -145,7 +145,7 @@ CONTAINS
     END IF
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     cons_info => topology%cons_info
     hbonds_section => section_vals_get_subs_vals(input_file,&
@@ -1214,7 +1214,7 @@ END SUBROUTINE setup_lg4x6
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     failure = .FALSE.
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        NULLIFY(molecule_kind)
        ALLOCATE(constr_x_mol(SIZE(molecule_kind_set)),stat=stat)

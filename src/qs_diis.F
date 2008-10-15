@@ -87,7 +87,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -143,7 +143,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -277,7 +277,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     nspin = SIZE(mo_array)
     diis_step = .FALSE.
@@ -581,7 +581,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 

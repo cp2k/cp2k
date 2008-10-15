@@ -139,7 +139,7 @@ CONTAINS
                                                 jp_ii_block, jp_iii_block, &
                                                 jp_RARnu
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     !
     failure =.FALSE.
     NULLIFY(atom_list,atomic_kind_set,dft_control,orb_basis_set,sab_orb,&
@@ -622,7 +622,7 @@ CONTAINS
 !
 !
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     !
     failure =.FALSE.
     NULLIFY(atomic_kind_set,dft_control,para_env,&

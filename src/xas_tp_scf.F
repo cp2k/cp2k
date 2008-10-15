@@ -173,7 +173,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section, xas_section
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks)
     NULLIFY(rho,energy,scf_control,logger, ks_env,mos,atomic_kind_set)
     NULLIFY(particle_set,vecbuffer,vecbuffer2, occupation_numbers)
@@ -254,7 +254,7 @@ CONTAINS
     !   *** SCF loop ***
 
     scf_loop: DO
-       CALL timeset(routineN,"I"," ",handle2)
+       CALL timeset(routineN,handle2)
 
        exit_loop = .FALSE.
        IF (output_unit > 0) CALL m_flush(output_unit)
@@ -669,7 +669,7 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(section_vals_type), POINTER         :: input, loc_section
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind,dft_control,matrix_h,matrix_s,matrix_ks)
     NULLIFY(cell,particle_set,preconditioner,vecbuffer,vecbuffer2)
@@ -902,7 +902,7 @@ CONTAINS
        output_unit = -1
     END IF
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
     IF(.NOT. failure) THEN

@@ -122,7 +122,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_gen, print_section, &
                                                 qmmm_periodic, qmmm_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     NULLIFY(sub_force_env, qm_atom_index, mm_atom_index, qm_atom_type,   &

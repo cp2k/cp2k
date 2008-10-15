@@ -284,9 +284,9 @@ CONTAINS
 
     failure = .FALSE.
     IF (calculate_forces) THEN
-      CALL timeset(routineN//" (forces)","I"," ",handle)
+      CALL timeset(routineN//" (forces)",handle)
     ELSE
-      CALL timeset(routineN,"I"," ",handle)
+      CALL timeset(routineN,handle)
     ENDIF
 
     NULLIFY(logger)

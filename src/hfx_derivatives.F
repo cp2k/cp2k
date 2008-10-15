@@ -264,7 +264,7 @@ MODULE hfx_derivatives
     END IF
 
     CALL mp_sync(para_env%group)
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
     nkind = SIZE(atomic_kind_set,1)

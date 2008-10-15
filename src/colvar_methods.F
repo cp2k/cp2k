@@ -106,7 +106,7 @@ CONTAINS
 
     NULLIFY(logger, c_kinds, iatms)
     logger => cp_error_get_logger(error)
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     distance_section     => section_vals_get_subs_vals(colvar_section,"DISTANCE",i_rep_section=icol,error=error)

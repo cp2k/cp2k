@@ -819,7 +819,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: zmpi1
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     ! check input
     IF (MOD(n3,2).NE.0) STOP 'Parallel convolution:ERROR:n3'
     IF (nd1.LT.n1/2+1) STOP 'Parallel convolution:ERROR:nd1' 

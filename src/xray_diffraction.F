@@ -123,7 +123,7 @@ CONTAINS
 
     IF (.NOT.failure) THEN
 
-      CALL timeset(routineN,"I","",handle)
+      CALL timeset(routineN,handle)
 
       NULLIFY (atomic_kind_set)
       NULLIFY (aux_index)
@@ -564,7 +564,7 @@ CONTAINS
 
     IF (.NOT.failure) THEN
 
-      CALL timeset(routineN,"I","",handle)
+      CALL timeset(routineN,handle)
 
       NULLIFY (atom_list)
       NULLIFY (atomic_kind)

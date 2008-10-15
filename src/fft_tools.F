@@ -2017,7 +2017,7 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   rdim ( 1 ) = .FALSE.
   rdim ( 2 ) = .TRUE.
@@ -2104,7 +2104,7 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   rdim ( 1 ) = .FALSE.
   rdim ( 2 ) = .TRUE.
@@ -2191,7 +2191,7 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   rdim ( 1 ) = .TRUE. 
   rdim ( 2 ) = .FALSE.
@@ -2279,7 +2279,7 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   rdim ( 1 ) = .TRUE.
   rdim ( 2 ) = .FALSE.
@@ -2364,7 +2364,7 @@ SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout, fft_scratch, error 
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   CALL mp_environ ( np, dim, pos, group )
   CALL mp_cart_rank ( group, pos, mip )
@@ -2433,7 +2433,7 @@ SUBROUTINE cube_transpose_6 ( cin, group, boin, boout, sout, fft_scratch, error 
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   CALL mp_environ ( np, dim, pos, group )
   CALL mp_cart_rank ( group, pos, mip )

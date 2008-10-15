@@ -151,7 +151,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: mm_section, print_section
     TYPE(shell_kind_type), POINTER           :: shell
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)

@@ -118,7 +118,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY (atom_kind)
     NULLIFY (atom_list)

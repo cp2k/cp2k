@@ -106,7 +106,7 @@ CONTAINS
       POINTER                                :: tmp_dip
     TYPE(ms_vib_type)                        :: ms_vib
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     converged=.FALSE.
     natoms=SIZE(particles)
@@ -285,7 +285,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: ms_vib_section
 
     failure = .FALSE.
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     IF (.NOT. failure) THEN
        NULLIFY(ms_vib%eig_bfgs,ms_vib%f_range,ms_vib%hes_bfgs)
        ms_vib_section => section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS%MODE_SELECTIVE", error=error)

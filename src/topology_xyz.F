@@ -61,7 +61,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info
 

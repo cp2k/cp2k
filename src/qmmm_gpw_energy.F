@@ -104,7 +104,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input_section, &
                                                 interp_section, print_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
     IF (.NOT.failure) THEN
@@ -243,7 +243,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(aug_pools),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_pools),cp_failure_level,routineP,error,failure)
     !Statements
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     ngrids=SIZE(pw_pools)
     CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)
     DO igrid=1,ngrids
@@ -280,7 +280,7 @@ CONTAINS
     CASE(spline3_nopbc_interp, spline3_pbc_interp)
        ! Spline Iterpolator
        CALL mp_sync(para_env%group)
-       CALL timeset(TRIM(routineN)//":spline3Int","I","",handle2)
+       CALL timeset(TRIM(routineN)//":spline3Int",handle2)
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
           CALL pw_prolongate_s3(grids(Ilevel  )%pw,&
                                 grids(Ilevel-1)%pw,&
@@ -362,8 +362,8 @@ CONTAINS
     TYPE(qmmm_pot_type), POINTER             :: pot
 
     NULLIFY(pgf, pot, per_pot, xdat, ydat, zdat)
-    CALL timeset(routineN,"I","",handle)
-    CALL timeset(routineNb//"_G","I","",handle2)
+    CALL timeset(routineN,handle)
+    CALL timeset(routineNb//"_G",handle2)
     bo2 = tmp_grid(auxbas_grid)%pw%pw_grid%bounds
     ALLOCATE (xdat(bo2(1,1):bo2(2,1)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -429,7 +429,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
     CALL timestop(0.0_dp,handle2)
-    CALL timeset(routineNb//"_R","I","",handle2)
+    CALL timeset(routineNb//"_R",handle2)
     IF (periodic) THEN
        ! Long Range Part of the QM/MM Potential with Gaussians With Periodic Boundary Conditions
        CALL qmmm_elec_with_gaussian_LG    (pgfs=pgfs,&
@@ -528,7 +528,7 @@ CONTAINS
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(grid, pw)
     dr1c = cgrid%pw_grid%dr(1) 
     dr2c = cgrid%pw_grid%dr(2) 
@@ -788,7 +788,7 @@ CONTAINS
       POINTER                                :: grid2
     TYPE(qmmm_pot_type), POINTER             :: pot
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     n1   = grid%pw_grid%npts(1)
     n2   = grid%pw_grid%npts(2)

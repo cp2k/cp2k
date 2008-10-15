@@ -345,7 +345,7 @@ END SUBROUTINE rf_deriv_check
     INTEGER                                  :: handle, i, nblock, nspin
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     ! here we get the numbers for charges
     nspin=SIZE(p_matrix)
@@ -376,7 +376,7 @@ END SUBROUTINE rf_deriv_check
 
     INTEGER                                  :: handle
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL compute_charges(p_matrix,s_matrix,mcharge,para_env)
 

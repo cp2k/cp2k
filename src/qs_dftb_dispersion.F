@@ -86,7 +86,7 @@ CONTAINS
 
 !   ----------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY (atomic_kind_set,sab_vdw)
 

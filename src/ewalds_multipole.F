@@ -126,7 +126,7 @@ CONTAINS
     failure = .FALSE.
     CALL cite_reference(Aguado2003)
     CALL cite_reference(Laino2008)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     CPPostcondition(ASSOCIATED(nonbond_env),cp_failure_level,routineP,error,failure)
     check_debug  = (debug_this_module.OR.debug_r_space.OR.debug_g_space.OR.debug_e_field.OR.debug_e_field_en)&
          .EQV.debug_this_module

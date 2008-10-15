@@ -103,7 +103,7 @@ SUBROUTINE mc_averages_create ( averages  )
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
 ! allocate all the structures...not sure why, but it won't work otherwise
       ALLOCATE (averages,stat=stat)
@@ -139,7 +139,7 @@ SUBROUTINE mc_averages_release ( averages  )
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
 ! deallocate
       DEALLOCATE (averages,stat=stat)
@@ -197,7 +197,7 @@ SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(mc_molecule_info,rmbond,rmangle,rmdihedral,rmrot,rmtrans)
 
@@ -534,7 +534,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 ! then writing the new information with everything else around it...
 ! or making greater use of the input_parsing stuff
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
 ! nullify some stuff
       NULLIFY(qs_env,atomic_kind_set,atomic_kind,gth_potential,&

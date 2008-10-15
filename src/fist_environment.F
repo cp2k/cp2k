@@ -142,7 +142,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
                                                 ewald_section, mm_section, &
                                                 poisson_section
 
-  CALL timeset(routineN,"I",'',handle)
+  CALL timeset(routineN,handle)
   failure = .FALSE.
   logger => cp_error_get_logger(error)
 
@@ -284,7 +284,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: grid_print_section
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     NULLIFY ( thermo, ewald_pw, local_molecules, local_particles, multipoles)
     particle_set => subsys % particles % els
     atomic_kind_set => subsys % atomic_kinds % els

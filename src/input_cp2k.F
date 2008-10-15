@@ -77,7 +77,7 @@ CONTAINS
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(section_type), POINTER              :: input_structure
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(res)
     NULLIFY(cpparser, input_structure, default_units)
@@ -112,7 +112,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: section
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(root_section),cp_failure_level,routineP,error,failure)

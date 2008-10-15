@@ -154,7 +154,7 @@ CONTAINS
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     IF (ASSOCIATED(ewald_pw)) THEN
        CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -212,7 +212,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: poisson_section, &
                                                 rs_grid_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     
     NULLIFY ( pw_big_grid )

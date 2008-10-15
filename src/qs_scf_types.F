@@ -190,7 +190,7 @@ SUBROUTINE scf_env_did_change(scf_env,error)
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
- CALL timeset(routineN,"I","",handle)
+ CALL timeset(routineN,handle)
 
   failure=.FALSE.
 

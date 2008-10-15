@@ -115,7 +115,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
                                                 eip_section
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
   
@@ -217,7 +217,7 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set, molecule_kind_set, particle_set, molecule_set, &
             local_molecules, local_particles)
@@ -304,7 +304,7 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set, atomic_kind_ptr, eip_section)
 

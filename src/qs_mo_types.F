@@ -253,7 +253,7 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -654,7 +654,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
 
@@ -708,7 +708,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     nspin = SIZE(mo_array)
     nao = mo_array(1)%mo_set%nao
 
@@ -904,7 +904,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: exist
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
 
     nspin = SIZE(mo_array)

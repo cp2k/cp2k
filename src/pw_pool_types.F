@@ -378,7 +378,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(pw)
     NULLIFY(cr3d_ptr)
     logger => cp_error_get_logger(error)
@@ -476,7 +476,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     IF (PRESENT(accept_non_compatible)) my_accept_non_compatible=accept_non_compatible
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.ASSOCIATED(pw)) THEN

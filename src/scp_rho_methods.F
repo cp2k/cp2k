@@ -48,7 +48,7 @@ SUBROUTINE scp_rho_create( scp_rho, auxbas_pw_pool, error )
 
 !-----------------------------------------------------------------------------!
 
-  CALL timeset(routineN,'I',' ',handle)
+  CALL timeset(routineN,handle)
 
   failure=.FALSE.
 

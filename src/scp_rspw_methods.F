@@ -162,7 +162,7 @@ SUBROUTINE maxradius_scp_init ( scp_env, atomic_kind_set, gridlevel_info, &
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY ( pw_env )

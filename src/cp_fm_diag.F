@@ -72,7 +72,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -218,7 +218,7 @@ CONTAINS
     IF (PRESENT(neig)) neig_local=neig
     IF (neig_local == 0) RETURN
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     needs_evecs=PRESENT(eigenvectors)
 
@@ -453,7 +453,7 @@ CONTAINS
 #endif
     ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
@@ -633,7 +633,7 @@ CONTAINS
 
     ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
 #if defined(__SCALAPACK)
 

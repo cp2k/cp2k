@@ -190,7 +190,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr, error)
 
   failure=.FALSE.
   
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
   CPPrecondition(.NOT.ASSOCIATED(pw),cp_failure_level,routineP,error,failure)
   ALLOCATE(pw,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

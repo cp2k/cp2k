@@ -194,7 +194,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho1_set
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &

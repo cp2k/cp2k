@@ -88,7 +88,7 @@ CONTAINS
 
     NULLIFY(force_env, istep, subsys, cv, root_section, simpar)
     logger => cp_error_get_logger(error)
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure   = .FALSE.
     converged = .FALSE.
     CALL get_md_env(md_env, force_env=force_env, fe_env=fe_env, simpar=simpar,&
@@ -213,7 +213,7 @@ CONTAINS
     REAL(KIND=dp)                            :: prob, tau, z
     REAL(KIND=dp), DIMENSION(:), POINTER     :: wrk
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure    = .FALSE.
     trend_free = .FALSE.
     test_avg   = .TRUE.
@@ -404,7 +404,7 @@ CONTAINS
     INTEGER                                  :: handle, i, ng_points
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure     = .FALSE.
     test_passed = .FALSE.
     DO WHILE(fe_env%conv_par%cg_width<fe_env%conv_par%max_cg_width)
@@ -446,7 +446,7 @@ CONTAINS
     REAL(KIND=dp)                            :: prob, pw, r, u, w
     REAL(KIND=dp), DIMENSION(:), POINTER     :: wrk
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure     = .FALSE.
     ncolvar     = fe_env%ncolvar
     ! Compute the Coarse Grained data set using a reverse cumulative strategy
@@ -541,7 +541,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: avg_std, avgmx
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cov_std, covmx
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure   = .FALSE.
     converged = .FALSE.
     ncolvar   = fe_env%ncolvar
@@ -755,7 +755,7 @@ CONTAINS
     REAL(KIND=dp)                            :: tmp_ic, tmp_jc
     TYPE(ui_var_type), POINTER               :: cv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     ncolvar   = fe_env%ncolvar
     nlength   = iend-istart+1
     fe_env%cg_data(cg_index)%avg = 0.0_dp

@@ -159,7 +159,7 @@ END SUBROUTINE kg_rspw_create
 !   INTEGER, PARAMETER                       :: maxgridpoints = 100
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 !
 !
 ! Part one, deallocate old data if needed

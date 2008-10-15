@@ -139,7 +139,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
@@ -477,7 +477,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY (qs_env)
 

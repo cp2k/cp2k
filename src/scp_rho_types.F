@@ -89,7 +89,7 @@ END SUBROUTINE scp_rho_retain
 
 !---------------------------------------------------------------------------
 
-  CALL timeset(routineN,'I','',handle)
+  CALL timeset(routineN,handle)
   failure=.FALSE.
   IF (ASSOCIATED(rho_scp)) THEN
     CPPrecondition(rho_scp%ref_count>0,cp_failure_level,routineP,error,failure)

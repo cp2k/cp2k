@@ -127,7 +127,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(atomic_kind_set,atomic_kind,orb_basis_set,cell,dft_control,&
             local_particles,particle_set,rs_rho,rspw,rs_pools,pw_pools,&
             mgrid_rspace,mgrid_gspace)
@@ -320,7 +320,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind,atomic_kind_set,cell,cube_info,dft_control,&
             local_particles,rspw,rs_rho,&
@@ -438,7 +438,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,atomic_kind,aux_basis_set,cell,dft_control,dyn_coeff_set,&
             local_particles,local_coeffs,particle_set,rs_rho,rs_pools,pw_pools,rspw,&
@@ -642,7 +642,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,atomic_kind,cell,dft_control,force,&
             local_particles,particle_set,rspw,auxbas_rs_pool)
@@ -771,7 +771,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,atomic_kind,orb_basis_set,cell,dft_control,&
             local_particles,particle_set,rspw,force)
@@ -1034,7 +1034,7 @@ CONTAINS
 
 !--------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(atomic_kind_set,atomic_kind,aux_basis_set,cell,dft_control,dyn_coeff_set,&
             force,local_particles,local_coeffs,particle_set)
     NULLIFY(rs_v,rspw,rs_pools,pw_pools,mgrid_rspace,mgrid_gspace)

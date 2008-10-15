@@ -97,7 +97,7 @@ CONTAINS
                                                 rshell_last_update_pbc
 
     failure = .FALSE.
-    CALL timeset(routineN,"I"," ",handle )
+    CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 

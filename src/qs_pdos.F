@@ -139,7 +139,7 @@ CONTAINS
     NULLIFY (atomic_kind, context, s_matrix, orb_basis_set, para_env, pdos_array)
     NULLIFY (eigenvalues,fm_struct_tmp,matrix_work,matrix_shalf,mo_coeff,vecbuffer)
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     iterstep = logger%iter_info%iteration(logger%iter_info%n_rlevel) 
 
 

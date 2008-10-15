@@ -97,7 +97,7 @@ CONTAINS
       POINTER                                :: matrix_s
 
     NULLIFY(pw_env,auxbas_pw_pool,matrix_s,dft_control)
-    CALL timeset(routineN,'I',' ',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     my_gapw_xc=.FALSE.
     my_rebuild_ao=.TRUE.
@@ -393,7 +393,7 @@ END SUBROUTINE qs_rho_update_rho
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(dft_control, pw_env, auxbas_pw_pool)
@@ -579,7 +579,7 @@ END SUBROUTINE qs_rho_update_rho
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(dft_control, pw_env, auxbas_pw_pool)
@@ -779,7 +779,7 @@ END SUBROUTINE qs_rho_update_rho
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(dft_control, pw_env, auxbas_pw_pool)

@@ -169,7 +169,7 @@ END SUBROUTINE wfs_create
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
 
     NULLIFY(auxbas_pw_pool, pw_env, dft_control)
@@ -300,7 +300,7 @@ END SUBROUTINE wfs_create
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
 
     NULLIFY(auxbas_pw_pool, pw_env, dft_control)
@@ -436,7 +436,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao, s_array
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   failure=.FALSE.
   NULLIFY(pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, mo_coeff,&
@@ -787,7 +787,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
   my_kg_gpw = .FALSE.
   IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   logger => cp_error_get_logger(error)
   ionode = logger%para_env%mepos==logger%para_env%source
@@ -1290,7 +1290,7 @@ END SUBROUTINE wfi_extrapolate
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -1383,7 +1383,7 @@ END SUBROUTINE wfi_update
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(input_wf_history), cp_failure_level, routineP, error, failure)
@@ -1462,7 +1462,7 @@ END SUBROUTINE wfi_update
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(input_wf_history), cp_failure_level, routineP, error, failure)

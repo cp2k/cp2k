@@ -83,7 +83,7 @@ CONTAINS
     IF (section_get_ival(dft_section,"EXCITATIONS",error=error) /= tddfpt_excitations) RETURN
     CALL cite_reference(Iannuzzi2005)
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     IF (section_get_ival(dft_section,"TDDFPT%OE_CORR",error=error) /= oe_none) THEN
        CALL orbital_eigenvalue_correction(qs_env, error)

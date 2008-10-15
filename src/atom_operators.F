@@ -76,7 +76,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     IF ( integrals%status == 0 ) THEN
       n = MAXVAL(basis%nbas)
@@ -330,7 +330,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     IF ( integrals%ppstat == 0 ) THEN
       n = MAXVAL(basis%nbas)
@@ -476,7 +476,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY (integrals%tzora,integrals%hdkh,integrals%dpot)
 
@@ -807,7 +807,7 @@ CONTAINS
 
     INTEGER                                  :: handle, m, n
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     n = SIZE(int,1)
     m = SIZE(omat,1)
@@ -828,7 +828,7 @@ CONTAINS
 
     INTEGER                                  :: handle, m, n
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     n = SIZE(int,1)
     m = SIZE(omat,1)
@@ -852,7 +852,7 @@ CONTAINS
     LOGICAL                                  :: failure = .FALSE.
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: amat, atran, bmat, btran, hint
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     m1 = SIZE(cm1,1)
     n1 = SIZE(cm1,2)

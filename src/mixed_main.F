@@ -81,7 +81,7 @@ CONTAINS
     TYPE(mixed_environment_type), POINTER    :: mixed_env
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,force_env_section,"MIXED%PRINT%PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)

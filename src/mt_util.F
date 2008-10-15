@@ -68,7 +68,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool_aux
     TYPE(pw_type), POINTER                   :: Vloc, Vlocg
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(Vloc, Vlocg, pw_pool_aux)
     !
@@ -157,7 +157,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: box, box2
     TYPE(pw_grid_type), POINTER              :: grid
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     grid => Vloc%pw_grid
@@ -217,7 +217,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: box, box2
     TYPE(pw_grid_type), POINTER              :: grid
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     IF (.NOT.failure) THEN
        grid => screen_function%pw_grid

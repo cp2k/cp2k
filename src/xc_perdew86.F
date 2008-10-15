@@ -126,7 +126,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(bo,rho,e_0,e_rho,e_ndrho,&
          e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&

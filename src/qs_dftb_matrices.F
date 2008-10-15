@@ -149,7 +149,7 @@ CONTAINS
 
 !   ----------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     ! set pointers
     iptr = 0
@@ -650,7 +650,7 @@ CONTAINS
 
 !   ----------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(matrix_h, dft_control, logger, scf_section)
     NULLIFY(matrix_s, matrix_p, particle_set)

@@ -232,7 +232,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset(routineN//','//moduleN,'I',"",handle)
+    CALL timeset(routineN//','//moduleN,handle)
 
     failure=.FALSE.
 
@@ -362,7 +362,7 @@ SUBROUTINE cp_opt_gopt_release(optimizer,error)
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
 
-  CALL timeset(routineN//','//moduleN,'I',"",handle)
+  CALL timeset(routineN//','//moduleN,handle)
   failure=.FALSE.
 
   IF (ASSOCIATED(optimizer)) THEN
@@ -546,7 +546,7 @@ CPSourceFileRef,&
 
     NULLIFY(logger,xold)
     logger => cp_error_get_logger(error)
-    CALL timeset(routineN//','//moduleN,'I',"",handle)
+    CALL timeset(routineN//','//moduleN,handle)
     failure=.FALSE.
     justEntred=.TRUE.
     is_master=optimizer%master==optimizer%para_env%mepos

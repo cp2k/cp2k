@@ -373,7 +373,7 @@ CONTAINS
                                                 input, scf_section
     TYPE(virial_type), POINTER               :: virial
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     converged=.TRUE.
@@ -489,7 +489,7 @@ CONTAINS
        exit_inner_loop    = .FALSE.
        scf_loop: DO
 
-          CALL timeset(routineN,"I"," ",handle2)
+          CALL timeset(routineN,handle2)
 
           scf_env%iter_count = scf_env%iter_count + 1
           iter_count =  iter_count + 1
@@ -1267,7 +1267,7 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(scf_control,matrix_s,matrix_ks,dft_control,mos,&
          mo_coeff)
@@ -1637,7 +1637,7 @@ END SUBROUTINE qs_scf_print_summary
       POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(scf_control, atomic_kind_set, matrix_h, matrix_s, matrix_ks, &
          dft_control, mos, rho)
@@ -1839,7 +1839,7 @@ END SUBROUTINE qs_scf_print_summary
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct,&
             dft_control, mos, occupation_numbers, S_sm_pools, ks_env,&
@@ -2135,7 +2135,7 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(mo_coeff)
     gapw = qs_env%dft_control%qs_control%gapw
@@ -2227,7 +2227,7 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(S_sm_pools)
@@ -2311,7 +2311,7 @@ END SUBROUTINE qs_scf_print_summary
     INTEGER                                  :: handle, ispin, stat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
@@ -2381,7 +2381,7 @@ END SUBROUTINE qs_scf_print_summary
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     ortho => scf_env%ortho
     work  => scf_env%scf_work2

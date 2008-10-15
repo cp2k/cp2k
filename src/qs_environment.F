@@ -403,7 +403,7 @@ CONTAINS
     TYPE(semi_empirical_si_type), POINTER    :: se_store_int_env
     TYPE(taper_type), POINTER                :: taper
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     NULLIFY(logger)
     para_env=>qs_env%para_env
     logger => cp_error_get_logger(error)

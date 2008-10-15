@@ -749,7 +749,7 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(input_kg_fm_p_type), cp_failure_level, routineP, error, failure)

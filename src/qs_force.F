@@ -148,7 +148,7 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
     TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY (logger)
     logger => cp_error_get_logger(error)

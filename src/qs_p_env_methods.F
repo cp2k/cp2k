@@ -143,7 +143,7 @@ CONTAINS
 
 ! code
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     n_spins = qs_env%dft_control%nspins
 
@@ -368,7 +368,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(dft_control,matrix_s)
@@ -516,7 +516,7 @@ END SUBROUTINE p_env_did_change
 
 ! code
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(ao_mo_fm_pools,mos,my_psi0,matrix_s,mos, para_env,ks_env, rho, &
@@ -791,7 +791,7 @@ END SUBROUTINE p_env_did_change
 
 ! code
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(tmp)
     failure = .FALSE.
@@ -870,7 +870,7 @@ END SUBROUTINE p_env_did_change
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
@@ -959,7 +959,7 @@ END SUBROUTINE p_env_did_change
 
 ! code
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
@@ -1078,7 +1078,7 @@ END SUBROUTINE p_env_did_change
 
 ! code
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(tmp_matrix,maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct,tmp_fmstruct,&
@@ -1200,7 +1200,7 @@ END SUBROUTINE p_env_did_change
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, p1_new
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 

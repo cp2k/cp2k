@@ -180,7 +180,7 @@ CONTAINS
                                                 dft_section, kind_section, &
                                                 qs_section, work_section
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     ionode = para_env%ionode
     logger => cp_error_get_logger(error)
     IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)

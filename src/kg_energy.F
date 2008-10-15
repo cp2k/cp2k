@@ -146,7 +146,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(section_vals_type), POINTER         :: xc_section
 
-    CALL timeset (routineN,'I',' ',handle )
+    CALL timeset(routineN,handle )
     failure=.FALSE.
     para_env=>kg_env%para_env
     ionode=para_env%ionode
@@ -300,7 +300,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(scf_control_type), POINTER          :: scf_control
 
-    CALL timeset ( routineN,'I',' ',handle )
+    CALL timeset(routineN,handle )
 
     NULLIFY(atomic_kind_set,dyn_coeff_set,diis_info,scf_control)
     NULLIFY(rspw,auxbas_pw_pool,vxc_r)
@@ -338,7 +338,7 @@ CONTAINS
 
     scf_loop: DO
 
-       CALL timeset(routineN,"I","",handle2)
+       CALL timeset(routineN,handle2)
        IF (ionode) CALL m_flush(output_unit)
        iter = iter + 1
 
@@ -420,7 +420,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY ( qs_env )
     para_env=>kg_env%para_env
@@ -473,7 +473,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: xc_section
 
-    CALL timeset ( routineN,'I',' ',handle )
+    CALL timeset(routineN,handle )
     failure=.FALSE.
     para_env=>kg_env%para_env
     ionode=para_env%ionode
@@ -595,7 +595,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: xc_section
 
     failure = .FALSE.
-    CALL timeset ( routineN,'I',' ',handle )
+    CALL timeset(routineN,handle )
     para_env=>kg_env%para_env
     ionode=para_env%ionode
     logger=>cp_error_get_logger(error)

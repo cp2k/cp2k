@@ -136,7 +136,7 @@ CONTAINS
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
 
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env, se_control)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
@@ -299,7 +299,7 @@ CONTAINS
     NULLIFY(dft_control,cell,force,particle_set)
     NULLIFY(se_control,taper,atomic_kind_set)
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, taper=taper,&
          energy=energy, error=error)
@@ -458,7 +458,7 @@ CONTAINS
     TYPE(taper_type), POINTER                :: taper
 
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control,cell,force,particle_set)
        NULLIFY(diagmat_ks,diagmat_p, se_control,taper)
@@ -783,7 +783,7 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
 
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force,particle_set, diagmat_ks, diagmat_p,local_particles,&
             se_control, ewald_env, ewald_pw, se_nddo_mpole, se_nonbond_env, se_section, mpole,&
@@ -1092,7 +1092,7 @@ CONTAINS
     TYPE(taper_type), POINTER                :: taper
 
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(dft_control,cell,force,particle_set,se_control,taper)
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,cell=cell,taper=taper,&
          para_env=para_env,error=error)

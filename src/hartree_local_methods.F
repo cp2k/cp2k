@@ -85,7 +85,7 @@ CONTAINS
     TYPE(ecoul_1center_type), DIMENSION(:), &
       POINTER                                :: ecoul_1c
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set)
     NULLIFY(ecoul_1c)
@@ -138,7 +138,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     nr = grid_atom%nr
     max_s_harm = SIZE(vrad_h,2)
@@ -270,7 +270,7 @@ CONTAINS
 
 !   -----------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(cell,dft_control,para_env,poisson_env,pw_env,qs_charges)

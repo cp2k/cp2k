@@ -1140,7 +1140,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     ! Perform memory allocation for the symmetry analysis
     natoms = SIZE(coord,2)

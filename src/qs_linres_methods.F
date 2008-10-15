@@ -205,7 +205,7 @@ CONTAINS
 !
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
    
     NULLIFY(ao_mo_fm_pools,dft_control,linres_control)
     NULLIFY(matrix_s,mos,mpools,para_env)

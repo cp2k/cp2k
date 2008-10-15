@@ -218,7 +218,7 @@ CONTAINS
 
     !   *** Initialize timing ***
 
-    CALL timeset ("CP2K","I","",globenv%handle)
+    CALL timeset ("CP2K",globenv%handle)
 
     IF (ionode) THEN
        WRITE (UNIT=my_output_unit,&

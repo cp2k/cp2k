@@ -451,7 +451,7 @@ CPSourceFileRef,&
 ! the primus of all slaves, talks to the master on topics concerning all slaves
 
     failure=.FALSE.
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     NULLIFY(my_parser,g_section,g_data,default_units)
 
     logger => cp_error_get_logger(error)

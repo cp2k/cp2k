@@ -104,7 +104,7 @@ CONTAINS
     CALL section_vals_get(coord_section, explicit=explicit, error=error)
     IF (.NOT.explicit) RETURN
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. get cell and topolgoy%atom_info
@@ -300,7 +300,7 @@ CPSourceFileRef,&
     CALL section_vals_get(shell_coord_section, explicit=explicit, error=error)
     IF (.NOT.explicit) RETURN
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     CALL get_cell(cell=cell,&
        scaled_coordinates=scaled_coordinates,&
        unit_of_length=unit_of_length)

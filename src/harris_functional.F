@@ -103,7 +103,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(rho, pw_env, auxbas_pw_pool, v_rspace_new, v_tau_rspace, &
@@ -240,7 +240,7 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(eigenvalues, occupation_numbers, mo_array, harris_energy, dft_control)
@@ -314,7 +314,7 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(rho, rho_ao, matrix_ks, harris_energy, dft_control)
@@ -382,7 +382,7 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(matrix_ks, harris_energy, dft_control)

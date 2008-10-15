@@ -112,7 +112,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     ! get some data from mc_par
     CALL get_mc_par(mc_par,restart_file_name=restart_file_name,temperature=temperature,&
@@ -212,7 +212,7 @@ CONTAINS
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_type), POINTER        :: particles
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     ! get some stuff from the mc_par
     CALL get_mc_par(mc_par,restart_file_name=restart_file_name,temperature=mc_temp,&

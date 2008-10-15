@@ -182,7 +182,7 @@ CONTAINS
                                                 e_tau, norm_drho, rho, tau
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(bo)
 
@@ -281,7 +281,7 @@ CONTAINS
       norm_drhoa, norm_drhob, rhoa, rhob, tau_a, tau_b
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(bo)
 

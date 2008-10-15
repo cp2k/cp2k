@@ -207,7 +207,7 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     CPPreconditionNoFail(.NOT.ASSOCIATED(ks_env),cp_failure_level,routineP,error)
@@ -357,7 +357,7 @@ CONTAINS
     TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
 
     failure=.FALSE.
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
          pw_env, cell, logger, v_rspace_new, v_tau_rspace,&
          input, poisson_env, scf_section,my_rho,becke, v_rspace_new_aux_fit,&
@@ -2247,9 +2247,9 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
   IF (PRESENT(calculate_forces)) c_forces=calculate_forces
 
   IF (c_forces) THEN
-     CALL timeset(routineN//' (forces)','I','',handle)
+     CALL timeset(routineN//' (forces)',handle)
   ELSE
-     CALL timeset(routineN,'I','',handle)
+     CALL timeset(routineN,handle)
   ENDIF
 
   failure=.FALSE.
@@ -2459,7 +2459,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
 
 !   ---------------------------------------------------------------------------
 
-  CALL timeset( routineN ,"I","",handle)
+  CALL timeset( routineN ,handle)
 
   failure=.FALSE.
   CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
@@ -2978,7 +2978,7 @@ END SUBROUTINE qs_vxc_create
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(weighted_vectors)
 
@@ -3042,7 +3042,7 @@ END SUBROUTINE qs_vxc_create
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(weighted_vectors,h_block,fm_struct_tmp)
 
@@ -3138,7 +3138,7 @@ END SUBROUTINE qs_vxc_create
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY (c)
     NULLIFY (context)

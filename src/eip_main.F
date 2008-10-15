@@ -59,7 +59,7 @@ CONTAINS
     INTEGER                                  :: handle
     TYPE(eip_environment_type), POINTER      :: eip_env
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(eip_env)
 
     CALL eip_env_create(eip_env, error=error)

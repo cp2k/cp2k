@@ -79,7 +79,7 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
-    CALL timeset ( routineN, 'I', '', handle )
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     CPPreconditionNoFail(.NOT.ASSOCIATED(ks_scp_env),cp_failure_level,routineP,error)
@@ -134,7 +134,7 @@ CONTAINS
     TYPE(scp_energy_type), POINTER           :: energy
     TYPE(scp_rho_type), POINTER              :: rho_scp
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     NULLIFY ( rho_scp, rhop_r, energy )
    
     CALL get_scp_env(scp_env=scp_env,&
@@ -161,7 +161,7 @@ CONTAINS
     TYPE(scp_energy_type), POINTER           :: energy
     TYPE(scp_rho_type), POINTER              :: rho_scp
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     NULLIFY ( rho_scp, rhop_g, energy )
    
     CALL get_scp_env(scp_env=scp_env,&
@@ -192,7 +192,7 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     v_hartree%pw%cr3d = v_hartree%pw%cr3d + &

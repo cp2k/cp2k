@@ -72,7 +72,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(dimer_env,logger, print_section)
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
 
     CPPostcondition(ASSOCIATED(gopt_env),cp_failure_level,routineP,error,failure)
@@ -206,7 +206,7 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(mat)
     CALL force_env_get(gopt_env%force_env, subsys=subsys, error=error)
@@ -267,7 +267,7 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     idg=0
     CALL force_env_get(gopt_env%force_env, subsys=subsys, error=error)
     CALL cp_subsys_get(subsys, particles=particles, error=error)

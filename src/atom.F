@@ -86,7 +86,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
     NULLIFY(atom_section)
@@ -181,7 +181,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     ! What atom do we calculate
     CALL section_vals_val_get(atom_section,"ATOMIC_NUMBER", i_val=zval, error=error)
@@ -407,7 +407,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     method_section => atom%method_section
     im = atom%method_section_number

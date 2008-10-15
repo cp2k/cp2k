@@ -113,7 +113,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     output_unit = -1
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source

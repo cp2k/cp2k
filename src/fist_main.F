@@ -75,7 +75,7 @@ CONTAINS
     LOGICAL                                  :: myqmmm
     TYPE(fist_environment_type), POINTER     :: fist_env
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     myqmmm=.FALSE.
     IF (PRESENT(qmmm)) THEN
        myqmmm=qmmm

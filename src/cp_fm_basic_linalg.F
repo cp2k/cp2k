@@ -74,7 +74,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     IF (PRESENT(matrix_b)) THEN
@@ -170,7 +170,7 @@ CPSourceFileRef,&
 
 ! *** locals ***
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     a => matrix_a%local_data
     n = matrix_a%matrix_struct%nrow_global
@@ -399,7 +399,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     norm = 0.0_dp
     a => matrix_a%local_data
     size_a = SIZE(a,1)*SIZE(a,2)
@@ -514,7 +514,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     context => matrix_a%matrix_struct%context
     myprow=context%mepos(1)
@@ -567,7 +567,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     context => matrix_a%matrix_struct%context
     myprow=context%mepos(1)
@@ -623,7 +623,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     context => matrix_a%matrix_struct%context
     myprow=context%mepos(1)
@@ -706,7 +706,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   failure=.FALSE.
   
-  CALL timeset(routineN//','//moduleN,"I","",handle)
+  CALL timeset(routineN,handle)
   side_char='L'
   unit_diag='N'
   uplo='U'
@@ -790,7 +790,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(a)
@@ -840,7 +840,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CPPrecondition(nrow_global==ncol_global,cp_failure_level,routineP,error,failure)
     IF (failure) RETURN
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
@@ -911,7 +911,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CPPrecondition(nrow_global==ncol_global,cp_failure_level,routineP,error,failure)
     IF (failure) RETURN
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)

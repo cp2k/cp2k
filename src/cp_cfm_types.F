@@ -212,7 +212,7 @@ CPSourceFileRef,&
     LOGICAL, SAVE                            :: FIRST = .TRUE.
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)

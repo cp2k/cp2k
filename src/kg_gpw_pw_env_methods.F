@@ -164,7 +164,7 @@ CONTAINS
     TYPE(rho_mol_blocks_type), &
       DIMENSION(:), POINTER                  :: rho_mol_blocks
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(cell,cell_ref,cell_mol,dft_control,para_env,particle_set,pw_env)
     NULLIFY(atom_kind,basis_set,fm_mol_blocks, poisson_env)
@@ -889,7 +889,7 @@ CONTAINS
     failure = .FALSE.
     my_rebuild_grids = .FALSE.
     my_rebuild_ao = .FALSE.
-    CALL timeset(routineN,'I',' ',handle)
+    CALL timeset(routineN,handle)
 
     CPPrecondition(kg_sub_pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
 

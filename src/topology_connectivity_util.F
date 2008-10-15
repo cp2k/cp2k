@@ -106,7 +106,7 @@ CONTAINS
     END IF    
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info
     conn_info => topology%conn_info
@@ -118,7 +118,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 1. Set the topology%[nmol_type,nmol,nmol_conn]
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_1",'I','',handle2)
+    CALL timeset(routineN//"_1",handle2)
     natom  = topology%natoms
     topology%nmol      = 1
     topology%nmol_type = 1
@@ -151,7 +151,7 @@ CONTAINS
     ! 1.1 Clean the temporary arrays to avoid quadratic loops around
     !     after this fix all topology_pack will be linear scaling
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_1.1",'I','',handle2)
+    CALL timeset(routineN//"_1.1",handle2)
     istart_mol = map_atom_mol (1)
     istart_typ = map_atom_type(1)
     DO i = 2, natom
@@ -167,7 +167,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 2. Allocate the molecule_kind_set
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_2",'I','',handle2)
+    CALL timeset(routineN//"_2",handle2)
     IF(topology%nmol_type <= 0) THEN
        CALL stop_program("topology_connectivity_pack","no molecule kind defined")
     ELSE
@@ -182,7 +182,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 3. Allocate the molecule_set
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_3",'I','',handle2)
+    CALL timeset(routineN//"_3",handle2)
     IF(topology%nmol <= 0) THEN
        CALL stop_program("topology_connectivity_pack","no molecule defined")
     ELSE
@@ -197,7 +197,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 4. Set the molecule_kind_set%[kind_number,name,nsgf,nelectron]
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_4",'I','',handle2)
+    CALL timeset(routineN//"_4",handle2)
     natom  = topology%natoms
     ikind  = -1
     DO i = 1, natom
@@ -220,7 +220,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 5. Set the molecule_list for molecule_kind in molecule_kind_set
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_5",'I','',handle2)
+    CALL timeset(routineN//"_5",handle2)
     natom   = topology%natoms
     ikind   = map_atom_type(1)
     imol    = ABS(map_atom_mol(1))
@@ -273,7 +273,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 6. Set the molecule_set(imol)%molecule_kind via set_molecule
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_6",'I','',handle2)
+    CALL timeset(routineN//"_6",handle2)
     DO ikind=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(ikind)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -292,7 +292,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(last_list(SIZE(molecule_set)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timeset(routineN//"_7",'I','',handle2)
+    CALL timeset(routineN//"_7",handle2)
     first_list(:) = 0
     last_list (:) = 0
     ityp=atom_info%map_mol_typ(1)
@@ -322,7 +322,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 8. Set and NULLIFY the molecule_set(imol)%lmi via set_molecule_set
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_8",'I','',handle2)
+    CALL timeset(routineN//"_8",handle2)
     DO imol=1,SIZE(molecule_set)
        molecule => molecule_set(imol)
        NULLIFY(lmi)
@@ -337,7 +337,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 9. Set the atom_list for molecule_kind in molecule_kind_set (PART 1)
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_9",'I','',handle2)
+    CALL timeset(routineN//"_9",handle2)
     counter = 0
     DO imol=1,SIZE(molecule_set)
        molecule => molecule_set(imol)
@@ -367,7 +367,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 10. Set the molecule_kind%[nbond,bond_list] via set_molecule_kind
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_10",'I','',handle2)
+    CALL timeset(routineN//"_10",handle2)
     ! First map bonds on molecules
     nvar1 = 0
     nvar2 = 0
@@ -498,7 +498,7 @@ CONTAINS
     ! 11. Set the molecule_kind%[nbend,bend_list] via set_molecule_kind
     !-----------------------------------------------------------------------------
     ! Allocate c_var_a, c_var_b, c_var_c, c_var_type
-    CALL timeset(routineN//"_11_pre",'I','',handle2)
+    CALL timeset(routineN//"_11_pre",handle2)
     idim = 0
     ALLOCATE(c_var_a(idim),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -543,7 +543,7 @@ CONTAINS
        END DO
     END IF
     CALL timestop(0.0_dp,handle2)
-    CALL timeset(routineN//"_11",'I','',handle2)
+    CALL timeset(routineN//"_11",handle2)
     ! map bends on molecules
     nvar1 = 0
     nvar2 = 0
@@ -679,7 +679,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 12. Set the molecule_kind%[nub,ub_list] via set_molecule_kind
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_12_pre",'I','',handle2)
+    CALL timeset(routineN//"_12_pre",handle2)
     idim = 0
     ALLOCATE(c_var_a(idim),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -713,7 +713,7 @@ CONTAINS
        END DO
     END IF
     CALL timestop(0.0_dp,handle2)
-    CALL timeset(routineN//"_12",'I','',handle2)
+    CALL timeset(routineN//"_12",handle2)
     ! map UBs on molecules
     nvar1 = 0
     nvar2 = 0
@@ -838,7 +838,7 @@ CONTAINS
     ! 13. Set the molecule_kind%[ntorsion,torsion_list] via set_molecule_kind
     !-----------------------------------------------------------------------------
     ! Allocate c_var_a, c_var_b, c_var_c, c_var_d, c_var_type
-    CALL timeset(routineN//"_13_pre",'I','',handle2)
+    CALL timeset(routineN//"_13_pre",handle2)
     idim = 0
     ALLOCATE(c_var_a(idim),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -889,7 +889,7 @@ CONTAINS
        END DO
     END IF
     CALL timestop(0.0_dp,handle2)
-    CALL timeset(routineN//"_13",'I','',handle2)
+    CALL timeset(routineN//"_13",handle2)
     ! map torsions on molecules
     nvar1 = 0
     nvar2 = 0
@@ -1035,7 +1035,7 @@ CONTAINS
     ! 14. Set the molecule_kind%[nimpr,impr_list] via set_molecule_kind
     !-----------------------------------------------------------------------------
     ! Allocate c_var_a, c_var_b, c_var_c, c_var_d, c_var_type
-    CALL timeset(routineN//"_14_pre",'I','',handle2)
+    CALL timeset(routineN//"_14_pre",handle2)
     idim = 0
     ALLOCATE(c_var_a(idim),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1086,7 +1086,7 @@ CONTAINS
        END DO
     END IF
     CALL timestop(0.0_dp,handle2)
-    CALL timeset(routineN//"_14",'I','',handle2)
+    CALL timeset(routineN//"_14",handle2)
     ! map imprs on molecules
     nvar1 = 0
     nvar2 = 0
@@ -1231,7 +1231,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 15. Set the molecule_kind%[nonfo,onfo_list] via set_molecule_kind
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_15",'I','',handle2)
+    CALL timeset(routineN//"_15",handle2)
     ! First map onfos on molecules
     nvar1 = 0
     NULLIFY(map_vars, bnd_type)

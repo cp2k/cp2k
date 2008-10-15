@@ -184,7 +184,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
 ! nullify some pointers
       NULLIFY(moves,move_updates,test_moves)

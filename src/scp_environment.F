@@ -68,7 +68,7 @@ CONTAINS
     TYPE(scp_force_type), POINTER            :: force( : )
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     ! Nullifying  pointers

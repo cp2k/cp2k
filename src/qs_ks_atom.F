@@ -123,7 +123,7 @@ CONTAINS
     TYPE(rho_atom_type), POINTER             :: rho_at
     TYPE(virial_type), POINTER               :: virial
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,force,oce,para_env,rho_atom,sab_orb)
     NULLIFY(mat_h, mat_p ,orb_basis, reduced_3c_oce)

@@ -159,7 +159,7 @@ CONTAINS
     INTEGER                                  :: handle, i, nblock, nspin
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     ! here we get the numbers for charges
     nspin=SIZE(mos)

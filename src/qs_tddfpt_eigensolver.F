@@ -77,7 +77,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ievals
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(logger)
     failure   = .FALSE.
@@ -193,7 +193,7 @@ CONTAINS
     failure   = .FALSE.
     res       = .FALSE.
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(ao_mo_fm_pools, X, R, b, Ab, Sb, tddfpt_control, logger, &
             tilde_fm_struct, Atilde%matrix, Us%matrix)
@@ -538,7 +538,7 @@ CONTAINS
     INTEGER                                  :: handle, nspins, spin
     INTEGER, SAVE                            :: counter = 0
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     counter = counter + 1
 

@@ -100,7 +100,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     ecore = 0.0_dp
 
@@ -216,7 +216,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
@@ -774,7 +774,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&

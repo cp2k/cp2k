@@ -150,7 +150,7 @@ CONTAINS
 
 !   ----------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     use_virial=.FALSE.
@@ -408,7 +408,7 @@ CONTAINS
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
 
-    CALL timeset ( routineN, 'I', ' ', handle )
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -601,7 +601,7 @@ CONTAINS
 
 !   ----------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     nmat = SIZE(gmcharge,2)
 

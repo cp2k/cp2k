@@ -90,7 +90,7 @@ CONTAINS
 
     IF ( virial % pv_availability ) THEN
 
-       CALL timeset (routineN, 'E', 'Mflops', handle )
+       CALL timeset (routineN, 'I', 'Mflops', handle )
 
        NULLIFY(atomic_kind)
        mfl = 0.0_dp

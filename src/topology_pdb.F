@@ -97,7 +97,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PDB_INFO",&
          extension=".subsysLog",error=error)    
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info
     CALL reallocate(atom_info%label_molname,1,nblock_atom)
@@ -245,7 +245,7 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PDB_INFO",&
          extension=".subsysLog",error=error)    
     print_key => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%DUMP_PDB",error=error) 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info
     record = cp_print_key_generate_filename(logger,print_key,&

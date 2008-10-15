@@ -436,7 +436,7 @@ CONTAINS
     INTEGER                                  :: i, n_spins, spin, time_handle
     REAL(DP)                                 :: dot_product, tmp
 
-    CALL timeset(routineN,"I","",time_handle)
+    CALL timeset(routineN,time_handle)
 
     IF (n>0) THEN
 

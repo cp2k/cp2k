@@ -87,7 +87,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     para_env=>kg_env%para_env
     group = para_env%group
     ionode = para_env%ionode

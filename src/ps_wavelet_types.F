@@ -94,7 +94,7 @@ CONTAINS
     REAL(KIND=dp)                            :: hx, hy, hz
     TYPE(section_vals_type), POINTER         :: ps_wavelet_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL cite_reference(Genovese2006)
     CALL cite_reference(Genovese2007)
@@ -202,7 +202,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: hx, hy, hz
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     nproc=PRODUCT(pw_grid % para % rs_dims)
     iproc= pw_grid % para % rs_mpo
     geocode=wavelet%geocode
@@ -260,7 +260,7 @@ CONTAINS
     REAL(KIND=dp)                            :: max_val_low, max_val_up
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(wavelet),cp_failure_level,routineP,error,failure)
@@ -563,7 +563,7 @@ CONTAINS
                                                 nz
     REAL(KIND=dp)                            :: hx, hy, hz
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     nproc=PRODUCT(pw_grid % para % rs_dims)
     iproc= pw_grid % para % rs_mpo
     geocode=wavelet%geocode

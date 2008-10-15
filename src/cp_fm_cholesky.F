@@ -55,7 +55,7 @@ CONTAINS
     LOGICAL                                  :: failure, ionode
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     my_n = MIN(matrix%matrix_struct%nrow_global,&
@@ -106,7 +106,7 @@ CONTAINS
     INTEGER, DIMENSION(9)                     :: desca
     LOGICAL                                   :: failure
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     my_n = MIN(matrix%matrix_struct%nrow_global,&
@@ -163,7 +163,7 @@ CONTAINS
     REAL(KIND = dp)                                  :: scale
     LOGICAL                                   :: failure
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     n = matrix%matrix_struct%nrow_global
@@ -226,7 +226,7 @@ CPSourceFileRef,&
     TYPE(cp_blacs_env_type), POINTER          :: context
     CHARACTER                                 :: chol_pos,chol_transa
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     context => matrix%matrix_struct%context

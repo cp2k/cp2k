@@ -61,7 +61,7 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
 
 !-----------------------------------------------------------------------------!
 
-  CALL timeset(routineN,'I',' ',handle)
+  CALL timeset(routineN,handle)
 
   NULLIFY(kg_rspw,auxbas_pw_pool,dft_control)
   failure=.FALSE.

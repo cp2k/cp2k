@@ -1386,7 +1386,7 @@ CONTAINS
                                                 dft_plus_u_section, &
                                                 dft_section, potential_section
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY (elec_conf)
 
@@ -1829,7 +1829,7 @@ CONTAINS
     LOGICAL                                  :: no_fail
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     no_fail = .FALSE.
 

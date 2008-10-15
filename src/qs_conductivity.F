@@ -70,7 +70,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
 ! very much *not* tested and most likely to be wrong
 ! the core is present
 
-   CALL timeset(routineN,"I","",handle)
+   CALL timeset(routineN,handle)
 
    IF (SIZE(matrix_s).lt.4) CALL stop_program("optical_conductivity","where is the derivative ?")
 

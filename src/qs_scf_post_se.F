@@ -173,7 +173,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input, loc_print_key, &
                                                 print_key
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     ! Writes the data that is already available in qs_env
     para_env=>qs_env%para_env

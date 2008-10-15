@@ -269,7 +269,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     smear = .FALSE.
@@ -387,7 +387,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(pmat),cp_failure_level,routineP,error,failure)
@@ -461,7 +461,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 

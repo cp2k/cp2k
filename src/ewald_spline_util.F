@@ -151,7 +151,7 @@ CONTAINS
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(section_vals_type), POINTER         :: interp_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     n1  = grid%pw_grid%npts(1)
     n2  = grid%pw_grid%npts(2)
     n3  = grid%pw_grid%npts(3)
@@ -266,7 +266,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,param_section,"check_spline",&
          extension="."//TRIM(tag)//"Log",error=error)
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (iw > 0) THEN
        npoints   = 100
        errf      = 0.0_dp

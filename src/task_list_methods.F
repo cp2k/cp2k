@@ -1911,7 +1911,7 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
 
-  CALL timeset(routineN,'I',' ',handle)
+  CALL timeset(routineN,handle)
 
   ! allocate local arrays
   ALLOCATE(send_sizes(rs%group_size),STAT=stat)

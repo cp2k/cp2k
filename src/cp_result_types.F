@@ -103,7 +103,7 @@ CONTAINS
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     ALLOCATE(results, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -133,7 +133,7 @@ CONTAINS
     INTEGER                                  :: handle, i, stat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I",'',handle)    
+    CALL timeset(routineN,handle)    
     failure=.FALSE.
     IF(ASSOCIATED(results))THEN
        CPPrecondition(results%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -173,7 +173,7 @@ CONTAINS
     INTEGER                                  :: handle, i, stat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I",'',handle)    
+    CALL timeset(routineN,handle)    
     failure=.FALSE.
     IF(ASSOCIATED(results))THEN
        ! Description
@@ -230,7 +230,7 @@ CONTAINS
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     ALLOCATE(value, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -256,7 +256,7 @@ CONTAINS
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     CPPostcondition(ASSOCIATED(value),cp_failure_level,routineP,error,failure)
     value%type_in_use = type_in_use
@@ -291,7 +291,7 @@ CONTAINS
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     IF (ASSOCIATED(value)) THEN
        SELECT CASE(value%type_in_use)
@@ -340,7 +340,7 @@ CONTAINS
     INTEGER                                  :: handle, i, ndim, stat
     LOGICAL                                  :: check, failure
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     CPPostcondition(ASSOCIATED(results_in),cp_failure_level,routineP,error,failure)
     CPPostcondition(ASSOCIATED(results_out),cp_failure_level,routineP,error,failure)
@@ -376,7 +376,7 @@ CONTAINS
     INTEGER                                  :: handle, isize, stat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     CPPostcondition(ASSOCIATED(value_in),cp_failure_level,routineP,error,failure)
     CPPostcondition(ASSOCIATED(value_out),cp_failure_level,routineP,error,failure)
@@ -423,7 +423,7 @@ CONTAINS
     TYPE(cp_result_value_p_type), &
       DIMENSION(:), POINTER                  :: tmp_value
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     ub_size  = 0
     lb_size  = 0

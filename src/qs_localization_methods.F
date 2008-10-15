@@ -92,7 +92,7 @@ CONTAINS
 
 !,f2_thresh=1.0E-5_dp
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(logger,CTmp,U,G,Gp1,Gp2,context,para_env,fm_struct_k_k)
 
@@ -282,7 +282,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: c_rmat
     TYPE(cp_fm_type), POINTER                :: rmat
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     dim2 = SIZE(zij,2)
     NULLIFY(rmat,c_rmat,c_zij)
@@ -644,7 +644,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: cmat_A, cmat_R, cmat_t1
     TYPE(cp_fm_type), POINTER                :: mat_R, mat_t, mat_U
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(row_indices,col_indices)
     NULLIFY(mat_U,mat_t,mat_R)
     NULLIFY(cmat_A,cmat_R,cmat_t1)
@@ -816,7 +816,7 @@ CONTAINS
     NULLIFY(matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old)
     NULLIFY(cmat_A,cmat_U,cmat_R,cmat_t1,cmat_t2,cmat_B,cmat_M)
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     n = zij(1,1)%matrix%matrix_struct%nrow_global
     ALLOCATE(evals(n),evals_exp(n),diag_z(n,3),fval(n),fvald(n))
     ALLOCATE(c_zij(SIZE(zij,2)))

@@ -163,7 +163,7 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 

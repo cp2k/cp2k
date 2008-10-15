@@ -94,7 +94,7 @@ CONTAINS
 #endif
     !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     my_beta=0._dp
     my_alpha=1._dp
@@ -307,7 +307,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(real_matrix),cp_failure_level,routineP,error,failure)
     IF (failure) RETURN
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     ! info about the full matrix
     group = fm%matrix_struct%para_env%group
@@ -688,7 +688,7 @@ CPSourceFileRef,&
     CPPrecondition(ncol.le.v_out%matrix_struct%ncol_global,cp_failure_level,routineP,error,failure)
     CPPrecondition(ncol.ge.0,cp_failure_level,routineP,error,failure)
     IF (ncol .EQ. 0) RETURN
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     !
     ! para_env of the sparse and the full matrices should be compatible
     !
@@ -855,7 +855,7 @@ CPSourceFileRef,&
 CPSourceFileRef,&
      error)
 #endif
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(ncol_loc)
 
     CPPrecondition(ASSOCIATED(sparse_matrix),cp_failure_level,routineP,error,failure)
@@ -898,7 +898,7 @@ CPSourceFileRef,&
     ALLOCATE(loc_v(ncol_max,nrow_global))
 
     ! do the actual scalapack to cols reordering
-    CALL timeset(routineN,"I","",handle2)
+    CALL timeset(routineN,handle2)
     CALL pdgemr2d(nrow_global,my_ncol,matrix_v%local_data(1,1),1,col1, &
          matrix_v%matrix_struct%descriptor, &
          newdat(1,1),1,1,desc,ictxt_loc)
@@ -912,7 +912,7 @@ CPSourceFileRef,&
     IF (g_present) THEN
        ALLOCATE(loc_g(ncol_max,nrow_global))
        ! do the actual scalapack to cols reordering
-       CALL timeset(routineN,"I","",handle2)
+       CALL timeset(routineN,handle2)
        CALL pdgemr2d(nrow_global,my_ncol,matrix_g%local_data(1,1),1,col1, &
             matrix_g%matrix_struct%descriptor, &
             newdat(1,1),1,1,desc,ictxt_loc)
@@ -1816,7 +1816,7 @@ CPSourceFileRef,&
     INTEGER, EXTERNAL :: indxg2p
 #endif
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(fm_row_indices, fm_col_indices,&
          sm_last_row, sm_first_row, sm_first_col,sm_last_col,&
@@ -2010,7 +2010,7 @@ CPSourceFileRef,&
        END DO
     END DO
 
-    CALL timeset(routineN//"_c","I","",handle1)
+    CALL timeset(routineN//"_c",handle1)
     CALL mp_alltoall( sb=f2c_send_count, rb=f2c_recv_count, count=1, group=fm_para_env%group )
     CALL timestop(0.0_dp,handle1)
 
@@ -2077,7 +2077,7 @@ CPSourceFileRef,&
     INTEGER, EXTERNAL :: indxg2p
 #endif
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(junk_of_col, ncol_local_of_junk,&
          fm_row_indices, fm_col_indices,&
          gindex_of_junk,ncol_global_of_junk,&
@@ -2224,7 +2224,7 @@ CPSourceFileRef,&
        send_offsets(ip)=send_offsets(ip-1)+send_count(ip-1)
     END DO
 
-    CALL timeset(routineN//"_all2all","I","",handle2)
+    CALL timeset(routineN//"_all2all",handle2)
     CALL mp_alltoall( sb=send_buffer, scount=send_count, sdispl=send_offsets,&
          rb=rcv_buffer, rcount=rcv_count, rdispl=rcv_offsets, &
          group=fm_para_env%group )
@@ -2353,7 +2353,7 @@ CPSourceFileRef,&
     INTEGER, EXTERNAL :: indxg2p
 #endif
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(sm),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
 #ifndef __SCALAPACK
@@ -2513,7 +2513,7 @@ CPSourceFileRef,&
     END DO
     CPPostcondition(ALL(send_c==0),cp_failure_level,routineP,error,failure)
 
-    CALL timeset(routineN//"_all2all","I","",handle1)
+    CALL timeset(routineN//"_all2all",handle1)
     CALL mp_alltoall( sb=send_buffer, scount=send_count, sdispl=send_offsets,&
          rb=rcv_buffer, rcount=rcv_count, rdispl=rcv_offsets, &
          group=fm_para_env%group )

@@ -80,7 +80,7 @@ CONTAINS
       DIMENSION(:, :)                        :: Rot, Tr
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(particles),cp_failure_level,routineP,error,failure)

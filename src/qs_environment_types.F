@@ -1554,7 +1554,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools)
-    CALL timeset(routineN,'I',' ',handle)
+    CALL timeset(routineN,handle)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(v_matrix),cp_failure_level,routineP,error,failure)

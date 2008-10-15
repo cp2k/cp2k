@@ -926,7 +926,7 @@ CONTAINS
     INTEGER                                  :: handle, idir, istat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -1043,7 +1043,7 @@ CONTAINS
     INTEGER                                  :: handle, i, istat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(jrho1_atom_set),cp_failure_level,routineP,error,failure)
     IF(.NOT.failure) THEN
@@ -1092,7 +1092,7 @@ CONTAINS
     INTEGER                                  :: handle, i, istat
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(jrho1_atom_set),cp_failure_level,routineP,error,failure)
     IF(.NOT.failure) THEN
@@ -1176,7 +1176,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -1355,7 +1355,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 

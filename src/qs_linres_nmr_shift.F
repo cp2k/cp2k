@@ -126,7 +126,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     failure = .FALSE.
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(chemical_shift,chemical_shift_loc,chemical_shift_nics,chemical_shift_nics_loc,&
          &  cell,dft_control,pw_env,auxbas_rs_pool,auxbas_pw_pool,rho_gspace,rho_rspace,&
@@ -288,7 +288,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     !
     failure =.FALSE.
     NULLIFY(atomic_kind_set,cell,dft_control,para_env,particle_set,&
@@ -645,7 +645,7 @@ CONTAINS
 
     failure = .FALSE.
     !
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     !
     NULLIFY(cs_atom_list,chemical_shift,chemical_shift_nics,r_nics)
     CPPrecondition(ASSOCIATED(shift_pw_gspace%pw),cp_failure_level,routineP,error,failure)

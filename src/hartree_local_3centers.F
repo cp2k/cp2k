@@ -228,7 +228,7 @@ CONTAINS
     maxder = 0
     IF (calculate_forces) THEN
 
-       CALL timeset(routineN//" (forces)","I"," ",handle)
+       CALL timeset(routineN//" (forces)",handle)
 
        ALLOCATE (atom_of_kind(natom),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -243,7 +243,7 @@ CONTAINS
        maxlgto1 = maxlgto + maxder
     ELSE
 
-       CALL timeset(routineN,"I"," ",handle)
+       CALL timeset(routineN,handle)
 
        maxlgto1 = maxlgto
     END IF
@@ -1097,7 +1097,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     nch0 = ncoset(l0_max)
 
     IF(maxder > 0) THEN

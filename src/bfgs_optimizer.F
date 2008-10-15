@@ -93,7 +93,7 @@ CONTAINS
     para_env     => force_env%para_env
     root_section => force_env%root_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     ionode      = para_env%mepos==para_env%source
     maxiter     = gopt_param%max_iter
     conv        = .FALSE.
@@ -214,7 +214,7 @@ CONTAINS
           CALL bfgs(ndf,dx,dg,hes,work)
 
           !Possibly dump the Hessian file
-          CALL timeset(routineN//"hes2disk","I","",handle2)
+          CALL timeset(routineN//"hes2disk",handle2)
           hesunit = cp_print_key_unit_nr(logger,geo_section,"BFGS%RESTART",&
                extension=".Hessian",file_form="UNFORMATTED",file_action="WRITE",&
                file_position="REWIND",error=error)

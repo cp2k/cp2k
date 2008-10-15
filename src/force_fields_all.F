@@ -137,7 +137,7 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
 
     failure = .FALSE.
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -241,7 +241,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -354,7 +354,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -461,7 +461,7 @@ CONTAINS
       POINTER                                :: torsion_list
 
     failure = .FALSE.
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -585,7 +585,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -708,7 +708,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -805,7 +805,7 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
 
     failure = .FALSE.
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
 
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -943,7 +943,7 @@ CPSourceFileRef,&
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     failure = .FALSE.
 
     DO i=1,SIZE(molecule_kind_set)
@@ -1097,7 +1097,7 @@ CPSourceFileRef,&
 
     failure = .FALSE.
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -1239,7 +1239,7 @@ CPSourceFileRef,&
     TYPE(torsion_type), DIMENSION(:), &
       POINTER                                :: torsion_list
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     failure = .FALSE.
 
     DO i=1,SIZE(molecule_kind_set)
@@ -1452,7 +1452,7 @@ CPSourceFileRef,&
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     failure = .FALSE.
 
     DO i=1,SIZE(molecule_kind_set)
@@ -1643,7 +1643,7 @@ CPSourceFileRef,&
 
     failure = .FALSE.
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     chrg_tot = 0.0_dp
     ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1815,7 +1815,7 @@ CPSourceFileRef,&
 
     failure = .FALSE.
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     nshell_tot = 0
     n = 0
     first_shell = 1
@@ -2016,7 +2016,7 @@ CPSourceFileRef,&
     use_qmmm_ff = qmmm_env%use_qmmm_ff
     allocate_spline_bond_env = .FALSE.
     NULLIFY(pot)
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     CALL pair_potential_pp_create (potparm_bond, SIZE(atomic_kind_set), error)
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
@@ -2282,7 +2282,7 @@ CPSourceFileRef,&
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(onfo_type), DIMENSION(:), POINTER   :: onfo_list
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     failure = .FALSE.
 
     DO i=1,SIZE(molecule_kind_set)
@@ -2360,7 +2360,7 @@ CPSourceFileRef,&
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     failure = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
     NULLIFY(pot)
@@ -2577,7 +2577,7 @@ CPSourceFileRef,&
     INTEGER                                  :: handle2
     LOGICAL                                  :: failure, shell_present
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     failure = .FALSE.
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_present=shell_present)
     IF(shell_present) THEN
@@ -2630,7 +2630,7 @@ CPSourceFileRef,&
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
 
-    CALL timeset(routineN,'I','',handle2)
+    CALL timeset(routineN,handle2)
     failure = .FALSE.
 
     nkinds = SIZE(atomic_kind_set)

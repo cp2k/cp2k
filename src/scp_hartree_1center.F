@@ -139,7 +139,7 @@ CONTAINS
          maxco=maxco_global,maxlgto=maxlgto,&
          maxsgf_set=maxsgf_set)
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     !   Allocated diagonal matricies
     CALL allocate_matrix_set(diagmat_ks,nspins,error=error)
@@ -607,7 +607,7 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          maxco=maxco_global,maxlgto=maxlgto)
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     ALLOCATE (work (maxco_global,1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -804,7 +804,7 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          maxco=maxco_global,maxlgto=maxlgto)
 
-    CALL timeset(routineN,'I',' ',handle)
+    CALL timeset(routineN,handle)
 
     ALLOCATE (zetcore ( 1 ),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&

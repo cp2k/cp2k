@@ -124,7 +124,7 @@ CONTAINS
       POINTER                                :: op_p_ao, op_rmd_ao
     TYPE(section_vals_type), POINTER         :: lr_section
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 

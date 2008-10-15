@@ -128,7 +128,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) THEN
       output_unit= cp_logger_get_default_unit_nr(logger)
@@ -1059,7 +1059,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     
     atom_info => topology%atom_info
     natom = topology%natoms
@@ -1157,7 +1157,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info
     conn_info => topology%conn_info

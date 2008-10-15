@@ -149,7 +149,7 @@ ELSE
                                                 e_rho_rho_rho, r13, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(bo)
     
@@ -228,7 +228,7 @@ ELSE
     TYPE(cp_3d_r_p_type), DIMENSION(2)       :: rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(deriv, bo)
     DO i=1,2

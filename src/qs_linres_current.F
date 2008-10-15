@@ -220,7 +220,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: current_section
 
     failure = .FALSE.
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     !
     NULLIFY(rho_rspace,rho_gspace,logger,current_section,density_matrix0,density_matrix,&
          &  density_matrix_ii,density_matrix_iii,cell,dft_control,mos,rho_struct,particle_set,&
@@ -739,7 +739,7 @@ CONTAINS
 
     !    debug_count=debug_count+1
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
@@ -1292,7 +1292,7 @@ CONTAINS
 
     failure = .FALSE.
     !
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     !
     NULLIFY(dft_control,matrix_s,mos,para_env,mo_coeff,occupation,op_mom_ao,&
          &  op_mom_der_ao,center_list,centers_set,psi0_istate,psi_rxp_istate,&

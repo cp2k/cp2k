@@ -105,7 +105,7 @@ END SUBROUTINE kg_rho_retain
 
 !---------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
   failure=.FALSE.
   IF (ASSOCIATED(kg_rho)) THEN
     CPPrecondition(kg_rho%ref_count>0,cp_failure_level,routineP,error,failure)

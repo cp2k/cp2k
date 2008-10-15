@@ -220,7 +220,7 @@ CONTAINS
             first_sgfa, pab, work)
     NULLIFY(gridlevel_info, rs_pools, pw_pools, mgrid_gspace, mgrid_rspace)
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
 
@@ -391,7 +391,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
          atom_list,pw_env,rs_rho,auxbas_rs_pool,auxbas_pw_pool,cores)
     ALLOCATE(pab(1,1),STAT=ierr)
@@ -589,10 +589,10 @@ CONTAINS
     ENDIF
 
     IF (my_compute_tau) THEN
-       CALL timeset(routineN,"I"," ",handle)
+       CALL timeset(routineN,handle)
        ga_gb_function = FUNC_DADB
     ELSE
-       CALL timeset(routineN,"I"," ",handle)
+       CALL timeset(routineN,handle)
        ga_gb_function = FUNC_AB
     ENDIF
 
@@ -1989,7 +1989,7 @@ CONTAINS
                                                 rbp, rp
     REAL(dp), DIMENSION(:), POINTER          :: g
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     dg(:) = twopi/(pw%pw_grid%npts(:)*pw%pw_grid%dr(:))
 

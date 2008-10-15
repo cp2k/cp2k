@@ -1315,7 +1315,7 @@ CPSourceFileRef,&
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(gromos_info_type), POINTER          :: gro_info
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(logger,parser)
     logger => cp_error_get_logger(error)
@@ -1588,7 +1588,7 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(logger,parser)
     logger => cp_error_get_logger(error)
@@ -1980,7 +1980,7 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)

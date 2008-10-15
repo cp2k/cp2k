@@ -337,7 +337,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (ASSOCIATED(rep_env)) THEN
        CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
        rep_env%ref_count=rep_env%ref_count-1
@@ -412,7 +412,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -442,7 +442,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (ASSOCIATED(rep_env)) THEN
        WRITE(unit_nr,"('<replica_env, id_nr=',i6,' ref_count=',i6,'> sync_v=',l1,',')")&
             rep_env%id_nr,rep_env%ref_count, rep_env%sync_v
@@ -506,7 +506,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(vals,2)==rep_env%nrep,cp_failure_level,routineP,error,failure)
@@ -543,7 +543,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     nrep=rep_env%nrep
     CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -584,7 +584,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN

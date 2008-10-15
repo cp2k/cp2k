@@ -127,7 +127,7 @@ CONTAINS
       spline_c_coul_env, spline_cs_coul_env, spline_nonbond_env, &
       spline_sc_coul_env
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     fatal   = .FALSE.
     NULLIFY(logger, Ainfo)
@@ -379,7 +379,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -482,7 +482,7 @@ CONTAINS
       POINTER                                :: new_ub_kind_set, ub_kind_set
     TYPE(ub_type), DIMENSION(:), POINTER     :: new_ub_list, ub_list
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)

@@ -369,7 +369,7 @@ SUBROUTINE sm_struct_add_sm_local_blocks(sm_struct,matrix,error)
 
   failure=.FALSE.
   
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
   CPPrecondition(ASSOCIATED(sm_struct),cp_failure_level,routineP,error,failure)
   CPPrecondition(sm_struct%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)

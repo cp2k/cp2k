@@ -48,7 +48,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rwork
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(eigenvectors),cp_failure_level,routineP,error,failure)

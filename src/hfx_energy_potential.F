@@ -208,7 +208,7 @@ MODULE hfx_energy_potential
 
 
     CALL mp_sync(para_env%group)
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     CALL cite_reference(Guidon2008)
 

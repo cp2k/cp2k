@@ -748,7 +748,7 @@ END SUBROUTINE kg_calculate_forces
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)

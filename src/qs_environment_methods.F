@@ -236,7 +236,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       POINTER                                :: matrix_ks, matrix_ks_aux_fit
     TYPE(task_list_type), POINTER            :: task_list
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(para_env, dft_control,particle_set)
 

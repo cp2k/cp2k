@@ -80,7 +80,7 @@ CONTAINS
     REAL(KIND=dp)                            :: drho_cutoff
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     my_only_energy = .FALSE.
     IF(PRESENT(energy_only)) my_only_energy=energy_only
@@ -316,7 +316,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: xc_fun_section
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
 
     nspins = SIZE(vxc,3)

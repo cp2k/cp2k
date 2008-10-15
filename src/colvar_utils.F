@@ -77,7 +77,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(subsys, molecules, molecule_kind, molecule, molecule_set, gci)
-    CALL timeset ( routineN, 'I', ' ', handle )
+    CALL timeset(routineN,handle)
     skip_inter_colvar = .FALSE.
     my_unique         = .FALSE.
     IF (PRESENT(only_intra_colvar)) skip_inter_colvar = only_intra_colvar
@@ -143,7 +143,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(cell, subsys, molecule_kinds, molecule_kind, gci, colv_list)
-    CALL timeset ( routineN, 'I', ' ', handle )
+    CALL timeset(routineN,handle)
     IF (.NOT. failure) THEN
        CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell, error=error)
        CALL cp_subsys_get(subsys=subsys, gci=gci, molecule_kinds_new=molecule_kinds,&
@@ -225,7 +225,7 @@ CONTAINS
        CPPrecondition(check, cp_failure_level, routineP, error, failure)
        Bmatrix = 0.0_dp
     END IF
-    CALL timeset ( routineN, 'I', ' ', handle )
+    CALL timeset(routineN,handle)
     IF (.NOT. failure) THEN
        ALLOCATE(map(SIZE(cvalues)), stat=stat)
        CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)

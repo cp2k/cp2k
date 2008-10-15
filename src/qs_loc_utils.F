@@ -337,7 +337,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -558,7 +558,7 @@ CONTAINS
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY (atomic_kind, atomic_kind_set)

@@ -82,7 +82,7 @@ CONTAINS
     TYPE(molsym_type), POINTER               :: mol_sym
     TYPE(section_vals_type), POINTER         :: section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY (logger)
     NULLIFY (section)

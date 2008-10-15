@@ -46,7 +46,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     myprow=matrix_a%matrix_struct%context%mepos(1)
     mypcol=matrix_a%matrix_struct%context%mepos(2)
@@ -92,7 +92,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     my_beta=CMPLX(0.0_dp,0.0_dp,dp)
@@ -188,7 +188,7 @@ CPSourceFileRef,&
 
 ! *** locals ***
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     a => matrix_a%local_data
     n = matrix_a%matrix_struct%nrow_global

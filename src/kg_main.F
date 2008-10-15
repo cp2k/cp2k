@@ -61,7 +61,7 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     CALL cite_reference(Iannuzzi2006)
     failure=.FALSE.
     CALL kg_env_create(kg_env,para_env=para_env,error=error)

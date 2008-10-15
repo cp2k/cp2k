@@ -114,7 +114,7 @@ MODULE qs_rho_atom_methods
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(orb_basis)
@@ -430,7 +430,7 @@ MODULE qs_rho_atom_methods
 
 !
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(dft_control)
     NULLIFY(atomic_kind_set)
@@ -788,7 +788,7 @@ MODULE qs_rho_atom_methods
 
 ! -----------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(rho_atom_set)
     NULLIFY(atomic_kind_set)
@@ -992,7 +992,7 @@ MODULE qs_rho_atom_methods
 
 ! --------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set)
     NULLIFY(rho_atom_set)
@@ -1127,7 +1127,7 @@ MODULE qs_rho_atom_methods
     INTEGER                                  :: handle, istat, j
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
 !    CPPrecondition(ASSOCIATED(rho_atom),cp_failure_level,routineP,error,failure)
 !    IF(.NOT. failure) THEN

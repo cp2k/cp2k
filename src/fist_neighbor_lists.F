@@ -114,7 +114,7 @@ CONTAINS
       DIMENSION(:)                           :: atom
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
@@ -297,7 +297,7 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell_a, subcell_b
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     nkind = SIZE(atom)
     nsubcell = 1
@@ -785,7 +785,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(neighbor_kind_pair)
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     max_alloc_size = nkinds*(nkinds+1)/2
     ALLOCATE(indj(max_alloc_size),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

@@ -94,7 +94,7 @@ CONTAINS
     NULLIFY(cell, subsys, local_molecules, local_particles, fixd_list, molecule_kinds,&
          molecules, molecule_kind, molecule_kind_set, molecule, molecule_set, particles,&
          particle_set, gci)
-    CALL timeset ( routineN, 'I', ' ', handle )
+    CALL timeset(routineN,handle)
     IF (.NOT. failure) THEN
        CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
        energy_4x6  = 0.0_dp

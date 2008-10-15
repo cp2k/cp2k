@@ -158,7 +158,7 @@ CONTAINS
                                                 print_key
 
     failure   = .FALSE.
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     !
     NULLIFY(ao_mo_fm_pools, cell, dft_control, linres_control, lr_section, current_section,&
          &  logger, mpools, psi1,h1_psi0, vecbuf_dklxp0, mos, mo_coeff,para_env, &
@@ -544,7 +544,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: current_section, lr_section
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 

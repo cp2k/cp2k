@@ -126,7 +126,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     NULLIFY(cell_section, constraint_section, topology_section)
 
     cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
@@ -301,7 +301,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
          extension=".mmLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     my_qmmm = .FALSE.
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
@@ -368,7 +368,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 2. Check for the element name.. 
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_check_element_name",'I','',handle2)
+    CALL timeset(routineN//"_check_element_name",handle2)
     ! Fix element name
     CALL create_ff_map("AMBER",error)
     CALL create_ff_map("CHARMM",error)
@@ -479,7 +479,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
          extension=".mmLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(global_section)
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
@@ -502,7 +502,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 2. Read in the coordinates from the corresponding locations
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_READ_COORDINATE",'I','',handle2)
+    CALL timeset(routineN//"_READ_COORDINATE",handle2)
     SELECT CASE (topology%coord_type)
     CASE (do_coord_g96)
        CALL read_coordinate_g96 (topology,para_env,subsys_section,error)

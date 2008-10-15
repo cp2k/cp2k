@@ -604,7 +604,7 @@ END FUNCTION rs_grid_locate_rank
 
 !-----------------------------------------------------------------------------!
 
-    CALL timeset(routineN,'I',' ',handle2)
+    CALL timeset(routineN,handle2)
     IF (dir.EQ.rs2pw) dirname="RS2PW"
     IF (dir.EQ.pw2rs) dirname="PW2RS"
     CALL timeset(routineN//"_"//TRIM(dirname)//"_"// TRIM(ADJUSTL(&
@@ -1594,7 +1594,7 @@ SUBROUTINE rs_grid_zero ( rs )
 
 !-----------------------------------------------------------------------------!
 
-   CALL timeset(routineN,'I',' ',handle)
+   CALL timeset(routineN,handle)
    n = SIZE ( rs % r )
    CALL dcopy ( n, 0.0_dp, 0, rs % r, 1 )
    CALL timestop(0.0_dp,handle)

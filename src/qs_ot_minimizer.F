@@ -66,7 +66,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, error)
     LOGICAL                                  :: do_ener, do_ks, do_scp
     REAL(KIND=dp)                            :: tmp
 
-   CALL timeset(routineN,"I","",handle)
+   CALL timeset(routineN,handle)
 
    nspin=SIZE(qs_ot_env)
 

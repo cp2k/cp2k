@@ -149,7 +149,7 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
       e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
   failure=.FALSE.
   NULLIFY(bo)
@@ -762,7 +762,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
       e_ra_rb, e_rb, e_rb_rb, norm_drho, norm_drhoa, norm_drhob, rhoa, rhob
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
   failure=.FALSE.
   NULLIFY(deriv, bo)
 

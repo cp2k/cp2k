@@ -411,7 +411,7 @@ CONTAINS
       POINTER                                :: force
     TYPE(section_vals_type), POINTER         :: dft_section, interp_section
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(aux_basis_set,aux_coeff_set)
     NULLIFY(local_coeffs)
     NULLIFY(rs_v, rs_pools, pw_pools)

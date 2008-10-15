@@ -742,7 +742,7 @@ CONTAINS
     REAL(KIND=dp)                            :: expfactor, norm_fro, norm_gct
     TYPE(cp_fm_type), POINTER                :: C, Gp1, Gp2, GU, U
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     !
     NULLIFY(U,GU,Gp1,Gp2,C)
     !
@@ -834,7 +834,7 @@ CONTAINS
 
     INTEGER                                  :: handle, k, n
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     !
     CALL cp_fm_get_info(C_NEW,nrow_global=n,ncol_global=k,error=error)
     !
@@ -870,7 +870,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: eig, fun
     TYPE(cp_fm_type), POINTER                :: V, W
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     !
     NULLIFY(V,W,eig)
     !
@@ -931,7 +931,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: FT, FY, Y
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     !
     NULLIFY(logger,FY,Y)
     logger => cp_error_get_logger(error)
@@ -1080,7 +1080,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(real_matrix_type), POINTER          :: S
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(S,SC,P,Y,C_NEW,C_OLD,C_TMP,G_OLD,D,logger)
     logger => cp_error_get_logger(error)
     output_unit = cp_logger_get_default_unit_nr(logger)
@@ -1231,7 +1231,7 @@ CONTAINS
     INTEGER                                  :: handle, k, n
     TYPE(cp_fm_type), POINTER                :: C, CHC, G, HC, SC
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(C,SC,HC,CHC,G)
     CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
     !
@@ -1263,7 +1263,7 @@ CONTAINS
 
     INTEGER                                  :: handle, k, n
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
@@ -1316,7 +1316,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: cmat_u, cmat_x
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     CALL cp_fm_get_info(qs_ot_env%rot_mat_x,matrix_struct=fm_struct,nrow_global=k,error=error)
     IF (k/=0) THEN
        CALL cp_cfm_create(cmat_x,fm_struct,"cmat_x",error=error)
@@ -1373,7 +1373,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: cmat_buf1, cmat_buf2
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL cp_fm_get_info(qs_ot_env%rot_mat_u,nrow_global=k,error=error)
     IF (k/=0) THEN
@@ -1483,7 +1483,7 @@ CONTAINS
     INTEGER                                  :: handle, k, n
     TYPE(cp_fm_type), POINTER                :: matrix_kk
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
@@ -1597,7 +1597,7 @@ CONTAINS
     INTEGER                                  :: handle, k, n, ortho_k
     TYPE(cp_fm_type), POINTER                :: matrix_hc_local, matrix_target
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
@@ -1683,7 +1683,7 @@ CONTAINS
 
     INTEGER                                  :: handle, k, n
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
@@ -1754,7 +1754,7 @@ CONTAINS
     REAL(KIND=dp)                            :: cosfactor, sinfactor
     TYPE(cp_fm_type), POINTER                :: matrix_left, matrix_right
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
@@ -1840,7 +1840,7 @@ CONTAINS
     INTEGER                                  :: handle, i, k
     REAL(KIND=dp)                            :: cosfactor, sinfactor
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     ! zeroth order
     CALL cp_fm_set_all(qs_ot_env%matrix_cosp,rzero,rone,error=error)
@@ -1897,7 +1897,7 @@ CONTAINS
     INTEGER                                  :: handle, i, j, k
     REAL(KIND=dp)                            :: a, b
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL cp_fm_get_info(qs_ot_env%matrix_p,nrow_global=k,error=error)
     CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1,error=error)

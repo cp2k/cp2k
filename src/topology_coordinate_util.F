@@ -127,7 +127,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
         
     my_qmmm = .FALSE.
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm=qmmm

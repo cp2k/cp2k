@@ -118,7 +118,7 @@ CONTAINS
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(section_vals_type), POINTER         :: lr_section, prop_section
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     lr_calculation = .FALSE.
     nmr_present = .FALSE.

@@ -155,7 +155,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
       NULLIFY(subsys_bias,particles_bias)
 
@@ -519,7 +519,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
 ! reset the overlap flag
       loverlap=.FALSE.
@@ -1308,7 +1308,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
 ! nullify some pointers
       NULLIFY(particles_old,cell,oldsys,cell_old,cell_test)

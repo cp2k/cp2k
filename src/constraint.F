@@ -109,7 +109,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    CALL timeset ( routineN, 'I', ' ', handle )
+    CALL timeset(routineN,handle)
     nkind = SIZE ( molecule_kind_set )
     DO k = 1, SIZE(pos,2)
        atomic_kind=>particle_set (k) % atomic_kind
@@ -214,7 +214,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    CALL timeset ( routineN, 'I', ' ', handle )
+    CALL timeset(routineN,handle)
     nkind = SIZE ( molecule_kind_set )
     DO k = 1, SIZE(vel,2)
        atomic_kind=>particle_set (k) % atomic_kind
@@ -323,7 +323,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    CALL timeset ( routineN, 'I', ' ', handle )
+    CALL timeset(routineN,handle)
     nkind = SIZE ( molecule_kind_set )
     shake_tol = simpar%shake_tol
     log_unit = simpar%info_constraint
@@ -453,7 +453,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    CALL timeset ( routineN, 'I', ' ', handle )
+    CALL timeset(routineN,handle)
     ! initialize locals
     nkind = SIZE ( molecule_kind_set )
     rattle_tol = simpar%shake_tol
@@ -566,7 +566,7 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
 
     failure = .FALSE.
-    CALL timeset ( routineN, 'I', ' ', handle )
+    CALL timeset(routineN,handle)
     ! Total number of intramolecular constraints (distributed)
     CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
          nconstraint=nconstraint)
@@ -795,7 +795,7 @@ CPSourceFileRef)
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(section_vals_type), POINTER         :: motion_section
 
-    CALL timeset ( routineN, 'I', ' ', handle )
+    CALL timeset(routineN,handle)
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
     nkind = SIZE ( molecule_kind_set )
     do_ext_constraint = (gci%ntot/=0)

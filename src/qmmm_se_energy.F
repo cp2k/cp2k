@@ -104,7 +104,7 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
     TYPE(taper_type), POINTER                :: taper
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
@@ -267,7 +267,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(45)             :: e1b
     TYPE(qmmm_pot_type), POINTER             :: Pot
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     ! Loop Over MM atoms
     ! Loop over Pot stores atoms with the same charge
     MainLoopPot: DO Ipot = 1, SIZE(Potentials)

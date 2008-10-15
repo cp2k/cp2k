@@ -177,7 +177,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
 ! nullify some pointers
       NULLIFY(particles,subsys,molecule_kinds_new,molecule_kind,&
@@ -491,7 +491,7 @@ END SUBROUTINE mc_conformation_change
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
 ! nullify some pointers
       NULLIFY(particles,subsys)
@@ -728,7 +728,7 @@ END SUBROUTINE mc_conformation_change
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
       NULLIFY(rmrot,subsys,particles)
 
@@ -1057,7 +1057,7 @@ END SUBROUTINE mc_conformation_change
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,ionode=ionode,&
@@ -1401,7 +1401,7 @@ END SUBROUTINE mc_conformation_change
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
       
       NULLIFY(rmbond,mc_molecule_info)
 
@@ -1599,7 +1599,7 @@ END SUBROUTINE mc_conformation_change
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
       NULLIFY(bend_list,bond_list,rmangle,mc_molecule_info)
 
@@ -1887,7 +1887,7 @@ END SUBROUTINE mc_conformation_change
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
       NULLIFY(rmdihedral,torsion_list,bond_list,mc_molecule_info)
 
@@ -2143,7 +2143,7 @@ END SUBROUTINE mc_conformation_change
       rdum=1.0_dp
 
 ! begin the timing of the subroutine
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,lbias=lbias,&

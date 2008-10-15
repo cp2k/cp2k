@@ -96,7 +96,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_field_type)                   :: ff_type
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
 

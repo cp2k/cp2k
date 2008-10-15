@@ -87,7 +87,7 @@ END SUBROUTINE scp_rspw_retain
 
 !---------------------------------------------------------------------------
 
-   CALL timeset(routineN,'I','',handle)
+   CALL timeset(routineN,handle)
    failure=.FALSE.
    IF (ASSOCIATED(scp_rspw)) THEN
      CPPrecondition(scp_rspw%ref_count>0,cp_failure_level,routineP,error,failure)

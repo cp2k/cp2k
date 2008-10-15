@@ -54,7 +54,7 @@ CONTAINS
     LOGICAL                                  :: failure, qmmm_index_in_range
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)    
@@ -136,7 +136,7 @@ CONTAINS
     END IF
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        qm_mol_num    = 0
        qm_atom_index => qmmm_env%qm_atom_index

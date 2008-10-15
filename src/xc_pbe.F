@@ -262,7 +262,7 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
       rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
   failure=.FALSE.
   NULLIFY(bo)
@@ -1318,7 +1318,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
       norm_drho, norm_drhoa, norm_drhob, rhoa, rhob
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
   failure=.FALSE.
   NULLIFY(deriv, bo)
 

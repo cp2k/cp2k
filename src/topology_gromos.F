@@ -56,7 +56,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GTOP_INFO",&
          extension=".subsysLog",error=error)
@@ -134,7 +134,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GTOP_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     avail_section( 1) = "TITLE"
     avail_section( 2) = "TOPPHYSCON"
@@ -682,7 +682,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/G96_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info
     IF (iw>0)  WRITE(iw,*) "    Reading in G96 file ",TRIM(topology%coord_file_name)

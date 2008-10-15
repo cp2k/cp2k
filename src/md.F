@@ -896,7 +896,7 @@ CPSourceFileRef,&
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(val_type), POINTER                  :: val
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     ! Initializing parameters
     failure = .FALSE.

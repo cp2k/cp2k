@@ -190,7 +190,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     transition_potential = .FALSE.

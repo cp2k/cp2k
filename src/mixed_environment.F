@@ -100,7 +100,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
                                                 subsys_section
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
 
     NULLIFY ( subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
@@ -186,7 +186,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     NULLIFY ( mixed_energy, local_molecules, local_particles)
     particle_set => subsys % particles % els
     atomic_kind_set => subsys % atomic_kinds % els

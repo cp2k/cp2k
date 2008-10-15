@@ -101,7 +101,7 @@ CONTAINS
       POINTER                                :: pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     CPPreconditionNoFail(.NOT.ASSOCIATED(ks_qmmm_env),cp_failure_level,routineP,error)
@@ -169,7 +169,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_p_type), POINTER                 :: rho0_s_rs
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     NULLIFY(dft_control)
@@ -210,7 +210,7 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     v_hartree%pw%cr3d = v_hartree%pw%cr3d + &

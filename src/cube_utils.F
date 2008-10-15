@@ -180,7 +180,7 @@ CONTAINS
     REAL(KIND=dp)                            :: drmin, dxi, dy2, dyi, dz2, &
                                                 dzi, radius, radius2, rp(3)
 
-    CALL timeset(routineN,"I","",handle) 
+    CALL timeset(routineN,handle) 
     info%dr = dr
     info%dh = dh
     info%dh_inv = dh_inv

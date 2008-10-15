@@ -146,7 +146,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,atomic_kind,cexp,elp_potential,gth_potential)
     NULLIFY(orb_basis_set,particle_set,sac_ppl,set_radius_a,rpgfa,sphi_a,zeta)
@@ -658,7 +658,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,atomic_kind,cexp,elp_potential,gth_potential)
     NULLIFY(aux_basis_set,particle_set,sac_ppl_aux,set_radius_a,rpgfa,sphi_a,zeta)

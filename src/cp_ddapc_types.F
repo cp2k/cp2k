@@ -104,7 +104,7 @@ CONTAINS
                                                 solvation_section
 
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     ALLOCATE(cp_ddapc_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN

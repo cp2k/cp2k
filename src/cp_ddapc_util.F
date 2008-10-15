@@ -99,7 +99,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: density_fit_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure         = .FALSE.
     logger => cp_error_get_logger(error)
     NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
@@ -239,7 +239,7 @@ CONTAINS
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_rho_type), POINTER               :: rho
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure         = .FALSE.
     need_f          = .FALSE.
     IF (PRESENT(calc_force))  need_f      = calc_force    
@@ -345,7 +345,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
        ALLOCATE(cv(ndim), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL timeset(routineN//"-charges","I","",handle2)
+       CALL timeset(routineN//"-charges",handle2)
        bv  = 0.0_dp
        cv  = 1.0_dp/Vol
        CALL build_b_vector(bv, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
@@ -387,7 +387,7 @@ CONTAINS
        ! If requested evaluate also the correction to derivatives due to Pulay Forces
        !
        IF (need_f) THEN 
-          CALL timeset(routineN//"-forces","I","",handle3)
+          CALL timeset(routineN//"-forces",handle3)
           IF (iw>0) THEN
              WRITE(iw,'(T3,A)')" Evaluating DDAPC atomic derivatives .."
           END IF
@@ -512,7 +512,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     TYPE(pw_type), POINTER                   :: g_hartree
 
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(g_hartree)
     IF (.NOT.failure) THEN
        n_gauss = SIZE(radii)
@@ -591,7 +591,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     TYPE(pw_type), POINTER                   :: g_hartree
 
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(g_hartree)
     IF (.NOT.failure) THEN
        CALL section_vals_val_get(density_fit_section,"GCUT",r_val=gcut,error=error)
@@ -668,7 +668,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
 
     NULLIFY(cp_ddapc_env)
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        dx   = 0.01_dp
        ndim = SIZE(particle_set)*SIZE(radii)
@@ -748,7 +748,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
 
     failure = .FALSE.
     NULLIFY(cp_ddapc_env)
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        dx   = 0.01_dp
        ndim = SIZE(particle_set)*SIZE(radii)
@@ -827,7 +827,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     REAL(KIND=dp), DIMENSION(:), POINTER     :: qtot1, qtot2
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        WRITE(*,*)"DEBUG_CHARGE_ROUTINE"
        ndim = SIZE(particle_set)*SIZE(radii)

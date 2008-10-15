@@ -95,7 +95,7 @@ SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
       NULLIFY(oldsys,particles)
 
@@ -215,7 +215,7 @@ SUBROUTINE get_center_of_mass ( coordinates,natom,center_of_mass,&
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
       total_mass=SUM(mass(1:natom))
       center_of_mass(:)=0.0E0_dp
@@ -271,7 +271,7 @@ SUBROUTINE mc_coordinate_fold(coordinates,nchains_tot,mol_type,mass,nunits,box_l
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
 ! loop over all molecules
       end_atom=0
@@ -389,7 +389,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
       NULLIFY(oldsys)
 ! get the particle coordinates and the cell length
@@ -700,7 +700,7 @@ SUBROUTINE rotate_molecule(r,mass,natoms,rng_stream,error)
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
 ! find the center of mass of the molecule
       CALL get_center_of_mass(r(:,:),natoms,center_of_mass(:),mass(:))
@@ -799,7 +799,7 @@ SUBROUTINE find_mc_test_molecule(mc_molecule_info,start_atom,&
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-      CALL timeset(routineN,'I','',handle)
+      CALL timeset(routineN,handle)
 
       NULLIFY(nunits,mol_type,nchains)
       CALL get_mc_molecule_info(mc_molecule_info,nchains=nchains,nunits=nunits,&

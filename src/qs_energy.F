@@ -91,7 +91,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     my_calc_forces = .FALSE.
     IF( PRESENT( calc_forces ) ) my_calc_forces = calc_forces

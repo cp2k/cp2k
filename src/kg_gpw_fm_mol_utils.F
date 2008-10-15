@@ -310,7 +310,7 @@ CONTAINS
 
 !   --------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     nrow = SIZE(matrix,1)
     ncol = SIZE(matrix,2)
@@ -674,7 +674,7 @@ CONTAINS
       POINTER                                :: mos
     TYPE(mol_mo_set_type), POINTER           :: mo_set
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     group = para_env%group
     source = para_env%source
@@ -893,7 +893,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 

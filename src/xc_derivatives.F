@@ -317,7 +317,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 r_param
 
-  CALL timeset(routineN,"I"," ",handle)
+  CALL timeset(routineN,handle)
   failure=.FALSE.
 
   IF (.NOT. failure) THEN

@@ -128,7 +128,7 @@ CONTAINS
     TYPE(shell_kind_type), POINTER           :: shell
 
     NULLIFY(particles, atomic_kind, atomic_kinds, atom_list, shell)
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL cp_subsys_get(subsys,&
                        atomic_kinds=atomic_kinds,&
@@ -469,7 +469,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(subsys, para_env)
     CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
@@ -522,7 +522,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(subsys, para_env)
     CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -601,7 +601,7 @@ CONTAINS
                                                 print_section, subsys_section
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
     apply_cns0 = .FALSE.
     IF (simpar%constraint) THEN

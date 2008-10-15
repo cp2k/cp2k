@@ -149,7 +149,7 @@ CONTAINS
     my_vdw_scale14= 1.0_dp ; IF (PRESENT(vdw_scale14)) my_vdw_scale14 = vdw_scale14
     my_do_14= .FALSE.      ; IF (PRESENT(do_14))             my_do_14 = do_14
     ntype = SIZE ( atomic_kind_set )
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     IF (iw3>0) THEN
        WRITE(iw3,'(T2,A,I0,A,I0,A)') 'SPLINE_INFO| Generating: ',&
             (ntype*(ntype+1))/2,' splines due to ',ntype,' different atomic kinds'
@@ -682,7 +682,7 @@ CPSourceFileRef,&
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     failure     = .FALSE.
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     ntype = SIZE ( atomic_kind_set )
     my_ei_scale14 = 1.0_dp ; IF (PRESENT(ei_scale14))  my_ei_scale14  = ei_scale14
     my_vdw_scale14= 1.0_dp ; IF (PRESENT(vdw_scale14)) my_vdw_scale14 = vdw_scale14

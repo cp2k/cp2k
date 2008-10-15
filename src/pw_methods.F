@@ -1254,7 +1254,7 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I"," ",handle)
+  CALL timeset(routineN,handle)
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"fft_wrap_pw1")
 
   IF ( PRESENT ( debug ) ) THEN
@@ -1317,7 +1317,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I"," ",handle2)
+  CALL timeset(routineN,handle2)
   CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
                CEILING (pw1%pw_grid%cutoff/10)*10))),"I"," ",handle)
 

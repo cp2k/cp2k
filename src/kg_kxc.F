@@ -71,7 +71,7 @@ CONTAINS
 
 !--------------------------------------------------------
 
-  CALL timeset (routineN,'I',' ',handle )
+  CALL timeset(routineN,handle)
 
   v1xc => v1_r%pw%cr3d(:,:,:)
   v2xc => v2_r%pw%cr3d(:,:,:)

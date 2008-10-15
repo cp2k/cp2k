@@ -80,7 +80,7 @@ CONTAINS
       POINTER                                :: particle_set
 
     failure = .FALSE.
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     IF (.NOT. failure) THEN
        CALL force_env_get(force_env=force_env, subsys=subsys,error=error)
        CALL cp_subsys_get(subsys=subsys, particles=particles, local_particles=local_particles,&

@@ -254,7 +254,7 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a_block, b_block
     TYPE(real_block_node_type), POINTER      :: block_node
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   NULLIFY(a_block,b_block,block_node)
   failure=.FALSE.
@@ -1183,7 +1183,7 @@ END SUBROUTINE cp_sm_scale_and_add
       CALL stop_program(routineP,"The source matrix pointer is not associated")
     END IF
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
 !   *** Check the association status of the target matrix ***
 
@@ -1918,7 +1918,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ---------------------------------------------------------------------------
 !   *** Check the association status of the source matrix ***
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     IF (.NOT.ASSOCIATED(source)) THEN
       CALL stop_program(routineP,"The source matrix pointer is not associated")
@@ -2200,7 +2200,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ---------------------------------------------------------------------------
 !   *** Check the association status of the source matrix ***
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(source_matrix),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(target_matrix),cp_failure_level,routineP,error,failure)
@@ -2707,7 +2707,7 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env,error)
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL allocate_matrix(matrix=dbm,&
                          nblock_row=sm%nblock_row,&
@@ -2779,7 +2779,7 @@ SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env,error)
 
 !   ---------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   IF ( copy_out ) THEN
      IF ( PRESENT(para_env) ) THEN
@@ -2836,7 +2836,7 @@ SUBROUTINE cp_sm_add_constant(matrix_a,alpha,error)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a_block
     TYPE(real_block_node_type), POINTER      :: block_node
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   NULLIFY(a_block,block_node)
   failure=.FALSE.

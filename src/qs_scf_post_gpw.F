@@ -221,7 +221,7 @@ CONTAINS
                                                 print_key
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     ! Writes the data that is already available in qs_env
     para_env=>qs_env%para_env
@@ -639,7 +639,7 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: matrix_v
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     logger => cp_error_get_logger(error)

@@ -154,7 +154,7 @@ CONTAINS
                                                 e_rho_rho_rho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN, 'I', ' ', timer_handle)
+    CALL timeset(routineN,timer_handle)
     failure=.FALSE.
     NULLIFY(bo,rho, e_0,e_rho,e_rho_rho,e_rho_rho_rho, dummy)
    
@@ -300,7 +300,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
                                                 ebb, ebbb
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN, 'I', ' ', timer_handle)
+    CALL timeset(routineN,timer_handle)
     failure=.FALSE.
     NULLIFY(bo,a,b,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,ebbb)
  

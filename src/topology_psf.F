@@ -80,7 +80,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     atom_info => topology%atom_info
 
     IF (ASSOCIATED(atom_info%label_molname)) THEN
@@ -169,7 +169,7 @@ CONTAINS
     END IF
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     CALL parser_create(parser,filename,para_env=para_env,error=error)
 
     atom_info => topology%atom_info
@@ -502,7 +502,7 @@ CPSourceFileRef,&
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     atom_info => topology%atom_info
     conn_info => topology%conn_info
     do_onfo = (topology%exclude_vdw/=do_skip_14).OR.(topology%exclude_ei/=do_skip_14)
@@ -667,7 +667,7 @@ CPSourceFileRef,&
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     CALL section_vals_get(section, explicit=explicit, error=error)
     IF (explicit) THEN
        atom_info => topology%atom_info
@@ -841,7 +841,7 @@ CPSourceFileRef,&
     print_key => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%DUMP_PSF",error=error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
 
     atom_info => topology%atom_info
     conn_info => topology%conn_info

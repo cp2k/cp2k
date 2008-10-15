@@ -891,7 +891,7 @@ END SUBROUTINE clone_particle
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY (atomic_indices)
     NULLIFY (logger)

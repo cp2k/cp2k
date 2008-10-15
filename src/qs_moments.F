@@ -139,7 +139,7 @@ CONTAINS
 
     IF ( nmoments < 1 ) RETURN
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -417,7 +417,7 @@ CONTAINS
 
 ! ------------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -645,7 +645,7 @@ CONTAINS
 
      IF (.NOT.failure) THEN
 
-       CALL timeset(routineN,"I","",handle)
+       CALL timeset(routineN,handle)
 
        ! restrict maximum moment available
        nmom = MIN(nmoments,2)
@@ -1029,7 +1029,7 @@ CONTAINS
 
      IF (.NOT.failure) THEN
 
-       CALL timeset(routineN,"I","",handle)
+       CALL timeset(routineN,handle)
 
        ! reference point
        CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point,error=error)

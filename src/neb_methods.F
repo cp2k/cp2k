@@ -104,7 +104,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: diis_section, force_env_section, &
       md_section, motion_section, neb_section, print_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
        NULLIFY(logger, subsys, f_env, rep_env)
@@ -235,7 +235,7 @@ CONTAINS
     TYPE(neb_var_type), POINTER              :: Dcoords
     TYPE(section_vals_type), POINTER         :: tc_section, vc_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
        NULLIFY( Dcoords, tc_section, vc_section)
@@ -390,7 +390,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: crr, err
     TYPE(neb_var_type), POINTER              :: sline
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
        NULLIFY(sline, crr, err)

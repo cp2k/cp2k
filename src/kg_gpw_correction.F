@@ -138,7 +138,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     ! initialize to zero
     ekin_mol = 0.0_dp

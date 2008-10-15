@@ -168,7 +168,7 @@ MODULE xc_xwpbe
                                                 rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     NULLIFY(bo)
@@ -5307,7 +5307,7 @@ MODULE xc_xwpbe
       norm_drhob, rhoa, rhob
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     NULLIFY(bo)

@@ -118,7 +118,7 @@ CONTAINS
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY (atomic_kind, atomic_kind_set)
@@ -479,7 +479,7 @@ CONTAINS
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY (atomic_kind, atomic_kind_set)
@@ -808,7 +808,7 @@ CONTAINS
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY (atomic_kind, atomic_kind_set)
@@ -1180,7 +1180,7 @@ CONTAINS
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(op_sm),cp_failure_level,routineP,error,failure)

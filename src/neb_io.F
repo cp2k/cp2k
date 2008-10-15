@@ -181,7 +181,7 @@ CONTAINS
     NULLIFY(unit)
     CALL get_cp2k_units ( unit )
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        ndig  = CEILING(LOG10(REAL(neb_env%number_of_replica+1,KIND=dp)))
        CALL force_env_get(neb_env%force_env, cell=cell, error=error)

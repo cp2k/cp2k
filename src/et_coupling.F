@@ -96,7 +96,7 @@ CONTAINS
 
     NULLIFY(tmp2,SMO,rest_MO,mo_mo_fmstruct, S_sm_pools,rest_MO)
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
@@ -322,7 +322,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
   IF(qs_env%dft_control%qs_control%becke_constraint)THEN
 
@@ -487,7 +487,7 @@ END SUBROUTINE becke_constraint
     TYPE(qs_rho_type), POINTER               :: rho
 
   failure=.FALSE.
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
   th=1.0e-8_dp
   IF(qs_env%dft_control%qs_control%becke_constraint)THEN
      

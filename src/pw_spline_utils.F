@@ -158,7 +158,7 @@ CONTAINS
     REAL(KIND=dp)                            :: c23, coeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
@@ -241,7 +241,7 @@ CONTAINS
     REAL(KIND=dp)                            :: c23, coeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
@@ -327,7 +327,7 @@ CONTAINS
     REAL(KIND=dp)                            :: c23, coeff, inv64
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
@@ -417,7 +417,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
     REAL(KIND=dp), DIMENSION(4)              :: r_coeffs
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
@@ -501,7 +501,7 @@ CONTAINS
     REAL(KIND=dp)                            :: c23, coeff, inv27
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
@@ -597,7 +597,7 @@ CONTAINS
 
 ! sun does not like that its components are modified
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     my_transpose=.FALSE.
@@ -700,7 +700,7 @@ CONTAINS
     REAL(KIND=dp)                            :: coeff, inv9, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: csIVals, csJVals, csKVals
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
@@ -846,7 +846,7 @@ CONTAINS
     REAL(KIND=dp)                            :: coeff, inv16, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: csIVals, csJVals, csKVals
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
@@ -1298,7 +1298,7 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out,error)
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(pw_in),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_in%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
@@ -1514,8 +1514,8 @@ END SUBROUTINE pw_nn_compose_r
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: coarse_coeffs, fine_values
 
-    CALL timeset(routineN,"I","",handle)
-!    CALL timeset(routineN//"_pre","I","",handle2)
+    CALL timeset(routineN,handle)
+!    CALL timeset(routineN//"_pre",handle2)
     failure=.FALSE.
     safe_calc=.FALSE.
     IF (PRESENT(safe_computation)) safe_calc=safe_computation
@@ -1565,7 +1565,7 @@ END SUBROUTINE pw_nn_compose_r
 !       CALL timestop(0._dp,handle2)
        ! *** parallel case
        IF (is_split) THEN
-          CALL timeset(routineN//"_comm","I","",handle2)
+          CALL timeset(routineN//"_comm",handle2)
           coarse_slice_size=(coarse_bo(2,2)-coarse_bo(1,2)+1)*&
                (coarse_bo(2,3)-coarse_bo(1,3)+1)
           n_procs=coarse_coeffs_pw%pw_grid%para%group_size
@@ -1935,7 +1935,7 @@ CPSourceFileRef,&
                    END IF
 
                    IF (fine_bo(2,1)-fine_bo(1,1)<7.or.safe_calc) THEN
-!                      CALL timeset(routineN//"_safe","I","",handle2)
+!                      CALL timeset(routineN//"_safe",handle2)
                       DO i=coarse_bo(1,1),coarse_bo(2,1)
                          DO ii=-3,3
                             IF (pbc.and..not.is_split) THEN
@@ -1983,7 +1983,7 @@ CPSourceFileRef,&
                       END DO
 !                      CALL timestop(0._dp,handle2)
                    ELSE
-!                      CALL timeset(routineN//"_core1","I","",handle2)
+!                      CALL timeset(routineN//"_core1",handle2)
                       ww0=wj*w_0
                       ww1=wj*w_1
                       IF (pbc.AND..NOT.is_split) THEN
@@ -2034,7 +2034,7 @@ CPSourceFileRef,&
                          CPPrecondition(fi+1==fine_bo(1,1),cp_failure_level,routineP,error,failure)
                       END IF
 !                      CALL timestop(0._dp,handle2)
-!                      CALL timeset(routineN//"_core","I","",handle2)
+!                      CALL timeset(routineN//"_core",handle2)
                       DO i=coarse_bo(1,1)+3,FLOOR((fine_bo(2,1)-f_shift(1))/2.)-3,4
                          v3=coarse_coeffs(i,j,k)
                          fi=fi+1
@@ -2074,7 +2074,7 @@ CPSourceFileRef,&
                               ww0(3)*v2)
                       END DO
 !                      CALL timestop(0._dp,handle2)
-!                      CALL timeset(routineN//"_clean","I","",handle2)
+!                      CALL timeset(routineN//"_clean",handle2)
                       rest_b=MODULO(FLOOR((fine_bo(2,1)-f_shift(1))/2.)-coarse_bo(1,1)-3+1,4)
                       IF (rest_b>0) THEN
                          i=FLOOR((fine_bo(2,1)-f_shift(1))/2.)-rest_b+1
@@ -2337,7 +2337,7 @@ CPSourceFileRef,&
       POINTER                                :: coarse_coeffs, fine_values
 
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     IF (.NOT. failure) THEN
        safe_calc=.FALSE.
@@ -2824,7 +2824,7 @@ CPSourceFileRef,&
 
        ! *** parallel case
        IF (is_split) THEN
-          CALL timeset(routineN//"_comm","I","",handle2)
+          CALL timeset(routineN//"_comm",handle2)
           coarse_slice_size=(coarse_bo(2,2)-coarse_bo(1,2)+1)*&
                (coarse_bo(2,3)-coarse_bo(1,3)+1)
           n_procs=coarse_coeffs_pw%pw_grid%para%group_size
@@ -3439,7 +3439,7 @@ CPSourceFileRef,&
 
     failure=.FALSE.
     ifile=ifile+1
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT. failure) THEN
        CALL section_vals_val_get(param_section,"safe_computation", &
             l_val=safe_computation, error=error)
@@ -3545,7 +3545,7 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     ifile=ifile+1
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT. failure) THEN
        NULLIFY(coeffs)
        CALL pw_pool_create_pw(coarse_pool,coeffs, use_data=REALDATA3D,&

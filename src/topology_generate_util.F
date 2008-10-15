@@ -108,7 +108,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     NULLIFY(qm_atom_index)
 
     atom_info => topology%atom_info
@@ -237,7 +237,7 @@ CONTAINS
     !
     ! Residues
     !
-    CALL timeset(routineN//"_PARA_RES",'I','',handle2)
+    CALL timeset(routineN//"_PARA_RES",handle2)
     IF(iw>0) WRITE(iw,'(/,A,L2)') "Starting PARA_RES: ",topology%para_res
     IF(topology%para_res) THEN
        mol_res = 1
@@ -442,7 +442,7 @@ CONTAINS
     failure = .FALSE.    
     NULLIFY(logger, particle_set, atomic_kind_set, nonbonded, bond_section, generate_section)
     NULLIFY(isolated_atoms, tmp_v)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit = -1
@@ -482,7 +482,7 @@ CONTAINS
        ALLOCATE(pbc_coord(3,natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        h_list = .FALSE.
-       CALL timeset(TRIM(routineN)//"_1",'I','',handle2)
+       CALL timeset(TRIM(routineN)//"_1",handle2)
        DO iatom=1,natom
           atm_symbol(iatom) = ''
           IF(ASSOCIATED(atom_info%element)) THEN
@@ -529,7 +529,7 @@ CONTAINS
        END DO
        CPPostcondition(.NOT.failure,cp_failure_level,routineP,error,failure)
        CALL timestop(0.0_dp,handle2)
-       CALL timeset(TRIM(routineN)//"_2",'I','',handle2)
+       CALL timeset(TRIM(routineN)//"_2",handle2)
        ! Initialize fake particle_set and atomic_kinds to generate the bond list
        ! using the neighboring list routine
        CALL allocate_atomic_kind_set(atomic_kind_set,1,error)
@@ -571,7 +571,7 @@ CONTAINS
             error=error)
        r_minsq = tmp*tmp
        CALL timestop(0.0_dp,handle2)
-       CALL timeset(TRIM(routineN)//"_3",'I','',handle2)
+       CALL timeset(TRIM(routineN)//"_3",handle2)
        CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
             cell=topology%cell, r_max=r_max, r_minsq=r_minsq, nonbonded=nonbonded,&
             para_env=para_env, build_from_scratch=.TRUE.,geo_check=.TRUE.,&
@@ -600,7 +600,7 @@ CONTAINS
           END DO
        END DO
        CALL timestop(0.0_dp,handle2)
-       CALL timeset(TRIM(routineN)//"_4",'I','',handle2)
+       CALL timeset(TRIM(routineN)//"_4",handle2)
        ! We have a list of neighbors let's order the list w.r.t. the particle number
        ALLOCATE(bond_list(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -768,7 +768,7 @@ CONTAINS
        END IF
        CALL fist_neighbor_deallocate(nonbonded,error)
        CALL timestop(0.0_dp,handle2)
-       CALL timeset(TRIM(routineN)//"_6",'I','',handle2)
+       CALL timeset(TRIM(routineN)//"_6",handle2)
        ! Deallocate temporary working arrays
        DO I = 1, natom
           DEALLOCATE(bond_list(I)%array1,stat=stat)
@@ -794,7 +794,7 @@ CONTAINS
           WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Number of Bonds generated:",&
                n_bonds
        END IF
-       CALL timeset(TRIM(routineN)//"_7",'I','',handle2)
+       CALL timeset(TRIM(routineN)//"_7",handle2)
        ! If PARA_RES then activate RESIDUES
        CALL reallocate(conn_info%c_bond_a,1,0)
        CALL reallocate(conn_info%c_bond_b,1,0)
@@ -855,7 +855,7 @@ CONTAINS
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
 
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     conn_ok = .TRUE.
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1419,7 +1419,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        ionode = logger%para_env%mepos==logger%para_env%source
        IF (ionode) THEN
@@ -1451,7 +1451,7 @@ CONTAINS
        ENDDO
        CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
        ! All the dirty job is handled by this routine.. for bends it_levl is equal 3
-       CALL timeset(routineN//"_1",'I','',handle2)
+       CALL timeset(routineN//"_1",handle2)
        CALL match_iterative_path(Iarray1=bond_list,&
                                  Iarray2=bond_list,&
                                  max_levl=3,&
@@ -1681,7 +1681,7 @@ CONTAINS
     ELSE
        output_unit = -1
     END IF
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     conn_info => topology%conn_info    
     ntheta = SIZE(conn_info%theta_a)
     CALL reallocate(conn_info%ub_a,1,ntheta)
@@ -1738,7 +1738,7 @@ CONTAINS
     ELSE
        output_unit = -1
     END IF
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        conn_info => topology%conn_info
        nphi   = 0
@@ -1842,7 +1842,7 @@ CONTAINS
     ELSE
        output_unit = -1
     END IF
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        atom_info => topology%atom_info
        conn_info => topology%conn_info       
@@ -1959,7 +1959,7 @@ CONTAINS
     ELSE
        output_unit = -1
     END IF
-    CALL timeset(routineN,'I','',handle)
+    CALL timeset(routineN,handle)
     
     conn_info => topology%conn_info    
     nphi = SIZE(conn_info%phi_a)

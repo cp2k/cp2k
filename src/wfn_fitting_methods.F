@@ -116,7 +116,7 @@ MODULE wfn_fitting_methods
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eig_work
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     IF (.NOT.(ASSOCIATED(wfn_fitting_env) )) THEN
       CALL wfn_fitting_env_create(mos, mos_aux_fit, &
@@ -233,7 +233,7 @@ MODULE wfn_fitting_methods
     REAL(dp)                                 :: eig_diff, pole
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigvals_lambda
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     nao_aux_fit = wfn_fitting_env%nao_aux_fit
     nao_orb = wfn_fitting_env%nao_orb
@@ -391,7 +391,7 @@ MODULE wfn_fitting_methods
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(real_matrix_type), POINTER          :: matrix_w_p, matrix_w_s
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(matrix_w_p, matrix_w_s, distribution_2d)
 
@@ -593,7 +593,7 @@ MODULE wfn_fitting_methods
       POINTER                                :: force
 
     failure = .FALSE.
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
 
 
     NULLIFY (atomic_kind_set)

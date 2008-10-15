@@ -527,7 +527,7 @@ CONTAINS
                                                 thermostat_shell
 
     failure = .FALSE.
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     NULLIFY (logger,thermostat_part,thermostat_baro,npt,para_env, nhc, atomic_kind_set,&
          work_section, dyn_coeff_set, md_approach_nr, accepted_md, atomic_kind, coeffs,&
          aux_basis_set, thermostat_coeff, thermostat_shell, t, itimes)
@@ -557,7 +557,7 @@ CONTAINS
     my_save_mem=.FALSE.
     IF (PRESENT(save_mem)) my_save_mem=save_mem
 
-    CALL timeset(routineN//"_COUNTERS","I",'',handle2)
+    CALL timeset(routineN//"_COUNTERS",handle2)
     IF (ASSOCIATED(itimes)) THEN
        IF (itimes>=0) THEN
           my_itimes = itimes
@@ -569,7 +569,7 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle2)
     ! PARTICLE THERMOSTAT
-    CALL timeset(routineN//"_THERMOSTAT_PARTICLES","I",'',handle2)
+    CALL timeset(routineN//"_THERMOSTAT_PARTICLES",handle2)
     IF (ASSOCIATED(thermostat_part)) THEN
        IF     (thermostat_part%type_of_thermostat==do_thermo_nose) THEN
           ! Restart of Nose-Hoover Thermostat for Particles
@@ -586,7 +586,7 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle2)
     ! BAROSTAT - THERMOSTAT
-    CALL timeset(routineN//"_BAROSTAT","I",'',handle2)
+    CALL timeset(routineN//"_BAROSTAT",handle2)
     IF (ASSOCIATED(thermostat_baro)) THEN
        IF (thermostat_baro%type_of_thermostat==do_thermo_nose) THEN
           ! Restart of Nose-Hoover Thermostat for Barostat
@@ -623,7 +623,7 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle2)
     ! BAROSTAT
-    CALL timeset(routineN//"_NPT","I",'',handle2)
+    CALL timeset(routineN//"_NPT",handle2)
     IF (ASSOCIATED(npt)) THEN
        ALLOCATE(veta(SIZE(npt,1)*SIZE(npt,2)), STAT = stat )
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -643,7 +643,7 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle2)
     ! COEFFICIENTS 
-    CALL timeset(routineN//"_KG","I",'',handle2)
+    CALL timeset(routineN//"_KG",handle2)
     IF (ASSOCIATED(kg_env)) THEN
        CALL get_kg_env(kg_env=kg_env,&
             atomic_kind_set=atomic_kind_set,&
@@ -760,7 +760,7 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle2)
     ! SHELL THERMOSTAT
-    CALL timeset(routineN//"_THERMOSTAT_SHELL","I",'',handle2)
+    CALL timeset(routineN//"_THERMOSTAT_SHELL",handle2)
     IF (ASSOCIATED(thermostat_shell)) THEN
        IF     (thermostat_shell%type_of_thermostat==do_thermo_nose) THEN
           ! Restart of Nose-Hoover Thermostat for Shell Particles
@@ -777,7 +777,7 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle2)
 
-    CALL timeset(routineN//"_META","I",'',handle2)
+    CALL timeset(routineN//"_META",handle2)
     IF (ASSOCIATED(meta_env)) THEN
        CALL section_vals_val_set(meta_env%metadyn_section,"STEP_START_VAL",&
             i_val=meta_env%n_steps,error=error)
@@ -805,7 +805,7 @@ CONTAINS
        END IF
     END IF
     CALL timestop(0.0_dp,handle2)
-    CALL timeset(routineN//"_NEB","I",'',handle2)
+    CALL timeset(routineN//"_NEB",handle2)
     IF (PRESENT(coords).OR.(PRESENT(vels))) THEN
        ! Update NEB section
        replica_section => section_vals_get_subs_vals(motion_section,"BAND%REPLICA",error=error)
@@ -1509,7 +1509,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(work_section, core_particles, particles, shell_particles, &
          subsys, cell, cell_ref, multipoles)
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     CALL force_env_get(force_env, subsys=subsys, cell=cell, cell_ref=cell_ref,&
          use_ref_cell=use_ref_cell, error=error)
 
@@ -1605,7 +1605,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(work, work_section, cell, cell_ref)
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     ! Handle case for parallel runs
     IF (ASSOCIATED(force_env)) THEN
        CALL force_env_get(force_env,&
@@ -1704,7 +1704,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
@@ -1852,7 +1852,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     CPPrecondition(ASSOCIATED(velocity_section),cp_failure_level,routineP,error,failure)
@@ -1940,7 +1940,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     CPPrecondition(ASSOCIATED(dipoles_section),cp_failure_level,routineP,error,failure)
@@ -2023,7 +2023,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    CALL timeset(routineN,"I",'',handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     CPPrecondition(ASSOCIATED(quadrupoles_section),cp_failure_level,routineP,error,failure)

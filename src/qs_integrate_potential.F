@@ -158,7 +158,7 @@ CONTAINS
 
 !   --------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(pw_env,auxbas_rs_pool,hab,pab,cores)
     ALLOCATE(hab(1,1),pab(1,1),STAT=ierr)
@@ -407,9 +407,9 @@ CONTAINS
     END SELECT
 
     IF (my_compute_tau) THEN
-       CALL timeset(routineN,"I","",handle)
+       CALL timeset(routineN,handle)
     ELSE
-       CALL timeset(routineN,"I","",handle)
+       CALL timeset(routineN,handle)
     END IF
 
     ! get the task lists

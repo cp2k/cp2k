@@ -65,7 +65,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY (para_env, mindex)

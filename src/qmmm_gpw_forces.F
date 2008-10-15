@@ -124,7 +124,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input_section, &
                                                 interp_section, print_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     need_f = .TRUE.
     periodic = qmmm_env%periodic
@@ -367,7 +367,7 @@ CONTAINS
 ! Statements
 
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(grids,tmp)
     CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_chrg),cp_failure_level,routineP,error,failure)
@@ -549,8 +549,8 @@ CONTAINS
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
     TYPE(qmmm_pot_type), POINTER             :: pot
 
-    CALL timeset(routineN,"I","",handle)
-    CALL timeset(routineNb//"_G","I","",handle2)
+    CALL timeset(routineN,handle)
+    CALL timeset(routineNb//"_G",handle2)
     NULLIFY(pgf, pot, per_pot)
     IF (par_scheme==do_par_atom) myind=0
     Radius: DO IRadTyp = 1, SIZE(pgfs)
@@ -636,7 +636,7 @@ CONTAINS
        END DO Gaussian
     END DO Radius
     CALL timestop(0.0_dp,handle2)
-    CALL timeset(routineNb//"_R","I","",handle2)
+    CALL timeset(routineNb//"_R",handle2)
     IF (periodic) THEN
        CALL qmmm_forces_with_gaussian_LG  (pgfs=pgfs,&
                                            cgrid=grids(coarser_grid)%pw,&
@@ -742,7 +742,7 @@ CONTAINS
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(grid)
     ALLOCATE(LForces(3,num_mm_atoms), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1132,7 +1132,7 @@ CONTAINS
       POINTER                                :: grid
     TYPE(qmmm_pot_type), POINTER             :: pot
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     ALLOCATE(LForces(3,num_mm_atoms), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1295,7 +1295,7 @@ CONTAINS
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(section_vals_type), POINTER         :: input_section, print_section
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY( Num_Forces )
     CALL get_qs_env(qs_env=qs_env,&
                     pw_env=pw_env,&
@@ -1437,7 +1437,7 @@ CONTAINS
     DATA Icount /0/
     ! Statements
     failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     NULLIFY(grids)
     !Statements
     ngrids = SIZE(aug_pools)
@@ -1557,7 +1557,7 @@ CONTAINS
     ALLOCATE(Num_Forces(3,num_mm_atoms),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(grids)
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     ngrids = SIZE(aug_pools)
     CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)
     DO igrid=1,ngrids
@@ -1669,7 +1669,7 @@ CONTAINS
     ALLOCATE(Num_Forces(3,num_mm_atoms),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(grids)
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     ngrids = SIZE(aug_pools)
     CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)
     DO igrid=1,ngrids

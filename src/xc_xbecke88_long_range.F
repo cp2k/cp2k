@@ -148,7 +148,7 @@ CONTAINS
       e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(bo)
 
@@ -884,7 +884,7 @@ CONTAINS
       e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     CALL cite_reference(Becke1988)
 

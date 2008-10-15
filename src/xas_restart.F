@@ -109,7 +109,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     file_exists = .FALSE.
@@ -220,7 +220,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: print_key
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(mos,para_env,particle_set,logger,print_key)
     logger => cp_error_get_logger(error)
@@ -289,7 +289,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I"," ",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     NULLIFY(dft_control,mos)

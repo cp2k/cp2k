@@ -189,7 +189,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
 
     failure=.FALSE.
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
 
@@ -366,7 +366,7 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
 
 !----
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   NULLIFY(fm_struct_tmp,fm_work,matrix_sc0,matrix_x,matrix_xsc0)
 
@@ -541,7 +541,7 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out, error
 
 !----
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   SELECT CASE (preconditioner_env%in_use)
   CASE (0)
@@ -585,7 +585,7 @@ SUBROUTINE apply_preconditioner_lr(preconditioner_env, matrix_in, matrix_out,err
 
 !----
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   SELECT CASE (preconditioner_env%in_use)
   CASE (0)

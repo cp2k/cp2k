@@ -101,7 +101,7 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(eip_env, cell, particle_set, eip_section, logger, atomic_kinds, &
             atomic_kind, local_particles, subsys, atomic_kind_set)
@@ -282,7 +282,7 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    CALL timeset(routineN, "I", "", handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY(eip_env, cell, particle_set, eip_section, logger, atomic_kinds, &
             atomic_kind, local_particles, subsys, atomic_kind_set)

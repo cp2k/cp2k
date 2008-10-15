@@ -95,7 +95,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(d_el, units, M)
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        CPPostcondition(PRESENT(charges),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,error,failure)
@@ -252,7 +252,7 @@ CONTAINS
       POINTER                                :: force
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        natom = SIZE(particle_set)
        CALL get_qs_env(qs_env=qs_env,&
@@ -313,7 +313,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        CALL get_qs_env(qs_env=qs_env,&
                        force=force,error=error)
@@ -430,7 +430,7 @@ CONTAINS
       POINTER                                :: force
 
     failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        natom = SIZE(particle_set)
        CALL get_qs_env(qs_env=qs_env,&

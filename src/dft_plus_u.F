@@ -190,7 +190,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: sm_h, sm_p, sm_q, sm_s, sm_v, &
                                                 sm_w
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY (atom_list)
     NULLIFY (atomic_kind)
@@ -755,7 +755,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: sm_h, sm_p, sm_q, sm_s, sm_v, &
                                                 sm_w
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY (atom_list)
     NULLIFY (atomic_kind)
@@ -1322,7 +1322,7 @@ CONTAINS
       POINTER                                :: matrix_p, matrix_s
     TYPE(real_matrix_type), POINTER          :: sm_h, sm_p, sm_s, sm_w
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     NULLIFY (atom_list)
     NULLIFY (atomic_kind)

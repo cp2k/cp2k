@@ -374,7 +374,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
     TYPE(cp_fm_pool_type), POINTER           :: p_att
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,handle)
 
   failure=.FALSE.
   NULLIFY(fmstruct, p_att)
@@ -737,7 +737,7 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
     LOGICAL                                  :: failure
     TYPE(cp_sm_struct_type), POINTER         :: s_mstruct
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     IF( PRESENT( basis_set_id) ) THEN
