@@ -80,6 +80,14 @@
     MAX_ITER 2
     OPTIMIZER LBFGS
   &END GEO_OPT
+  &PRINT
+    &RESTART
+      &EACH
+         GEO_OPT 0
+      &END
+      ADD_LAST NUMERIC
+    &END
+  &END
 &END MOTION
 &EXT_RESTART
  RESTART_FILE_NAME res_silica-1.restart

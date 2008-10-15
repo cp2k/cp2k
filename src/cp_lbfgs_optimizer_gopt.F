@@ -42,8 +42,7 @@
 MODULE cp_lbfgs_optimizer_gopt
   USE cp_lbfgs,                        ONLY: cp_lbfgs_unit_nr,&
                                              setulb
-  USE cp_output_handling,              ONLY: cp_iterate,&
-                                             cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
@@ -644,7 +643,7 @@ CPSourceFileRef,&
           IF (optimizer%status == 3) THEN
              its = 0
              IF (is_master) THEN 
-                CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
+                ! Iteration level is taken into account in the optimizer external loop
                 its = optimizer%isave(30)
              END IF
           END IF
