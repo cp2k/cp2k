@@ -1388,7 +1388,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
        i_rep_val,n_rep_val,val,l_val,i_val,r_val,c_val,l_vals,i_vals,r_vals,&
-       c_vals,ignore_required,error)
+       c_vals,ignore_required,explicit,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     CHARACTER(len=*), INTENT(in)             :: keyword_name
     INTEGER, INTENT(in), OPTIONAL            :: i_rep_section, i_rep_val
@@ -1405,6 +1405,7 @@ CONTAINS
     CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
       DIMENSION(:), OPTIONAL, POINTER        :: c_vals
     LOGICAL, INTENT(in), OPTIONAL            :: ignore_required
+    LOGICAL, INTENT(out), OPTIONAL           :: explicit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_val_get', &
@@ -1445,8 +1446,9 @@ CONTAINS
     irk=1
     irs=1
     IF (PRESENT(i_rep_section)) irs=i_rep_section
-    IF (PRESENT(i_rep_val)) irk=i_rep_val
+    IF (PRESENT(i_rep_val))     irk=i_rep_val
     IF (PRESENT(val)) NULLIFY(val)
+    IF (PRESENT(explicit)) explicit = .FALSE.
     section => s_vals%section
     valRequested=PRESENT(l_val).or.PRESENT(i_val).or.PRESENT(r_val).OR.&
          PRESENT(c_val).OR.PRESENT(l_vals).or.PRESENT(i_vals).OR.&
@@ -1481,6 +1483,7 @@ CONTAINS
           ELSE
              my_val => cp_sll_val_get_el_at(s_vals%values(ik,irs)%list,&
                   irk,error=error)
+             IF (PRESENT(explicit)) explicit = .TRUE.
           END IF
        ELSE IF (.NOT.my_ignore_required.AND.section%required) THEN
           CALL cp_assert(.FALSE.,&
@@ -1954,10 +1957,10 @@ CONTAINS
 !>      skips required sections which weren't read
 !> \author fawzi
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
+  RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,hide_defaults,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     INTEGER, INTENT(in)                      :: unit_nr
-    LOGICAL, INTENT(in), OPTIONAL            :: hide_root
+    LOGICAL, INTENT(in), OPTIONAL            :: hide_root, hide_defaults
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_write', &
@@ -1967,7 +1970,8 @@ CONTAINS
     INTEGER                                  :: i_rep_s, ik, isec, ival, nr, &
                                                 nval
     INTEGER, SAVE                            :: indent = 1
-    LOGICAL                                  :: defaultSection, failure, &
+    LOGICAL                                  :: defaultSection, explicit, &
+                                                failure, my_hide_defaults, &
                                                 my_hide_root
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
@@ -1978,51 +1982,78 @@ CONTAINS
 
     failure=.FALSE.
     my_hide_root=.FALSE.
+    my_hide_defaults=.TRUE.
     IF (PRESENT(hide_root)) my_hide_root=hide_root
+    IF (PRESENT(hide_defaults)) my_hide_defaults=hide_defaults
 
     CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
     CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
     CALL cp_error_init(suberror,template_error=error)
     IF (.NOT. failure) THEN
-       CALL section_vals_get(section_vals,n_repetition=nr, section=section,&
+       CALL section_vals_get(section_vals, explicit=explicit, n_repetition=nr, section=section,&
             error=error)
-       DO i_rep_s=1,nr
-          IF (.NOT.my_hide_root) THEN
-             WRITE(myfmt,*)indent,"X"
-             CALL compress(myfmt,full=.TRUE.)
-             IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
-                WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",'&',a,' ')",advance="NO") TRIM(section%name)
-             ELSE
-                WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",'&',a)") TRIM(section%name)
+       IF (explicit.OR.(.NOT.my_hide_defaults)) THEN
+          DO i_rep_s=1,nr
+             IF (.NOT.my_hide_root) THEN
+                WRITE(myfmt,*)indent,"X"
+                CALL compress(myfmt,full=.TRUE.)
+                IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
+                   WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",'&',a,' ')",advance="NO") TRIM(section%name)
+                ELSE
+                   WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",'&',a)") TRIM(section%name)
+                END IF
              END IF
-          END IF
-          defaultSection=(SIZE(section_vals%values,2)==0)
-          IF (.NOT.(section%required.AND.defaultSection)) THEN
-             IF (.NOT.my_hide_root) indent = indent + 2
-             WRITE(myfmt,*)indent,"X"
-             CALL compress(myfmt,full=.TRUE.)           
-             DO ik=-1,section%n_keywords
-                keyword => section%keywords(ik)%keyword
-                IF (ASSOCIATED(keyword)) THEN
-                   IF (keyword%type_of_var/=no_t.AND.keyword%names(1)(1:2)/="__") THEN
-                      CALL section_vals_val_get(section_vals,keyword%names(1),&
-                           i_rep_s,n_rep_val=nval,error=error)
-                      IF (i_rep_s<=SIZE(section_vals%values,2)) THEN 
-                         vals  => section_vals%values(ik,i_rep_s)%list
-                         DO ival=1,nval
-                            IF (ival==1) THEN
-                               new_pos => vals
-                            ELSE
-                               new_pos => new_pos%rest
-                            END IF
-                            IF (.NOT.ASSOCIATED(new_pos)) THEN
-                               ! this keyword was not parsed
-                               IF (.NOT.keyword%required.AND. ASSOCIATED(keyword%default_value)) THEN
-                                  val => keyword%default_value
+             defaultSection=(SIZE(section_vals%values,2)==0)
+             IF (.NOT.(section%required.AND.defaultSection)) THEN
+                IF (.NOT.my_hide_root) indent = indent + 2
+                WRITE(myfmt,*)indent,"X"
+                CALL compress(myfmt,full=.TRUE.)           
+                DO ik=-1,section%n_keywords
+                   keyword => section%keywords(ik)%keyword
+                   IF (ASSOCIATED(keyword)) THEN
+                      IF (keyword%type_of_var/=no_t.AND.keyword%names(1)(1:2)/="__") THEN
+                         CALL section_vals_val_get(section_vals,keyword%names(1),&
+                              i_rep_s,n_rep_val=nval,error=error)
+                         IF (i_rep_s<=SIZE(section_vals%values,2)) THEN
+                            ! Section was parsed
+                            vals  => section_vals%values(ik,i_rep_s)%list
+                            DO ival=1,nval
+                               IF (ival==1) THEN
+                                  new_pos => vals
+                               ELSE
+                                  new_pos => new_pos%rest
                                END IF
-                            ELSE
-                               val => new_pos%first_el
-                            END IF
+                               IF (.NOT.ASSOCIATED(new_pos)) THEN
+                                  ! this keyword was not parsed
+                                  IF (.NOT.keyword%required.AND. ASSOCIATED(keyword%default_value)) THEN
+                                     val => keyword%default_value
+                                     IF (my_hide_defaults) CYCLE
+                                  END IF
+                               ELSE
+                                  val => new_pos%first_el
+                               END IF
+                               CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
+                                    message="for val "// TRIM(keyword%names(1))//" in section "//&
+                                    TRIM(section%name),error=error, failure=failure)
+                               IF (keyword%names(1)/='_DEFAULT_KEYWORD_'.AND.&
+                                    keyword%names(1)/='_SECTION_PARAMETERS_') THEN
+                                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",a,' ')",advance="NO")&
+                                       TRIM(keyword%names(1))
+                               ELSEIF (keyword%names(1) =='_DEFAULT_KEYWORD_' .AND.&
+                                    keyword%type_of_var/=lchar_t) THEN
+                                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO") 
+                               END IF
+                               CALL val_write(val,unit_nr=unit_nr,unit=keyword%unit,&
+                                    fmt=myfmt,error=suberror)
+                               CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
+                                    message="for val "// TRIM(keyword%names(1))//" in section "//&
+                                    TRIM(section%name),error=error, failure=failure)
+                               IF (failure) EXIT                          
+                            END DO
+                         ELSEIF (.NOT.keyword%required.AND. ASSOCIATED(keyword%default_value)) THEN
+                            ! Section was not parsed but default for the keywords may exist
+                            IF (my_hide_defaults) CYCLE
+                            val => keyword%default_value
                             CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
                                  message="for val "// TRIM(keyword%names(1))//" in section "//&
                                  TRIM(section%name),error=error, failure=failure)
@@ -2039,49 +2070,30 @@ CONTAINS
                             CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
                                  message="for val "// TRIM(keyword%names(1))//" in section "//&
                                  TRIM(section%name),error=error, failure=failure)
-                            IF (failure) EXIT                          
-                         END DO
-                      ELSEIF (.NOT.keyword%required.AND. ASSOCIATED(keyword%default_value)) THEN
-                         val => keyword%default_value
-                         CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
-                              message="for val "// TRIM(keyword%names(1))//" in section "//&
-                              TRIM(section%name),error=error, failure=failure)
-                         IF (keyword%names(1)/='_DEFAULT_KEYWORD_'.AND.&
-                              keyword%names(1)/='_SECTION_PARAMETERS_') THEN
-                            WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",a,' ')",advance="NO")&
-                                 TRIM(keyword%names(1))
-                         ELSEIF (keyword%names(1) =='_DEFAULT_KEYWORD_' .AND.&
-                              keyword%type_of_var/=lchar_t) THEN
-                            WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO") 
+                            IF (failure) EXIT                       
                          END IF
-                         CALL val_write(val,unit_nr=unit_nr,unit=keyword%unit,&
-                              fmt=myfmt,error=suberror)
-                         CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
-                              message="for val "// TRIM(keyword%names(1))//" in section "//&
-                              TRIM(section%name),error=error, failure=failure)
-                         IF (failure) EXIT                       
                       END IF
                    END IF
-                END IF
-                IF (failure) EXIT
-             END DO
-             IF (.NOT.failure) THEN
-                IF (ASSOCIATED(section_vals%subs_vals)) THEN
-                   DO isec=1,SIZE(section_vals%subs_vals,1)
-                      sval => section_vals%subs_vals(isec,i_rep_s)%section_vals
-                      IF (ASSOCIATED(sval)) THEN
-                         CALL section_vals_write(sval,unit_nr=unit_nr,error=error)
-                      END IF
-                   END DO
+                   IF (failure) EXIT
+                END DO
+                IF (.NOT.failure) THEN
+                   IF (ASSOCIATED(section_vals%subs_vals)) THEN
+                      DO isec=1,SIZE(section_vals%subs_vals,1)
+                         sval => section_vals%subs_vals(isec,i_rep_s)%section_vals
+                         IF (ASSOCIATED(sval)) THEN
+                            CALL section_vals_write(sval,unit_nr=unit_nr,hide_defaults=hide_defaults,error=error)
+                         END IF
+                      END DO
+                   END IF
                 END IF
              END IF
-          END IF
-          IF (.NOT.my_hide_root) THEN
-             indent = indent - 2
-             WRITE (UNIT=unit_nr,FMT="(A)")&
-                  REPEAT(" ",indent)//"&END "//TRIM(section%name)
-          END IF
-       END DO
+             IF (.NOT.my_hide_root) THEN
+                indent = indent - 2
+                WRITE (UNIT=unit_nr,FMT="(A)")&
+                     REPEAT(" ",indent)//"&END "//TRIM(section%name)
+             END IF
+          END DO
+       END IF
     END IF
     CALL cp_error_dealloc_ref(suberror)
 
