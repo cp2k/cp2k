@@ -30,8 +30,6 @@ MODULE hfx_communication
                                              real_block_node_type,&
                                              real_matrix_p_type,&
                                              real_matrix_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

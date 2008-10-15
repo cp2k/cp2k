@@ -30,8 +30,6 @@ MODULE csvr_system_init
                                              rng_record_length
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_info_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   PRIVATE

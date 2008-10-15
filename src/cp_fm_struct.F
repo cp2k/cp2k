@@ -21,8 +21,6 @@ MODULE cp_fm_struct
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

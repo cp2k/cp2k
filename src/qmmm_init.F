@@ -57,8 +57,6 @@ MODULE qmmm_init
                                              qmmm_env_qm_type,&
                                              qmmm_links_type
   USE qs_environment_types,            ONLY: qs_environment_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

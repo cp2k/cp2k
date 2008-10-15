@@ -25,15 +25,12 @@ MODULE cp_sm_pool_types
                                              sm_struct_retain
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
-  USE kinds,                           ONLY: dp
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              cp_sm_set,&
                                              deallocate_matrix,&
                                              real_matrix_p_type,&
                                              real_matrix_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

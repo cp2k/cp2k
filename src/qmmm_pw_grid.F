@@ -30,8 +30,6 @@ MODULE qmmm_pw_grid
                                              pw_pool_type,&
                                              pw_pools_dealloc
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

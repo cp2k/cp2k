@@ -27,8 +27,6 @@ MODULE pair_potential_util
        lj_charmm_type, lj_type, not_initialized, pair_potential_pp_type, &
        pair_potential_single_type, wl_type
   USE termination,                     ONLY: stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

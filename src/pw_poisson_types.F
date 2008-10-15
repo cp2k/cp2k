@@ -53,8 +53,6 @@ MODULE pw_poisson_types
                                              RECIPROCALSPACE,&
                                              pw_release,&
                                              pw_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

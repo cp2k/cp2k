@@ -25,8 +25,6 @@ MODULE qs_wf_history_types
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
                                              real_matrix_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

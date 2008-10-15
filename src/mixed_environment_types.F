@@ -49,8 +49,6 @@ MODULE mixed_environment_types
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -12,8 +12,6 @@
 MODULE xc_rho_cflags_types
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

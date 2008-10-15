@@ -21,7 +21,6 @@ MODULE kg_main
   USE kg_environment_types,            ONLY: kg_env_create,&
                                              kg_env_release,&
                                              kg_environment_type
-  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

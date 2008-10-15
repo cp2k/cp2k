@@ -44,8 +44,6 @@ MODULE replica_methods
                                              rep_env_write,&
                                              rep_envs_get_rep_env,&
                                              replica_env_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

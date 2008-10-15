@@ -34,8 +34,6 @@ MODULE input_cp2k_mm
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

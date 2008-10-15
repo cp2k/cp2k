@@ -27,8 +27,7 @@ MODULE topology
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
-                                             dp
+                                             default_string_length
   USE mm_mapping_library,              ONLY: create_ff_map,&
                                              destroy_ff_map
   USE molecule_kind_types,             ONLY: molecule_kind_type

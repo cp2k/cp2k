@@ -18,8 +18,6 @@ MODULE dimer_utils
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

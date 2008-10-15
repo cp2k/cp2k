@@ -26,8 +26,6 @@ MODULE input_cp2k_barostats
                                              section_type
   USE input_val_types,                 ONLY: real_t
   USE kinds,                           ONLY: dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

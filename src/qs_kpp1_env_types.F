@@ -17,16 +17,13 @@ MODULE qs_kpp1_env_types
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE kinds,                           ONLY: default_path_length,&
-                                             dp
+  USE kinds,                           ONLY: default_path_length
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type
   USE string_utilities,                ONLY: compress
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_release
   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&

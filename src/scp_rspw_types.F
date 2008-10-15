@@ -7,7 +7,6 @@
 !> \author CJM 10-3-2007
 ! *****************************************************************************
 MODULE scp_rspw_types
-  USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_release,&
                                              pw_env_type
   USE timings,                         ONLY: timeset,&

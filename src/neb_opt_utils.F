@@ -26,8 +26,6 @@ MODULE neb_opt_utils
                                              reorient_images
   USE particle_types,                  ONLY: particle_type
   USE replica_types,                   ONLY: replica_env_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

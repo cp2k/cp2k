@@ -30,8 +30,6 @@ MODULE qs_loc_molecules
   USE physcon,                         ONLY: debye
   USE qs_loc_types,                    ONLY: qs_loc_env_new_type
   USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

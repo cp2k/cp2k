@@ -33,10 +33,7 @@ MODULE gopt_f_types
                                              default_ts_method_id
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
+  USE kinds,                           ONLY: default_string_length
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

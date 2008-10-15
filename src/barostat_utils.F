@@ -27,8 +27,6 @@ MODULE barostat_utils
   USE physcon,                         ONLY: angstrom,&
                                              femtoseconds,&
                                              kelvin
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

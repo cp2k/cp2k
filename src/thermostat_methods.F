@@ -72,8 +72,6 @@ MODULE thermostat_methods
   USE thermostat_utils,                ONLY: compute_degrees_of_freedom,&
                                              get_thermostat_energies,&
                                              setup_thermostat_info
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -34,11 +34,8 @@
 ! *****************************************************************************
 MODULE mol_new_list_types
   USE f77_blas
-  USE kinds,                           ONLY: dp
   USE molecule_types_new,              ONLY: deallocate_molecule_set,&
                                              molecule_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

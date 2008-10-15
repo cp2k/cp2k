@@ -25,8 +25,6 @@ MODULE xc_derivative_set_types
                                              pw_pool_release,&
                                              pw_pool_retain,&
                                              pw_pool_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
                                              standardize_derivative_desc
   USE xc_derivative_types,             ONLY: xc_derivative_create,&

@@ -21,11 +21,8 @@ MODULE thermostat_types
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: default_string_length
   USE md,                              ONLY: simulation_parameters_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

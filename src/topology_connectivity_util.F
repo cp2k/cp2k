@@ -17,8 +17,7 @@ MODULE topology_connectivity_util
                                              do_conn_g96,&
                                              do_ff_charmm
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: default_string_length
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: &
        allocate_molecule_kind_set, atom_type, bend_type, bond_type, &

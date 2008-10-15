@@ -21,7 +21,6 @@ MODULE qs_energy
                                              use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp
   USE nddo_methods,                    ONLY: se_core_core_interaction
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&

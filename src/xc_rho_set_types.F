@@ -41,8 +41,6 @@ MODULE xc_rho_set_types
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_equal,&
                                              xc_rho_cflags_setall,&
                                              xc_rho_cflags_type

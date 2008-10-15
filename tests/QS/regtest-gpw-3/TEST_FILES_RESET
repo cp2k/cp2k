@@ -557,3 +557,5 @@ H2O-solv.inp
 #  
 dynamics.inp
 H+solv1.inp
+# numerics
+H2O-bloechl-restraint.inp

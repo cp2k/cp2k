@@ -12,7 +12,6 @@ MODULE qs_ks_qmmm_types
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
   USE f77_blas
-  USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
                                              pw_env_type
@@ -21,8 +20,6 @@ MODULE qs_ks_qmmm_types
   USE pw_types,                        ONLY: pw_p_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

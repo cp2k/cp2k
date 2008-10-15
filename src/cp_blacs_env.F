@@ -27,8 +27,6 @@ MODULE cp_blacs_env
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

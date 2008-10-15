@@ -38,7 +38,6 @@ MODULE cp_parser_types
   USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
-                                             dp,&
                                              max_line_length
   USE message_passing,                 ONLY: MPI_COMM_SELF
   USE string_utilities,                ONLY: compress

@@ -12,8 +12,7 @@
 MODULE hfx_compression_core_methods
   
   USE f77_blas
-  USE kinds,                           ONLY: dp,&
-                                             int_8
+  USE kinds,                           ONLY: int_8
 #include "cp_common_uses.h"
 
   IMPLICIT NONE   

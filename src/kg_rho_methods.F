@@ -19,7 +19,6 @@ MODULE kg_rho_methods
   USE kg_rho_types,                    ONLY: kg_rho_type
   USE kg_rspw_types,                   ONLY: kg_rspw_get,&
                                              kg_rspw_type
-  USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&

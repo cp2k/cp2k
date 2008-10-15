@@ -18,7 +18,6 @@ MODULE kg_rspw_types
   USE f77_blas
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE kinds,                           ONLY: dp
   USE pw_poisson_types,                ONLY: pw_poisson_release,&
                                              pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&

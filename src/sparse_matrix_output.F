@@ -39,8 +39,6 @@ MODULE sparse_matrix_output
   USE sparse_matrix_types,             ONLY: copy_local_sm_to_replicated_fm,&
                                              get_matrix_info,&
                                              real_matrix_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

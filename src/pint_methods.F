@@ -18,8 +18,6 @@ MODULE pint_methods
   USE pint_types,                      ONLY: &
        pint_calc_uf_h, pint_do_run, pint_env_create, pint_env_type, &
        pint_f2uf, pint_release, pint_start, pint_u2x, pint_x2u
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

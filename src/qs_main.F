@@ -24,7 +24,6 @@ MODULE qs_main
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: dp
   USE qs_environment,                  ONLY: qs_init
   USE qs_environment_types,            ONLY: qs_env_create,&
                                              qs_env_release,&

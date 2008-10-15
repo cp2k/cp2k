@@ -41,8 +41,6 @@ MODULE cp_subsys_methods
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE topology,                        ONLY: connectivity_control
   USE topology_connectivity_util,      ONLY: topology_connectivity_pack
   USE topology_coordinate_util,        ONLY: topology_coordinate_pack

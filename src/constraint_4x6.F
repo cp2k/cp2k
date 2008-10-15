@@ -26,8 +26,6 @@ MODULE constraint_4x6
                                              local_g4x6_constraint_type,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -30,8 +30,6 @@ MODULE qs_ks_apply_restraints
   USE s_square_methods,                ONLY: s2_restraint
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              replicate_matrix_structure
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

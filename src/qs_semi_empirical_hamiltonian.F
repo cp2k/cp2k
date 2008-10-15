@@ -57,8 +57,6 @@ MODULE qs_semi_empirical_hamiltonian
                                              real_matrix_type,&
                                              replicate_matrix_structure
   USE termination,                     ONLY: stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

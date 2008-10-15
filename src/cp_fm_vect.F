@@ -16,8 +16,6 @@ MODULE cp_fm_vect
                                              cp_fm_set_all,&
                                              cp_fm_write
   USE kinds,                           ONLY: dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

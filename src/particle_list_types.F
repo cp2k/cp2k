@@ -34,11 +34,8 @@
 ! *****************************************************************************
 MODULE particle_list_types
   USE f77_blas
-  USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: deallocate_particle_set,&
                                              particle_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

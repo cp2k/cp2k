@@ -16,8 +16,6 @@ MODULE statistical_methods
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: next_random_number
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 

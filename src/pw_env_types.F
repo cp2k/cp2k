@@ -20,7 +20,6 @@ MODULE pw_env_types
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_section_types,             ONLY: section_vals_release
-  USE kinds,                           ONLY: dp
   USE pw_poisson_types,                ONLY: pw_poisson_release,&
                                              pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
@@ -28,8 +27,6 @@ MODULE pw_env_types
                                              pw_pool_type,&
                                              pw_pools_dealloc,&
                                              pw_pools_flush_cache
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

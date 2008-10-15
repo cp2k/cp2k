@@ -42,8 +42,6 @@ MODULE qs_loc_types
                                              localized_wfn_control_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

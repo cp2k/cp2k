@@ -11,12 +11,9 @@
 ! *****************************************************************************
 MODULE hfx_helpers 
   
-  USE kinds,                           ONLY: dp,&
-                                             int_8
+  USE kinds,                           ONLY: int_8
   USE mathconstants
   USE orbital_pointers
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

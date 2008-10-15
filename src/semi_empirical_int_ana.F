@@ -44,8 +44,6 @@ MODULE semi_empirical_int_ana
                                              rotmat_type,&
                                              semi_empirical_type,&
                                              taper_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

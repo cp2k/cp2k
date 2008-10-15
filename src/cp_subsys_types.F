@@ -23,7 +23,6 @@ MODULE cp_subsys_types
                                              distribution_1d_retain,&
                                              distribution_1d_type
   USE f77_blas
-  USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_release,&
                                              mol_kind_new_list_retain,&
                                              mol_kind_new_list_type
@@ -37,8 +36,6 @@ MODULE cp_subsys_types
   USE particle_list_types,             ONLY: particle_list_release,&
                                              particle_list_retain,&
                                              particle_list_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

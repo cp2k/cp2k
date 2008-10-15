@@ -55,8 +55,6 @@ MODULE pint_types
                                              rep_env_create,&
                                              rep_env_release,&
                                              replica_env_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

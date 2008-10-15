@@ -8,8 +8,7 @@
 ! *****************************************************************************
 MODULE cp_iter_types
   USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
-                                             dp
+                                             default_string_length
   USE message_passing,                 ONLY: mp_abort
 
   IMPLICIT NONE

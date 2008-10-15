@@ -11,7 +11,6 @@ MODULE scp_environment_methods
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_type
@@ -29,8 +28,6 @@ MODULE scp_environment_methods
                                              scp_rspw_create
   USE scp_rspw_types,                  ONLY: scp_rspw_release,&
                                              scp_rspw_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

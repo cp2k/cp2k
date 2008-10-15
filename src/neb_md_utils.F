@@ -32,8 +32,6 @@ MODULE neb_md_utils
   USE parallel_rng_types,              ONLY: next_random_number
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: massunit
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

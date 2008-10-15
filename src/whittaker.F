@@ -18,8 +18,7 @@
                                              fac,&
                                              rootpi
   USE termination,                     ONLY: stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
+  USE timings,                         ONLY: timeset
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

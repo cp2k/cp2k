@@ -37,8 +37,7 @@ MODULE distribution_methods
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp,&
-                                             int_size
+  USE kinds,                           ONLY: int_size
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync

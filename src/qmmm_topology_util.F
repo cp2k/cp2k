@@ -11,8 +11,7 @@ MODULE qmmm_topology_util
                                              cp_print_key_unit_nr
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: default_string_length
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type

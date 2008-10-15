@@ -24,8 +24,6 @@ MODULE hfx_screening_methods
   USE mathconstants
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

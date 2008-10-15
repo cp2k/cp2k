@@ -31,8 +31,6 @@ MODULE qmmm_per_elpot
                                              qmmm_per_pot_type,&
                                              qmmm_pot_p_type
   USE qs_util,                         ONLY: exp_radius
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -36,8 +36,6 @@ MODULE cp_units
        kjmol, massunit, pascal, picoseconds, seconds, wavenumbers
   USE string_utilities,                ONLY: compress,&
                                              uppercase
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -29,8 +29,6 @@ MODULE constraint_clv
                                              local_colvar_constraint_type,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

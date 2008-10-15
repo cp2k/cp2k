@@ -58,8 +58,6 @@ MODULE thermostat_utils
   USE thermostat_types,                ONLY: thermostat_info_type,&
                                              thermostat_type,&
                                              thermostats_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -46,7 +46,6 @@ MODULE fist_environment_types
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type
@@ -64,8 +63,6 @@ MODULE fist_environment_types
                                              qmmm_env_mm_release,&
                                              qmmm_env_mm_retain,&
                                              qmmm_env_mm_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

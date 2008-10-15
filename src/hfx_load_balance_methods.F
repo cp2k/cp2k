@@ -41,8 +41,6 @@ MODULE hfx_load_balance_methods
                                              mp_waitall
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

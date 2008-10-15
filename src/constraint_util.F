@@ -31,8 +31,6 @@ MODULE constraint_util
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 

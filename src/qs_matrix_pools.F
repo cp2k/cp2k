@@ -34,7 +34,6 @@ MODULE qs_matrix_pools
                                              sm_struct_release
   USE f77_blas
   USE input_constants,                 ONLY: use_orb_basis_set
-  USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_mo_types,                     ONLY: get_mo_set,&

@@ -41,10 +41,7 @@
 ! *****************************************************************************
 MODULE cp_array_logical_utils
   USE f77_blas
-  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

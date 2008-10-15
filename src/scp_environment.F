@@ -14,7 +14,6 @@ MODULE scp_environment
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_create,&

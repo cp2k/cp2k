@@ -17,7 +17,6 @@ MODULE thermostat_mapping
        do_region_molecule, do_thermo_communication, &
        do_thermo_no_communication, use_perd_x, use_perd_xy, use_perd_xyz, &
        use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
-  USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_allgather,&

@@ -48,8 +48,6 @@ MODULE molecular_states
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE sparse_matrix_types,             ONLY: real_matrix_type
   USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

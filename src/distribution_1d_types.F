@@ -30,7 +30,6 @@ MODULE distribution_1d_types
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE parallel_rng_types,              ONLY: delete_rng_stream,&
@@ -38,8 +37,6 @@ MODULE distribution_1d_types
                                              rng_record_length,&
                                              rng_stream_p_type
   USE string_utilities,                ONLY: ascii_to_string
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 

@@ -47,8 +47,6 @@ MODULE extended_system_init
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_info_type
   USE thermostat_utils,                ONLY: get_nhc_energies
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   PRIVATE

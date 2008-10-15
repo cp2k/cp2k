@@ -27,8 +27,6 @@ MODULE qmmm_types
                                              pw_pools_dealloc
   USE pw_types,                        ONLY: pw_type
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

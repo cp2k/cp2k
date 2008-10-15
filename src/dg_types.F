@@ -14,7 +14,6 @@ MODULE dg_types
                                              dg_rho0_retain,&
                                              dg_rho0_type
   USE f77_blas
-  USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

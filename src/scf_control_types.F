@@ -38,8 +38,6 @@ MODULE scf_control_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

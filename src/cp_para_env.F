@@ -14,12 +14,9 @@ MODULE cp_para_env
   USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                              cp_para_env_type
   USE f77_blas
-  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_comm_dup,&
                                              mp_comm_free,&
                                              mp_environ
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

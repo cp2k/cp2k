@@ -19,8 +19,6 @@ MODULE dimer_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: random_numbers
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
