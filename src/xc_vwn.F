@@ -215,7 +215,7 @@ CONTAINS
        DEALLOCATE(x,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE vwn_lda_eval
 
@@ -595,7 +595,7 @@ CONTAINS
       END IF
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE vwn_lsd_eval
 

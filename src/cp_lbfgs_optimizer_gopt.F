@@ -312,7 +312,7 @@ CONTAINS
        optimizer%status=0
        optimizer%ref_count=1
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_opt_gopt_create
 
 ! *****************************************************************************
@@ -415,7 +415,7 @@ SUBROUTINE cp_opt_gopt_release(optimizer,error)
      END IF
   END IF
   NULLIFY(optimizer)
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE cp_opt_gopt_release
 
 ! *****************************************************************************
@@ -754,7 +754,7 @@ CPSourceFileRef,&
     IF (PRESENT(projected_gradient)) &
          projected_gradient=optimizer%projected_gradient
     IF (PRESENT(n_iter)) n_iter=optimizer%n_iter
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_opt_gopt_step
 
 ! *****************************************************************************

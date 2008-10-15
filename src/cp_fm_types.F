@@ -694,7 +694,7 @@ CPSourceFileRef,&
        END IF
     END IF
 
-    ! CALL timestop(0.0_dp,handle)
+    ! CALL timestop(handle)
 
   END SUBROUTINE cp_fm_set_submatrix
 
@@ -1241,7 +1241,7 @@ CPSourceFileRef,&
 #endif
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_to_fm_matrix
 
@@ -1292,7 +1292,7 @@ CPSourceFileRef,&
     CALL dcopy(ncol*n,a(1,ss),1,b(1,ts),1)
 #endif
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_to_fm_columns
 

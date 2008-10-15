@@ -184,7 +184,7 @@ CONTAINS
        CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_g,&
             accept_non_compatible=.TRUE.,error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_ddapc_init
 
 ! *****************************************************************************
@@ -382,7 +382,7 @@ CONTAINS
        END IF
        CALL print_atomic_charges(particle_set,iw,title=" DDAP "//&
             TRIM(type_of_density)//" charges:",atomic_charges=qtot)
-       CALL timestop(0.0_dp,handle2)
+       CALL timestop(handle2)
        !
        ! If requested evaluate also the correction to derivatives due to Pulay Forces
        !
@@ -453,7 +453,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(dbv, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL timestop(0.0_dp,handle3)
+          CALL timestop(handle3)
        END IF
        !
        ! End of charge fit
@@ -475,7 +475,7 @@ CONTAINS
        CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_g,&
             accept_non_compatible=.TRUE.,error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE get_ddapc
 
 ! *****************************************************************************
@@ -558,7 +558,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
           g_hartree%cc(ig) = g_hartree%cc(ig) + sfac*g_corr/Vol
        END DO
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE restraint_functional_potential
 
 ! *****************************************************************************
@@ -633,7 +633,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
           g_hartree%cc(ig) = g_hartree%cc(ig) + sfac*g_corr/Vol
        END DO
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE modify_hartree_pot
 
 ! *****************************************************************************
@@ -712,7 +712,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        DEALLOCATE(ddbv, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE debug_der_b_vector
 
 ! *****************************************************************************
@@ -794,7 +794,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        DEALLOCATE(ddAm, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE debug_der_A_matrix
   
 ! *****************************************************************************
@@ -867,7 +867,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        DEALLOCATE(ddqv, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE debug_charge
   
 END MODULE cp_ddapc_util

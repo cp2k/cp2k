@@ -201,7 +201,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_unique_bond
 
@@ -315,7 +315,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_unique_bend
 
@@ -420,7 +420,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_unique_ub
 
@@ -545,7 +545,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_unique_tors
 
@@ -669,7 +669,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_unique_impr
 
@@ -766,7 +766,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_unique_onfo
 
@@ -904,7 +904,7 @@ CPSourceFileRef,&
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             bond_list=bond_list)
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_bond
 
@@ -1057,7 +1057,7 @@ CPSourceFileRef,&
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             bend_list=bend_list)
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_bend
 
@@ -1198,7 +1198,7 @@ CPSourceFileRef,&
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             ub_list=ub_list)
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_ub
 
@@ -1414,7 +1414,7 @@ CPSourceFileRef,&
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             torsion_list=torsion_list)
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_tors
 
@@ -1603,7 +1603,7 @@ CPSourceFileRef,&
        END DO
        CALL set_molecule_kind(molecule_kind=molecule_kind,impr_list=impr_list)
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_impr
 
@@ -1767,7 +1767,7 @@ CPSourceFileRef,&
     END IF
     DEALLOCATE (charge,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
   END SUBROUTINE force_field_pack_ch
 
 ! *****************************************************************************
@@ -1966,7 +1966,7 @@ CPSourceFileRef,&
     END IF  ! nshell_tot>0
     CPPostcondition(first_shell-1==nshell_tot,cp_failure_level,routineP,error,failure)
     CPPostcondition(n==nshell_tot,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_shell
 
@@ -2248,7 +2248,7 @@ CPSourceFileRef,&
           potparm_bond%pot(ikind,jkind)%pot%pair_spline_data => spl_p
        END DO
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_sbe
 
@@ -2321,7 +2321,7 @@ CPSourceFileRef,&
             onfo_list=onfo_list)
     END DO
     CALL pair_potential_pp_release ( potparm_bond, error )
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_onfo
 
@@ -2549,7 +2549,7 @@ CPSourceFileRef,&
           END IF
        END DO  ! jkind
     END DO   ! ikind
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
   END SUBROUTINE force_field_pack_sne
 
 ! *****************************************************************************
@@ -2601,7 +2601,7 @@ CPSourceFileRef,&
            emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
            scale_cutoff=ff_type%scale_cutoff, error=error)
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_ppse
 
@@ -2692,7 +2692,7 @@ CPSourceFileRef,&
        END DO
     END DO
 
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_pp
 

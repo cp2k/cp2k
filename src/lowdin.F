@@ -171,7 +171,7 @@ CONTAINS
     CALL print_atomic_charges(particle_set,scr,title,electronic_charges=charges)
 
     DEALLOCATE(charges)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE
 

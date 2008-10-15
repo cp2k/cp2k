@@ -239,7 +239,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
   CALL fist_nonbond_env_release ( fist_nonbond_env, error )
   CALL cp_subsys_release(subsys,error=error)
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
   END SUBROUTINE fist_init
 
@@ -343,7 +343,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
     CALL distribution_1d_release(local_molecules, error=error)
     CALL ewald_pw_release(ewald_pw, error)
     CALL release_multipole_type(multipoles, error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     
   END SUBROUTINE fist_init_subsys
 END MODULE fist_environment

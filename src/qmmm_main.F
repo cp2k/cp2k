@@ -387,7 +387,7 @@ CPSourceFileRef,&
        DEALLOCATE(qm_atom_type,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qmmm_create_force_env
 

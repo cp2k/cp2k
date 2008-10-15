@@ -136,7 +136,7 @@ CPSourceFileRef,&
 
     IF(.NOT.topology%para_res) atom_info%label_resid(:) = 1
     topology%natoms = natom
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/XYZ_INFO",error=error)
 

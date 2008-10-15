@@ -138,7 +138,7 @@ MODULE qs_rho0_methods
       m1 = m1 + maxso
     END DO  ! iset1
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE calculate_mpole_gau
 
 ! *****************************************************************************
@@ -277,7 +277,7 @@ MODULE qs_rho0_methods
     END DO  ! iat
     END IF
 
-   CALL timestop(0.0_dp,handle)
+   CALL timestop(handle)
 
   END SUBROUTINE calculate_rho0_atom
 
@@ -578,7 +578,7 @@ MODULE qs_rho0_methods
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
          "PRINT%GAPW/RHO0_INFORMATION",error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
     END SUBROUTINE init_rho0
 

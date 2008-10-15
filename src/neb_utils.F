@@ -326,7 +326,7 @@ CPSourceFileRef,&
        DEALLOCATE(distance,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE build_replica_coords
 
 ! *****************************************************************************
@@ -479,7 +479,7 @@ CPSourceFileRef,&
        DEALLOCATE(Mmatrix,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE neb_calc_energy_forces
 
 ! *****************************************************************************
@@ -556,7 +556,7 @@ CPSourceFileRef,&
        CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE perform_replica_md
 
 ! *****************************************************************************
@@ -640,7 +640,7 @@ CPSourceFileRef,&
        CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE perform_replica_geo
 
 ! *****************************************************************************

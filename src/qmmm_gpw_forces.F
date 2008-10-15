@@ -317,7 +317,7 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO",&
          error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qmmm_forces
 
@@ -486,7 +486,7 @@ CONTAINS
     END IF
 
     CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qmmm_forces_with_gaussian
 
@@ -635,7 +635,7 @@ CONTAINS
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO Gaussian
     END DO Radius
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     CALL timeset(routineNb//"_R",handle2)
     IF (periodic) THEN
        CALL qmmm_forces_with_gaussian_LG  (pgfs=pgfs,&
@@ -676,8 +676,8 @@ CONTAINS
                                            qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
                                            error=error)
     END IF
-    CALL timestop(0.0_dp,handle2)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle2)
+    CALL timestop(handle)
   END SUBROUTINE qmmm_force_with_gaussian_low
 
 ! *****************************************************************************
@@ -1076,7 +1076,7 @@ CONTAINS
     END IF
     DEALLOCATE(LForces, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LG
 
 ! *****************************************************************************
@@ -1248,7 +1248,7 @@ CONTAINS
 
     DEALLOCATE(LForces, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LR
 
 ! *****************************************************************************
@@ -1391,7 +1391,7 @@ CONTAINS
     CALL pw_pool_give_back_pw ( pw_pools(1)%pool, v_qmmm_rspace%pw, error=error)
     DEALLOCATE(Num_Forces,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 100 FORMAT(I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
   END SUBROUTINE qmmm_debug_forces
 
@@ -1505,7 +1505,7 @@ CONTAINS
     ENDIF
 
     CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 100 FORMAT("Collocation   : ",I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
   END SUBROUTINE debug_integrate_gf_rspace_NoPBC
 
@@ -1617,7 +1617,7 @@ CONTAINS
     DEALLOCATE(Num_Forces,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 100 FORMAT("MM Atom LR    : ",I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
   END SUBROUTINE debug_qmmm_forces_with_gauss_LG
 
@@ -1729,7 +1729,7 @@ CONTAINS
     DEALLOCATE(Num_Forces,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 100 FORMAT("MM Atom LR    : ",I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
   END SUBROUTINE debug_qmmm_forces_with_gauss_LR
 

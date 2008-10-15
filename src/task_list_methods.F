@@ -1303,7 +1303,7 @@ CONTAINS
     DEALLOCATE(recv_disps,STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%group_size)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE get_current_loads
 ! *****************************************************************************
@@ -1479,7 +1479,7 @@ CONTAINS
     DEALLOCATE(recv_disps,STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%group_size)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE load_balance_replicated
 
@@ -1672,7 +1672,7 @@ CONTAINS
     DEALLOCATE(recv_disps,STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%group_size)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE create_local_tasks
 
@@ -1816,7 +1816,7 @@ CONTAINS
     tasks=>tasks_recv
     ntasks=ntasks_recv
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE distribute_tasks
 

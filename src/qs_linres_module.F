@@ -261,7 +261,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE linres_calculation
 

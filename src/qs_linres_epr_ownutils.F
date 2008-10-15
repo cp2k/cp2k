@@ -914,7 +914,7 @@ CONTAINS
     CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_rspace%pw,error=error)
     !
     ! Finalize
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     !
   END SUBROUTINE epr_ind_magnetic_field
 

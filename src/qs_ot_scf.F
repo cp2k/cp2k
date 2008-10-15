@@ -337,7 +337,7 @@ CONTAINS
        qs_ot_env(ispin)%settings=qs_ot_env(1)%settings
     ENDDO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE ot_scf_read_input
   !
@@ -583,7 +583,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE ot_scf_mini
   !
@@ -698,7 +698,7 @@ CONTAINS
        ! **** SCP
 
     END DO
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ot_scf_init
 
 ! *****************************************************************************

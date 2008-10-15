@@ -395,7 +395,7 @@ CONTAINS
        nd3=nd3+1
        GOTO 250
     ENDIF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE S_FFT_dimensions
 
@@ -535,7 +535,7 @@ CONTAINS
     ELSE
        zf=0._dp
     ENDIF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE scale_and_distribute
 END MODULE ps_wavelet_util

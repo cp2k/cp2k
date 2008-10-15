@@ -153,7 +153,7 @@ CONTAINS
           ! Do Nothing
        END SELECT
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE free_energy_evaluate
 
@@ -288,7 +288,7 @@ CONTAINS
     END IF
     ! Release storage
     CALL destroy_tmp_data(fe_env,wrk,ng_points,ncolvar,error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ui_check_trend
 
 ! *****************************************************************************
@@ -421,7 +421,7 @@ CONTAINS
        CALL ui_check_norm_sc_low(fe_env,nr_points,output_unit,motion_section,error)
        test_passed = fe_env%conv_par%test_vn.AND.fe_env%conv_par%test_sw
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ui_check_norm_sc
 
 ! *****************************************************************************
@@ -514,7 +514,7 @@ CONTAINS
     ELSE
        CALL destroy_tmp_data(fe_env,wrk,ng_points,ncolvar,error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ui_check_norm_sc_low
 
 ! *****************************************************************************
@@ -612,7 +612,7 @@ CONTAINS
        DEALLOCATE(avg_std,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ui_check_convergence
 
 ! *****************************************************************************
@@ -795,7 +795,7 @@ CONTAINS
        IF (PRESENT(covmx)) covmx = fe_env%cg_data(cg_index)%var
        IF (PRESENT(avgs))  avgs  = fe_env%cg_data(cg_index)%avg
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE eval_cov_matrix
 
 ! *****************************************************************************

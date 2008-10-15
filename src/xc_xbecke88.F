@@ -249,7 +249,7 @@ CONTAINS
           NULLIFY(dummy)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE xb88_lda_eval
 
 ! *****************************************************************************
@@ -846,7 +846,7 @@ CONTAINS
           NULLIFY(dummy)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     
   END SUBROUTINE xb88_lsd_eval
 

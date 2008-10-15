@@ -424,7 +424,7 @@ CONTAINS
                        "r_new")
 
 ! end the timing
-  CALL timestop(0.0E0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE mc_conformation_change
 
@@ -660,7 +660,7 @@ END SUBROUTINE mc_conformation_change
                        "r")
 
 ! end the timing
-  CALL timestop(0.0E0_dp,handle)
+  CALL timestop(handle)
 
   END SUBROUTINE mc_molecule_translation
 
@@ -975,7 +975,7 @@ END SUBROUTINE mc_conformation_change
                        "r_old")
 
 ! end the timing
-  CALL timestop(0.0E0_dp,handle)
+  CALL timestop(handle)
 
   END SUBROUTINE mc_molecule_rotation
 
@@ -1182,7 +1182,7 @@ END SUBROUTINE mc_conformation_change
          IF(output_unit>0) WRITE(output_unit,*) &
             "Volume move rejected because we tried to make too small of box.",vol_dis
 !     end the timing
-         CALL timestop(0.0E0_dp,handle)
+         CALL timestop(handle)
          RETURN
       ENDIF
 
@@ -1246,7 +1246,7 @@ END SUBROUTINE mc_conformation_change
          IF(output_unit>0) WRITE(output_unit,*) &
             "Volume move rejected due to overlap.",vol_dis
 !     end the timing
-         CALL timestop(0.0E0_dp,handle)
+         CALL timestop(handle)
          RETURN
       ENDIF
 
@@ -1343,7 +1343,7 @@ END SUBROUTINE mc_conformation_change
       CALL cell_release(cell_old,error=error)
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
   END SUBROUTINE mc_volume_move
 
@@ -1540,7 +1540,7 @@ END SUBROUTINE mc_conformation_change
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_b")
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
   END SUBROUTINE change_bond_length
 
@@ -1825,7 +1825,7 @@ END SUBROUTINE mc_conformation_change
                        "atom_c")
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
   END SUBROUTINE change_bond_angle
 
@@ -2061,7 +2061,7 @@ END SUBROUTINE mc_conformation_change
                        "atom_d")
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
   END SUBROUTINE change_dihedral
 
@@ -2344,7 +2344,7 @@ END SUBROUTINE mc_conformation_change
             particles%els(ipart)%r(1:3)=r_old(1:3,ipart)
          ENDDO
 
-         CALL timestop(0.0E0_dp,handle)
+         CALL timestop(handle)
 
          RETURN
       ENDIF
@@ -2481,7 +2481,7 @@ END SUBROUTINE mc_conformation_change
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r_new")
 ! end the timing
-  CALL timestop(0.0E0_dp,handle)
+  CALL timestop(handle)
 
   END SUBROUTINE mc_avbmc_move
 

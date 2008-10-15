@@ -100,7 +100,7 @@ CONTAINS
 CPSourceFileRef, &
                          error=error, failure=failure)
           CALL cp_fm_scale(alpha+beta, matrix_a, error=error)
-          CALL timestop(0.0_dp,handle)
+          CALL timestop(handle)
           RETURN
        END IF
     END IF
@@ -136,7 +136,7 @@ CPSourceFileRef,&
 
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_scale_and_add
 
@@ -211,7 +211,7 @@ CPSourceFileRef,&
     ! this does just signal a zero diagonal element
     DEALLOCATE(ipivot)
     almost_determinant=determinant ! notice that the sign is random
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE
 
 ! *****************************************************************************
@@ -409,7 +409,7 @@ CPSourceFileRef,&
     CALL mp_sum(norm,group)
 #endif
     norm = SQRT(norm)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_fm_frobenius_norm
 
 ! *****************************************************************************
@@ -541,7 +541,7 @@ CPSourceFileRef,&
     CALL dsyrk(uplo,trans,n,k,alpha,a(ia,ja),lda,beta,c(1,1),ldc)
 
 #endif
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_syrk
 
@@ -588,7 +588,7 @@ CPSourceFileRef,&
        END DO
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_schur_product
 
@@ -645,7 +645,7 @@ CPSourceFileRef,&
 
     CALL mp_sum(trace,group)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_trace
 
@@ -767,7 +767,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   END IF
 
-  CALL timestop(0.0_dp,handle)     
+  CALL timestop(handle)     
   END SUBROUTINE cp_fm_triangular_multiply
 
 ! *****************************************************************************
@@ -803,7 +803,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CALL DSCAL(size_a, alpha, a, 1)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_scale
 
@@ -862,7 +862,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
      ENDDO
     ENDDO
 #endif
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_transpose
 
@@ -964,7 +964,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     ENDDO
 
 #endif
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_upper_to_full
 

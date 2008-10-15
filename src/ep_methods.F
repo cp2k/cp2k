@@ -562,7 +562,7 @@ CONTAINS
        ierr=0
     END IF
     CALL cp_error_dealloc_ref(error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ep_env_init_low
 
 ! *****************************************************************************
@@ -647,7 +647,7 @@ CONTAINS
     CALL calculate_ecore_self(qs_env,error=error)
     CALL calculate_ecore_overlap(qs_env,para_env,.FALSE.,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ep_env_finish_qs_init
 
 ! *****************************************************************************
@@ -828,7 +828,7 @@ CONTAINS
        END DO
 
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ep_env_transfer_psi0
 
 ! *****************************************************************************
@@ -1163,7 +1163,7 @@ CONTAINS
             error=error)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE p_op_ep
 
@@ -1318,7 +1318,7 @@ CONTAINS
        END DO
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ep_env_localize_matrix
 
 ! *****************************************************************************
@@ -1487,7 +1487,7 @@ CONTAINS
        CALL qs_ks_release(ks_env,error=error)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_check_i_alloc
 
@@ -2105,7 +2105,7 @@ CONTAINS
     CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,weighted_vectors,error=error)
     CALL f_env_rm_defaults(f_env,new_error,ierr)
     CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE ep_calc_w_matrix_full
 
@@ -2440,7 +2440,7 @@ CONTAINS
 
     CALL mp_sum(ep_force%f0_internal,ep_env%main_qs_env%para_env%group)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE ep_calc_f_sub
 

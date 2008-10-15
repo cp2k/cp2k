@@ -192,7 +192,7 @@ CONTAINS
       IF (file_exists) CALL close_file(unit_number=rst_unit)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE xas_read_restart
 
@@ -259,7 +259,7 @@ CONTAINS
        CALL cp_print_key_finished_output(rst_unit,logger,xas_section,&
                   "PRINT%RESTART", error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE xas_write_restart
 
@@ -305,7 +305,7 @@ CONTAINS
 
     CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE xas_initialize_rho
 

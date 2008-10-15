@@ -347,7 +347,7 @@ CONTAINS
     qs_env%rho%rho_r_valid = .TRUE.
     qs_env%rho%rho_g_valid = .TRUE.
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE collocate_atomic_charge_density
 
@@ -488,7 +488,7 @@ CONTAINS
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_rho_core
 
@@ -907,7 +907,7 @@ CONTAINS
     CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section=interp_section,error=error)
 
     total_rho = pw_integrate_function(rho%pw,isign=-1)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE calculate_rho_elec
 
 ! *****************************************************************************
@@ -2143,7 +2143,7 @@ CONTAINS
     DEALLOCATE (cubeaxis,g,rag,rbg,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,"cubeaxis,g,rag,rbg")
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE collocate_pgf_product_gspace
 

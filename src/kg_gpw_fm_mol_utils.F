@@ -343,7 +343,7 @@ CONTAINS
     DEALLOCATE(eigenvalues, STAT = istat)
     IF (istat /= 0) CALL stop_memory(routineP,"eigenvalues")
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE fm_mol_power
 
@@ -830,7 +830,7 @@ CONTAINS
       END DO
    END IF
       
-   CALL timestop(0.0_dp,handle)
+   CALL timestop(handle)
    
  END SUBROUTINE write_mo_mol_restart
 
@@ -1075,7 +1075,7 @@ CONTAINS
 
     IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE read_mo_mol_restart
 

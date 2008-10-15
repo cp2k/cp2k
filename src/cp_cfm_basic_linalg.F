@@ -64,7 +64,7 @@ CONTAINS
        END DO
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_cfm_schur_product
 
@@ -157,7 +157,7 @@ CPSourceFileRef,&
 #endif
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_cfm_add
 
@@ -219,7 +219,7 @@ CPSourceFileRef,&
     ! this does just signal a zero diagonal element
     DEALLOCATE(ipivot)
     almost_determinant=determinant ! notice that the sign is random
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE
 
 ! *****************************************************************************

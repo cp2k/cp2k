@@ -518,7 +518,7 @@ CONTAINS
        END DO
        CALL mp_sum(vals,rep_env%para_env_inter_rep%group)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE rep_env_sync
 
 ! *****************************************************************************
@@ -556,7 +556,7 @@ CONTAINS
           CALL cp_results_mp_bcast(results(irep)%results, source, rep_env%para_env_inter_rep, error)
        END DO
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE rep_env_sync_results
 
 ! *****************************************************************************

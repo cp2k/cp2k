@@ -194,7 +194,7 @@ CONTAINS
        END IF
        CALL cp_print_key_finished_output(iw,logger,print_section,&
             "PROGRAM_RUN_INFO", error=error)
-       CALL timestop(0.0_dp,handle)
+       CALL timestop(handle)
     END IF
   END SUBROUTINE qmmm_el_coupling
 
@@ -288,7 +288,7 @@ CONTAINS
                                 param_section=interp_section,&
                                 error=error)
        END DO
-       CALL timestop(0._dp,handle2)
+       CALL timestop(handle2)
     CASE DEFAULT
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
@@ -301,7 +301,7 @@ CONTAINS
 
     CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qmmm_elec_with_gaussian
 
 ! *****************************************************************************
@@ -428,7 +428,7 @@ CONTAINS
        DEALLOCATE (zdat, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     CALL timeset(routineNb//"_R",handle2)
     IF (periodic) THEN
        ! Long Range Part of the QM/MM Potential with Gaussians With Periodic Boundary Conditions
@@ -463,8 +463,8 @@ CONTAINS
                                            qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
                                            error=error)
     END IF
-    CALL timestop(0.0_dp,handle2)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle2)
+    CALL timestop(handle)
 
   END SUBROUTINE qmmm_elec_with_gaussian_low
 
@@ -735,7 +735,7 @@ CONTAINS
           END DO LoopOnGrid
        END DO Atoms
     END DO Radius
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qmmm_elec_with_gaussian_LG
 
 ! *****************************************************************************
@@ -851,7 +851,7 @@ CONTAINS
           END DO LoopOnGrid
        END DO Atoms
     END DO Radius
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qmmm_elec_with_gaussian_LR
 
 END MODULE qmmm_gpw_energy

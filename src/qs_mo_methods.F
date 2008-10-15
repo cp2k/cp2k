@@ -108,7 +108,7 @@ CONTAINS
     CALL cp_fm_release(overlap_vv,error=error)
     CALL cp_fm_release(svmatrix,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
     END SUBROUTINE make_basis_sm
 
@@ -157,7 +157,7 @@ CONTAINS
 
     CALL cp_fm_release(overlap_vv,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
     END SUBROUTINE make_basis_sv
 
@@ -212,7 +212,7 @@ CONTAINS
 
     CALL cp_fm_release(overlap_vv,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
     END SUBROUTINE make_basis_cholesky
 
@@ -260,7 +260,7 @@ CONTAINS
 
     CALL cp_fm_release(overlap_vv,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE make_basis_simple
 
@@ -298,7 +298,7 @@ CONTAINS
 
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_density_matrix_blacs
 
@@ -351,7 +351,7 @@ CONTAINS
 
     CALL cp_fm_release(fm_tmp,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_density_matrix_sparse
 
@@ -494,7 +494,7 @@ CONTAINS
 
     ENDIF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE subspace_eigenvalues_ks
 
@@ -570,7 +570,7 @@ CONTAINS
     orthonormality=max_alpha
     ! write(6,*) "max deviation from orthonormalization ",orthonormality
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_orthonormality
 
@@ -619,7 +619,7 @@ CONTAINS
       CALL cp_fm_release(evecs,error=error)
       DEALLOCATE(evals)
     ENDDO
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_magnitude
 

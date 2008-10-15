@@ -110,7 +110,7 @@ CONTAINS
 
     CALL tddfpt_cleanup(t_env, p_env,error=error)
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE tddfpt_calculation
 

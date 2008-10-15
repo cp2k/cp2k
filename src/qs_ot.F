@@ -818,7 +818,7 @@ CONTAINS
     CALL cp_fm_gemm('N','N',n,k,k,rone,G_OLD,U,rzero,C,error=error)
     CALL cp_fm_to_fm(C,G_OLD,error=error)
     !
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qs_ot_on_the_fly_localize
 
 ! *****************************************************************************
@@ -852,7 +852,7 @@ CONTAINS
        CALL cp_fm_to_fm(C_TMP,SC,error=error)
     ENDIF
     !
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qs_ot_ref_chol
 
 ! *****************************************************************************
@@ -906,7 +906,7 @@ CONTAINS
        CALL cp_fm_to_fm(C_TMP,SC,error=error)
     ENDIF
     !
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qs_ot_ref_lwdn
 
 ! *****************************************************************************
@@ -1019,7 +1019,7 @@ CONTAINS
        CALL cp_fm_to_fm(C_TMP,SC,error=error)
     ENDIF
     !
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qs_ot_ref_poly
 
 ! *****************************************************************************
@@ -1148,7 +1148,7 @@ CONTAINS
        CALL cp_fm_to_fm(C_NEW,C_OLD,error=error)
     ENDIF
     !
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qs_ot_get_orbitals_ref
 
 ! *****************************************************************************
@@ -1247,7 +1247,7 @@ CONTAINS
     ! G = 2*(1-S*C*C')*H*C
     CALL cp_fm_scale_and_add(-rone,G,rone,HC,error=error)
     !
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qs_ot_get_derivative_ref
   ! computes p=x*S*x and the matrix functionals related matrices
 ! *****************************************************************************
@@ -1286,7 +1286,7 @@ CONTAINS
        CALL qs_ot_generate_rotation(qs_ot_env,error=error)
     ENDIF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_ot_get_p
 
@@ -1341,7 +1341,7 @@ CONTAINS
        CALL cp_cfm_release(cmat_u,error=error)
        DEALLOCATE(evals_exp)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_ot_generate_rotation
 
@@ -1411,7 +1411,7 @@ CONTAINS
        CALL cp_cfm_release(cmat_buf1,error=error)
        CALL cp_cfm_release(cmat_buf2,error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   CONTAINS
 ! *****************************************************************************
     FUNCTION cint(e1,e2)
@@ -1510,7 +1510,7 @@ CONTAINS
     CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_x,matrix_kk, &
          rone ,matrix_c,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_ot_get_orbitals
 
@@ -1664,7 +1664,7 @@ CONTAINS
        CALL cp_fm_release(matrix_hc_local,error=error)
     ENDIF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_ot_get_derivative
 
@@ -1732,7 +1732,7 @@ CONTAINS
     CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_sx,qs_ot_env%matrix_buf3, &
          rone,matrix_gx,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_ot_get_derivative_diag
 
@@ -1763,7 +1763,7 @@ CONTAINS
     CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx,error=error)
 
     IF (qs_ot_env % taylor_order .LE. 0) THEN
-       CALL timestop(0.0_dp,handle)
+       CALL timestop(handle)
        RETURN
     ENDIF
 
@@ -1823,7 +1823,7 @@ CONTAINS
     ! and add to the derivative
     CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_sx,qs_ot_env%matrix_r,rone,matrix_gx,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_ot_get_derivative_taylor
 
@@ -1846,7 +1846,7 @@ CONTAINS
     CALL cp_fm_set_all(qs_ot_env%matrix_cosp,rzero,rone,error=error)
     CALL cp_fm_set_all(qs_ot_env%matrix_sinp,rzero,rone,error=error)
     IF (qs_ot_env% taylor_order .LE. 0) THEN
-       CALL timestop(0.0_dp,handle)
+       CALL timestop(handle)
        RETURN
     ENDIF
 
@@ -1856,7 +1856,7 @@ CONTAINS
     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_cosp,cosfactor,qs_ot_env%matrix_p,error=error)
     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_sinp,sinfactor,qs_ot_env%matrix_p,error=error)
     IF (qs_ot_env% taylor_order .LE. 1) THEN
-       CALL timestop(0.0_dp,handle)
+       CALL timestop(handle)
        RETURN
     ENDIF
 
@@ -1875,7 +1875,7 @@ CONTAINS
        CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_sinp,sinfactor,qs_ot_env%matrix_r,error=error)
     ENDDO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_ot_p2m_taylor
 
@@ -1945,7 +1945,7 @@ CONTAINS
        ENDDO
     ENDDO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_ot_p2m_diag
 

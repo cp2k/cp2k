@@ -91,7 +91,7 @@ CONTAINS
          default_units=default_units,error=error)
     CALL cp_unit_set_release(default_units,error=error)
     CALL parser_release(cpparser,error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END FUNCTION create_cp2k_input_reading
 
 ! *****************************************************************************
@@ -162,7 +162,7 @@ CONTAINS
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE create_cp2k_root_section
 

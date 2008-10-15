@@ -461,7 +461,7 @@ CONTAINS
             "atom_of_kind")
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE integrate_vhg0_g0
 

@@ -302,7 +302,7 @@ CONTAINS
     CALL cp_print_key_finished_output(iw3,logger,mm_section,"PRINT%FF_INFO/SPLINE_DATA",error=error)
     CALL cp_print_key_finished_output(iw2,logger,mm_section,"PRINT%FF_INFO/SPLINE_INFO",error=error)
     CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%FF_INFO",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE force_field_pack
 
@@ -431,7 +431,7 @@ CONTAINS
     
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE force_field_qeff_output
 
 ! *****************************************************************************
@@ -1131,7 +1131,7 @@ CONTAINS
     !---------------------------------------------------------------------------
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE clean_intra_force_kind
 
 ! *****************************************************************************

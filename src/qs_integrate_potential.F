@@ -257,7 +257,7 @@ CONTAINS
     IF(ierr /= 0) CALL stop_memory("integrate_v_core_rspace",&
                   "hab,pab,cores")
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE integrate_v_core_rspace
 
@@ -1005,7 +1005,7 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE integrate_v_rspace
 

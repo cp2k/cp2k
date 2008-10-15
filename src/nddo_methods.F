@@ -249,7 +249,7 @@ CONTAINS
           ENDDO
        ENDIF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_nddo_fock_matrix
 
@@ -404,7 +404,7 @@ CONTAINS
        energy%core_overlap = enuclear      
     END IF
     
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE se_core_core_interaction
   
 ! *****************************************************************************
@@ -722,7 +722,7 @@ CONTAINS
        energy%hartree = ecore2 - energy%core
     END IF
     
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE build_fock_matrix_coulomb
 
 ! *****************************************************************************
@@ -1040,7 +1040,7 @@ CONTAINS
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE build_fock_matrix_coulomb_lr
  
 ! *****************************************************************************
@@ -1258,7 +1258,7 @@ CONTAINS
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     
   END SUBROUTINE build_fock_matrix_exchange
 

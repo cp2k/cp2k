@@ -145,7 +145,7 @@ CONTAINS
     IF (iw>0) WRITE(iw,*)"topology%nmol ::",topology%nmol
     IF (iw>0) WRITE(iw,*)"topology%nmol_type ::",topology%nmol_type
     IF (iw>0) WRITE(iw,*)"topology%nmol_conn ::",topology%nmol_conn
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1.1 Clean the temporary arrays to avoid quadratic loops around
@@ -162,7 +162,7 @@ CONTAINS
           istart_typ      = map_atom_type(i)
        END IF
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Allocate the molecule_kind_set
@@ -177,7 +177,7 @@ CONTAINS
        IF(iw>0) WRITE(iw,*) "    Allocated molecule_kind_set, Dimenstion of ",&
             SIZE(molecule_kind_set)
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 3. Allocate the molecule_set
@@ -192,7 +192,7 @@ CONTAINS
        IF(iw>0) WRITE(iw,*) "    Allocated molecule_set, dimension of ",&
             topology%nmol
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 4. Set the molecule_kind_set%[kind_number,name,nsgf,nelectron]
@@ -215,7 +215,7 @@ CONTAINS
                nelectron=nelectron)
        END IF
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 5. Set the molecule_list for molecule_kind in molecule_kind_set
@@ -268,7 +268,7 @@ CONTAINS
             molecule_list=molecule_list)
        IF(iw>0) WRITE(iw,*) "      molecule_list",ikind,molecule_list(:)
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 6. Set the molecule_set(imol)%molecule_kind via set_molecule
@@ -283,7 +283,7 @@ CONTAINS
           CALL set_molecule(molecule,molecule_kind=molecule_kind)
        END DO
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 7. Set the molecule_set(imol)%[first_atom,last_atom] via set_molecule_set
@@ -317,7 +317,7 @@ CONTAINS
     END DO
     last_list(topology%nmol)=topology%natoms
     CALL set_molecule_set(molecule_set,first_list,last_list)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 8. Set and NULLIFY the molecule_set(imol)%lmi via set_molecule_set
@@ -332,7 +332,7 @@ CONTAINS
        NULLIFY(lmi%states)
        CALL set_molecule(molecule,lmi=lmi)
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 9. Set the atom_list for molecule_kind in molecule_kind_set (PART 1)
@@ -362,7 +362,7 @@ CONTAINS
           CALL set_molecule_kind(molecule_kind=molecule_kind,atom_list=atom_list)
        END IF
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 10. Set the molecule_kind%[nbond,bond_list] via set_molecule_kind
@@ -492,7 +492,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(bnd_ctype,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 11. Set the molecule_kind%[nbend,bend_list] via set_molecule_kind
@@ -542,7 +542,7 @@ CONTAINS
           END IF
        END DO
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     CALL timeset(routineN//"_11",handle2)
     ! map bends on molecules
     nvar1 = 0
@@ -674,7 +674,7 @@ CONTAINS
        DEALLOCATE(c_var_type,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 12. Set the molecule_kind%[nub,ub_list] via set_molecule_kind
@@ -712,7 +712,7 @@ CONTAINS
           END IF
        END DO
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     CALL timeset(routineN//"_12",handle2)
     ! map UBs on molecules
     nvar1 = 0
@@ -832,7 +832,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(c_var_c,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 13. Set the molecule_kind%[ntorsion,torsion_list] via set_molecule_kind
@@ -888,7 +888,7 @@ CONTAINS
           END IF
        END DO
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     CALL timeset(routineN//"_13",handle2)
     ! map torsions on molecules
     nvar1 = 0
@@ -1029,7 +1029,7 @@ CONTAINS
        DEALLOCATE(c_var_type,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 14. Set the molecule_kind%[nimpr,impr_list] via set_molecule_kind
@@ -1085,7 +1085,7 @@ CONTAINS
           END IF
        END DO
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     CALL timeset(routineN//"_14",handle2)
     ! map imprs on molecules
     nvar1 = 0
@@ -1226,7 +1226,7 @@ CONTAINS
        DEALLOCATE(c_var_type,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 15. Set the molecule_kind%[nonfo,onfo_list] via set_molecule_kind
@@ -1288,7 +1288,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(bnd_type,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     DEALLOCATE(first_list,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(last_list,STAT=stat)
@@ -1297,7 +1297,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(map_atom_type,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_connectivity_pack

@@ -810,7 +810,7 @@ CPSourceFileRef,&
     CALL section_vals_release(root_section,error)
     CALL cp_para_env_release(para_env,error=error)
     CALL f_env_rm_defaults(f_envs(n_f_envs)%f_env,error=error,ierr=ierr)
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE create_force_env
 

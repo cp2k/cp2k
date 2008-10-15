@@ -372,7 +372,7 @@ CONTAINS
     DEALLOCATE (mint,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_local_moment_matrix
 
@@ -587,7 +587,7 @@ CONTAINS
     DEALLOCATE(work,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_berry_moment_matrix
 
@@ -956,7 +956,7 @@ CONTAINS
        DEALLOCATE ( opvec, STAT = istat )
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-       CALL timestop(0.0_dp,handle)
+       CALL timestop(handle)
 
      END IF
 
@@ -1113,7 +1113,7 @@ CONTAINS
        DEALLOCATE (rlab,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-       CALL timestop(0.0_dp,handle)
+       CALL timestop(handle)
 
      END IF
 

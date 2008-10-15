@@ -852,7 +852,7 @@ CONTAINS
                      gci%ncolv%nrestraint
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE topology_constraint_pack
 
 ! *****************************************************************************
@@ -1267,7 +1267,7 @@ CPSourceFileRef,&
           END IF
        END DO
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE give_constraint_array
 
 ! *****************************************************************************

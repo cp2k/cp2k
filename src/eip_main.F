@@ -69,7 +69,7 @@ CONTAINS
     CALL force_env_create(force_env,root_section, eip_env=eip_env, para_env=para_env,&
          globenv=globenv, force_env_section=force_env_section, error=error)
     CALL eip_env_release(eip_env, error=error)
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE eip_create_force_env
 

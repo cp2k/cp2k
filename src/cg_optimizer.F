@@ -81,7 +81,7 @@ CONTAINS
             "PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
     
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE geoopt_cg
 
 ! *****************************************************************************

@@ -287,5 +287,5 @@ CPSourceFileRef,&
     CASE DEFAULT
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_eval_at

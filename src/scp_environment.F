@@ -114,7 +114,7 @@ CONTAINS
 
    !Sets up pw, grids, densities
     IF ( PRESENT ( qs_env ) )  CALL scp_qs_env_setup(scp_env,qs_env,error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE scp_init
 

@@ -241,7 +241,7 @@ CONTAINS
     END DO
 
 #endif
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE copy_fm_to_sm
 
@@ -634,7 +634,7 @@ CONTAINS
     END DO
 
 #endif
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE copy_sm_to_fm
 
@@ -818,7 +818,7 @@ CPSourceFileRef,&
 
     DEALLOCATE(local_v_in,local_v_out,ncol_loc)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_sm_fm_multiply_general
 
   ! computes sparse=sparse+alpha*v*g^T
@@ -902,7 +902,7 @@ CPSourceFileRef,&
     CALL pdgemr2d(nrow_global,my_ncol,matrix_v%local_data(1,1),1,col1, &
          matrix_v%matrix_struct%descriptor, &
          newdat(1,1),1,1,desc,ictxt_loc)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     DO j=1,in
        DO i=1,im
           loc_v(j,i)=newdat(i,j)
@@ -916,7 +916,7 @@ CPSourceFileRef,&
        CALL pdgemr2d(nrow_global,my_ncol,matrix_g%local_data(1,1),1,col1, &
             matrix_g%matrix_struct%descriptor, &
             newdat(1,1),1,1,desc,ictxt_loc)
-       CALL timestop(0.0_dp,handle2)
+       CALL timestop(handle2)
        DO j=1,in
           DO i=1,im
              loc_g(j,i)=newdat(i,j)
@@ -976,7 +976,7 @@ CPSourceFileRef,&
     ENDIF
 
     DEALLOCATE(ncol_loc)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_sm_plus_fm_fm_t_general
 
 ! *****************************************************************************
@@ -1557,7 +1557,7 @@ CPSourceFileRef,&
     IF (njunk==nprow.OR.njunk==npcol)njunk=2*njunk
     junk_size = (fm_ncol_global+njunk-1)/ njunk
     IF (junk_size==0) THEN
-       CALL timestop(0._dp,handle)
+       CALL timestop(handle)
        RETURN
     END IF
     njunk_local_in = njunk / nprow
@@ -2012,13 +2012,13 @@ CPSourceFileRef,&
 
     CALL timeset(routineN//"_c",handle1)
     CALL mp_alltoall( sb=f2c_send_count, rb=f2c_recv_count, count=1, group=fm_para_env%group )
-    CALL timestop(0.0_dp,handle1)
+    CALL timestop(handle1)
 
     IF (transpose_layout) THEN
        DEALLOCATE(blacs2mpi,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE fm_reshuffle_create_layout
 
@@ -2228,7 +2228,7 @@ CPSourceFileRef,&
     CALL mp_alltoall( sb=send_buffer, scount=send_count, sdispl=send_offsets,&
          rb=rcv_buffer, rcount=rcv_count, rdispl=rcv_offsets, &
          group=fm_para_env%group )
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
     ALLOCATE(rcv_pos(0:fm_para_env%num_pe-1), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2295,7 +2295,7 @@ CPSourceFileRef,&
     DEALLOCATE(gindex_of_junk,ncol_global_of_junk,ipcol_of_junk_col, &
          junk_of_col,ncol_local_of_junk,pcol_of_fm_row,junk_on_prow,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE fm2junk
 
@@ -2517,7 +2517,7 @@ CPSourceFileRef,&
     CALL mp_alltoall( sb=send_buffer, scount=send_count, sdispl=send_offsets,&
          rb=rcv_buffer, rcount=rcv_count, rdispl=rcv_offsets, &
          group=fm_para_env%group )
-    CALL timestop(0.0_dp,handle1)
+    CALL timestop(handle1)
 
     rcv_c=rcv_count
     IF (beta/=0.0_dp) THEN
@@ -2560,7 +2560,7 @@ CPSourceFileRef,&
         gindex_of_junk,ncol_global_of_junk,pcol_of_fm_row, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE junk2fm
 

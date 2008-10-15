@@ -243,7 +243,7 @@ CONTAINS
     CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_rspace%pw,error=error)
     !
     ! Finalize
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     !
   END SUBROUTINE nmr_shift
 
@@ -498,7 +498,7 @@ CONTAINS
     DEALLOCATE(chemical_shift_loc_tmp,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     !
   END SUBROUTINE nmr_shift_gapw
 
@@ -680,7 +680,7 @@ CONTAINS
        ENDIF
     ENDIF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE gsum_shift_pwgrid
 

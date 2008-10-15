@@ -201,7 +201,7 @@ ELSE
                error=error, error_level=cp_failure_level)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE xalpha_lda_eval
 
@@ -290,7 +290,7 @@ ELSE
           END IF
        END DO
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE xalpha_lsd_eval
 
 ! *****************************************************************************

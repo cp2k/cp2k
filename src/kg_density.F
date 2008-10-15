@@ -280,7 +280,7 @@ CONTAINS
     CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
     CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_density
 
@@ -387,7 +387,7 @@ CONTAINS
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rhoc_r%pw,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_epc_density
 
@@ -602,7 +602,7 @@ CONTAINS
     CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
     CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
    END SUBROUTINE calculate_p_density
 
@@ -716,7 +716,7 @@ CONTAINS
     DEALLOCATE(pab,hab,atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"hab,pab,atom_of_kind")
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_epc_rspace_forces
 
@@ -975,7 +975,7 @@ CONTAINS
     DEALLOCATE (atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_v_rspace_forces
 
@@ -1260,7 +1260,7 @@ CONTAINS
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"work")
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_vp_rspace_forces
 

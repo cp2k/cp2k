@@ -201,7 +201,7 @@ CONTAINS
        DEALLOCATE ( s, STAT=stat )
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE tfw_lda_eval
 
 ! *****************************************************************************
@@ -335,7 +335,7 @@ CONTAINS
        DEALLOCATE ( s, STAT=stat )
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE tfw_lsd_eval
 
 ! *****************************************************************************

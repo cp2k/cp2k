@@ -214,7 +214,7 @@ CONTAINS
         NULLIFY(dummy)
       END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE lyp_adiabatic_lda_eval
 
 ! *****************************************************************************
@@ -453,7 +453,7 @@ CONTAINS
         NULLIFY(dummy)
       END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE lyp_adiabatic_lsd_eval
 
 ! *****************************************************************************

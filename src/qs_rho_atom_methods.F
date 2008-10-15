@@ -379,7 +379,7 @@ MODULE qs_rho_atom_methods
             "g1,g2,gg0,gg,gg_lm1,dgg,vgg,done_vgg,erf_zet12,int1,int2")
     ENDIF
 
-   CALL timestop(0.0_dp,handle)
+   CALL timestop(handle)
 
   END SUBROUTINE calculate_rho_atom
 
@@ -752,7 +752,7 @@ MODULE qs_rho_atom_methods
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
         "p_block_spin")
 
-   CALL timestop(0.0_dp,handle)
+   CALL timestop(handle)
 
   END SUBROUTINE calculate_rho_atom_coeff
 
@@ -965,7 +965,7 @@ MODULE qs_rho_atom_methods
 
     CALL set_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE init_rho_atom
 
@@ -1109,7 +1109,7 @@ MODULE qs_rho_atom_methods
 
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE allocate_rho_atom_internals
 
@@ -1162,7 +1162,7 @@ MODULE qs_rho_atom_methods
          END DO
 !    END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE  allocate_rho_atom_rad
 

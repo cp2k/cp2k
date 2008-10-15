@@ -285,7 +285,7 @@ CONTAINS
    
     CALL cp_print_key_finished_output(iw,logger,et_coupling_section,&
                "PROGRAM_RUN_INFO", error=error)
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE calc_et_coupling
 
 ! *****************************************************************************
@@ -442,7 +442,7 @@ CONTAINS
      IF(calculate_forces) CALL becke_force(qs_env,becke_const,error)
         
   END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 END SUBROUTINE becke_constraint
 
 ! *****************************************************************************
@@ -707,7 +707,7 @@ END SUBROUTINE becke_constraint
         DEALLOCATE (kind_of)     
    
      END IF
-  CALL timestop(0.0_dp, handle)
+  CALL timestop(handle)
 
 END SUBROUTINE becke_force
 END MODULE et_coupling

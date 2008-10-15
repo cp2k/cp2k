@@ -242,7 +242,7 @@ CONTAINS
             use_data=REALDATA3D, in_space=REALSPACE,error=error)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_ks_create
 
@@ -1257,7 +1257,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_ks_build_kohn_sham_matrix
 
@@ -2330,7 +2330,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
      END IF
   END IF
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE qs_ks_update_qs_env
 
@@ -2946,7 +2946,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
 
      END IF
   END IF
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE qs_vxc_create
 
@@ -3002,7 +3002,7 @@ END SUBROUTINE qs_vxc_create
                             ncol=mo_set%homo,error=error)
 
     CALL cp_fm_release(weighted_vectors,error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_w_matrix_1
 
@@ -3111,7 +3111,7 @@ END SUBROUTINE qs_vxc_create
     IF (do_symm) CALL cp_fm_release(h_block_t,error=error)
     CALL cp_fm_release(weighted_vectors,error=error)
     CALL cp_fm_release(h_block,error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_w_matrix_2
 
@@ -3168,7 +3168,7 @@ END SUBROUTINE qs_vxc_create
     CALL cp_fm_release(p,error=error)
     CALL cp_fm_release(ks,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_w_matrix_roks
 

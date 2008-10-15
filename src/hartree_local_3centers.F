@@ -1042,7 +1042,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "QN_h_c")
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE integrate_a_vhg0_b
 
@@ -1241,7 +1241,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE sumup_3c_integrals
 

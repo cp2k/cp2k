@@ -420,7 +420,7 @@ CONTAINS
 
     DEALLOCATE(simpar,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_mol_dyn_low
 

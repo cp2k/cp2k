@@ -73,7 +73,7 @@ CONTAINS
          error=error)
     CALL kg_env_release(kg_env,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE kg_create_force_env
 
 END MODULE kg_main

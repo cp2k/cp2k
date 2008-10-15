@@ -97,7 +97,7 @@ CONTAINS
          force_env_section=force_env_section, error = error )
 
     CALL fist_env_release ( fist_env, error = error )
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
   END SUBROUTINE fist_create_force_env
 
 END MODULE fist_main

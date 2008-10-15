@@ -308,7 +308,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE atom_int_setup
 ! *****************************************************************************
@@ -450,7 +450,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE atom_ppint_setup
 ! *****************************************************************************
@@ -604,7 +604,7 @@ CONTAINS
 
     END SELECT
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE atom_relint_setup
 ! *****************************************************************************
@@ -814,7 +814,7 @@ CONTAINS
 
     INT(1:n,1:n) = MATMUL(TRANSPOSE(cm(1:m,1:n)),MATMUL(omat(1:m,1:m),cm(1:m,1:n)))
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE contract2 
 ! *****************************************************************************
@@ -835,7 +835,7 @@ CONTAINS
 
     INT(1:n,1:n) = INT(1:n,1:n) + MATMUL(TRANSPOSE(cm(1:m,1:n)),MATMUL(omat(1:m,1:m),cm(1:m,1:n)))
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE contract2add
 ! *****************************************************************************
@@ -885,7 +885,7 @@ CONTAINS
     DEALLOCATE(hint,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE contract4
 ! *****************************************************************************

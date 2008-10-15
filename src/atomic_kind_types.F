@@ -1802,7 +1802,7 @@ CONTAINS
        END IF
     END SELECT
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE read_atomic_kind
 
@@ -1860,7 +1860,7 @@ CONTAINS
             "The pointer atomic_kind_set is not associated",para_env)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE read_atomic_kind_set
 

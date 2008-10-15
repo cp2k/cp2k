@@ -249,7 +249,7 @@ MODULE xc_xwpbe
         NULLIFY(dummy)
       END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE xwpbe_lda_eval
 
@@ -5414,7 +5414,7 @@ MODULE xc_xwpbe
         NULLIFY(dummy)
       END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE xwpbe_lsd_eval
   

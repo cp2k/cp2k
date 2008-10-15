@@ -462,7 +462,7 @@ CONTAINS
        END DO
     END DO MOL
     
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
     
   END SUBROUTINE force_intra_control
   

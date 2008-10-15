@@ -460,7 +460,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE harris_force_correction
 
@@ -954,7 +954,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE harris_force_EVal
 
@@ -1230,7 +1230,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE harris_calc_nsc_force
 

@@ -96,7 +96,7 @@ CONTAINS
        CALL md_write_output (md_env, error)
        CALL write_restart(md_env=md_env,root_section=root_section, error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE md_output
 
@@ -188,7 +188,7 @@ CONTAINS
     IF (md_ener%nfree /=0) THEN
          md_ener%temp_part = 2.0_dp*md_ener%ekin/REAL(md_ener%nfree,KIND=dp)*kelvin
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE reset_vcom
 
@@ -494,7 +494,7 @@ CONTAINS
 
     CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
          "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE temperature_control
 
 ! *****************************************************************************
@@ -563,7 +563,7 @@ CONTAINS
             "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE comvel_control
 
 ! *****************************************************************************
@@ -667,7 +667,7 @@ CONTAINS
              error=error)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE setup_velocities
 
 END MODULE md_util

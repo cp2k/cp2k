@@ -278,7 +278,7 @@ CONTAINS
    END IF  ! only_energy
    END IF  ! epr_xc
 
-   CALL timestop(0.0_dp,handle)
+   CALL timestop(handle)
 
   END SUBROUTINE vxc_of_r_new
 
@@ -369,7 +369,7 @@ CONTAINS
        deriv_att%deriv_data = 0.0_dp
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE xc_2nd_deriv_of_r
 

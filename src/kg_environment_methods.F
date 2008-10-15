@@ -248,7 +248,7 @@ CONTAINS
             error=error)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE kg_qs_env_update
 

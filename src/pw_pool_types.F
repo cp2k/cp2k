@@ -440,7 +440,7 @@ CONTAINS
     pw%in_space=0
     IF (PRESENT(in_space)) pw%in_space=in_space
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE pw_pool_create_pw
 
@@ -601,7 +601,7 @@ CPSourceFileRef,&
        !FM (s)he gets problems
     END IF
     NULLIFY(pw)
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE pw_pool_give_back_pw
 
 ! *****************************************************************************

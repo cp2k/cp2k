@@ -233,7 +233,7 @@ CONTAINS
     !
     CALL check_spline_interp_TabLR(hmat_mm, Lg, gx, gy, gz, TabLR, param_section,&
          tag, error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE eval_pw_TabLR
 
 ! *****************************************************************************
@@ -314,7 +314,7 @@ CONTAINS
        WRITE(iw,'(A,T5,A,T50,F12.9,T130,F12.9)')"#","Averages",errf/REAL(npoints,kind=dp),&
                                                                errd/REAL(npoints,kind=dp)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,param_section,"check_spline", error=error)
 
   END SUBROUTINE check_spline_interp_TabLR

@@ -945,7 +945,7 @@ CPSourceFileRef,&
     END IF
 
     IF (output_unit>0) CALL m_flush(output_unit)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_init_subsys
 

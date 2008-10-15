@@ -143,7 +143,7 @@ CONTAINS
        !
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_ks_qmmm_create
 
@@ -190,7 +190,7 @@ CONTAINS
        qmmm_energy = qmmm_energy + pw_integral_ab (rho0_s_rs%pw, v_qmmm%pw )
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qmmm_calculate_energy
 
 ! *****************************************************************************
@@ -216,7 +216,7 @@ CONTAINS
     v_hartree%pw%cr3d = v_hartree%pw%cr3d + &
                         v_qmmm%pw%pw_grid%dvol*v_qmmm%pw%cr3d
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qmmm_modify_hartree_pot
 
 END MODULE qs_ks_qmmm_methods

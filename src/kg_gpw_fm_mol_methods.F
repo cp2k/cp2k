@@ -364,7 +364,7 @@ CONTAINS
       END DO  ! jat
     END DO  ! iat
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_mol_density_matrix
 
@@ -419,7 +419,7 @@ CONTAINS
                  mo_coeff,nrow,1._dp,pmat,SIZE(pmat,1))
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE mol_density_matrix
 
@@ -594,7 +594,7 @@ CONTAINS
      CALL  set_mol_mo_set(mo_set=mo_set,homo=homo,lfomo=lfomo)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE fm_mol_eigensolver
 

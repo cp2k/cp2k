@@ -1448,7 +1448,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
          length=mc_par%discrete_step)
 
 ! end the timing
-      CALL timestop(0.0e0_dp,handle)
+      CALL timestop(handle)
 
 END SUBROUTINE read_mc_section
 

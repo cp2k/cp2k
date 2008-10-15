@@ -358,7 +358,7 @@ END SUBROUTINE rf_deriv_check
 
     DEALLOCATE(charges)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE mulliken_charges_a
 
@@ -380,7 +380,7 @@ END SUBROUTINE rf_deriv_check
 
     CALL compute_charges(p_matrix,s_matrix,mcharge,para_env)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE mulliken_charges_b
 

@@ -138,7 +138,7 @@ CONTAINS
     DEALLOCATE(ievals, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE eigensolver
 
@@ -512,7 +512,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(X, R, b, Ab, Sb, kv_fm_struct)
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END FUNCTION iterative_solver
 
@@ -578,7 +578,7 @@ CONTAINS
        END DO
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE apply_op
 

@@ -170,7 +170,7 @@ CONTAINS
        END IF
     END IF
     NULLIFY ( ewald_pw )
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ewald_pw_release
 
 !****** ewald_pw_types/ewald_pw_init [1.0] *
@@ -369,7 +369,7 @@ CONTAINS
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     ENDIF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ewald_pw_init
 
 !****** ewald_pw_types/ewald_pw_get [1.0] *

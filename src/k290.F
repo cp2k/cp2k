@@ -261,7 +261,7 @@ MODULE k290
       DEALLOCATE (rx,tvec,isc,f0,wvkl,lwght,lrot,includ,list,rlist,STAT=isos)
       CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
 
-      CALL timestop ( 0.0_dp, handle )
+      CALL timestop(handle)
 
     END SUBROUTINE kp_sym_gen
 

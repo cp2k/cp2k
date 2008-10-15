@@ -445,7 +445,7 @@ CONTAINS
     CALL section_vals_release(xc_section_kg,error=error)
     CALL section_vals_release(xc_fun_section_kg,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE kg_gpw_ekin_mol
 

@@ -460,7 +460,7 @@ CONTAINS
        CALL xas_write_restart(xas_control, xas_section, qs_env,iatom,error=error)
 
        IF (exit_loop) THEN
-          CALL timestop(0.0_dp,handle2)
+          CALL timestop(handle2)
           EXIT scf_loop     
        END IF
 
@@ -478,7 +478,7 @@ CONTAINS
        ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
-       CALL timestop(0.0_dp,handle2)
+       CALL timestop(handle2)
 
     END DO scf_loop
 
@@ -501,7 +501,7 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,xas_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
     CALL cp_rm_iter_level(logger%iter_info,"XAS_SCF",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE xas_do_tp_scf
 
@@ -857,7 +857,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(centers_wfn,first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cls_prepare_states
 
@@ -963,7 +963,7 @@ CONTAINS
        END IF
 
     END IF  ! failure
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE xes_scf_once
 

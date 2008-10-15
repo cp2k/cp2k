@@ -202,7 +202,7 @@ CONTAINS
     CALL reallocate(charge,1,counter)
     IF(iw>0) &
          WRITE(iw,'(5X,A,I3)') "Total Number of Atomic Kinds = ",topology%natom_type
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -211,7 +211,7 @@ CONTAINS
     CALL timeset(routineN//'_2',handle2)
     NULLIFY(atomic_kind_set)
     CALL allocate_atomic_kind_set(atomic_kind_set,topology%natom_type,error)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -220,7 +220,7 @@ CONTAINS
     CALL timeset(routineN//'_3',handle2)
     NULLIFY(particle_set)
     CALL allocate_particle_set(particle_set,topology%natoms,error)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -243,7 +243,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(element,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -273,7 +273,7 @@ CONTAINS
        END DO
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF 
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -310,7 +310,7 @@ CONTAINS
     END DO
     DEALLOCATE(natom_of_kind,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -351,7 +351,7 @@ CPSourceFileRef,&
     ELSE
        dims = 0.0_dp
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     CALL timeset(routineN//'_7b',handle2)
     DO i=1,topology%natoms
        ikind = kind_of(i)
@@ -363,7 +363,7 @@ CPSourceFileRef,&
        NULLIFY(particle_set(i)%list_exclude_vdw)
        NULLIFY(particle_set(i)%list_exclude_ei)
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     DEALLOCATE(kind_of,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -539,7 +539,7 @@ CPSourceFileRef,&
     ENDDO
     DEALLOCATE(ex_bond_list,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -569,7 +569,7 @@ CPSourceFileRef,&
     END IF
     DEALLOCATE(charge,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -605,9 +605,9 @@ CPSourceFileRef,&
        END DO
        CALL set_molecule_kind(molecule_kind=molecule_kind,atom_list=atom_list)
     END DO
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_coordinate_pack

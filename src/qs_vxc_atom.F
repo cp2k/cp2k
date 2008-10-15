@@ -402,7 +402,7 @@ CONTAINS
 
     END IF !xc_none
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_vxc_atom
 

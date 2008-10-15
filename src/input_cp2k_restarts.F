@@ -567,7 +567,7 @@ CONTAINS
           CALL section_vals_val_set(motion_section,"MD%TIME_START_VAL",r_val=my_t,error=error)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     ! PARTICLE THERMOSTAT
     CALL timeset(routineN//"_THERMOSTAT_PARTICLES",handle2)
     IF (ASSOCIATED(thermostat_part)) THEN
@@ -584,7 +584,7 @@ CONTAINS
           CALL dump_csvr_restart_info(thermostat_part%csvr, para_env, work_section, error)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     ! BAROSTAT - THERMOSTAT
     CALL timeset(routineN//"_BAROSTAT",handle2)
     IF (ASSOCIATED(thermostat_baro)) THEN
@@ -621,7 +621,7 @@ CONTAINS
           CALL dump_csvr_restart_info(thermostat_baro%csvr, para_env, work_section, error)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     ! BAROSTAT
     CALL timeset(routineN//"_NPT",handle2)
     IF (ASSOCIATED(npt)) THEN
@@ -641,7 +641,7 @@ CONTAINS
        work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
        CALL set_template_restart(work_section, veta=veta, mnhc=mnhc, error=error)
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     ! COEFFICIENTS 
     CALL timeset(routineN//"_KG",handle2)
     IF (ASSOCIATED(kg_env)) THEN
@@ -758,7 +758,7 @@ CONTAINS
           END IF
        END IF
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     ! SHELL THERMOSTAT
     CALL timeset(routineN//"_THERMOSTAT_SHELL",handle2)
     IF (ASSOCIATED(thermostat_shell)) THEN
@@ -775,7 +775,7 @@ CONTAINS
           CALL dump_csvr_restart_info(thermostat_shell%csvr, para_env, work_section, error)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
 
     CALL timeset(routineN//"_META",handle2)
     IF (ASSOCIATED(meta_env)) THEN
@@ -804,7 +804,7 @@ CONTAINS
           END DO
        END IF
     END IF
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     CALL timeset(routineN//"_NEB",handle2)
     IF (PRESENT(coords).OR.(PRESENT(vels))) THEN
        ! Update NEB section
@@ -845,8 +845,8 @@ CONTAINS
           END DO
        END IF
     END IF
-    CALL timestop(0.0_dp,handle2)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle2)
+    CALL timestop(handle)
 
   END SUBROUTINE update_motion
 
@@ -1577,7 +1577,7 @@ CONTAINS
           CALL update_quadrupoles_section(multipoles%quadrupoles, work_section, error)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE update_subsys
 
 ! *****************************************************************************
@@ -1667,7 +1667,7 @@ CONTAINS
        work(1:3) = cell_ref%hmat(1:3,3)/conv_factor
        CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE update_cell_section
 
 ! *****************************************************************************
@@ -1819,7 +1819,7 @@ CONTAINS
     END DO
     coord_section%values(ik,1)%list => vals
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE section_coord_val_set
 
 ! *****************************************************************************
@@ -1911,7 +1911,7 @@ CONTAINS
     END DO
     velocity_section%values(ik,1)%list => vals
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE section_velocity_val_set
 
 ! *****************************************************************************
@@ -1993,7 +1993,7 @@ CONTAINS
     END DO
     dipoles_section%values(ik,1)%list => vals
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE update_dipoles_section
 
 ! *****************************************************************************
@@ -2082,7 +2082,7 @@ CONTAINS
     END DO
     quadrupoles_section%values(ik,1)%list => vals
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE update_quadrupoles_section
 
 ! *****************************************************************************

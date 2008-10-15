@@ -237,7 +237,7 @@ CONTAINS
          basis_section=mm_section,&
          print_key_path="PRINT%SUBCELL",&
          error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_fist_neighbor_lists
 
@@ -613,7 +613,7 @@ CONTAINS
     CALL deallocate_subcell(subcell_a)
     CALL deallocate_subcell(subcell_b)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE build_neighbor_lists
 
 ! *****************************************************************************
@@ -873,7 +873,7 @@ CONTAINS
     END DO
     DEALLOCATE(indj,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE sort_neighbor_lists
 
 END MODULE fist_neighbor_lists

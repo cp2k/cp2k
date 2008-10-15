@@ -773,7 +773,7 @@ CONTAINS
       output_kg_fm_p_type%ref_count = 1
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE duplicate_kg_fm_p_type
 END MODULE  kg_gpw_fm_mol_types

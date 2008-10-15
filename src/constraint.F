@@ -176,7 +176,7 @@ CONTAINS
     END DO Shake_Inter_Loop
     CALL dump_lagrange_mult(dump_lm, lagrange_mult,local_molecules,molecule_set,gci,&
          molecule_kind_set,group,"S",error)
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
   END SUBROUTINE shake_control
 
 ! *****************************************************************************
@@ -276,7 +276,7 @@ CONTAINS
     END DO Rattle_Inter_Loop
     CALL dump_lagrange_mult(dump_lm,lagrange_mult,local_molecules,molecule_set,gci,&
          molecule_kind_set,group,"R",error)
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE rattle_control
 
@@ -401,7 +401,7 @@ CONTAINS
     CALL dump_lagrange_mult(dump_lm,lagrange_mult,local_molecules,molecule_set,gci,&
          molecule_kind_set,group,"S",error)
     CALL check_tol ( roll_tol, iroll, 'SHAKE', r_shake )
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE shake_roll_control
 
@@ -532,7 +532,7 @@ CONTAINS
     CALL dump_lagrange_mult(dump_lm,lagrange_mult,local_molecules,molecule_set,gci,&
          molecule_kind_set,para_env%group,"R",error)
     CALL check_tol ( roll_tol, iroll, 'RATTLE', veps = veps )
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
   END SUBROUTINE rattle_roll_control
 
 ! *****************************************************************************
@@ -647,7 +647,7 @@ CONTAINS
        DEALLOCATE(lagr,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE dump_lagrange_mult
 
@@ -817,7 +817,7 @@ CPSourceFileRef)
        ! Collective Variables
        IF (gci%ncolv%ntot/= 0) CALL shake_update_colv_ext(gci, dt, motion_section, error)
     END IF
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
   END SUBROUTINE shake_update_targets
 
 END MODULE constraint

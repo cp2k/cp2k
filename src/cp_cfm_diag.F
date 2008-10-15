@@ -93,7 +93,7 @@ CONTAINS
 
     IF (info.NE.0) CALL stop_program("cp_cfm_heevd","unable to diagonalize matrix")
     DEALLOCATE(work,iwork,rwork)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_cfm_heevd
 

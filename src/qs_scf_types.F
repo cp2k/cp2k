@@ -202,7 +202,7 @@ SUBROUTINE scf_env_did_change(scf_env,error)
      END IF
   END IF
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE scf_env_did_change
 

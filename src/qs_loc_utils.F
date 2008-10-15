@@ -487,7 +487,7 @@ CONTAINS
 
        qs_loc_env%molecular_states = .FALSE.
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_loc_env_init
 
@@ -815,7 +815,7 @@ CONTAINS
     DEALLOCATE(cosabt,sinabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE get_berry_operator
 
 END MODULE qs_loc_utils

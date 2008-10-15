@@ -79,7 +79,7 @@ CONTAINS
 
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END  SUBROUTINE cp_fm_cholesky_decompose
   
@@ -131,7 +131,7 @@ CONTAINS
 
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END  SUBROUTINE cp_fm_cholesky_invert
 
@@ -194,7 +194,7 @@ CPSourceFileRef,&
 
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END  SUBROUTINE cp_fm_cholesky_reduce
 
@@ -291,7 +291,7 @@ CPSourceFileRef,&
 
 #endif
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END  SUBROUTINE cp_fm_cholesky_restore
 

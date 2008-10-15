@@ -200,7 +200,7 @@ CONTAINS
             "PROGRAM_RUN_INFO", error=error)
        CALL cp_rm_iter_level(logger%iter_info,"BAND",error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE neb
 
 ! *****************************************************************************
@@ -354,7 +354,7 @@ CONTAINS
        CALL cp_print_key_finished_output(iw,logger,neb_env%neb_section,&
             "REPLICA_INFO", error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE neb_md
 
 ! *****************************************************************************
@@ -519,7 +519,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL neb_var_release(sline, error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE neb_diis
 
 END MODULE neb_methods

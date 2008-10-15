@@ -23,7 +23,6 @@ MODULE xc_perdew_zunger
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: zero
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -221,7 +220,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL timestop(zero, timer_handle)
+    CALL timestop(timer_handle)
     
   END SUBROUTINE pz_lda_eval
 
@@ -386,7 +385,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
        END IF
 
     END IF
-    CALL timestop(zero, timer_handle)
+    CALL timestop(timer_handle)
 
   END SUBROUTINE pz_lsd_eval
 

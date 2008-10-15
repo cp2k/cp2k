@@ -203,7 +203,7 @@ CONTAINS
                                          + harris_energy%Exc + harris_energy%EII
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE harris_energy_correction
 
 ! *****************************************************************************
@@ -276,7 +276,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE harris_eigenvalue_summation
 
@@ -343,7 +343,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE harris_eigenvalue_calculation
 
@@ -412,7 +412,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE harris_eigenvalue_trace_KS_Pmix
 

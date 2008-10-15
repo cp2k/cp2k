@@ -216,7 +216,7 @@ CONTAINS
        DEALLOCATE(d_el, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ewald_ddapc_force
 
 ! *****************************************************************************
@@ -290,7 +290,7 @@ CONTAINS
        DEALLOCATE(uv, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_decpl_ddapc_forces
 
 ! *****************************************************************************
@@ -321,7 +321,7 @@ CONTAINS
           force(ind)%ch_pulay = 0.0_dp
        END DO
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE reset_ch_pulay
 
 ! *****************************************************************************
@@ -470,7 +470,7 @@ CONTAINS
        DEALLOCATE(uv, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE restraint_functional_force
 

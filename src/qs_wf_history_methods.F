@@ -269,7 +269,7 @@ END SUBROUTINE wfs_create
 
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE wfs_duplicate_snapshot
 
@@ -389,7 +389,7 @@ END SUBROUTINE wfs_create
 
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE wfs_copy_snapshot
 
@@ -576,7 +576,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
      END IF
 
   END IF
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE wfs_update
 
@@ -1264,7 +1264,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
      END SELECT
      IF (PRESENT(orthogonal_wf)) orthogonal_wf=my_orthogonal_wf
   END IF
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE wfi_extrapolate
 
 ! *****************************************************************************
@@ -1312,7 +1312,7 @@ END SUBROUTINE wfi_extrapolate
       END IF
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE wfi_set_history_variables
 
@@ -1433,7 +1433,7 @@ END SUBROUTINE wfi_update
       END DO
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE wfi_duplicate_history
 
@@ -1497,7 +1497,7 @@ END SUBROUTINE wfi_update
       END DO
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE wfi_copy_history
 

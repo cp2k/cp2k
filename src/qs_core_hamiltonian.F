@@ -1717,7 +1717,7 @@ CONTAINS
     
     ! Print matrices if requested
     CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, oce, qs_env, para_env, error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     
   END SUBROUTINE build_core_hamiltonian_matrix
   

@@ -986,7 +986,7 @@ CONTAINS
        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        jrho1_atom%jrho_b_s_iii(ispin)%r_coef = 0.0_dp
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE allocate_jrho_atom_rad
 
@@ -1074,7 +1074,7 @@ CONTAINS
           jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef = 0.0_dp
        ENDDO
     ENDIF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE allocate_jrho_coeff
 
 ! *****************************************************************************
@@ -1115,7 +1115,7 @@ CONTAINS
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        ENDDO
     ENDIF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE deallocate_jrho_coeff
 
 ! *****************************************************************************
@@ -1328,7 +1328,7 @@ CONTAINS
 
     END DO  ! ikind
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE init_jrho_atom_set
 
@@ -1410,7 +1410,7 @@ CONTAINS
 
     END DO  ! ikind
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE init_nablavks_atom_set
 

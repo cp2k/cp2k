@@ -179,7 +179,7 @@ CONTAINS
 !      moves%force_create=1
 
  ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
  END SUBROUTINE init_mc_moves
 
@@ -265,7 +265,7 @@ CONTAINS
       NULLIFY(moves)
       
  ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
  END SUBROUTINE mc_moves_release
 
@@ -311,7 +311,7 @@ SUBROUTINE move_q_reinit ( moves , lbias )
       ENDIF
 
  ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
  END SUBROUTINE move_q_reinit
 
@@ -380,7 +380,7 @@ SUBROUTINE q_move_accept(moves,lbias)
       ENDIF
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
  END SUBROUTINE q_move_accept
 
@@ -454,7 +454,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
       moves%quickstep%successes,moves%quickstep%attempts
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
  END SUBROUTINE write_move_stats
 
@@ -712,7 +712,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
          rmtrans=rmtrans,rmvolume=rmvolume,rmdihedral=rmdihedral)
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
   END SUBROUTINE mc_move_update
 

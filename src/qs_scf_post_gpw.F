@@ -594,7 +594,7 @@ CPSourceFileRef,&
 
     END IF
     
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE scf_post_calculation_gpw
 
@@ -728,7 +728,7 @@ CPSourceFileRef,&
 
     ENDDO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE stm_cubes
 

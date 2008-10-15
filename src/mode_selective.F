@@ -249,7 +249,7 @@ CONTAINS
        DEALLOCATE(tmp_dip,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ms_vb_anal
 ! *****************************************************************************
 !> \brief Generates the first displacement vector for a mode selctive vibrational
@@ -427,7 +427,7 @@ CONTAINS
        ms_vib%step_r(i)=dx/SQRT(DOT_PRODUCT( ms_vib%delta_vec(:,i), ms_vib%delta_vec(:,i)))
        ms_vib%step_b(i)=SQRT(DOT_PRODUCT(ms_vib%step_r(i)*ms_vib%b_vec(:,i),ms_vib%step_r(i)*ms_vib%b_vec(:,i)))
     END DO
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE MS_initial_moves
 

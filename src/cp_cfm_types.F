@@ -250,7 +250,7 @@ CPSourceFileRef,&
     CALL dlarnv(1,iseed,2*n*ncol,a(1,1))
 #endif
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE CP_cFM_INIT_RANDOM
 

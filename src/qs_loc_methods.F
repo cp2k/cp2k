@@ -254,7 +254,7 @@ CONTAINS
     CALL centers_spreads_berry( qs_loc_env, zij_fm_set, nmoloc, cell, weights,&
          ispin, loc_section, error=error )
     CALL cp_fm_release(opvec,error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE optimize_loc_berry
 
@@ -377,7 +377,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL cp_fm_release(opvec,error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE optimize_loc_pipek
 

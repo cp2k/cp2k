@@ -1148,7 +1148,7 @@ CONTAINS
                        "mc_par")
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
   END SUBROUTINE mc_run_ensemble
 

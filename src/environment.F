@@ -808,7 +808,7 @@ CONTAINS
             "GLOBAL%REFERENCES",error=error)
     ENDIF
 
-    CALL timestop(0.0_dp,globenv%handle) ! corresponding the "CP2K" in cp2k_init
+    CALL timestop(globenv%handle) ! corresponding the "CP2K" in cp2k_init
 
     IF (.NOT. failure) THEN
        iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%TIMINGS",&

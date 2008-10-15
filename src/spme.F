@@ -356,7 +356,7 @@ CONTAINS
        DEALLOCATE ( core_center, STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE spme_evaluate
 

@@ -358,7 +358,7 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
         NULLIFY(dummy)
      END IF
   END IF
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE pbe_lda_eval
 
 ! *****************************************************************************
@@ -1436,7 +1436,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
         NULLIFY(dummy)
      END IF
   END IF
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE pbe_lsd_eval
  
 ! *****************************************************************************

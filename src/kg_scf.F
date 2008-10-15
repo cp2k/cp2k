@@ -205,7 +205,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE kg_scf_env_create
 
@@ -242,7 +242,7 @@ CONTAINS
         END IF
         CALL scf_env_do_scf(scf_env,my_kg_env,kg_env%para_env,globenv,error=error)
      END IF
-     CALL timestop(0.0_dp,handle)
+     CALL timestop(handle)
 
   END SUBROUTINE kg_qs_scf
 
@@ -606,7 +606,7 @@ CONTAINS
              WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
                   "*** SCF run converged in ",scf_env%iter_count," steps ***"
           END IF
-          CALL timestop(0.0_dp,handle2)
+          CALL timestop(handle2)
           EXIT scf_loop
        ELSE IF (should_stop.OR.&
             scf_env%iter_count == scf_control%max_scf) THEN
@@ -614,7 +614,7 @@ CONTAINS
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
           END IF
-          CALL timestop(0.0_dp,handle2)
+          CALL timestop(handle2)
           EXIT scf_loop
        END IF
 
@@ -641,7 +641,7 @@ CONTAINS
        CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm,error=error)
        CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm%kg_fm_mol_set, error=error)
 
-       CALL timestop(0.0_dp,handle2)
+       CALL timestop(handle2)
 
     END DO scf_loop
 
@@ -718,7 +718,7 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE scf_env_do_scf
 
@@ -883,7 +883,7 @@ CONTAINS
 
    END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE init_kgscf_run
 
@@ -1035,7 +1035,7 @@ CONTAINS
       END DO  ! imol
     END DO  ! imol_kind
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_ortho_per_molecule
 
@@ -1396,7 +1396,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE kgscf_first_density_matrix
 
@@ -1481,7 +1481,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE kgscf_initial_rho
 !
@@ -1556,7 +1556,7 @@ CONTAINS
        END SELECT
 
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE kg_scf_env_cleanup
 !
@@ -1592,7 +1592,7 @@ SUBROUTINE kg_scf_env_did_change(scf_env,error)
         CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
      END IF
   END IF
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE kg_scf_env_did_change
 

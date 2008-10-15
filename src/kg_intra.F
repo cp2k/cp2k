@@ -231,7 +231,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
 
     CALL mp_sum(e_bc,group)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_ebond_corr
 

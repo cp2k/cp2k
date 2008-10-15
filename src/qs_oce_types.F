@@ -348,7 +348,7 @@ CONTAINS
 !   Initialize the control variable couple
     oce%couple(1:natom,1:natom)%block_created = .FALSE.
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE prepare_oce_coeff
 
@@ -537,7 +537,7 @@ CONTAINS
        END IF
     ENDDO  ! kkind
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_reduced_3c_lists
 
@@ -822,7 +822,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE  retrieve_sac_list
 

@@ -288,7 +288,7 @@ CONTAINS
     
     counter = counter + 1
     CALL fist_nonbond_env_set(fist_nonbond_env,counter=counter,error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE list_control
 

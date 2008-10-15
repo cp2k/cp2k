@@ -237,7 +237,7 @@ CONTAINS
     CALL cp_fm_release(Gp1 ,error=error)
     CALL cp_fm_release(Gp2 ,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE approx_l1_norm_sd
 ! *****************************************************************************
@@ -347,7 +347,7 @@ CONTAINS
     CALL rotate_orbitals ( rmat, vectors )
     CALL cp_fm_release ( rmat ,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE jacobi_rotations
 ! *****************************************************************************
@@ -763,7 +763,7 @@ CONTAINS
     DEALLOCATE(evals_exp,evals,diag_z,STAT=istat)
     DEALLOCATE(mii,mij,mjj,STAT=istat)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE crazy_rotations
 !
@@ -1156,7 +1156,7 @@ CONTAINS
     DEALLOCATE(c_zij)
     DEALLOCATE(diag_z)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE
 END MODULE qs_localization_methods

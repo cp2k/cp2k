@@ -560,7 +560,7 @@ CONTAINS
        ENDDO   ! kneighbor
     ENDDO  ! kkind
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE set_up_oce
 

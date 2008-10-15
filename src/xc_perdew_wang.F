@@ -289,7 +289,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL timestop(0.0_dp, timer_handle)
+    CALL timestop(timer_handle)
     
   END SUBROUTINE perdew_wang_lda_eval
 
@@ -451,7 +451,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
           NULLIFY(dummy)
        END IF
     END IF
-    CALL timestop(0.0_dp, timer_handle)
+    CALL timestop(timer_handle)
 
   END SUBROUTINE perdew_wang_lsd_eval
 

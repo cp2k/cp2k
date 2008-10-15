@@ -132,7 +132,7 @@ CONTAINS
        CALL cp_unimplemented_error(routineP, "MT1D unimplemented", error, cp_failure_level)
     END SELECT
     CALL pw_pool_release ( pw_pool_aux, error=error )
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE MTin_create_screen_fn
 
 ! *****************************************************************************
@@ -195,7 +195,7 @@ CONTAINS
        END DO
        kk = kk + 1
     END DO
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE Mt0din
 
 ! *****************************************************************************
@@ -229,7 +229,7 @@ CONTAINS
        dz=grid%dr(3)
 
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE mt1din
 
 END MODULE mt_util

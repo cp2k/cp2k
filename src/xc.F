@@ -914,7 +914,7 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
 
   END IF
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE xc_rho_set_and_dset_create
 
@@ -1853,7 +1853,7 @@ CPSourceFileRef,&
      CALL xc_dset_release(deriv_set, error=error)
   END IF
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE xc_vxc_pw_create
 
@@ -1923,7 +1923,7 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
      CALL xc_rho_set_release(rho_set, pw_pool=pw_pool, error=error)
      CALL xc_dset_release(deriv_set, error=error)
   END IF
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END FUNCTION xc_exc_calc
 
 ! *****************************************************************************
@@ -2985,7 +2985,7 @@ CPSourceFileRef,&
   DEALLOCATE(tmp_r, tmp_r2, tmp_a, tmp_b, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE xc_calc_2nd_deriv
 
 ! *****************************************************************************
@@ -3057,7 +3057,7 @@ END SUBROUTINE xc_calc_2nd_deriv
 
     CALL divide_by_norm_drho(deriv_set, rho_set, lsd, error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE xc_prep_2nd_deriv
 
 ! *****************************************************************************

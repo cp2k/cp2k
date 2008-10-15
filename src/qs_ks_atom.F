@@ -408,7 +408,7 @@ CONTAINS
        DEALLOCATE(DCPC_h,dCPC_s,PC_h,PC_s,STAT=istat)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE update_ks_atom
 

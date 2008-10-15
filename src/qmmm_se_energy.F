@@ -226,7 +226,7 @@ CONTAINS
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "QMMM%PRINT%QMMM_MATRIX", error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_se_qmmm_matrix
 
@@ -310,7 +310,7 @@ CONTAINS
           END DO
        END DO LoopMM
     END DO MainLoopPot
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE build_se_qmmm_matrix_low
 
 END MODULE qmmm_se_energy

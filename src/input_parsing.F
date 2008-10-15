@@ -373,7 +373,7 @@ CONTAINS
        END IF
     END IF
     CALL cp_error_dealloc_ref(suberror)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE section_vals_parse
 
 ! *****************************************************************************

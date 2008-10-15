@@ -337,7 +337,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE p_env_create
 
@@ -410,7 +410,7 @@ CONTAINS
           END IF
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE p_env_check_i_alloc
 
 ! *****************************************************************************
@@ -708,7 +708,7 @@ END SUBROUTINE p_env_did_change
 
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE p_env_psi0_changed
 
@@ -824,7 +824,7 @@ END SUBROUTINE p_env_did_change
          res, p_env%n_mo(spin), alpha=1.0_dp,beta=1.0_dp,error=error)
     CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,tmp,error=error); NULLIFY(tmp)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE p_op_l1_spin
 
@@ -917,7 +917,7 @@ END SUBROUTINE p_env_did_change
        END DO
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE p_op_l2
 
@@ -1036,7 +1036,7 @@ END SUBROUTINE p_env_did_change
        END IF
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE p_preortho
 
@@ -1153,7 +1153,7 @@ END SUBROUTINE p_env_did_change
        END IF
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE p_postortho
 
@@ -1259,7 +1259,7 @@ END SUBROUTINE p_env_did_change
        CALL p_op_l2(p_env, qs_env, p1_new, res, alpha=my_alpha, beta=my_beta, error=error)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE p_op_l2_fawzi
 

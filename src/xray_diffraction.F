@@ -502,7 +502,7 @@ CONTAINS
                                 rhotot_elec_gspace%pw,&
                                 error=error)
 
-      CALL timestop(0.0_dp,handle)
+      CALL timestop(handle)
 
     END IF ! failure
 
@@ -783,7 +783,7 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
-      CALL timestop(0.0_dp,handle)
+      CALL timestop(handle)
 
     END IF ! failure
 

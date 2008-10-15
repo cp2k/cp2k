@@ -101,7 +101,7 @@ END SUBROUTINE scp_rspw_retain
     END IF
   END IF
   NULLIFY(scp_rspw)
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
   END SUBROUTINE scp_rspw_release
 
 END MODULE scp_rspw_types

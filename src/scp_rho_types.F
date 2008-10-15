@@ -110,7 +110,7 @@ END SUBROUTINE scp_rho_retain
     END IF
   END IF
   NULLIFY(rho_scp)
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
   END SUBROUTINE scp_rho_release
 
 END MODULE scp_rho_types

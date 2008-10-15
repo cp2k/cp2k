@@ -110,7 +110,7 @@ CONTAINS
        p_env%hartree_local%vtriple => qs_env%hartree_local%vtriple
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE init_coulomb_local
 
@@ -208,7 +208,7 @@ CONTAINS
 
     DEALLOCATE(rho_1,rho_2)
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_Vh_1center
 
@@ -725,7 +725,7 @@ CONTAINS
     DEALLOCATE(sqrtwr,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE Vh_1c_gg_integrals
 

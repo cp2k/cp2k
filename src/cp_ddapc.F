@@ -195,7 +195,7 @@ CONTAINS
     IF (explicit_potential) THEN
        CALL pw_pool_give_back_pw(auxbas_pw_pool,v_spin_ddapc_rest_g%pw,error=error)
     ENDIF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_ks_ddapc
 
@@ -341,7 +341,7 @@ CONTAINS
        CALL cp_print_key_finished_output(iw,logger,multipole_section,&
             "PROGRAM_RUN_INFO",error=error)
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_ddapc_apply_CD
 
 ! *****************************************************************************
@@ -457,7 +457,7 @@ CONTAINS
        CALL cp_print_key_finished_output(iw,logger,restraint_section,&
             "PROGRAM_RUN_INFO",error=error)
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_ddapc_apply_RS
 
 ! *****************************************************************************
@@ -569,7 +569,7 @@ CONTAINS
        CALL cp_print_key_finished_output(iw,logger,solvation_section,&
             "PROGRAM_RUN_INFO",error=error)
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_ddapc_apply_RF
 
 END MODULE cp_ddapc

@@ -248,7 +248,7 @@ CONTAINS
 
     !   *** Quick return, if no DIIS is requested ***
     IF (diis_buffer%nbuffer < 1) THEN
-       CALL timestop(0.0_dp,handle)
+       CALL timestop(handle)
        RETURN
     END IF
 
@@ -368,7 +368,7 @@ CONTAINS
 
      END DO  ! imolecule_kind
 
-     CALL timestop(0.0_dp,handle)
+     CALL timestop(handle)
 
   END SUBROUTINE kg_diis_step_A
 
@@ -509,7 +509,7 @@ CONTAINS
 
     END DO  ! imolecule_kind
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE kg_diis_step_B
 

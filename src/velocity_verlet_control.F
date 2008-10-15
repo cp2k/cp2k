@@ -19,7 +19,6 @@ MODULE velocity_verlet_control
   USE integrator,                      ONLY: &
        isokin, langevin, nph_uniaxial, nph_uniaxial_damped, npt_f, npt_i, &
        nve, nve_respa, nvt, reftraj
-  USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
@@ -96,7 +95,7 @@ SUBROUTINE velocity_verlet ( md_env, error )
      CALL npt_i (md_env, error)
   END SELECT
 
-  CALL timestop ( zero, handle )
+  CALL timestop(handle)
 
 END SUBROUTINE velocity_verlet
 

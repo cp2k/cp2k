@@ -355,7 +355,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
             error=error)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
 END SUBROUTINE qs_env_update_s_mstruct
 

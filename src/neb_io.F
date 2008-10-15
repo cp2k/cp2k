@@ -331,7 +331,7 @@ CONTAINS
                           vels=vels,&
                           error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE dump_neb_info
 
 ! *****************************************************************************

@@ -359,7 +359,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(gamma_matrix)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_dftb_coulomb
 
@@ -571,7 +571,7 @@ CONTAINS
     DEALLOCATE ( center, STAT = stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE dftb_spme_evaluate
 
@@ -655,7 +655,7 @@ CONTAINS
 
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE dftb_ewald_overlap
 

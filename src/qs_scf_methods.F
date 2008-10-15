@@ -252,7 +252,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE eigensolver
 
@@ -317,7 +317,7 @@ CONTAINS
       CALL correct_mo_eigenvalues(mo_set,level_shift)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE simple_eigensolver
 
@@ -402,7 +402,7 @@ CONTAINS
 
     CALL mp_max(delta,para_env%group)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_sm_mix
 
@@ -476,7 +476,7 @@ CONTAINS
       END DO
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE combine_ks_matrices_1
 
@@ -606,7 +606,7 @@ CONTAINS
       END DO
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE combine_ks_matrices_2
 

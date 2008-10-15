@@ -320,7 +320,7 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
     END IF
 
   END IF
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
@@ -1268,7 +1268,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE copy_real_matrix
 
@@ -1972,7 +1972,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE replicate_real_matrix_structure
 
@@ -2255,7 +2255,7 @@ END SUBROUTINE cp_sm_scale_and_add
       END DO
 
     END DO
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE transfer_real_matrix
 
@@ -2755,7 +2755,7 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env,error)
 
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
 END SUBROUTINE create_dbm_from_sm
 
@@ -2809,7 +2809,7 @@ SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env,error)
 
   CALL deallocate_matrix(dbm,error=error)
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE deallocate_dbm_from_sm
 
@@ -2857,7 +2857,7 @@ SUBROUTINE cp_sm_add_constant(matrix_a,alpha,error)
       block_node => block_node%next_block_node
     END DO
   END DO
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE cp_sm_add_constant
 
 END MODULE sparse_matrix_types

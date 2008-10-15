@@ -148,7 +148,7 @@ CONTAINS
     CALL cell_release(cell_ref,error=error)
     CALL cp_subsys_release(subsys,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE mixed_init
 
@@ -220,7 +220,7 @@ CONTAINS
     CALL distribution_1d_release ( local_particles, error = error )
     CALL distribution_1d_release ( local_molecules, error = error )
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE mixed_init_subsys
 

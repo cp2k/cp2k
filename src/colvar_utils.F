@@ -114,7 +114,7 @@ CONTAINS
           END IF
        END IF
     END IF
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
 
   END FUNCTION number_of_colvar
 
@@ -174,7 +174,7 @@ CONTAINS
           ENDIF
        END IF
     END IF
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE set_colvars_target
 
@@ -343,7 +343,7 @@ CONTAINS
           END DO
        END IF
     END IF
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
     
   END SUBROUTINE eval_colvar
 

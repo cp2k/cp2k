@@ -377,7 +377,7 @@ CONTAINS
 
     IF (ionode) CALL m_flush(output_unit)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE kg_init
 

@@ -308,7 +308,7 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
   
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE p_proj_transfer_blacs_to_f
 
 ! *****************************************************************************
@@ -387,7 +387,7 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
   
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE p_proj_restrain_f
 
 END MODULE qs_p_sparse_psi

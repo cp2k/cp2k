@@ -258,7 +258,7 @@ CONTAINS
     local_rows=local_rows_best
     local_cols=local_cols_best
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE distribute_2d_monte_carlo
 

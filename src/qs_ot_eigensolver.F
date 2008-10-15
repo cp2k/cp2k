@@ -279,7 +279,7 @@ CONTAINS
 
     ENDDO outer_scf
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE ot_eigensolver
 

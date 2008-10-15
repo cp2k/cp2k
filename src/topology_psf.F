@@ -119,7 +119,7 @@ CONTAINS
        NULLIFY(atom_info%atm_mass)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
 
@@ -460,7 +460,7 @@ CPSourceFileRef,&
     END IF
 
     CALL parser_release(parser,error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
     RETURN
@@ -633,7 +633,7 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
   END SUBROUTINE psf_post_process
@@ -799,7 +799,7 @@ CPSourceFileRef,&
           END DO
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
 
@@ -997,7 +997,7 @@ CPSourceFileRef,&
 
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE write_topology_psf
 

@@ -274,7 +274,7 @@ CONTAINS
         ENDIF
 
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE
   ! try to hide things from the optimizer, so that we get the same numbers,
   ! always (this solves the optimisation problems with the intel and nag compiler

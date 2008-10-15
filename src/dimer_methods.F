@@ -180,7 +180,7 @@ CONTAINS
        END IF
     END IF
     CALL cp_print_key_finished_output(iw,logger,gopt_env%geo_section,"PRINT%PROGRAM_RUN_INFO", error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_eval_at_ts
 
 ! *****************************************************************************
@@ -240,7 +240,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE remove_rot_transl_component
 
 ! *****************************************************************************
@@ -298,7 +298,7 @@ CONTAINS
           END DO
        END DO
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_eval_at_ts_low
 
 END MODULE dimer_methods

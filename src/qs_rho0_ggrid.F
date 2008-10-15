@@ -271,7 +271,7 @@ MODULE qs_rho0_ggrid
       CALL pw_zero(rho0_s_gs%pw)
       CALL pw_transfer(rho0_s_rs%pw,rho0_s_gs%pw)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE  put_rho0_s_on_grid
 
@@ -776,7 +776,7 @@ MODULE qs_rho0_ggrid
     DEALLOCATE (habt,hdabt,hadbt,hab_spht,hdab_spht,pab, STAT= istat)
     IF ( istat /= 0 ) CALL stop_memory ( "integrate_vhg0_rspace", &
        "habt,hdabt,hadbt,hab_spht,hdab_spht,pab")
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE integrate_vhg0_rspace
 

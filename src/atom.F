@@ -112,7 +112,7 @@ CONTAINS
     IF (iw>0) CALL atom_footer(iw)
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%PROGRAM_BANNER",error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE atom_code
 
@@ -380,7 +380,7 @@ CONTAINS
     DEALLOCATE(atom_info,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE atom_energy
 
@@ -639,7 +639,7 @@ CONTAINS
 
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE atom_electronic_structure
 

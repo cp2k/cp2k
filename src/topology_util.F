@@ -517,7 +517,7 @@ CONTAINS
     DEALLOCATE(conn_info%bond_b,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (output_unit>0) WRITE(output_unit,'(T2,"REORDER |  ")')
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_reorder_atoms
@@ -1122,7 +1122,7 @@ CONTAINS
     DEALLOCATE(mass,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     
@@ -1263,7 +1263,7 @@ CONTAINS
     ENDDO
     DEALLOCATE(atom_bond_list,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
 

@@ -116,7 +116,7 @@ SUBROUTINE mc_averages_create ( averages  )
       averages%molecules=0.0E0_dp
 
 ! end the timing
-       CALL timestop(0.0E0_dp,handle)
+       CALL timestop(handle)
 
 END SUBROUTINE mc_averages_create
 
@@ -149,7 +149,7 @@ SUBROUTINE mc_averages_release ( averages  )
       NULLIFY(averages)
 
 ! end the timing
-       CALL timestop(0.0E0_dp,handle)
+       CALL timestop(handle)
 
 END SUBROUTINE mc_averages_release
 
@@ -405,7 +405,7 @@ SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
     WRITE(iw,*)
 
 ! end the timing
-    CALL timestop(0.0E0_dp,handle)
+    CALL timestop(handle)
 
 END SUBROUTINE final_mc_write
 
@@ -1042,7 +1042,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 60000 FORMAT(A,A,2X,A,2X,A,3(2X,F10.5))
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
 !STOP
 

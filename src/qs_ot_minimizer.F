@@ -186,7 +186,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, error)
    CASE DEFAULT
            CALL stop_program("ot_mini","OT_METHOD NYI")
    END SELECT
-   CALL timestop(0.0_dp,handle)
+   CALL timestop(handle)
 
 END SUBROUTINE ot_mini
 

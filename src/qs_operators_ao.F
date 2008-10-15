@@ -405,7 +405,7 @@ CONTAINS
     DEALLOCATE(difabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE p_xyz_ao
 
@@ -734,7 +734,7 @@ CONTAINS
     DEALLOCATE(angabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE rmc_x_p_xyz_ao
 
@@ -1075,7 +1075,7 @@ CONTAINS
     DEALLOCATE(mabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE   rRc_xyz_ao
 
@@ -1527,7 +1527,7 @@ CONTAINS
     DEALLOCATE(mabt,difmabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE   rRc_xyz_der_ao
 

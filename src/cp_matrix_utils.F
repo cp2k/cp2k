@@ -385,7 +385,7 @@ SUBROUTINE sm_struct_add_sm_local_blocks(sm_struct,matrix,error)
              block_col=block_col, error=error)
      END DO
   END IF
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE sm_struct_add_sm_local_blocks
 
 END MODULE cp_matrix_utils

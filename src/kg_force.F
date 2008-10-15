@@ -54,7 +54,6 @@ MODULE kg_force
                                              kg_rspw_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
-  USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_restraint
   USE particle_types,                  ONLY: particle_type
@@ -437,7 +436,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
      IF (stat /= 0) CALL stop_memory(routineP,"natom_of_kind",nkind)
   END IF
 
- CALL timestop ( zero, handle )
+ CALL timestop(handle)
 
 END SUBROUTINE kgpol_calculate_forces
 
@@ -683,7 +682,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
      IF (stat /= 0) CALL stop_memory(routineP,"natom_of_kind",nkind)
   END IF
 
- CALL timestop ( zero, handle )
+ CALL timestop(handle)
 
 END SUBROUTINE kg_calculate_forces
 
@@ -905,7 +904,7 @@ END SUBROUTINE kg_calculate_forces
     DEALLOCATE (kind_of,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE kg_qs_calculate_forces
 

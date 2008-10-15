@@ -91,7 +91,7 @@ SUBROUTINE scp_rho_create( scp_rho, auxbas_pw_pool, error )
     CALL pw_pool_create_pw(auxbas_pw_pool,scp_rho%rhop_g%pw,&
          use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
   END IF
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE scp_rho_create
 

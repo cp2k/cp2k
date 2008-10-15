@@ -221,7 +221,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)   
     DEALLOCATE(Rot,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE rot_ana
 
 ! *****************************************************************************

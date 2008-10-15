@@ -150,7 +150,7 @@ CONTAINS
 
     CALL mp_sum(ecore,para_env%group)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_ecore
 
@@ -746,7 +746,7 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
                                       "DFT%PRINT%SUBCELL",error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_ecore_overlap
 
@@ -800,7 +800,7 @@ CONTAINS
       E_self_core = energy%core_self
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_ecore_self
 

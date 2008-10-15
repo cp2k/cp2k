@@ -250,7 +250,7 @@ CONTAINS
        END IF
     END IF  ! use_kinetic_energy_density
   
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 END SUBROUTINE qs_rho_rebuild
 
 ! *****************************************************************************
@@ -536,7 +536,7 @@ END SUBROUTINE qs_rho_update_rho
       END IF
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE duplicate_rho_type
 
@@ -746,7 +746,7 @@ END SUBROUTINE qs_rho_update_rho
       END IF
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE diff_rho_type
 
@@ -962,7 +962,7 @@ END SUBROUTINE qs_rho_update_rho
       END IF
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE copy_rho_type
 

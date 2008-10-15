@@ -1184,7 +1184,7 @@ CONTAINS
     END IF
 
     !  call timing(iproc,'PSolv_comput  ','OF')
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE S_PoissonSolver
 
 ! *****************************************************************************

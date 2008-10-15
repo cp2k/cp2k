@@ -105,7 +105,7 @@ CONTAINS
       diis_buffer%ref_count = 1
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_diis_b_create
 
@@ -218,7 +218,7 @@ CONTAINS
                                         "PRINT%DIIS_INFO",error=error)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_diis_b_check_i_alloc
 
@@ -307,7 +307,7 @@ CONTAINS
     ! Quick return, if no DIIS is requested
 
     IF (diis_buffer%nbuffer < 1) THEN
-      CALL timestop(0.0_dp,handle)
+      CALL timestop(handle)
       RETURN
     END IF
 
@@ -555,7 +555,7 @@ CONTAINS
                                         "PRINT%DIIS_INFO",error=error)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_diis_b_step
 
@@ -592,7 +592,7 @@ CONTAINS
       diis_buffer%ncall = 0
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_diis_b_clear
 

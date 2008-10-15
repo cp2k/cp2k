@@ -475,7 +475,7 @@ CPSourceFileRef,&
      END SELECT
   END IF
 123 CONTINUE
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE xc_functional_eval
 
 ! *****************************************************************************

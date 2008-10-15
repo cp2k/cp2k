@@ -685,7 +685,7 @@ CONTAINS
 
           !   *** Exit if we have finished with the SCF inner loop ***
           IF (exit_inner_loop) THEN
-             CALL timestop(0.0_dp,handle2)
+             CALL timestop(handle2)
              EXIT scf_loop
           END IF
 
@@ -710,7 +710,7 @@ CONTAINS
              CALL qs_ks_scp_did_change(qs_env, rho_changed=.TRUE.,error=error)
           ENDIF
           ! *** SCP
-          CALL timestop(0.0_dp,handle2)
+          CALL timestop(handle2)
 
        END DO scf_loop
 
@@ -752,7 +752,7 @@ CONTAINS
        qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.
     END IF
     CALL cp_rm_iter_level(logger%iter_info,level_name="QS_SCF",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE scf_env_do_scf
 
@@ -1599,7 +1599,7 @@ END SUBROUTINE qs_scf_print_summary
     ENDIF
   
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE init_scf_loop
 
@@ -1786,7 +1786,7 @@ END SUBROUTINE qs_scf_print_summary
       END IF
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE init_scf_run
 
@@ -2104,7 +2104,7 @@ END SUBROUTINE qs_scf_print_summary
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE scf_env_check_i_alloc
 
@@ -2201,7 +2201,7 @@ END SUBROUTINE qs_scf_print_summary
 ! *** SCP
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE scf_env_initial_rho_setup
 
@@ -2292,7 +2292,7 @@ END SUBROUTINE qs_scf_print_summary
        ENDIF
 
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE scf_env_cleanup
 
@@ -2338,7 +2338,7 @@ END SUBROUTINE qs_scf_print_summary
 
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cleanup_scf_loop
 
@@ -2593,7 +2593,7 @@ END SUBROUTINE qs_scf_print_summary
     CALL calculate_density_matrix(mos(2)%mo_set,scf_env%p_mix_new(2)%matrix,&
                                   error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_scf_loop_do_roks_diag
 

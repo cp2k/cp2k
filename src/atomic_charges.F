@@ -101,7 +101,7 @@ CONTAINS
        WRITE(scr,'(A)') ""
     ENDIF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE print_atomic_charges
 

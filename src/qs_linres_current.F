@@ -618,7 +618,7 @@ CONTAINS
     ENDIF !  failure
     !
     ! Finalize
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     !
   END SUBROUTINE current_build_current
 
@@ -1247,7 +1247,7 @@ CONTAINS
     CALL density_rs2pw(pw_env,rs_rho,rho_rs,rho_gs,&
          interp_section=interp_section,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_jrho_resp
 
@@ -1623,7 +1623,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDDO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE current_build_chi
 

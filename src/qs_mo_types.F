@@ -266,7 +266,7 @@ CONTAINS
       CALL cp_fm_to_fm(mo_array(1)%mo_set%mo_coeff,mo_array(2)%mo_set%mo_coeff,mo_array(2)%mo_set%nmo)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE mo_set_restrict
 
@@ -680,7 +680,7 @@ CONTAINS
        END DO
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE write_mo_set_to_restart
 
@@ -834,7 +834,7 @@ CPSourceFileRef,&
     DEALLOCATE (vecbuffer,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE write_mo_set_low
 
@@ -939,7 +939,7 @@ CPSourceFileRef,&
                         dft_section,error=error)
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE read_mo_set_from_restart
 

@@ -333,7 +333,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, solver_ty
   DEALLOCATE(eigenvalues_ot,STAT=istat)
   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE make_preconditioner_single
 
@@ -522,7 +522,7 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
     CALL stop_program("make preconditioner","Type not implemented")
   END SELECT
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE make_preconditioner_lr
 
@@ -567,7 +567,7 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out, error
      CALL stop_program("apply preconditioner","implemented")
   END SELECT
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE apply_preconditioner
 
@@ -598,7 +598,7 @@ SUBROUTINE apply_preconditioner_lr(preconditioner_env, matrix_in, matrix_out,err
     CALL stop_program("apply_preconditioner_lr","implemented")
   END SELECT
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE apply_preconditioner_lr
 ! different types of preconditioner come here

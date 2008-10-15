@@ -420,7 +420,7 @@ CONTAINS
          __LINE__,"particles_bias")
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
   END SUBROUTINE mc_Quickstep_move
 
@@ -639,7 +639,7 @@ CONTAINS
          DEALLOCATE(particles_old,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"particles_old")
-         CALL timestop(0.0E0_dp,handle)
+         CALL timestop(handle)
          RETURN
       ENDIF
 
@@ -952,7 +952,7 @@ CONTAINS
          DEALLOCATE(test_env,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
               __LINE__,"test_env")
-         CALL timestop(0.0E0_dp,handle)
+         CALL timestop(handle)
          RETURN
       ENDIF
 
@@ -1229,7 +1229,7 @@ CONTAINS
          "particles_old")
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
   END SUBROUTINE mc_ge_swap_move
 
@@ -1610,7 +1610,7 @@ CONTAINS
          "loverlap")
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
   END SUBROUTINE mc_ge_volume_move
 

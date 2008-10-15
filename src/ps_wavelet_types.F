@@ -158,7 +158,7 @@ CONTAINS
        CALL RS_z_slice_distribution(wavelet,pw_grid, error)
           
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ps_wavelet_create
 
 ! *****************************************************************************
@@ -234,7 +234,7 @@ CONTAINS
     CALL createKernel(geocode,nx,ny,nz,hx,hy,hz,wavelet%itype_scf,iproc,nproc,wavelet%karray,&
                        pw_grid % para % rs_group ,error)
     
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE RS_z_slice_distribution
 
 ! *****************************************************************************
@@ -410,7 +410,7 @@ CONTAINS
        DEALLOCATE(sbuf,rbuf,scount,sdispl,rcount,rdispl,tmp)
 
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp2k_distribution_to_z_slices
 
@@ -577,7 +577,7 @@ CONTAINS
     
     CALL PSolver(geocode,datacode,iproc,nproc,nx,ny,nz,hx,hy,hz,&
          wavelet%rho_z_sliced,wavelet%karray,pw_grid,error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ps_wavelet_solve
 
 END MODULE ps_wavelet_types

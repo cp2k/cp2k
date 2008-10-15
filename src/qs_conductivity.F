@@ -145,7 +145,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
    CALL cp_fm_release(matrix_elements,error=error)
    DEALLOCATE(RESULT)
 
-   CALL timestop(0.0_dp,handle)
+   CALL timestop(handle)
 
 END SUBROUTINE
 

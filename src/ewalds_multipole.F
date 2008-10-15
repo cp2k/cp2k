@@ -276,7 +276,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE ewald_multipole_evaluate
   
 ! *****************************************************************************

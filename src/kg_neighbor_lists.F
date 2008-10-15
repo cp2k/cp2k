@@ -457,7 +457,7 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
          "DFT%PRINT%SUBCELL",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_kg_neighbor_lists1
 
@@ -491,7 +491,7 @@ CONTAINS
                         "sub_qs_env not defined")
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_kg_neighbor_lists2
 

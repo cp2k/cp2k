@@ -312,7 +312,7 @@ CONTAINS
 
     END SELECT
 
-!   CALL timestop(0.0_dp,handle)
+!   CALL timestop(handle)
 
   END SUBROUTINE whittaker_c0
 
@@ -484,7 +484,7 @@ CONTAINS
 
     END SELECT
 
-!   CALL timestop(0.0_dp,handle)
+!   CALL timestop(handle)
 
   END SUBROUTINE whittaker_ci
 

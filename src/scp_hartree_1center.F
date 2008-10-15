@@ -545,7 +545,7 @@ CONTAINS
             "int_tmp,vv,ff")
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE integrate_a_vhscp_b
 
@@ -744,7 +744,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "work.gcca.gccb,fcoeff")
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE integrate_vhscp_gscp
 
 ! *****************************************************************************
@@ -941,7 +941,7 @@ CONTAINS
     DEALLOCATE(vab,vv,ff,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "vab.vv.ff")
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE integrate_vhscp_gcore
 

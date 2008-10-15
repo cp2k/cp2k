@@ -1288,7 +1288,7 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
     CALL stop_program ( "fft_wrap_pw1", "In place FFT only possible for "//&
                     "replicated data with COMPLEXDATA3D structure" )
   END IF
-  CALL timestop(0.0_dp,handle) 
+  CALL timestop(handle) 
 
 END SUBROUTINE fft_wrap_pw1
 
@@ -1568,8 +1568,8 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
   IF ( test .AND. pw1 % pw_grid % para % group_head ) THEN
       WRITE ( *,'(A)') " End of FFT Protocol "
   END IF
-  CALL timestop(0.0_dp,handle) 
-  CALL timestop(0.0_dp,handle2) 
+  CALL timestop(handle) 
+  CALL timestop(handle2) 
 
 END SUBROUTINE fft_wrap_pw1pw2
 

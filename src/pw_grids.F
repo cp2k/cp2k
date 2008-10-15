@@ -384,7 +384,7 @@ CONTAINS
     END IF
 
     CALL pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE pw_grid_setup
 
@@ -1030,7 +1030,7 @@ CONTAINS
        pw_grid % para % pos_of_x = 0
     ENDIF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE pw_grid_distribute
 
@@ -1455,7 +1455,7 @@ CONTAINS
     CALL pw_grid_set_maps ( pw_grid % grid_span, pw_grid % g_hat, &
          pw_grid % mapl, pw_grid % mapm, pw_grid % mapn, pw_grid % npts )
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE pw_grid_assign
 
@@ -1769,7 +1769,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE pw_grid_sort
 
@@ -1932,7 +1932,7 @@ CONTAINS
     CPPrecondition(is == pw_grid % para % nyzray ( ip ),cp_failure_level,routineP,error,failure)
     CALL mp_sum ( pw_grid % para % yzp, pw_grid % para % group )
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE pw_grid_remap
 

@@ -90,7 +90,7 @@ CONTAINS
          sub_force_env=sub_force_env, force_env_section=force_env_section,error=error)
     CALL qs_env_release(qs_env,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE quickstep_create_force_env
 
 END MODULE qs_main

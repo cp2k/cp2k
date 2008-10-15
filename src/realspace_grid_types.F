@@ -643,8 +643,8 @@ END FUNCTION rs_grid_locate_rank
           END IF
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle)
+    CALL timestop(handle2)
   END SUBROUTINE rs_pw_transfer
 
 ! *****************************************************************************
@@ -1597,7 +1597,7 @@ SUBROUTINE rs_grid_zero ( rs )
    CALL timeset(routineN,handle)
    n = SIZE ( rs % r )
    CALL dcopy ( n, 0.0_dp, 0, rs % r, 1 )
-   CALL timestop(0.0_dp,handle)
+   CALL timestop(handle)
 
 END SUBROUTINE rs_grid_zero
 

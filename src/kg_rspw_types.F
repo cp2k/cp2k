@@ -156,7 +156,7 @@ END SUBROUTINE kg_rspw_retain
     END IF
   END IF
   NULLIFY(kg_rspw)
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
   END SUBROUTINE kg_rspw_release
 
 END MODULE kg_rspw_types

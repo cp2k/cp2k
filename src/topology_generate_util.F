@@ -258,7 +258,7 @@ CONTAINS
        END DO
     END IF
     IF(iw>0) WRITE(iw,'(/,A)') "End of PARA_RES"
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     IF(iw>0) THEN
        DO iatom=1,natom
           WRITE(iw,'(4(1X,A,":",I0),2(1X,A,1X,A))') "iatom",iatom,&
@@ -388,7 +388,7 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE topology_generate_molecule
   
 ! *****************************************************************************
@@ -528,7 +528,7 @@ CONTAINS
                "radius:",radius(iatom)
        END DO
        CPPostcondition(.NOT.failure,cp_failure_level,routineP,error,failure)
-       CALL timestop(0.0_dp,handle2)
+       CALL timestop(handle2)
        CALL timeset(TRIM(routineN)//"_2",handle2)
        ! Initialize fake particle_set and atomic_kinds to generate the bond list
        ! using the neighboring list routine
@@ -570,7 +570,7 @@ CONTAINS
        CALL section_vals_val_get(subsys_section,"TOPOLOGY%GENERATE%BONDLENGTH_MIN",r_val=tmp,&
             error=error)
        r_minsq = tmp*tmp
-       CALL timestop(0.0_dp,handle2)
+       CALL timestop(handle2)
        CALL timeset(TRIM(routineN)//"_3",handle2)
        CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
             cell=topology%cell, r_max=r_max, r_minsq=r_minsq, nonbonded=nonbonded,&
@@ -599,7 +599,7 @@ CONTAINS
              map_nb(idim) = j
           END DO
        END DO
-       CALL timestop(0.0_dp,handle2)
+       CALL timestop(handle2)
        CALL timeset(TRIM(routineN)//"_4",handle2)
        ! We have a list of neighbors let's order the list w.r.t. the particle number
        ALLOCATE(bond_list(natom),stat=stat)
@@ -767,7 +767,7 @@ CONTAINS
                "  Achieved consistency in connectivity generation."
        END IF
        CALL fist_neighbor_deallocate(nonbonded,error)
-       CALL timestop(0.0_dp,handle2)
+       CALL timestop(handle2)
        CALL timeset(TRIM(routineN)//"_6",handle2)
        ! Deallocate temporary working arrays
        DO I = 1, natom
@@ -789,7 +789,7 @@ CONTAINS
        CALL deallocate_particle_set(particle_set,error)
        CALL deallocate_atomic_kind_set(atomic_kind_set,error)
        !
-       CALL timestop(0.0_dp,handle2)
+       CALL timestop(handle2)
        IF (output_unit>0) THEN
           WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Number of Bonds generated:",&
                n_bonds
@@ -820,11 +820,11 @@ CONTAINS
              END IF
           END DO
        END IF
-       CALL timestop(0.0_dp,handle2)
+       CALL timestop(handle2)
        DEALLOCATE(isolated_atoms,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/GENERATE_INFO",error=error)
   END SUBROUTINE topology_generate_bond
@@ -971,7 +971,7 @@ CONTAINS
        ENDDO
        DEALLOCATE(bond_list,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL timestop(0.0_dp,handle)
+       CALL timestop(handle)
     END IF
   END FUNCTION check_generate_mol
 
@@ -1460,7 +1460,7 @@ CONTAINS
                                  Oarray2 =conn_info%theta_b,&
                                  Oarray3 =conn_info%theta_c,&
                                  error=error)
-       CALL timestop(0.0_dp,handle2)
+       CALL timestop(handle2)
        DO I = 1, natom
           DEALLOCATE(bond_list(I)%array1,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1491,7 +1491,7 @@ CONTAINS
                ntheta
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/GENERATE_INFO",error=error)
   END SUBROUTINE topology_generate_bend
@@ -1697,7 +1697,7 @@ CONTAINS
        WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Number of UB generated:",&
             ntheta
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/GENERATE_INFO",error=error)
 
@@ -1799,7 +1799,7 @@ CONTAINS
                nphi
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/GENERATE_INFO",error=error)
     
@@ -1923,7 +1923,7 @@ CONTAINS
                nimpr
        END IF       
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/GENERATE_INFO",error=error)
 
@@ -1974,7 +1974,7 @@ CONTAINS
        WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Number of 1-4 interactions generated:",&
             nphi
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/GENERATE_INFO",error=error)
     

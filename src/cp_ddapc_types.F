@@ -165,7 +165,7 @@ CONTAINS
                particle_set, cp_ddapc_env%Ms,  radii, error)
        END IF
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_ddapc_create
 
 ! *****************************************************************************

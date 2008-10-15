@@ -230,7 +230,7 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL semi_empirical_release(se_kind_mm,error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE deriv_se_qmmm_matrix
 
 ! *****************************************************************************
@@ -322,7 +322,7 @@ CONTAINS
           forces(:,Imm) = forces(:,Imm) - force_ab
        END DO LoopMM
     END DO MainLoopPot
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE deriv_se_qmmm_matrix_low
 
 END MODULE qmmm_se_forces

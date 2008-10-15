@@ -1166,7 +1166,7 @@ CONTAINS
     ! Generate a list of equivalent atoms
     CALL build_symequ_list(sym,coord,error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE molecular_symmetry
 

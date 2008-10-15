@@ -1409,7 +1409,7 @@ CONTAINS
                                       print_key_path="DFT%PRINT%SUBCELL",&
                                       error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_qs_neighbor_lists
 
@@ -1799,7 +1799,7 @@ CONTAINS
       END DO
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_neighbor_lists
 
@@ -2079,7 +2079,7 @@ CONTAINS
       END DO
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_restricted_neighbor_lists
 
@@ -2449,7 +2449,7 @@ CONTAINS
       END DO
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_gth_ppl_neighbor_lists
 
@@ -2944,7 +2944,7 @@ CONTAINS
 
     END DO
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_gth_ppnl_neighbor_lists
 

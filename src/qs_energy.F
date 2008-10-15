@@ -218,7 +218,7 @@ CONTAINS
       CALL xas(qs_env, dft_control%xas_control, globenv,error=error)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_energies
 

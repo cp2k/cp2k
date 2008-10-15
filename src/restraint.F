@@ -236,7 +236,7 @@ CONTAINS
                                             energy_colv
        CALL force_env_set(force_env=force_env, additional_potential=extended_energies, error=error)
     END IF
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE restraint_control
 

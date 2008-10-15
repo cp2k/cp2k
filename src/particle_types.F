@@ -1057,7 +1057,7 @@ END SUBROUTINE clone_particle
     CALL cp_print_key_finished_output(iw,logger,input_section,&
          "PRINT%STRUCTURE_DATA", error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE write_structure_data
 

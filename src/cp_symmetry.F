@@ -197,7 +197,7 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(iw,logger,input_section,"PRINT%SYMMETRY", error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE write_symmetry
 

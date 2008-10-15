@@ -686,7 +686,7 @@ CONTAINS
     CALL deallocate_matrix(matrix=sm_q,error=error)
     CALL deallocate_matrix(matrix=sm_v,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE lowdin
 
@@ -1247,7 +1247,7 @@ CONTAINS
     CALL deallocate_matrix(matrix=sm_q,error=error)
     CALL deallocate_matrix(matrix=sm_v,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE mulliken
 
@@ -1769,7 +1769,7 @@ CONTAINS
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
-   CALL timestop(0.0_dp,handle)
+   CALL timestop(handle)
 
   END SUBROUTINE mulliken_charges
 

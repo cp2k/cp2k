@@ -163,7 +163,7 @@ CONTAINS
     CALL close_file(unit_number=unit)
 
     ! end the timing
-    CALL timestop(0.0E0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE write_mc_restart
 
@@ -351,7 +351,7 @@ CONTAINS
     ENDIF
 
     ! end the timing
-    CALL timestop(0.0E0_dp,handle)
+    CALL timestop(handle)
 
     ! deallcoate
     DEALLOCATE(nchains)

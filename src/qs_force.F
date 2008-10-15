@@ -480,7 +480,7 @@ CONTAINS
     DEALLOCATE (kind_of,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"kind_of")
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_forces
 

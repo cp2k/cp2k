@@ -578,7 +578,7 @@ CONTAINS
 
     total_rho = pw_integrate_function(rho_r%pw,isign=-1)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_rho_mol
 
@@ -1079,7 +1079,7 @@ CONTAINS
 
     CALL rs_pools_give_back_rs_vect(rs_pools, rs_v,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE integrate_mol_potential
 

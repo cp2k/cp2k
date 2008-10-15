@@ -92,7 +92,7 @@ CONTAINS
     IF (iw>0) WRITE(iw,*) "  Exiting  qmmm_coordinate_control"
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)    
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qmmm_coordinate_control
   
 ! *****************************************************************************
@@ -190,7 +190,7 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
                                      "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qmmm_connectivity_control
 

@@ -555,7 +555,7 @@ CONTAINS
             "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_overlap_matrix
 

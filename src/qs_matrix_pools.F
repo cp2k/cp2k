@@ -700,7 +700,7 @@ CPSourceFileRef,&
 
   END IF
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE mpools_rebuild_fm_pools
 
 ! *****************************************************************************
@@ -822,7 +822,7 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
        END DO
   
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
 END SUBROUTINE mpools_rebuild_s_sm_pools
 

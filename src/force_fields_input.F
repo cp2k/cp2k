@@ -1551,7 +1551,7 @@ CPSourceFileRef,&
 
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
     DEALLOCATE(namearray,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1929,7 +1929,7 @@ CPSourceFileRef,&
     END DO
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE read_force_field_charmm
 
@@ -2034,7 +2034,7 @@ CPSourceFileRef,&
        CALL parser_release(parser,error=error)
      END IF
     CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%FF_INFO",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE read_eam_data
 

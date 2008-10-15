@@ -215,7 +215,7 @@ CONTAINS
     topology%natoms = natom
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PDB_INFO",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE read_coordinate_pdb
 
@@ -304,7 +304,7 @@ CONTAINS
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PDB_INFO",error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE write_coordinate_pdb
 

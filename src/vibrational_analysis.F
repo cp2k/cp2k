@@ -451,7 +451,7 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,print_section,"PROGRAM_RUN_INFO",error=error)
        CALL rep_env_release(rep_env,error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE vb_anal
 
 ! *****************************************************************************
@@ -533,7 +533,7 @@ CONTAINS
        DEALLOCATE(fixme,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE get_moving_atoms
 
@@ -668,7 +668,7 @@ CONTAINS
        DEALLOCATE(mat,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE build_D_matrix
 
 END MODULE vibrational_analysis

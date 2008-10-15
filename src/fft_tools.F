@@ -2073,7 +2073,7 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
 
   CALL mp_comm_free ( sub_group )
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE cube_transpose_1
 
@@ -2160,7 +2160,7 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
 
   CALL mp_comm_free ( sub_group )
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE cube_transpose_2
 
@@ -2248,7 +2248,7 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
 
   CALL mp_comm_free ( sub_group )
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE cube_transpose_3
 
@@ -2336,7 +2336,7 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
 
   CALL mp_comm_free ( sub_group )
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE cube_transpose_4
 
@@ -2405,7 +2405,7 @@ SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout, fft_scratch, error 
     END DO
   END DO
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE cube_transpose_5
 
@@ -2474,7 +2474,7 @@ SUBROUTINE cube_transpose_6 ( cin, group, boin, boout, sout, fft_scratch, error 
 
   CALL mp_alltoall ( rbuf, scount, sdispl, sout, rcount, rdispl, group )
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE cube_transpose_6
 

@@ -255,7 +255,7 @@ CONTAINS
     ! 12. Cleanup the topology structure type
     !-----------------------------------------------------------------------------
     CALL deallocate_topology(topology, error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO",error=error)  
   END SUBROUTINE topology_control
@@ -406,7 +406,7 @@ CONTAINS
     CALL destroy_ff_map("GROMOS",error)
     CALL destroy_ff_map("CHARMM",error)
     CALL destroy_ff_map("AMBER",error)
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 3. Generate the connectivity information otherwise
@@ -444,7 +444,7 @@ CONTAINS
     IF (my_qmmm) THEN
        CALL qmmm_coordinate_control(topology, qmmm_env,subsys_section, error)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO",error=error)
 
@@ -520,11 +520,11 @@ CONTAINS
        CALL read_atoms_input ( topology, subsys_section=subsys_section,&
             save_mem=save_mem,error=error)
     END SELECT
-    CALL timestop(0.0_dp,handle2)
+    CALL timestop(handle2)
     IF (topology%natoms.LE.0) THEN
        CALL stop_program ("coordinate_control","No atomic coordinates have been found")
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO",error=error)
   END SUBROUTINE coordinate_control

@@ -145,7 +145,7 @@ CONTAINS
                                  dft_control % qs_control % eps_rho_rspace,     &
                                  error=error )
   t1 = m_walltime()
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
   END SUBROUTINE update_rhoscp 
 
 ! *****************************************************************************
@@ -354,7 +354,7 @@ CONTAINS
     CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace,&
                                    error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
    END SUBROUTINE collocate_scp_density
 
@@ -597,7 +597,7 @@ CONTAINS
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"work")
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE integrate_rhoscp_vrspace
 

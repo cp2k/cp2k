@@ -141,7 +141,7 @@ END SUBROUTINE kg_rho_retain
     END IF
   END IF
   NULLIFY(kg_rho)
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
   END SUBROUTINE kg_rho_release
 
 END MODULE kg_rho_types

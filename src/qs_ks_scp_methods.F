@@ -110,7 +110,7 @@ CONTAINS
             use_data=REALDATA3D, in_space=REALSPACE,error=error)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE qs_ks_scp_create
 
@@ -144,7 +144,7 @@ CONTAINS
     CALL scp_rho_get ( rho_scp, rhop_r = rhop_r, error = error )
 
     energy % e_scp_qmmm = pw_integral_ab ( rhop_r%pw, v_qmmm%pw )
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE scp_calculate_qmmm_energy
 
 ! *****************************************************************************
@@ -172,7 +172,7 @@ CONTAINS
      
     energy % e_scp_ks = pw_integral_ab ( rhop_g % pw, v%pw )
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE scp_calculate_gpw_energy
 
 ! *****************************************************************************
@@ -198,7 +198,7 @@ CONTAINS
     v_hartree%pw%cr3d = v_hartree%pw%cr3d + &
                         v_scp%pw%pw_grid%dvol*v_scp%pw%cr3d
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE scp_modify_hartree_pot
 
 ! *****************************************************************************
@@ -338,7 +338,7 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
     END IF   
   END IF
   t1 = m_walltime()
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE qs_ks_scp_update
 
 END MODULE qs_ks_scp_methods

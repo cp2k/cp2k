@@ -238,7 +238,7 @@ CPSourceFileRef,&
     END DO
     IF(my_save_mem) CALL section_vals_remove_values(coord_section, error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE read_atoms_input
 
 ! *****************************************************************************
@@ -471,7 +471,7 @@ CPSourceFileRef,&
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF  ! failure
     IF(my_save_mem) CALL section_vals_remove_values(shell_coord_section, error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE read_shell_coord_input
 

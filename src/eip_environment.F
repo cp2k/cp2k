@@ -174,7 +174,7 @@ CONTAINS
       CALL cp_subsys_release(subsys, error=error)
     END IF
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE eip_init
 
@@ -275,7 +275,7 @@ CONTAINS
 
     CALL eip_init_model(eip_env=eip_env, error=error)
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE eip_init_subsys
 
@@ -332,7 +332,7 @@ CONTAINS
       END SELECT
     END DO
 
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
 
   END SUBROUTINE eip_init_model
 

@@ -751,7 +751,7 @@ CPSourceFileRef,&
     CALL cp_print_key_finished_output(output_unit,logger,root_section,&
                "FARMING%PROGRAM_RUN_INFO", error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   CONTAINS
 ! *****************************************************************************

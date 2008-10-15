@@ -304,7 +304,7 @@ CONTAINS
             MAXVAL(spline_env % spltab)
        WRITE(iw3,'(T2,A,I0)') 'SPLINE_INFO| Done'
     ENDIF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE spline_nonbond_control
 
 ! *****************************************************************************
@@ -1047,7 +1047,7 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(array_double_allocation,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE get_nonbond_storage
 
 ! *****************************************************************************

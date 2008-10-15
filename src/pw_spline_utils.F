@@ -208,7 +208,7 @@ CONTAINS
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE pw_spline2_interpolate_values_g
 
 ! *****************************************************************************
@@ -298,7 +298,7 @@ CONTAINS
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE pw_spline3_interpolate_values_g
 
 ! *****************************************************************************
@@ -378,7 +378,7 @@ CONTAINS
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE pw_spline2_evaluate_values_g
 
 ! *****************************************************************************
@@ -472,7 +472,7 @@ CONTAINS
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE pw_nn_smear_g
 
 ! *****************************************************************************
@@ -559,7 +559,7 @@ CONTAINS
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE pw_spline3_evaluate_values_g
 
 ! *****************************************************************************
@@ -668,7 +668,7 @@ CONTAINS
        END DO
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE pw_spline_scale_deriv
 
 ! *****************************************************************************
@@ -814,7 +814,7 @@ CONTAINS
     DEALLOCATE(csIVals, csJVals, csKVals, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE pw_spline3_deriv_g
 
 ! *****************************************************************************
@@ -958,7 +958,7 @@ CONTAINS
     DEALLOCATE(csIVals, csJVals, csKVals, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE pw_spline2_deriv_g
 
 ! *****************************************************************************
@@ -1316,7 +1316,7 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out,error)
           out_val=pw_out%cr3d,pw_in=pw_in,bo=pw_in%pw_grid%bounds_local,&
           error=error)
   END IF
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE pw_nn_compose_r
 
 ! *****************************************************************************
@@ -1562,7 +1562,7 @@ END SUBROUTINE pw_nn_compose_r
        DO i=1,3
           s(i)=coarse_gbo(2,i)-coarse_gbo(1,i)+1
        END DO
-!       CALL timestop(0._dp,handle2)
+!       CALL timestop(handle2)
        ! *** parallel case
        IF (is_split) THEN
           CALL timeset(routineN//"_comm",handle2)
@@ -1846,7 +1846,7 @@ CPSourceFileRef,&
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           DEALLOCATE(send_buf,rcv_buf,real_rcv_size,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          CALL timestop(0._dp,handle2)
+          CALL timestop(handle2)
 
        END IF
        fine_values => fine_values_pw%cr3d
@@ -1981,7 +1981,7 @@ CPSourceFileRef,&
                                  wi*coarse_coeffs(i,j,k)
                          END DO
                       END DO
-!                      CALL timestop(0._dp,handle2)
+!                      CALL timestop(handle2)
                    ELSE
 !                      CALL timeset(routineN//"_core1",handle2)
                       ww0=wj*w_0
@@ -2033,7 +2033,7 @@ CPSourceFileRef,&
                       ELSE
                          CPPrecondition(fi+1==fine_bo(1,1),cp_failure_level,routineP,error,failure)
                       END IF
-!                      CALL timestop(0._dp,handle2)
+!                      CALL timestop(handle2)
 !                      CALL timeset(routineN//"_core",handle2)
                       DO i=coarse_bo(1,1)+3,FLOOR((fine_bo(2,1)-f_shift(1))/2.)-3,4
                          v3=coarse_coeffs(i,j,k)
@@ -2073,7 +2073,7 @@ CPSourceFileRef,&
                               (ww0(1)*v0+ww0(2)*v1+&
                               ww0(3)*v2)
                       END DO
-!                      CALL timestop(0._dp,handle2)
+!                      CALL timestop(handle2)
 !                      CALL timeset(routineN//"_clean",handle2)
                       rest_b=MODULO(FLOOR((fine_bo(2,1)-f_shift(1))/2.)-coarse_bo(1,1)-3+1,4)
                       IF (rest_b>0) THEN
@@ -2249,7 +2249,7 @@ CPSourceFileRef,&
                       END IF
                       CPPostcondition(fi==fine_bo(2,1),cp_failure_level,routineP,error,failure)
                    END IF
-!                   CALL timestop(0._dp,handle2)
+!                   CALL timestop(handle2)
                 END DO
              END DO
           END DO
@@ -2260,7 +2260,7 @@ CPSourceFileRef,&
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE add_coarse2fine
 
 ! *****************************************************************************
@@ -3025,13 +3025,13 @@ CPSourceFileRef,&
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           DEALLOCATE(pp_ub,pp_lb,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          CALL timestop(0._dp,handle2)
+          CALL timestop(handle2)
        ELSE
           CPPostcondition(.NOT.local_data,cp_failure_level,routineP,error,failure)
        END IF
     END IF
     
-    CALL timestop(0._dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE add_fine2coarse
 
 ! *****************************************************************************
@@ -3508,7 +3508,7 @@ CPSourceFileRef,&
        CALL pw_pool_give_back_pw(coarse_pool,values,error=error)
        CALL pw_pool_give_back_pw(coarse_pool,coeffs,error=error)
     END IF
-    CALL timestop(0._dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE pw_restrict_s3
 
 ! *****************************************************************************
@@ -3614,7 +3614,7 @@ CPSourceFileRef,&
        CALL pw_pool_give_back_pw(coarse_pool,coeffs,error=error)
 
     END IF
-    CALL timestop(0._dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE pw_prolongate_s3
 
 ! *****************************************************************************

@@ -48,7 +48,6 @@ MODULE kg_energy
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-  USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_max
   USE pw_methods,                      ONLY: pw_axpy,&
                                              pw_copy,&
@@ -266,7 +265,7 @@ CONTAINS
        CALL m_flush(output_unit)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE kg_only_energies
 
@@ -361,7 +360,7 @@ CONTAINS
              WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
                   "*** SCF run converged in", iter, "steps ***"
           END IF
-          CALL timestop(0.0_dp,handle2)
+          CALL timestop(handle2)
           EXIT scf_loop
        ELSE IF (should_stop.OR.&
             iter == scf_control%max_scf) THEN
@@ -369,13 +368,13 @@ CONTAINS
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
           END IF
-          CALL timestop(0.0_dp,handle2)
+          CALL timestop(handle2)
           EXIT
        END IF
 
        t1 = m_walltime()
 
-       CALL timestop(0.0_dp,handle2)
+       CALL timestop(handle2)
 
     END DO scf_loop
 
@@ -388,7 +387,7 @@ CONTAINS
 
     CALL diis_info_destroy(diis_info)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE kg_std_energies
 
@@ -437,7 +436,7 @@ CONTAINS
     ! Perform a SCF run
     CALL kg_qs_scf(kg_env,globenv,error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE kg_qs_energies
 
@@ -553,7 +552,7 @@ CONTAINS
     ! add the frozen electronic density to the core density
     CALL pw_axpy(rho_g%pw,rho_core%pw)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE init_energy_calculation
 
@@ -744,7 +743,7 @@ CONTAINS
        CALL m_flush(output_unit)
     END IF
 
-    CALL timestop ( zero, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE calc_c_gradients
 

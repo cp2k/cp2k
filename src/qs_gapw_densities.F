@@ -184,7 +184,7 @@ CONTAINS
    DEALLOCATE(rho1_h_tot,rho1_s_tot,STAT=istat)
    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
-   CALL timestop(0.0_dp,handle)
+   CALL timestop(handle)
 
  END SUBROUTINE  prepare_gapw_den
 

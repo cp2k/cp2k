@@ -159,7 +159,7 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
 
   END IF
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE kg_rho_create
 

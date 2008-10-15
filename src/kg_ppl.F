@@ -575,7 +575,7 @@ CONTAINS
 
     energy%pseudo = e_ppl
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_rho0_ppl
 
@@ -1089,7 +1089,7 @@ CONTAINS
 
     energy%ppseudo = e_ppl
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_drho_ppl
 

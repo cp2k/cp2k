@@ -206,7 +206,7 @@ CONTAINS
          force_env_section=force_env_section,&
          error = error )
     CALL mixed_env_release ( mixed_env, error = error )
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE mixed_create_force_env
 

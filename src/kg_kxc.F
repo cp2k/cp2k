@@ -96,7 +96,7 @@ CONTAINS
   IF (calculate_forces)THEN
     v2xc (:,:,:) =  0.5_dp * v2xc(:,:,:) *rho_r%pw%pw_grid%dvol
   END IF
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
  END SUBROUTINE calculate_kxc_derivatives
 
 ! *****************************************************************************

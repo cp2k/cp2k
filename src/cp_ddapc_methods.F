@@ -96,7 +96,7 @@ CONTAINS
           w(ig) =  fourpi*(g2 -gcut2)**2/(g2*gcut2)
        END DO
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE ddapc_eval_gfunc
 
 ! *****************************************************************************
@@ -169,7 +169,7 @@ CONTAINS
        DEALLOCATE(my_bv,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE build_b_vector
     
 ! *****************************************************************************
@@ -249,7 +249,7 @@ CONTAINS
        DEALLOCATE(my_Am,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE build_A_matrix
 
 ! *****************************************************************************
@@ -331,7 +331,7 @@ CONTAINS
        DEALLOCATE(my_dbv,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE build_der_b_vector
     
 ! *****************************************************************************
@@ -436,7 +436,7 @@ CONTAINS
        DEALLOCATE(my_Am,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE build_der_A_matrix
 
 ! *****************************************************************************
@@ -521,7 +521,7 @@ CONTAINS
        DEALLOCATE(AmI, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp, handle)
+    CALL timestop(handle)
   END SUBROUTINE ddapc_eval_AmI
 
 ! *****************************************************************************
@@ -704,7 +704,7 @@ CONTAINS
        DEALLOCATE(EwM, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE ewald_ddapc_pot
 
 ! *****************************************************************************

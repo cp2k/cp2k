@@ -243,7 +243,7 @@ CONTAINS
        END IF
 
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cs1_lda_eval
 
 ! *****************************************************************************
@@ -315,7 +315,7 @@ CONTAINS
                error=error, error_level=cp_failure_level)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cs1_lsd_eval
 
 ! *****************************************************************************

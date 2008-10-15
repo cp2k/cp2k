@@ -762,7 +762,7 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%DERIVATIVES",error=error)
     CALL cp_print_key_finished_output(iw2,logger,mm_section,"POISSON%EWALD%PRINT%PROGRAM_RUN_INFO",error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
 END SUBROUTINE fist_force_control
 

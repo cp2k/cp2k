@@ -181,7 +181,7 @@ SUBROUTINE maxradius_scp_init ( scp_env, atomic_kind_set, gridlevel_info, &
        rspw % qs_pw_env => pw_env
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE scp_qs_rspw_rebuild
 

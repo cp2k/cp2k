@@ -1597,7 +1597,7 @@ CONTAINS
           CALL make_basis_sm(v_matrix,my_n_col, matrix_s(1)%matrix ,error=error)
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE qs_env_reorthogonalize_vectors
 
 END MODULE qs_environment_types

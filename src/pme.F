@@ -387,7 +387,7 @@ CONTAINS
     CALL pw_pool_give_back_pw ( pw_small_pool, rhos2%pw ,error=error)
     CALL structure_factor_deallocate ( exp_igr )
 
-    CALL timestop ( 0.0_dp, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE pme_evaluate
 

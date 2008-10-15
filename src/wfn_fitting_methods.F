@@ -191,7 +191,7 @@ MODULE wfn_fitting_methods
 
     END DO
     
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE fit_mo_coeffs
 
@@ -329,7 +329,7 @@ MODULE wfn_fitting_methods
                     1.0_dp,wfn_fitting_env%work_orb_nmo(ispin)%matrix,wfn_fitting_env%R_schur_R_t(ispin)%matrix,1.0_dp,&
                     mo_derivs(ispin)%matrix,error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE merge_mo_derivs 
 
@@ -512,7 +512,7 @@ MODULE wfn_fitting_methods
     CALL deallocate_matrix(matrix_w_s,error)
     CALL deallocate_matrix(matrix_w_p,error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calc_mixed_overlap_force
 
@@ -843,7 +843,7 @@ MODULE wfn_fitting_methods
     DEALLOCATE (pab,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calc_overlap_force_general
 

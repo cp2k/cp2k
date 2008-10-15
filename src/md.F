@@ -1117,7 +1117,7 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO", error=error)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
     
   END SUBROUTINE initialize_velocities
   

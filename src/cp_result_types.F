@@ -113,7 +113,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(results%result_value(0), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_result_create
 
 ! *****************************************************************************
@@ -156,7 +156,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_result_release
 
 ! *****************************************************************************
@@ -190,7 +190,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_result_clean
 
 ! *****************************************************************************
@@ -238,7 +238,7 @@ CONTAINS
     NULLIFY(value%real_type)
     NULLIFY(value%logical_type)
     NULLIFY(value%integer_type)
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_result_value_create
 
 ! *****************************************************************************
@@ -274,7 +274,7 @@ CONTAINS
        ! Type not implemented in cp_result_type
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_result_value_init
 
 ! *****************************************************************************
@@ -323,7 +323,7 @@ CONTAINS
        DEALLOCATE(value,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_result_value_release
 
 ! *****************************************************************************
@@ -359,7 +359,7 @@ CONTAINS
        CALL cp_result_value_copy(results_out%result_value(i)%value,&
             results_in%result_value(i)%value, error)
     END DO
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_result_copy
 
 ! *****************************************************************************
@@ -401,7 +401,7 @@ CONTAINS
        ! Type not implemented in cp_result_type
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_result_value_copy
 
 ! *****************************************************************************
@@ -445,7 +445,7 @@ CONTAINS
     DEALLOCATE(result_value, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     result_value => tmp_value
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE cp_result_value_p_reallocate
 
 END MODULE cp_result_types

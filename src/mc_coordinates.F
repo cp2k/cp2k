@@ -168,7 +168,7 @@ SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
                      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
                      __LINE__,"r")
 
-                     CALL timestop(0.0E0_dp,handle)
+                     CALL timestop(handle)
                      RETURN
                   ENDIF
 
@@ -182,7 +182,7 @@ SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
          __LINE__,"r")
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
 END SUBROUTINE check_for_overlap
 
@@ -230,7 +230,7 @@ SUBROUTINE get_center_of_mass ( coordinates,natom,center_of_mass,&
       center_of_mass(1:3)=center_of_mass(1:3)/total_mass
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
 END SUBROUTINE get_center_of_mass
 
@@ -295,7 +295,7 @@ SUBROUTINE mc_coordinate_fold(coordinates,nchains_tot,mol_type,mass,nunits,box_l
       ENDDO
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
 END SUBROUTINE mc_coordinate_fold
 
@@ -626,7 +626,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
          DEALLOCATE(loverlap_array,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"loverlap_array")
-         CALL timestop(0.0E0_dp,handle)
+         CALL timestop(handle)
          RETURN
       ENDIF
 
@@ -662,7 +662,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
          __LINE__,"loverlap_array")
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
 END SUBROUTINE generate_cbmc_swap_config
 
@@ -754,7 +754,7 @@ SUBROUTINE rotate_molecule(r,mass,natoms,rng_stream,error)
       ENDDO
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
 END SUBROUTINE rotate_molecule
 
@@ -918,7 +918,7 @@ SUBROUTINE find_mc_test_molecule(mc_molecule_info,start_atom,&
       CPPostcondition(molecule_type/=0,cp_failure_level,routineP,error,failure)
 
 ! end the timing
-      CALL timestop(0.0E0_dp,handle)
+      CALL timestop(handle)
 
 END SUBROUTINE find_mc_test_molecule
 

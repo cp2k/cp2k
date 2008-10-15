@@ -607,7 +607,7 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,kg_env%input,&
                                       "DFT%PRINT%SUBCELL",error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_ecore_rspace
 

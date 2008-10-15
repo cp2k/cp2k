@@ -317,7 +317,7 @@ CONTAINS
     CALL set_molbox_env(molbox_env=molbox_env_p,rho_mol_blocks=rho_mol_blocks,&
          error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_molbox_env
 
@@ -1075,7 +1075,7 @@ CONTAINS
         END IF  ! nmol
       END DO  ! imolecule_kind
     END IF  ! failure
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE update_rho_mol_blocks
 
 ! *****************************************************************************

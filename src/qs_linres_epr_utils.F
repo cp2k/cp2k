@@ -259,7 +259,7 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          &                            "PRINT%PROGRAM_RUN_INFO",error=error)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE epr_env_init
 

@@ -265,7 +265,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr, error)
   END SELECT
   IF (PRESENT(in_space)) pw%in_space=in_space
   END IF
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 END SUBROUTINE pw_create
 
 END MODULE pw_types

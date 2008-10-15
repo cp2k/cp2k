@@ -664,7 +664,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
   END IF
 
-  CALL timestop(0.0_dp,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE pw_env_rebuild
 
