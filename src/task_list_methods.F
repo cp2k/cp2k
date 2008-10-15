@@ -339,10 +339,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'task_list_inner_loop', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: cost, cube_center(3), &
-                                                igrid_level, ipgf, iset, &
-                                                jpgf, jset, lb_cube(3), &
-                                                ub_cube(3)
+    INTEGER                                  :: cube_center(3), igrid_level, &
+                                                ipgf, iset, jpgf, jset, &
+                                                lb_cube(3), ub_cube(3)
     REAL(KIND=dp)                            :: dab, rab2, radius, zetp
 
     rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -371,15 +370,15 @@ CONTAINS
                    igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
                 ENDIF
 
-                CALL compute_pgf_properties(cube_center,lb_cube,ub_cube,radius, cost,&
+                CALL compute_pgf_properties(cube_center,lb_cube,ub_cube,radius,&
                            cell,rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                            ra,rab,rab2,dft_control%qs_control%eps_rho_rspace)
    
                 CALL pgf_to_tasks(tasks,dist_ab,ntasks,curr_tasks,&
-                          rab,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf,&
-                          rs_rho(igrid_level)%rs_grid,igrid_level,cube_center,lb_cube,ub_cube,cost,error)
+                          rab,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf,la_max(iset),lb_max(jset),&
+                          rs_rho(igrid_level)%rs_grid,igrid_level,cube_center,lb_cube,ub_cube,error)
 
              END DO loop_jpgf
 
@@ -409,12 +408,11 @@ CONTAINS
 !> \par History
 !>      10.2008 refactored [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE compute_pgf_properties(cube_center,lb_cube,ub_cube,radius, cost,&
+  SUBROUTINE compute_pgf_properties(cube_center,lb_cube,ub_cube,radius, &
                cell,rs_grid,cube_info,la_max,zeta,la_min,lb_max,zetb,lb_min,ra,rab,rab2,eps)
 
     INTEGER, DIMENSION(3), INTENT(OUT)       :: cube_center, lb_cube, ub_cube
     REAL(KIND=dp), INTENT(OUT)               :: radius
-    INTEGER, INTENT(OUT)                     :: cost
     TYPE(cell_type), POINTER                 :: cell
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
@@ -425,7 +423,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), INTENT(IN)                :: ra(3), rab(3), rab2, eps
 
-    INTEGER                                  :: cmax, extent(3)
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
     REAL(KIND=dp)                            :: cutoff, f, prefactor, rb(3), &
                                                 zetp
@@ -447,24 +444,49 @@ CONTAINS
     cube_center(:) = MODULO ( cube_center(:), rs_grid%npts(:) )
     cube_center(:) = cube_center(:) + rs_grid%lb(:)
 
-    ! the corresponding bounds of the cube (relative to cube_center)
     IF (rs_grid%orthorhombic ) THEN
        CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
     ELSE
        ! untested so far
        CALL return_cube_nonortho(cube_info,radius,lb_cube,ub_cube,rp)
-       extent(:)  = ub_cube(:) - lb_cube(:)
-       lb_cube(:) = -extent(:) / 2 - 1
-       ub_cube(:) = extent(:) / 2
     ENDIF
 
-    ! this can also be used to estimate the cost (of a non-generalised collocation-task in the ortho case)
-    ! this is the cost of a task, and should also be moved to pgf_to_tasks
-    cmax=MAXVAL(((ub_cube-lb_cube)+1)/2)
-    cost=CEILING((REAL(la_max+lb_max+1+2,KIND=dp)*(cmax+2)**3*7.0_dp+30000.0_dp)/1000.0_dp)
-
   END SUBROUTINE compute_pgf_properties
+! *****************************************************************************
+!> \brief predicts the cost of a task in kcycles for a given task
+!>        the model is based on a fit of actual data, and might need updating
+!>        as collocate_pgf_product_rspace changes (or CPUs/compilers change)
+!>        maybe some dynamic approach, improving the cost model on the fly could
+!>        work as well
+!>        the cost model does not yet take into account the fraction of space
+!>        that is mapped locally for a given cube and rs_grid (generalised tasks)
+! *****************************************************************************
+  INTEGER FUNCTION cost_model(lb_cube,ub_cube,fraction,lmax,is_ortho)
+    INTEGER, DIMENSION(3), INTENT(IN)       :: lb_cube, ub_cube
+    REAL(KIND=dp), INTENT(IN)               :: fraction
 
+    INTEGER :: cmax,lmax
+    LOGICAL :: is_ortho
+    REAL(KIND=dp) :: v1,v2,v3,v4,v5
+
+    cmax=MAXVAL(((ub_cube-lb_cube)+1)/2)
+
+    IF (is_ortho) THEN
+       v1=1.504760E+00_dp
+       v2=3.126770E+00_dp
+       v3=5.074106E+00_dp
+       v4=1.091568E+00_dp
+       v5=1.070187E+00_dp
+    ELSE
+       v1=7.831105E+00_dp
+       v2=2.675174E+00_dp
+       v3=7.546553E+00_dp
+       v4=6.122446E-01_dp
+       v5=3.886382E+00_dp
+    ENDIF
+    cost_model = CEILING(((lmax+v1)*(cmax+v2)**3*v3*fraction+v4+v5*lmax**7)/1000.0_dp)
+
+  END FUNCTION cost_model
 ! *****************************************************************************
 !> \brief pgf_to_tasks converts a given pgf to one or more tasks, in particular
 !>        this determines by which CPUs a given pgf gets collocated
@@ -480,8 +502,8 @@ CONTAINS
 !>      10.2008 Refactored based on earlier routines by MattW [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE pgf_to_tasks(tasks,dist_ab,ntasks,curr_tasks,&
-                          rab,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf,&
-                          rs_grid,igrid_level,cube_center,lb_cube,ub_cube,cost,error)
+                          rab,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf,la_max,lb_max,&
+                          rs_grid,igrid_level,cube_center,lb_cube,ub_cube,error)
 
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
@@ -490,23 +512,23 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     INTEGER, INTENT(IN)                      :: iatom, jatom, iset, jset, &
                                                 ipgf, jpgf, natoms, maxset, &
-                                                maxpgf
+                                                maxpgf, la_max, lb_max
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     INTEGER, INTENT(IN)                      :: igrid_level
     INTEGER, DIMENSION(3), INTENT(IN)        :: cube_center, lb_cube, ub_cube
-    INTEGER, INTENT(IN)                      :: cost
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER, PARAMETER                       :: add_tasks = 1000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER                                  :: added_tasks, j
+    INTEGER                                  :: added_tasks, cost, j, lmax
+    LOGICAL                                  :: is_ortho
+    REAL(KIND=dp)                            :: fraction
 
     ntasks = ntasks + 1
     IF ( ntasks > curr_tasks ) THEN
        curr_tasks = (curr_tasks+add_tasks)*mult_tasks
        CALL reallocate(tasks,1,6,1,curr_tasks)
-       CALL reallocate(dist_ab,1,3,1,curr_tasks)
     END IF
 
     IF(rs_grid%distributed) THEN
@@ -516,17 +538,24 @@ CONTAINS
        CALL rs_find_node(rs_grid,cube_center, &
             ntasks=ntasks,tasks=tasks,lb_cube=lb_cube,ub_cube=ub_cube,added_tasks=added_tasks,error=error)
 
-       IF ( ntasks > curr_tasks ) THEN
-          curr_tasks = (curr_tasks+add_tasks)*mult_tasks
-          CALL reallocate(dist_ab,1,3,1,curr_tasks)
-       END IF
-
     ELSE
        tasks(1,ntasks) = rs_grid%my_pos
        tasks(4,ntasks) = 0
        tasks(6,ntasks) = 0
        added_tasks = 1
     ENDIF
+
+    IF (SIZE(dist_ab,2).NE.SIZE(tasks,2)) THEN
+       CALL reallocate(dist_ab,1,3,1,SIZE(tasks,2))
+    ENDIF
+
+    lmax=la_max+lb_max
+    is_ortho=(tasks(4,ntasks)==0 .OR. tasks(4,ntasks)==1) .AND. rs_grid%orthorhombic
+    ! we assume the load is shared equally between processes dealing with a generalised Gaussian.
+    ! this could be refined in the future
+    fraction=1.0_dp/added_tasks
+
+    cost=cost_model(lb_cube,ub_cube,fraction,lmax,is_ortho)
 
     DO j= 1, added_tasks
 
