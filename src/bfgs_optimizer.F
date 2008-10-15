@@ -119,7 +119,6 @@ CONTAINS
     ! Initialize hessian (hes = unitary matrix )
     ALLOCATE (hes(ndf*(ndf+1)/2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    WRITE(*,*)ndf*(ndf+1)/2
 
     DO indf=1,ndf
        DO j=1,indf
