@@ -189,7 +189,11 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: coords
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: cvalues
     REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: Bmatrix, MassI, Amatrix
+      OPTIONAL, POINTER                      :: Bmatrix
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: MassI
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: Amatrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colvar', &
@@ -288,13 +292,13 @@ CONTAINS
        END DO
        ! check and sort on Bmatrix
        IF (PRESENT(Bmatrix)) THEN
-          check = n_tot==SIZE(Bmatrix,1)
+          check = n_tot==SIZE(Bmatrix,2)
           CPPrecondition(check, cp_failure_level, routineP, error, failure)
           ALLOCATE(bwrk(SIZE(Bmatrix,1),SIZE(Bmatrix,2)), stat=stat)
           CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
           bwrk = Bmatrix
-          DO i = 1, SIZE(map)
-             Bmatrix(i,:) = bwrk(wrk(i),:)
+          DO i = 1, SIZE(wrk)
+             Bmatrix(:,i) = bwrk(:,wrk(i))
           END DO
           DEALLOCATE(bwrk, stat=stat)
           CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -316,13 +320,13 @@ CONTAINS
           CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
           ALLOCATE(Gmatrix_i(n_tot,n_tot), stat=stat)
           CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-          Gmatrix = MATMUL(Bmatrix, TRANSPOSE(Bmatrix))
+          Gmatrix = MATMUL(TRANSPOSE(Bmatrix),Bmatrix)
           CALL invert_matrix(Gmatrix, Gmatrix_i, inv_error, error=error)
           CALL cp_assert(ABS(inv_error)<=1.0E-8_dp,cp_warning_level, cp_assertion_failed, routineP,&
                "Error in inverting the Gmatrix larger than 1.0E-8!"//&
  CPSourceFileRef,&
                error)
-          Amatrix = MATMUL(TRANSPOSE(Bmatrix),Gmatrix_i)
+          Amatrix = MATMUL(Gmatrix_i,TRANSPOSE(Bmatrix))
           DEALLOCATE(Gmatrix_i, stat=stat)
           CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
           DEALLOCATE(Gmatrix, stat=stat)
@@ -331,13 +335,11 @@ CONTAINS
        IF (PRESENT(MassI)) THEN
           natom = SIZE(particle_set)
           CPPrecondition(ASSOCIATED(MassI), cp_failure_level, routineP, error, failure)
-          CPPrecondition(SIZE(MassI,1)==natom*3, cp_failure_level, routineP, error, failure)
-          CPPrecondition(SIZE(MassI,2)==natom*3, cp_failure_level, routineP, error, failure)
-          MassI = 0.0_dp
+          CPPrecondition(SIZE(MassI)==natom*3, cp_failure_level, routineP, error, failure)
           DO i = 1, natom
-             MassI((i-1)*3+1,(i-1)*3+1) = 1.0_dp/particle_set(i)%atomic_kind%mass
-             MassI((i-1)*3+2,(i-1)*3+2) = 1.0_dp/particle_set(i)%atomic_kind%mass
-             MassI((i-1)*3+3,(i-1)*3+3) = 1.0_dp/particle_set(i)%atomic_kind%mass
+             MassI((i-1)*3+1) = 1.0_dp/particle_set(i)%atomic_kind%mass
+             MassI((i-1)*3+2) = 1.0_dp/particle_set(i)%atomic_kind%mass
+             MassI((i-1)*3+3) = 1.0_dp/particle_set(i)%atomic_kind%mass
           END DO
        END IF
     END IF
@@ -503,7 +505,9 @@ CONTAINS
        IF (PRESENT(Bmatrix)) THEN
           DO iatm = 1, SIZE( lcolv (iconst) % colvar % i_atom )
              ind = (lcolv(iconst)%colvar%i_atom(iatm)-1)*3
-             Bmatrix(ival,ind+1:ind+3) = lcolv(iconst)%colvar%dsdr(:,iatm)
+             Bmatrix(ind+1,ival) = lcolv(iconst)%colvar%dsdr(1,iatm)
+             Bmatrix(ind+2,ival) = lcolv(iconst)%colvar%dsdr(2,iatm)
+             Bmatrix(ind+3,ival) = lcolv(iconst)%colvar%dsdr(3,iatm)
           END DO
        END IF
     END DO
@@ -521,32 +525,32 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT), OPTIONAL                :: forces, coords
     INTEGER, INTENT(IN)                      :: nsize_xyz, nsize_int
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT)                          :: cvalues, Mmatrix
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: cvalues, Mmatrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_clv_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: i, j, k, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: wrk
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Amatrix, Bmatrix, MassI
+    REAL(KIND=dp)                            :: tmp
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: MassI, wrk
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Amatrix, Bmatrix
 
     failure = .FALSE.
-    ALLOCATE(Bmatrix(nsize_int,nsize_xyz),stat=stat)
+    ALLOCATE(Bmatrix(nsize_xyz,nsize_int),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(MassI(nsize_xyz,nsize_xyz),stat=stat)
+    ALLOCATE(MassI(nsize_xyz),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! Transform gradients if requested
     IF (PRESENT(forces)) THEN
        ALLOCATE(wrk(nsize_int),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(Amatrix(nsize_xyz,nsize_int),stat=stat)
+       ALLOCATE(Amatrix(nsize_int,nsize_xyz),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Compute the transformation matrices and the invese mass diagonal Matrix
        CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI, Amatrix, error)
-       wrk = MATMUL(TRANSPOSE(Amatrix),forces)
+       wrk = MATMUL(Amatrix,forces)
        forces              = 0.0_dp
        forces(1:nsize_int) = wrk
        DEALLOCATE(Amatrix, stat=stat)
@@ -558,7 +562,16 @@ CONTAINS
        CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI, error=error)
     END IF
     ! Compute the Metric Tensor
-    Mmatrix = RESHAPE(MATMUL(MATMUL(Bmatrix,MassI),TRANSPOSE(Bmatrix)),(/nsize_int*nsize_int/))
+    DO i = 1, nsize_int
+       DO j = 1, i
+          tmp = 0.0_dp
+          DO k = 1, nsize_xyz
+             tmp = tmp + Bmatrix(k,j)*MassI(k)*Bmatrix(k,i)
+          END DO
+          Mmatrix((i-1)*nsize_int+j) = tmp
+          Mmatrix((j-1)*nsize_int+i) = tmp
+       END DO
+    END DO
     DEALLOCATE(MassI, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
     DEALLOCATE(Bmatrix, stat=stat)
