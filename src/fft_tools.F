@@ -14,6 +14,9 @@
 !>                         not to zero
 !>                         Some interfaces could be further simplified by avoiding
 !>                         an initial copy. However, this assumes contiguous arrays
+!>      IAB (15-Oct-2008): Moved mp_cart_sub calls out of cube_tranpose_* and into
+!>                         fft_scratch type, reducing number of calls dramatically
+!>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !> \author JGH
 ! *****************************************************************************
 MODULE fft_tools
@@ -26,7 +29,7 @@ MODULE fft_tools
   USE message_passing,                 ONLY: &
        mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
        mp_comm_compare, mp_comm_free, mp_environ, mp_irecv, mp_isend, &
-       mp_rank_compare, mp_sum, mp_sync, mp_waitall
+       mp_rank_compare, mp_sum, mp_sync, mp_waitall, mp_comm_null
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -67,6 +70,8 @@ MODULE fft_tools
      LOGICAL                              :: in_use
      INTEGER                              :: group
      INTEGER, DIMENSION(3)                :: nfft
+     ! to be used in cube_transpose_* routines
+     INTEGER, DIMENSION(2)                :: cart_sub_comm=mp_comm_null
      ! to be used in fft3d_s
      COMPLEX(KIND=lp), DIMENSION(:, :, :), POINTER &
                                           :: zoptr
@@ -780,6 +785,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       CALL stop_program ( "fft3d", "Illegal fsign parameter" )
 
     ENDIF
+
 
     CALL release_fft_scratch(fft_scratch,error)
 
@@ -2013,17 +2019,14 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
     INTEGER, DIMENSION(2)                    :: dim, pos, pp
     INTEGER, DIMENSION(:), POINTER           :: pgrid, rcount, rdispl, &
                                                 scount, sdispl
-    LOGICAL, DIMENSION(2)                    :: rdim
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,handle)
 
-  rdim ( 1 ) = .FALSE.
-  rdim ( 2 ) = .TRUE.
   CALL mp_environ ( n, dim, pos, group )
   CALL mp_cart_rank ( group, pos, mip )
-  CALL mp_cart_sub ( group, rdim, sub_group )
+  sub_group = fft_scratch%cart_sub_comm(2)
 
   scount => fft_scratch%scount
   rcount => fft_scratch%rcount
@@ -2071,8 +2074,6 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
     END DO
   END DO
 
-  CALL mp_comm_free ( sub_group )
-
   CALL timestop(handle)
 
 END SUBROUTINE cube_transpose_1
@@ -2100,17 +2101,14 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
     INTEGER, DIMENSION(2)                    :: dim, pos, pp
     INTEGER, DIMENSION(:), POINTER           :: pgrid, rcount, rdispl, &
                                                 scount, sdispl
-    LOGICAL, DIMENSION(2)                    :: rdim
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,handle)
 
-  rdim ( 1 ) = .FALSE.
-  rdim ( 2 ) = .TRUE.
   CALL mp_environ ( n, dim, pos, group )
   CALL mp_cart_rank ( group, pos, mip )
-  CALL mp_cart_sub ( group, rdim, sub_group )
+  sub_group = fft_scratch%cart_sub_comm(2)
 
   scount => fft_scratch%scount
   rcount => fft_scratch%rcount
@@ -2158,8 +2156,6 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
 
   CALL mp_alltoall ( rbuf, scount, sdispl, sout, rcount, rdispl, sub_group )
 
-  CALL mp_comm_free ( sub_group )
-
   CALL timestop(handle)
 
 END SUBROUTINE cube_transpose_2
@@ -2187,17 +2183,14 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
     INTEGER, DIMENSION(2)                    :: dim, pos, pp
     INTEGER, DIMENSION(:), POINTER           :: pgrid, rcount, rdispl, &
                                                 scount, sdispl
-    LOGICAL, DIMENSION(2)                    :: rdim
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,handle)
 
-  rdim ( 1 ) = .TRUE. 
-  rdim ( 2 ) = .FALSE.
   CALL mp_environ ( n, dim, pos, group )
   CALL mp_cart_rank ( group, pos, mip )
-  CALL mp_cart_sub ( group, rdim, sub_group )
+  sub_group = fft_scratch%cart_sub_comm(1)
 
   np = DIM ( 1 )
   scount => fft_scratch%scount
@@ -2246,8 +2239,6 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
     END DO
   END DO
 
-  CALL mp_comm_free ( sub_group )
-
   CALL timestop(handle)
 
 END SUBROUTINE cube_transpose_3
@@ -2275,17 +2266,14 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
     INTEGER, DIMENSION(2)                    :: dim, pos, pp
     INTEGER, DIMENSION(:), POINTER           :: pgrid, rcount, rdispl, &
                                                 scount, sdispl
-    LOGICAL, DIMENSION(2)                    :: rdim
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,handle)
 
-  rdim ( 1 ) = .TRUE.
-  rdim ( 2 ) = .FALSE.
   CALL mp_environ ( n, dim, pos, group )
   CALL mp_cart_rank ( group, pos, mip )
-  CALL mp_cart_sub ( group, rdim, sub_group )
+  sub_group = fft_scratch%cart_sub_comm(1)
 
   np = DIM ( 1 )
   scount => fft_scratch%scount
@@ -2333,8 +2321,6 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
   END DO
 
   CALL mp_alltoall ( rbuf, scount, sdispl, sout, rcount, rdispl, sub_group )
-
-  CALL mp_comm_free ( sub_group )
 
   CALL timestop(handle)
 
@@ -2687,6 +2673,14 @@ SUBROUTINE deallocate_fft_scratch_type(fft_scratch,error)
       CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
 
+    IF (fft_scratch%cart_sub_comm(1) .NE. mp_comm_null) THEN
+      CALL mp_comm_free(fft_scratch%cart_sub_comm(1))
+    END IF
+    IF (fft_scratch%cart_sub_comm(2) .NE. mp_comm_null) THEN
+      CALL mp_comm_free(fft_scratch%cart_sub_comm(2))
+    END IF
+    fft_scratch%cart_sub_comm = mp_comm_null
+
 END SUBROUTINE deallocate_fft_scratch_type
 
 SUBROUTINE release_fft_scratch_pool(error)
@@ -2900,7 +2894,7 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
       fft_scratch_new%fft_scratch%rsratio=1._dp
 
       fft_scratch_new%fft_scratch%sizes=fft_sizes
-
+      fft_scratch_new%fft_scratch%cart_sub_comm=mp_comm_null
       SELECT CASE (tf_type)
         CASE DEFAULT
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -2939,6 +2933,11 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
           ALLOCATE ( fft_scratch_new%fft_scratch%rbuf4(mx2*mz2*mcy3,0:DIM(1)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+
+          CALL mp_cart_sub( fft_sizes%rs_group, (/.TRUE.,.FALSE./), fft_scratch_new%fft_scratch%cart_sub_comm(1))
+          CALL mp_cart_sub( fft_sizes%rs_group, (/.FALSE.,.TRUE./), fft_scratch_new%fft_scratch%cart_sub_comm(2))
+
 
         CASE (101)    ! fft3d_pb: full cube distribution (dim 1)
           mx1   = fft_sizes%mx1
@@ -3063,6 +3062,9 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
           ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz1,0:DIM(2)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+          CALL mp_cart_sub( fft_sizes%rs_group, (/.FALSE.,.TRUE./), fft_scratch_new%fft_scratch%cart_sub_comm(2))
+
 
         CASE (400)    ! serial FFT_SGL 
           np = 0

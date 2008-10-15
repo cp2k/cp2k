@@ -55,10 +55,12 @@ MODULE message_passing
   LOGICAL, PARAMETER :: cp2k_is_parallel=.TRUE.
   INTEGER, PARAMETER, PUBLIC :: mp_any_tag=MPI_ANY_TAG
   INTEGER, PARAMETER, PUBLIC :: mp_any_source=MPI_ANY_SOURCE
+  INTEGER, PARAMETER, PUBLIC :: mp_comm_null=MPI_COMM_NULL
 #else
   LOGICAL, PARAMETER :: cp2k_is_parallel=.FALSE.
   INTEGER, PARAMETER, PUBLIC :: mp_any_tag=-1
   INTEGER, PARAMETER, PUBLIC :: mp_any_source=-2
+  INTEGER, PARAMETER, PUBLIC :: mp_comm_null=-3
 #endif
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
