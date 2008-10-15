@@ -259,7 +259,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_se_qmmm_matrix_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, i1, i1L, i2, Imm, &
+    INTEGER                                  :: handle, i1, i1L, i2, Imm, &
                                                 Imp, IndMM, Ipot, j1, j1L
     REAL(KIND=dp)                            :: enuc, r, rt1, rt2, rt3, &
                                                 sph_chrg_factor

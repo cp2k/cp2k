@@ -107,7 +107,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(dp), PARAMETER                      :: EPS_a_vhg0_b = 1.E-8_dp 
 
-    INTEGER :: ab, bo(2), handle, i, i_atom, iatom, ic, ic1, ic1_max, &
+    INTEGER :: ab, bo(2), handle, i_atom, iatom, ic, ic1, ic1_max, &
       ic1_min_m1, ic2, ic2_max, ic2_min_m1, ico, idir, ifs1, ifs2, ikind, &
       ilist, inode, ip1, ip2, is, iset1, iset2, iso, ispin, istat, j_atom, &
       jatom, jkind, k_atom, kat, katom, kkind, knode, l0_kkind, ldcpc1, &
@@ -116,9 +116,8 @@ CONTAINS
       maxlgto1, maxsgf, maxsgf_set, maxsoc, mepos, n1, n2, nat, natom, &
       nchan0_car, nchan0_sph, nco1, nco2, ncotota, ncotota_old, ncototb, &
       ncototb_old, nkind, nlist, nn1, nn2, nnode, nnode_c, ns1, ns2, nseta, &
-      nsetb
-    INTEGER :: nsetc, nsgfa, nsgfb, nsototc, nspins, num_pe, nz1, nz2, &
-      output_unit
+      nsetb, nsetc
+    INTEGER :: nsgfa, nsgfb, nsototc, nspins, num_pe, nz1, nz2, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 lb_max, lb_min, npgfa, npgfb, &

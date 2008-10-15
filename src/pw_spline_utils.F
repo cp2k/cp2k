@@ -3426,7 +3426,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_restrict_s3', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: aint_precond, handle, i, &
+    INTEGER                                  :: aint_precond, handle, &
                                                 interp_kind, max_iter, &
                                                 precond_kind
     INTEGER, DIMENSION(2, 3)                 :: bo
@@ -3531,7 +3531,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_prolongate_s3', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: aint_precond, handle, i, &
+    INTEGER                                  :: aint_precond, handle, &
                                                 interp_kind, max_iter, &
                                                 precond_kind
     INTEGER, DIMENSION(2, 3)                 :: bo

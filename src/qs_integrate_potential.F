@@ -295,7 +295,7 @@ CONTAINS
                                                 max_tasks = 3000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: atom_a, atom_b, bcol, brow, handle, i, iatom, iatom_new, &
+    INTEGER :: atom_a, atom_b, bcol, brow, handle, iatom, iatom_new, &
       iatom_old, idir, igrid_level, ikind, ikind_old, ilevel, ipgf, ipgf_new, &
       iset, iset_new, iset_old, istat, itask, ithread, jatom, jatom_new, &
       jatom_old, jkind, jkind_old, jpgf, jpgf_new, jset, jset_new, jset_old, &

@@ -156,7 +156,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'lowdin_charges', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, nblock, nspin
+    INTEGER                                  :: handle, nblock, nspin
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
     CALL timeset(routineN,handle)

@@ -63,7 +63,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at_ts', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iw
+    INTEGER                                  :: handle, iw
     LOGICAL                                  :: eval_analytical, failure
     REAL(KIND=dp)                            :: angle1, angle2, f1, norm
     TYPE(cp_logger_type), POINTER            :: logger

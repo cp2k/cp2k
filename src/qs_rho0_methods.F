@@ -164,8 +164,8 @@ MODULE qs_rho0_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho0_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iat, iatom, ic, &
-                                                ico, ir, is, iso, l, lmax0, &
+    INTEGER                                  :: handle, iat, iatom, ic, ico, &
+                                                ir, is, iso, l, lmax0, &
                                                 lshell, lx, ly, lz, nr
     REAL(dp)                                 :: sum1, sum2
     REAL(dp), DIMENSION(:), POINTER          :: norm_g0l_h, norm_g0l_s

@@ -77,7 +77,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
-    INTEGER                                  :: handle, i, n, ncol_global
+    INTEGER                                  :: handle, n, ncol_global
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: overlap_vv, svmatrix
@@ -129,7 +129,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
-    INTEGER                                  :: handle, i, n, ncol_global
+    INTEGER                                  :: handle, n, ncol_global
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: overlap_vv
@@ -588,7 +588,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_magnitude', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ispin, k, n, nspin
+    INTEGER                                  :: handle, ispin, k, n, nspin
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: evecs, overlap

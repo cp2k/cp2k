@@ -469,7 +469,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'coordinate_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, i, iw
+    INTEGER                                  :: handle, handle2, iw
     LOGICAL                                  :: failure, found, save_mem
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section

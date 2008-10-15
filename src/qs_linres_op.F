@@ -93,7 +93,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_operators', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i, iao, icenter, idir, ii, iii, ispin, istat, &
+    INTEGER :: handle, homo, iao, icenter, idir, ii, iii, ispin, istat, &
       istate, j, nao, natom, nbr_center(2), nmo, nsgf, nspins, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     LOGICAL                                  :: failure, ionode

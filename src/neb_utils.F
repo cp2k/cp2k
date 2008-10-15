@@ -498,8 +498,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'perform_replica_md', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, i, ierr, j, &
-                                                n_el
+    INTEGER                                  :: handle, handle2, ierr, j, n_el
     LOGICAL                                  :: explicit, failure
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
@@ -577,8 +576,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'perform_replica_geo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, i, ierr, j, &
-                                                n_el
+    INTEGER                                  :: handle, handle2, ierr, j, n_el
     LOGICAL                                  :: explicit, failure
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger

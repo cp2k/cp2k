@@ -166,8 +166,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_calc_k_p_p1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: excitations, handle, i, &
-                                                ispin, nspins, output_unit, &
+    INTEGER                                  :: excitations, handle, ispin, &
+                                                nspins, output_unit, &
                                                 res_etype, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: explicit, failure, gapw, &

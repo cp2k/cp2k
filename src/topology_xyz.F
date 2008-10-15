@@ -50,7 +50,7 @@ CONTAINS
     INTEGER, PARAMETER                       :: nblock_atom = 1000
 
     CHARACTER(LEN=default_string_length)     :: my_default_index
-    INTEGER                                  :: frame, handle, i, iw, j, natom
+    INTEGER                                  :: frame, handle, iw, j, natom
     LOGICAL                                  :: failure, my_end
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger

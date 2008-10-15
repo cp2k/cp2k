@@ -666,7 +666,7 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, bcol, brow, curr_tasks, handle, i, iatom, iatom_old, &
+    INTEGER :: ab, bcol, brow, curr_tasks, handle, iatom, iatom_old, &
       igrid_level, iiB, iiiB, ikind, ikind_old, ilist, inode, ipgf, iset, &
       iset_old, istat, itask, ithread, jatom, jatom_old, jkind, jkind_old, &
       jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, maxsgf_set, na1, &
@@ -1261,7 +1261,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, icenter, idir, idir2, ii, iiB, iii, iiiB, ispin, &
+    INTEGER :: handle, icenter, idir, idir2, ii, iiB, iii, iiiB, ispin, &
       istat, istate, j, nao, nbr_center(2), nspins, output_unit
     LOGICAL                                  :: failure, gapw, ionode
     REAL(dp)                                 :: chi(3), contrib, contrib2, &

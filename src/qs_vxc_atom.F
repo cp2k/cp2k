@@ -82,8 +82,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bo(2), handle, i, ia, iat, iatom, idir, ikind, ir, ispin, &
-      istat, mepos, myfun, na, natom, nkind, nr, nspins, num_pe
+    INTEGER :: bo(2), handle, ia, iat, iatom, idir, ikind, ir, ispin, istat, &
+      mepos, myfun, na, natom, nkind, nr, nspins, num_pe
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: epr_xc, gradient_f, lsd, &

@@ -5296,7 +5296,7 @@ MODULE xc_xwpbe
     CHARACTER(len=*), PARAMETER :: routineN = 'xwpbe_lsd_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, npoints, stat
+    INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, &

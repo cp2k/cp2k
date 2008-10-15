@@ -257,7 +257,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mol_density_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: col_first, col_last, handle, homo, i, iat, iatom, icol, &
+    INTEGER :: col_first, col_last, handle, homo, iat, iatom, icol, &
       icol_mol_p, irow, irow_mol_p, istat, jat, jatom, lfomo, ncol, ncol_max, &
       nrow, row_first, row_last
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao

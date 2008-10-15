@@ -113,7 +113,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: Ainfo
-    INTEGER                                  :: handle, i, iw, iw2, iw3, iw4, &
+    INTEGER                                  :: handle, iw, iw2, iw3, iw4, &
                                                 output_unit
     LOGICAL                                  :: failure, fatal, ionode, &
                                                 my_qmmm, shell_present

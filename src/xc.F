@@ -3021,7 +3021,7 @@ END SUBROUTINE xc_calc_2nd_deriv
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ispin, nspins, stat
+    INTEGER                                  :: handle, ispin, nspins, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r_pw, tau

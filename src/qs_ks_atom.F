@@ -84,11 +84,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_ks_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, ia_kind, iab, iat, iatom, ikind, ilist, inode, &
-      ispin, istat, ja_kind, jatom, jkind, ka_kind, katom, kkind, knode, &
-      last_jatom, last_katom, lC_int, ldCPC, lPC, max_gau, max_nsgf, maxsoc, &
-      nat, natom, nkind, nlist, nnode, nnode_c, nsetc, nsgfa, nsgfb, nsoctot, &
-      nspins
+    INTEGER :: handle, ia_kind, iab, iat, iatom, ikind, ilist, inode, ispin, &
+      istat, ja_kind, jatom, jkind, ka_kind, katom, kkind, knode, last_jatom, &
+      last_katom, lC_int, ldCPC, lPC, max_gau, max_nsgf, maxsoc, nat, natom, &
+      nkind, nlist, nnode, nnode_c, nsetc, nsgfa, nsgfb, nsoctot, nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: my_tddft, new_atom_b, &

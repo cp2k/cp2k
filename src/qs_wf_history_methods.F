@@ -418,7 +418,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_update', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ispin, &
+    INTEGER                                  :: handle, ispin, &
                                                 nmolecule_kind, nspins, stat
     LOGICAL                                  :: failure, kg_gpw
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &

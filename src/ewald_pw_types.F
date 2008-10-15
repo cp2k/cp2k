@@ -198,8 +198,7 @@ CONTAINS
                                                 stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, alphasq, &
-                                                cutoff_radius, epsilon, i, &
-                                                norm
+                                                cutoff_radius, epsilon, norm
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_type), POINTER           :: rs_pool

@@ -502,7 +502,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: g_corr, phase
-    INTEGER                                  :: handle, I, idim, ig, igauss, &
+    INTEGER                                  :: handle, idim, ig, igauss, &
                                                 iparticle, n_gauss, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: arg, fac, fac2, g2, gcut, &

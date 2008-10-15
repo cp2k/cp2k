@@ -342,7 +342,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, i, ispin, &
+    INTEGER                                  :: handle, handle2, ispin, &
                                                 iter_count, output_unit, &
                                                 total_steps
     LOGICAL :: diis_step, energy_only, exit_inner_loop, failure, gapw, &

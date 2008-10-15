@@ -383,9 +383,9 @@ MODULE wfn_fitting_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mixed_overlap_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, nao_aux_fit, &
-                                                nao_orb, nblock, &
-                                                neighbor_list_id, nmo, nrow
+    INTEGER                                  :: handle, nao_aux_fit, nao_orb, &
+                                                nblock, neighbor_list_id, &
+                                                nmo, nrow
     INTEGER, DIMENSION(:), POINTER           :: first_col, first_row, &
                                                 last_col, last_row
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -555,13 +555,12 @@ MODULE wfn_fitting_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_overlap_force_general', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, i, iab, iatom, icol, ikind, ilist, &
-      inode, irow, iset, jatom, jkind, jset, last_jatom, ldai, ldsab, &
-      maxblock, maxco, maxcoa, maxcob, maxdco, maxdcoa, maxdcob, maxder, &
-      maxl, maxlgto, maxlgtoa, maxlgtob, maxlppl, maxlppla, maxlpplb, maxsgf, &
-      maxsgfa, maxsgfb, n, natom, ncoa, ncoa_sum, ncob, nder, &
-      neighbor_list_id, nkind, nlist, nnode, nrow, nseta, nsetb, sgfa, sgfb, &
-      stat
+    INTEGER :: atom_a, atom_b, handle, iab, iatom, icol, ikind, ilist, inode, &
+      irow, iset, jatom, jkind, jset, last_jatom, ldai, ldsab, maxblock, &
+      maxco, maxcoa, maxcob, maxdco, maxdcoa, maxdcob, maxder, maxl, maxlgto, &
+      maxlgtoa, maxlgtob, maxlppl, maxlppla, maxlpplb, maxsgf, maxsgfa, &
+      maxsgfb, n, natom, ncoa, ncoa_sum, ncob, nder, neighbor_list_id, nkind, &
+      nlist, nnode, nrow, nseta, nsetb, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &

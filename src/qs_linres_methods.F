@@ -180,8 +180,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, i, ispin, &
-                                                istat, iter, nao, output_unit
+    INTEGER                                  :: handle, homo, ispin, istat, &
+                                                iter, nao, output_unit
     LOGICAL                                  :: failure
     REAL(dp)                                 :: norm, norm_max, out_of_ortho, &
                                                 tmp1, tmp2

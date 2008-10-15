@@ -365,9 +365,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, handle, i, iatom, &
-                                                ierr, ikind, ithread, j, &
-                                                natom, npme, nthread
+    INTEGER                                  :: atom_a, handle, iatom, ierr, &
+                                                ikind, ithread, j, natom, &
+                                                npme, nthread
     INTEGER(KIND=int_8)                      :: subpatch_pattern
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: my_only_nopaw, paw_atom
@@ -515,7 +515,7 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: bcol, brow, ga_gb_function, handle, i, iatom, iatom_old, &
+    INTEGER :: bcol, brow, ga_gb_function, handle, iatom, iatom_old, &
       igrid_level, ikind, ikind_old, ipgf, iset, iset_old, istat, itask, &
       ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, &
       maxco, maxpgf, maxset, maxsgf, maxsgf_set, my_basis_set_id, n, na1, &

@@ -86,8 +86,8 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: line
     CHARACTER(LEN=default_string_length)     :: record, root_mol_name
-    INTEGER                                  :: handle, i, inum_mol, istat, &
-                                                iw, natom, newsize
+    INTEGER                                  :: handle, inum_mol, istat, iw, &
+                                                natom, newsize
     LOGICAL                                  :: my_end
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger

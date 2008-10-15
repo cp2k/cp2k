@@ -275,7 +275,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, handle2, i, ib, imol, ispin, istat, iw, jb, nb, nb1, &
+    INTEGER :: handle, handle2, ib, imol, ispin, istat, iw, jb, nb, nb1, &
       nelectron_global, nmolecule_global, nmolecule_kind, output_unit
     LOGICAL :: diis_step, do_level_shift, energy_only, failure, id_equal, &
       ionode, should_stop, use_cholesky, use_jacobi
@@ -925,7 +925,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ortho_per_molecule', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: col_first, col_last, handle, i, iat, iatom, icol, icol_ortho, &
+    INTEGER :: col_first, col_last, handle, iat, iatom, icol, icol_ortho, &
       imol, imol_kind, info, irow, irow_ortho, jat, jatom, ld_ortho, ld_work, &
       natom, nc_ortho, nc_work, nmol, nmol_kind, row_first, row_last
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
@@ -1060,7 +1060,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kgscf_first_density_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, group, handle, i, iatom, ikind, imol, imolecule_kind, &
+    INTEGER :: atom_a, group, handle, iatom, ikind, imol, imolecule_kind, &
       iset, isgf, isgfa, ishell, ispin, istat, la, maxl, maxll, n_ao_kind, &
       nao_global, nat_mol, natom, ncount, nel_global, nelectron(2), nmo, &
       nmo_kind(2), nmo_max, nmol_local, nmolecule_kind, nset, nspin, qs_env_id

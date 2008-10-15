@@ -134,8 +134,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, n_ao, n_mo, &
-                                                n_spins, spin, stat
+    INTEGER                                  :: handle, n_ao, n_mo, n_spins, &
+                                                spin, stat
     LOGICAL                                  :: failure
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, mo_mo_fm_pools
@@ -494,8 +494,8 @@ END SUBROUTINE p_env_did_change
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_psi0_changed', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, lfomo, n_spins, &
-                                                nmo, output_unit, spin, stat
+    INTEGER                                  :: handle, lfomo, n_spins, nmo, &
+                                                output_unit, spin, stat
     LOGICAL                                  :: failure, ionode, was_present
     REAL(KIND=dp)                            :: maxocc
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -782,7 +782,7 @@ END SUBROUTINE p_env_did_change
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1_spin', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ncol
+    INTEGER                                  :: handle, ncol
     LOGICAL                                  :: failure
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
     TYPE(cp_fm_type), POINTER                :: tmp

@@ -77,7 +77,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'list_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: counter, handle, i, ikind, iparticle, iparticle_kind, &
+    INTEGER :: counter, handle, ikind, iparticle, iparticle_kind, &
       iparticle_local, ishell, jkind, last_update, nparticle, nparticle_kind, &
       nparticle_local, nshell, num_update, output_unit, stat
     LOGICAL :: build_from_scratch, failure, geo_check, shell_adiabatic, &

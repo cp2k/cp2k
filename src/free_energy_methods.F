@@ -401,7 +401,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ui_check_norm_sc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ng_points
+    INTEGER                                  :: handle, ng_points
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)

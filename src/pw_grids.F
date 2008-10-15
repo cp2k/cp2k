@@ -302,7 +302,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, my_icommensurate, &
+    INTEGER                                  :: handle, my_icommensurate, &
                                                 my_ncommensurate
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: my_fft_usage, my_odd, &

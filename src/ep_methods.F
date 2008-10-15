@@ -2249,7 +2249,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_calc_f_sub', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iat, idir, ierr, &
+    INTEGER                                  :: handle, iat, idir, ierr, &
                                                 irep, irep_local, ispin, nat, &
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of

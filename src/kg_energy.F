@@ -285,7 +285,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_std_energies', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, i, iter, &
+    INTEGER                                  :: handle, handle2, iter, &
                                                 output_unit, stat
     LOGICAL                                  :: ionode, should_stop
     REAL(KIND=dp)                            :: maxerr, maxgrad, t1, t2
@@ -452,7 +452,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_energy_calculation', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, output_unit, stat
+    INTEGER                                  :: handle, output_unit, stat
     LOGICAL                                  :: calculate_forces, failure, &
                                                 ionode
     REAL(KIND=dp)                            :: dvol, total_rho0_rspace
@@ -569,7 +569,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calc_c_gradients', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ikind, nkind, &
+    INTEGER                                  :: handle, ikind, nkind, &
                                                 output_unit, stat
     LOGICAL                                  :: calculate_forces, failure, &
                                                 ionode

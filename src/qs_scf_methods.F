@@ -501,7 +501,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'combine_ks_matrices_2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, icol_global, &
+    INTEGER                                  :: handle, icol_global, &
                                                 icol_local, irow_global, &
                                                 irow_local, ncol_local, &
                                                 nrow_local

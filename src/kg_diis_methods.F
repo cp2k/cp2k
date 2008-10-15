@@ -217,7 +217,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_diis_step_A', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i, ib, icol, imol, imolecule_kind, irow, ispin, &
+    INTEGER :: handle, homo, ib, icol, imol, imolecule_kind, irow, ispin, &
       istat, jb, ldaux1, ldaux2, ldc, lder, ldks, mo_ncol, n_ao_kind, &
       nat_mol, nmol_local, nmolecule_kind
     LOGICAL                                  :: failure
@@ -395,8 +395,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_diis_step_B', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, imol, imolecule_kind, ispin, istat, jb, ldaux1, &
-      ldks, n_ao_kind, nat_mol, nmol_local, nmolecule_kind
+    INTEGER :: handle, imol, imolecule_kind, ispin, istat, jb, ldaux1, ldks, &
+      n_ao_kind, nat_mol, nmol_local, nmolecule_kind
     LOGICAL                                  :: failure, ionode
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: aux2_matrix
     REAL(dp), DIMENSION(:, :), POINTER       :: aux1_matrix, ks_ib, ortho

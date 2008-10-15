@@ -342,7 +342,7 @@ END SUBROUTINE rf_deriv_check
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_a', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, nblock, nspin
+    INTEGER                                  :: handle, nblock, nspin
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
     CALL timeset(routineN,handle)

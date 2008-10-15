@@ -71,7 +71,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'vxc_of_r_new', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ia, idir, ir, &
+    INTEGER                                  :: handle, ia, idir, ir, &
                                                 my_deriv_order
     LOGICAL                                  :: failure, gradient_f, &
                                                 my_epr_xc, my_only_energy
@@ -306,7 +306,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_2nd_deriv_of_r', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ispin, nspins, stat
+    INTEGER                                  :: handle, ispin, nspins, stat
     LOGICAL                                  :: failure, lsd
     REAL(dp)                                 :: drho_cutoff
     REAL(dp), DIMENSION(:, :, :), POINTER    :: deriv_data

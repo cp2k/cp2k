@@ -70,8 +70,8 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'scp_qs_dispersion'
 
-    INTEGER :: ab, handle, i, i_atom, ia, iatom, ib, idir, ikind, ilist, &
-      inode, iseta, isetb, istat, j_atom, jatom, jkind, ldvab1, ldvab2, &
+    INTEGER :: ab, handle, i_atom, ia, iatom, ib, idir, ikind, ilist, inode, &
+      iseta, isetb, istat, j_atom, jatom, jkind, ldvab1, ldvab2, &
       maxco_global, maxcoa, maxcob, maxder, maxlgto, maxlgto1, natom, ncoa, &
       ncoap, ncob, ncobp, nkind, nlist, nnode, nseta, nsetb, nz1, nz2, &
       output_unit, sgfa, sgfb
