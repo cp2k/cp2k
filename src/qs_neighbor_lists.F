@@ -3088,11 +3088,12 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_distribution', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: full_output = .FALSE.
 
-    INTEGER                                  :: group, iab, ikind, ilist, &
-                                                ipe, istat, jkind, mype, n, &
-                                                nkind, nlist, nnode, npe, &
-                                                nsgf_a, nsgf_b
+    INTEGER                                  :: group, handle, iab, ikind, &
+                                                ilist, ipe, istat, jkind, &
+                                                mype, n, nkind, nlist, nnode, &
+                                                npe, nsgf_a, nsgf_b
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -3100,6 +3101,8 @@ CONTAINS
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
 ! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,handle)
 
     group = para_env%group
     mype = para_env%mepos + 1
@@ -3174,17 +3177,28 @@ CONTAINS
 
     END DO
 
+    ! XXXXXX gather/scatter
     CALL mp_sum(nblock,group)
     CALL mp_sum(nelement,group)
 
     IF (output_unit > 0) THEN
-      WRITE (UNIT=output_unit,&
-             FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T27,I10,T55,I10))")&
-        "DISTRIBUTION OF THE NEIGHBOR LISTS",&
-        "Process   Number of particle pairs   Number of matrix elements",&
-        (ipe-1,nblock(ipe),nelement(ipe),ipe=1,npe)
-      WRITE (UNIT=output_unit,FMT="(/,T7,A3,T27,I10,T55,I10)")&
-        "Sum",SUM(nblock),SUM(nelement)
+      IF (full_output) THEN
+         WRITE (UNIT=output_unit,&
+                FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T27,I10,T55,I10))")&
+           "DISTRIBUTION OF THE NEIGHBOR LISTS",&
+           "Process   Number of particle pairs   Number of matrix elements",&
+           (ipe-1,nblock(ipe),nelement(ipe),ipe=1,npe)
+         WRITE (UNIT=output_unit,FMT="(/,T7,A3,T27,I10,T55,I10)")&
+           "Sum",SUM(nblock),SUM(nelement)
+      ELSE
+         WRITE (UNIT=output_unit,FMT="(/,T2,A)") "DISTRIBUTION OF THE NEIGHBOR LISTS"
+         WRITE (UNIT=output_unit,FMT="(/,T3,A,T50,I13)") "Total number of particle pairs:",SUM(nblock)
+         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Total number of matrix elements:",SUM(nelement)
+         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of particle pairs:",SUM(nblock)/npe
+         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of particle pairs:",MAXVAL(nblock)
+         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of matrix element:",SUM(nelement)/npe
+         WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of matrix elements:",MAXVAL(nelement)
+      ENDIF
     END IF
 
     ! Release work storage
@@ -3196,6 +3210,9 @@ CONTAINS
     DEALLOCATE (nelement,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nelement")
+
+    CALL timestop(handle)
+
   END SUBROUTINE write_distribution
 
 ! *****************************************************************************

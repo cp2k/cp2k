@@ -39,6 +39,8 @@ MODULE sparse_matrix_output
   USE sparse_matrix_types,             ONLY: copy_local_sm_to_replicated_fm,&
                                              get_matrix_info,&
                                              real_matrix_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -363,12 +365,11 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_matrix_distribution', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: full_output = .FALSE.
 
     CHARACTER(LEN=80)                        :: matrix_name, matrix_symmetry
-    INTEGER                                  :: group, ipe, mype, natom, &
-                                                nblock_sum, nblock_tot, &
-                                                nelement_sum, npe, nrow, &
-                                                output_unit, stat
+    INTEGER :: group, handle, ipe, mype, natom, nblock_sum, nblock_tot, &
+      nelement_sum, npe, nrow, output_unit, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
     LOGICAL                                  :: failure, ionode
     REAL(KIND=dp)                            :: occupation
@@ -381,6 +382,8 @@ CONTAINS
     ! *** Quick return, if no printing is requested ***
     IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
          force_env_section,"PRINT%DISTRIBUTION",error=error),cp_p_file)) RETURN
+
+    CALL timeset(routineN,handle)
 
     group = para_env%group
     ionode = para_env%ionode
@@ -407,6 +410,7 @@ CONTAINS
                          nblock_row=natom,&
                          nrow=nrow)
 
+    ! XXXXXXXX should gather/scatter this on ionode
     CALL mp_sum(nblock,group)
     CALL mp_sum(nelement,group)
 
@@ -424,13 +428,23 @@ CONTAINS
     IF (ionode) THEN
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
             "DISTRIBUTION OF THE "//TRIM(matrix_name)
-       WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(I9,T27,I10,T55,I10))")&
-            "Process    Number of matrix blocks   Number of matrix elements",&
-            (ipe-1,nblock(ipe),nelement(ipe),ipe=1,npe)
-       WRITE (UNIT=output_unit,FMT="(/,T7,A3,T27,I10,T55,I10)")&
-            "Sum",nblock_sum,nelement_sum
-       WRITE (UNIT=output_unit,FMT="(/,T7,A3,T27,I10,A,F5.1,A,T55,I10,A,F5.1,A)")&
-            " of",nblock_tot," (",occupation," % occupation)"
+
+       IF (full_output) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(I9,T27,I10,T55,I10))")&
+               "Process    Number of matrix blocks   Number of matrix elements",&
+               (ipe-1,nblock(ipe),nelement(ipe),ipe=1,npe)
+          WRITE (UNIT=output_unit,FMT="(/,T7,A3,T27,I10,T55,I10)")&
+               "Sum",nblock_sum,nelement_sum
+          WRITE (UNIT=output_unit,FMT="(/,T7,A3,T27,I10,A,F5.1,A,T55,I10,A,F5.1,A)")&
+               " of",nblock_tot," (",occupation," % occupation)"
+       ELSE
+          WRITE (UNIT=output_unit,FMT="(/,T3,A,T50,I13)") "Number  of non-zero blocks:",nblock_sum
+          WRITE (UNIT=output_unit,FMT="(T3,A,T57,F6.2)")"Percentage non-zero blocks:",occupation
+          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of blocks per CPU:",(nblock_sum+npe-1)/npe
+          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of blocks per CPU:",(MAXVAL(nblock))
+          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of matrix elements per CPU:",(nelement_sum+npe-1)/npe
+          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of matrix elements per CPU:",(MAXVAL(nelement))
+       ENDIF
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,"PRINT%DISTRIBUTION",&
@@ -442,6 +456,8 @@ CONTAINS
 
     DEALLOCATE (nelement,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
 
   END SUBROUTINE write_matrix_distribution
 
