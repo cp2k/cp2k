@@ -41,7 +41,7 @@
 ! *****************************************************************************
 MODULE cp_lbfgs_optimizer_[nametype1]
   USE f77_blas
-  USE cp_lbfgs, ONLY: setulb, cp_lbfgs_unit_nr
+  USE cp_lbfgs, ONLY: setulb
   USE kinds, ONLY: dp
   USE cp_para_types, ONLY: cp_para_env_type
   USE cp_para_env, ONLY: cp_para_env_retain, cp_para_env_release
@@ -234,7 +234,6 @@ CONTAINS
     INTEGER :: handle,n, lenwa, stat
     CHARACTER(len=*), PARAMETER :: routineN='cp_opt_[nametype1]_create',&
          routineP=moduleN//':'//routineN
-    TYPE(cp_logger_type), POINTER :: logger
 
     CALL timeset(routineN,handle)
 
@@ -257,9 +256,6 @@ CONTAINS
        optimizer%ref_count=0
        last_lbfgs_optimizer_id=last_lbfgs_optimizer_id+1
        optimizer%id_nr=last_lbfgs_optimizer_id
-       ! quite a hack (redirect the lbfgs output)
-       logger => cp_error_get_logger(error)
-       cp_lbfgs_unit_nr=cp_logger_get_default_unit_nr(logger)
        n=SIZE(x0)
        optimizer%m=4
        IF (PRESENT(m)) optimizer%m=m
@@ -371,7 +367,6 @@ SUBROUTINE cp_opt_[nametype1]_release(optimizer,error)
      CPPreconditionNoFail(optimizer%ref_count>0,cp_failure_level,routineP,error)
      optimizer%ref_count=optimizer%ref_count-1
      IF (optimizer%ref_count==0) THEN
-        cp_lbfgs_unit_nr=cp_logger_get_default_unit_nr()
         optimizer%status=6
         IF (ASSOCIATED(optimizer%kind_of_bound)) THEN
            DEALLOCATE(optimizer%kind_of_bound, stat=stat)

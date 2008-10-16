@@ -22,7 +22,6 @@ MODULE cp_lbfgs
   IMPLICIT NONE
   PRIVATE
   PUBLIC          :: setulb
-  INTEGER, PUBLIC :: cp_lbfgs_unit_nr=6
 
 CONTAINS
 

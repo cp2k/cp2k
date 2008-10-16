@@ -617,7 +617,7 @@ CONTAINS
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
-       CALL check_cp2k_input(input_file,para_env=para_env,error=error)
+       CALL check_cp2k_input(input_file,para_env=para_env,output_unit=unit_nr,error=error)
        CALL cp_error_check(error,failure)
     END IF
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -1365,7 +1365,7 @@ CPSourceFileRef,&
     IF (my_permissive) CALL cp_error_reset(error)
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
-       CALL check_cp2k_input(input_file,para_env=para_env,error=error)
+       CALL check_cp2k_input(input_file,para_env=para_env,output_unit=unit_nr,error=error)
        IF (my_permissive) CALL cp_error_reset(error)
        IF (my_echo_input.AND.para_env%mepos==para_env%source) THEN
           CALL section_vals_write(input_file,&

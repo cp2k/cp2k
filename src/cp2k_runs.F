@@ -228,7 +228,7 @@ CONTAINS
        END IF
 
        IF (.NOT.failure) THEN
-          CALL check_cp2k_input(input_file,para_env=para_env,error=error)
+          CALL check_cp2k_input(input_file,para_env=para_env,output_unit=output_unit,error=error)
        END IF
        CALL cp_error_check(error,failure)
 

@@ -40,8 +40,7 @@
 !>      @version 2.2002
 ! *****************************************************************************
 MODULE cp_lbfgs_optimizer_gopt
-  USE cp_lbfgs,                        ONLY: cp_lbfgs_unit_nr,&
-                                             setulb
+  USE cp_lbfgs,                        ONLY: setulb
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -229,7 +228,6 @@ CONTAINS
 
     INTEGER                                  :: handle, lenwa, n, stat
     LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
@@ -252,9 +250,6 @@ CONTAINS
        optimizer%ref_count=0
        last_lbfgs_optimizer_id=last_lbfgs_optimizer_id+1
        optimizer%id_nr=last_lbfgs_optimizer_id
-       ! quite a hack (redirect the lbfgs output)
-       logger => cp_error_get_logger(error)
-       cp_lbfgs_unit_nr=cp_logger_get_default_unit_nr(logger)
        n=SIZE(x0)
        optimizer%m=4
        IF (PRESENT(m)) optimizer%m=m
@@ -368,7 +363,6 @@ SUBROUTINE cp_opt_gopt_release(optimizer,error)
      CPPreconditionNoFail(optimizer%ref_count>0,cp_failure_level,routineP,error)
      optimizer%ref_count=optimizer%ref_count-1
      IF (optimizer%ref_count==0) THEN
-        cp_lbfgs_unit_nr=cp_logger_get_default_unit_nr()
         optimizer%status=6
         IF (ASSOCIATED(optimizer%kind_of_bound)) THEN
            DEALLOCATE(optimizer%kind_of_bound, stat=stat)

@@ -63,9 +63,10 @@ CONTAINS
 !>      at the moment does nothing
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE check_cp2k_input(input_file,para_env,error)
+  SUBROUTINE check_cp2k_input(input_file,para_env,output_unit,error)
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_cp2k_input', &
@@ -87,7 +88,7 @@ CONTAINS
     END IF
     IF (.NOT. failure) THEN
        ! ext_restart
-       CALL handle_ext_restart(input_file,para_env,error)
+       CALL handle_ext_restart(input_file,para_env,output_unit,error)
 
        ! checks on force_eval section
        sections => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
@@ -262,9 +263,10 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE handle_ext_restart(input_file,para_env,error)
+  SUBROUTINE handle_ext_restart(input_file,para_env,output_unit,error)
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'handle_ext_restart', &
@@ -586,7 +588,7 @@ CONTAINS
           END DO
           CALL section_vals_val_set(r_section,"RESTART_FILE_NAME", c_val=" ",error=error)
           CALL section_vals_release(restart_file,error=error)
-          CALL release_restart_info(restarted_infos, r_file_path, error)
+          CALL release_restart_info(restarted_infos, r_file_path, output_unit, error)
        END IF
     END IF
     CALL timestop(handle)
@@ -622,25 +624,20 @@ CONTAINS
 !> \brief dumps on output the information on the information effectively restarted
 !> \author Teodoro Laino [tlaino] 09.2008 - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE release_restart_info(restarted_infos, r_file_path, error)
+  SUBROUTINE release_restart_info(restarted_infos, r_file_path, output_unit, error)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: restarted_infos
     CHARACTER(LEN=*), INTENT(IN)             :: r_file_path
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_restart_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, output_unit, stat
+    INTEGER                                  :: i, j, stat
     LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    output_unit = -1
-    IF  (logger%para_env%mepos==logger%para_env%source) &
-         output_unit= cp_logger_get_default_unit_nr(logger)
     IF (output_unit>0.AND.ASSOCIATED(restarted_infos)) THEN
        WRITE(output_unit,'(1X,79("*"))')
        WRITE(output_unit,'(1X,"*",T30,A,T80,"*")')" RESTART INFORMATION "
