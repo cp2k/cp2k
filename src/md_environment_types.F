@@ -55,7 +55,7 @@ MODULE md_environment_types
      PRIVATE
      INTEGER                                    :: id_nr, ref_count
      LOGICAL                                    :: init, first_time
-     INTEGER, POINTER                           :: itimes, md_approach_nr, accepted_md
+     INTEGER, POINTER                           :: itimes
      REAL(KIND=dp), POINTER                     :: used_time, t
      REAL(KIND=dp), POINTER                     :: constant
      TYPE(cp_para_env_type), POINTER            :: para_env
@@ -112,8 +112,6 @@ CONTAINS
     NULLIFY(md_env%itimes)
     NULLIFY(md_env%constant)
     NULLIFY(md_env%t)
-    NULLIFY(md_env%md_approach_nr)
-    NULLIFY(md_env%accepted_md)
     NULLIFY(md_env%cell)
     NULLIFY(md_env%simpar)
     NULLIFY(md_env%thermostats)
@@ -127,10 +125,6 @@ CONTAINS
     CALL cp_para_env_retain(md_env%para_env, error=error)
     ALLOCATE( md_env%itimes, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE( md_env%md_approach_nr, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE( md_env%accepted_md, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE( md_env%constant, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE( md_env%used_time, stat=stat)
@@ -138,8 +132,6 @@ CONTAINS
     ALLOCATE( md_env%t, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     md_env%itimes         = -1
-    md_env%md_approach_nr = -1
-    md_env%accepted_md    = 0
     md_env%constant       = 0.0_dp
     md_env%used_time      = 0.0_dp
     md_env%t              = 0.0_dp
@@ -209,10 +201,6 @@ CONTAINS
           CALL cp_para_env_release(md_env%para_env, error = error)
           DEALLOCATE( md_env%itimes , stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE( md_env%md_approach_nr , stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE( md_env%accepted_md , stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE( md_env%constant , stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE( md_env%used_time , stat=stat)
@@ -240,9 +228,8 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE get_md_env(md_env, itimes, constant, used_time, cell,  &
-       simpar, npt, force_env, para_env, reftraj, t, md_approach_nr,&
-       accepted_md, init, first_time,fe_env, thermostats, barostat, &
+  SUBROUTINE get_md_env(md_env, itimes, constant, used_time, cell, simpar, npt,&
+       force_env, para_env, reftraj, t, init, first_time,fe_env, thermostats, barostat, &
        thermostat_coeff, thermostat_part, thermostat_shell, thermostat_baro,&
        md_ener, averages, error)
 
@@ -257,7 +244,6 @@ CONTAINS
       POINTER                                :: para_env
     TYPE(reftraj_type), OPTIONAL, POINTER    :: reftraj
     REAL(KIND=dp), OPTIONAL, POINTER         :: t
-    INTEGER, OPTIONAL, POINTER               :: md_approach_nr, accepted_md
     LOGICAL, OPTIONAL                        :: init, first_time
     TYPE(free_energy_type), OPTIONAL, &
       POINTER                                :: fe_env
@@ -283,8 +269,6 @@ CONTAINS
     CPPrecondition(check,cp_failure_level,routineP,error,failure)
     IF (PRESENT(itimes)) itimes => md_env%itimes
     IF (PRESENT(fe_env)) fe_env => md_env%fe_env
-    IF (PRESENT(md_approach_nr)) md_approach_nr => md_env%md_approach_nr
-    IF (PRESENT(accepted_md)) accepted_md => md_env%accepted_md
     IF (PRESENT(constant)) constant => md_env%constant
     IF (PRESENT(used_time)) used_time => md_env%used_time
     IF (PRESENT(t)) t => md_env%t
@@ -331,8 +315,8 @@ CONTAINS
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE set_md_env(md_env, itimes, constant, cell, simpar, fe_env, force_env,&
-       para_env, accepted_md, md_approach_nr , init, first_time,thermostats, barostat,&
-       reftraj, md_ener, averages, error)
+       para_env, init, first_time,thermostats, barostat, reftraj, md_ener, averages,&
+       error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
@@ -344,7 +328,6 @@ CONTAINS
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    INTEGER, OPTIONAL, POINTER               :: accepted_md, md_approach_nr
     LOGICAL, OPTIONAL                        :: init, first_time
     TYPE(thermostats_type), OPTIONAL, &
       POINTER                                :: thermostats
@@ -379,8 +362,6 @@ CONTAINS
     IF(PRESENT(simpar)) md_env%simpar => simpar
     IF(PRESENT(itimes)) md_env%itimes => itimes
     IF(PRESENT(fe_env)) md_env%fe_env => fe_env
-    IF(PRESENT(accepted_md)) md_env%accepted_md => accepted_md
-    IF(PRESENT(md_approach_nr)) md_env%md_approach_nr => md_approach_nr
     IF(PRESENT(constant)) md_env%constant => constant
     IF(PRESENT(force_env)) THEN
        IF (ASSOCIATED(force_env)) THEN

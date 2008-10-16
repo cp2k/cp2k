@@ -499,8 +499,7 @@ CONTAINS
       nsgf, nsgf_max, stat, tot_nhcneed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
     INTEGER, DIMENSION(:), POINTER           :: lindex
-    INTEGER, POINTER                         :: accepted_md, itimes, &
-                                                md_approach_nr
+    INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, my_save_mem
     REAL(KIND=dp)                            :: my_t
     REAL(KIND=dp), ALLOCATABLE, &
@@ -528,8 +527,8 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY (logger,thermostat_part,thermostat_baro,npt,para_env, nhc, atomic_kind_set,&
-         work_section, dyn_coeff_set, md_approach_nr, accepted_md, atomic_kind, coeffs,&
+    NULLIFY (logger, thermostat_part, thermostat_baro, npt, para_env, nhc, &
+         atomic_kind_set, work_section, dyn_coeff_set, atomic_kind, coeffs, &
          aux_basis_set, thermostat_coeff, thermostat_shell, t, itimes)
     IF (PRESENT(md_env)) THEN
        CALL get_md_env ( md_env=md_env,&
@@ -540,8 +539,6 @@ CONTAINS
                          npt=npt,&
                          t=t,&
                          itimes=itimes,&
-                         accepted_md=accepted_md,&
-                         md_approach_nr=md_approach_nr,&
                          para_env=para_env,&
                          error=error)
     ELSE
