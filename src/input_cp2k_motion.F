@@ -1508,7 +1508,7 @@ CONTAINS
             description="Specifies the rescaling factor for annealing velocities. "//&
             "Automatically enables the annealing procedure. This scheme works only for ensembles "//&
             "that do not have thermostats on particles.", &
-            usage="annealing <REAL>", type_of_var=real_t, error=error)
+            usage="annealing <REAL>", default_r_val=1.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1516,7 +1516,7 @@ CONTAINS
             description="Specifies the rescaling factor for annealing velocities of the CELL "//&
             "Automatically enables the annealing procedure for the CELL. This scheme works only "//&
             "for ensambles that do not have thermostat on CELLS velocities.", &
-            usage="ANNEALING_CELL <REAL>", type_of_var=real_t, error=error)
+            usage="ANNEALING_CELL <REAL>", default_r_val=1.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1526,7 +1526,7 @@ CONTAINS
             "The maximum velocity is evaluated and if it is too large to remain"//&
             "within the assigned limit, the time step is rescaled accordingly,"//&
             "and the first half step of the velocity verlet is repeated.",&
-            usage="DISPLACEMENT_TOL <REAL>", type_of_var=real_t,&
+            usage="DISPLACEMENT_TOL <REAL>", default_r_val=100.0_dp,&
             unit_str='angstrom',  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2835,7 +2835,7 @@ CONTAINS
 
        CALL section_create(section,name="shell",&
             description="Parameters of shell model in adiabatic dynamics.",&
-            n_keywords=2, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=2, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword,thermo_section)
@@ -2873,7 +2873,7 @@ CONTAINS
             " if it is too large to remain"//&
             "within the assigned limit, the time step is rescaled accordingly,"//&
             "and the first half step of the velocity verlet is repeated.",&
-            usage="DISPLACEMENT_SHELL_TOL <REAL>", type_of_var=real_t,&
+            usage="DISPLACEMENT_SHELL_TOL <REAL>", default_r_val=100.0_dp,&
             unit_str='angstrom',  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -830,7 +830,8 @@ CONTAINS
                                                 nparticle_kind, nshell
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
-    REAL(KIND=dp)                            :: dt, infree, kin, roll_tol
+    REAL(KIND=dp)                            :: dt, infree, kin, roll_tol, &
+                                                roll_tol_thrs
     REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
     REAL(KIND=dp), SAVE                      :: eps_0
@@ -958,15 +959,18 @@ CONTAINS
     END IF
 
     ! setting up for ROLL: saving old variables
-    roll_tol = -simpar%roll_tol
     IF (simpar%constraint) THEN
+       roll_tol_thrs = simpar%roll_tol
        iroll = 1
        CALL set ( old, atomic_kind_set, particle_set, local_particles, cell, npt, 'F' )
        CALL getold ( gci, local_molecules, molecule_set,  &
             molecule_kind_set, particle_set, cell, error)
+    ELSE
+       roll_tol_thrs = EPSILON(0.0_dp)
     ENDIF
+    roll_tol = -roll_tol_thrs
 
-    SR: DO WHILE (ABS(roll_tol)>=simpar%roll_tol) ! SHAKE-ROLL LOOP
+    SR: DO WHILE (ABS(roll_tol)>=roll_tol_thrs) ! SHAKE-ROLL LOOP
 
        IF (simpar%constraint) THEN
           CALL set ( old, atomic_kind_set, particle_set, local_particles, cell, npt, 'B' )
@@ -1037,14 +1041,17 @@ CONTAINS
          core_particle_set, shell_particle_set, nparticle_kind,&
          shell_adiabatic, dt )
 
-    roll_tol = -simpar%roll_tol
     IF (simpar%constraint) THEN
+       roll_tol_thrs = simpar%roll_tol
        first = .TRUE.
        iroll = 1
        CALL set ( old, atomic_kind_set, particle_set, tmp%vel, local_particles, cell, npt, 'F' )
-    END IF
+    ELSE
+       roll_tol_thrs = EPSILON(0.0_dp)
+    ENDIF
+    roll_tol = -roll_tol_thrs
 
-    RR: DO WHILE (ABS(roll_tol)>=simpar%roll_tol) ! RATTLE-ROLL LOOP
+    RR: DO WHILE (ABS(roll_tol)>=roll_tol_thrs) ! RATTLE-ROLL LOOP
        roll_tol = 0.0_dp
        IF ( simpar % constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
             particle_set, local_particles, molecule_kind_set, molecule_set,  &
@@ -1284,7 +1291,8 @@ CPSourceFileRef,&
                                                 nparticle_kind, nshell
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
-    REAL(KIND=dp)                            :: dt, infree, kin, roll_tol
+    REAL(KIND=dp)                            :: dt, infree, kin, roll_tol, &
+                                                roll_tol_thrs
     REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -1380,15 +1388,18 @@ CPSourceFileRef,&
     END IF
 
     ! setting up for ROLL: saving old variables
-    roll_tol = -simpar%roll_tol
     IF (simpar%constraint) THEN
+       roll_tol_thrs = simpar%roll_tol
        iroll = 1
        CALL set ( old, atomic_kind_set, particle_set, local_particles, cell, npt, 'F' )
        CALL getold ( gci, local_molecules, molecule_set,  &
             molecule_kind_set, particle_set, cell, error)
+    ELSE
+       roll_tol_thrs = EPSILON(0.0_dp)
     ENDIF
+    roll_tol = -roll_tol_thrs
 
-    SR: DO WHILE (ABS(roll_tol)>=simpar%roll_tol) ! SHAKE-ROLL LOOP
+    SR: DO WHILE (ABS(roll_tol)>=roll_tol_thrs) ! SHAKE-ROLL LOOP
 
        IF (simpar%constraint) THEN
           CALL set ( old, atomic_kind_set, particle_set, local_particles, cell, npt, 'B' )
@@ -1467,14 +1478,17 @@ CPSourceFileRef,&
           core_particle_set, shell_particle_set, nparticle_kind,&
           shell_adiabatic, dt )
 
-    roll_tol = -simpar%roll_tol
     IF (simpar%constraint) THEN
+       roll_tol_thrs = simpar%roll_tol
        first = .TRUE.
        iroll = 1
        CALL set ( old, atomic_kind_set, particle_set, tmp%vel, local_particles, cell, npt, 'F' )
-    END IF
+    ELSE
+       roll_tol_thrs = EPSILON(0.0_dp)
+    ENDIF
+    roll_tol = -roll_tol_thrs
 
-    RR: DO WHILE (ABS(roll_tol)>=simpar%roll_tol) ! RATTLE-ROLL LOOP
+    RR: DO WHILE (ABS(roll_tol)>=roll_tol_thrs) ! RATTLE-ROLL LOOP
        roll_tol = 0._dp
        IF ( simpar % constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
             particle_set, local_particles, molecule_kind_set, molecule_set,  &
@@ -1539,7 +1553,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
     REAL(KIND=dp)                            :: aa, aax, dt, gamma1, infree, &
-                                                kin, roll_tol
+                                                kin, roll_tol, roll_tol_thrs
     REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -1637,15 +1651,18 @@ CPSourceFileRef,&
     END IF
 
     ! setting up for ROLL: saving old variables
-    roll_tol = -simpar%roll_tol
     IF (simpar%constraint) THEN
+       roll_tol_thrs = simpar%roll_tol
        iroll = 1
        CALL set ( old, atomic_kind_set, particle_set, local_particles, cell, npt, 'F' )
        CALL getold ( gci, local_molecules, molecule_set,  &
             molecule_kind_set, particle_set, cell, error)
+    ELSE
+       roll_tol_thrs = EPSILON(0.0_dp)
     ENDIF
+    roll_tol = -roll_tol_thrs
 
-    SR: DO WHILE (ABS(roll_tol)>=simpar%roll_tol) ! SHAKE-ROLL LOOP
+    SR: DO WHILE (ABS(roll_tol)>=roll_tol_thrs) ! SHAKE-ROLL LOOP
 
        ! perform damping on the barostat momentum
        CALL damp_veps ( npt ( 1, 1 ), gamma1, dt )
@@ -1725,14 +1742,17 @@ CPSourceFileRef,&
           core_particle_set, shell_particle_set, nparticle_kind,&
           shell_adiabatic, dt )
 
-    roll_tol = -simpar%roll_tol
     IF (simpar%constraint) THEN
+       roll_tol_thrs = simpar%roll_tol
        first = .TRUE.
        iroll = 1
        CALL set ( old, atomic_kind_set, particle_set, tmp%vel, local_particles, cell, npt, 'F' )
-    END IF
+    ELSE
+       roll_tol_thrs = EPSILON(0.0_dp)
+    ENDIF
+    roll_tol = -roll_tol_thrs
 
-    RR: DO WHILE (ABS(roll_tol)>=simpar%roll_tol) ! RATTLE-ROLL LOOP
+    RR: DO WHILE (ABS(roll_tol)>=roll_tol_thrs) ! RATTLE-ROLL LOOP
        roll_tol = 0._dp
        IF ( simpar % constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
             particle_set, local_particles, molecule_kind_set, molecule_set, local_molecules,&
@@ -1803,7 +1823,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
     REAL(KIND=dp)                            :: dt, infree, kin, roll_tol, &
-                                                trvg
+                                                roll_tol_thrs, trvg
     REAL(KIND=dp), DIMENSION(3)              :: vector_v
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin, uh
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -1925,15 +1945,18 @@ CPSourceFileRef,&
     END IF
 
     ! setting up for ROLL: saving old variables
-    roll_tol = -simpar%roll_tol
     IF (simpar%constraint) THEN
+       roll_tol_thrs = simpar%roll_tol
        iroll = 1
        CALL set ( old, atomic_kind_set, particle_set, local_particles, cell, npt, 'F' )
        CALL getold ( gci, local_molecules, molecule_set,  &
             molecule_kind_set, particle_set, cell, error)
+    ELSE
+       roll_tol_thrs = EPSILON(0.0_dp)
     ENDIF
+    roll_tol = -roll_tol_thrs
 
-    SR: DO WHILE (ABS(roll_tol)>=simpar%roll_tol) ! SHAKE-ROLL LOOP
+    SR: DO WHILE (ABS(roll_tol)>=roll_tol_thrs) ! SHAKE-ROLL LOOP
 
        IF (simpar%constraint) THEN
           CALL set ( old, atomic_kind_set, particle_set, local_particles, cell, npt, 'B' )
@@ -2006,13 +2029,17 @@ CPSourceFileRef,&
          core_particle_set, shell_particle_set, nparticle_kind,&
          shell_adiabatic, dt, tmp%u )
 
-    roll_tol = -simpar%roll_tol
     IF (simpar%constraint) THEN
+       roll_tol_thrs = simpar%roll_tol
        first = .TRUE.
        iroll = 1
        CALL set (old, atomic_kind_set, particle_set, tmp%vel, local_particles, cell, npt, 'F' )
-    END IF
-    RR: DO WHILE (ABS(roll_tol)>=simpar%roll_tol) ! RATTLE-ROLL LOOP
+    ELSE
+       roll_tol_thrs = EPSILON(0.0_dp)
+    ENDIF
+    roll_tol = -roll_tol_thrs
+
+    RR: DO WHILE (ABS(roll_tol)>=roll_tol_thrs) ! RATTLE-ROLL LOOP
        roll_tol = 0.0_dp
        IF ( simpar % constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
             particle_set, local_particles, molecule_kind_set, molecule_set,  &

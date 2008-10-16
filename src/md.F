@@ -31,10 +31,9 @@ MODULE md
   USE input_constants,                 ONLY: &
        ensemble_name_types, isokin_ensemble, langevin_ensemble, &
        npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &
-       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
-       nvt_ensemble, reftraj_ensemble, use_perd_none, use_perd_x, &
-       use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, &
-       use_perd_z
+       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nvt_ensemble, &
+       reftraj_ensemble, use_perd_none, use_perd_x, use_perd_xy, &
+       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&
@@ -149,7 +148,6 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     NULLIFY(unit, md_section, motion_section, print_key)
-    CALL set_md_defaults(simpar)
 
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
     md_section => section_vals_get_subs_vals(motion_section,"MD",error=error)
@@ -158,7 +156,7 @@ CONTAINS
     iw=cp_print_key_unit_nr(logger,md_section,"PRINT%PROGRAM_RUN_INFO",extension=".log",error=error)
 
     CALL read_md_low(simpar, root_section, md_section, error)
-    IF ( iw > 0 ) WRITE (iw, *)
+    IF (iw> 0) WRITE (iw, *)
 
     ! Begin setup Langevin dynamics
     IF (simpar%ensemble == langevin_ensemble) THEN
@@ -181,51 +179,51 @@ CONTAINS
        CALL get_cp2k_units ( unit )
        WRITE ( iw, '( A )' ) ' MD| Molecular Dynamics Protocol '
        WRITE ( iw, '( A,T61,A )' ) ' MD| Ensemble Type ', &
-            ADJUSTR ( ensemble_name_types(simpar % ensemble)(1:20))
+            ADJUSTR ( ensemble_name_types(simpar%ensemble)(1:20))
        WRITE ( iw, '( A,T71,I10 )' ) ' MD| Number of Time Steps ', &
-            simpar % nsteps
+            simpar%nsteps
        IF (simpar%variable_dt ) THEN
             
             WRITE ( iw, '( A )' ) ' MD| Variable Time Step is activated '
             WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Max. Time Step [','fs','] ',&
-            simpar % dt /unit%fs
+            simpar%dt /unit%fs
             WRITE ( iw, '( A, T71, F10.4 )' ) ' MD| Max. atomic displacement permitted [A] ',&
-            simpar % dr_tol/ unit%angstrom
+            simpar%dr_tol/ unit%angstrom
        ELSE
          WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Time Step [','fs','] ',&
-            simpar % dt /unit%fs
+            simpar%dt /unit%fs
 
        END IF
        WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature [K] ', &
-            simpar % temp_ext/ unit % kelvin
+            simpar%temp_ext/ unit%kelvin
        WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature tolerance [K] ', &
-            simpar % temp_tol/ unit % kelvin
-       IF ( simpar % annealing ) &
+            simpar%temp_tol/ unit%kelvin
+       IF ( simpar%annealing ) &
             WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Annealing ion factor      ', &
-            simpar % f_annealing
-       IF ( (simpar % ensemble == npe_f_ensemble .OR. simpar % ensemble == npe_i_ensemble)&
-             .AND. simpar % annealing_cell ) &
+            simpar%f_annealing
+       IF ( (simpar%ensemble == npe_f_ensemble .OR. simpar%ensemble == npe_i_ensemble)&
+             .AND. simpar%annealing_cell ) &
             WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Annealing cell factor      ', &
-            simpar % f_annealing_cell
-       IF (  simpar % ensemble == npt_i_ensemble .OR. &
-             simpar % ensemble == npt_f_ensemble .OR. &
-             simpar % ensemble == npe_i_ensemble .OR. &
-             simpar % ensemble == npe_f_ensemble ) THEN
+            simpar%f_annealing_cell
+       IF (  simpar%ensemble == npt_i_ensemble .OR. &
+             simpar%ensemble == npt_f_ensemble .OR. &
+             simpar%ensemble == npe_i_ensemble .OR. &
+             simpar%ensemble == npe_f_ensemble ) THEN
           WRITE ( iw, '( A,A3,A, T71, F10.2 )' ) &
-               ' MD| Pressure [','Bar','] ', simpar % p_ext*unit%bar
+               ' MD| Pressure [','Bar','] ', simpar%p_ext*unit%bar
           WRITE ( iw, '( A,A4,A, T71, F10.2 )' ) &
                ' MD| Barostat time constant [','fs','] ', &
-               simpar % tau_cell/unit%fs
+               simpar%tau_cell/unit%fs
        END IF
-       IF (  simpar % ensemble == isokin_ensemble ) THEN
+       IF (  simpar%ensemble == isokin_ensemble ) THEN
           CALL cite_reference(Evans1983)
           CALL cite_reference(Minary2003)
           WRITE ( iw, '( A )' ) ' MD| Simulation in the isokinetic ensemble'
        END IF
-       IF ( simpar % constraint ) THEN
+       IF ( simpar%constraint ) THEN
           WRITE ( iw, '( A )' ) ' MD| Constraints activated '
           WRITE ( iw, '( A,T71,G10.4 )' ) ' MD| Tolerance for shake ', &
-               simpar % shake_tol
+               simpar%shake_tol
        END IF
 
        print_key => section_vals_get_subs_vals(motion_section,"MD%PRINT%PROGRAM_RUN_INFO",error=error)
@@ -240,12 +238,12 @@ CONTAINS
        WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Coordinates',iprint, &
             ADJUSTR ( TRIM(filename) )
 
-       IF ( simpar % ensemble == nph_uniaxial_ensemble .OR.&
-            simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
-            simpar % ensemble == npt_i_ensemble.OR.&
-            simpar % ensemble == npt_f_ensemble .OR. &
-            simpar % ensemble == npe_i_ensemble .OR. &
-            simpar % ensemble == npe_f_ensemble) THEN
+       IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.&
+            simpar%ensemble == nph_uniaxial_damped_ensemble.OR.&
+            simpar%ensemble == npt_i_ensemble.OR.&
+            simpar%ensemble == npt_f_ensemble .OR. &
+            simpar%ensemble == npe_i_ensemble .OR. &
+            simpar%ensemble == npe_f_ensemble) THEN
 
           print_key => section_vals_get_subs_vals(motion_section,"PRINT%CELL",error=error)
           CALL section_vals_val_get(print_key,"EACH%MD",i_val=iprint,error=error)
@@ -277,23 +275,23 @@ CONTAINS
             ADJUSTR ( TRIM(filename) )
 
        WRITE (iw,*)
-       IF ( simpar % ensemble == nph_uniaxial_ensemble .OR.  &
-            simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
+       IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.  &
+            simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
           WRITE ( iw, '( A )' ) ' SHOCK| Uniaxial Shock Parameters: '
           WRITE ( iw, '( A,A4,A,T71,F10.4 )' ) &
                ' SHOCK| Shock Velocity [', 'm/s' ,'] ',&
-               simpar % v_shock * 1.e-10_dp * 1.e15_dp / unit % angstrom * unit%fs
+               simpar%v_shock * 1.e-10_dp * 1.e15_dp / unit%angstrom * unit%fs
           WRITE ( iw, '( A,A4,A,T71,F10.4 )' ) &
                ' SHOCK| Damping Coefficient [', '1/fs' ,'] ',&
-               simpar % gamma_nph*unit%fs
+               simpar%gamma_nph*unit%fs
           WRITE ( iw, '( A,A3,A, T71, F10.2 )' ) &
-               ' SHOCK| Pressure [','Bar','] ', simpar % p0*unit%bar
+               ' SHOCK| Pressure [','Bar','] ', simpar%p0*unit%bar
           WRITE ( iw, '( A,A4,A, T71, E10.4 )' ) &
                ' SHOCK| Barostat Mass [', 'au', '] ', &
-               simpar % cmass
+               simpar%cmass
        END IF
        ! Print warning for temp_tol
-       IF (simpar % temp_tol > 0.0_dp) THEN
+       IF (simpar%temp_tol > 0.0_dp) THEN
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "A temperature tolerance (TEMP_TOL) is used during the MD. "//&
                "Due to the velocity rescaling algorithm jumps may appear in the conserved quantity. "//&
@@ -301,10 +299,10 @@ CPSourceFileRef,&
                only_ionode=.TRUE.)
        END IF
        ! Print warning for annealing
-       IF(simpar % annealing ) THEN
-         IF ( simpar % ensemble == nvt_ensemble .OR. &
-              simpar % ensemble == npt_i_ensemble .OR. &
-              simpar % ensemble == npt_f_ensemble )  THEN
+       IF(simpar%annealing ) THEN
+         IF ( simpar%ensemble == nvt_ensemble .OR. &
+              simpar%ensemble == npt_i_ensemble .OR. &
+              simpar%ensemble == npt_f_ensemble )  THEN
               CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
               "Annealing of the ions has been required "//&
               "even if the thermostat is active (nvt or npt_i or npt_f) "//&
@@ -314,10 +312,10 @@ CPSourceFileRef,&
          END IF
        END IF
        ! Print warning for variable time step
-       IF(simpar % variable_dt ) THEN
-         IF ( simpar % ensemble == langevin_ensemble .OR. &
-              simpar % ensemble == reftraj_ensemble .OR. &
-              simpar % do_respa )  THEN
+       IF(simpar%variable_dt ) THEN
+         IF ( simpar%ensemble == langevin_ensemble .OR. &
+              simpar%ensemble == reftraj_ensemble .OR. &
+              simpar%do_respa )  THEN
               CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
               "The variable timestep  has been required, however "//&
               "this option is not available either with the Langevin ensemble or with the multiple timestep schme. "//&
@@ -346,7 +344,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_md_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n_rep
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: tmp_section
 
@@ -355,35 +352,21 @@ CPSourceFileRef,&
        NULLIFY(tmp_section)
        CALL section_vals_val_get(md_section,"ENSEMBLE",i_val=simpar%ensemble,error=error)
        CALL section_vals_val_get(md_section,"STEPS",i_val=simpar%nsteps,error=error)
-       CALL section_vals_val_get(md_section,"TIMESTEP",r_val=simpar%dt,error=error)
        CALL section_vals_val_get(md_section,"TEMPERATURE",r_val=simpar%temp_ext,error=error)
        CALL section_vals_val_get(md_section,"TEMP_TOL",r_val=simpar%temp_tol,error=error)
        CALL section_vals_val_get(md_section,"COMVEL_TOL",r_val=simpar%comvel_tol,error=error)
        CALL section_vals_val_get(md_section,"ANGVEL_ZERO",l_val=simpar%angvel_zero,error=error)
        CALL section_vals_val_get(md_section,"TEMP_KIND",l_val=simpar%temperature_per_kind,error=error)
        CALL section_vals_val_get(md_section,"SCALE_TEMP_KIND",l_val=simpar%scale_temperature_per_kind,error=error)
-       CALL section_vals_val_get(md_section,"ANNEALING",n_rep_val=n_rep,error=error)
-       IF (n_rep==1) THEN
-          CALL section_vals_val_get(md_section,"ANNEALING",r_val=simpar%f_annealing,error=error)
-          simpar % annealing = .TRUE.
-       ELSE
-          simpar % annealing = .FALSE.
-       END IF
-       CALL section_vals_val_get(md_section,"ANNEALING_CELL",n_rep_val=n_rep,error=error)
-       IF (n_rep==1) THEN
-          CALL section_vals_val_get(md_section,"ANNEALING_CELL",r_val=simpar%f_annealing_cell,error=error)
-          simpar % annealing_cell = .TRUE.
-       ELSE
-          simpar % annealing_cell = .FALSE.
-       END IF
-       CALL section_vals_val_get(md_section,"DISPLACEMENT_TOL",n_rep_val=n_rep,error=error)
-       IF (n_rep==1) THEN
-          CALL section_vals_val_get(md_section,"DISPLACEMENT_TOL",r_val=simpar%dr_tol,error=error)
-          simpar % variable_dt = .TRUE.
-       ELSE
-          simpar % variable_dt = .FALSE.
-          simpar%dr_tol = 100.0_dp
-       END IF
+       CALL section_vals_val_get(md_section,"ANNEALING",r_val=simpar%f_annealing,explicit=simpar%annealing,&
+                                 error=error)
+       CALL section_vals_val_get(md_section,"ANNEALING_CELL",r_val=simpar%f_annealing_cell,&
+                                 explicit=simpar%annealing_cell,error=error)
+       CALL section_vals_val_get(md_section,"DISPLACEMENT_TOL",r_val=simpar%dr_tol,&
+                                 explicit=simpar%variable_dt,error=error)
+       CALL section_vals_val_get(md_section,"TIMESTEP",r_val=simpar%dt,error=error)
+       ! Initialize dt_fact to 1.0
+       simpar%dt_fact = 1.0_dp
 
        IF (simpar%ensemble == langevin_ensemble) THEN
           CALL section_vals_val_get(md_section, "LANGEVIN%GAMMA", r_val=simpar%gamma, error=error)
@@ -392,9 +375,8 @@ CPSourceFileRef,&
        END IF
 
        tmp_section => section_vals_get_subs_vals(root_section,"MOTION%CONSTRAINT",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,error=error)
-       IF (explicit) THEN
-          simpar%constraint = .TRUE.
+       CALL section_vals_get(tmp_section,explicit=simpar%constraint,error=error)
+       IF (simpar%constraint) THEN
           CALL section_vals_val_get(tmp_section,"SHAKE_TOLERANCE",r_val=simpar%shake_tol,error=error)
           CALL cp_assert(simpar%shake_tol>EPSILON(0.0_dp)*1000.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
                "Shake tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
@@ -418,7 +400,7 @@ CPSourceFileRef,&
           CALL section_vals_val_get(tmp_section,"ENERGY",r_val=simpar%e0,error=error)
           CALL section_vals_val_get(tmp_section,"VOLUME",r_val=simpar%v0,error=error)
           CALL section_vals_val_get(tmp_section,"GAMMA",r_val=simpar%gamma_nph,error=error)
-          IF (simpar % gamma_nph /= 0.0_dp) simpar%ensemble = nph_uniaxial_damped_ensemble
+          IF (simpar%gamma_nph /= 0.0_dp) simpar%ensemble = nph_uniaxial_damped_ensemble
           CALL section_vals_val_get(tmp_section,"CMASS",r_val=simpar%cmass,error=error)
           CALL section_vals_val_get(tmp_section,"VSHOCK",r_val=simpar%v_shock,error=error)
        END IF
@@ -436,74 +418,19 @@ CPSourceFileRef,&
        CALL section_vals_get(tmp_section, explicit=simpar%do_respa, error=error)
        CALL section_vals_val_get(tmp_section,"FREQUENCY",i_val=simpar%n_time_steps,&
             ignore_required=.TRUE.,error=error)
-       simpar%multi_time_switch = .FALSE.
-       IF (simpar%do_respa) simpar%multi_time_switch = .TRUE.
+       simpar%multi_time_switch = simpar%do_respa
 
        ! CORE-SHELL MODEL
        tmp_section => section_vals_get_subs_vals(md_section,"SHELL",error=error)
-       CALL section_vals_get(tmp_section, explicit=explicit, error=error)
-       IF (explicit) THEN
-          CALL section_vals_val_get(tmp_section,"TEMPERATURE",r_val=simpar%temp_sh_ext,error=error)
-          CALL section_vals_val_get(tmp_section,"TEMP_TOL",r_val=simpar%temp_sh_tol,error=error)
+       CALL section_vals_val_get(tmp_section,"TEMPERATURE",r_val=simpar%temp_sh_ext,error=error)
+       CALL section_vals_val_get(tmp_section,"TEMP_TOL",r_val=simpar%temp_sh_tol,error=error)
 
-          CALL section_vals_val_get(tmp_section,"DISPLACEMENT_SHELL_TOL",n_rep_val=n_rep,error=error)
-          IF (n_rep==1) THEN
-            CALL section_vals_val_get(tmp_section,"DISPLACEMENT_SHELL_TOL",r_val=simpar%dsc_tol,error=error)
-            simpar % variable_dt = .TRUE.
-          ELSE
-            simpar%dsc_tol = 100.0_dp
-          END IF
-       ELSE
-          simpar%dsc_tol = 100.0_dp
-       END IF
+       CALL section_vals_val_get(tmp_section,"DISPLACEMENT_SHELL_TOL",r_val=simpar%dsc_tol,&
+                                 explicit=explicit,error=error)
+       simpar%variable_dt = simpar%variable_dt.OR.explicit
     END IF
 
   END SUBROUTINE read_md_low
-
-! *****************************************************************************
-!> \brief Initializes the simpar
-!> \author teo
-! *****************************************************************************
-  SUBROUTINE set_md_defaults(simpar)
-    TYPE(simulation_parameters_type), &
-      INTENT(OUT)                            :: simpar
-
-    simpar % ensemble = nve_ensemble
-    simpar % nsteps = 0
-    simpar % dt = 0.0_dp
-    simpar % dt_fact = 1.0_dp
-    simpar % dr_tol = 100.0_dp
-    simpar % dsc_tol = 100.0_dp
-    simpar % temp_ext = 0.0_dp
-    simpar % temp_baro_ext = 0.0_dp
-    simpar % temp_baro = 0.0_dp
-    simpar % temp_tol = 0.0_dp
-    simpar % temp_baro_tol = 0.0_dp
-    simpar % comvel_tol = 0.0_dp
-    simpar % p_ext = 0.0_dp
-    simpar % f_annealing = 1.0_dp
-    simpar % constraint = .FALSE.
-    simpar % annealing = .FALSE.
-    simpar % angvel_zero = .FALSE.
-    simpar % variable_dt = .FALSE.
-    simpar % shake_tol = EPSILON(0.0_dp)
-    simpar % roll_tol  = EPSILON(0.0_dp)
-    simpar % tau_cell = 1000.0_dp
-    simpar % p0 = 0._dp
-    simpar % v0 = 0._dp
-    simpar % e0 = 0._dp
-    simpar % v_shock = 0.0_dp
-    simpar % gamma_nph = 0.0_dp
-    simpar % cmass = 0.0_dp
-    !MK Langevin
-    simpar%gamma = 0.0_dp
-    simpar%noisy_gamma = 0.0_dp
-    simpar%shadow_gamma = 0.0_dp
-    simpar%var_w = 0.0_dp
-    ! SHELL parameters
-    simpar % temp_sh_ext = 0.0_dp
-    simpar % temp_sh_tol = 0.0_dp
-  END SUBROUTINE set_md_defaults
 
 ! *****************************************************************************
 !> \brief compute center of mass position
@@ -944,15 +871,15 @@ CPSourceFileRef,&
     END DO
     
     ! Compute the total mass when needed
-    IF ( simpar % ensemble == nph_uniaxial_ensemble .OR.&
-         simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
+    IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.&
+         simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
        mass_tot = 0.0_dp
        DO i = 1, natoms
           atomic_kind => part(i)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
           mass_tot = mass_tot + mass
        END DO
-       simpar % v_shock = simpar % v_shock * SQRT ( mass_tot )
+       simpar%v_shock = simpar%v_shock * SQRT ( mass_tot )
     END IF
 
     ! Read or initialize the particle velocities
@@ -1013,7 +940,7 @@ CPSourceFileRef,&
        CALL compute_vcom(part,is_fixed,vcom,ecom)
        ekin = compute_ekin(part) - ecom
 
-       IF (simpar % nfree /= 0 .AND. force_rescaling) THEN
+       IF (simpar%nfree /= 0 .AND. force_rescaling) THEN
           CALL rescale_vel(part,simpar,ekin,vcom)
           ! After rescaling, the core and shell velocities must also adapt.
           DO i = 1, natoms
@@ -1093,11 +1020,11 @@ CPSourceFileRef,&
        ! Recompute vcom, ecom and ekin for IO
        CALL compute_vcom(part,is_fixed,vcom,ecom)
        ekin = compute_ekin(part) - ecom
-       IF (simpar % nfree == 0) THEN
+       IF (simpar%nfree == 0) THEN
           CPPostcondition(ekin==0.0_dp,cp_failure_level,routineP,error,failure)
           temp = 0.0_dp
        ELSE
-          temp = 2.0_dp * ekin / REAL ( simpar % nfree,KIND=dp)
+          temp = 2.0_dp * ekin / REAL ( simpar%nfree,KIND=dp)
        END IF
        WRITE (iw, '( A, T61, F18.2, A2 )' ) ' Initial Temperature ', temp / unit%kelvin, " K"
        WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' COM velocity:', vcom ( 1 ), vcom ( 2 ), vcom ( 3 )

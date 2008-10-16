@@ -1406,11 +1406,10 @@ CONTAINS
     infree = 1.0_dp / REAL ( simpar % nfree, dp )
     arg_r = tmp%arg_r
     arg_v = tmp%arg_v
-    u = tmp%u
+    u     = tmp%u
     e_val = tmp%e_val
     
-    simpar%dt_fact = 1.0_dp
-    dt_fact = 1.0_dp
+    dt_fact    = 1.0_dp
     dt_fact_sc = 1.0_dp
     CALL mp_max(tmp%max_vel,para_env%group)
     IF(tmp%max_vel * dt  > simpar%dr_tol) THEN
@@ -1426,8 +1425,7 @@ CONTAINS
     simpar%dt_fact = MIN(dt_fact, dt_fact_sc)
 
     IF(simpar%dt_fact < 1.0_dp) THEN
-       
-      CALL get_md_env(md_env, t = time, error=error )
+      CALL get_md_env(md_env, t=time, error=error)
       time = time - dt + dt*simpar%dt_fact
       ! repeat the first vv half-step with the rescaled time step 
       dt = dt*simpar%dt_fact

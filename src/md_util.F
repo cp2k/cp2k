@@ -28,6 +28,8 @@ MODULE md_util
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: npe_f_ensemble,&
                                              npe_i_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
                                              npt_i_ensemble,&
                                              reftraj_ensemble
@@ -487,10 +489,13 @@ CONTAINS
        CALL scale_velocity_internal(subsys, md_ener, simpar%temp_sh_ext, simpar%temp_sh_tol, iw, error)
     END IF
     ! Control cell motion
-    IF(simpar%temp_baro_tol > 0.0_dp) THEN
-       CALL scale_velocity_baro(md_env, md_ener, simpar%temp_baro_ext, simpar%temp_baro_tol, iw, error)
-    END IF
-
+    SELECT CASE (simpar%ensemble)
+    CASE( nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
+            npt_f_ensemble, npt_i_ensemble, npe_f_ensemble, npe_i_ensemble)
+       IF(simpar%temp_baro_tol > 0.0_dp) THEN
+          CALL scale_velocity_baro(md_env, md_ener, simpar%temp_baro_ext, simpar%temp_baro_tol, iw, error)
+       END IF
+    END SELECT
 
     CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
          "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
