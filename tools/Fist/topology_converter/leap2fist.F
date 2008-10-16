@@ -44,8 +44,7 @@ PROGRAM leap2fist
   INTEGER, PARAMETER  ::                            &
                         start_io_units        =  10,&
                         max_io_units          = 100,&
-                        atom_name_length      =   4,&
-                        title_sub_length      =   4,&
+                        atom_name_length      =   6,&
                         default_string_length =  80,&
                         title_length          =  80,&
                         date_length           =  25,&
@@ -53,7 +52,9 @@ PROGRAM leap2fist
                         NDIM                  =   3  ! Cell dimension
   CHARACTER(LEN=date_length)           :: Today
   CHARACTER(LEN=default_string_length) :: ThisIsMe , MyMachine
+  CHARACTER(LEN=1)                     :: c_MNL
   REAL(KIND=dp)                        :: pi
+  INTEGER :: MAX_NAME_LENGTH
   INTEGER :: NATOM        ! Total number of Atoms
   INTEGER :: NTYPES       ! Total number of distinct atom types
   INTEGER :: NBONH        ! Number of bonds containing hydrogens
@@ -252,6 +253,8 @@ CONTAINS
     fist            = .TRUE.
     psf_xplor       = .FALSE.
     amber_impropers = .TRUE.
+    MAX_NAME_LENGTH = 6
+    c_MNL = "6"
     narg = m_iargc()
     IF (narg.LT.2) THEN
        CALL print_help_banner
@@ -274,6 +277,8 @@ CONTAINS
           amber_impropers = .FALSE.
        CASE ("-xplor")
           psf_xplor = .TRUE.
+          MAX_NAME_LENGTH = 4
+          c_MNL = "4"
        CASE ("-dlpoly")
           dlpoly = .TRUE.
           fist   = .FALSE.
@@ -491,12 +496,21 @@ CONTAINS
              my_done(my_index(l)) = 1
           END DO
           k = k + 1
-          IF(k < 10) THEN
-             IF (len_type>3) CALL stop_converter(" A type with more than 4 character should be created!"//TRIM(my_type))
-          ELSEIF(k < 100) THEN
-             IF (len_type>2) CALL stop_converter(" A type with more than 4 character should be created!"//TRIM(my_type))
-          ELSEIF(k < 1000) THEN
-             IF (len_type>1) CALL stop_converter(" A type with more than 4 character should be created!"//TRIM(my_type))
+          IF     (k <     10) THEN
+             IF (len_type>MAX_NAME_LENGTH-1) &
+                  CALL stop_converter(" A type with more than "//c_MNL//" character should be created!"//TRIM(my_type))
+          ELSEIF (k <    100) THEN
+             IF (len_type>MAX_NAME_LENGTH-2) &
+                  CALL stop_converter(" A type with more than "//c_MNL//" character should be created!"//TRIM(my_type))
+          ELSEIF (k <   1000) THEN
+             IF (len_type>MAX_NAME_LENGTH-3) &
+                  CALL stop_converter(" A type with more than "//c_MNL//" character should be created!"//TRIM(my_type))
+          ELSEIF((k <  10000).AND.(.NOT.psf_xplor)) THEN
+             IF (len_type>MAX_NAME_LENGTH-4) &
+                  CALL stop_converter(" A type with more than "//c_MNL//" character should be created!"//TRIM(my_type))
+          ELSEIF((k < 100000).AND.(.NOT.psf_xplor)) THEN
+             IF (len_type>MAX_NAME_LENGTH-5) &
+                  CALL stop_converter(" A type with more than "//c_MNL//" character should be created!"//TRIM(my_type))
           ELSE
              CALL stop_converter(" A type with more than 4 character should be created!")
           END IF
@@ -1113,7 +1127,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION (:), POINTER :: my_ka, my_theta        ! bending
     REAL(KIND=dp), DIMENSION (:), POINTER :: my_a, my_delta, my_m   ! torsion
     REAL(KIND=dp), DIMENSION (:), POINTER :: my_sigma, my_epsilon, my_charges
-    CHARACTER(LEN=4), DIMENSION (:), POINTER :: my_type
+    CHARACTER(LEN=6), DIMENSION (:), POINTER :: my_type
 
     NULLIFY( my_i, my_j, my_k, my_l, my_atom_index, dihedral_type,&
              my_kb, my_ka, my_req, my_theta, my_a, my_delta, my_m,&
@@ -1284,11 +1298,11 @@ CONTAINS
             /"!",/,"CHARGES")
 1007 FORMAT("END CHARGES")
 
-2001 FORMAT(A4,1X,A4,1X,2F15.9)                     ! bond
-2002 FORMAT(A4,1X,A4,1X,A4,1X,2F15.9)               ! angle
-2003 FORMAT(A4,1X,A4,1X,A4,1X,A4,1X,F15.9,I5,F15.9) ! torsion
-2004 FORMAT(A4,1X,"    0.000000000",2F15.9)         ! nonbond
-2005 FORMAT(A4,1X,F15.9)                            ! charges
+2001 FORMAT(A6,1X,A6,1X,2F15.9)                     ! bond
+2002 FORMAT(A6,1X,A6,1X,A6,1X,2F15.9)               ! angle
+2003 FORMAT(A6,1X,A6,1X,A6,1X,A6,1X,F15.9,I5,F15.9) ! torsion
+2004 FORMAT(A6,1X,"    0.000000000",2F15.9)         ! nonbond
+2005 FORMAT(A6,1X,F15.9)                            ! charges
   END SUBROUTINE create_potpar_file
 
 
@@ -1311,8 +1325,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION (:), POINTER :: my_ki                  ! improper
     REAL(KIND=dp), DIMENSION (:), POINTER :: vdw_a, vdw_b           ! lj
     REAL(KIND=dp), DIMENSION (:), POINTER :: my_scale_el, my_scale_LJ  ! scale factors
-    CHARACTER(LEN=4), DIMENSION (:), POINTER :: type_i, type_j         ! lj
-    CHARACTER(LEN=4), DIMENSION (:), POINTER :: my_res_name
+    CHARACTER(LEN=6), DIMENSION (:), POINTER :: type_i, type_j         ! lj
+    CHARACTER(LEN=6), DIMENSION (:), POINTER :: my_res_name
     
     NULLIFY(my_atom_index)
     NULLIFY(my_i         )
@@ -1437,10 +1451,10 @@ CONTAINS
   
   INTEGER FUNCTION NUMBER_UNIQUE_RES(unique_res_name, my_res_name) RESULT(unique_res)
     IMPLICIT NONE
-    CHARACTER (LEN=4), DIMENSION(:), POINTER, OPTIONAL :: unique_res_name
-    CHARACTER (LEN=4), INTENT(IN), OPTIONAL  :: my_res_name
+    CHARACTER (LEN=6), DIMENSION(:), POINTER, OPTIONAL :: unique_res_name
+    CHARACTER (LEN=6), INTENT(IN), OPTIONAL  :: my_res_name
     INTEGER :: I, j
-    CHARACTER (LEN=4), DIMENSION(:), POINTER :: local_res 
+    CHARACTER (LEN=6), DIMENSION(:), POINTER :: local_res 
 
     IF (PRESENT(unique_res_name)) THEN
        !
@@ -1489,7 +1503,7 @@ CONTAINS
 
   INTEGER FUNCTION NUMBER_UNIQUE_RES_ATOMS(my_res_name, my_atom_index) RESULT(number_of_atom)
     IMPLICIT NONE
-    CHARACTER (LEN=4), INTENT(IN)            :: my_res_name
+    CHARACTER (LEN=6), INTENT(IN)            :: my_res_name
     INTEGER,          DIMENSION (:), POINTER :: my_atom_index 
     INTEGER :: I, J, istart, iend
 
@@ -1733,8 +1747,8 @@ CONTAINS
        RESULT(number_of_LJ)
     IMPLICIT NONE
     INTEGER,          DIMENSION (:), POINTER :: my_atom_index, local_index
-    CHARACTER (LEN=4),DIMENSION (:), POINTER :: type_i, local_type
-    CHARACTER (LEN=4),DIMENSION (:), POINTER, OPTIONAL :: type_j
+    CHARACTER (LEN=6),DIMENSION (:), POINTER :: type_i, local_type
+    CHARACTER (LEN=6),DIMENSION (:), POINTER, OPTIONAL :: type_j
     REAL(KIND=dp),    DIMENSION (:), POINTER :: vdw_a, vdw_b
     REAL(KIND=dp),    DIMENSION (:), POINTER, OPTIONAL :: charges
     INTEGER :: i, j, my_lj_index, num_local_types, i_iac, j_iac
@@ -2009,7 +2023,7 @@ CONTAINS
     IF (IsD)  DEALLOCATE(loc_D)
   END FUNCTION GIVE_BACK_UNIQUE_TYPES
 
-  CHARACTER(LEN=4) FUNCTION GIVE_BACK_TYPE(my_index) RESULT(my_type)
+  CHARACTER(LEN=6) FUNCTION GIVE_BACK_TYPE(my_index) RESULT(my_type)
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: my_index
 
