@@ -10,7 +10,7 @@
 MODULE mc_environment_types
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
-  USE mc_types,                        ONLY: mc_simulation_parameters_type
+  USE mc_types,                        ONLY: mc_simpar_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -20,7 +20,7 @@ MODULE mc_environment_types
 ! *****************************************************************************
   TYPE mc_environment_type
      INTEGER :: id_nr, ref_count, in_use
-     TYPE ( mc_simulation_parameters_type ), POINTER :: mc_par
+     TYPE ( mc_simpar_type ), POINTER :: mc_par
      TYPE ( force_env_type ), POINTER :: force_env  
   END TYPE mc_environment_type
 
@@ -86,8 +86,7 @@ CONTAINS
   SUBROUTINE set_mc_env ( mc_env,mc_par,force_env)
 
     TYPE(mc_environment_type), POINTER       :: mc_env
-    TYPE(mc_simulation_parameters_type), &
-      OPTIONAL, POINTER                      :: mc_par
+    TYPE(mc_simpar_type), OPTIONAL, POINTER  :: mc_par
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
 
     IF ( PRESENT ( mc_par ) ) mc_env % mc_par => mc_par
@@ -114,8 +113,7 @@ CONTAINS
   SUBROUTINE get_mc_env ( mc_env, mc_par, force_env)
 
     TYPE(mc_environment_type), POINTER       :: mc_env
-    TYPE(mc_simulation_parameters_type), &
-      OPTIONAL, POINTER                      :: mc_par
+    TYPE(mc_simpar_type), OPTIONAL, POINTER  :: mc_par
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
 
 !   ---------------------------------------------------------------------------

@@ -53,7 +53,6 @@ MODULE thermostat_methods
                                              section_vals_val_get,&
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
-  USE md,                              ONLY: simulation_parameters_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -62,6 +61,7 @@ MODULE thermostat_methods
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE simpar_types,                    ONLY: simpar_type
   USE thermostat_types,                ONLY: allocate_thermostats,&
                                              create_thermostat_type,&
                                              release_thermostat_info,&
@@ -99,8 +99,7 @@ CONTAINS
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: global_section
@@ -419,8 +418,7 @@ CPSourceFileRef,&
     TYPE(thermostat_type), POINTER           :: thermostat
     CHARACTER(LEN=*), INTENT(IN)             :: label
     TYPE(section_vals_type), POINTER         :: section
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

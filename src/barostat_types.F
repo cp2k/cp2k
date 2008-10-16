@@ -27,7 +27,7 @@ MODULE barostat_types
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE md,                              ONLY: simulation_parameters_type
+  USE simpar_types,                    ONLY: simpar_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -65,8 +65,7 @@ CONTAINS
     TYPE(barostat_type), POINTER             :: barostat
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error

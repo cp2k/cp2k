@@ -46,7 +46,6 @@ MODULE constraint
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE md,                              ONLY: simulation_parameters_type
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
@@ -55,6 +54,7 @@ MODULE constraint
   USE molecule_types_new,              ONLY: global_constraint_type,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
+  USE simpar_types,                    ONLY: simpar_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -295,8 +295,7 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(KIND=dp), INTENT(IN)                :: dt
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    TYPE(simpar_type), INTENT(IN)            :: simpar
     REAL(KIND=dp), INTENT(OUT)               :: roll_tol
     INTEGER, INTENT(INOUT)                   :: iroll
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vector_r, vector_v
@@ -420,8 +419,7 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(KIND=dp), INTENT(IN)                :: dt
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    TYPE(simpar_type), INTENT(IN)            :: simpar
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vector
     REAL(KIND=dp), DIMENSION(:, :), &

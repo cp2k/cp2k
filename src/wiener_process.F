@@ -25,13 +25,13 @@ MODULE wiener_process
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                              create_rng_stream,&
                                              next_rng_seed
   USE particle_list_types,             ONLY: particle_list_type
+  USE simpar_types,                    ONLY: simpar_type
   USE string_utilities,                ONLY: compress
 #include "cp_common_uses.h"
 
@@ -79,8 +79,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section, work_section
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
 
     failure = .FALSE.
     NULLIFY(work_section,force_env)

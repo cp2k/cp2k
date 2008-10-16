@@ -30,13 +30,13 @@ MODULE md_environment_types
   USE free_energy_types,               ONLY: fe_env_release,&
                                              free_energy_type
   USE kinds,                           ONLY: dp
-  USE md,                              ONLY: simulation_parameters_type
   USE md_ener_types,                   ONLY: md_ener_type,&
                                              release_md_ener,&
                                              retain_md_ener
   USE reftraj_types,                   ONLY: reftraj_type,&
                                              release_reftraj,&
                                              retain_reftraj
+  USE simpar_types,                    ONLY: simpar_type
   USE thermostat_types,                ONLY: release_thermostats,&
                                              retain_thermostats,&
                                              thermostat_type,&
@@ -66,17 +66,16 @@ MODULE md_environment_types
      TYPE(barostat_type), POINTER               :: barostat
      TYPE(reftraj_type), POINTER                :: reftraj
      TYPE(free_energy_type) , POINTER           :: fe_env
-     TYPE(simulation_parameters_type), POINTER  :: simpar
+     TYPE(simpar_type), POINTER                 :: simpar
      TYPE(average_quantities_type), POINTER     :: averages
   END TYPE md_environment_type
 
 
-! *** Public subroutines and data types ***
-  PUBLIC :: md_environment_type, set_md_env, get_md_env, md_env_create, md_env_release, &
-       md_env_retain
+  ! *** Public subroutines and data types ***
+  PUBLIC :: md_environment_type, set_md_env, get_md_env, md_env_create,&
+            md_env_release, md_env_retain
 
-! *** Global parameters ***
-
+  ! *** Global parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_environment_types'
   INTEGER, SAVE, PRIVATE :: last_md_env_id=0
 
@@ -251,8 +250,7 @@ CONTAINS
     INTEGER, OPTIONAL, POINTER               :: itimes
     REAL(KIND=dp), OPTIONAL, POINTER         :: constant, used_time
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
-    TYPE(simulation_parameters_type), &
-      OPTIONAL, POINTER                      :: simpar
+    TYPE(simpar_type), OPTIONAL, POINTER     :: simpar
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt(:, :)
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -340,8 +338,7 @@ CONTAINS
     INTEGER, OPTIONAL, POINTER               :: itimes
     REAL(KIND=dp), OPTIONAL, POINTER         :: constant
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
-    TYPE(simulation_parameters_type), &
-      OPTIONAL, POINTER                      :: simpar
+    TYPE(simpar_type), OPTIONAL, POINTER     :: simpar
     TYPE(free_energy_type), OPTIONAL, &
       POINTER                                :: fe_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env

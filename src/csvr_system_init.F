@@ -22,12 +22,12 @@ MODULE csvr_system_init
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE md,                              ONLY: simulation_parameters_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: global_constraint_type,&
                                              molecule_type
   USE parallel_rng_types,              ONLY: read_rng_stream,&
                                              rng_record_length
+  USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_info_type
 #include "cp_common_uses.h"
@@ -46,8 +46,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE initialize_csvr_baro ( simpar, para_env, csvr, csvr_section, error )
 
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section
@@ -72,8 +71,7 @@ CONTAINS
        gci, error)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -132,8 +130,7 @@ CONTAINS
        gci, error)
  
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )

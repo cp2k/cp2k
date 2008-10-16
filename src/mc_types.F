@@ -68,7 +68,7 @@ MODULE mc_types
   
 ! *** Global parameters ***
 
- PUBLIC :: mc_simulation_parameters_type,&
+ PUBLIC :: mc_simpar_type,&
             mc_simulation_parameters_p_type,&
             mc_averages_type,mc_averages_p_type,&
             mc_moves_type, mc_moves_p_type,accattempt,&
@@ -82,7 +82,7 @@ MODULE mc_types
             mc_input_parameters_check
 
 ! *****************************************************************************
-  TYPE mc_simulation_parameters_type
+  TYPE mc_simpar_type
 ! contains all the parameters needed for running Monte Carlo simulations
       PRIVATE
       INTEGER,DIMENSION(:),POINTER :: avbmc_atom
@@ -139,7 +139,7 @@ MODULE mc_types
       TYPE(section_vals_type),POINTER :: input_file
       TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
       REAL ( dp ) :: exp_min_val, exp_max_val, min_val, max_val
-  END TYPE mc_simulation_parameters_type
+  END TYPE mc_simpar_type
 
 ! *****************************************************************************
   TYPE mc_input_file_type
@@ -171,7 +171,7 @@ MODULE mc_types
 ! *****************************************************************************
   TYPE mc_simulation_parameters_p_type
 ! a pointer for multiple boxes
-      TYPE (mc_simulation_parameters_type),POINTER :: mc_par
+      TYPE (mc_simpar_type),POINTER :: mc_par
   END TYPE mc_simulation_parameters_p_type
 
 ! *****************************************************************************
@@ -289,8 +289,7 @@ CONTAINS
 !> 
 !>    Suitable for parallel.
 !> \author MJM
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     INTEGER, INTENT(OUT), OPTIONAL           :: nstep, nvirial, iuptrans, &
                                                 iupvolume, nmoves, &
                                                 nswapmoves, rm, cl, diff, &
@@ -482,8 +481,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 !> 
 !>    Suitable for parallel.
 !> \author MJM
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     INTEGER, INTENT(IN), OPTIONAL            :: rm, cl, diff, nstart
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: rmvolume
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
@@ -653,8 +651,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 ! *****************************************************************************
   SUBROUTINE mc_sim_par_create ( mc_par ,nmol_types,nboxes)
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     INTEGER, INTENT(IN)                      :: nmol_types, nboxes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_sim_par_create', &
@@ -726,8 +723,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 ! *****************************************************************************
   SUBROUTINE mc_sim_par_destroy ( mc_par )
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_sim_par_destroy', &
       routineP = moduleN//':'//routineN
@@ -1086,8 +1082,7 @@ END SUBROUTINE mc_parse_text
 SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_file, force_env_section,&
      error )
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
@@ -1466,8 +1461,7 @@ END SUBROUTINE read_mc_section
 ! *****************************************************************************
 SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
 
-    TYPE(mc_simulation_parameters_type), &
-      INTENT(INOUT)                          :: mc_par
+    TYPE(mc_simpar_type), INTENT(INOUT)      :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(OUT)                     :: lterminate
 
@@ -1822,8 +1816,7 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
 !> 
 !>    Suitable for parallel.
 !> \author MJM
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_input_parameters_check', &
       routineP = moduleN//':'//routineN

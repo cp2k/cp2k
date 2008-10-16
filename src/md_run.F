@@ -51,8 +51,6 @@ MODULE md_run
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
-  USE md,                              ONLY: read_md_section,&
-                                             simulation_parameters_type
   USE md_ener_types,                   ONLY: create_md_ener,&
                                              md_ener_type,&
                                              release_md_ener
@@ -65,8 +63,8 @@ MODULE md_run
                                              md_env_release,&
                                              md_environment_type,&
                                              set_md_env
-  USE md_util,                         ONLY: comvel_control,&
-                                             md_output,&
+  USE md_util,                         ONLY: md_output
+  USE md_vel_utils,                    ONLY: comvel_control,&
                                              setup_velocities,&
                                              temperature_control
   USE metadynamics,                    ONLY: metadyn_forces
@@ -77,6 +75,10 @@ MODULE md_run
                                              release_reftraj
   USE reftraj_util,                    ONLY: initialize_reftraj,&
                                              write_output_reftraj
+  USE simpar_methods,                  ONLY: read_md_section
+  USE simpar_types,                    ONLY: create_simpar_type,&
+                                             release_simpar_type,&
+                                             simpar_type
   USE termination,                     ONLY: external_control
   USE thermostat_methods,              ONLY: create_thermostats
   USE thermostat_types,                ONLY: release_thermostats,&
@@ -147,8 +149,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, istep, md_stride, &
-                                                stat
+    INTEGER                                  :: handle, i, istep, md_stride
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: check, failure, save_mem, &
                                                 should_stop
@@ -170,8 +171,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: force_env_section, global_section, &
       kg_coeff_section, motion_section, reftraj_section, root_section, &
       subsys_section, work_section
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostats_type), POINTER          :: thermostats
 
     CALL timeset(routineN,handle)
@@ -191,8 +191,7 @@ CONTAINS
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
     CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
 
-    ALLOCATE (simpar,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL create_simpar_type(simpar, error)
     force_env_section => force_env%force_env_section
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     CALL cp_add_iter_level(logger%iter_info,"MD",error=error)
@@ -417,9 +416,7 @@ CONTAINS
     ! Deallocate Thermostats and Barostats
     CALL release_thermostats(thermostats, error=error)
     CALL release_barostat_type(barostat, error=error)
-
-    DEALLOCATE(simpar,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL release_simpar_type(simpar, error)
     CALL timestop(handle)
 
   END SUBROUTINE qs_mol_dyn_low

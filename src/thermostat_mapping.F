@@ -17,7 +17,6 @@ MODULE thermostat_mapping
        do_region_molecule, do_thermo_communication, &
        do_thermo_no_communication, use_perd_x, use_perd_xy, use_perd_xyz, &
        use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
-  USE md,                              ONLY: simulation_parameters_type
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_bcast,&
@@ -31,6 +30,7 @@ MODULE thermostat_mapping
   USE molecule_types_new,              ONLY: get_molecule,&
                                              global_constraint_type,&
                                              molecule_type
+  USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
   USE util,                            ONLY: sort
 #include "cp_common_uses.h"
@@ -62,8 +62,7 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule_set(:)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(OUT)                     :: natoms_local
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     INTEGER, INTENT(IN)                      :: number, region
     TYPE(global_constraint_type), POINTER    :: gci
     LOGICAL, INTENT(IN)                      :: shell
@@ -334,8 +333,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set(:)
     TYPE(molecule_type), POINTER             :: molecule_set(:)
     INTEGER, INTENT(IN)                      :: region
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     LOGICAL, INTENT(IN)                      :: shell
     INTEGER, DIMENSION(:), POINTER           :: map_loc_thermo_gen
     INTEGER, INTENT(IN)                      :: sum_of_thermostats

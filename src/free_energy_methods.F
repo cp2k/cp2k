@@ -31,10 +31,10 @@ MODULE free_energy_methods
                                              default_string_length,&
                                              dp
   USE mathlib,                         ONLY: diamat_all
-  USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE memory_utilities,                ONLY: reallocate
+  USE simpar_types,                    ONLY: simpar_type
   USE statistical_methods,             ONLY: k_test,&
                                              min_sample_size,&
                                              sw_test,&
@@ -82,8 +82,7 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(free_energy_type), POINTER          :: fe_env
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(ui_var_type), POINTER               :: cv
 
     NULLIFY(force_env, istep, subsys, cv, root_section, simpar)

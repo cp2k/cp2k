@@ -35,7 +35,6 @@ MODULE reftraj_util
                                              default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
-  USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE message_passing,                 ONLY: mp_bcast,&
@@ -52,6 +51,7 @@ MODULE reftraj_util
                                              femtoseconds
   USE reftraj_types,                   ONLY: reftraj_msd_type,&
                                              reftraj_type
+  USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
   USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
@@ -90,8 +90,7 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: msd_section
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
 
     failure = .FALSE.
 

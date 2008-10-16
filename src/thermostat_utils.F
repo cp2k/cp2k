@@ -40,7 +40,6 @@ MODULE thermostat_utils
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
-  USE md,                              ONLY: simulation_parameters_type
   USE message_passing,                 ONLY: mp_sum
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
@@ -54,6 +53,7 @@ MODULE thermostat_utils
   USE physcon,                         ONLY: femtoseconds
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE shell_potential_types,           ONLY: shell_kind_type
+  USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_info_type,&
                                              thermostat_type,&
@@ -92,8 +92,7 @@ CONTAINS
 
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(mol_new_list_type), POINTER         :: molecules

@@ -39,7 +39,7 @@ MODULE mc_moves
                                              get_mc_par,&
                                              mc_molecule_info_type,&
                                              mc_moves_type,&
-                                             mc_simulation_parameters_type
+                                             mc_simpar_type
   USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: bend_type,&
@@ -139,8 +139,7 @@ CONTAINS
                         bias_energy,move_type,lreject,&
                         rng_stream,error)
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
     INTEGER, INTENT(IN)                      :: start_atom, molecule_type, &
@@ -456,8 +455,7 @@ END SUBROUTINE mc_conformation_change
                       bias_energy,molecule_type,&
                         lreject,rng_stream,error)
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
     INTEGER, INTENT(IN)                      :: start_atom, box_number
@@ -693,8 +691,7 @@ END SUBROUTINE mc_conformation_change
                       start_atom,molecule_type,bias_energy,lreject,&
                       rng_stream,error)
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
     INTEGER, INTENT(IN)                      :: box_number, start_atom, &
@@ -1009,8 +1006,7 @@ END SUBROUTINE mc_conformation_change
                         nnstep,old_energy,box_number,&
                         energy_check,r_old,iw,discrete_array,rng_stream,error)
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
     INTEGER, INTENT(IN)                      :: nnstep
@@ -1371,8 +1367,7 @@ END SUBROUTINE mc_conformation_change
       INTENT(IN)                             :: r_old
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: r_new
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     INTEGER, INTENT(IN)                      :: molecule_type
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     REAL(KIND=dp), INTENT(OUT)               :: dis_length
@@ -1566,8 +1561,7 @@ END SUBROUTINE mc_conformation_change
       INTENT(IN)                             :: r_old
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: r_new
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     INTEGER, INTENT(IN)                      :: molecule_type
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
@@ -1854,8 +1848,7 @@ END SUBROUTINE mc_conformation_change
       INTENT(IN)                             :: r_old
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: r_new
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     INTEGER, INTENT(IN)                      :: molecule_type
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
@@ -2096,8 +2089,7 @@ END SUBROUTINE mc_conformation_change
                         molecule_type,box_number,bias_energy_old,last_bias_energy,&
                         move_type,rng_stream,error)
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves
     REAL(KIND=dp), INTENT(INOUT)             :: energy_check

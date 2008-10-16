@@ -113,7 +113,6 @@ MODULE geo_opt
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: force_env_section
 
     failure = .FALSE.

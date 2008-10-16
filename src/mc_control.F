@@ -45,7 +45,7 @@ MODULE mc_control
                                              get_mc_par,&
                                              mc_input_file_type,&
                                              mc_molecule_info_type,&
-                                             mc_simulation_parameters_type,&
+                                             mc_simpar_type,&
                                              set_mc_par
   USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
@@ -88,8 +88,7 @@ CONTAINS
   SUBROUTINE write_mc_restart ( nnstep, mc_par, nchains,force_env )
 
     INTEGER, INTENT(IN)                      :: nnstep
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     INTEGER, DIMENSION(:), INTENT(IN)        :: nchains
     TYPE(force_env_type), POINTER            :: force_env
 
@@ -180,8 +179,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(IN)                      :: iw
     INTEGER, INTENT(INOUT)                   :: mc_nunits_tot

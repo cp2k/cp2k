@@ -29,11 +29,11 @@ MODULE extended_system_mapping
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE md,                              ONLY: simulation_parameters_type
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: global_constraint_type,&
                                              molecule_type
+  USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
   USE thermostat_mapping,              ONLY: init_baro_map_info,&
                                              init_coeff_map_info,&
@@ -62,8 +62,7 @@ CONTAINS
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, para_env, error )
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -132,8 +131,7 @@ CONTAINS
        molecule_set, molecule_kind_set, nhc, para_env, gci, error)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -233,8 +231,7 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule_set(:)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(OUT)                     :: natoms_local
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     INTEGER, INTENT(OUT)                     :: sum_of_thermostats
     TYPE(global_constraint_type), POINTER    :: gci
     LOGICAL, INTENT(IN), OPTIONAL            :: shell
@@ -387,8 +384,7 @@ CONTAINS
        molecule_set, molecule_kind_set, nhc, para_env, gci, error)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )

@@ -28,7 +28,6 @@ MODULE integrator_utils
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matvec_3x3,&
                                              transpose_3d
-  USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE message_passing,                 ONLY: mp_max,&
@@ -40,6 +39,7 @@ MODULE integrator_utils
   USE particle_types,                  ONLY: particle_type,&
                                              update_particle_set
   USE shell_potential_types,           ONLY: shell_kind_type
+  USE simpar_types,                    ONLY: simpar_type
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
@@ -693,8 +693,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(npt_info_type), DIMENSION(:, :), &
       POINTER                                :: npt
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    TYPE(simpar_type), INTENT(IN)            :: simpar
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vector_v
     REAL(KIND=dp), INTENT(OUT)               :: roll_tol
@@ -753,8 +752,7 @@ CONTAINS
        local_molecules, molecule_set, molecule_kind_set, &
        local_particles, kin, pv_kin, virial, int_group )
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    TYPE(simpar_type), INTENT(IN)            :: simpar
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
@@ -816,8 +814,7 @@ CONTAINS
        local_molecules, molecule_set, molecule_kind_set, &
        local_particles, kin, pv_kin, virial, int_group )
     TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    TYPE(simpar_type), INTENT(IN)            :: simpar
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -878,8 +875,7 @@ CONTAINS
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    TYPE(simpar_type), INTENT(IN)            :: simpar
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: pv_kin
     REAL(KIND=dp), INTENT(IN)                :: kin
@@ -1376,8 +1372,7 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(tmp_variables_type), POINTER        :: tmp
     REAL(KIND=dp), INTENT(INOUT)             :: dt
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

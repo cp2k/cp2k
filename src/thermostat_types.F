@@ -22,7 +22,7 @@ MODULE thermostat_types
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length
-  USE md,                              ONLY: simulation_parameters_type
+  USE simpar_types,                    ONLY: simpar_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -202,8 +202,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE create_thermostat_type(thermostat, simpar, section, skip_region, label, error)  
     TYPE(thermostat_type), POINTER           :: thermostat
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(section_vals_type), POINTER         :: section
     LOGICAL, INTENT(IN), OPTIONAL            :: skip_region
     CHARACTER(LEN=*), INTENT(IN)             :: label

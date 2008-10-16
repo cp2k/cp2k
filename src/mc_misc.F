@@ -56,7 +56,7 @@ MODULE mc_misc
   USE mc_types,                        ONLY: &
        accattempt, get_mc_input_file, get_mc_molecule_info, get_mc_par, &
        mc_averages_type, mc_input_file_type, mc_molecule_info_type, &
-       mc_moves_p_type, mc_moves_type, mc_simulation_parameters_type
+       mc_moves_p_type, mc_moves_type, mc_simpar_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: atom_type,&
                                              bend_type,&
@@ -171,8 +171,7 @@ END SUBROUTINE mc_averages_release
 SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
                            final_energy,averages)
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     TYPE(mc_moves_p_type), DIMENSION(:), &
       POINTER                                :: all_moves
     INTEGER, INTENT(IN)                      :: iw

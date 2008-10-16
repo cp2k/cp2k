@@ -63,7 +63,6 @@ MODULE integrator
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matmul_3x3,&
                                              transpose_3d
-  USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
                                              set_md_env
@@ -82,6 +81,7 @@ MODULE integrator
   USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
   USE reftraj_types,                   ONLY: reftraj_type
   USE reftraj_util,                    ONLY: compute_msd_reftraj
+  USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
   USE thermostat_methods,              ONLY: apply_thermostat_baro,&
                                              apply_thermostat_particles,&
@@ -147,8 +147,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
@@ -345,8 +344,7 @@ CONTAINS
       POINTER                                :: core_particle_set, &
                                                 particle_set, &
                                                 shell_particle_set
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
                                                 thermostat_shell
     TYPE(tmp_variables_type), POINTER        :: tmp
@@ -519,8 +517,7 @@ CONTAINS
       POINTER                                :: core_particle_set, &
                                                 particle_set, &
                                                 shell_particle_set
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(tmp_variables_type), POINTER        :: tmp
 
     failure = .FALSE.
@@ -656,8 +653,7 @@ CONTAINS
       POINTER                                :: core_particle_set, &
                                                 particle_set, &
                                                 shell_particle_set
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
                                                 thermostat_part, &
                                                 thermostat_shell
@@ -859,8 +855,7 @@ CONTAINS
       POINTER                                :: core_particle_set, &
                                                 particle_set, &
                                                 shell_particle_set
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostat_type), POINTER           :: thermostat_baro, &
                                                 thermostat_part, &
                                                 thermostat_shell
@@ -1153,8 +1148,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(reftraj_type), POINTER              :: reftraj_env
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
 
     failure = .FALSE.
     NULLIFY(reftraj_env, particle_set, particles, force_env, subsys, simpar, para_env, cell)
@@ -1319,8 +1313,7 @@ CPSourceFileRef,&
       POINTER                                :: core_particle_set, &
                                                 particle_set, &
                                                 shell_particle_set
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
 
@@ -1580,8 +1573,7 @@ CPSourceFileRef,&
       POINTER                                :: core_particle_set, &
                                                 particle_set, &
                                                 shell_particle_set
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
 
@@ -1850,8 +1842,7 @@ CPSourceFileRef,&
       POINTER                                :: core_particle_set, &
                                                 particle_set, &
                                                 shell_particle_set
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostat_type), POINTER           :: thermostat_baro, &
                                                 thermostat_part, &
                                                 thermostat_shell
@@ -2151,8 +2142,7 @@ CPSourceFileRef,&
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set, &
                                                 particle_set_respa
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.

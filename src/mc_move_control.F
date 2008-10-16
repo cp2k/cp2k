@@ -17,7 +17,7 @@ MODULE mc_move_control
                                              get_mc_par,&
                                              mc_molecule_info_type,&
                                              mc_moves_type,&
-                                             mc_simulation_parameters_type,&
+                                             mc_simpar_type,&
                                              set_mc_par
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
@@ -476,8 +476,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
  SUBROUTINE mc_move_update ( mc_par,move_updates,molecule_type,flag,&
       nnstep,ionode )
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    TYPE(mc_simpar_type), POINTER            :: mc_par
     TYPE(mc_moves_type), POINTER             :: move_updates
     INTEGER, INTENT(IN)                      :: molecule_type
     CHARACTER(LEN=*), INTENT(IN)             :: flag

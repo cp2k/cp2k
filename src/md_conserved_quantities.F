@@ -31,7 +31,6 @@ MODULE md_conserved_quantities
        nvt_ensemble, reftraj_ensemble
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: zero
-  USE md,                              ONLY: simulation_parameters_type
   USE md_ener_types,                   ONLY: md_ener_type,&
                                              zero_md_ener
   USE md_environment_types,            ONLY: get_md_env,&
@@ -43,6 +42,7 @@ MODULE md_conserved_quantities
   USE physcon,                         ONLY: kelvin
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE shell_potential_types,           ONLY: shell_kind_type
+  USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_type
   USE thermostat_utils,                ONLY: get_thermostat_energies
@@ -90,8 +90,7 @@ CONTAINS
     LOGICAL                                  :: failure, init, myqmmm
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
 
     failure = .FALSE.  
 
@@ -290,8 +289,7 @@ CONTAINS
     INTEGER                                  :: nfree
     TYPE(cell_type), POINTER                 :: box
     TYPE(npt_info_type), POINTER             :: npt( :, : )
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostat_type), POINTER           :: thermostat_baro, &
                                                 thermostat_shell
 
@@ -333,8 +331,7 @@ CONTAINS
     INTEGER                                  :: nfree
     TYPE(cell_type), POINTER                 :: box
     TYPE(npt_info_type), POINTER             :: npt( :, : )
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostat_type), POINTER           :: thermostat_baro, &
                                                 thermostat_part, &
                                                 thermostat_shell
@@ -377,8 +374,7 @@ CONTAINS
 
     TYPE(cell_type), POINTER                 :: box
     TYPE(npt_info_type), POINTER             :: npt( :, : )
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
 
     CALL get_md_env ( md_env, simpar = simpar, npt = npt, cell = box, error=error )
 

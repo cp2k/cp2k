@@ -18,12 +18,12 @@ MODULE csvr_system_types
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE md,                              ONLY: simulation_parameters_type
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
                                              next_rng_seed,&
                                              rng_stream_type
+  USE simpar_types,                    ONLY: simpar_type
   USE string_utilities,                ONLY: compress
 #include "cp_common_uses.h"
 
@@ -66,8 +66,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE csvr_init(csvr, simpar, section, error)
     TYPE(csvr_system_type), POINTER          :: csvr
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(section_vals_type), POINTER         :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 

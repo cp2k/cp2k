@@ -48,7 +48,6 @@ MODULE md_energies
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
-  USE md,                              ONLY: simulation_parameters_type
   USE md_conserved_quantities,         ONLY: compute_conserved_quantity
   USE md_ener_types,                   ONLY: md_ener_type,&
                                              zero_md_ener
@@ -65,6 +64,7 @@ MODULE md_energies
                                              kelvin
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE reftraj_types,                   ONLY: reftraj_type
+  USE simpar_types,                    ONLY: simpar_type
   USE thermostat_types,                ONLY: thermostats_type
   USE thermostat_utils,                ONLY: print_thermostats_status
   USE timings,                         ONLY: timeset,&
@@ -95,8 +95,7 @@ CONTAINS
 
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_md_ener', &
@@ -196,8 +195,7 @@ CONTAINS
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
 
     NULLIFY(atomic_kinds, atomic_kind_set, cell_ref, dyn_coeff_set, force_env,&
             particles, subsys, simpar)
@@ -313,8 +311,7 @@ CONTAINS
     TYPE(reftraj_type), POINTER              :: reftraj
     TYPE(section_vals_type), POINTER         :: motion_section, print_key, &
                                                 root_section
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(virial_type), POINTER               :: virial
@@ -617,8 +614,7 @@ CPSourceFileRef,&
        abc, cell_angle, itimes, dt, time, used_time, averages, econs, pv_scalar, &
        pv_xx, hugoniot, nat, init, logger, motion_section, my_pos, my_act, error)
 
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    TYPE(simpar_type), POINTER               :: simpar
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(unit_convert_type), POINTER         :: unit
     LOGICAL, INTENT(IN)                      :: qmmm

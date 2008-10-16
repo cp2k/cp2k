@@ -23,10 +23,10 @@ MODULE barostat_utils
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
-  USE md,                              ONLY: simulation_parameters_type
   USE physcon,                         ONLY: angstrom,&
                                              femtoseconds,&
                                              kelvin
+  USE simpar_types,                    ONLY: simpar_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -48,8 +48,7 @@ CONTAINS
   SUBROUTINE get_baro_energies ( cell, simpar, npt, baro_kin, baro_pot, error )
 
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    TYPE(simpar_type), INTENT(IN)            :: simpar
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(IN)                             :: npt
     REAL(KIND=dp), INTENT(OUT)               :: baro_kin, baro_pot
@@ -91,8 +90,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE print_barostat_status ( barostat, simpar, my_pos, my_act, cell, itimes, time, error )
     TYPE(barostat_type), POINTER             :: barostat
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    TYPE(simpar_type), INTENT(IN)            :: simpar
     CHARACTER(LEN=default_string_length)     :: my_pos, my_act
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN)                      :: itimes

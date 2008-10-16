@@ -317,13 +317,13 @@ OBJECTS_GENERIC =\
  mc_moves.o\
  mc_run.o\
  mc_types.o\
- md.o\
  md_conserved_quantities.o\
  md_ener_types.o\
  md_energies.o\
  md_environment_types.o\
  md_run.o\
  md_util.o\
+ md_vel_utils.o\
  memory_utilities.o\
  message_passing.o\
  metadynamics.o\
@@ -552,6 +552,8 @@ OBJECTS_GENERIC =\
  semi_empirical_types.o\
  semi_empirical_utils.o\
  shell_potential_types.o\
+ simpar_types.o\
+ simpar_methods.o\
  soft_basis_set.o\
  sparse_matrix_output.o\
  sparse_matrix_types.o\
