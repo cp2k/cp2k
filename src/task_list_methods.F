@@ -425,7 +425,7 @@ CONTAINS
 
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
     REAL(KIND=dp)                            :: cutoff, f, prefactor, rb(3), &
-                                                zetp
+                                                zetp,extent(3)
     REAL(KIND=dp), DIMENSION(3)              :: rp
 
 ! the radius for this task
@@ -449,6 +449,9 @@ CONTAINS
     ELSE
        ! untested so far
        CALL return_cube_nonortho(cube_info,radius,lb_cube,ub_cube,rp)
+       extent(:)  = ub_cube(:) - lb_cube(:) 	 
+       lb_cube(:) = -extent(:) / 2 - 1 	 
+       ub_cube(:) = extent(:) / 2
     ENDIF
 
   END SUBROUTINE compute_pgf_properties
