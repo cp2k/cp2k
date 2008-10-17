@@ -60,30 +60,27 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    REAL(KIND=dp)                            :: flops
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineN,handle)
-    flops = 0.0_dp
     map_info => csvr%map_info
 
     ! Evaluate the kinetic energy of the region to thermostat
-    CALL ke_region_coeffs(map_info, dyn_coeff_set, coeffs, group, flops, error)
+    CALL ke_region_coeffs(map_info, dyn_coeff_set, coeffs, group, error)
 
     ! Apply the Canonical Sampling through Velocity Rescaling
     CALL do_csvr(csvr, map_info, error)
 
     ! Rescale coeffs velocities
-    CALL vel_rescale_coeffs(map_info, dyn_coeff_set, coeffs, flops, error)
+    CALL vel_rescale_coeffs(map_info, dyn_coeff_set, coeffs, error)
 
     ! Evaluate the kinetic energy of the region to thermostat
-    CALL ke_region_coeffs(map_info, dyn_coeff_set, coeffs, group, flops, error)
+    CALL ke_region_coeffs(map_info, dyn_coeff_set, coeffs, group, error)
 
     ! Compute thermostat energy
     CALL do_csvr_eval_energy(csvr, map_info, error)
     
-    flops = flops * 1.E-6_dp
     CALL timestop(handle)
 
   END SUBROUTINE csvr_coeffs
@@ -103,29 +100,26 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    REAL(KIND=dp)                            :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineN,handle)
-    flops = 0.0_dp
     map_info => csvr%map_info
 
     ! Compute the kinetic energy of the barostat
-    CALL ke_region_baro(map_info, npt, group, flops, error)
+    CALL ke_region_baro(map_info, npt, group, error)
 
     ! Apply the Canonical Sampling through Velocity Rescaling
     CALL do_csvr(csvr, map_info, error)
 
     ! Now scale the particle velocities
-    CALL vel_rescale_baro(map_info, npt, flops, error)
+    CALL vel_rescale_baro(map_info, npt, error)
 
     ! Re-Compute the kinetic energy of the barostat
-    CALL ke_region_baro(map_info, npt, group, flops, error)
+    CALL ke_region_baro(map_info, npt, group, error)
 
     ! Compute thermostat energy
     CALL do_csvr_eval_energy(csvr, map_info, error)
     
-    flops = flops * 1.E-6_dp
     CALL timestop(handle)
   END SUBROUTINE csvr_barostat
 
@@ -155,35 +149,32 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: my_shell_adiabatic
-    REAL(KIND=dp)                            :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineN,handle)
-    flops = 0.0_dp
     my_shell_adiabatic = .FALSE.
     IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
     map_info => csvr%map_info
     
     ! Compute the kinetic energy for the region to thermostat
     CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
-         local_molecules, molecule_set, group, flops, vel, error)
+         local_molecules, molecule_set, group, vel, error)
     
     ! Apply the Canonical Sampling through Velocity Rescaling
     CALL do_csvr(csvr, map_info, error)
 
     ! Now scale the particle velocities
     CALL vel_rescale_particles(map_info, molecule_kind_set, molecule_set, particle_set,&
-         local_molecules, my_shell_adiabatic, flops, shell_particle_set,core_particle_set,&
+         local_molecules, my_shell_adiabatic, shell_particle_set,core_particle_set,&
          vel, shell_vel, core_vel, error)
        
     ! Re-Compute the kinetic energy for the region to thermostat
     CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
-         local_molecules, molecule_set, group, flops, vel, error)
+         local_molecules, molecule_set, group, vel, error)
 
     ! Compute thermostat energy
     CALL do_csvr_eval_energy(csvr, map_info, error)
 
-    flops = flops * 1.E-6_dp
     CALL timestop(handle)
   END SUBROUTINE csvr_particles
 
@@ -209,32 +200,29 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    REAL(dp)                                 :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineN,handle)
-    flops = 0.0_dp
     map_info => csvr%map_info
 
     ! Compute the kinetic energy of the region to thermostat
     CALL ke_region_shells(map_info, particle_set, atomic_kind_set, local_particles,&
-    group, flops, core_particle_set, shell_particle_set, core_vel, shell_vel, error)
+    group, core_particle_set, shell_particle_set, core_vel, shell_vel, error)
     
     ! Apply the Canonical Sampling through Velocity Rescaling
     CALL do_csvr(csvr, map_info, error)
 
     ! Now scale the particle velocities
     CALL vel_rescale_shells(map_info, atomic_kind_set, particle_set, local_particles, &
-         flops, shell_particle_set, core_particle_set, shell_vel, core_vel, vel, error)
+         shell_particle_set, core_particle_set, shell_vel, core_vel, vel, error)
 
     ! Re-Compute the kinetic energy of the region to thermostat
     CALL ke_region_shells(map_info, particle_set, atomic_kind_set, local_particles,&
-    group, flops, core_particle_set, shell_particle_set, core_vel, shell_vel, error)
+    group, core_particle_set, shell_particle_set, core_vel, shell_vel, error)
 
     ! Compute thermostat energy
     CALL do_csvr_eval_energy(csvr, map_info, error)
 
-    flops = flops * 1.E-6_dp
     CALL timestop(handle)
   END SUBROUTINE csvr_shells
 

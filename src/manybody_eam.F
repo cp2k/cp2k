@@ -58,7 +58,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, i, iend, igrp, ikind, ilist, ipair, &
       iparticle, istart, istat, jkind, nkinds, nparticle
     LOGICAL                                  :: do_eam, failure
-    REAL(KIND=dp)                            :: flops, rab2, rab2_max
+    REAL(KIND=dp)                            :: rab2, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rho
     TYPE(eam_pot_type), POINTER              :: eam
@@ -70,7 +70,6 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    flops = 0.0_dp
     do_eam = .FALSE.
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
          potparm = potparm, r_last_update=r_last_update,&

@@ -344,7 +344,7 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
       POINTER                                :: zoptr
     INTEGER                                  :: handle, ld(3), lo(3), sign
     LOGICAL                                  :: fft_in_place, test
-    REAL(KIND=dp)                            :: flops, in_sum, nx, out_sum
+    REAL(KIND=dp)                            :: in_sum, out_sum
     REAL(KIND=lp)                            :: norm
     TYPE(cp_error_type)                      :: error
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
@@ -442,9 +442,6 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
     END IF
   END IF
 
-  ! definition used with FFTW
-  nx = 5.e-9_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
-  flops = nx * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) / LOG ( 2.0_dp )
   CALL timestop(handle)
 
 END SUBROUTINE fft3d_s
@@ -480,7 +477,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       nx, ny, nz, r_dim(2), r_pos(2), rp, sign
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
     LOGICAL                                  :: test
-    REAL(KIND=dp)                            :: flops, nf, sum_data
+    REAL(KIND=dp)                            :: sum_data
     REAL(KIND=lp)                            :: norm
     TYPE(cp_error_type)                      :: error
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
@@ -948,10 +945,6 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       status = 0
     END IF
   END IF
-
-  nf = 5.e-6_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
-  flops = nf * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) / LOG ( 2.0_dp) ! FFTW definition
-  flops = 1.0e-3_dp*flops/numtask_r  ! per cpu
   CALL timestop(handle)
 
 END SUBROUTINE fft3d_ps
@@ -983,7 +976,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
                                                 mz1, mz2, mz3, np, sign
     INTEGER, DIMENSION(2)                    :: dim, pos
     LOGICAL                                  :: failure, test
-    REAL(KIND=dp)                            :: flops, nx, sum_data
+    REAL(KIND=dp)                            :: sum_data
     REAL(KIND=lp)                            :: norm
     TYPE(cp_error_type)                      :: error
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
@@ -1442,8 +1435,6 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
     END IF
   END IF
 
-  nx = 5.e-9_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
-  flops = nx * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) / LOG (2.0_dp)
   CALL timestop(handle)
 
 END SUBROUTINE fft3d_pb
@@ -1477,7 +1468,6 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb, fft_scratch, err
     INTEGER                                  :: handle, ip, ir, ix, ixx, iy, &
                                                 iz, mpr, nm, np, nr, nx
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
-    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1513,7 +1503,6 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb, fft_scratch, err
     rcount ( ip ) = nr * nx
     rdispl ( ip ) = nm * nx * ip 
   END DO
-  flop = REAL ( nm * nx * np,KIND=dp)
 
   IF ( alltoall_sgl ) THEN
     CALL mp_alltoall ( ss, scount, sdispl, tt, rcount, rdispl, group )
@@ -1542,7 +1531,6 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb, fft_scratch, err
     END DO
   END DO
 
-  flop = flop * 1.e-6_dp
   CALL timestop(handle)
 
 END SUBROUTINE x_to_yz
@@ -1576,7 +1564,6 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb, fft_scratch, err
     INTEGER                                  :: handle, ip, ir, ix, ixx, iy, &
                                                 iz, mpr, nm, np, nr, nx
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
-    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1633,7 +1620,6 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb, fft_scratch, err
     scount ( ip ) = nr * nx
     sdispl ( ip ) = nm * nx * ip
   END DO
-  flop = REAL ( nm * nx * np,KIND=dp)
 
   IF ( alltoall_sgl ) THEN
     CALL mp_alltoall ( tt, scount, sdispl, ss, rcount, rdispl, group )
@@ -1642,7 +1628,6 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb, fft_scratch, err
     CALL mp_alltoall ( rr, scount, sdispl, sb, rcount, rdispl, group )
   END IF
 
-  flop = flop * 1.e-6
   CALL timestop(handle)
 
 END SUBROUTINE yz_to_x
@@ -1682,7 +1667,6 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
-    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1753,7 +1737,6 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     sdispl ( ip ) = nmax * ip
     rdispl ( ip ) = nmax * ip
   END DO
-  flop = REAL ( nmax * np,KIND=dp)
 
   IF ( fft_scratch%inr == 0 ) THEN
     CALL mp_alltoall ( scount, rcount, 1, group )
@@ -1810,7 +1793,6 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     END DO
   END DO
 
-  flop = flop * 1.e-6
   CALL timestop(handle)
 
 END SUBROUTINE yz_to_xz
@@ -1850,7 +1832,6 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
-    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1953,7 +1934,6 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     sdispl ( ip ) = nmax * ip
     rdispl ( ip ) = nmax * ip
   END DO
-  flop = REAL ( nmax * np,KIND=dp)
 
   IF ( alltoall_sgl ) THEN
     CALL mp_alltoall ( tq, scount, sdispl, ts, rcount, rdispl, group )
@@ -1987,7 +1967,6 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     END IF
   END DO
 
-  flop = flop * 1.e-6
   CALL timestop(handle)
 
 END SUBROUTINE xz_to_yz

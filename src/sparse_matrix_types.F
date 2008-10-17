@@ -955,7 +955,7 @@ END SUBROUTINE cp_sm_scale_and_add
       omp_get_num_threads, omp_get_thread_num, sbncol, sbnrow
     LOGICAL                                  :: antisymmetric, owner, &
                                                 symmetric
-    REAL(KIND=dp)                            :: alpha_l, alpha_l_ji, flops
+    REAL(KIND=dp)                            :: alpha_l, alpha_l_ji
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
 
@@ -966,7 +966,6 @@ END SUBROUTINE cp_sm_scale_and_add
     ELSE
         alpha_l=1.0_dp
     ENDIF
-    flops=0.0_dp
 
 !   *** Check the association status of the input matrix ***
     CALL timeset(routineN,handle)
@@ -1010,7 +1009,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   no simple parallel do because we write both the iblock_row and iblock_col
 
 !$OMP PARALLEL PRIVATE(ithread,nthread,iblock_row,block_node,iblock_col) &
-!$OMP PRIVATE(sparse_block,owner,sbnrow,sbncol) REDUCTION(+:flops) &
+!$OMP PRIVATE(sparse_block,owner,sbnrow,sbncol)  &
 !$OMP SHARED(symmetric,antisymmetric)
 
     ithread=0
@@ -1035,7 +1034,6 @@ END SUBROUTINE cp_sm_scale_and_add
                 sparse_matrix%first_col(iblock_col)+1
            IF (sbnrow.NE.0.AND.sbncol.NE.0) THEN
               IF (MOD(iblock_row,nthread).eq.ithread) THEN
-                 flops=flops+2.0_dp*sbnrow*sbncol*ncol
                  CALL DGEMM('N','T',ncol,sbnrow,sbncol,alpha_l, &
                             rep_v_in (1,sparse_matrix%first_col(iblock_col)), &
                             nblock, &
@@ -1046,7 +1044,6 @@ END SUBROUTINE cp_sm_scale_and_add
 
               IF (iblock_col .NE. iblock_row .AND. (symmetric .OR. antisymmetric)) THEN
                  IF (MOD(iblock_col,nthread).eq.ithread) THEN
-                    flops=flops+2.0_dp*sbnrow*sbncol*ncol
                     CALL DGEMM('N','N',ncol,sbncol,sbnrow,alpha_l_ji, &
                          rep_v_in (1,sparse_matrix%first_row(iblock_row)), &
                          nblock, &
@@ -1065,7 +1062,6 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 !$OMP END PARALLEL
 
-    flops=flops*1E-9_dp
     CALL timestop(handle)
 
   END SUBROUTINE sparse_times_local
@@ -1087,7 +1083,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: handle, iblock_col, iblock_row, icol, irow, ithread, nthread, &
       omp_get_num_threads, omp_get_thread_num, sbncol, sbnrow
-    REAL(KIND=dp)                            :: flops, prefactor
+    REAL(KIND=dp)                            :: prefactor
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
 
@@ -1110,11 +1106,10 @@ END SUBROUTINE cp_sm_scale_and_add
       CALL stop_program(routineP,"not allowed")
     ENDIF
     CALL timeset(routineN,handle)
-    flops=0.0_dp
 
 !   *** Traverse all block nodes of the sparse matrix ***
 ! take into account the triangular schape of the matrix
-!$OMP PARALLEL PRIVATE(ithread,nthread,iblock_row,block_node,iblock_col,sparse_block,icol,irow,sbnrow,sbncol) REDUCTION(+:flops)
+!$OMP PARALLEL PRIVATE(ithread,nthread,iblock_row,block_node,iblock_col,sparse_block,icol,irow,sbnrow,sbncol) 
     ithread=0
     nthread=1
 !$  nthread=omp_get_num_threads()
@@ -1135,7 +1130,6 @@ END SUBROUTINE cp_sm_scale_and_add
            sbnrow=sparse_matrix%last_row(iblock_row)-irow+1
            sbncol=sparse_matrix%last_col(iblock_col)-icol+1
 
-           flops=flops+2.0_dp*sbnrow*sbncol*ncol
            IF (sbnrow.NE.0 .AND. sbncol.NE.0) THEN
               CALL DGEMM('T','N',sbnrow,sbncol,ncol,prefactor,&
                                  rep_v(1,irow),nblock, &
@@ -1151,7 +1145,6 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 !$OMP END PARALLEL
 
-    flops=flops*1E-9_dp
     CALL timestop(handle)
 
   END SUBROUTINE sparse_plus_loc_loct

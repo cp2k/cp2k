@@ -246,12 +246,8 @@ CPSourceFileRef,&
       POINTER                                :: a, b, c
     INTEGER                                  :: handle, j, lda, ldb, ldc
     INTEGER, DIMENSION(9)                    :: desca, descb, descc
-    REAL(KIND=dp)                            :: flops
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-
     a => matrix_a%local_data
     b => matrix_b%local_data
     c => matrix_c%local_data
@@ -268,8 +264,6 @@ CPSourceFileRef,&
     descb(:) = matrix_b%matrix_struct%descriptor(:)
     descc(:) = matrix_c%matrix_struct%descriptor(:)
 
-    flops=4*2.0_dp*(1E-9_dp*m*n*k)/(matrix_a%matrix_struct%context%num_pe(1)*&
-         matrix_a%matrix_struct%context%num_pe(2))
     CALL pzgemm(transa,transb,m,n,k,alpha,a(1,1),1,1,desca,b(1,1),1,j,&
                 descb,beta,c(1,1),1,j,descc)
 #else
@@ -278,7 +272,6 @@ CPSourceFileRef,&
     ldb = SIZE(b,1)
     ldc = SIZE(c,1)
 
-    flops=4*2.0_dp*(1E-9_dp*m*n*k)
     CALL zgemm(transa,transb,m,n,k,alpha,a(1,1),lda,b(1,j),ldb,beta,c(1,j),ldc)
 
 #endif

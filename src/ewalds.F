@@ -92,8 +92,8 @@ CONTAINS
       nparticle_local
     INTEGER, DIMENSION(:, :), POINTER        :: bds
     REAL(KIND=dp)                            :: alpha, denom, e_igdotr, &
-                                                factor, flops, four_alpha_sq, &
-                                                gauss, gsq, pref, q
+                                                factor, four_alpha_sq, gauss, &
+                                                gsq, pref, q
     REAL(KIND=dp), DIMENSION(3)              :: vec
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -107,9 +107,7 @@ CONTAINS
     TYPE(structure_factor_type)              :: exp_igr
 
     CALL timeset(routineN,handle)
-
     CALL cite_reference(Ewald1921)
-    flops = 0.0_dp
 
     ! pointing
     CALL ewald_env_get (ewald_env, alpha=alpha, group = group ,error=error)
@@ -176,10 +174,6 @@ CONTAINS
                * exp_igr % ez ( np, node ) )
        END DO
     END DO
-    flops = flops &
-         + pw_grid % ngpts_cut * 10.0_dp &
-         + pw_grid % ngpts_cut * node * 20.0_dp
-
     CALL mp_sum ( summe, group )
 
     ! looping over the positive g-vectors
@@ -225,9 +219,6 @@ CONTAINS
        END IF
     END DO
 
-    flops = flops + pw_grid % ngpts_cut * 55.0_dp &
-         + pw_grid % ngpts_cut * node * 23.0_dp
-
     pref = fourpi / pw_grid % vol
     vg_coulomb = vg_coulomb * pref
     IF (use_virial) pv_g = pv_g * pref
@@ -244,7 +235,6 @@ CONTAINS
     DEALLOCATE ( summe, STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'ewald', 'summe' )
 
-    flops = flops * 1.0E-6_dp
     CALL timestop(handle)
 
   END SUBROUTINE ewald_evaluate

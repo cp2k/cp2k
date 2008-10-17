@@ -532,13 +532,11 @@ CONTAINS
                                                 shell_i_index, shell_j_index
     LOGICAL                                  :: do_shell, i_is_shell, &
                                                 j_is_shell, shell_adiabatic
-    REAL(KIND=dp)                            :: alpha, const, flops, qci, &
-                                                qcj, qsi, qsj
+    REAL(KIND=dp)                            :: alpha, const, qci, qcj, qsi, &
+                                                qsj
     REAL(KIND=dp), DIMENSION(3)              :: fij_com, rci, rcj, rsi, rsj
 
     CALL timeset(routineN,handle)
-    flops = 0.0_dp
-
     ! Initializing values
     IF (use_virial) pv_bc = 0.0_dp
     v_bonded_corr = 0.0_dp
@@ -610,8 +608,6 @@ CONTAINS
                    END IF
                 END IF
              END IF
-
-             flops = flops + 62.0_dp
           ENDDO
 
           ! Always Exclude  shell_i-core_i interaction
@@ -625,8 +621,6 @@ CONTAINS
     ENDDO
 
     CALL mp_sum ( v_bonded_corr, group )
-
-    flops = flops * 1.0E-6_dp
     CALL timestop(handle)
 
   END SUBROUTINE bonded_correct_gaussian

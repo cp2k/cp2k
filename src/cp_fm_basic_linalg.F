@@ -246,7 +246,6 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, i_a, i_b, i_c, j_b, &
                                                 j_c, lda, ldb, ldc
     INTEGER, DIMENSION(9)                    :: desca, descb, descc
-    REAL(KIND=dp)                            :: flops
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
 
 !   ---------------------------------------------------------------------------
@@ -290,8 +289,6 @@ CPSourceFileRef,&
     descb(:) = matrix_b%matrix_struct%descriptor(:)
     descc(:) = matrix_c%matrix_struct%descriptor(:)
 
-    flops=2.0_dp*(1E-9_dp*m*n*k)/(matrix_a%matrix_struct%context%num_pe(1)*&
-         matrix_a%matrix_struct%context%num_pe(2))
     CALL pdgemm(transa,transb,m,n,k,alpha,a(1,1),i_a,1,desca,b(1,1),i_b,j_b,&
                 descb,beta,c(1,1),i_c,j_c,descc)
 #else
@@ -300,7 +297,6 @@ CPSourceFileRef,&
     ldb = SIZE(b,1)
     ldc = SIZE(c,1)
 
-    flops=2.0_dp*(1E-9_dp*m*n*k)
     CALL dgemm(transa,transb,m,n,k,alpha,a(i_a,1),lda,b(i_b,j_b),ldb,beta,c(i_c,j_c),ldc)
 
 #endif
@@ -341,7 +337,6 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, lda, ldb, ldc, npcol, &
                                                 nprow
     INTEGER, DIMENSION(9)                    :: desca, descb, descc
-    REAL(KIND=dp)                            :: flops
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
     TYPE(cp_blacs_env_type), POINTER         :: context
 
@@ -358,7 +353,6 @@ CPSourceFileRef,&
     b => matrix_b%local_data
     c => matrix_c%local_data
 
-    flops = (2.0E-9_dp*m*m*n)/(nprow*npcol)
 #if defined(__SCALAPACK)
 
     desca(:) = matrix_a%matrix_struct%descriptor(:)
@@ -435,7 +429,6 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, ia, incx, incy, ja, &
                                                 lda, m, n, npcol, nprow
     INTEGER, DIMENSION(9)                    :: desca, descx, descy
-    REAL(KIND=dp)                            :: flops
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, x, y
     TYPE(cp_blacs_env_type), POINTER         :: context
 
@@ -461,7 +454,6 @@ CPSourceFileRef,&
     x => vector_x%local_data
     y => vector_y%local_data
 
-    flops = 2.0E-9_dp*m*n/(nprow*npcol)
 #if defined(__SCALAPACK)
 
     desca(:) = matrix_a%matrix_struct%descriptor(:)

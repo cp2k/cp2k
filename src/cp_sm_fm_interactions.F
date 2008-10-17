@@ -1179,7 +1179,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
       sm_last_col, sm_last_row
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: failure, transpose_block
-    REAL(KIND=dp)                            :: alpha_ji, flops, flops_l
+    REAL(KIND=dp)                            :: alpha_ji
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: v_in, v_out
@@ -1204,7 +1204,6 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 CPSourceFileRef,&
          error,failure)
 
-    flops=0.0_dp
     IF (.NOT.transpose_sm) THEN
        nprow         =fm_in%matrix_struct%context%num_pe(1)
        npcol         =fm_in%matrix_struct%context%num_pe(2)
@@ -1336,7 +1335,6 @@ CPSourceFileRef,&
     DO ijunk=1,njunk
        ! go circular
        CALL timeset(routineN//"_local",handle2)
-       flops_l=0.0_dp
        junk_in =MOD(ijunk-1,njunk_local_in+1)+1
        junk_out=MOD(ijunk-1,njunk_local_out+1)+1
        gindex=MODULO(njunk_local_out*mypcol+njunk_local_in*myprow+ijunk-1,&
@@ -1361,8 +1359,6 @@ CPSourceFileRef,&
                      sm%first_row(iblock_row)+1
                 sbncol=sm%last_col(iblock_col)- &
                      sm%first_col(iblock_col)+1
-
-                flops_l=flops_l+2.0_dp*sbnrow*sbncol*ncol_global_of_junk(gindex)
 
                 IF (.NOT.(sm%distribution_2d%row_distribution(iblock_row)==sm%distribution_2d%blacs_env%mepos(1).AND.&
                      sm%distribution_2d%col_distribution(iblock_col)==sm%distribution_2d%blacs_env%mepos(2))) THEN
@@ -1393,7 +1389,6 @@ CPSourceFileRef,&
           END DO
 
        END DO
-       flops=flops+flops_l
        CALL timestop(handle2)
 
        junk_recv_in=MODULO(junk_in-2,njunk_local_in+1)+1
@@ -1478,7 +1473,7 @@ CPSourceFileRef,&
       row_offset_in_junk, sm_first_col, sm_first_row, sm_last_col, sm_last_row
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: failure, transpose_block
-    REAL(KIND=dp)                            :: flops, flops_l, my_alpha
+    REAL(KIND=dp)                            :: my_alpha
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: v_in, v_out
@@ -1630,11 +1625,9 @@ CPSourceFileRef,&
     col_src=blacs2mpi(myprow,MODULO(mypcol+1,npcol))
 
     ! let the magic of the distribution play the game
-    flops=0.0_dp
     DO ijunk=1,njunk
        ! go circular
        CALL timeset(routineN//"_local",handle2)
-       flops_l=0.0_dp
        junk_in =MOD(ijunk-1,njunk_local_in+1)+1
        junk_out=MOD(ijunk-1,njunk_local_out+1)+1
        gindex=MODULO(njunk_local_out*mypcol+njunk_local_in*myprow+ijunk-1,&
@@ -1657,8 +1650,6 @@ CPSourceFileRef,&
                   sm%first_row(iblock_row)+1
              sbncol=sm%last_col(iblock_col)- &
                   sm%first_col(iblock_col)+1
-
-             flops_l=flops_l+2.0_dp*sbnrow*sbncol*ncol_global_of_junk(gindex)
 
              IF (.NOT.(sm%distribution_2d%row_distribution(iblock_row)==sm%distribution_2d%blacs_env%mepos(1).AND.&
                   sm%distribution_2d%col_distribution(iblock_col)==sm%distribution_2d%blacs_env%mepos(2))) THEN
@@ -1691,7 +1682,6 @@ CPSourceFileRef,&
           END DO
 
        END DO
-       flops=flops+flops_l
        CALL timestop(handle2)
 
        junk_recv_in=MODULO(junk_in-2,njunk_local_in+1)+1
@@ -2069,7 +2059,6 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:,:), POINTER :: junk_on_prow, &
          blacs2mpi, ipcol_of_junk_col, fm_blacs2mpi
     REAL(KIND = dp), DIMENSION(:), POINTER :: send_buffer, rcv_buffer
-    REAL(KIND = dp) :: flops
 
     TYPE(cp_para_env_type), POINTER :: fm_para_env
 
@@ -2345,7 +2334,6 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:,:), POINTER :: junk_on_prow, &
          blacs2mpi, ipcol_of_junk_col, fm_blacs2mpi
     REAL(KIND = dp), DIMENSION(:), POINTER :: send_buffer, rcv_buffer
-    REAL(KIND = dp) :: flops
 
     TYPE(cp_para_env_type), POINTER :: fm_para_env
 

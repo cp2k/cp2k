@@ -535,12 +535,11 @@ CONTAINS
 ! *****************************************************************************
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE ke_region_coeffs(map_info, dyn_coeff_set, coeffs, group, flops, error)
+  SUBROUTINE ke_region_coeffs(map_info, dyn_coeff_set, coeffs, group, error)
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     INTEGER, INTENT(IN)                      :: group
-    REAL(KIND=dp), INTENT(INOUT)             :: flops
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ke_region_coeffs', &
@@ -573,18 +572,16 @@ CONTAINS
        END IF
     END DO
     IF ( map_info%dis_type == do_thermo_communication )  CALL mp_sum (map_info%s_kin, group )
-    flops = flops + REAL(i*3, KIND=dp)
 
   END SUBROUTINE ke_region_coeffs
 
 ! *****************************************************************************
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE vel_rescale_coeffs(map_info, dyn_coeff_set, coeffs, flops, error)
+  SUBROUTINE vel_rescale_coeffs(map_info, dyn_coeff_set, coeffs, error)
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    REAL(KIND=dp), INTENT(INOUT)             :: flops
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vel_rescale_coeffs', &
@@ -608,19 +605,17 @@ CONTAINS
           END DO
        END IF
     END DO
-    flops = flops + REAL (i,KIND=dp)
 
   END SUBROUTINE vel_rescale_coeffs
 
 ! *****************************************************************************
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE ke_region_baro(map_info, npt, group, flops, error)
+  SUBROUTINE ke_region_baro(map_info, npt, group, error)
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
     INTEGER, INTENT(IN)                      :: group
-    REAL(KIND=dp), INTENT(INOUT)             :: flops
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ke_region_baro', &
@@ -642,18 +637,16 @@ CONTAINS
     END DO
 
     IF (map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, group )
-    flops = flops + REAL(ncoef*3, KIND=dp)
 
   END SUBROUTINE ke_region_baro
 
 ! *****************************************************************************
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE vel_rescale_baro(map_info, npt, flops, error)
+  SUBROUTINE vel_rescale_baro(map_info, npt, error)
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
-    REAL(KIND=dp), INTENT(INOUT)             :: flops
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vel_rescale_baro', &
@@ -668,7 +661,6 @@ CONTAINS
           npt ( i, j ) % v = npt ( i, j ) % v * map_info%p_scale( 1, ncoef ) % point
        END DO
     END DO
-    flops = flops + REAL (ncoef,KIND=dp)
 
   END SUBROUTINE vel_rescale_baro
 
@@ -676,7 +668,7 @@ CONTAINS
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
   SUBROUTINE ke_region_particles(map_info, particle_set, molecule_kind_set,&
-         local_molecules, molecule_set, group, flops, vel, error)
+         local_molecules, molecule_set, group, vel, error)
     
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -684,7 +676,6 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     INTEGER, INTENT(IN)                      :: group
-    REAL(KIND=dp), INTENT(INOUT)             :: flops
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: vel(:,:)
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -728,7 +719,6 @@ CONTAINS
     END DO
 
     IF (map_info%dis_type == do_thermo_communication )  CALL mp_sum (map_info%s_kin, group)
-    flops = flops + REAL ( ii * 9,KIND=dp)
 
   END SUBROUTINE ke_region_particles
   
@@ -736,7 +726,7 @@ CONTAINS
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
   SUBROUTINE vel_rescale_particles(map_info, molecule_kind_set, molecule_set,&
-       particle_set, local_molecules, shell_adiabatic, flops, shell_particle_set,&
+       particle_set, local_molecules, shell_adiabatic, shell_particle_set,&
        core_particle_set, vel, shell_vel, core_vel, error)
     
     TYPE(map_info_type), POINTER             :: map_info
@@ -745,7 +735,6 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
-    REAL(KIND=dp), INTENT(INOUT)             :: flops
     TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
                                                 core_particle_set( : )
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: vel(:,:), shell_vel(:,:), &
@@ -832,7 +821,6 @@ CONTAINS
           END DO Particle
        END DO Mol_local
     END DO Kind
-    flops = flops + REAL ((ii+jj*2)*3,KIND=dp)
 
   END SUBROUTINE vel_rescale_particles
 
@@ -840,7 +828,7 @@ CONTAINS
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
   SUBROUTINE ke_region_shells(map_info, particle_set, atomic_kind_set,&
-       local_particles, group, flops, core_particle_set, shell_particle_set,&
+       local_particles, group, core_particle_set, shell_particle_set,&
        core_vel, shell_vel, error)
     
     TYPE(map_info_type), POINTER             :: map_info
@@ -848,7 +836,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
     INTEGER, INTENT(IN)                      :: group
-    REAL(KIND=dp), INTENT(INOUT)             :: flops
     TYPE(particle_type), OPTIONAL, POINTER   :: core_particle_set(:), &
                                                 shell_particle_set(:)
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: core_vel(:,:), shell_vel(:,:)
@@ -908,7 +895,6 @@ CONTAINS
        END IF
     END DO
     IF ( map_info%dis_type == do_thermo_communication )  CALL mp_sum (map_info%s_kin, group )
-    flops = flops + REAL(ii* 9,KIND=dp)
 
   END SUBROUTINE ke_region_shells
 
@@ -916,13 +902,12 @@ CONTAINS
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
   SUBROUTINE vel_rescale_shells(map_info, atomic_kind_set, particle_set, local_particles, &
-       flops, shell_particle_set, core_particle_set, shell_vel, core_vel, vel, error)
+       shell_particle_set, core_particle_set, shell_vel, core_vel, vel, error)
 
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    REAL(KIND=dp), INTENT(INOUT)             :: flops
     TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set(:), &
                                                 core_particle_set(:)
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: shell_vel(:,:), &
@@ -990,7 +975,6 @@ CONTAINS
           END DO Particles
        END IF
     END DO Kind
-    flops = flops + REAL (ii*12,KIND=dp)
 
   END SUBROUTINE vel_rescale_shells
 

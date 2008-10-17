@@ -1405,8 +1405,8 @@ CONTAINS
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2, failure
     REAL(KIND=dp)                            :: alpha, denom, dipole_t(3), &
-                                                factor, flops, four_alpha_sq, &
-                                                gauss, pref, q_t, tmp, trq_t
+                                                factor, four_alpha_sq, gauss, &
+                                                pref, q_t, tmp, trq_t
     REAL(KIND=dp), DIMENSION(3)              :: tmp_v, vec
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: rho0
@@ -1417,7 +1417,6 @@ CONTAINS
     TYPE(structure_factor_type)              :: exp_igr
 
     CALL timeset(routineN,handle)
-    flops = 0.0_dp
     do_efield0 = do_efield.AND.ASSOCIATED(efield0)
     do_efield1 = do_efield.AND.ASSOCIATED(efield1)
     do_efield2 = do_efield.AND.ASSOCIATED(efield2)
@@ -1511,9 +1510,6 @@ CONTAINS
           END DO
        END DO
     END DO
-    flops = flops + 13.0_dp*(pw_grid%ngpts_cut*10.0_dp&
-                  +          pw_grid%ngpts_cut*node*20.0_dp)
-
                     CALL mp_sum (     q_t, group)
                     CALL mp_sum (dipole_t, group)
                     CALL mp_sum (   trq_t, group)
@@ -1664,10 +1660,6 @@ CONTAINS
           pv(3,3) = pv(3,3) + 2.0_dp * gauss * pw_grid%g(3,gpt) * REAL(summe_st(3,gpt) * CONJG(summe_ef(gpt)),KIND=dp)
        END IF
     END DO
-
-    flops = flops + pw_grid%ngpts_cut * 55.0_dp &
-                  + pw_grid%ngpts_cut * node * 23.0_dp
-
     pref   = fourpi/pw_grid%vol
     energy = energy * pref
 
@@ -1691,8 +1683,6 @@ CONTAINS
     IF (do_efield2) THEN
        efield2 = 2.0_dp * efield2 * pref
     END IF
-
-    flops = flops * 1.0E-6_dp
     CALL timestop(handle)
 
   END SUBROUTINE ewald_multipole_LR
