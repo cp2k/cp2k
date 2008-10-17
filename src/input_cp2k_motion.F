@@ -1563,12 +1563,72 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_md_print_section(subsection, error=error)
+       CALL create_avgs_section(subsection, error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection, error=error)
 
+       CALL create_md_print_section(subsection, error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection, error=error)
     END IF
   END SUBROUTINE create_md_section
+
+! *****************************************************************************
+!> \brief Defines AVERAGES section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_avgs_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_avgs_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
+       CALL section_create(section,name="Averages",&
+            description="Controls the calculation of the averages during an MD run.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       NULLIFY(keyword, print_key)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="Controls the calculations of the averages.",&
+            usage="&AVERAGES T",default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ACQUISITION_START_TIME",&
+            description="Setup up the simulation time when the acquisition process to compute "//&
+            " averages is started.",&
+            usage="ACQUISITION_START_TIME <REAL>",&
+            default_r_val=0.0_dp, unit_str='fs',error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVERAGE_COLVAR",&
+            description="Switch for computing the averages of COLVARs.", &
+            usage="AVERAGE_COLVAR <LOGICAL>", default_l_val=.TRUE.,&
+            lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL cp_print_key_section_create(print_key,"PRINT_AVERAGES",&
+            description="Controls the output the averaged quantities",&
+            print_level=high_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+    END IF
+  END SUBROUTINE create_avgs_section
 
 ! *****************************************************************************
 !> \brief Defines LANGEVIN section 

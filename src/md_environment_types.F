@@ -29,6 +29,8 @@ MODULE md_environment_types
                                              force_env_type
   USE free_energy_types,               ONLY: fe_env_release,&
                                              free_energy_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE md_ener_types,                   ONLY: md_ener_type,&
                                              release_md_ener,&
@@ -90,8 +92,9 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE md_env_create(md_env, para_env, force_env, error)
+  SUBROUTINE md_env_create(md_env, md_section, para_env, force_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(section_vals_type), POINTER         :: md_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -101,6 +104,7 @@ CONTAINS
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
+    TYPE(section_vals_type), POINTER         :: averages_section
 
     failure = .FALSE.
     ALLOCATE(md_env, stat=stat)
@@ -137,7 +141,8 @@ CONTAINS
     md_env%t              = 0.0_dp
     md_env%init           = .TRUE.
     md_env%first_time     = .TRUE.
-    CALL create_averages(md_env%averages, force_env=force_env, error=error)
+    averages_section => section_vals_get_subs_vals(md_section,"AVERAGES",error=error)
+    CALL create_averages(md_env%averages, averages_section, force_env=force_env, error=error)
 
   END SUBROUTINE md_env_create
 

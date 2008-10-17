@@ -36,9 +36,9 @@ CONTAINS
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE md_output(md_env,root_section,forced_io,error)
+  SUBROUTINE md_output(md_env,md_section,root_section,forced_io,error)
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: md_section, root_section
     LOGICAL, INTENT(IN)                      :: forced_io
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -52,12 +52,12 @@ CONTAINS
     CALL timeset(routineN,handle)
     do_print = .TRUE.
     IF (forced_io) THEN
-       print_section => section_vals_get_subs_vals(root_section,"MOTION%MD%PRINT",error=error)
+       print_section => section_vals_get_subs_vals(md_section,"PRINT",error=error)
        CALL section_vals_val_get(print_section,"FORCE_LAST",l_val=do_print,error=error)
     END IF
     IF (do_print) THEN
        ! Dumps all files related to the MD run
-       CALL md_write_output (md_env, error)
+       CALL md_write_output(md_env, error)
        CALL write_restart(md_env=md_env,root_section=root_section, error=error)
     END IF
     CALL timestop(handle)

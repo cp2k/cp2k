@@ -60,10 +60,10 @@ CONTAINS
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE create_barostat_type( barostat, motion_section, force_env,&
-       simpar, para_env, globenv, error )
+  SUBROUTINE create_barostat_type( barostat, md_section, force_env, simpar, para_env,&
+       globenv, error )
     TYPE(barostat_type), POINTER             :: barostat
-    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(section_vals_type), POINTER         :: md_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -81,7 +81,7 @@ CONTAINS
     failure =.FALSE.
     check = .NOT.ASSOCIATED(barostat)
     CPPrecondition(check,cp_failure_level,routineP,error,failure)
-    barostat_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
+    barostat_section => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
     CALL section_vals_get(barostat_section, explicit=explicit, error=error)
     IF (simpar%ensemble == npt_i_ensemble .OR. &
         simpar%ensemble == npt_f_ensemble .OR. &

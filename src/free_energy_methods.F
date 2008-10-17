@@ -58,10 +58,10 @@ CONTAINS
 !> \par History
 !>      Teodoro Laino (01.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE free_energy_evaluate(md_env,converged,motion_section,error)
+  SUBROUTINE free_energy_evaluate(md_env,converged,fe_section,error)
     TYPE(md_environment_type), POINTER       :: md_env
     LOGICAL, INTENT(OUT)                     :: converged
-    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(section_vals_type), POINTER         :: fe_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'free_energy_evaluate', &
@@ -81,11 +81,10 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(free_energy_type), POINTER          :: fe_env
-    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(ui_var_type), POINTER               :: cv
 
-    NULLIFY(force_env, istep, subsys, cv, root_section, simpar)
+    NULLIFY(force_env, istep, subsys, cv, simpar)
     logger => cp_error_get_logger(error)
     CALL timeset(routineN,handle)
     failure   = .FALSE.
@@ -113,7 +112,7 @@ CONTAINS
           ! Start statistical analysis when enough CG data points have been collected
           IF ( (fe_env%conv_par%cg_width*fe_env%conv_par%cg_points <= stat_sign_points).AND.&
                (MOD(stat_sign_points,fe_env%conv_par%cg_width)==0) ) THEN
-             output_unit = cp_print_key_unit_nr(logger,motion_section,"FREE_ENERGY%FREE_ENERGY_INFO",&
+             output_unit = cp_print_key_unit_nr(logger,fe_section,"FREE_ENERGY_INFO",&
                   extension=".FreeEnergyLog",log_filename=.FALSE.,error=error)
              CALL print_fe_prolog(output_unit,error)
              ! Trend test..  recomputes the number of statistically significant points..
@@ -123,12 +122,10 @@ CONTAINS
              IF (fe_env%conv_par%cg_width*fe_env%conv_par%cg_points <= stat_sign_points.AND.&
                   fe_env%conv_par%test_k) THEN
                 ! Statistical tests
-                CALL ui_check_convergence(fe_env,converged,stat_sign_points,output_unit,&
-                     motion_section,error)
+                CALL ui_check_convergence(fe_env,converged,stat_sign_points,output_unit,error)
              END IF
              CALL print_fe_epilog(output_unit,error)
-             CALL cp_print_key_finished_output(output_unit, logger,&
-                  motion_section,"FREE_ENERGY%FREE_ENERGY_INFO",error=error)
+             CALL cp_print_key_finished_output(output_unit, logger,fe_section,"FREE_ENERGY_INFO",error=error)
           END IF
        CASE(do_fe_ac)
           CALL initf(2)
@@ -140,12 +137,11 @@ CONTAINS
           my_val => force_env%mixed_env%val
           dx     =  force_env%mixed_env%dx
           lerr   =  force_env%mixed_env%lerr
-          root_section => force_env%root_section
           coupling_function = force_env%mixed_env%coupling_function
           beta   =  1/simpar%temp_ext
           CALL parsef(1,TRIM(coupling_function),my_par)
           nforce_eval = SIZE(force_env%sub_force_env)
-          CALL dump_ac_info(my_val, my_par, dx, lerr, root_section, nforce_eval,&
+          CALL dump_ac_info(my_val, my_par, dx, lerr, fe_section, nforce_eval,&
                fe_env%covmx, istep, beta, error)
           CALL finalizef()
        CASE DEFAULT
@@ -390,11 +386,10 @@ CONTAINS
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE ui_check_norm_sc(fe_env,test_passed,nr_points,output_unit,motion_section,error)        
+  SUBROUTINE ui_check_norm_sc(fe_env,test_passed,nr_points,output_unit,error)        
     TYPE(free_energy_type), POINTER          :: fe_env
     LOGICAL, INTENT(OUT)                     :: test_passed
     INTEGER, INTENT(IN)                      :: nr_points, output_unit
-    TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ui_check_norm_sc', &
@@ -410,14 +405,14 @@ CONTAINS
        ng_points = nr_points/fe_env%conv_par%cg_width
        PRINT *, ng_points
        IF (ng_points<min_sample_size) EXIT
-       CALL ui_check_norm_sc_low(fe_env,nr_points,output_unit,motion_section,error)
+       CALL ui_check_norm_sc_low(fe_env,nr_points,output_unit,error)
        test_passed = fe_env%conv_par%test_vn.AND.fe_env%conv_par%test_sw
        IF (test_passed) EXIT
        fe_env%conv_par%cg_width = fe_env%conv_par%cg_width + 1
        WRITE(*,*)"New coarse grained width:",fe_env%conv_par%cg_width
     END DO
     IF (fe_env%conv_par%cg_width==fe_env%conv_par%max_cg_width.AND.(.NOT.(test_passed))) THEN
-       CALL ui_check_norm_sc_low(fe_env,nr_points,output_unit,motion_section,error)
+       CALL ui_check_norm_sc_low(fe_env,nr_points,output_unit,error)
        test_passed = fe_env%conv_par%test_vn.AND.fe_env%conv_par%test_sw
     END IF
     CALL timestop(handle)
@@ -429,10 +424,9 @@ CONTAINS
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE ui_check_norm_sc_low(fe_env,nr_points,output_unit,motion_section,error)        
+  SUBROUTINE ui_check_norm_sc_low(fe_env,nr_points,output_unit,error)        
     TYPE(free_energy_type), POINTER          :: fe_env
     INTEGER, INTENT(IN)                      :: nr_points, output_unit
-    TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ui_check_norm_sc_low', &
@@ -522,11 +516,10 @@ CONTAINS
 !> \par History
 !>      Teodoro Laino (01.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE ui_check_convergence(fe_env,converged,nr_points,output_unit,motion_section,error)        
+  SUBROUTINE ui_check_convergence(fe_env,converged,nr_points,output_unit,error)        
     TYPE(free_energy_type), POINTER          :: fe_env
     LOGICAL, INTENT(OUT)                     :: converged
     INTEGER, INTENT(IN)                      :: nr_points, output_unit
-    TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ui_check_convergence', &
@@ -545,7 +538,7 @@ CONTAINS
     converged = .FALSE.
     ncolvar   = fe_env%ncolvar
     NULLIFY(avgmx, avg_std, covmx, cov_std)
-    CALL ui_check_norm_sc(fe_env,test_passed,nr_points,output_unit,motion_section,error)
+    CALL ui_check_norm_sc(fe_env,test_passed,nr_points,output_unit,error)
     IF (test_passed) THEN
        ng_points = nr_points/fe_env%conv_par%cg_width
        ! We can finally compute the error on average and covariance matrix
@@ -803,13 +796,13 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
 ! *****************************************************************************
-SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, root_section, nforce_eval, cum_res,&
-     istep, beta, error)
+  SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, fe_section, nforce_eval, cum_res,&
+       istep, beta, error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: my_par
     REAL(KIND=dp), INTENT(IN)                :: dx, lerr
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: fe_section
     INTEGER, INTENT(IN)                      :: nforce_eval
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cum_res
     INTEGER, POINTER                         :: istep
@@ -827,16 +820,15 @@ SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, root_section, nforce_eval, cum
     REAL(KIND=dp) :: avg_BP, avg_DET, avg_DUE, d_ene_w, dedf, ene_w, err, &
       Err_DET, Err_DUE, std_DET, std_DUE, tmp, tmp2, wfac
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: fe_section
+    TYPE(section_vals_type), POINTER         :: alch_section
 
     failure = .FALSE.
     output_unit = -1
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
-    fe_section => section_vals_get_subs_vals(root_section,&
-         "MOTION%FREE_ENERGY%ALCHEMICAL_CHANGE",error=error)
-    CALL section_vals_val_get(fe_section,"PARAMETER",c_val=par,error=error)
+    alch_section => section_vals_get_subs_vals(fe_section,"ALCHEMICAL_CHANGE",error=error)
+    CALL section_vals_val_get(alch_section,"PARAMETER",c_val=par,error=error)
     DO i = 1, SIZE(my_par)
        IF (my_par(i)==par) EXIT
     END DO
@@ -853,12 +845,12 @@ SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, root_section, nforce_eval, cum
             ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
             TRIM(def_error)//' .',error)
     END IF
-    
+
     ! We must print now the energy of the biased system, the weigthing energy 
     ! and the derivative w.r.t.the coupling parameter of the biased energy
     ! Retrieve the expression of the weighting function:
-    CALL section_vals_val_get(fe_section,"WEIGHTING_FUNCTION",c_val=coupling_function,error=error)
-     CALL compress(coupling_function, full=.TRUE.)
+    CALL section_vals_val_get(alch_section,"WEIGHTING_FUNCTION",c_val=coupling_function,error=error)
+    CALL compress(coupling_function, full=.TRUE.)
     CALL parsef(2,TRIM(coupling_function),my_par)       
     ene_w   = evalf(2,my_val)
     d_ene_w = evalfd(2,ipar,my_val,dx,err)
@@ -872,7 +864,7 @@ SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, root_section, nforce_eval, cum
             ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
             TRIM(def_error)//' .',error)
     END IF
-    CALL section_vals_val_get(fe_section,"NEQUIL_STEPS",i_val=NEquilStep,error=error)
+    CALL section_vals_val_get(alch_section,"NEQUIL_STEPS",i_val=NEquilStep,error=error)
     ! Store results
     IF (istep>NEquilStep) THEN
        isize = SIZE(cum_res,2)+1
@@ -903,7 +895,7 @@ SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, root_section, nforce_eval, cum
           Err_DET = SQRT(std_DET - avg_DET**2)/SQRT(REAL(isize-1,KIND=dp))
        END IF
        ! Print info
-       iw = cp_print_key_unit_nr(logger,root_section,"MOTION%FREE_ENERGY%FREE_ENERGY_INFO",&
+       iw = cp_print_key_unit_nr(logger,fe_section,"FREE_ENERGY_INFO",&
             extension=".free_energy",error=error)
        IF (iw>0) THEN
           WRITE(iw,'(T2,79("-"),T37," oOo ")')
@@ -917,7 +909,7 @@ SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, root_section, nforce_eval, cum
                TRIM(par),dedf-d_ene_w
           WRITE(iw,'(T2,"ALCHEMICAL CHANGE| BIASING UMBRELLA POTENTIAL  ",T66,F15.9)')&
                ene_w
-          
+
           IF (isize>1) THEN
              WRITE(iw,'(/,T2,"ALCHEMICAL CHANGE| DERIVATIVE TOTAL FREE ENERGY  ",T50,F15.9,1X,"+/-",1X,F11.9)')&
                   avg_DET,Err_DET
@@ -932,8 +924,7 @@ SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, root_section, nforce_eval, cum
           WRITE(iw,'(T2,79("-"))')
        END IF
     END IF
-    CALL cp_print_key_finished_output(iw,logger,root_section,&
-         "MOTION%FREE_ENERGY%FREE_ENERGY_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,fe_section,"FREE_ENERGY_INFO",error=error)
 
   END SUBROUTINE dump_ac_info
 

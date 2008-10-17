@@ -92,7 +92,7 @@
     TYPE(cp_error_type)                      :: new_error
     CHARACTER(LEN=default_string_length)     :: project_name
     TYPE(average_quantities_type), POINTER   :: averages
-    TYPE(section_vals_type), POINTER         :: work
+    TYPE(section_vals_type), POINTER         :: work, avgs_section
 
     failure=.FALSE.
     NULLIFY(particles, subsys, cell, gradient_ts, virial, averages)
@@ -226,7 +226,8 @@ CPSourceFileRef,&
           CALL force_env_get(gopt_env%force_env,potential_energy=potential_energy,virial=virial,error=error)
           CALL cp_virial(virial, virial_avg)
        CASE(default_cell_md_id)
-          work => section_vals_get_subs_vals(gopt_env%motion_section,"MD",error=error)
+          work        => section_vals_get_subs_vals(gopt_env%motion_section,"MD",error=error)
+          avgs_section => section_vals_get_subs_vals(work,"AVERAGES",error=error)
           CALL section_vals_get(work,explicit=explicit,error=error)
           CALL cp_assert(explicit,cp_failure_level,cp_assertion_failed,routineP,&
                "Cell optimization at finite temperature was requested. MD section MUST be provided in the "//&
@@ -242,7 +243,8 @@ CPSourceFileRef,&
           ! Perform a molecular dynamics
           CALL gopt_new_error_create(new_error, gopt_env%force_env%root_section, para_env,&
                project_name, id_run=mol_dyn_run, error=error)
-          CALL create_averages(averages, virial_avg=.TRUE., force_env=gopt_env%force_env, error=error)
+          CALL create_averages(averages, avgs_section, virial_avg=.TRUE., force_env=gopt_env%force_env,&
+               error=error)
           CALL qs_mol_dyn(gopt_env%force_env, gopt_env%globenv, averages, new_error)
           ! Retrieve the average of the stress tensor and the average of the potential energy
           potential_energy=averages%avepot

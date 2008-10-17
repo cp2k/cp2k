@@ -94,10 +94,10 @@ CONTAINS
 !>      10.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE create_thermostats(thermostats,motion_section, &
-       force_env, simpar, para_env, globenv, global_section, error )
+  SUBROUTINE create_thermostats(thermostats, md_section, force_env, simpar, &
+       para_env, globenv, global_section, error )
     TYPE(thermostats_type), POINTER          :: thermostats
-    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(section_vals_type), POINTER         :: md_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -131,12 +131,12 @@ CONTAINS
     NULLIFY(qmmm_env)
     failure =.FALSE.
     CALL allocate_thermostats(thermostats, error)
-    thermo_part_section  => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT",error=error)
-    thermo_coef_section  => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT",error=error)
-    thermo_shell_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT",error=error)
-    thermo_baro_section  => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT",error=error)
-    barostat_section     => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
-    print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
+    thermo_part_section  => section_vals_get_subs_vals(md_section,"THERMOSTAT",error=error)
+    thermo_coef_section  => section_vals_get_subs_vals(md_section,"KG_COEFF%THERMOSTAT",error=error)
+    thermo_shell_section => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT",error=error)
+    thermo_baro_section  => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT",error=error)
+    barostat_section     => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
+    print_section => section_vals_get_subs_vals(md_section,"PRINT",error=error)
 
     CALL force_env_get(force_env, qmmm_env=qmmm_env, subsys=subsys, cell=cell, error=error )
     CALL section_vals_get(barostat_section,  explicit=explicit_barostat_section,  error=error)
@@ -280,7 +280,7 @@ CPSourceFileRef,&
                label="COEF", error=error)
           CALL force_env_get(force_env, dyn_coeff_set=dyn_coeff_set, error=error )
           IF (ASSOCIATED(dyn_coeff_set)) THEN
-             kg_coeff_section  => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
+             kg_coeff_section  => section_vals_get_subs_vals(md_section,"KG_COEFF",error=error)
              ! Initialize thermostat
              IF      (thermostats%thermostat_coef%type_of_thermostat==do_thermo_nose) THEN
                 ! Initialize or possibly restart Nose on Coeffs
@@ -313,9 +313,9 @@ CPSourceFileRef,&
     ! Barostat Temperature (not necessarily to be controlled by a thermostat)
     IF (explicit_barostat_section) THEN
        simpar%temp_baro_ext = simpar%temp_ext 
-       CALL section_vals_val_get(motion_section,"MD%BAROSTAT%TEMPERATURE",n_rep_val=n_rep,error=error)
+       CALL section_vals_val_get(md_section,"BAROSTAT%TEMPERATURE",n_rep_val=n_rep,error=error)
        IF (n_rep/=0) THEN
-          CALL section_vals_val_get(motion_section,"MD%BAROSTAT%TEMPERATURE",r_val=simpar%temp_baro_ext,error=error)
+          CALL section_vals_val_get(md_section,"BAROSTAT%TEMPERATURE",r_val=simpar%temp_baro_ext,error=error)
           CPPostcondition(simpar%temp_baro_ext>=0.0_dp,cp_failure_level,routineP,error,failure)
        END IF
 

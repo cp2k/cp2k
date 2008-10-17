@@ -1153,12 +1153,13 @@ CONTAINS
 !> \par History
 !>     Teodoro Laino - University of Zurich - 09.2007 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE setup_velocities(force_env, simpar, globenv, motion_section, error)
+  SUBROUTINE setup_velocities(force_env, simpar, globenv, md_section, &
+       constraint_section, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(section_vals_type), POINTER         :: md_section, constraint_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_velocities', &
@@ -1183,10 +1184,10 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
+    print_section => section_vals_get_subs_vals(md_section,"PRINT",error=error)
     apply_cns0 = .FALSE.
     IF (simpar%constraint) THEN
-       CALL section_vals_val_get(motion_section,"CONSTRAINT%CONSTRAINT_INIT",l_val=apply_cns0,error=error)
+       CALL section_vals_val_get(constraint_section,"CONSTRAINT_INIT",l_val=apply_cns0,error=error)
     END IF
     ! Always initialize velocities and possibly restart them
     CALL force_env_get(force_env, subsys=subsys, cell=cell, cell_ref=cell_ref, para_env=para_env,&

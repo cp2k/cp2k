@@ -48,9 +48,9 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE read_md_section(simpar,root_section, error)
+  SUBROUTINE read_md_section(simpar, motion_section, md_section, error)
     TYPE(simpar_type), POINTER               :: simpar
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: motion_section, md_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_md_section', &
@@ -60,21 +60,17 @@ CONTAINS
     INTEGER                                  :: iprint, iw
     REAL(kind=dp)                            :: tmp_r1, tmp_r2, tmp_r3
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: md_section, motion_section, &
-                                                print_key
+    TYPE(section_vals_type), POINTER         :: print_key
     TYPE(unit_convert_type), POINTER         :: unit
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    NULLIFY(unit, md_section, motion_section, print_key)
-
-    motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
-    md_section => section_vals_get_subs_vals(motion_section,"MD",error=error)
+    NULLIFY(unit, print_key)
 
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,md_section,"PRINT%PROGRAM_RUN_INFO",extension=".log",error=error)
 
-    CALL read_md_low(simpar, root_section, md_section, error)
+    CALL read_md_low(simpar, motion_section, md_section, error)
     IF (iw> 0) WRITE (iw, *)
 
     ! Begin setup Langevin dynamics
@@ -254,9 +250,9 @@ CPSourceFileRef,&
 !> \brief Low Level: Parses the MD input section
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE read_md_low(simpar, root_section, md_section, error)
+  SUBROUTINE read_md_low(simpar, motion_section, md_section, error)
     TYPE(simpar_type), POINTER               :: simpar
-    TYPE(section_vals_type), POINTER         :: root_section, md_section
+    TYPE(section_vals_type), POINTER         :: motion_section, md_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_md_low', &
@@ -292,7 +288,7 @@ CPSourceFileRef,&
           CALL section_vals_val_get(md_section, "LANGEVIN%SHADOW_GAMMA", r_val=simpar%shadow_gamma,error=error)
        END IF
 
-       tmp_section => section_vals_get_subs_vals(root_section,"MOTION%CONSTRAINT",error=error)
+       tmp_section => section_vals_get_subs_vals(motion_section,"CONSTRAINT",error=error)
        CALL section_vals_get(tmp_section,explicit=simpar%constraint,error=error)
        IF (simpar%constraint) THEN
           CALL section_vals_val_get(tmp_section,"SHAKE_TOLERANCE",r_val=simpar%shake_tol,error=error)

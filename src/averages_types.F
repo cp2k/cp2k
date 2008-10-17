@@ -13,6 +13,7 @@ MODULE averages_types
                                              number_of_colvar
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE md_ener_types,                   ONLY: md_ener_type
   USE virial_types,                    ONLY: virial_create,&
@@ -27,6 +28,7 @@ MODULE averages_types
 ! *****************************************************************************
   TYPE average_quantities_type
      INTEGER                                       :: id_nr, ref_count
+     TYPE(section_vals_type), POINTER              :: averages_section
      REAL(KIND=dp)                                 :: avetemp, avepot, avekin,&
                                                       avevol, aveca, avecb, avecc
      REAL(KIND=dp)                                 :: avetemp_baro, avehugoniot, avecpu
@@ -35,8 +37,8 @@ MODULE averages_types
      REAL(KIND=dp)                                 :: avetemp_qm, avekin_qm, econs
      TYPE(virial_type), POINTER                    :: virial
      ! Colvar 
-     REAL(KIND=dp), POINTER, DIMENSION(:)          ::  avecolvar
-     REAL(KIND=dp), POINTER, DIMENSION(:)          ::  aveMmatrix
+     REAL(KIND=dp), POINTER, DIMENSION(:)          :: avecolvar
+     REAL(KIND=dp), POINTER, DIMENSION(:)          :: aveMmatrix
   END TYPE average_quantities_type
 
 ! *****************************************************************************
@@ -58,8 +60,9 @@ CONTAINS
 !> \brief Creates averages environment
 !> \author Teodoro Laino [tlaino] - 03.2008 - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE create_averages ( averages, virial_avg, force_env, error )
+  SUBROUTINE create_averages(averages, averages_section, virial_avg, force_env, error)
     TYPE(average_quantities_type), POINTER   :: averages
+    TYPE(section_vals_type), POINTER         :: averages_section
     LOGICAL, INTENT(IN), OPTIONAL            :: virial_avg
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -76,6 +79,8 @@ CONTAINS
     NULLIFY(averages%virial)
     NULLIFY(averages%avecolvar)
     NULLIFY(averages%aveMmatrix)
+    ! Point to the averages section
+    averages%averages_section => averages_section
     ! Initialize averages
     last_avg_env_id=last_avg_env_id+1
     averages%id_nr=last_avg_env_id
@@ -174,9 +179,9 @@ CONTAINS
 !> \brief computes the averages
 !> \author Teodoro Laino [tlaino] - 03.2008 - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE compute_averages(averages, force_env, md_ener, cell,  virial, pv_scalar,&
-       pv_xx, used_time, hugoniot, abc, cell_angle, delta_t, nat, error)
-
+  SUBROUTINE compute_averages (averages, force_env, md_ener, cell,  virial, &
+       pv_scalar, pv_xx, used_time, hugoniot, abc, cell_angle, delta_t, nat,&
+       error)
     TYPE(average_quantities_type), POINTER   :: averages
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(md_ener_type), POINTER              :: md_ener

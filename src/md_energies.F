@@ -327,10 +327,10 @@ CONTAINS
     econs    = 0.0_dp
     shell_adiabatic = .FALSE.
     shell_present   = .FALSE.
-    NULLIFY(motion_section, atomic_kinds, atomic_kind_set)
-    NULLIFY(cell, subsys, force_env, md_ener, qmmm_env, reftraj)
-    NULLIFY(core_particles, particles,shell_particles, print_key)
-    NULLIFY(root_section,simpar,virial,thermostats)
+    NULLIFY(motion_section, atomic_kinds, atomic_kind_set, cell, subsys, &
+         force_env, md_ener, qmmm_env, reftraj, core_particles, particles, &
+         shell_particles, print_key, root_section, simpar, virial, &
+         thermostats)
 
     CALL get_md_env(md_env=md_env, itimes=itimes, t=time, used_time=used_time,&
          simpar=simpar, force_env=force_env, init=init, md_ener=md_ener,&
@@ -342,9 +342,8 @@ CONTAINS
 
     CALL force_env_get(force_env, cell=cell, subsys=subsys, qmmm_env=qmmm_env,&
          virial=virial, error=error)
-    qmmm = .FALSE.
-    IF (md_ener%nfree_qm>0) qmmm = .TRUE.
 
+    qmmm     = (md_ener%nfree_qm>0)
     is_mixed = (force_env%in_use == use_mixed_force)
 
     CALL cp_subsys_get(subsys,particles=particles,error=error)
@@ -422,8 +421,8 @@ CONTAINS
 
        ! Compute average quantities
        delta_t = itimes - itimes_old
-       CALL compute_averages(averages, force_env, md_ener, cell, virial, pv_scalar, pv_xx,&
-            used_time, hugoniot, abc, cell_angle, delta_t, nat, error)
+       CALL compute_averages(averages, force_env, md_ener, cell, virial, pv_scalar,&
+            pv_xx, used_time, hugoniot, abc, cell_angle, delta_t, nat, error)
     END IF
     
     ! Print md information

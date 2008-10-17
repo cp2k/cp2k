@@ -82,9 +82,9 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Teodoro Laino 01.2007
 ! *****************************************************************************
-  SUBROUTINE fe_env_create(fe_env,motion_section,error)
+  SUBROUTINE fe_env_create(fe_env,fe_section,error)
     TYPE(free_energy_type), POINTER          :: fe_env
-    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(section_vals_type), POINTER         :: fe_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fe_env_create', &
@@ -92,12 +92,10 @@ CONTAINS
 
     INTEGER                                  :: i, id_method, stat
     LOGICAL                                  :: explicit, failure
-    TYPE(section_vals_type), POINTER         :: fe_section, ui_section, &
-                                                ui_var_section
+    TYPE(section_vals_type), POINTER         :: ui_section, ui_var_section
 
     failure=.FALSE.
     CPPreconditionNoFail(.NOT.ASSOCIATED(fe_env),cp_failure_level,routineP,error)
-    fe_section => section_vals_get_subs_vals(motion_section,"FREE_ENERGY",error=error)
 
     CALL section_vals_get(fe_section,explicit=explicit, error=error)
     IF (explicit) THEN

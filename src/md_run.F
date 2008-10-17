@@ -120,13 +120,16 @@ CONTAINS
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(section_vals_type), POINTER         :: md_section, motion_section
 
     NULLIFY(md_env, para_env)
-    para_env=> force_env % para_env
+    para_env       => force_env%para_env
+    motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
+    md_section     => section_vals_get_subs_vals(motion_section,"MD",error=error)
     ! Real call to MD driver - Low Level
-    CALL md_env_create(md_env, para_env, force_env=force_env, error=error)
+    CALL md_env_create(md_env, md_section, para_env, force_env=force_env, error=error)
     CALL set_md_env(md_env, averages=averages, error=error)
-    CALL qs_mol_dyn_low(md_env, force_env, globenv, error)
+    CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, error)
     CALL md_env_release(md_env, error=error)
 
   END SUBROUTINE qs_mol_dyn
@@ -139,9 +142,10 @@ CONTAINS
 !>      Cleaning (09.2007) Teodoro Laino [tlaino] - University of Zurich
 !> \author Creation (07.11.2002,MK)
 ! *****************************************************************************
-  SUBROUTINE qs_mol_dyn_low ( md_env, force_env, globenv, error )
+  SUBROUTINE qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(section_vals_type), POINTER         :: md_section, motion_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -168,9 +172,9 @@ CONTAINS
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE(section_vals_type), POINTER :: force_env_section, global_section, &
-      kg_coeff_section, motion_section, reftraj_section, root_section, &
-      subsys_section, work_section
+    TYPE(section_vals_type), POINTER :: constraint_section, &
+      force_env_section, free_energy_section, global_section, &
+      kg_coeff_section, reftraj_section, subsys_section, work_section
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostats_type), POINTER          :: thermostats
 
@@ -180,15 +184,16 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY (particles, cell, cell_ref, simpar, itimes, used_time, subsys, &
-         md_ener, motion_section, thermostats, barostat, reftraj, force_env_section,&
+         md_ener, thermostats, barostat, reftraj, force_env_section, &
          kg_coeff_section, reftraj_section, work_section, atomic_kinds, &
-         local_particles, time, fe_env, dyn_coeff_set)
-    logger => cp_error_get_logger(error)
-    root_section => force_env % root_section
-    para_env     => force_env % para_env
+         local_particles, time, fe_env, dyn_coeff_set, free_energy_section, &
+         constraint_section)
+    logger   => cp_error_get_logger(error)
+    para_env => force_env%para_env
 
-    motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
-    global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
+    global_section => section_vals_get_subs_vals(force_env%root_section,"GLOBAL",error=error)
+    free_energy_section =>section_vals_get_subs_vals(motion_section,"FREE_ENERGY",error=error)
+    constraint_section =>section_vals_get_subs_vals(motion_section,"CONSTRAINT",error=error)
     CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
 
     CALL create_simpar_type(simpar, error)
@@ -197,16 +202,14 @@ CONTAINS
     CALL cp_add_iter_level(logger%iter_info,"MD",error=error)
     CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)
     ! Read MD section
-    CALL read_md_section(simpar, root_section, error)
+    CALL read_md_section(simpar, motion_section, md_section, error)
     ! Setup print_keys
-    simpar%info_constraint = cp_print_key_unit_nr(logger,root_section,&
-         "MOTION%CONSTRAINT%CONSTRAINT_INFO",&
-         extension=".shakeLog",log_filename=.FALSE.,error=error)
-    simpar%lagrange_multipliers = cp_print_key_unit_nr(logger,root_section,&
-         "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",&
-         extension=".LagrangeMultLog",log_filename=.FALSE.,error=error)
-    simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
-         "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)
+    simpar%info_constraint = cp_print_key_unit_nr(logger,constraint_section,&
+         "CONSTRAINT_INFO",extension=".shakeLog",log_filename=.FALSE.,error=error)
+    simpar%lagrange_multipliers = cp_print_key_unit_nr(logger,constraint_section,&
+         "LAGRANGE_MULTIPLIERS",extension=".LagrangeMultLog",log_filename=.FALSE.,error=error)
+    simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,constraint_section,&
+         "LAGRANGE_MULTIPLIERS",error=error),cp_p_file)
 
     ! Create the structure for the md energies
     CALL create_md_ener(md_ener, error=error)
@@ -214,26 +217,26 @@ CONTAINS
     CALL release_md_ener(md_ener, error=error)
 
     ! If requested setup Thermostats
-    CALL create_thermostats(thermostats,  motion_section, force_env,&
-         simpar, para_env, globenv, global_section, error )
+    CALL create_thermostats(thermostats,  md_section, force_env, simpar, para_env,&
+         globenv, global_section, error )
 
     ! If requested setup Barostat
-    CALL create_barostat_type(barostat, motion_section, force_env,&
-         simpar, para_env, globenv, error )
+    CALL create_barostat_type(barostat, md_section, force_env, simpar, para_env,&
+         globenv, error )
 
     CALL set_md_env(md_env, thermostats=thermostats, barostat=barostat, error=error)
 
     ! Initialize or possibly restart KG coefficients (after thermostats)
     CALL force_env_get(force_env, dyn_coeff_set=dyn_coeff_set, error=error )
     IF (ASSOCIATED(dyn_coeff_set)) THEN
-       kg_coeff_section  => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
-       CALL dyn_coeff_set_initialize(dyn_coeff_set, motion_section, para_env,&
-            globenv, coeff_section=kg_coeff_section, error=error)
+       kg_coeff_section  => section_vals_get_subs_vals(md_section,"KG_COEFF",error=error)
+       CALL dyn_coeff_set_initialize(dyn_coeff_set, md_section, para_env, globenv,&
+            coeff_section=kg_coeff_section, error=error)
     END IF
 
     !If requested set up the REFTRAJ run
     IF(simpar%ensemble == reftraj_ensemble) THEN
-        reftraj_section => section_vals_get_subs_vals(motion_section,"MD%REFTRAJ",error=error)
+        reftraj_section => section_vals_get_subs_vals(md_section,"REFTRAJ",error=error)
         CALL create_reftraj(reftraj, reftraj_section, para_env, error=error)
         CALL set_md_env(md_env, reftraj=reftraj, error=error)
         CALL release_reftraj(reftraj,error=error)
@@ -248,10 +251,10 @@ CONTAINS
     ENDIF
 
     ! Initialize velocities possibly applying constraints at the zeroth MD step
-    CALL setup_velocities(force_env, simpar, globenv, motion_section, error)
+    CALL setup_velocities(force_env, simpar, globenv, md_section, constraint_section, error)
 
     ! Setup Free Energy Calculation (if required)
-    CALL fe_env_create (fe_env, motion_section, error)
+    CALL fe_env_create (fe_env, free_energy_section, error)
 
     CALL set_md_env(md_env=md_env, simpar=simpar, fe_env=fe_env, cell=cell,&
                     force_env=force_env, error=error)
@@ -301,8 +304,8 @@ CONTAINS
 
     ! Computing Forces at zero MD step
     IF (simpar%ensemble /= reftraj_ensemble) THEN
-       CALL section_vals_val_get(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
-       CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=time,error=error)
+       CALL section_vals_val_get(md_section,"STEP_START_VAL",i_val=itimes,error=error)
+       CALL section_vals_val_get(md_section,"TIME_START_VAL",r_val=time,error=error)
 
        IF(save_mem) THEN
           work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
@@ -340,9 +343,9 @@ CONTAINS
     END IF
     
     CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
-         root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
+         constraint_section,"CONSTRAINT_INFO",error=error)
     CALL cp_print_key_finished_output(simpar%lagrange_multipliers, logger,&
-         root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error)
+         constraint_section,"LAGRANGE_MULTIPLIERS",error=error)
 
     ! Real MD Loop
     DO istep=1, simpar%nsteps, md_stride
@@ -353,26 +356,24 @@ CONTAINS
        CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
             iter_nr=itimes,error=error)
        ! Open possible Shake output units
-       simpar%info_constraint = cp_print_key_unit_nr(&
-            logger,root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",&
+       simpar%info_constraint = cp_print_key_unit_nr(logger,constraint_section,"CONSTRAINT_INFO",&
             extension=".shakeLog",log_filename=.FALSE.,error=error)
-       simpar%lagrange_multipliers = cp_print_key_unit_nr(&
-            logger,root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",&
-            extension=".LagrangeMultLog",log_filename=.FALSE.,error=error)
-       simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
-            "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)      
+       simpar%lagrange_multipliers = cp_print_key_unit_nr(logger,constraint_section,&
+            "LAGRANGE_MULTIPLIERS",extension=".LagrangeMultLog",log_filename=.FALSE.,error=error)
+       simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,constraint_section,&
+            "LAGRANGE_MULTIPLIERS",error=error),cp_p_file)      
        
        ! Velocity Verlet Integrator
        CALL velocity_verlet(md_env,error)
        
        ! Close Shake output if requested...
        CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
-            root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
+            constraint_section,"CONSTRAINT_INFO",error=error)
        CALL cp_print_key_finished_output(simpar%lagrange_multipliers, logger,&
-            root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error)
+            constraint_section,"LAGRANGE_MULTIPLIERS",error=error)
        
        ! Free Energy calculation
-       CALL free_energy_evaluate(md_env,should_stop,motion_section,error)
+       CALL free_energy_evaluate(md_env,should_stop,free_energy_section,error)
        
        IF (should_stop) EXIT
        ! Test for <PROJECT_NAME>.EXIT_MD or for WALL_TIME to exit 
@@ -387,7 +388,7 @@ CONTAINS
        CALL external_control(should_stop,"MD",globenv,error=error)
        IF (should_stop) THEN
           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes,error=error)
-          CALL md_output(md_env,root_section,should_stop,error=error)
+          CALL md_output(md_env,md_section,force_env%root_section,should_stop,error=error)
           EXIT
        END IF
        
@@ -403,7 +404,7 @@ CONTAINS
        used_time = time_iter_stop - time_iter_start
        time_iter_start=time_iter_stop
        
-       CALL md_output(md_env,root_section,should_stop,error=error)
+       CALL md_output(md_env,md_section,force_env%root_section,should_stop,error=error)
        IF(simpar%ensemble == reftraj_ensemble ) THEN
           CALL write_output_reftraj(md_env,error=error) 
        END IF
