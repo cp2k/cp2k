@@ -143,12 +143,12 @@ MODULE qs_environment_types
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              wfi_release,&
                                              wfi_retain
-  USE scf_control_types,               ONLY: scf_c_release,&
-                                             scf_c_retain,&
-                                             scf_control_type
   USE rel_control_types,               ONLY: rel_c_release,&
                                              rel_c_retain,&
                                              rel_control_type
+  USE scf_control_types,               ONLY: scf_c_release,&
+                                             scf_c_retain,&
+                                             scf_control_type
   USE scp_environment_types,           ONLY: scp_env_release,&
                                              scp_env_retain,&
                                              scp_environment_type
@@ -448,8 +448,8 @@ CONTAINS
       POINTER                                :: blacs_env
     TYPE(scf_control_type), OPTIONAL, &
       POINTER                                :: scf_control
-    TYPE(rel_control_type), OPTIONAL, &                     
-      POINTER                                :: rel_control 
+    TYPE(rel_control_type), OPTIONAL, &
+      POINTER                                :: rel_control
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
     TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
@@ -826,7 +826,7 @@ CONTAINS
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, &
       matrix_ks, matrix_ks_aux_fit, matrix_s, matrix_s_aux_fit, &
-      matrix_s_aux_fit_vs_orb, matrix_w, matrix_dv,  gamma_matrix
+      matrix_s_aux_fit_vs_orb, matrix_w, matrix_dv, gamma_matrix
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(ewald_environment_type), OPTIONAL, &
       POINTER                                :: ewald_env
@@ -839,8 +839,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: kinetic
     TYPE(scf_control_type), OPTIONAL, &
       POINTER                                :: scf_control
-    TYPE(rel_control_type), OPTIONAL, &                     
-      POINTER                                :: rel_control 
+    TYPE(rel_control_type), OPTIONAL, &
+      POINTER                                :: rel_control
     TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
     TYPE(pw_p_type), OPTIONAL, POINTER       :: rho_core
     TYPE(qs_ks_env_type), OPTIONAL, POINTER  :: ks_env

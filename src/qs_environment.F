@@ -371,7 +371,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
@@ -398,6 +397,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
+    TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER :: dft_section, et_becke_section, &
@@ -447,7 +447,7 @@ CONTAINS
     molecule_kind_set => subsys%molecule_kinds_new%els
 
     !   *** Read the input section with the DFT control parameters ***
-	    CALL read_dft_control(dft_control,dft_section,error=error)
+            CALL read_dft_control(dft_control,dft_section,error=error)
 
     IF (dft_control % do_tddfpt_calculation) THEN
        CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins, &

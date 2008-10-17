@@ -12,26 +12,13 @@
 ! *****************************************************************************
 MODULE rel_control_types
 
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
-  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
-  USE input_constants,                 ONLY: rel_none, rel_trans_full, rel_pot_full 
-  USE input_cp2k_dft,                  ONLY: create_scf_section
-  USE input_enumeration_types,         ONLY: enum_i2c,&
-                                             enumeration_type
-  USE input_keyword_types,             ONLY: keyword_get,&
-                                             keyword_type
-  USE input_section_types,             ONLY: section_get_keyword,&
-                                             section_release,&
-                                             section_type,&
-                                             section_vals_get_subs_vals,&
+  USE input_constants,                 ONLY: rel_none,&
+                                             rel_pot_full,&
+                                             rel_trans_full
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -204,13 +191,12 @@ CONTAINS
   SUBROUTINE rel_c_read_parameters(rel_control,dft_section,error)
 
     TYPE(rel_control_type), POINTER          :: rel_control
-    TYPE(section_vals_type), POINTER         :: dft_section 
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rel_c_read_parameters', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: rel_section
 

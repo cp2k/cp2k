@@ -499,7 +499,6 @@ CONTAINS
     TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
-    TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -513,10 +512,11 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
+    TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: mol_charge_section, &
-                                                poisson_section, &
-                                                dft_section
+    TYPE(section_vals_type), POINTER         :: dft_section, &
+                                                mol_charge_section, &
+                                                poisson_section
 
     failure=.FALSE.
 
