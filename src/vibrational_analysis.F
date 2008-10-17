@@ -130,9 +130,11 @@ CONTAINS
             error=error)
        CALL section_vals_get(mode_tracking_section,explicit=do_mode_tracking, error=error)
        nrep = MAX(1,para_env%num_pe/prep)
+       prep = para_env%num_pe/nrep
        IF (output_unit>0) THEN
-          WRITE(output_unit,'(T2,"VIB|",3(A,I5))')"NUMBER OF REPLICAS:",nrep,&
-               "NUMBER OF PROCS:",para_env%num_pe,"NUMBER OF PROCS PER REPLICA:",prep
+          WRITE(output_unit,'(T2,"VIB|",(1X,A,I5))')"NUMBER OF REPLICAS:",nrep
+          WRITE(output_unit,'(T2,"VIB|",(1X,A,I5))')"NUMBER OF PROCS:",para_env%num_pe
+          WRITE(output_unit,'(T2,"VIB|",(1X,A,I5))')"NUMBER OF PROCS PER REPLICA:",prep
        END IF
        ! Just one force_env allowed
        force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL",error=error)
@@ -147,7 +149,7 @@ CONTAINS
           ! Decide which kind of Vibrational Analysis to perform
           IF (do_mode_tracking)THEN
              CALL ms_vb_anal(input,rep_env, para_env, globenv, particles,&
-                  nrep,calc_intens,dx,output_unit,output_molden, error)
+                             nrep,calc_intens,dx,output_unit,output_molden, error)
              CALL f_env_rm_defaults(f_env,new_error,ierr)
           ELSE
              CALL get_moving_atoms(force_env=f_env%force_env,Ilist=Mlist,error=error)

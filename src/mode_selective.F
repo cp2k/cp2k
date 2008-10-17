@@ -466,7 +466,7 @@ CONTAINS
     ALLOCATE(ms_vib%eig_bfgs(ncoord),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF(ionode)THEN
+    IF(para_env%mepos==para_env%source)THEN
        CALL section_vals_val_get(ms_vib_section,"RESTART_FILE_NAME",c_val=hes_filename,&
             error=error)
        IF(hes_filename=="") hes_filename="HESSIAN"
@@ -530,8 +530,6 @@ CONTAINS
        DO i=1,SIZE(ms_vib%b_vec,1)
           ms_vib%delta_vec(i,:)=ms_vib%b_vec(i,:)/mass(i)
        END DO
-       CALL mp_bcast(ms_vib%b_vec,para_env%source,para_env%group)
-       CALL mp_bcast(ms_vib%delta_vec,para_env%source,para_env%group)
        DEALLOCATE(hes,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(tmp,STAT=stat)
@@ -539,6 +537,9 @@ CONTAINS
        DEALLOCATE(tmplist,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+
+    CALL mp_bcast(ms_vib%b_vec,para_env%source,para_env%group)
+    CALL mp_bcast(ms_vib%delta_vec,para_env%source,para_env%group)
 
     DEALLOCATE(ms_vib%hes_bfgs,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -704,7 +705,7 @@ CONTAINS
     IF(ms_filename=="") output_molden=cp_print_key_unit_nr(logger,input,&
          "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB",extension=".mol",file_status='UNKNOWN',&
          file_action="READ",error=error)
-    IF(ionode)THEN
+    IF(para_env%mepos==para_env%source)THEN
 
        IF(ms_filename=="") THEN
           iw=output_molden
@@ -799,8 +800,6 @@ CONTAINS
        DO i=1,nrep
           ms_vib%delta_vec(:,i)=ms_vib%b_vec(:,i)/mass(:)
        END DO
-       CALL mp_bcast(ms_vib%b_vec,para_env%source,para_env%group)
-       CALL mp_bcast(ms_vib%delta_vec,para_env%source,para_env%group)
        
        DEALLOCATE(freq,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -812,6 +811,9 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     END IF
+    CALL mp_bcast(ms_vib%b_vec,para_env%source,para_env%group)
+    CALL mp_bcast(ms_vib%delta_vec,para_env%source,para_env%group)
+
     IF(ms_filename=="")CALL cp_print_key_finished_output(output_molden,logger,input,&
          "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB",error=error)
   END SUBROUTINE molden_guess
