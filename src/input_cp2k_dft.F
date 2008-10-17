@@ -50,7 +50,7 @@ MODULE input_cp2k_dft
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_dft'
 
-  PUBLIC :: create_dft_section
+  PUBLIC :: create_dft_section,create_relativistic_section                     !JT
   PUBLIC :: create_bsse_section, create_qs_section, create_xc_section
   PUBLIC :: create_properties_section, create_scf_section, create_ep_section
   !***
@@ -376,6 +376,10 @@ CONTAINS
     CALL section_release(subsection,error=error)
 
     CALL create_xc_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
+    CALL create_relativistic_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
@@ -3427,6 +3431,74 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_xc_section
+
+! *****************************************************************************
+!> \brief creates the input section for the relativistic part
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author jens 
+! *****************************************************************************
+  SUBROUTINE create_relativistic_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_relativistic_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"relativistic",&
+            description="parameters needed and setup for relativistic calculations",&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="method",&
+            description="type of relativistic correction used",&
+            usage="method DKH", default_i_val=rel_none,&
+            enum_c_vals=s2a("NONE","DKH"),&
+            enum_i_vals=(/ rel_none, rel_dkh /),error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DKH_order",&
+            description="The order of the DKH transformation ",&
+            usage="DKH_order 2", default_i_val=2,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="transformation",&
+            description="type of DKH transformation, full: use full matrix transformation,"//&
+             " molecule: use transformation blocked by molecule, atom: use atomic blocks ",&
+            usage="transformation full", default_i_val=rel_trans_full,&
+            enum_c_vals=s2a("FULL","MOLECULE","ATOM"), &
+            enum_i_vals=(/ rel_trans_full, rel_trans_molecule, rel_trans_atom/),error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="z_cutoff",&
+            description="The minimal atomic number considered for atom transformation",&
+            usage="z_cutoff 50", default_i_val=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="potential",&
+            description="External potential used in DKH transformation, full 1/r or erfc(r)/r",&
+            usage="POTENTIAL {FULL,ERFC}", default_i_val=rel_pot_erfc,&
+            enum_c_vals=s2a("FULL","ERFC"),&
+            enum_i_vals=(/ rel_pot_full, rel_pot_erfc /),error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_relativistic_section
 
 ! *****************************************************************************
 !> \brief creates the structure of the section with the dft scf parameters

@@ -516,6 +516,7 @@ OBJECTS_GENERIC =\
  reference_manager.o\
  reftraj_types.o\
  reftraj_util.o\
+ rel_control_types.o\
  replica_methods.o\
  replica_types.o\
  restraint.o\

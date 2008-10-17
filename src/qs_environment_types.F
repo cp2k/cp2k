@@ -146,6 +146,9 @@ MODULE qs_environment_types
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
+  USE rel_control_types,               ONLY: rel_c_release,&
+                                             rel_c_retain,&
+                                             rel_control_type
   USE scp_environment_types,           ONLY: scp_env_release,&
                                              scp_env_retain,&
                                              scp_environment_type
@@ -229,6 +232,7 @@ MODULE qs_environment_types
 !> \param rho the (old) density, in various representations (ao+grid)
 !> \param rho_xc the (old) soft density, used for the GAPW_XC method only
 !> \param scf_control various parameters relevant to the scf cycle
+!> \param rel_control various parameters relevant to the relativistic calclation 
 !> \param pw_env various things to create and get info on the grids used
 !>        by qs
 !> \param ewald_env information to perform ewald summation (used by DFTB)
@@ -321,6 +325,7 @@ MODULE qs_environment_types
                                                              rho_xc,&
                                                              rho_aux_fit
     TYPE(scf_control_type), POINTER                       :: scf_control
+    TYPE(rel_control_type), POINTER                       :: rel_control 
     TYPE ( scp_environment_type ), POINTER                :: scp_env
     TYPE(pw_env_type), POINTER                            :: pw_env
     TYPE(cp_para_env_type), POINTER                       :: para_env
@@ -388,10 +393,10 @@ CONTAINS
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
        sab_all,qmmm,qmmm_periodic,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sab_scp,sac_oce,sbc_oce,&
-       sab_2c,sac_3c,sbc_3c,particle_set,energy,force,harris_env,matrix_h,matrix_ks,&
-       matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,matrix_dv,&
+       sab_2c,sac_3c,sbc_3c,particle_set,energy,force,harris_env,matrix_h,matrix_ks,& 
+       matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,matrix_dv,& 
        gamma_matrix, rho, rho_aux_fit,rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
-       mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,kinetic,qs_charges,&
+       mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,rel_control,kinetic,qs_charges,&
        rho_core, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr,local_particles,&
        local_molecules, distribution_2d,molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
@@ -443,6 +448,8 @@ CONTAINS
       POINTER                                :: blacs_env
     TYPE(scf_control_type), OPTIONAL, &
       POINTER                                :: scf_control
+    TYPE(rel_control_type), OPTIONAL, &                     
+      POINTER                                :: rel_control 
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
     TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
@@ -586,6 +593,7 @@ CONTAINS
     IF (PRESENT(mpools_aux_fit)) mpools_aux_fit => qs_env%mpools_aux_fit
     IF (PRESENT(blacs_env)) blacs_env => qs_env%blacs_env
     IF (PRESENT(scf_control)) scf_control => qs_env%scf_control
+    IF (PRESENT(rel_control)) rel_control => qs_env%rel_control  
     IF (PRESENT(rho_core)) rho_core => qs_env%rho_core
     IF (PRESENT(qs_charges)) qs_charges => qs_env%qs_charges
     IF (PRESENT(ks_env)) ks_env => qs_env%ks_env
@@ -721,6 +729,7 @@ CONTAINS
     NULLIFY (qs_env%ewald_env)
     NULLIFY (qs_env%ewald_pw)
     NULLIFY (qs_env%scf_control)
+    NULLIFY (qs_env%rel_control) 
     NULLIFY (qs_env%qs_charges)
     NULLIFY (qs_env%rho_core)
     NULLIFY (qs_env%ks_env)
@@ -790,8 +799,8 @@ CONTAINS
        sab_aux_fit_vs_orb,sab_all,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sac_oce,&
        sbc_oce,sab_2c,sac_3c,sbc_3c,sab_scp,energy,force,harris_env,matrix_h,matrix_ks,&
        matrix_ks_aux_fit, matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,&
-       matrix_dv,gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,&
-       rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,qs_charges,rho_core,ks_env,&
+       matrix_dv,gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,& 
+       rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,rho_core,ks_env,& 
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        distribution_2d,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
        rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,requires_mo_derivs,mo_derivs,mo_derivs_aux_fit,&
@@ -817,7 +826,7 @@ CONTAINS
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, &
       matrix_ks, matrix_ks_aux_fit, matrix_s, matrix_s_aux_fit, &
-      matrix_s_aux_fit_vs_orb, matrix_w, matrix_dv, gamma_matrix
+      matrix_s_aux_fit_vs_orb, matrix_w, matrix_dv,  gamma_matrix
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(ewald_environment_type), OPTIONAL, &
       POINTER                                :: ewald_env
@@ -830,6 +839,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: kinetic
     TYPE(scf_control_type), OPTIONAL, &
       POINTER                                :: scf_control
+    TYPE(rel_control_type), OPTIONAL, &                     
+      POINTER                                :: rel_control 
     TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
     TYPE(pw_p_type), OPTIONAL, POINTER       :: rho_core
     TYPE(qs_ks_env_type), OPTIONAL, POINTER  :: ks_env
@@ -1013,6 +1024,11 @@ CONTAINS
        CALL scf_c_retain(scf_control,error=error)
        CALL scf_c_release(qs_env%scf_control,error=error)
        qs_env%scf_control => scf_control
+    END IF
+    IF (PRESENT(rel_control)) THEN ! accept also null pointers?
+       CALL rel_c_retain(rel_control,error=error)
+       CALL rel_c_release(qs_env%rel_control,error=error)
+       qs_env%rel_control => rel_control
     END IF
     IF (PRESENT(linres_control)) THEN ! accept also null pointers?
        CALL linres_control_retain(linres_control,error=error)
@@ -1433,6 +1449,7 @@ CONTAINS
           CALL qs_rho_release(qs_env%rho_aux_fit, error=error)
           CALL qs_rho_release(qs_env%rho_buffer,error=error)
           CALL scf_c_release(qs_env%scf_control, error=error)
+          CALL rel_c_release(qs_env%rel_control, error=error)  
 
           IF(ASSOCIATED(qs_env%linres_control)) THEN
              CALL linres_control_release(qs_env%linres_control, error=error)

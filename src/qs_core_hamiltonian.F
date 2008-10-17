@@ -92,7 +92,8 @@ MODULE qs_core_hamiltonian
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type
   USE input_constants,                 ONLY: linear_response_run,&
-                                             lr_precond_kinetic
+                                             lr_precond_kinetic,&
+                                             rel_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -505,7 +506,13 @@ CONTAINS
         lr_precond == lr_precond_kinetic .OR. xas_calculation .OR. epr_calculation)
    ! Assume false by default
    return_t_derivatives = .FALSE.
-   
+  
+   IF(qs_env%rel_control%rel_method/=rel_none)THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+              message="DKH method not yet available", &
+              error=error, error_level=cp_failure_level) 
+   END IF
+ 
    IF (build_kinetic_energy_matrix) THEN
       IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0) THEN

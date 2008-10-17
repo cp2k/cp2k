@@ -106,6 +106,10 @@ MODULE kg_environment
   USE qs_wf_history_methods,           ONLY: wfi_create
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              wfi_release
+  USE rel_control_types,               ONLY: rel_c_create,&
+                                             rel_c_read_parameters,&
+                                             rel_c_release,&
+                                             rel_control_type
   USE scf_control_types,               ONLY: scf_c_create,&
                                              scf_c_read_parameters,&
                                              scf_c_release,&
@@ -495,6 +499,7 @@ CONTAINS
     TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
+    TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -510,7 +515,8 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: mol_charge_section, &
-                                                poisson_section
+                                                poisson_section, &
+                                                dft_section
 
     failure=.FALSE.
 
@@ -560,6 +566,15 @@ CONTAINS
     DEALLOCATE (natom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "natom_of_kind")
+
+    !   Create relativistic control section
+
+    NULLIFY(dft_section)
+    dft_section =>  section_vals_get_subs_vals(kg_env%input,"DFT",error=error)
+    CALL rel_c_create(rel_control,error=error)
+    CALL rel_c_read_parameters(rel_control,dft_section,error=error)
+    CALL set_qs_env(qs_env,rel_control=rel_control,error=error)
+    CALL rel_c_release(rel_control,error=error)
 
 !   No idea whether OT can work with KG
     CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)

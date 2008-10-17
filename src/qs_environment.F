@@ -143,6 +143,10 @@ MODULE qs_environment
   USE qs_wf_history_methods,           ONLY: wfi_create
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              wfi_release
+  USE rel_control_types,               ONLY: rel_c_create,&
+                                             rel_c_read_parameters,&
+                                             rel_c_release,&
+                                             rel_control_type
   USE scf_control_types,               ONLY: scf_c_create,&
                                              scf_c_read_parameters,&
                                              scf_c_release,&
@@ -367,6 +371,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
@@ -442,7 +447,7 @@ CONTAINS
     molecule_kind_set => subsys%molecule_kinds_new%els
 
     !   *** Read the input section with the DFT control parameters ***
-    CALL read_dft_control(dft_control,dft_section,error=error)
+	    CALL read_dft_control(dft_control,dft_section,error=error)
 
     IF (dft_control % do_tddfpt_calculation) THEN
        CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins, &
@@ -486,6 +491,13 @@ CONTAINS
     END IF
     CALL read_mgrid_section(dft_control%qs_control,dft_section,error=error)
 
+    !   Create relativistic control section
+
+    CALL rel_c_create(rel_control,error=error)
+    CALL rel_c_read_parameters(rel_control,dft_section,error=error)
+    CALL set_qs_env(qs_env,rel_control=rel_control,error=error)
+    CALL rel_c_release(rel_control,error=error)
+  
     !   *** Read DFTB parameter files ***
     IF ( dft_control%qs_control%method == "DFTB" ) THEN
        NULLIFY (ewald_env,ewald_pw,dftb_potential)
