@@ -17,7 +17,7 @@ MODULE virial_types
 
   PRIVATE
   PUBLIC:: virial_type, virial_p_type, virial_set, virial_get, cp_virial,&
-           virial_create, virial_retain, virial_release, zero_virial
+       virial_create, virial_retain, virial_release, zero_virial
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_types'
 
@@ -96,7 +96,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE virial_set ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
-    pv_kinetic, pv_availability, pv_calculate, pv_numer, pv_diagonal )
+       pv_kinetic, pv_availability, pv_calculate, pv_numer, pv_diagonal )
 
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc, &
@@ -107,8 +107,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_set', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( pv_total ) ) virial % pv_total = pv_total
     IF ( PRESENT ( pv_virial ) ) virial % pv_virial = pv_virial
@@ -124,7 +122,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE virial_get ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
-    pv_kinetic, pv_availability, pv_calculate, pv_numer, pv_diagonal )
+       pv_kinetic, pv_availability, pv_calculate, pv_numer, pv_diagonal )
 
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc, &
@@ -135,8 +133,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_get', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( pv_total ) ) pv_total = virial % pv_total
     IF ( PRESENT ( pv_virial ) ) pv_virial = virial % pv_virial
@@ -161,17 +157,13 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     ALLOCATE ( virial, stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
 
     CALL zero_virial ( virial )
-
     last_virial_id_nr=last_virial_id_nr+1
     virial%id_nr=last_virial_id_nr
     virial%ref_count=1
-
   END SUBROUTINE virial_create
 
 ! *****************************************************************************
@@ -185,7 +177,7 @@ CONTAINS
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE virial_retain ( virial, error)
+  SUBROUTINE virial_retain ( virial, error)
     TYPE(virial_type), POINTER               :: virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -194,14 +186,14 @@ SUBROUTINE virial_retain ( virial, error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  
-  CPPrecondition(ASSOCIATED(virial),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(virial%ref_count>0,cp_failure_level,routineP,error)
-     virial%ref_count=virial%ref_count+1
-  END IF
-END SUBROUTINE virial_retain
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(virial),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPreconditionNoFail(virial%ref_count>0,cp_failure_level,routineP,error)
+       virial%ref_count=virial%ref_count+1
+    END IF
+  END SUBROUTINE virial_retain
 
 ! *****************************************************************************
 !> \brief releases the given virial_type
@@ -214,7 +206,7 @@ END SUBROUTINE virial_retain
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE virial_release(virial, error)
+  SUBROUTINE virial_release(virial, error)
     TYPE(virial_type), POINTER               :: virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -224,17 +216,16 @@ SUBROUTINE virial_release(virial, error)
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  IF (ASSOCIATED(virial)) THEN
-     CPPreconditionNoFail(virial%ref_count>0,cp_failure_level,routineP,error)
-     virial%ref_count=virial%ref_count-1
-     IF (virial%ref_count.EQ.0) THEN
-        DEALLOCATE(virial,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     ENDIF
-  END IF
-  NULLIFY(virial)
-END SUBROUTINE virial_release
+    failure=.FALSE.
+    IF (ASSOCIATED(virial)) THEN
+       CPPreconditionNoFail(virial%ref_count>0,cp_failure_level,routineP,error)
+       virial%ref_count=virial%ref_count-1
+       IF (virial%ref_count.EQ.0) THEN
+          DEALLOCATE(virial,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+    END IF
+  END SUBROUTINE virial_release
 
 END MODULE virial_types
 

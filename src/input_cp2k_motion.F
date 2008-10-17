@@ -1623,7 +1623,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"PRINT_AVERAGES",&
             description="Controls the output the averaged quantities",&
-            print_level=high_print_level, common_iter_levels=1,&
+            print_level=debug_print_level+1, common_iter_levels=1,&
             filename="",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

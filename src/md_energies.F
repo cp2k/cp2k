@@ -252,7 +252,6 @@ CONTAINS
     TYPE(reftraj_type), POINTER              :: reftraj
 
     CALL zero_md_ener(md_ener, tkind=.FALSE., tshell=.FALSE., error=error)
-
     CALL get_md_env(md_env=md_env,  force_env=force_env, reftraj=reftraj, error=error)
 
     IF(reftraj%info%eval_ef) THEN
@@ -291,9 +290,10 @@ CONTAINS
                                                 shell_adiabatic, shell_present
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 dt, econs, pv_scalar, pv_xx
-    REAL(KIND=dp)                            :: harm_shell, hugoniot
+    REAL(KIND=dp)                            :: delta_time, harm_shell, &
+                                                hugoniot
     REAL(KIND=dp), POINTER                   :: time, used_time
-    REAL(KIND=dp), SAVE                      :: itimes_old, t_old
+    REAL(KIND=dp), SAVE                      :: itimes_old, time_old
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -320,7 +320,7 @@ CONTAINS
     NULLIFY(logger,unit)
     logger => cp_error_get_logger(error)
     CALL timeset(routineN,handle)
-    CALL get_cp2k_units ( unit )
+    CALL get_cp2k_units(unit)
 
     ! Zeroing
     hugoniot = 0.0_dp
@@ -397,11 +397,11 @@ CONTAINS
 
        ! Assigning the initial time-step and time
        itimes_old = itimes
-       t_old      = time
+       time_old   = time
 
        IF (simpar%ensemble==reftraj_ensemble) THEN
-          itimes_old = reftraj%itimes0
-          t_old = reftraj%time0
+          itimes_old   = reftraj%itimes0
+          time_old     = reftraj%time0
           reftraj%init = init
        END IF
     ELSE
@@ -420,9 +420,11 @@ CONTAINS
        END IF
 
        ! Compute average quantities
-       delta_t = itimes - itimes_old
+       delta_t    = itimes - itimes_old
+       delta_time =   time -   time_old
        CALL compute_averages(averages, force_env, md_ener, cell, virial, pv_scalar,&
-            pv_xx, used_time, hugoniot, abc, cell_angle, delta_t, nat, error)
+            pv_xx, used_time, hugoniot, abc, cell_angle, delta_t, nat, delta_time, &
+            my_pos, my_act, error)
     END IF
     
     ! Print md information
