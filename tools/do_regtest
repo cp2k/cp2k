@@ -528,10 +528,10 @@ do
      case ${this_test} in
      "NEW" )
         cp ${output_file} ${output_last} 
-        timing=`grep -a "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$4)}'`
+        timing=`grep -a "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$NF)}'`
         this_test="${this_test} (${timing} sec)" ;;
      "OK" )
-        timing=`grep -a "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$4)}'`
+        timing=`grep -a "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$NF)}'`
         this_test="${this_test} (${timing} sec)" ;;
      esac
      if [[ ${leakcheck} == "YES" ]]; then
