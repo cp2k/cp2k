@@ -630,7 +630,7 @@ MODULE input_constants
   ! outer scf types
   INTEGER, PARAMETER, PUBLIC :: outer_scf_ddapc_constraint=123, &
                                 outer_scf_s2_constraint=124,&
-                                outer_scf_becke=125, &
+                                outer_scf_becke_constraint=125, &
                                 outer_scf_scp=126, &
                                 outer_scf_none=127
 

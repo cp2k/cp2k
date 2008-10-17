@@ -20,8 +20,8 @@ MODULE scf_control_types
   USE f77_blas
   USE input_constants,                 ONLY: &
        atomic_guess, core_guess, general_roks, high_spin_roks, &
-       outer_scf_becke, outer_scf_ddapc_constraint, outer_scf_none, &
-       outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
+       outer_scf_becke_constraint, outer_scf_ddapc_constraint, &
+       outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
        outer_scf_s2_constraint, outer_scf_scp, smear_energy_window, &
        smear_fermi_dirac, smear_list
@@ -678,7 +678,7 @@ CONTAINS
               WRITE (output_unit,'(T25,A)') "DDAPC constraint enforced"
             CASE (outer_scf_s2_constraint)
               WRITE (output_unit,'(T25,A)') "S2 constraint enforced"
-            CASE (outer_scf_becke)
+            CASE (outer_scf_becke_constraint)
               WRITE (output_unit,'(T25,A)') "Becke weight population constraint enforced"
             CASE (outer_scf_scp)
               WRITE (output_unit,'(T25,A)') "SCP optimization with outer loop enforced"

@@ -354,7 +354,7 @@ CPSourceFileRef,&
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
-    TYPE(section_vals_type), POINTER :: becke_constraint_section, &
+    TYPE(section_vals_type), POINTER :: becke_restraint_section, &
       ddapc_restraint_section, dftb_parameter, dftb_section, mull_section, &
       s2_restraint_section, se_section
 
@@ -365,7 +365,7 @@ CPSourceFileRef,&
     mull_section => section_vals_get_subs_vals(qs_section,"MULLIKEN_RESTRAINT", error=error)
     ddapc_restraint_section => section_vals_get_subs_vals(qs_section,"DDAPC_RESTRAINT", error=error)
     s2_restraint_section => section_vals_get_subs_vals(qs_section,"S2_RESTRAINT", error=error)
-    becke_constraint_section=> section_vals_get_subs_vals(qs_section,"BECKE_CONSTRAINT", error=error)
+    becke_restraint_section=> section_vals_get_subs_vals(qs_section,"BECKE_RESTRAINT", error=error)
     se_section => section_vals_get_subs_vals(qs_section,"SE", error=error)
     dftb_section => section_vals_get_subs_vals(qs_section,"DFTB", error=error)
     dftb_parameter => section_vals_get_subs_vals(dftb_section,"PARAMETER", error=error)
@@ -576,10 +576,10 @@ CPSourceFileRef,&
             i_val=qs_control%s2_restraint_control%functional_form,error=error)
     ENDIF
 
-    CALL section_vals_get(becke_constraint_section,explicit=qs_control%becke_constraint,error=error)
+    CALL section_vals_get(becke_restraint_section,explicit=qs_control%becke_restraint,error=error)
 
-    IF (qs_control%becke_constraint) THEN
-       CALL  read_becke_section(qs_control,becke_constraint_section,error)
+    IF (qs_control%becke_restraint) THEN
+       CALL  read_becke_section(qs_control,becke_restraint_section,error)
     ENDIF
 
     ! Semi-empirical code

@@ -484,9 +484,9 @@ CONTAINS
     ENDIF
 
     IF (my_ival==do_et_becke)THEN
-       dft_control%qs_control%becke_constraint=.TRUE.
+       dft_control%qs_control%becke_restraint=.TRUE.
        dft_control%qs_control%et_coupling_calc=.TRUE.       
-       et_becke_section =>  section_vals_get_subs_vals(et_coupling_section,"BECKE_CONSTRAINT_A",error=error)      
+       et_becke_section =>  section_vals_get_subs_vals(et_coupling_section,"BECKE_RESTRAINT_A",error=error)      
        CALL  read_becke_section(dft_control%qs_control,et_becke_section,error)
     END IF
     CALL read_mgrid_section(dft_control%qs_control,dft_section,error=error)

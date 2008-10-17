@@ -149,9 +149,9 @@ MODULE cp_control_types
   END TYPE ddapc_restraint_p_type
 
 ! *****************************************************************************
-! \brief some parameters useful for becke_constraints
+! \brief some parameters useful for becke_restraints
 ! *****************************************************************************
-  TYPE becke_constraint_type
+  TYPE becke_restraint_type
     INTEGER                         :: ref_count
     REAL(KIND = dp)                 :: strength
     REAL(KIND = dp)                 :: TARGET
@@ -163,7 +163,7 @@ MODULE cp_control_types
     LOGICAL                         :: need_pot
     REAL(KIND=dp), POINTER, DIMENSION(:)  :: coeff
     INTEGER                         :: density_type
- END TYPE becke_constraint_type
+ END TYPE becke_restraint_type
 
 ! *****************************************************************************
 ! \brief some parameters useful for s2_restraints
@@ -212,7 +212,7 @@ MODULE cp_control_types
     LOGICAL                                       :: polarization
     LOGICAL                                       :: mulliken_restraint
     LOGICAL                                       :: ddapc_restraint
-    LOGICAL                                       :: becke_constraint
+    LOGICAL                                       :: becke_restraint
     LOGICAL                                       :: et_coupling_calc
     LOGICAL                                       :: s2_restraint
     INTEGER                                       :: wf_interpolation_method_nr
@@ -221,7 +221,7 @@ MODULE cp_control_types
     REAL(KIND = dp), DIMENSION(:), POINTER        :: e_cutoff
     TYPE (mulliken_restraint_type), POINTER       :: mulliken_restraint_control
     TYPE (ddapc_restraint_p_type), DIMENSION(:),POINTER :: ddapc_restraint_control
-    TYPE (becke_constraint_type), POINTER         :: becke_control
+    TYPE (becke_restraint_type), POINTER          :: becke_control
     TYPE (s2_restraint_type), POINTER             :: s2_restraint_control
     TYPE (dftb_control_type),POINTER              :: dftb_control
     TYPE (semi_empirical_control_type),POINTER    :: se_control
@@ -318,7 +318,7 @@ MODULE cp_control_types
             ddapc_restraint_p_type,&
             dftb_control_type,&
             scp_control_type,&
-            becke_constraint_type,&
+            becke_restraint_type,&
             semi_empirical_control_type,&
             s2_restraint_type,&
             wfn_fitting_control_type
@@ -499,12 +499,12 @@ CONTAINS
   END SUBROUTINE ddapc_control_retain
 
 ! *****************************************************************************
-!> \brief create the becke_constraint_type
+!> \brief create the becke_restraint_type
 !> \par History
 !>      02.2007 created [Florian Schiffmann]
 ! *****************************************************************************
   SUBROUTINE becke_control_create(becke_control,error)
-    TYPE(becke_constraint_type), POINTER     :: becke_control
+    TYPE(becke_restraint_type), POINTER      :: becke_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_control_create', &
@@ -533,12 +533,12 @@ CONTAINS
   END SUBROUTINE becke_control_create
 
 ! *****************************************************************************
-!> \brief release the becke_constraint_type
+!> \brief release the becke_restraint_type
 !> \par History
 !>      02.2007 created [Florian Schiffmann]
 ! *****************************************************************************
   SUBROUTINE becke_control_release(becke_control,error)
-    TYPE(becke_constraint_type), POINTER     :: becke_control
+    TYPE(becke_restraint_type), POINTER      :: becke_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_control_release', &
@@ -564,12 +564,12 @@ CONTAINS
   END SUBROUTINE becke_control_release
 
 ! *****************************************************************************
-!> \brief retain the becke_constraint_type
+!> \brief retain the becke_restraint_type
 !> \par History
 !>      02.2007 created [Florian Schiffmann]
 ! *****************************************************************************
   SUBROUTINE becke_control_retain(becke_control,error)
-    TYPE(becke_constraint_type), POINTER     :: becke_control
+    TYPE(becke_restraint_type), POINTER      :: becke_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_control_retain', &

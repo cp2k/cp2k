@@ -229,7 +229,7 @@ CONTAINS
 
 !   *** Read the input section with the Quickstep control parameters ***
     CALL read_qs_section(dft_control%qs_control,qs_section,error=error)
-    dft_control%qs_control%becke_constraint=.FALSE.
+    dft_control%qs_control%becke_restraint=.FALSE.
     CALL read_mgrid_section(dft_control%qs_control,dft_section,error=error)
 
     CALL write_dft_control ( dft_control, dft_section, error)

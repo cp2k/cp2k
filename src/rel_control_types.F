@@ -55,7 +55,6 @@ MODULE rel_control_types
 !>      10.2008 copied to rel_control_type [JT] 
 !> \author Fawzi Mohamed 
 ! *****************************************************************************
-
   TYPE rel_control_type
     INTEGER                               :: rel_method 
     INTEGER                               :: rel_DKH_order
@@ -366,7 +365,7 @@ CONTAINS
 !             WRITE (output_unit,'(T25,A)') "DDAPC constraint enforced"
 !           CASE (outer_scf_s2_constraint)
 !             WRITE (output_unit,'(T25,A)') "S2 constraint enforced"
-!           CASE (outer_scf_becke)
+!           CASE (outer_scf_becke_constraint)
 !             WRITE (output_unit,'(T25,A)') "Becke weight population constraint enforced"
 !           CASE (outer_scf_scp)
 !             WRITE (output_unit,'(T25,A)') "SCP optimization with outer loop enforced"

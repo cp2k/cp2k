@@ -10,13 +10,13 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE qs_outer_scf
-  USE cp_control_types,                ONLY: becke_constraint_type,&
+  USE cp_control_types,                ONLY: becke_restraint_type,&
                                              ddapc_restraint_type,&
                                              dft_control_type,&
                                              s2_restraint_type
   USE f77_blas
   USE input_constants,                 ONLY: &
-       do_ddapc_constraint, do_s2_constraint, outer_scf_becke, &
+       do_ddapc_constraint, do_s2_constraint, outer_scf_becke_constraint, &
        outer_scf_ddapc_constraint, outer_scf_none, &
        outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
@@ -63,7 +63,7 @@ CONTAINS
        res=1
     CASE (outer_scf_s2_constraint)
        res=1
-    CASE (outer_scf_becke)
+    CASE (outer_scf_becke_constraint)
        res=1
     CASE (outer_scf_none) ! just needed to communicate the gradient criterium
        res=1
@@ -90,7 +90,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ihistory, n
     LOGICAL                                  :: failure, is_constraint
-    TYPE(becke_constraint_type), POINTER     :: becke_control
+    TYPE(becke_restraint_type), POINTER      :: becke_control
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy
@@ -136,8 +136,8 @@ CONTAINS
        scf_env%outer_scf%variables(:,ihistory)=s2_restraint_control%strength
        scf_env%outer_scf%gradient(:,ihistory) =s2_restraint_control%s2_order_p- &
             s2_restraint_control%target
-    CASE (outer_scf_becke)
-       CPPrecondition(dft_control%qs_control%becke_constraint,cp_failure_level,routineP,error,failure)
+    CASE (outer_scf_becke_constraint)
+       CPPrecondition(dft_control%qs_control%becke_restraint,cp_failure_level,routineP,error,failure)
        becke_control=>dft_control%qs_control%becke_control
        scf_env%outer_scf%variables(:,ihistory)=becke_control%strength
        scf_env%outer_scf%gradient(:,ihistory) =becke_control%becke_order_p- &
@@ -298,7 +298,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ihistory, n
     LOGICAL                                  :: failure, is_constraint
-    TYPE(becke_constraint_type), POINTER     :: becke_control
+    TYPE(becke_restraint_type), POINTER      :: becke_control
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
@@ -327,7 +327,7 @@ CONTAINS
     CASE (outer_scf_s2_constraint)
        s2_restraint_control=>dft_control%qs_control%s2_restraint_control
        s2_restraint_control%strength=scf_env%outer_scf%variables(1,ihistory+1)
-    CASE (outer_scf_becke)
+    CASE (outer_scf_becke_constraint)
        becke_control=>dft_control%qs_control%becke_control
        becke_control%strength=scf_env%outer_scf%variables(1,ihistory+1)       
     CASE DEFAULT
@@ -361,7 +361,7 @@ CONTAINS
     REAL(kind=dp)                            :: alpha
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: extrapolation
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: outer_scf_history
-    TYPE(becke_constraint_type), POINTER     :: becke_control
+    TYPE(becke_restraint_type), POINTER      :: becke_control
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -400,7 +400,7 @@ CONTAINS
     CASE (outer_scf_s2_constraint)
        outer_scf_history(1,ivec)= &
             dft_control%qs_control%s2_restraint_control%strength
-    CASE (outer_scf_becke)
+    CASE (outer_scf_becke_constraint)
        outer_scf_history(1,ivec)= &
             dft_control%qs_control%becke_control%strength
     CASE DEFAULT
@@ -429,7 +429,7 @@ CONTAINS
        ddapc_restraint_control%strength=extrapolation(1)
     CASE (outer_scf_s2_constraint)
        dft_control%qs_control%s2_restraint_control%strength=extrapolation(1)
-    CASE (outer_scf_becke)
+    CASE (outer_scf_becke_constraint)
        dft_control%qs_control%becke_control%strength=extrapolation(1)
     CASE DEFAULT
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)

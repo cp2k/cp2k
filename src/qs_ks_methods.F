@@ -21,7 +21,7 @@ MODULE qs_ks_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE cp_control_types,                ONLY: becke_constraint_type,&
+  USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
   USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD,&
                                              qs_ks_ddapc
@@ -53,7 +53,7 @@ MODULE qs_ks_methods
                                              cp_sm_plus_fm_fm_t
   USE dft_plus_u,                      ONLY: plus_u
   USE ep_qs_types,                     ONLY: ep_qs_type
-  USE et_coupling,                     ONLY: becke_constraint
+  USE et_coupling,                     ONLY: becke_restraint
   USE f77_blas
   USE harris_env_types,                ONLY: harris_env_type
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
@@ -316,7 +316,7 @@ CONTAINS
                                                 s2_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g2, occupation_numbers
-    TYPE(becke_constraint_type), POINTER     :: becke
+    TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs, mo_derivs_aux_fit
@@ -878,7 +878,7 @@ CONTAINS
                              +v_spin_ddapc_rest_r%pw%cr3d
                      END IF
                   END IF
-                  IF(qs_env%dft_control%qs_control%becke_constraint)THEN
+                  IF(qs_env%dft_control%qs_control%becke_restraint)THEN
                      v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
                           +becke%becke_pot%pw%cr3d*qs_env%dft_control%qs_control%becke_control%strength
                   END IF
@@ -1034,7 +1034,7 @@ CONTAINS
            CALL pw_pool_give_back_pw(auxbas_pw_pool,v_spin_ddapc_rest_r%pw,&
                                         error=error)
        ENDIF
-       IF (calculate_forces.AND.qs_env%dft_control%qs_control%becke_constraint)&
+       IF (calculate_forces.AND.qs_env%dft_control%qs_control%becke_restraint)&
            CALL pw_pool_give_back_pw(auxbas_pw_pool,becke%becke_pot%pw,&
                                         error=error)
        IF(my_kg_gpw) THEN

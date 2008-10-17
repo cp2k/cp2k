@@ -1701,8 +1701,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       NULLIFY(subsection)
-
        ! Integers
        CALL keyword_create(keyword, name="LMAXN1",&
             variants=(/"LMAXRHO1"/),&
@@ -1835,46 +1833,37 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       NULLIFY(subsection)
        CALL create_distribution_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection)
        CALL create_dftb_control_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection)
        CALL create_se_control_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection)
        CALL create_mulliken_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection)
        CALL create_ddapc_restraint_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection)
-       CALL create_becke_constraint_section(subsection,error)
+       CALL create_becke_restraint_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection)
        CALL create_s2_restraint_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection)
        CALL create_harris_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-
     END IF
 
   END SUBROUTINE create_qs_section
@@ -2308,7 +2297,6 @@ CONTAINS
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
     END IF
 
   END SUBROUTINE create_mulliken_section
@@ -2471,12 +2459,12 @@ CONTAINS
   END SUBROUTINE create_ddapc_restraint_section
 
 ! *****************************************************************************
-  SUBROUTINE create_becke_constraint_section(section,error)
+  SUBROUTINE create_becke_restraint_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
-      routineN = 'create_becke_constraint_section', &
+      routineN = 'create_becke_restraint_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -2487,8 +2475,8 @@ CONTAINS
     NULLIFY(keyword, print_key)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,"BECKE_CONSTRAINT",&
-            description="Use Becke weight population in a constraint ",&
+       CALL section_create(section,"BECKE_RESTRAINT",&
+            description="Use Becke weight population in a restraint/constraint ",&
             n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
@@ -2512,7 +2500,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="COEFF",&
-            description="Defines the the coefficient of the atom in the atom list (default is one), currently DDAPC only ",&
+            description="Defines the the coefficient of the atom in the atom list (default is one)",&
             usage="COEFF 1.0 -1.0",&
             type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2547,7 +2535,7 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE create_becke_constraint_section
+  END SUBROUTINE create_becke_restraint_section
 
 ! *****************************************************************************
   SUBROUTINE create_s2_restraint_section(section,error)
@@ -3902,7 +3890,7 @@ CONTAINS
             "Enforce outer loop optimization for SCP, requires the corresponding section in &DFT", &
             "Do nothing in the outer loop, useful for resetting the inner loop,"),&
             enum_i_vals=(/outer_scf_ddapc_constraint,outer_scf_s2_constraint,&
-            outer_scf_becke,outer_scf_scp,outer_scf_none/),&
+            outer_scf_becke_constraint,outer_scf_scp,outer_scf_none/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -6048,12 +6036,12 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        NULLIFY(subsection)
-       CALL create_restraint_A(subsection,"BECKE_CONSTRAINT_A",error)
+       CALL create_restraint_A(subsection,"BECKE_RESTRAINT_A",error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
        NULLIFY(subsection)
-       CALL create_restraint_A(subsection,"BECKE_CONSTRAINT_B",error)
+       CALL create_restraint_A(subsection,"BECKE_RESTRAINT_B",error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

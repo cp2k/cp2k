@@ -8,11 +8,11 @@
 ! *****************************************************************************
 MODULE qs_ks_apply_restraints
 
-  USE cp_control_types,                ONLY: becke_constraint_type,&
+  USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE et_coupling,                     ONLY: becke_constraint
+  USE et_coupling,                     ONLY: becke_restraint
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mulliken,                        ONLY: mulliken_restraint
@@ -50,7 +50,7 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(becke_constraint_type), POINTER     :: becke
+    TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_becke_restraint', &
@@ -61,20 +61,20 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: rest_mat
 
-    IF(qs_env%dft_control%qs_control%becke_constraint)THEN
+    IF(qs_env%dft_control%qs_control%becke_restraint)THEN
     !***** Check if becke potential is needed to constrain charges *****
        becke => qs_env%dft_control%qs_control%becke_control
        IF(becke%need_pot.OR.calculate_forces)THEN
           CALL pw_pool_create_pw(auxbas_pw_pool,becke%becke_pot%pw,use_data=REALDATA3D,&
                in_space=REALSPACE,error=error) 
-          CALL becke_constraint(qs_env,becke_const=becke%becke_pot,calc_pot=.TRUE.,&
+          CALL becke_restraint(qs_env,becke_const=becke%becke_pot,calc_pot=.TRUE.,&
                calculate_forces=calculate_forces,error=error)
           CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol)
           becke%need_pot=.FALSE.
        ELSE
           inv_vol=1.0_dp/becke%becke_pot%pw%pw_grid%dvol
           CALL pw_scale(becke%becke_pot%pw,inv_vol)
-          CALL becke_constraint(qs_env,becke%becke_pot,calc_pot=.FALSE.,&
+          CALL becke_restraint(qs_env,becke%becke_pot,calc_pot=.FALSE.,&
                calculate_forces=calculate_forces,error=error)
           CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol)
        ENDIF

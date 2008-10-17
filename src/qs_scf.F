@@ -745,7 +745,7 @@ CONTAINS
 
     END DO scf_outer_loop
 
-    IF(qs_env%dft_control%qs_control%becke_constraint)THEN
+    IF(qs_env%dft_control%qs_control%becke_restraint)THEN
        CALL pw_env_get(qs_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,&
             qs_env%dft_control%qs_control%becke_control%becke_pot%pw,error=error)
