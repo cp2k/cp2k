@@ -72,7 +72,7 @@ CONTAINS
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset(routineN,'I','Mflops',handle)
+    CALL timeset(routineN,handle)
     flops = 0.0_dp
     map_info => nhc%map_info
 
@@ -86,7 +86,7 @@ CONTAINS
     CALL vel_rescale_coeffs(map_info, dyn_coeff_set, coeffs, flops, error)
 
     flops = flops * 1.E-6_dp
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE lnhc_coeffs
 
@@ -111,7 +111,7 @@ CONTAINS
     REAL(KIND=dp)                            :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset(routineN,'I','Mflops',handle)
+    CALL timeset(routineN,handle)
     flops = 0.0_dp
     map_info => nhc%map_info
 
@@ -125,7 +125,7 @@ CONTAINS
     CALL vel_rescale_baro(map_info, npt, flops, error)
     
     flops = flops * 1.E-6_dp
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
   END SUBROUTINE lnhc_barostat
 
 ! *****************************************************************************
@@ -159,7 +159,7 @@ CONTAINS
     REAL(KIND=dp)                            :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset(routineN,'I','Mflops',handle)
+    CALL timeset(routineN,handle)
     flops = 0.0_dp
     my_shell_adiabatic = .FALSE.
     IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
@@ -178,7 +178,7 @@ CONTAINS
          vel, shell_vel, core_vel, error)
        
     flops = flops * 1.E-6_dp
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
   END SUBROUTINE lnhc_particles
 
 ! *****************************************************************************
@@ -208,7 +208,7 @@ CONTAINS
     REAL(dp)                                 :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset(routineN,'I','Mflops',handle)
+    CALL timeset(routineN,handle)
     flops = 0.0_dp
     map_info => nhc%map_info
 
@@ -224,7 +224,7 @@ CONTAINS
          flops, shell_particle_set, core_particle_set, shell_vel, core_vel, vel, error)
 
     flops = flops * 1.E-6_dp
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
   END SUBROUTINE lnhc_shells
 
 ! *****************************************************************************

@@ -536,7 +536,7 @@ CONTAINS
                                                 qcj, qsi, qsj
     REAL(KIND=dp), DIMENSION(3)              :: fij_com, rci, rcj, rsi, rsj
 
-    CALL timeset ( routineN, 'I', 'Mflops', handle )
+    CALL timeset(routineN,handle)
     flops = 0.0_dp
 
     ! Initializing values
@@ -627,7 +627,7 @@ CONTAINS
     CALL mp_sum ( v_bonded_corr, group )
 
     flops = flops * 1.0E-6_dp
-    CALL timestop ( flops, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE bonded_correct_gaussian
 

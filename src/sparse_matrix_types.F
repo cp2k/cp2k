@@ -969,10 +969,10 @@ END SUBROUTINE cp_sm_scale_and_add
     flops=0.0_dp
 
 !   *** Check the association status of the input matrix ***
-    CALL timeset(routineN,"I","Gflops",handle)
+    CALL timeset(routineN,handle)
 
     IF (ncol.EQ.0) THEN
-        CALL timestop(flops,handle)
+        CALL timestop(handle)
         RETURN
     ENDIF
 
@@ -1066,7 +1066,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !$OMP END PARALLEL
 
     flops=flops*1E-9_dp
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE sparse_times_local
 
@@ -1109,7 +1109,7 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (sparse_matrix%nrow .NE. sparse_matrix%ncol) THEN
       CALL stop_program(routineP,"not allowed")
     ENDIF
-    CALL timeset(routineN,"I","Gflops",handle)
+    CALL timeset(routineN,handle)
     flops=0.0_dp
 
 !   *** Traverse all block nodes of the sparse matrix ***
@@ -1152,7 +1152,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !$OMP END PARALLEL
 
     flops=flops*1E-9_dp
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE sparse_plus_loc_loct
 

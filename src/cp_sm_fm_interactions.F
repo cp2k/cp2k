@@ -1186,7 +1186,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     TYPE(cp_para_env_type), POINTER          :: fm_para_env
     TYPE(real_block_node_type), POINTER      :: block_node
 
-    CALL timeset(routineN,"I","Gflops",handle)
+    CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY( &
          col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
@@ -1335,7 +1335,7 @@ CPSourceFileRef,&
     ! let the magic of the distribution play the game
     DO ijunk=1,njunk
        ! go circular
-       CALL timeset(routineN//"_local","I","Gflops",handle2)
+       CALL timeset(routineN//"_local",handle2)
        flops_l=0.0_dp
        junk_in =MOD(ijunk-1,njunk_local_in+1)+1
        junk_out=MOD(ijunk-1,njunk_local_out+1)+1
@@ -1394,7 +1394,7 @@ CPSourceFileRef,&
 
        END DO
        flops=flops+flops_l
-       CALL timestop(flops_l*1.0e-9,handle2)
+       CALL timestop(handle2)
 
        junk_recv_in=MODULO(junk_in-2,njunk_local_in+1)+1
        junk_recv_out=MODULO(junk_out-2,njunk_local_out+1)+1
@@ -1439,7 +1439,7 @@ CPSourceFileRef,&
        DEALLOCATE(blacs2mpi,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    CALL timestop(flops*1.0e-9_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_sm_fm_multiply_2d
 
@@ -1486,7 +1486,7 @@ CPSourceFileRef,&
     TYPE(cp_para_env_type), POINTER          :: fm_para_env
     TYPE(real_block_node_type), POINTER      :: block_node
 
-    CALL timeset(routineN,"I","Gflops",handle)
+    CALL timeset(routineN,handle)
     NULLIFY( col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
          sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
@@ -1633,7 +1633,7 @@ CPSourceFileRef,&
     flops=0.0_dp
     DO ijunk=1,njunk
        ! go circular
-       CALL timeset(routineN//"_local","I","Gflops",handle2)
+       CALL timeset(routineN//"_local",handle2)
        flops_l=0.0_dp
        junk_in =MOD(ijunk-1,njunk_local_in+1)+1
        junk_out=MOD(ijunk-1,njunk_local_out+1)+1
@@ -1692,7 +1692,7 @@ CPSourceFileRef,&
 
        END DO
        flops=flops+flops_l
-       CALL timestop(flops_l*1.0e-9,handle2)
+       CALL timestop(handle2)
 
        junk_recv_in=MODULO(junk_in-2,njunk_local_in+1)+1
        junk_recv_out=MODULO(junk_out-2,njunk_local_out+1)+1
@@ -1728,7 +1728,7 @@ CPSourceFileRef,&
     DEALLOCATE(v_out,stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    CALL timestop(flops*1.0e-9_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_sm_plus_fm_fm_t_2d
 

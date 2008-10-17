@@ -250,7 +250,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","Gflops",handle)
+    CALL timeset(routineN,handle)
 
     a => matrix_a%local_data
     b => matrix_b%local_data
@@ -282,7 +282,7 @@ CPSourceFileRef,&
     CALL zgemm(transa,transb,m,n,k,alpha,a(1,1),lda,b(1,j),ldb,beta,c(1,j),ldc)
 
 #endif
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_cfm_gemm
 

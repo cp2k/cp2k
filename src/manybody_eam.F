@@ -69,7 +69,7 @@ CONTAINS
                                                 r_last_update_pbc
 
     failure = .FALSE.
-    CALL timeset ( routineN, 'I', 'Mflops', handle )
+    CALL timeset(routineN,handle)
     flops = 0.0_dp
     do_eam = .FALSE.
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
@@ -125,7 +125,7 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "deallocate rho")
     END IF
-    CALL timestop ( flops, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE density_nonbond
 

@@ -608,7 +608,7 @@ END FUNCTION rs_grid_locate_rank
     IF (dir.EQ.rs2pw) dirname="RS2PW"
     IF (dir.EQ.pw2rs) dirname="PW2RS"
     CALL timeset(routineN//"_"//TRIM(dirname)//"_"// TRIM(ADJUSTL(&
-              cp_to_string(CEILING(pw%pw_grid%cutoff/10)*10))),'I',' ',handle)
+              cp_to_string(CEILING(pw%pw_grid%cutoff/10)*10))),handle)
 
     IF ( rs % grid_id /= pw % pw_grid % id_nr ) &
        CALL stop_program ( "rs_pw_transfer", "different rs and pw indentitfiers")

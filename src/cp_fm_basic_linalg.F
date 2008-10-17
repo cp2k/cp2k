@@ -251,7 +251,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","Gflops",handle)
+    CALL timeset(routineN,handle)
 
     a => matrix_a%local_data
     b => matrix_b%local_data
@@ -304,7 +304,7 @@ CPSourceFileRef,&
     CALL dgemm(transa,transb,m,n,k,alpha,a(i_a,1),lda,b(i_b,j_b),ldb,beta,c(i_c,j_c),ldc)
 
 #endif
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_gemm
 
@@ -347,7 +347,7 @@ CPSourceFileRef,&
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","Gflops",handle)
+    CALL timeset(routineN,handle)
 
     context => matrix_a%matrix_struct%context
 
@@ -376,7 +376,7 @@ CPSourceFileRef,&
     CALL dsymm(side,uplo,m,n,alpha,a(1,1),lda,b(1,1),ldb,beta,c(1,1),ldc)
 
 #endif
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_symm
 
@@ -441,7 +441,7 @@ CPSourceFileRef,&
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","GFlops",handle)
+    CALL timeset(routineN,handle)
 
     context => matrix_a%matrix_struct%context
 
@@ -478,7 +478,7 @@ CPSourceFileRef,&
     CALL dger(m,n,alpha,x(ix,jx),incx,y(iy,jy),incy,a(ia,ja),lda)
 
 #endif
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_ger
 

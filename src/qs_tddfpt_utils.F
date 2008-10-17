@@ -433,10 +433,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reorthogonalize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, n_spins, spin, time_handle
+    INTEGER                                  :: handle, i, n_spins, spin
     REAL(DP)                                 :: dot_product, tmp
 
-    CALL timeset(routineN,time_handle)
+    CALL timeset(routineN,handle)
 
     IF (n>0) THEN
 
@@ -459,7 +459,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_dp, time_handle)
+    CALL timestop(handle)
 
   END SUBROUTINE reorthogonalize
 

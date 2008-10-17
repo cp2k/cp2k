@@ -351,7 +351,7 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","Gflops",handle)
+  CALL timeset(routineN,handle)
 
   IF ( PRESENT ( scale ) ) THEN
     norm = scale
@@ -445,7 +445,7 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
   ! definition used with FFTW
   nx = 5.e-9_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
   flops = nx * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) / LOG ( 2.0_dp )
-  CALL timestop(flops,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE fft3d_s
 
@@ -488,7 +488,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","Gflops",handle)
+  CALL timeset(routineN,handle)
 
   IF ( PRESENT ( debug ) ) THEN
     test = debug
@@ -952,7 +952,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
   nf = 5.e-6_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
   flops = nf * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) / LOG ( 2.0_dp) ! FFTW definition
   flops = 1.0e-3_dp*flops/numtask_r  ! per cpu
-  CALL timestop(flops,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE fft3d_ps
 
@@ -1009,7 +1009,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 ! distribution is not covered.
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","Gflops",handle)
+  CALL timeset(routineN,handle)
 #if defined(__FFTSGL)
   CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif
@@ -1444,7 +1444,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 
   nx = 5.e-9_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
   flops = nx * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) / LOG (2.0_dp)
-  CALL timestop(flops,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE fft3d_pb
 
@@ -1481,7 +1481,7 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb, fft_scratch, err
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","Mcopy",handle)
+  CALL timeset(routineN,handle)
 
   np = SIZE ( p2p )
   scount => fft_scratch%scount
@@ -1543,7 +1543,7 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb, fft_scratch, err
   END DO
 
   flop = flop * 1.e-6_dp
-  CALL timestop(flop,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE x_to_yz
 
@@ -1580,7 +1580,7 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb, fft_scratch, err
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","Mcopy",handle)
+  CALL timeset(routineN,handle)
 
   np = SIZE ( p2p )
   mpr = p2p ( my_pos )
@@ -1643,7 +1643,7 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb, fft_scratch, err
   END IF
 
   flop = flop * 1.e-6
-  CALL timestop(flop,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE yz_to_x
 
@@ -1686,7 +1686,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","Mcopy",handle)
+  CALL timeset(routineN,handle)
 
   np = SIZE ( p2p )
 
@@ -1811,7 +1811,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
   END DO
 
   flop = flop * 1.e-6
-  CALL timestop(flop,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE yz_to_xz
 
@@ -1854,7 +1854,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routineN,"I","Mcopy",handle)
+  CALL timeset(routineN,handle)
 
   np = SIZE ( p2p )
 
@@ -1988,7 +1988,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
   END DO
 
   flop = flop * 1.e-6
-  CALL timestop(flop,handle)
+  CALL timestop(handle)
 
 END SUBROUTINE xz_to_yz
 

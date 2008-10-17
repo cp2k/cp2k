@@ -454,7 +454,7 @@ CONTAINS
        CPPrecondition(ASSOCIATED(d_mp_perf_env),cp_failure_level,routineP,error,failure)
        IF (.NOT.failure) THEN
           CPPrecondition(logger%id_nr==d_logger%id_nr,cp_failure_level,routineP,error,failure)
-          CPPrecondition(d_timer_env%id_nr==f_env%timer_env%id_nr,cp_failure_level,routineP,error,failure)
+          ! CPPrecondition(d_timer_env%id_nr==f_env%timer_env%id_nr,cp_failure_level,routineP,error,failure)
           CPPrecondition(d_mp_perf_env%id_nr==f_env%mp_perf_env%id_nr,cp_failure_level,routineP,error,failure)
        END IF
        IF (f_env%old_path/=f_env%my_path) THEN

@@ -83,10 +83,10 @@ SUBROUTINE pw_zero ( pw )
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_zero', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ns
+    INTEGER                                  :: handle, ns
     REAL(KIND=dp)                            :: zr
 
-  CALL timeset ( routineN, 'I', 'Mzero', handle )
+  CALL timeset(routineN,handle)
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_zero")
   IF ( pw % in_use == REALDATA1D ) THEN
      ns = SIZE(pw%cr)
@@ -105,7 +105,7 @@ SUBROUTINE pw_zero ( pw )
   END IF
 
   zr = REAL ( ns,KIND=dp) * 1.e-6_dp
-  CALL timestop ( zr, handle )
+  CALL timestop(handle)
 
 END SUBROUTINE pw_zero
 
@@ -131,7 +131,7 @@ SUBROUTINE pw_copy ( pw1, pw2 )
     INTEGER                                  :: handle, i, j, ng, ng1, ng2, ns
     REAL(KIND=dp)                            :: zc
 
-  CALL timeset ( routineN, 'I', 'Mcopy', handle )
+  CALL timeset(routineN,handle)
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_copy")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_copy")
   IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) THEN
@@ -275,7 +275,7 @@ SUBROUTINE pw_copy ( pw1, pw2 )
   pw2 % in_space = pw1 % in_space
 
   zc = REAL ( ns,KIND=dp) * 1.e-6_dp
-  CALL timestop ( zc, handle )
+  CALL timestop(handle)
   
 END SUBROUTINE pw_copy
 
@@ -295,7 +295,7 @@ SUBROUTINE pw_scale( pw, a )
     INTEGER                                  :: handle, ns
     REAL(KIND=dp)                            :: flop
 
-    CALL timeset ( routineN, 'I', 'Mflops', handle )
+    CALL timeset(routineN,handle)
     CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_scale")
 
     SELECT CASE ( pw % in_use )
@@ -316,7 +316,7 @@ SUBROUTINE pw_scale( pw, a )
     END SELECT
 
     flop = REAL ( ns, KIND=dp) * 1.e-6_dp
-    CALL timestop ( flop, handle )
+    CALL timestop(handle)
 
 END SUBROUTINE pw_scale
 
@@ -343,7 +343,7 @@ SUBROUTINE pw_derive ( pw, n )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( routineN, 'I', 'Mflops', handle )
+  CALL timeset(routineN,handle)
 
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_derive")
   IF ( ANY ( n < 0 ) ) CALL stop_program ( "pw_derive", "n < 0" )
@@ -415,7 +415,7 @@ SUBROUTINE pw_derive ( pw, n )
   END IF
 
   flop = flop * 1.e-6_dp
-  CALL timestop ( flop, handle )
+  CALL timestop(handle)
 
 END SUBROUTINE pw_derive
 
@@ -441,7 +441,7 @@ SUBROUTINE pw_dr2 ( pw, pwdr2, i, j )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( routineN, 'I', 'Mflops', handle )
+  CALL timeset(routineN,handle)
 
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_dr2")
 
@@ -475,7 +475,7 @@ SUBROUTINE pw_dr2 ( pw, pwdr2, i, j )
   END IF
 
   flop = flop * 1.e-6_dp
-  CALL timestop ( flop, handle )
+  CALL timestop(handle)
 
 END SUBROUTINE pw_dr2
 
@@ -502,7 +502,7 @@ SUBROUTINE pw_dr2_gg ( pw, pwdr2_gg, i, j )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( routineN, 'I', 'Mflops', handle )
+  CALL timeset(routineN,handle)
 
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_dr2_gg")
 
@@ -539,7 +539,7 @@ SUBROUTINE pw_dr2_gg ( pw, pwdr2_gg, i, j )
   END IF
 
   flop = flop * 1.e-6_dp
-  CALL timestop ( flop, handle )
+  CALL timestop(handle)
 
 END SUBROUTINE pw_dr2_gg
 
@@ -565,7 +565,7 @@ SUBROUTINE pw_smoothing ( pw, ecut, sigma )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( routineN, 'I', 'Mflops', handle )
+  CALL timeset(routineN,handle)
 
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_dr2")
 
@@ -591,7 +591,7 @@ SUBROUTINE pw_smoothing ( pw, ecut, sigma )
   END IF
 
   flop = flop * 1.e-6_dp
-  CALL timestop ( flop, handle )
+  CALL timestop(handle)
 
 END SUBROUTINE pw_smoothing
 
@@ -674,7 +674,7 @@ SUBROUTINE pw_axpy ( pw1, pw2, alpha )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( routineN, 'I', 'Mflops', handle )
+  CALL timeset(routineN,handle)
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_axpy")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_axpy")
 
@@ -854,7 +854,7 @@ SUBROUTINE pw_axpy ( pw1, pw2, alpha )
   END IF
 
   flop = flop * 1.e-6_dp
-  CALL timestop ( flop, handle )
+  CALL timestop(handle)
 
 END SUBROUTINE pw_axpy
 
@@ -881,7 +881,7 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( routineN, 'I', 'Mcopy', handle )
+  CALL timeset(routineN,handle)
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_gather_s")
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
@@ -926,7 +926,7 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
   END IF
 
   cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
-  CALL timestop ( cpy, handle )
+  CALL timestop(handle)
 
 END SUBROUTINE pw_gather_s
 
@@ -949,7 +949,7 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( routineN, 'I', 'Mcopy', handle )
+  CALL timeset(routineN,handle)
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_gather_p")
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
@@ -1001,7 +1001,7 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
   END IF
 
   cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
-  CALL timestop ( cpy, handle )
+  CALL timestop(handle)
 
 END SUBROUTINE pw_gather_p
 
@@ -1028,7 +1028,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( routineN, 'I', 'Mcopy', handle )
+  CALL timeset(routineN,handle)
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_scatter_s")
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
@@ -1111,7 +1111,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
   END IF
 
   cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
-  CALL timestop ( cpy, handle )
+  CALL timestop(handle)
 
 END SUBROUTINE pw_scatter_s
 
@@ -1134,7 +1134,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( routineN, 'I', 'Mcopy', handle )
+  CALL timeset(routineN,handle)
   CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_gather_p")
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
@@ -1225,7 +1225,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
   END IF
 
   cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
-  CALL timestop ( cpy, handle )
+  CALL timestop(handle)
 
 END SUBROUTINE pw_scatter_p
 
@@ -1319,7 +1319,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
 
   CALL timeset(routineN,handle2)
   CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
-               CEILING (pw1%pw_grid%cutoff/10)*10))),"I"," ",handle)
+               CEILING (pw1%pw_grid%cutoff/10)*10))),handle)
 
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"fft_wrap_pw1pw2")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"fft_wrap_pw1pw2")
@@ -1982,7 +1982,7 @@ SUBROUTINE pw_structure_factor ( sf, r )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( routineN, 'I', 'Mflops', handle )
+  CALL timeset(routineN,handle)
 
   CPPreconditionNoErr(sf%ref_count>0,cp_failure_level,"sf")
 
@@ -2006,7 +2006,7 @@ SUBROUTINE pw_structure_factor ( sf, r )
   END IF
 
   flop = flop * 1.e-6_dp
-  CALL timestop ( flop, handle )
+  CALL timestop(handle)
 
 END SUBROUTINE pw_structure_factor
 

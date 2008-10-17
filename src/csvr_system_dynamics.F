@@ -64,7 +64,7 @@ CONTAINS
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset(routineN,'I','Mflops',handle)
+    CALL timeset(routineN,handle)
     flops = 0.0_dp
     map_info => csvr%map_info
 
@@ -84,7 +84,7 @@ CONTAINS
     CALL do_csvr_eval_energy(csvr, map_info, error)
     
     flops = flops * 1.E-6_dp
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE csvr_coeffs
 
@@ -106,7 +106,7 @@ CONTAINS
     REAL(KIND=dp)                            :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset(routineN,'I','Mflops',handle)
+    CALL timeset(routineN,handle)
     flops = 0.0_dp
     map_info => csvr%map_info
 
@@ -126,7 +126,7 @@ CONTAINS
     CALL do_csvr_eval_energy(csvr, map_info, error)
     
     flops = flops * 1.E-6_dp
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
   END SUBROUTINE csvr_barostat
 
 ! *****************************************************************************
@@ -158,7 +158,7 @@ CONTAINS
     REAL(KIND=dp)                            :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset(routineN,'I','Mflops',handle)
+    CALL timeset(routineN,handle)
     flops = 0.0_dp
     my_shell_adiabatic = .FALSE.
     IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
@@ -184,7 +184,7 @@ CONTAINS
     CALL do_csvr_eval_energy(csvr, map_info, error)
 
     flops = flops * 1.E-6_dp
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
   END SUBROUTINE csvr_particles
 
 ! *****************************************************************************
@@ -212,7 +212,7 @@ CONTAINS
     REAL(dp)                                 :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset(routineN,'I','Mflops',handle)
+    CALL timeset(routineN,handle)
     flops = 0.0_dp
     map_info => csvr%map_info
 
@@ -235,7 +235,7 @@ CONTAINS
     CALL do_csvr_eval_energy(csvr, map_info, error)
 
     flops = flops * 1.E-6_dp
-    CALL timestop(flops,handle)
+    CALL timestop(handle)
   END SUBROUTINE csvr_shells
 
 ! *****************************************************************************

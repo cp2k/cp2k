@@ -90,7 +90,7 @@ CONTAINS
 
     IF ( virial % pv_availability ) THEN
 
-       CALL timeset (routineN, 'I', 'Mflops', handle )
+       CALL timeset(routineN,handle)
 
        NULLIFY(atomic_kind)
        mfl = 0.0_dp
@@ -120,7 +120,7 @@ CONTAINS
        ! total virial
        virial%pv_total = virial%pv_virial + virial%pv_kinetic + virial%pv_constraint
 
-       CALL timestop ( mfl, handle )
+       CALL timestop(handle)
 
     ENDIF
 

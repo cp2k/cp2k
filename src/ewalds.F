@@ -106,7 +106,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: pw
     TYPE(structure_factor_type)              :: exp_igr
 
-    CALL timeset ( routineN, 'E', 'Mflops', handle )
+    CALL timeset(routineN,handle)
 
     CALL cite_reference(Ewald1921)
     flops = 0.0_dp
@@ -245,7 +245,7 @@ CONTAINS
     IF ( isos /= 0 ) CALL stop_memory ( 'ewald', 'summe' )
 
     flops = flops * 1.0E-6_dp
-    CALL timestop ( flops, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE ewald_evaluate
 

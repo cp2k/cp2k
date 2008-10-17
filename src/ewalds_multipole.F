@@ -1416,7 +1416,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(structure_factor_type)              :: exp_igr
 
-    CALL timeset ( routineN, 'E', 'Mflops', handle )
+    CALL timeset(routineN,handle)
     flops = 0.0_dp
     do_efield0 = do_efield.AND.ASSOCIATED(efield0)
     do_efield1 = do_efield.AND.ASSOCIATED(efield1)
@@ -1693,7 +1693,7 @@ CONTAINS
     END IF
 
     flops = flops * 1.0E-6_dp
-    CALL timestop ( flops, handle )
+    CALL timestop(handle)
 
   END SUBROUTINE ewald_multipole_LR
 

@@ -25,14 +25,6 @@ MODULE timings
 
   PRIVATE
 
-  INTERFACE timeset
-     MODULE PROCEDURE timeset_full, timeset_short
-  END INTERFACE
-
-  INTERFACE timestop
-     MODULE PROCEDURE timestop_full, timestop_short
-  END INTERFACE
-
   PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack,&
        use_HPM
 
@@ -52,14 +44,14 @@ MODULE timings
 
 ! *****************************************************************************
   TYPE timer_env_type
-     !PRIVATE
+     PRIVATE
      INTEGER :: ref_count, id_nr
      ! subroutine calling stack
      INTEGER :: stack_size
      CHARACTER ( LEN = max_clock_name ) :: routine_stack ( max_stack )
      REAL (KIND=dp)                     :: wallclock_start ( max_stack )
      INTEGER :: handle_stack (max_stack)
-     ! subroutine timing and performance information
+     ! timing info
      CHARACTER ( LEN = max_clock_name ) :: clock_name ( max_timer )
      INTEGER :: sort_index ( max_timer )
      INTEGER :: routine_calls ( max_timer )
@@ -225,28 +217,13 @@ CONTAINS
   END SUBROUTINE timer_env_release
 
 ! *****************************************************************************
-!> \brief Start timer (short call). Provides the usual shortcut
+!> \brief Start timer
 !> \par History
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE timeset_short(name, handle )
+  SUBROUTINE timeset ( name, handle )
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    INTEGER                                  :: handle
-
-    CALL timeset_full(name, "I", "", handle)
-  END SUBROUTINE timeset_short
-
-! *****************************************************************************
-!> \brief Start timer (long call)
-!> \par History
-!>      none
-!> \author JGH
-! *****************************************************************************
-  SUBROUTINE timeset_full ( name, ct, pu, handle )
-    CHARACTER(LEN=*), INTENT(IN)             :: name
-    CHARACTER(LEN=1), INTENT(IN)             :: ct           ! Clock type [0|1]
-    CHARACTER(LEN=*), INTENT(IN)             :: pu           ! Performance unit
     INTEGER, INTENT(OUT)                     :: handle
 
     CHARACTER(LEN=20)                        :: mytag
@@ -350,7 +327,7 @@ CONTAINS
        ENDIF
     ENDIF
 
-  END SUBROUTINE timeset_full
+  END SUBROUTINE timeset
 
 ! *****************************************************************************
 !> \brief End timer
@@ -358,20 +335,7 @@ CONTAINS
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE timestop_short( handle ) ! provide the usual shortcut
-    INTEGER                                  :: handle
-
-    CALL timestop_full(0.0_dp,handle)
-  END SUBROUTINE timestop_short
-
-! *****************************************************************************
-!> \brief End timer (long call)
-!> \par History
-!>      none
-!> \author JGH
-! *****************************************************************************
-  SUBROUTINE timestop_full ( perf, handle )
-    REAL(KIND=dp)                            :: perf
+  SUBROUTINE timestop( handle )
     INTEGER                                  :: handle
 
     CHARACTER(LEN=40)                        :: sformat
@@ -457,7 +421,7 @@ CONTAINS
     timer_env%handle_stack (timer_env%stack_size)=0
     timer_env%stack_size = timer_env%stack_size - 1
 
-  END SUBROUTINE timestop_full
+  END SUBROUTINE timestop
 
 ! *****************************************************************************
 !> \brief Print accumulated information on timers
