@@ -750,7 +750,6 @@ CONTAINS
 
     ! look if we inherited a failure, more care is needed if so
     ! i.e. the input is most likely not available
-
     failure=.FALSE.
     CALL cp_error_check(error,failure)
 
@@ -777,7 +776,6 @@ CONTAINS
        CALL cp_print_key_finished_output(iw,logger,root_section,&
             "GLOBAL%PROGRAM_RUN_INFO", error=error)
     ENDIF
-    CALL rm_mp_perf_env()
 
 #if defined(__HPM)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -813,14 +811,15 @@ CONTAINS
     IF (.NOT. failure) THEN
        iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%TIMINGS",&
             extension=".Log",error=error)
-       IF (iw>0) THEN
-          r_timings = section_get_rval(root_section,"GLOBAL%TIMINGS%THRESHOLD",error)
-          CALL timeprint(iw,r_timings)
-       END IF
+
+       r_timings = section_get_rval(root_section,"GLOBAL%TIMINGS%THRESHOLD",error)
+       CALL timeprint(iw,r_timings,para_env)
+
        CALL cp_print_key_finished_output(iw,logger,root_section,&
             "GLOBAL%TIMINGS",error=error)
     ENDIF
 
+    CALL rm_mp_perf_env()
     CALL rm_timer_env()
 
     IF (para_env%ionode) THEN
