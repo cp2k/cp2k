@@ -45,24 +45,24 @@ MODULE timings
 ! *****************************************************************************
   TYPE timer_env_type
      PRIVATE
-     INTEGER :: ref_count, id_nr
+     INTEGER                                         :: ref_count, id_nr
      ! subroutine calling stack
-     INTEGER :: stack_size
-     CHARACTER ( LEN = max_clock_name ) :: routine_stack ( max_stack )
-     REAL (KIND=dp)                     :: wallclock_start ( max_stack )
-     INTEGER :: handle_stack (max_stack)
+     INTEGER                                         :: stack_size
+     CHARACTER ( LEN = max_clock_name )              :: routine_stack (max_stack)
+     REAL (KIND=dp)                                  :: wallclock_start (max_stack)
+     INTEGER                                         :: handle_stack (max_stack)
      ! timing info
-     CHARACTER ( LEN = max_clock_name ) :: clock_name ( max_timer )
-     INTEGER :: sort_index ( max_timer )
-     INTEGER :: routine_calls ( max_timer )
-     INTEGER :: routine_stack_depth ( max_timer )
-     INTEGER :: clock_status ( max_timer )
-     REAL (KIND=dp) :: exclusive_wallclock_accu ( max_timer )
-     REAL (KIND=dp) :: inclusive_wallclock_accu ( max_timer )
-     INTEGER :: num_timer 
-     CHARACTER ( LEN = 15 ) :: astring, bstring
-     LOGICAL :: trace,trace_sync
-     INTEGER :: mepos,group,num_pe
+     CHARACTER ( LEN = max_clock_name )              :: clock_name (max_timer)
+     INTEGER                                         :: sort_index ( max_timer )
+     INTEGER                                         :: routine_calls ( max_timer )
+     INTEGER                                         :: routine_stack_depth ( max_timer )
+     INTEGER                                         :: clock_status ( max_timer )
+     REAL (KIND=dp)                                  :: exclusive_wallclock_accu ( max_timer )
+     REAL (KIND=dp)                                  :: inclusive_wallclock_accu ( max_timer )
+     INTEGER                                         :: num_timer 
+     CHARACTER ( LEN = 15 )                          :: astring, bstring
+     LOGICAL                                         :: trace,trace_sync
+     INTEGER                                         :: mepos,group,num_pe
   END TYPE timer_env_type
 
 ! *****************************************************************************
@@ -453,8 +453,13 @@ CONTAINS
     timer_env => timer_env_stack(stack_pointer)%timer_env
 
     ! find the number of timing events on the parent
+    ! note: we assume that timing events on the parent
+    !       include all possible timing events.. i.e. there
+    !       are no other timing events on the rest of the group.
+    !       If this is the case they will be ignored in the 
+    !       timing report.
     num_timer=timer_env%num_timer
-    CALL mp_bcast(num_timer,0,para_env%group)
+    CALL mp_bcast(num_timer,para_env%source,para_env%group)
     
     ALLOCATE(max_iwalltime(num_timer))
     ALLOCATE(sum_iwalltime(num_timer))
@@ -471,10 +476,10 @@ CONTAINS
        isum_ewall=0.0_dp
        DO j=1,timer_env%num_timer
           IF (timer_env%clock_name(j)==iclock) THEN
-             imax_iwall=timer_env%inclusive_wallclock_accu(i)
-             isum_iwall=timer_env%inclusive_wallclock_accu(i)
-             imax_ewall=timer_env%exclusive_wallclock_accu(i)
-             isum_ewall=timer_env%exclusive_wallclock_accu(i)
+             imax_iwall=timer_env%inclusive_wallclock_accu(j)
+             isum_iwall=timer_env%inclusive_wallclock_accu(j)
+             imax_ewall=timer_env%exclusive_wallclock_accu(j)
+             isum_ewall=timer_env%exclusive_wallclock_accu(j)
              EXIT
           ENDIF
        ENDDO
@@ -489,7 +494,7 @@ CONTAINS
        sum_ewalltime(i)=isum_ewall
     ENDDO
 
-    IF (num_timer > 0 .AND. iw>0 .AND. para_env%mepos==para_env%source) THEN
+    IF (num_timer > 0 .AND. iw>0) THEN
 
        CALL sort(max_iwalltime,num_timer,index)
 
