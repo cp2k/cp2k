@@ -111,6 +111,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_buffer_type', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i
     LOGICAL                                  :: failure, my_force
 
     failure = .FALSE.
@@ -127,7 +128,10 @@ CONTAINS
     IF ((buffer_out%buffer_id/=buffer_in%buffer_id).OR.(my_force)) THEN
        buffer_out%buffer_id           = buffer_in%buffer_id
        buffer_out%input_line_numbers  = buffer_in%input_line_numbers
-       buffer_out%input_lines         = buffer_in%input_lines
+       ! Explicit loop: bypass a NAG bug..
+       DO i = 1, SIZE(buffer_in%input_lines)
+          buffer_out%input_lines(i)   = buffer_in%input_lines(i)
+       END DO
     END IF
     IF (ASSOCIATED(buffer_in%sub_buffer).AND.ASSOCIATED(buffer_out%sub_buffer)) THEN
        CALL copy_buffer_type(buffer_in%sub_buffer, buffer_out%sub_buffer, force, error)
