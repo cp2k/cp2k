@@ -177,7 +177,7 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_2c, sab_all, &
       sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_orb, sab_scp, &
-      sac_3c, sac_oce, sac_ppl, sac_ppnl, sbc_3c, sbc_oce, sbc_ppnl
+      sac_3c, sac_oce, sac_ppl, sac_ppnl, sbc_3c, sbc_oce, sbc_ppnl, sab_vdw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -212,6 +212,7 @@ CONTAINS
     NULLIFY (sac_3c)
     NULLIFY (sbc_3c)
     NULLIFY (sab_all)
+    NULLIFY (sab_vdw)
     NULLIFY (sab_aux_fit)
     NULLIFY (sab_aux_fit_vs_orb)
 ! *** SCP
@@ -264,6 +265,7 @@ CONTAINS
                     sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
                     sab_aux_fit_asymm=sab_aux_fit_asymm,&
                     sac_ppl=sac_ppl,&
+                    sab_vdw=sab_vdw,&
                     sac_ppnl=sac_ppnl,&
                     sbc_ppnl=sbc_ppnl,&
                     sac_oce=sac_oce,&
@@ -1145,12 +1147,12 @@ CONTAINS
             rcdisp=c_radius(ikind),error=error)
         END DO
 
-        CALL build_neighbor_lists(sac_ppl,atom,cell,r_skin,maxatom_local,&
+        CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&
                                   .FALSE.,output_unit,orb_present,orb_present,&
                                   c_radius,c_radius,name="DISPERSION")
-
         ! Put the generated neighbor lists into the QS environment
-        CALL set_qs_env(qs_env=qs_env,sac_ppl=sac_ppl,error=error)
+        CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
+
         DEALLOCATE (c_radius,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius")
       END IF

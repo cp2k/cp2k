@@ -120,7 +120,7 @@ CONTAINS
 
       evdw = 0._dp
 
-      CALL get_qs_env(qs_env=qs_env,sac_ppl=sab_vdw,error=error)
+      CALL get_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
 
       nkind = SIZE(atomic_kind_set)
 
@@ -145,7 +145,7 @@ CONTAINS
 
          IF (.NOT.defined) CYCLE
 
-           ! retrieve information on F and S matrix
+           ! retrieve information on potential
            dftb_param_ij => dftb_potential(ikind,jkind)
            ! vdW parameter
            xij = dftb_param_ij%xij
@@ -236,7 +236,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      END IF
 
-     ! set repulsive energy
+     ! set dispersion energy
      CALL mp_sum(evdw,para_env%group)
      energy%dispersion = evdw
 

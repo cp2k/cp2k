@@ -216,6 +216,7 @@ MODULE qs_environment_types
 !>        hartree term Vh(rho0_hard-rho0_soft)*rho_soft
 !> \param sab_all neighbor lists for the calculation of the  matrix element of
 !>        non-symmetric operators
+!> \param sab_vdw: neighbor lists for the calculation of dispersion interactions
 !> \param sab_scp: neighbor lists for the calculation of the dispersion interactions
 !>        when self-consistent polarization (SCP) is included
 !> \param energy place where the energies calculated are stored
@@ -303,7 +304,7 @@ MODULE qs_environment_types
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
                                                              sac_ppl,sac_ppnl,&
                                                              sbc_ppnl,sac_oce,&
-                                                             sbc_oce,sab_2c,&
+                                                             sbc_oce,sab_2c,sab_vdw,&
                                                              sac_3c,sbc_3c,sab_all,sab_scp,&
                                                              sab_aux_fit, sab_aux_fit_vs_orb,&
                                                              sab_aux_fit_asymm
@@ -326,7 +327,7 @@ MODULE qs_environment_types
                                                              rho_aux_fit
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(rel_control_type), POINTER                       :: rel_control 
-    TYPE ( scp_environment_type ), POINTER                :: scp_env
+    TYPE(scp_environment_type), POINTER                   :: scp_env
     TYPE(pw_env_type), POINTER                            :: pw_env
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
@@ -392,7 +393,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
-       sab_all,qmmm,qmmm_periodic,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sab_scp,sac_oce,sbc_oce,&
+       sab_all,qmmm,qmmm_periodic,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sab_vdw,sab_scp,sac_oce,sbc_oce,&
        sab_2c,sac_3c,sbc_3c,particle_set,energy,force,harris_env,matrix_h,matrix_ks,& 
        matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,matrix_dv,& 
        gamma_matrix, rho, rho_aux_fit,rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
@@ -420,7 +421,7 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sac_erfc, sac_ppl, sac_ppnl, &
-                                                sbc_ppnl, sab_scp, sac_oce, &
+                                                sbc_ppnl, sab_scp, sab_vdw, sac_oce, &
                                                 sbc_oce, sab_2c, sac_3c, &
                                                 sbc_3c
     TYPE(particle_type), DIMENSION(:), &
@@ -559,6 +560,7 @@ CONTAINS
     IF (PRESENT(sab_aux_fit_vs_orb)) sab_aux_fit_vs_orb => qs_env%sab_aux_fit_vs_orb
     IF (PRESENT(sab_all)) sab_all => qs_env%sab_all
     IF (PRESENT(sab_scp)) sab_scp => qs_env%sab_scp
+    IF (PRESENT(sab_vdw)) sab_vdw => qs_env%sab_vdw
     IF (PRESENT(sac_erfc)) sac_erfc => qs_env%sac_erfc
     IF (PRESENT(sac_ppl)) sac_ppl => qs_env%sac_ppl
     IF (PRESENT(sac_ppnl)) sac_ppnl => qs_env%sac_ppnl
@@ -696,6 +698,7 @@ CONTAINS
     NULLIFY (qs_env%sab_aux_fit_asymm)
     NULLIFY (qs_env%sab_aux_fit_vs_orb)
     NULLIFY (qs_env%sab_scp)
+    NULLIFY (qs_env%sab_vdw)
     NULLIFY (qs_env%sab_all)
     NULLIFY (qs_env%sac_erfc)
     NULLIFY (qs_env%sac_ppl)
@@ -797,7 +800,7 @@ CONTAINS
   SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell,dft_control,&
        mos,mos_aux_fit,qmmm,qmmm_periodic,sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
        sab_aux_fit_vs_orb,sab_all,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sac_oce,&
-       sbc_oce,sab_2c,sac_3c,sbc_3c,sab_scp,energy,force,harris_env,matrix_h,matrix_ks,&
+       sbc_oce,sab_2c,sac_3c,sbc_3c,sab_scp,sab_vdw,energy,force,harris_env,matrix_h,matrix_ks,&
        matrix_ks_aux_fit, matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,&
        matrix_dv,gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,& 
        rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,rho_core,ks_env,& 
@@ -819,7 +822,7 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
       sab_orb, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, &
       sac_erfc, sac_ppl, sac_ppnl, sbc_ppnl, sac_oce, sbc_oce, sab_2c, &
-      sac_3c, sbc_3c, sab_scp
+      sac_3c, sbc_3c, sab_scp, sab_vdw
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
@@ -945,6 +948,7 @@ CONTAINS
     IF (PRESENT(sab_aux_fit_asymm)) qs_env%sab_aux_fit_asymm => sab_aux_fit_asymm
     IF (PRESENT(sab_aux_fit_vs_orb)) qs_env%sab_aux_fit_vs_orb => sab_aux_fit_vs_orb
     IF (PRESENT(sab_scp)) qs_env%sab_scp => sab_scp
+    IF (PRESENT(sab_vdw)) qs_env%sab_vdw => sab_vdw
     IF (PRESENT(sab_all)) qs_env%sab_all => sab_all
     IF (PRESENT(sac_erfc)) qs_env%sac_erfc => sac_erfc
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl
@@ -1287,6 +1291,14 @@ CONTAINS
                      qs_env%sab_scp(i)%neighbor_list_set)
              END DO
              DEALLOCATE(qs_env%sab_scp,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%sab_vdw)) THEN
+             DO i=1,SIZE(qs_env%sab_vdw)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sab_vdw(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sab_vdw,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           IF (ASSOCIATED(qs_env%sab_orb)) THEN
