@@ -87,3 +87,5 @@ nh3_fixd_xy.inp
 nh3_fixd_y.inp
 nh3_fixd_z.inp
 nptf_ortho.inp
+# bug fix averages - wrongly initialized
+argon_opt_cell_md.inp

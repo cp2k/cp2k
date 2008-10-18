@@ -45,6 +45,7 @@ MODULE md_run
                                              npt_f_ensemble,&
                                              npt_i_ensemble,&
                                              reftraj_ensemble
+  USE input_cp2k_check,                ONLY: remove_restart_info
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
                                              section_vals_type,&
@@ -126,12 +127,15 @@ CONTAINS
     para_env       => force_env%para_env
     motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
     md_section     => section_vals_get_subs_vals(motion_section,"MD",error=error)
+
     ! Real call to MD driver - Low Level
     CALL md_env_create(md_env, md_section, para_env, force_env=force_env, error=error)
     CALL set_md_env(md_env, averages=averages, error=error)
     CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, error)
     CALL md_env_release(md_env, error=error)
 
+    ! Clean restartable sections..
+    CALL remove_restart_info(force_env%root_section,error=error)
   END SUBROUTINE qs_mol_dyn
 
 ! *****************************************************************************

@@ -813,7 +813,8 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, iforce_eval, &
                                                 nforce_eval1
     LOGICAL                                  :: explicit1, failure
-    TYPE(section_vals_type), POINTER         :: section1, section_to_delete, &
+    TYPE(section_vals_type), POINTER         :: md_section, motion_section, &
+                                                section1, section_to_delete, &
                                                 sections1, work_section
 
     CALL timeset(routineN,handle)
@@ -827,117 +828,90 @@ CPSourceFileRef,&
        CALL section_vals_get(sections1, n_repetition=nforce_eval1, error=error)
        
        DO iforce_eval = 1, nforce_eval1
-          section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",&
-               i_rep_section=iforce_eval,error=error)
+          section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",i_rep_section=iforce_eval,error=error)
           section_to_delete => section_vals_get_subs_vals(section1,"COORD",error=error)
           CALL section_vals_remove_values(section_to_delete,error)
           section_to_delete => section_vals_get_subs_vals(section1,"VELOCITY",error=error)
           CALL section_vals_remove_values(section_to_delete,error)
        END DO
-       work_section => section_vals_get_subs_vals(input_file,"MOTION%MD",error=error)
+
+       motion_section => section_vals_get_subs_vals(input_file,"MOTION",error=error)
+       md_section => section_vals_get_subs_vals(motion_section,"MD",error=error)
+       CALL section_vals_get(md_section,explicit=explicit1,error=error)
+       IF (explicit1) THEN
+          CALL section_vals_val_unset(md_section,"STEP_START_VAL",error=error)
+          CALL section_vals_val_unset(md_section,"TIME_START_VAL",error=error)
+          CALL section_vals_val_unset(md_section,"ECONS_START_VAL",error=error)
+       END IF
+       work_section => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN",error=error)
        CALL section_vals_get(work_section,explicit=explicit1,error=error)
        IF (explicit1) THEN
-          CALL section_vals_val_unset(input_file,"MOTION%MD%STEP_START_VAL",error=error)
-          CALL section_vals_val_unset(input_file,"MOTION%MD%TIME_START_VAL",error=error)
-          CALL section_vals_val_unset(input_file,"MOTION%MD%ECONS_START_VAL",error=error)
+          CALL section_vals_val_unset(motion_section,"FREE_ENERGY%METADYN%STEP_START_VAL",error=error)
+          CALL section_vals_val_unset(motion_section,"FREE_ENERGY%METADYN%NHILLS_START_VAL",error=error)
        END IF
-       work_section => section_vals_get_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN",error=error)
-       CALL section_vals_get(work_section,explicit=explicit1,error=error)
-       IF (explicit1) THEN
-          CALL section_vals_val_unset(input_file,"MOTION%FREE_ENERGY%METADYN%STEP_START_VAL",error=error)
-          CALL section_vals_val_unset(input_file,"MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",error=error)
-       END IF
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%BAND%REPLICA",error=error)
+       section_to_delete => section_vals_get_subs_vals(motion_section,"BAND%REPLICA",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%THERMOSTAT%NOSE%COORD",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"AVERAGES%RESTART_AVERAGES",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%THERMOSTAT%NOSE%VELOCITY",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"THERMOSTAT%NOSE%COORD",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%THERMOSTAT%NOSE%MASS",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"THERMOSTAT%NOSE%VELOCITY",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%THERMOSTAT%NOSE%FORCE",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"THERMOSTAT%NOSE%MASS",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%BAROSTAT%MASS",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"THERMOSTAT%NOSE%FORCE",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%BAROSTAT%VELOCITY",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%MASS",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%VELOCITY",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%KG_COEFF%COORD",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%RESTART_INDEX",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%COORD",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%KG_COEFF%VELOCITY",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%RESTART_INDEX",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%COORD",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%VELOCITY",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%VELOCITY",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%THERMOSTAT%NOSE%COORD",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%MASS",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%THERMOSTAT%NOSE%VELOCITY",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%KG_COEFF%THERMOSTAT%NOSE%FORCE",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%THERMOSTAT%NOSE%MASS",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%SHELL%THERMOSTAT%NOSE%COORD",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%THERMOSTAT%NOSE%FORCE",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%SHELL%THERMOSTAT%NOSE%VELOCITY",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT%NOSE%COORD",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%SHELL%THERMOSTAT%NOSE%MASS",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT%NOSE%VELOCITY",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%MD%SHELL%THERMOSTAT%NOSE%FORCE",error=error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT%NOSE%MASS",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT%NOSE%FORCE",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
        ! Constrained/Restrained section
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%CONSTRAINT%FIX_ATOM_RESTART",error=error)
+       section_to_delete => section_vals_get_subs_vals(motion_section,"CONSTRAINT%FIX_ATOM_RESTART",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%CONSTRAINT%COLVAR_RESTART",error=error)
+       section_to_delete => section_vals_get_subs_vals(motion_section,"CONSTRAINT%COLVAR_RESTART",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
        ! Free energies restarts
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",error=error)
+       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_AMPL",error=error)
+       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_AMPL",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
+       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",error=error)
+       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
+       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
     END IF
     CALL timestop(handle)
