@@ -445,7 +445,7 @@ CONTAINS
                 CALL section_vals_val_get(restart_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
                 CALL section_vals_val_set(input_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
                 CALL section_vals_val_get(restart_file,"MOTION%MD%ECONS_START_VAL",r_val=myt,error=error)
-                CALL section_vals_val_get(input_file,"MOTION%MD%ECONS_START_VAL",r_val=myt,error=error)
+                CALL section_vals_val_set(input_file,"MOTION%MD%ECONS_START_VAL",r_val=myt,error=error)
                 CALL set_restart_info("MD COUNTERS",restarted_infos,error)
              END IF
              !
@@ -839,6 +839,7 @@ CPSourceFileRef,&
        IF (explicit1) THEN
           CALL section_vals_val_unset(input_file,"MOTION%MD%STEP_START_VAL",error=error)
           CALL section_vals_val_unset(input_file,"MOTION%MD%TIME_START_VAL",error=error)
+          CALL section_vals_val_unset(input_file,"MOTION%MD%ECONS_START_VAL",error=error)
        END IF
        work_section => section_vals_get_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN",error=error)
        CALL section_vals_get(work_section,explicit=explicit1,error=error)

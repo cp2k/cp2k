@@ -499,19 +499,18 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: counter, handle, handle2, i, iatom, icoef, iel, ikind, irep, &
-      isec, j, my_itimes, n_el, natom, natom_tot, nfield, nhc_len, nkind, &
-      nsgf, nsgf_max, stat, tot_nhcneed
+      isec, j, n_el, natom, natom_tot, nfield, nhc_len, nkind, nsgf, &
+      nsgf_max, stat, tot_nhcneed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
     INTEGER, DIMENSION(:), POINTER           :: lindex
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, my_save_mem
-    REAL(KIND=dp)                            :: my_t
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pbuffer, pindex, vbuffer, &
                                                 vindex
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, &
                                                 veta, wrk
-    REAL(KIND=dp), POINTER                   :: t
+    REAL(KIND=dp), POINTER                   :: constant, t
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -534,7 +533,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY (logger, thermostat_part, thermostat_baro, npt, para_env, nhc, &
          atomic_kind_set, work_section, dyn_coeff_set, atomic_kind, coeffs, &
-         aux_basis_set, thermostat_coeff, thermostat_shell, t, averages, itimes)
+         aux_basis_set, thermostat_coeff, thermostat_shell, t, averages, &
+         constant, itimes)
     IF (PRESENT(md_env)) THEN
        CALL get_md_env ( md_env=md_env,&
                          thermostat_part=thermostat_part,&
@@ -543,6 +543,7 @@ CONTAINS
                          thermostat_shell=thermostat_shell,&
                          npt=npt,&
                          t=t,&
+                         constant=constant,&
                          itimes=itimes,&
                          averages=averages,&
                          para_env=para_env,&
@@ -563,13 +564,14 @@ CONTAINS
     CALL timeset(routineN//"_COUNTERS",handle2)
     IF (ASSOCIATED(itimes)) THEN
        IF (itimes>=0) THEN
-          my_itimes = itimes
-          CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=my_itimes,error=error)
+          CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
           CPAssert(ASSOCIATED(t),cp_failure_level,routineP,error,failure)
-          my_t = t
-          CALL section_vals_val_set(motion_section,"MD%TIME_START_VAL",r_val=my_t,error=error)
+          CALL section_vals_val_set(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
        END IF
     END IF
+    IF (ASSOCIATED(constant)) THEN
+       CALL section_vals_val_set(motion_section,"MD%ECONS_START_VAL",r_val=constant,error=error)
+    END IF 
     CALL timestop(handle2)
     ! AVERAGES
     CALL timeset(routineN//"_AVERAGES",handle2)
