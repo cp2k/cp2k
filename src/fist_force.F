@@ -277,12 +277,10 @@ CONTAINS
        IF(shell_present) THEN
           CALL force_nonbond ( fist_nonbond_env, particle_set, cell, pot_nonbond, f_nonbond, &
                pv_nonbond, fshell_nonbond=fshell_nonbond, fcore_nonbond=fcore_nonbond, &
-               ewald_env=ewald_env,atomic_kind_set=atomic_kind_set, use_virial=use_virial,&
-               error=error)
+               atomic_kind_set=atomic_kind_set, use_virial=use_virial, error=error)
        ELSE
           CALL force_nonbond ( fist_nonbond_env, particle_set, cell, pot_nonbond, f_nonbond, &
-               pv_nonbond, ewald_env=ewald_env, atomic_kind_set=atomic_kind_set, use_virial=use_virial,&
-               error=error)
+               pv_nonbond, atomic_kind_set=atomic_kind_set, use_virial=use_virial, error=error)
           CALL force_nonbond_manybody ( fist_nonbond_env, particle_set, cell, f_nonbond, pv_nonbond,&
                use_virial=use_virial, error=error)
        END IF

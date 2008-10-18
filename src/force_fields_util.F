@@ -22,7 +22,8 @@ MODULE force_fields_util
   USE colvar_types,                    ONLY: dist_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE ewald_environment_types,         ONLY: ewald_environment_type
+  USE ewald_environment_types,         ONLY: ewald_environment_type,&
+                                             ewald_env_get
   USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
                                              fist_nonbond_env_type
@@ -115,6 +116,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: Ainfo
     INTEGER                                  :: handle, iw, iw2, iw3, iw4, &
                                                 output_unit
+    REAL(KIND=dp)                            :: ewald_rcut, verlet_skin
     LOGICAL                                  :: failure, fatal, ionode, &
                                                 my_qmmm, shell_present
     TYPE(charmm_info_type), POINTER          :: chm_info
@@ -282,8 +284,11 @@ CONTAINS
             error)
     END IF
     ! Create non bond environment
+    CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
+    CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
+            r_val=verlet_skin,error=error)
     CALL fist_nonbond_env_create (fist_nonbond_env, atomic_kind_set, potparm_nonbond,&
-         ff_type%nonbonded14, ff_type%nonbonded, mm_section, ewald_env, error )
+         ff_type%nonbonded14, ff_type%nonbonded, verlet_skin, ewald_rcut, error )
 
     ! Release all spline_environments
     IF (ff_type%nonbonded) THEN

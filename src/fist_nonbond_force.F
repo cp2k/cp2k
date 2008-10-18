@@ -62,7 +62,7 @@ CONTAINS
 !>      the pressure tensor
 ! *****************************************************************************
   SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell, pot_nonbond,&
-       f_nonbond, pv_nonbond, fshell_nonbond, fcore_nonbond, ewald_env,&
+       f_nonbond, pv_nonbond, fshell_nonbond, fcore_nonbond, &
        atomic_kind_set, use_virial, error )
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
@@ -74,7 +74,6 @@ CONTAINS
       INTENT(INOUT)                          :: f_nonbond, pv_nonbond
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fshell_nonbond, fcore_nonbond
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set(:)
     LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error

@@ -70,6 +70,7 @@ MODULE qs_environment
   USE et_coupling_types,               ONLY: et_coupling_create
   USE ewald_environment_types,         ONLY: ewald_env_create,&
                                              ewald_env_release,&
+                                             ewald_env_get,&
                                              ewald_env_set,&
                                              ewald_environment_type,&
                                              read_ewald_section
@@ -365,7 +366,7 @@ CONTAINS
     LOGICAL                                  :: all_potential_present, &
                                                 harris_flag, ionode, &
                                                 was_present
-    REAL(dp)                                 :: maxocc, rc
+    REAL(dp)                                 :: maxocc, rc, ewald_rcut, verlet_skin
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
@@ -719,8 +720,11 @@ CONTAINS
           ! Initialize ewald grids
           CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
           ! Setup the nonbond environment (real space part of Ewald)
+          CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
+          CALL section_vals_val_get(se_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
+               r_val=verlet_skin,error=error)
           CALL fist_nonbond_env_create(se_nonbond_env, atomic_kind_set, nonbonded14=.FALSE.,&
-               nonbonded=.TRUE., mm_section=se_section, ewald_env=ewald_env, error=error)
+               nonbonded=.TRUE., verlet_skin=verlet_skin, global_rcut=ewald_rcut, error=error)
           ! Create and Setup NDDO multipole environment
           CALL nddo_mpole_setup(se_nddo_mpole, natom, error)
           CALL set_qs_env(qs_env,ewald_env=ewald_env, ewald_pw=ewald_pw,&
