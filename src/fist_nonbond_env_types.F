@@ -14,8 +14,6 @@ MODULE fist_nonbond_env_types
                                              cell_type
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_deallocate,&
                                              fist_neighbor_type
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE pair_potential_types,            ONLY: pair_potential_pp_release,&

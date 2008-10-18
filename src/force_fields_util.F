@@ -22,8 +22,8 @@ MODULE force_fields_util
   USE colvar_types,                    ONLY: dist_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE ewald_environment_types,         ONLY: ewald_environment_type,&
-                                             ewald_env_get
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
   USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
                                              fist_nonbond_env_type
@@ -116,9 +116,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: Ainfo
     INTEGER                                  :: handle, iw, iw2, iw3, iw4, &
                                                 output_unit
-    REAL(KIND=dp)                            :: ewald_rcut, verlet_skin
     LOGICAL                                  :: failure, fatal, ionode, &
                                                 my_qmmm, shell_present
+    REAL(KIND=dp)                            :: ewald_rcut, verlet_skin
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gromos_info_type), POINTER          :: gro_info

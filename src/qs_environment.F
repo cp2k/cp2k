@@ -69,8 +69,8 @@ MODULE qs_environment
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE et_coupling_types,               ONLY: et_coupling_create
   USE ewald_environment_types,         ONLY: ewald_env_create,&
-                                             ewald_env_release,&
                                              ewald_env_get,&
+                                             ewald_env_release,&
                                              ewald_env_set,&
                                              ewald_environment_type,&
                                              read_ewald_section
@@ -366,7 +366,8 @@ CONTAINS
     LOGICAL                                  :: all_potential_present, &
                                                 harris_flag, ionode, &
                                                 was_present
-    REAL(dp)                                 :: maxocc, rc, ewald_rcut, verlet_skin
+    REAL(dp)                                 :: ewald_rcut, maxocc, rc, &
+                                                verlet_skin
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
