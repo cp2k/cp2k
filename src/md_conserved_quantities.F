@@ -111,19 +111,19 @@ CONTAINS
     CALL get_part_ke ( md_env, md_ener, tkind, tshell, para_env%group,  error=error)
            
     IF (md_ener%nfree /= 0) THEN
-         md_ener % temp_part = 2.0_dp * md_ener % ekin / REAL ( simpar%nfree,KIND=dp)
-         md_ener % temp_part = md_ener % temp_part*kelvin
+         md_ener%temp_part = 2.0_dp * md_ener%ekin / REAL ( simpar%nfree,KIND=dp)
+         md_ener%temp_part = md_ener%temp_part*kelvin
     END IF
 
     IF ( md_ener%nfree_qm > 0) THEN
        myqmmm = .TRUE.
-       md_ener % temp_qm   = 2.0_dp * md_ener % ekin_qm / REAL ( md_ener%nfree_qm,KIND=dp)
-       md_ener % temp_qm = md_ener % temp_qm*kelvin
+       md_ener%temp_qm   = 2.0_dp * md_ener%ekin_qm / REAL ( md_ener%nfree_qm,KIND=dp)
+       md_ener%temp_qm = md_ener%temp_qm*kelvin
     END IF
 
     IF ( md_ener%nfree_shell > 0) THEN
-       md_ener % temp_shell   = 2.0_dp * md_ener % ekin_shell / REAL ( md_ener%nfree_shell,KIND=dp)
-       md_ener % temp_shell =md_ener % temp_shell *kelvin
+       md_ener%temp_shell   = 2.0_dp * md_ener%ekin_shell / REAL ( md_ener%nfree_shell,KIND=dp)
+       md_ener%temp_shell =md_ener%temp_shell *kelvin
     END IF
 
     IF(tkind) THEN
@@ -146,13 +146,13 @@ CONTAINS
         md_ener%temp_coefs = md_ener%temp_coefs*kelvin
     END IF
 
-    SELECT CASE ( simpar % ensemble  )
+    SELECT CASE ( simpar%ensemble  )
     CASE DEFAULT
        CALL stop_program( RoutineN, 'Unknown Ensemble')
     CASE ( isokin_ensemble )
-       md_ener%constant = md_ener % ekin
+       md_ener%constant = md_ener%ekin
     CASE ( reftraj_ensemble ) ! no constant of motion available
-       md_ener%constant = md_ener % epot
+       md_ener%constant = md_ener%epot
     CASE ( nve_ensemble)
        CALL get_econs_nve (md_env, md_ener,  para_env,error=error)
     CASE ( nvt_ensemble)
@@ -174,8 +174,11 @@ CONTAINS
     END SELECT
 
     IF (init) THEN 
-       constant = md_ener%constant
-       CALL set_md_env (md_env=md_env, constant=constant, error=error)
+       ! If the value was not read from input let's set it at the begin of the MD
+       IF (constant/=0.0_dp) THEN
+          constant = md_ener%constant
+          CALL set_md_env (md_env=md_env, constant=constant, error=error)
+       END IF
     ELSE
        CALL get_md_env (md_env=md_env, constant=constant, error=error)
        md_ener%delta_cons =  (md_ener%constant-constant)/REAL(natom, KIND=dp)*kelvin
@@ -207,7 +210,7 @@ CONTAINS
 
     CALL get_md_env (md_env, force_env=force_env, thermostat_coeff=thermostat_coeff,&
                      thermostat_shell=thermostat_shell, error=error)
-    md_ener%constant = md_ener % ekin + md_ener % epot + md_ener % ekin_shell
+    md_ener%constant = md_ener%ekin + md_ener%epot + md_ener%ekin_shell
 
     ! Correct for KG coeff
     CALL force_env_get (force_env = force_env, dyn_coeff_set=dyn_coeff_set,error=error)
@@ -379,7 +382,7 @@ CONTAINS
     CALL get_md_env ( md_env, simpar = simpar, npt = npt, cell = box, error=error )
 
     CALL get_baro_energies ( box, simpar, npt, md_ener%baro_kin, md_ener%baro_pot, error=error )
-    md_ener % temp_baro = 2.0_dp * md_ener%baro_kin
+    md_ener%temp_baro = 2.0_dp * md_ener%baro_kin
     md_ener%constant = md_ener%ekin + md_ener%epot + md_ener%baro_kin + md_ener%baro_pot
   END SUBROUTINE get_econs_nph_uniaxial
 

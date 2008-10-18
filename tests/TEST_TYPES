@@ -1,4 +1,4 @@
-31
+32
 Total energy:!3
 POTENTIAL ENERGY!4
 Total energy \[eV\]:!4
@@ -30,6 +30,7 @@ Total spin density (R-space)           :!6
 Heat of formation \[kcal/mol\]:!5
 HOMO - LUMO gap \[eV\]!7
 1/3 Trace(stress tensor):!4
+POTENTIAL ENERGY!5
 #
 # these are the tests the can be selected for regtesting. 
 # do regtest will grep for test_grep (first column) and look if the numeric value

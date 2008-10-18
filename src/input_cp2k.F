@@ -1023,6 +1023,11 @@ CONTAINS
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_AVERAGES",&
+            description="Restarts information for AVERAGES.",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CUSTOM_PATH",&
             description="Restarts the given path from the EXTERNAL file. Allows a major flexibility for restarts.",&
             type_of_var=char_t,repeats=.TRUE., supported_feature=.TRUE.,error=error)

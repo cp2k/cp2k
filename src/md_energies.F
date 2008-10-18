@@ -281,19 +281,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: fmd, my_act, my_pos
-    INTEGER                                  :: delta_t, ene, ener_mix, &
-                                                handle, i, nat, nkind, shene, &
-                                                tempkind, trsl
+    INTEGER                                  :: ene, ener_mix, handle, i, &
+                                                nat, nkind, shene, tempkind, &
+                                                trsl
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, init, is_mixed, &
                                                 new_file, qmmm, &
                                                 shell_adiabatic, shell_present
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 dt, econs, pv_scalar, pv_xx
-    REAL(KIND=dp)                            :: delta_time, harm_shell, &
-                                                hugoniot
+    REAL(KIND=dp)                            :: harm_shell, hugoniot
     REAL(KIND=dp), POINTER                   :: time, used_time
-    REAL(KIND=dp), SAVE                      :: itimes_old, time_old
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -395,15 +393,7 @@ CONTAINS
                (simpar%v0-cell%deth)
        ENDIF
 
-       ! Assigning the initial time-step and time
-       itimes_old = itimes
-       time_old   = time
-
-       IF (simpar%ensemble==reftraj_ensemble) THEN
-          itimes_old   = reftraj%itimes0
-          time_old     = reftraj%time0
-          reftraj%init = init
-       END IF
+       IF (simpar%ensemble==reftraj_ensemble) reftraj%init = init
     ELSE
        ! Performing protocol for anything beyond the first step of MD
        IF ( simpar%ensemble == nph_uniaxial_ensemble .OR. simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
@@ -420,11 +410,9 @@ CONTAINS
        END IF
 
        ! Compute average quantities
-       delta_t    = itimes - itimes_old
-       delta_time =   time -   time_old
        CALL compute_averages(averages, force_env, md_ener, cell, virial, pv_scalar,&
-            pv_xx, used_time, hugoniot, abc, cell_angle, delta_t, nat, delta_time, &
-            my_pos, my_act, error)
+            pv_xx, used_time, hugoniot, abc, cell_angle, nat, itimes, time, my_pos,&
+            my_act, error)
     END IF
     
     ! Print md information

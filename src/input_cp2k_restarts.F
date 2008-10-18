@@ -12,6 +12,7 @@ MODULE input_cp2k_restarts
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE averages_types,                  ONLY: average_quantities_type
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
@@ -347,7 +348,10 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY( work_section)
-                     
+
+    work_section => section_vals_get_subs_vals(motion_section,"MD%AVERAGES%RESTART_AVERAGES",error=error)
+    CALL section_vals_remove_values(work_section, error)
+
     work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%COORD",error=error)
     CALL section_vals_remove_values(work_section, error)
     work_section => section_vals_get_subs_vals(motion_section,"MD%THERMOSTAT%NOSE%VELOCITY",error=error)
@@ -511,6 +515,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(average_quantities_type), POINTER   :: averages
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: coeffs
@@ -529,7 +534,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY (logger, thermostat_part, thermostat_baro, npt, para_env, nhc, &
          atomic_kind_set, work_section, dyn_coeff_set, atomic_kind, coeffs, &
-         aux_basis_set, thermostat_coeff, thermostat_shell, t, itimes)
+         aux_basis_set, thermostat_coeff, thermostat_shell, t, averages, itimes)
     IF (PRESENT(md_env)) THEN
        CALL get_md_env ( md_env=md_env,&
                          thermostat_part=thermostat_part,&
@@ -539,6 +544,7 @@ CONTAINS
                          npt=npt,&
                          t=t,&
                          itimes=itimes,&
+                         averages=averages,&
                          para_env=para_env,&
                          error=error)
     ELSE
@@ -562,6 +568,75 @@ CONTAINS
           CPAssert(ASSOCIATED(t),cp_failure_level,routineP,error,failure)
           my_t = t
           CALL section_vals_val_set(motion_section,"MD%TIME_START_VAL",r_val=my_t,error=error)
+       END IF
+    END IF
+    CALL timestop(handle2)
+    ! AVERAGES
+    CALL timeset(routineN//"_AVERAGES",handle2)
+    IF (ASSOCIATED(averages)) THEN
+       IF ((averages%do_averages).AND.(averages%itimes_start/=-1)) THEN
+          work_section => section_vals_get_subs_vals(motion_section,"MD%AVERAGES",error=error)
+          CALL section_vals_val_set(work_section,"_SECTION_PARAMETERS_",l_val=averages%do_averages,error=error)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%AVERAGES%RESTART_AVERAGES",error=error)
+          CALL section_vals_val_set(work_section,"ITIMES_START",i_val=averages%itimes_start,error=error)
+          CALL section_vals_val_set(work_section,"AVECPU",r_val=averages%avecpu,error=error)
+          CALL section_vals_val_set(work_section,"AVEHUGONIOT",r_val=averages%avehugoniot,error=error)
+          CALL section_vals_val_set(work_section,"AVETEMP_BARO",r_val=averages%avetemp_baro,error=error)
+          CALL section_vals_val_set(work_section,"AVEPOT",r_val=averages%avepot,error=error)
+          CALL section_vals_val_set(work_section,"AVEKIN",r_val=averages%avekin,error=error)
+          CALL section_vals_val_set(work_section,"AVETEMP",r_val=averages%avetemp,error=error)
+          CALL section_vals_val_set(work_section,"AVEKIN_QM",r_val=averages%avekin_qm,error=error)
+          CALL section_vals_val_set(work_section,"AVETEMP_QM",r_val=averages%avetemp_qm,error=error)
+          CALL section_vals_val_set(work_section,"AVEVOL",r_val=averages%avevol,error=error)
+          CALL section_vals_val_set(work_section,"AVECELL_A",r_val=averages%aveca,error=error)
+          CALL section_vals_val_set(work_section,"AVECELL_B",r_val=averages%avecb,error=error)
+          CALL section_vals_val_set(work_section,"AVECELL_C",r_val=averages%avecc,error=error)
+          CALL section_vals_val_set(work_section,"AVEALPHA",r_val=averages%aveal,error=error)
+          CALL section_vals_val_set(work_section,"AVEBETA",r_val=averages%avebe,error=error)
+          CALL section_vals_val_set(work_section,"AVEGAMMA",r_val=averages%avega,error=error)
+          CALL section_vals_val_set(work_section,"AVE_ECONS",r_val=averages%econs,error=error)
+          CALL section_vals_val_set(work_section,"AVE_PRESS",r_val=averages%avepress,error=error)
+          CALL section_vals_val_set(work_section,"AVE_PXX",r_val=averages%avepxx,error=error)
+          ! Virial averages
+          IF (ASSOCIATED(averages%virial)) THEN
+             ALLOCATE(buffer(9),stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             buffer = RESHAPE(averages%virial%pv_total,(/9/))
+             CALL section_vals_val_set(work_section,"AVE_PV_TOT",r_vals_ptr=buffer,error=error)
+
+             ALLOCATE(buffer(9),stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             buffer = RESHAPE(averages%virial%pv_virial,(/9/))
+             CALL section_vals_val_set(work_section,"AVE_PV_VIR",r_vals_ptr=buffer,error=error)
+
+             ALLOCATE(buffer(9),stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             buffer = RESHAPE(averages%virial%pv_kinetic,(/9/))
+             CALL section_vals_val_set(work_section,"AVE_PV_KIN",r_vals_ptr=buffer,error=error)
+
+             ALLOCATE(buffer(9),stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             buffer = RESHAPE(averages%virial%pv_constraint,(/9/))
+             CALL section_vals_val_set(work_section,"AVE_PV_CNSTR",r_vals_ptr=buffer,error=error)
+
+             ALLOCATE(buffer(9),stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             buffer = RESHAPE(averages%virial%pv_xc,(/9/))
+             CALL section_vals_val_set(work_section,"AVE_PV_XC",r_vals_ptr=buffer,error=error)
+          END IF
+          ! Colvars averages
+          IF (SIZE(averages%avecolvar)>0) THEN
+             ALLOCATE(buffer(SIZE(averages%avecolvar)),stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             buffer = averages%avecolvar
+             CALL section_vals_val_set(work_section,"AVE_COLVARS",r_vals_ptr=buffer,error=error)
+          END IF
+          IF (SIZE(averages%aveMmatrix)>0) THEN
+             ALLOCATE(buffer(SIZE(averages%aveMmatrix)),stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             buffer = averages%aveMmatrix
+             CALL section_vals_val_set(work_section,"AVE_MMATRIX",r_vals_ptr=buffer,error=error)
+          END IF
        END IF
     END IF
     CALL timestop(handle2)

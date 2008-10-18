@@ -1,6 +1,7 @@
 H2O-32_ewald.inp          2
 H2O-32_PME.inp            2
 H2O-32_SPME.inp           2
+H2O-32_SPME_avg2.inp     32
 H2O-32_SPME_res_1.inp     2
 H2O-32_SPME_res_2.inp     2
 H2O-32_SPME_res_3.inp     2

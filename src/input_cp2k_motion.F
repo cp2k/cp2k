@@ -1453,6 +1453,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword=keyword,name="econs_start_val",&
+            description="The starting  value of the conserved quantity",&
+            usage="econs_start_val <real>",default_r_val=0.0_dp,&
+            unit_str="hartree",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword=keyword,name="temperature",&
             description="The temperature in K used to initialize "//&
             "the velocities with init and pos restart, and in the NPT/NVT simulations",&
@@ -1588,16 +1595,16 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN  
        CALL section_create(section,name="Averages",&
             description="Controls the calculation of the averages during an MD run.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
-       NULLIFY(keyword, print_key)
+       NULLIFY(keyword, print_key, subsection)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
             description="Controls the calculations of the averages.",&
@@ -1627,8 +1634,195 @@ CONTAINS
             filename="",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
+
+       CALL create_avgs_restart_section(subsection, error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection, error=error)
     END IF
   END SUBROUTINE create_avgs_section
+
+! *****************************************************************************
+!> \brief Defines the AVERAGES RESTART section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_avgs_restart_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_avgs_restart_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
+       CALL section_create(section,name="RESTART_AVERAGES",&
+            description="Stores information for restarting averages.",&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="ITIMES_START",&
+            description="TIME STEP starting the evaluation of averages",&
+            usage="ITIMES_START <INTEGER>",type_of_var=integer_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVECPU",&
+            description="CPU average",usage="AVECPU <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVEHUGONIOT",&
+            description="HUGONIOT average",usage="AVEHUGONIOT <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVETEMP_BARO",&
+            description="BAROSTAT TEMPERATURE average",usage="AVETEMP_BARO <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVEPOT",&
+            description="POTENTIAL ENERGY average",usage="AVEPOT <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVEKIN",&
+            description="KINETIC ENERGY average",usage="AVEKIN <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVETEMP",&
+            description="TEMPERATURE average",usage="AVETEMP <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVEKIN_QM",&
+            description="QM KINETIC ENERGY average in QMMM runs",usage="AVEKIN_QM <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVETEMP_QM",&
+            description="QM TEMPERATURE average in QMMM runs",usage="AVETEMP_QM <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVEVOL",&
+            description="VOLUME average",usage="AVEVOL <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVECELL_A",&
+            description="CELL VECTOR A average",usage="AVECELL_A <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVECELL_B",&
+            description="CELL VECTOR B average",usage="AVECELL_B <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVECELL_C",&
+            description="CELL VECTOR C average",usage="AVECELL_C <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVEALPHA",&
+            description="ALPHA cell angle average",usage="AVEALPHA <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVEBETA",&
+            description="BETA cell angle average",usage="AVEBETA <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVEGAMMA",&
+            description="GAMMA cell angle average",usage="AVEGAMMA <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVE_ECONS",&
+            description="CONSTANT ENERGY average",usage="AVE_ECONS <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVE_PRESS",&
+            description="PRESSURE average",usage="AVE_PRESS <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVE_PXX",&
+            description="P_{XX} average",usage="AVE_PXX <REAL>",&
+            type_of_var=real_t,n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVE_PV_VIR",&
+            description="PV VIRIAL average",usage="AVE_PV_VIR <REAL> .. <REAL>",&
+            type_of_var=real_t, n_var=9, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVE_PV_TOT",&
+            description="PV TOTAL average",usage="AVE_PV_TOT <REAL> .. <REAL>",&
+            type_of_var=real_t, n_var=9, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVE_PV_KIN",&
+            description="PV KINETIC average",usage="AVE_PV_KIN <REAL> .. <REAL>",&
+            type_of_var=real_t, n_var=9, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVE_PV_CNSTR",&
+            description="PV CONSTRAINTS average",usage="AVE_PV_CNSTR <REAL> .. <REAL>",&
+            type_of_var=real_t, n_var=9, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVE_PV_XC",&
+            description="PV XC average",usage="AVE_PV_XC <REAL> .. <REAL>",&
+            type_of_var=real_t, n_var=9, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVE_COLVARS",&
+            description="COLVARS averages",usage="AVE_COLVARS <REAL> .. <REAL>",&
+            type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVE_MMATRIX",&
+            description="METRIC TENSOR averages",usage="AVE_MMATRIX <REAL> .. <REAL>",&
+            type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_avgs_restart_section
 
 ! *****************************************************************************
 !> \brief Defines LANGEVIN section 

@@ -15,7 +15,10 @@ MODULE averages_types
                                              cp_print_key_unit_nr
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_remove_values,&
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -33,7 +36,7 @@ MODULE averages_types
 
 ! *****************************************************************************
   TYPE average_quantities_type
-     INTEGER                                       :: id_nr, ref_count, delta_t_start
+     INTEGER                                       :: id_nr, ref_count, itimes_start
      LOGICAL                                       :: do_averages
      TYPE(section_vals_type), POINTER              :: averages_section
      ! Real Scalar Quantities
@@ -94,7 +97,7 @@ CONTAINS
     last_avg_env_id=last_avg_env_id+1
     averages%id_nr=last_avg_env_id
     averages%ref_count      =  1
-    averages%delta_t_start  = -1
+    averages%itimes_start   = -1
     averages%avetemp        = 0.0_dp
     averages%avepot         = 0.0_dp
     averages%avekin         = 0.0_dp
@@ -175,6 +178,7 @@ CONTAINS
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
+    TYPE(section_vals_type), POINTER         :: work_section
 
     failure=.FALSE.
     IF (ASSOCIATED(averages)) THEN
@@ -190,6 +194,11 @@ CONTAINS
              DEALLOCATE(averages%aveMmatrix, stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
+          ! Removes restart values from the corresponding restart section..
+          work_section => section_vals_get_subs_vals(averages%averages_section,"RESTART_AVERAGES",error=error)
+          CALL section_vals_remove_values(work_section, error)
+          NULLIFY(averages%averages_section)
+          !
           DEALLOCATE(averages,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
@@ -202,8 +211,8 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 03.2008 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE compute_averages (averages, force_env, md_ener, cell,  virial, &
-       pv_scalar, pv_xx, used_time, hugoniot, abc, cell_angle, delta_t, nat,&
-       delta_time, my_pos, my_act, error)
+       pv_scalar, pv_xx, used_time, hugoniot, abc, cell_angle, nat, itimes, &
+       time, my_pos, my_act, error)
     TYPE(average_quantities_type), POINTER   :: averages
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(md_ener_type), POINTER              :: md_ener
@@ -213,8 +222,8 @@ CONTAINS
     REAL(KIND=dp), POINTER                   :: used_time
     REAL(KIND=dp), INTENT(IN)                :: hugoniot
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: abc, cell_angle
-    INTEGER, INTENT(IN)                      :: delta_t, nat
-    REAL(KIND=dp), INTENT(IN)                :: delta_time
+    INTEGER, INTENT(IN)                      :: nat, itimes
+    REAL(KIND=dp), INTENT(IN)                :: time
     CHARACTER(LEN=default_string_length), &
       INTENT(IN)                             :: my_pos, my_act
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -223,12 +232,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: ctmp
-    INTEGER                                  :: handle, i, my_delta_t, nint, &
+    INTEGER                                  :: delta_t, handle, i, nint, &
                                                 output_unit, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, restart_averages
     REAL(KIND=dp)                            :: start_time
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: cvalues, Mmatrix
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cvalues, Mmatrix, tmp
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: restart_section
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -242,16 +252,65 @@ CONTAINS
        IF (ASSOCIATED(averages%avecolvar)) nint = SIZE(averages%avecolvar)
 
        ! Evaluate averages if we collected enough statistics (user defined)
-       IF (delta_time>=start_time) THEN
-          ! Handling properly the step counter
-          IF (averages%delta_t_start==-1) averages%delta_t_start = delta_t
-          my_delta_t = delta_t - averages%delta_t_start + 1
+       IF (time>=start_time) THEN
+
+          ! Handling properly the restart
+          IF (averages%itimes_start==-1) THEN 
+             restart_section => section_vals_get_subs_vals(averages%averages_section,"RESTART_AVERAGES",error=error)
+             CALL section_vals_get(restart_section, explicit=restart_averages, error=error)
+             IF (restart_averages) THEN
+                CALL section_vals_val_get(restart_section,"ITIMES_START",i_val=averages%itimes_start,error=error)
+                CALL section_vals_val_get(restart_section,"AVECPU",r_val=averages%avecpu,error=error)
+                CALL section_vals_val_get(restart_section,"AVEHUGONIOT",r_val=averages%avehugoniot,error=error)
+                CALL section_vals_val_get(restart_section,"AVETEMP_BARO",r_val=averages%avetemp_baro,error=error)
+                CALL section_vals_val_get(restart_section,"AVEPOT",r_val=averages%avepot,error=error)
+                CALL section_vals_val_get(restart_section,"AVEKIN",r_val=averages%avekin,error=error)
+                CALL section_vals_val_get(restart_section,"AVETEMP",r_val=averages%avetemp,error=error)
+                CALL section_vals_val_get(restart_section,"AVEKIN_QM",r_val=averages%avekin_qm,error=error)
+                CALL section_vals_val_get(restart_section,"AVETEMP_QM",r_val=averages%avetemp_qm,error=error)
+                CALL section_vals_val_get(restart_section,"AVEVOL",r_val=averages%avevol,error=error)
+                CALL section_vals_val_get(restart_section,"AVECELL_A",r_val=averages%aveca,error=error)
+                CALL section_vals_val_get(restart_section,"AVECELL_B",r_val=averages%avecb,error=error)
+                CALL section_vals_val_get(restart_section,"AVECELL_C",r_val=averages%avecc,error=error)
+                CALL section_vals_val_get(restart_section,"AVEALPHA",r_val=averages%aveal,error=error)
+                CALL section_vals_val_get(restart_section,"AVEBETA",r_val=averages%avebe,error=error)
+                CALL section_vals_val_get(restart_section,"AVEGAMMA",r_val=averages%avega,error=error)
+                CALL section_vals_val_get(restart_section,"AVE_ECONS",r_val=averages%econs,error=error)
+                ! Virial
+                IF (virial%pv_availability) THEN
+                   CALL section_vals_val_get(restart_section,"AVE_PRESS",r_val=averages%avepress,error=error)
+                   CALL section_vals_val_get(restart_section,"AVE_PXX",r_val=averages%avepxx,error=error)
+                   IF (ASSOCIATED(averages%virial)) THEN
+                      CALL section_vals_val_get(restart_section,"AVE_PV_TOT",r_vals=tmp,error=error)
+                      averages%virial%pv_total = RESHAPE(tmp,(/3,3/))
+                      CALL section_vals_val_get(restart_section,"AVE_PV_VIR",r_vals=tmp,error=error)
+                      averages%virial%pv_virial = RESHAPE(tmp,(/3,3/))
+                      CALL section_vals_val_get(restart_section,"AVE_PV_KIN",r_vals=tmp,error=error)
+                      averages%virial%pv_kinetic = RESHAPE(tmp,(/3,3/))
+                      CALL section_vals_val_get(restart_section,"AVE_PV_CNSTR",r_vals=tmp,error=error)
+                      averages%virial%pv_constraint = RESHAPE(tmp,(/3,3/))
+                      CALL section_vals_val_get(restart_section,"AVE_PV_XC",r_vals=tmp,error=error)
+                      averages%virial%pv_xc = RESHAPE(tmp,(/3,3/))
+                   END IF
+                END IF
+                ! Colvars
+                IF (nint>0) THEN
+                   CALL section_vals_val_get(restart_section,"AVE_COLVARS",r_vals=cvalues,error=error)
+                   CALL section_vals_val_get(restart_section,"AVE_MMATRIX",r_vals=Mmatrix,error=error)
+                   CPPostcondition(nint==SIZE(cvalues),cp_failure_level,routineP,error,failure)
+                   CPPostcondition(nint*nint==SIZE(Mmatrix),cp_failure_level,routineP,error,failure)
+                   averages%avecolvar  = cvalues
+                   averages%aveMmatrix = Mmatrix
+                END IF
+             ELSE
+                averages%itimes_start  = itimes
+             END IF
+          END IF
+          delta_t = itimes - averages%itimes_start + 1
 
           ! Perform averages
-          SELECT CASE (my_delta_t)
+          SELECT CASE (delta_t)
           CASE (1)
-             IF (virial%pv_availability) averages%avepress = pv_scalar
-             IF (virial%pv_availability) averages%avepxx = pv_xx
              averages%avecpu        = used_time
              averages%avehugoniot   = hugoniot
              averages%avetemp_baro  = md_ener%temp_baro
@@ -269,12 +328,16 @@ CONTAINS
              averages%avega         = cell_angle(1)
              averages%econs         = 0._dp
              ! Virial
-             IF (ASSOCIATED(averages%virial).AND.virial%pv_availability) THEN
-                averages%virial%pv_total      = virial%pv_total
-                averages%virial%pv_virial     = virial%pv_virial
-                averages%virial%pv_kinetic    = virial%pv_kinetic
-                averages%virial%pv_constraint = virial%pv_constraint
-                averages%virial%pv_xc         = virial%pv_xc
+             IF (virial%pv_availability) THEN
+                averages%avepress = pv_scalar
+                averages%avepxx   = pv_xx
+                IF (ASSOCIATED(averages%virial)) THEN
+                   averages%virial%pv_total      = virial%pv_total
+                   averages%virial%pv_virial     = virial%pv_virial
+                   averages%virial%pv_kinetic    = virial%pv_kinetic
+                   averages%virial%pv_constraint = virial%pv_constraint
+                   averages%virial%pv_xc         = virial%pv_xc
+                END IF
              END IF
              ! Colvars
              IF (nint>0) THEN
@@ -282,31 +345,33 @@ CONTAINS
                      cvalues=averages%avecolvar,Mmatrix=averages%aveMmatrix, error=error)
              END IF
           CASE DEFAULT
-             IF (virial%pv_availability) CALL get_averages(averages%avepress,pv_scalar,my_delta_t,error)
-             IF (virial%pv_availability) CALL get_averages(averages%avepxx,pv_xx,my_delta_t,error)
-             CALL get_averages(averages%avecpu,used_time,my_delta_t,error)
-             CALL get_averages(averages%avehugoniot,hugoniot,my_delta_t,error)
-             CALL get_averages(averages%avetemp_baro,md_ener%temp_baro,my_delta_t,error)
-             CALL get_averages(averages%avepot,md_ener%epot,my_delta_t,error)
-             CALL get_averages(averages%avekin,md_ener%ekin,my_delta_t,error)
-             CALL get_averages(averages%avetemp,md_ener%temp_part,my_delta_t,error)
-             CALL get_averages(averages%avekin_qm,md_ener%ekin_qm,my_delta_t,error)
-             CALL get_averages(averages%avetemp_qm,md_ener%temp_qm,my_delta_t,error)
-             CALL get_averages(averages%avevol,cell%deth,my_delta_t,error)
-             CALL get_averages(averages%aveca,abc(1),my_delta_t,error)
-             CALL get_averages(averages%avecb,abc(2),my_delta_t,error)
-             CALL get_averages(averages%avecc,abc(3),my_delta_t,error)
-             CALL get_averages(averages%aveal,cell_angle(3),my_delta_t,error) 
-             CALL get_averages(averages%avebe,cell_angle(2),my_delta_t,error)
-             CALL get_averages(averages%avega,cell_angle(1),my_delta_t,error)
-             CALL get_averages(averages%econs,md_ener%delta_cons,my_delta_t,error)
+             CALL get_averages(averages%avecpu,used_time,delta_t,error)
+             CALL get_averages(averages%avehugoniot,hugoniot,delta_t,error)
+             CALL get_averages(averages%avetemp_baro,md_ener%temp_baro,delta_t,error)
+             CALL get_averages(averages%avepot,md_ener%epot,delta_t,error)
+             CALL get_averages(averages%avekin,md_ener%ekin,delta_t,error)
+             CALL get_averages(averages%avetemp,md_ener%temp_part,delta_t,error)
+             CALL get_averages(averages%avekin_qm,md_ener%ekin_qm,delta_t,error)
+             CALL get_averages(averages%avetemp_qm,md_ener%temp_qm,delta_t,error)
+             CALL get_averages(averages%avevol,cell%deth,delta_t,error)
+             CALL get_averages(averages%aveca,abc(1),delta_t,error)
+             CALL get_averages(averages%avecb,abc(2),delta_t,error)
+             CALL get_averages(averages%avecc,abc(3),delta_t,error)
+             CALL get_averages(averages%aveal,cell_angle(3),delta_t,error) 
+             CALL get_averages(averages%avebe,cell_angle(2),delta_t,error)
+             CALL get_averages(averages%avega,cell_angle(1),delta_t,error)
+             CALL get_averages(averages%econs,md_ener%delta_cons,delta_t,error)
              ! Virial
-             IF (ASSOCIATED(averages%virial).AND.virial%pv_availability) THEN
-                CALL get_averages(averages%virial%pv_total,virial%pv_total,my_delta_t,error)
-                CALL get_averages(averages%virial%pv_virial,virial%pv_virial,my_delta_t,error)
-                CALL get_averages(averages%virial%pv_kinetic,virial%pv_kinetic,my_delta_t,error)
-                CALL get_averages(averages%virial%pv_constraint,virial%pv_constraint,my_delta_t,error)
-                CALL get_averages(averages%virial%pv_xc,virial%pv_xc,my_delta_t,error)
+             IF (virial%pv_availability) THEN
+                CALL get_averages(averages%avepress,pv_scalar,delta_t,error)
+                CALL get_averages(averages%avepxx,pv_xx,delta_t,error)
+                IF (ASSOCIATED(averages%virial)) THEN
+                   CALL get_averages(averages%virial%pv_total,virial%pv_total,delta_t,error)
+                   CALL get_averages(averages%virial%pv_virial,virial%pv_virial,delta_t,error)
+                   CALL get_averages(averages%virial%pv_kinetic,virial%pv_kinetic,delta_t,error)
+                   CALL get_averages(averages%virial%pv_constraint,virial%pv_constraint,delta_t,error)
+                   CALL get_averages(averages%virial%pv_xc,virial%pv_xc,delta_t,error)
+                END IF
              END IF
              ! Colvars
              IF (nint>0) THEN
@@ -316,8 +381,8 @@ CONTAINS
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 CALL get_clv_force(force_env, nsize_xyz=nat*3, nsize_int=nint, cvalues=cvalues,&
                      Mmatrix=Mmatrix, error=error)
-                CALL get_averages(averages%avecolvar, cvalues, my_delta_t,error)
-                CALL get_averages(averages%aveMmatrix, Mmatrix, my_delta_t,error)
+                CALL get_averages(averages%avecolvar, cvalues, delta_t,error)
+                CALL get_averages(averages%aveMmatrix, Mmatrix, delta_t,error)
                 DEALLOCATE(cvalues,stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 DEALLOCATE(Mmatrix,stat=stat)
@@ -331,40 +396,40 @@ CONTAINS
             extension=".avg", file_position=my_pos, file_action=my_act, error=error)
        IF (output_unit>0) THEN
           WRITE(output_unit,FMT='(A15,1X,"=",1X,G15.9,"   NSTEP #",I15)')&
-               "AVECPU",averages%avecpu,delta_t,&
-               "AVEHUGONIOT",averages%avehugoniot,delta_t,&
-               "AVETEMP_BARO",averages%avetemp_baro,delta_t,&
-               "AVEPOT",averages%avepot,delta_t,&
-               "AVEKIN",averages%avekin,delta_t,&
-               "AVETEMP",averages%avetemp,delta_t,&
-               "AVEKIN_QM",averages%avekin_qm,delta_t,&
-               "AVETEMP_QM",averages%avetemp_qm,delta_t,&
-               "AVEVOL",averages%avevol,delta_t,&
-               "AVECELL_A",averages%aveca,delta_t,&
-               "AVECELL_B",averages%avecb,delta_t,&
-               "AVECELL_C",averages%avecc,delta_t,&
-               "AVEALPHA",averages%aveal,delta_t,&
-               "AVEBETA",averages%avebe,delta_t,&
-               "AVEGAMMA",averages%avega,delta_t,&
-               "AVE_ECONS",averages%econs,delta_t
+               "AVECPU",averages%avecpu,itimes,&
+               "AVEHUGONIOT",averages%avehugoniot,itimes,&
+               "AVETEMP_BARO",averages%avetemp_baro,itimes,&
+               "AVEPOT",averages%avepot,itimes,&
+               "AVEKIN",averages%avekin,itimes,&
+               "AVETEMP",averages%avetemp,itimes,&
+               "AVEKIN_QM",averages%avekin_qm,itimes,&
+               "AVETEMP_QM",averages%avetemp_qm,itimes,&
+               "AVEVOL",averages%avevol,itimes,&
+               "AVECELL_A",averages%aveca,itimes,&
+               "AVECELL_B",averages%avecb,itimes,&
+               "AVECELL_C",averages%avecc,itimes,&
+               "AVEALPHA",averages%aveal,itimes,&
+               "AVEBETA",averages%avebe,itimes,&
+               "AVEGAMMA",averages%avega,itimes,&
+               "AVE_ECONS",averages%econs,itimes
           ! Print the virial
           IF (virial%pv_availability) THEN
              WRITE(output_unit,FMT='(A15,1X,"=",1X,G15.9,"   NSTEP #",I15)')&
-                  "AVE_PRESS",averages%avepress,delta_t,&
-                  "AVE_PXX",averages%avepxx,delta_t
+                  "AVE_PRESS",averages%avepress,itimes,&
+                  "AVE_PXX",averages%avepxx,itimes
              IF (ASSOCIATED(averages%virial)) THEN
                 WRITE(output_unit,FMT='(A15,1X,"=",1X,G15.9,"   NSTEP #",I15)')&
-                     "AVE_PV_TOT",averages%virial%pv_total,delta_t,&
-                     "AVE_PV_VIR",averages%virial%pv_virial,delta_t,&
-                     "AVE_PV_KIN",averages%virial%pv_kinetic,delta_t,&
-                     "AVE_PV_CNSTR",averages%virial%pv_constraint,delta_t,&
-                     "AVE_PV_XC",averages%virial%pv_xc,delta_t
+                     "AVE_PV_TOT",averages%virial%pv_total,itimes,&
+                     "AVE_PV_VIR",averages%virial%pv_virial,itimes,&
+                     "AVE_PV_KIN",averages%virial%pv_kinetic,itimes,&
+                     "AVE_PV_CNSTR",averages%virial%pv_constraint,itimes,&
+                     "AVE_PV_XC",averages%virial%pv_xc,itimes
              END IF
           END IF
           DO i = 1, nint
              ctmp = cp_to_string(i)
              WRITE(output_unit,FMT='(A15,1X,"=",1X,G15.9,"   NSTEP #",I15)')&
-                  TRIM("AVE_CV-"//ADJUSTL(ctmp)),averages%avecolvar(i),delta_t
+                  TRIM("AVE_CV-"//ADJUSTL(ctmp)),averages%avecolvar(i),itimes
           END DO
           WRITE(output_unit,FMT='(/)')
        END IF

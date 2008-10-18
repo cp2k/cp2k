@@ -441,9 +441,11 @@ CONTAINS
           IF (flag) THEN
              IF (check_restart(input_file, restart_file, "MOTION%MD",error)) THEN
                 CALL section_vals_val_get(restart_file,"MOTION%MD%STEP_START_VAL",i_val=myi,error=error)
-                CALL section_vals_val_get(restart_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
                 CALL section_vals_val_set(input_file,"MOTION%MD%STEP_START_VAL",i_val=myi,error=error)
+                CALL section_vals_val_get(restart_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
                 CALL section_vals_val_set(input_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
+                CALL section_vals_val_get(restart_file,"MOTION%MD%ECONS_START_VAL",r_val=myt,error=error)
+                CALL section_vals_val_get(input_file,"MOTION%MD%ECONS_START_VAL",r_val=myt,error=error)
                 CALL set_restart_info("MD COUNTERS",restarted_infos,error)
              END IF
              !
@@ -458,6 +460,15 @@ CONTAINS
                 CALL section_vals_val_set(input_file,&
                      "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
                 CALL set_restart_info("METADYNAMIC COUNTERS",restarted_infos,error)
+             END IF
+          END IF
+
+          CALL section_vals_val_get(r_section,"RESTART_AVERAGES",l_val=flag,error=error)
+          IF (flag) THEN
+             IF (check_restart(input_file, restart_file, "MOTION%MD",error)) THEN
+                rep_sections => section_vals_get_subs_vals(restart_file,"MOTION%MD%AVERAGES%RESTART_AVERAGES",error=error)
+                CALL section_vals_set_subs_vals(input_file,"MOTION%MD%AVERAGES%RESTART_AVERAGES",rep_sections,error=error)
+                CALL set_restart_info("MD AVERAGES",restarted_infos,error)
              END IF
           END IF
 

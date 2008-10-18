@@ -159,7 +159,7 @@ CONTAINS
                                                 should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
-    REAL(KIND=dp), POINTER                   :: time, used_time
+    REAL(KIND=dp), POINTER                   :: constant, time, used_time
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(barostat_type), POINTER             :: barostat
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -263,8 +263,8 @@ CONTAINS
     IF (simpar%ensemble == langevin_ensemble) CALL create_wiener_process(md_env,error)
     time_iter_start=m_walltime()
 
-    CALL get_md_env(md_env, force_env=force_env, itimes = itimes, &
-                    md_ener=md_ener, t = time, used_time = used_time, error=error )
+    CALL get_md_env(md_env, force_env=force_env, itimes=itimes, constant=constant,&
+                    md_ener=md_ener, t=time, used_time=used_time, error=error)
 
     ! Attach the time counter of the meta_env to the one of the MD
     CALL set_meta_env(force_env%meta_env, time=time, error=error)
@@ -286,7 +286,7 @@ CONTAINS
             "You may consider to switch on the virial evaluation with the keyword: STRESS_TENSOR."//&
             "Be sure the method you are using can compute the virial! "//&
  CPSourceFileRef,&
- error,failure)
+            error,failure)
        IF (ASSOCIATED(force_env%sub_force_env)) THEN
           DO i = 1, SIZE(force_env%sub_force_env)
              IF (ASSOCIATED(force_env%sub_force_env(i)%force_env)) THEN
@@ -306,7 +306,7 @@ CONTAINS
     IF (simpar%ensemble /= reftraj_ensemble) THEN
        CALL section_vals_val_get(md_section,"STEP_START_VAL",i_val=itimes,error=error)
        CALL section_vals_val_get(md_section,"TIME_START_VAL",r_val=time,error=error)
-
+       CALL section_vals_val_get(md_section,"ECONS_START_VAL",r_val=constant,error=error)
        IF(save_mem) THEN
           work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
           CALL section_vals_remove_values(work_section, error)
@@ -373,9 +373,9 @@ CONTAINS
             constraint_section,"LAGRANGE_MULTIPLIERS",error=error)
        
        ! Free Energy calculation
-       CALL free_energy_evaluate(md_env,should_stop,free_energy_section,error)
-       
+       CALL free_energy_evaluate(md_env,should_stop,free_energy_section,error)       
        IF (should_stop) EXIT
+
        ! Test for <PROJECT_NAME>.EXIT_MD or for WALL_TIME to exit 
        ! Default:
        ! IF so we don't overwrite the restart or append to the trajectory
@@ -408,7 +408,6 @@ CONTAINS
        IF(simpar%ensemble == reftraj_ensemble ) THEN
           CALL write_output_reftraj(md_env,error=error) 
        END IF
-       
     END DO
 
     ! Remove the iteration level
