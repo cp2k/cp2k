@@ -127,19 +127,18 @@ CONTAINS
        END IF
        CALL section_vals_val_get(averages_section,"AVERAGE_COLVAR",l_val=do_colvars,error=error)
        ! Total number of COLVARs
-       IF (do_colvars) THEN
-          nint = number_of_colvar(force_env, error=error)
-          ALLOCATE(averages%avecolvar(nint), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(averages%aveMmatrix(nint*nint), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO i = 1, nint
-             averages%avecolvar(i)         = 0.0_dp
-          END DO
-          DO i = 1, nint*nint
-             averages%aveMmatrix(i)        = 0.0_dp
-          END DO
-       END IF
+       nint = 0
+       IF (do_colvars) nint = number_of_colvar(force_env, error=error)
+       ALLOCATE(averages%avecolvar(nint), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(averages%aveMmatrix(nint*nint), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO i = 1, nint
+          averages%avecolvar(i)         = 0.0_dp
+       END DO
+       DO i = 1, nint*nint
+          averages%aveMmatrix(i)        = 0.0_dp
+       END DO
     END IF
   END SUBROUTINE create_averages
 

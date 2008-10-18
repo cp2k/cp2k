@@ -1623,7 +1623,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="AVERAGE_COLVAR",&
             description="Switch for computing the averages of COLVARs.", &
-            usage="AVERAGE_COLVAR <LOGICAL>", default_l_val=.TRUE.,&
+            usage="AVERAGE_COLVAR <LOGICAL>", default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)

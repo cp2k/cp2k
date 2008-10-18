@@ -85,3 +85,5 @@ uo2_buckmorse_nve.inp
 water_3_dist_xyz.inp
 # numerics avg colvar
 ethene_colv2_g.inp
+# numerics
+ethene_colv2_g.inp

@@ -131,3 +131,8 @@ ethene_colv2.inp
 ethene_colv2_npt.inp
 ethene-restraint2.inp
 ethene-restraint.inp
+# numerics
+ethene_colv2.inp
+ethene_colv2_npt.inp
+ethene-restraint2.inp
+ethene-restraint.inp
