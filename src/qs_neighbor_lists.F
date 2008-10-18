@@ -177,7 +177,7 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_2c, sab_all, &
       sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_orb, sab_scp, &
-      sac_3c, sac_oce, sac_ppl, sac_ppnl, sbc_3c, sbc_oce, sbc_ppnl, sab_vdw
+      sab_vdw, sac_3c, sac_oce, sac_ppl, sac_ppnl, sbc_3c, sbc_oce, sbc_ppnl
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj

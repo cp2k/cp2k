@@ -419,11 +419,9 @@ CONTAINS
                                                 sab_aux_fit_asymm, &
                                                 sab_aux_fit_vs_orb, sab_all
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: sac_erfc, sac_ppl, sac_ppnl, &
-                                                sbc_ppnl, sab_scp, sab_vdw, sac_oce, &
-                                                sbc_oce, sab_2c, sac_3c, &
-                                                sbc_3c
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
+      sac_erfc, sac_ppl, sac_ppnl, sbc_ppnl, sab_vdw, sab_scp, sac_oce, &
+      sbc_oce, sab_2c, sac_3c, sbc_3c
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
