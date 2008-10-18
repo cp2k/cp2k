@@ -1285,7 +1285,7 @@ CONTAINS
        IF (.NOT. failure) THEN
           NULLIFY(el, vals)
           ! Allocate a null 0 dimension array of values
-          ALLOCATE(new_values(0,0),stat=stat)
+          ALLOCATE(new_values(-1:section_vals%section%n_keywords,0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ! Release old values
           DO j=1,SIZE(section_vals%values,2)
@@ -1600,9 +1600,8 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,&
-       i_rep_val,val,&
-       l_val,i_val,r_val,c_val,l_vals_ptr,i_vals_ptr,r_vals_ptr,c_vals_ptr,&
+  SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,i_rep_val,&
+       val,l_val,i_val,r_val,c_val,l_vals_ptr,i_vals_ptr,r_vals_ptr,c_vals_ptr,&
        ignore_required,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     CHARACTER(len=*), INTENT(in)             :: keyword_name
@@ -1659,13 +1658,14 @@ CONTAINS
     irk=1
     irs=1
     IF (PRESENT(i_rep_section)) irs=i_rep_section
-    IF (PRESENT(i_rep_val)) irk=i_rep_val
+    IF (PRESENT(i_rep_val))     irk=i_rep_val
     section => s_vals%section
     IF (.NOT. failure) THEN
        ik=section_get_keyword_index(s_vals%section,keyword_name(my_index:len_key),error=error)
        CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
             "section "//TRIM(section%name)//" does not contain keyword "//&
             TRIM(keyword_name(my_index:len_key)),error,failure)
+       ! Add values..
        DO
           IF (irs<=SIZE(s_vals%values,2)) EXIT
           CALL section_vals_add_values(s_vals,error=error)
@@ -1742,7 +1742,6 @@ CONTAINS
        s_vals%values(ik,irs)%list => vals
        NULLIFY(my_val)
     END IF
-
   END SUBROUTINE section_vals_val_set
 
 ! *****************************************************************************
