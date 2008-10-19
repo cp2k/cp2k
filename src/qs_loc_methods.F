@@ -110,7 +110,7 @@ MODULE qs_loc_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_methods'
 
 ! *** Public ***
-  PUBLIC ::  qs_loc_driver, optimize_loc_berry, qs_print_cubes
+  PUBLIC ::  qs_loc_driver, qs_print_cubes
 
 CONTAINS
 
@@ -293,7 +293,6 @@ CONTAINS
       POINTER                                :: matrix_s
 
     CALL timeset(routineN,handle)
-
     failure = .FALSE.
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -440,8 +439,6 @@ CONTAINS
          CALL cp_fm_get_element(zij(1,jdir)%matrix,istate,istate,realpart)
          CALL cp_fm_get_element(zij(2,jdir)%matrix,istate,istate,imagpart)
          z=CMPLX(realpart,imagpart,dp)
-!         centers (idir+3, istate )=&
-!            SQRT( -weights ( idir ) * 2.0_dp * LOG ( ABS ( Z ) ) ) / twopi
          spread_i =  spread_i -weights ( jdir ) *&
                      LOG (realpart*realpart+imagpart*imagpart ) / twopi/twopi
          IF(jdir < 4) THEN
@@ -604,12 +601,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_driver', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dim_op, i, imo, imoloc, ir, ispin, istat, istate, j, jstate, &
-      l_spin, lb, loc_method, my_nspins, n_rep, nao, ncubes, nmo, nmosub, &
-      s_spin, ub
+    INTEGER :: dim_op, handle, i, imo, imoloc, ir, ispin, istat, istate, j, &
+      jstate, l_spin, lb, loc_method, my_nspins, n_rep, nao, ncubes, nmo, &
+      nmosub, s_spin, ub
     INTEGER, DIMENSION(:), POINTER           :: bounds, list, list_cubes
     LOGICAL                                  :: failure, ionode, &
                                                 list_cubes_setup
+    LOGICAL, SAVE                            :: first_time = .TRUE.
     REAL(dp), DIMENSION(6)                   :: weights
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: centers, vecbuffer
     TYPE(cell_type), POINTER                 :: cell
@@ -630,9 +628,11 @@ CONTAINS
       DIMENSION(:, :), POINTER               :: op_sm_set
     TYPE(section_vals_type), POINTER         :: print_key
 
+    CALL timeset(routineN,handle)
     NULLIFY(para_env, logger, mos, dft_control, list_cubes)
     NULLIFY(cell, localized_wfn_control, moloc_coeff, op_sm_set, op_fm_set)
     failure = .FALSE.
+    qs_loc_env%first_time = first_time
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
 
@@ -828,7 +828,8 @@ CONTAINS
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO  ! ispin
-
+    first_time = .FALSE.
+    CALL timestop(handle)
   END SUBROUTINE qs_loc_driver
 
 ! *****************************************************************************
@@ -868,9 +869,9 @@ CONTAINS
     CHARACTER                                :: label
     CHARACTER(LEN=default_path_length)       :: file_tmp, filename
     CHARACTER(LEN=default_string_length)     :: title
-    INTEGER                                  :: ia, ie, istate, ivector, &
-                                                my_ispin, my_state0, stride, &
-                                                unit_out_c
+    INTEGER                                  :: handle, ia, ie, istate, &
+                                                ivector, my_ispin, my_state0, &
+                                                stride, unit_out_c
     LOGICAL                                  :: add_idir, add_spin, failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -884,6 +885,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     failure = .FALSE.
+    CALL timeset(routineN,handle)
     NULLIFY(auxbas_pw_pool, pw_env, logger)
     logger => cp_error_get_logger(error)
 
@@ -951,7 +953,7 @@ CONTAINS
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw, error=error)
-
+    CALL timestop(handle)
   END SUBROUTINE qs_print_cubes
 
 ! *****************************************************************************
@@ -974,32 +976,38 @@ CONTAINS
     CHARACTER(default_string_length)         :: iter
     CHARACTER(LEN=default_string_length)     :: my_ext, my_form
     INTEGER                                  :: iunit, l, nstates
-    LOGICAL                                  :: init_traj
+    LOGICAL                                  :: first_time, init_traj
 
     nstates = SIZE(center,2)
     my_form = "formatted"
     my_ext  = ".data"
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,"/IONS+CENTERS",error=error),cp_p_file)) THEN
-       CALL get_output_format(print_key,my_form=my_form,my_ext=my_ext,error=error)
-    END IF
-    iunit=cp_print_key_unit_nr(logger,print_key,"",extension=my_ext,file_form=my_form,&
-         middle_name=TRIM(qs_loc_env%tag_mo)//"_centers_s"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-         log_filename=.FALSE.,on_file=.TRUE.,is_new_file=init_traj,error=error)
-    IF (iunit>0) THEN
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,"/IONS+CENTERS",error=error),cp_p_file)) THEN
-          ! Different possible formats
-          CALL print_wannier_traj(qs_loc_env, print_key, center, iunit, init_traj, error)
-       ELSE
-          ! Default print format
-          iter=cp_iter_string(logger%iter_info,error=error)
-          WRITE(iunit,'(i6,/,a)') nstates,TRIM(iter)
-          DO l=1,nstates
-             WRITE(iunit,'(A,4F16.8)') "X", angstrom*center(1:4,l)
-          END DO
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,first_time=first_time,&
+         error=error),cp_p_file)) THEN
+       ! Find out if we want to print IONS+CENTERS or ONLY CENTERS..
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,"/IONS+CENTERS",&
+            error=error),cp_p_file)) THEN
+          CALL get_output_format(print_key,my_form=my_form,my_ext=my_ext,error=error)
+       END IF
+       IF (first_time.OR.(.NOT.qs_loc_env%first_time)) THEN
+          iunit=cp_print_key_unit_nr(logger,print_key,"",extension=my_ext,file_form=my_form,&
+               middle_name=TRIM(qs_loc_env%tag_mo)//"_centers_s"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+               log_filename=.FALSE.,on_file=.TRUE.,is_new_file=init_traj,error=error)
+          IF (iunit>0) THEN
+             IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,"/IONS+CENTERS",error=error),cp_p_file)) THEN
+                ! Different possible formats
+                CALL print_wannier_traj(qs_loc_env, print_key, center, iunit, init_traj, error)
+             ELSE
+                ! Default print format
+                iter=cp_iter_string(logger%iter_info,error=error)
+                WRITE(iunit,'(i6,/,a)') nstates,TRIM(iter)
+                DO l=1,nstates
+                   WRITE(iunit,'(A,4F16.8)') "X", angstrom*center(1:4,l)
+                END DO
+             END IF
+          END IF
+          CALL cp_print_key_finished_output(iunit,logger,print_key,on_file=.TRUE.,error=error)
        END IF
     END IF
-    CALL cp_print_key_finished_output(iunit,logger,print_key,on_file=.TRUE.,error=error)
-
   END SUBROUTINE print_wannier_centers
 
 ! *****************************************************************************

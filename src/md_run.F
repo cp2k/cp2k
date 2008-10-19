@@ -204,7 +204,7 @@ CONTAINS
     force_env_section => force_env%force_env_section
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     CALL cp_add_iter_level(logger%iter_info,"MD",error=error)
-    CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)
+    CALL cp_iterate(logger%iter_info,iter_nr=0,error=error)
     ! Read MD section
     CALL read_md_section(simpar, motion_section, md_section, error)
     ! Setup print_keys
@@ -311,6 +311,7 @@ CONTAINS
        CALL section_vals_val_get(md_section,"STEP_START_VAL",i_val=itimes,error=error)
        CALL section_vals_val_get(md_section,"TIME_START_VAL",r_val=time,error=error)
        CALL section_vals_val_get(md_section,"ECONS_START_VAL",r_val=constant,error=error)
+       CALL cp_iterate(logger%iter_info,iter_nr=itimes,error=error)
        IF(save_mem) THEN
           work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
           CALL section_vals_remove_values(work_section, error)
@@ -320,7 +321,7 @@ CONTAINS
           CALL section_vals_remove_values(work_section, error)
        END IF
        
-       CALL force_env_calc_energy_force (force_env, calc_force=.TRUE.,error=error)
+       CALL force_env_calc_energy_force (force_env, calc_force=.TRUE., error=error)
        CALL metadyn_forces(force_env, error=error)
 
        IF (simpar%do_respa)THEN
@@ -337,7 +338,7 @@ CONTAINS
             force_env%virial, force_env%para_env%group, error=error)
 
        CALL md_energy(md_env,md_ener,error) 
-       CALL md_write_output ( md_env, error ) !inits the print env at itimes == 0 also writes trajectories
+       CALL md_write_output(md_env, error) !inits the print env at itimes == 0 also writes trajectories
        md_stride = 1
     ELSE
        CALL get_md_env(md_env, reftraj=reftraj, error=error)
@@ -355,10 +356,9 @@ CONTAINS
     DO istep=1, simpar%nsteps, md_stride
        ! Increase counters
        itimes = itimes + 1
-       time = time + simpar%dt
+       time   = time + simpar%dt
 
-       CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
-            iter_nr=itimes,error=error)
+       CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),iter_nr=itimes,error=error)
        ! Open possible Shake output units
        simpar%info_constraint = cp_print_key_unit_nr(logger,constraint_section,"CONSTRAINT_INFO",&
             extension=".shakeLog",log_filename=.FALSE.,error=error)
