@@ -13,8 +13,7 @@
 !> \author APSI & JGH
 ! *****************************************************************************
 MODULE machine_nag
-USE f77_blas
-
+  USE f77_blas
   USE f90_unix
   USE f90_unix_dir
   USE f90_unix_env,                    ONLY: gethostname,&

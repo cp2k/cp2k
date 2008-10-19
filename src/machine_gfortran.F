@@ -7,8 +7,7 @@
 !> \brief currently for testing gfortran
 ! *****************************************************************************
 MODULE machine_gfortran
-USE f77_blas
-
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8

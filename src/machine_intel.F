@@ -10,8 +10,7 @@
 !> \author MK
 ! *****************************************************************************
 MODULE machine_intel
-USE f77_blas
-
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
 

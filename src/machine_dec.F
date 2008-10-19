@@ -10,8 +10,7 @@
 !> \author APSI & JGH
 ! *****************************************************************************
 MODULE machine_dec
-USE f77_blas
-
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8
@@ -87,7 +86,7 @@ END SUBROUTINE m_datum
 !> \version 1.0
 ! *****************************************************************************
 SUBROUTINE m_flush(lunit)
-  INTEGER, INTENT(IN)                      :: lunit
+    INTEGER, INTENT(IN)                      :: lunit
 
 !   ---------------------------------------------------------------------------
 

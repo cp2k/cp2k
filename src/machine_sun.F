@@ -10,8 +10,7 @@
 !> \author APSI & JGH
 ! *****************************************************************************
 MODULE machine_sun
-USE f77_blas
-
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8

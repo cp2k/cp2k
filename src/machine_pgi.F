@@ -10,8 +10,7 @@
 !> \author APSI & JGH
 ! *****************************************************************************
 MODULE machine_pgi
-USE f77_blas
-
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
 
@@ -61,8 +60,6 @@ END FUNCTION m_iargc
 ! *****************************************************************************
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
-
-    INTEGER                                  :: mclock
 
     CALL CPU_TIME(ct)
 END FUNCTION m_cputime
