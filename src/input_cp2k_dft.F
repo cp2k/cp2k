@@ -1254,21 +1254,13 @@ CONTAINS
        CALL section_add_subsection(print_key, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL keyword_create(keyword, name="TOTAL_DIPOLE",&
-            description="Print out the total dipole calcuated from the Wannier centers. "//&
-            "This only makes sense for isolated systems.",&
-            usage="TOTAL_DIPOLE", default_l_val=.FALSE., &
-            lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       CALL create_dipoles_section(subsection,"TOTAL_DIPOLE",error)
+       CALL section_add_subsection(print_key, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
-       CALL keyword_create(keyword, name="MOLECULAR_DIPOLES",&
-            description="Print out molecular dipoles calculated from Wannier centers",&
-            usage="MOLECULAR_DIPOLES", default_l_val=.FALSE., &
-            lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
+       CALL create_dipoles_section(subsection,"MOLECULAR_DIPOLES",error)
+       CALL section_add_subsection(print_key, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -1308,25 +1300,23 @@ CONTAINS
             variants=s2a("REF"),&
             description="Define the reference point for electrical moment calculations.",&
             usage="REFERENCE COM",&
-            enum_c_vals=s2a("COM","COAC","USER_DEFINED","ZERO","DEFAULT"),&
+            enum_c_vals=s2a("COM","COAC","USER_DEFINED","ZERO"),&
             enum_desc=s2a("Use Center of Mass",&
                           "Use Center of Atomic Charges",&
                           "Use User Defined Point (Keyword:REF_POINT)",&
-                          "Use Origin of Coordinate System",&
-                          "Use Default (depends on method: periodic or localized)"),&
+                          "Use Origin of Coordinate System"),&
             enum_i_vals=(/ use_mom_ref_com,&
                            use_mom_ref_coac,&
                            use_mom_ref_user,&
-                           use_mom_ref_zero,&
-                           use_mom_ref_nondef /),&
-            default_i_val=use_mom_ref_nondef, error=error)
+                           use_mom_ref_zero /),&
+            default_i_val=use_mom_ref_zero, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword, name="REFERENCE_POINT",&
             variants=s2a("REF_POINT"),&
             description="Fixed reference point for electrical moment calculations.",&
-            usage="REFERENCE_POINT x y z", &
+            usage="REFERENCE_POINT x y z",&
             repeats=.FALSE.,&
             required=.FALSE.,&
             n_var=3,default_r_vals=(/0._dp,0._dp,0._dp/),&
@@ -1483,10 +1473,79 @@ CONTAINS
 
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-
     END IF
-
   END SUBROUTINE create_print_dft_section
+
+! *****************************************************************************
+!> \brief creates the input section for the qs part
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_dipoles_section(print_key,label,error)
+    TYPE(section_type), POINTER              :: print_key
+    CHARACTER(LEN=*), INTENT(IN)             :: label
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_dipoles_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL cp_print_key_section_create(print_key_section=print_key,name=TRIM(label),&
+            description="Section controlling the calculation of "//TRIM(label)//&
+            " calculated from the Wannier centers.",&
+            print_level=debug_print_level+1,filename="__STD_OUT__",error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword=keyword,&
+            name="PERIODIC",&
+            description="Use Berry phase formula (PERIODIC=T) or simple operator (PERIODIC=F)",&
+            usage="PERIODIC {logical}",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword, name="REFERENCE",&
+            variants=s2a("REF"),&
+            description="Define the reference point for dipole calculations.",&
+            usage="REFERENCE COM",&
+            enum_c_vals=s2a("COM","COAC","USER_DEFINED","ZERO"),&
+            enum_desc=s2a("Use Center of Mass",&
+                          "Use Center of Atomic Charges",&
+                          "Use User Defined Point (Keyword:REF_POINT)",&
+                          "Use Origin of Coordinate System"),&
+            enum_i_vals=(/ use_mom_ref_com,&
+                           use_mom_ref_coac,&
+                           use_mom_ref_user,&
+                           use_mom_ref_zero /),&
+            default_i_val=use_mom_ref_zero, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword, name="REFERENCE_POINT",&
+            variants=s2a("REF_POINT"),&
+            description="Fixed reference point for dipole calculations.",&
+            usage="REFERENCE_POINT x y z", &
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=3,default_r_vals=(/0._dp,0._dp,0._dp/),&
+            type_of_var=real_t, &
+            unit_str='bohr',&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_dipoles_section
 
 ! *****************************************************************************
 !> \brief creates the input section for the qs part
@@ -1507,12 +1566,11 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"qs",&
             description="parameters needed to set up the Quickstep framework",&
-            n_keywords=35, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword, subsection)

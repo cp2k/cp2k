@@ -15,7 +15,8 @@ MODULE qs_loc_molecules
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -29,7 +30,6 @@ MODULE qs_loc_molecules
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: debye
   USE qs_loc_types,                    ONLY: qs_loc_env_new_type
-  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -58,10 +58,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: mol_name
-    INTEGER :: counter, first_atom, i, iatom, ikind, imol, imol_now, isos, &
-      istate, local_location, natom, natom_loc, natom_max, nkind, nmol, &
-      nstate, output_unit
+    INTEGER :: counter, first_atom, i, iatom, ikind, imol, imol_now, istate, &
+      local_location, natom, natom_loc, natom_max, nkind, nmol, nstate, &
+      output_unit, stat
     INTEGER, POINTER                         :: wfc_to_atom_map( : )
+    LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: dipole(3), dr(3), mydist(2), &
                                                 r_pbc( 3 ), zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: charge_set
@@ -76,16 +77,35 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_type), POINTER             :: particle_set( : )
 
+    failure = .FALSE.
     logger => cp_error_get_logger(error)
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
+
+    ! Possibly print on screen some warnings..
+    CALL section_vals_val_get(loc_print_key,"MOLECULAR_DIPOLES%REFERENCE",explicit=explicit,error=error)    
+    CALL cp_assert(.NOT.explicit,cp_warning_level,cp_assertion_failed,routineP,&
+         "REFERENCE keyword has been specified for MOLECULAR_DIPOLES. This keyword is not"//&
+         " implemented for this specific method! It will be ignored!"//&
+CPSourceFileRef,&
+         only_ionode=.TRUE.) 
+    CALL section_vals_val_get(loc_print_key,"MOLECULAR_DIPOLES%REFERENCE_POINT",explicit=explicit,error=error)    
+    CALL cp_assert(.NOT.explicit,cp_warning_level,cp_assertion_failed,routineP,&
+         "REFERENCE_POINT keyword has been specified for MOLECULAR_DIPOLES. This keyword is not"//&
+         " implemented for this specific method! It will be ignored!"//&
+CPSourceFileRef,&
+         only_ionode=.TRUE.) 
+    CALL section_vals_val_get(loc_print_key,"MOLECULAR_DIPOLES%PERIODIC",explicit=explicit,error=error)    
+    CALL cp_assert(.NOT.explicit,cp_warning_level,cp_assertion_failed,routineP,&
+         "PERIODIC keyword has been specified for MOLECULAR_DIPOLES. This keyword is not"//&
+         " implemented for this specific method! It will be ignored!"//&
+CPSourceFileRef,&
+         only_ionode=.TRUE.) 
 
     particle_set => qs_loc_env % particle_set
     para_env => qs_loc_env % para_env
     local_molecules => qs_loc_env % local_molecules
     nstate = SIZE ( center, 2 )
-    ALLOCATE(wfc_to_atom_map(nstate),STAT=isos)
-    IF(isos/=0) CALL stop_memory('wfc_to_molecule','wfc_to_atom_map')
+    ALLOCATE(wfc_to_atom_map(nstate),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
     nkind = SIZE (local_molecules%n_el)
@@ -101,8 +121,8 @@ CONTAINS
           natom_max = natom_max + natom
           molecule_set(i)%lmi%nstates=0
           IF(ASSOCIATED(molecule_set(i)%lmi%states)) THEN
-             DEALLOCATE(molecule_set(i)%lmi%states,STAT=isos)
-             IF(isos/=0) CALL stop_memory('wfc_to_molecule','states')
+             DEALLOCATE(molecule_set(i)%lmi%states,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
        END DO
     END DO
@@ -111,11 +131,11 @@ CONTAINS
 
     CALL mp_max(natom_max,para_env%group)
 
-    ALLOCATE(r(3,natom_max),STAT=isos)
-    IF(isos/=0) CALL stop_memory('centers_and_spreads','r')
+    ALLOCATE(r(3,natom_max),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE(distance(natom_max),STAT=isos)
-    IF(isos/=0) CALL stop_memory('wfc_to_molecule','distance')
+    ALLOCATE(distance(natom_max),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     !Zero all the stuff
     r(:,:) = 0.0_dp
@@ -247,8 +267,8 @@ CONTAINS
     CALL mp_sum(dipole_set,para_env%group)
     CALL mp_sum(charge_set,para_env%group)
     
-    output_unit=cp_print_key_unit_nr(logger,loc_print_key,"/MOLECULAR_DIPOLES",&
-         extension=".data",middle_name="MOLECULAR_DIPOLES",error=error)
+    output_unit=cp_print_key_unit_nr(logger,loc_print_key,"MOLECULAR_DIPOLES",&
+         extension=".MolDip",middle_name="MOLECULAR_DIPOLES",error=error)
     IF (output_unit>0) THEN
        WRITE(UNIT=output_unit,FMT='(A80)') "# molecule nr, charge, dipole vector, dipole (Debye) "
        dipole_set=dipole_set*debye ! Debye
@@ -258,19 +278,19 @@ CONTAINS
        ENDDO
     ENDIF
     CALL cp_print_key_finished_output(output_unit,logger,loc_print_key,&
-         "/MOLECULAR_DIPOLES",error=error)
+         "MOLECULAR_DIPOLES",error=error)
     DEALLOCATE(dipole_set,charge_set)
     !---------------------------------------------------------------------------
     ! end of molecular dipole calculation
     !---------------------------------------------------------------------------
 
-    DEALLOCATE(distance,STAT=isos)
-    IF(isos/=0) CALL stop_memory('wfc_to_molecule','distance')
-    DEALLOCATE(r,STAT=isos)
-    IF(isos/=0) CALL stop_memory('wfc_to_molecule','r')
+    DEALLOCATE(distance,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(r,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    DEALLOCATE(wfc_to_atom_map,STAT=isos)
-    IF(isos/=0) CALL stop_memory('wfc_to_molecule','wfc_to_atom_map')
+    DEALLOCATE(wfc_to_atom_map,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE wfc_to_molecule
   !------------------------------------------------------------------------------

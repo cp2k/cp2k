@@ -21,7 +21,6 @@ MODULE moments_utils
                                              get_fist_env
   USE input_constants,                 ONLY: use_mom_ref_coac,&
                                              use_mom_ref_com,&
-                                             use_mom_ref_nondef,&
                                              use_mom_ref_user,&
                                              use_mom_ref_zero
   USE kinds,                           ONLY: dp
@@ -129,8 +128,6 @@ CONTAINS
     CASE (use_mom_ref_user)
        rpoint = ref_point
     CASE (use_mom_ref_zero)
-       rpoint = 0._dp
-    CASE (use_mom_ref_nondef)
        rpoint = 0._dp
     END SELECT
 

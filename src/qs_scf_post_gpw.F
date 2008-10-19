@@ -44,7 +44,6 @@ MODULE qs_scf_post_gpw
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE et_coupling_types,               ONLY: set_et_coupling_type
-  USE external_potential_types,        ONLY: gth_potential_type
   USE f77_blas
   USE input_constants,                 ONLY: ot_precond_full_all,&
                                              state_loc_all,&
@@ -61,9 +60,11 @@ MODULE qs_scf_post_gpw
                                              default_string_length,&
                                              dp
   USE lowdin,                          ONLY: lowdin_charges
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: pi,&
+                                             twopi
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
+  USE moments_utils,                   ONLY: get_reference_point
   USE mulliken,                        ONLY: mulliken_charges
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
@@ -439,7 +440,8 @@ CPSourceFileRef,&
                         ext_mo_coeff=mo_localized,error=error)
 
                    ! maps wfc to molecules, and compute the molecular dipoles if required
-                   IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION/MOLECULAR_DIPOLES",&
+                   IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
+                       "PRINT%LOCALIZATION%MOLECULAR_DIPOLES",&
                        error=error),cp_p_file) .OR. p_molstates) THEN
                       loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error) 
                       CALL wfc_to_molecule(qs_loc_env, loc_print_key, scenter, molecule_set, error)
@@ -819,52 +821,108 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=80)                        :: description
     CHARACTER(LEN=default_string_length)     :: iter
-    INTEGER                                  :: i, ispins, n_rep, unit_nr
-    LOGICAL                                  :: failure, first_time, ghost
-    REAL(KIND=dp)                            :: zeff, zwfc
-    REAL(KIND=dp), DIMENSION(3)              :: dipole, dipole_old, r_pbc
+    COMPLEX(KIND=dp)                         :: zeta
+    COMPLEX(KIND=dp), DIMENSION(3)           :: ggamma, zphase
+    INTEGER                                  :: i, ispins, j, n_rep, &
+                                                reference, unit_nr
+    LOGICAL                                  :: do_berry, failure, &
+                                                first_time, ghost
+    REAL(KIND=dp)                            :: charge_tot, theta, tmp(3), &
+                                                zeff, zwfc
+    REAL(KIND=dp), DIMENSION(3)              :: ci, dipole, dipole_old, gvec, &
+                                                rcc, ria
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: print_key
 
     failure = .FALSE.
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-         "DFT%PRINT%LOCALIZATION/TOTAL_DIPOLE",first_time=first_time,error=error),cp_p_file)) THEN
-       NULLIFY(gth_potential, cell, particle_set, gth_potential)
+    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION%TOTAL_DIPOLE", error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,first_time=first_time,&
+         error=error),cp_p_file)) THEN
+       NULLIFY(cell, particle_set, ref_point)
        CALL get_qs_env(qs_env=qs_env,&
                        cell=cell,&
                        particle_set=particle_set,&
                        error=error)
-       
+      
+       reference = section_get_ival(print_key,keyword_name="REFERENCE",error=error)
+       CALL section_vals_val_get(print_key,"REF_POINT",r_vals=ref_point,error=error)
+       CALL section_vals_val_get(print_key,"PERIODIC",l_val=do_berry,error=error)
        description='[DIPOLE]'
-       dipole=0.0_dp
-       ! Charges of the atoms involved
-       DO i=1,SIZE(particle_set)
-          CALL get_atomic_kind(particle_set(i)%atomic_kind,ghost=ghost,&
-               gth_potential=gth_potential)
-          zeff = 0.0_dp
-          IF (.NOT.ghost) THEN
-             CALL get_atomic_kind(particle_set(i)%atomic_kind,core_charge=zeff)
-             CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
-             r_pbc = pbc(particle_set(i)%r, cell)
-             dipole=dipole + zeff*r_pbc
-          END IF
-       END DO
+       CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point,error=error)
 
-       ! Charges of the wfc involved
-       ! Warning, this assumes the same occupation for all states
-       zwfc = 3.0_dp-REAL(dft_control%nspins,dp)
-       
-       DO ispins=1,dft_control%nspins
-          DO i=1,SIZE(qs_loc_env%localized_wfn_control%centers_set(ispins)%array,2)
-             r_pbc = pbc(qs_loc_env%localized_wfn_control%centers_set(ispins)%array(1:3,i),cell)
-             dipole=dipole - zwfc * r_pbc
+       dipole=0.0_dp
+       IF (do_berry) THEN
+          rcc = pbc(rcc,cell)
+          charge_tot = REAL(dft_control%charge,KIND=dp)
+          ria  = twopi * MATMUL(cell%h_inv, rcc)
+          zphase  = CMPLX(COS(ria), SIN(ria), KIND=dp)**charge_tot
+          ggamma  = CMPLX(1.0_dp,0.0_dp,KIND=dp)
+
+          ! Nuclear charges
+          DO i=1,SIZE(particle_set)
+             CALL get_atomic_kind(particle_set(i)%atomic_kind,ghost=ghost)
+             IF (.NOT.ghost) THEN
+                CALL get_atomic_kind(particle_set(i)%atomic_kind,core_charge=zeff)
+                ria = pbc(particle_set(i)%r, cell)
+                DO j = 1, 3
+                   gvec  = twopi*cell%h_inv(j,:)
+                   theta = SUM(ria(:)*gvec(:))
+                   zeta  = CMPLX(COS(theta),SIN(theta),KIND=dp)**(zeff)
+                   ggamma(j)  = ggamma(j) * zeta
+                END DO
+             END IF
+          END DO
+
+          ! Charges of the wfc involved
+          ! Warning, this assumes the same occupation for all states
+          zwfc = 3.0_dp-REAL(dft_control%nspins,dp)
+          
+          DO ispins=1,dft_control%nspins
+             DO i=1,SIZE(qs_loc_env%localized_wfn_control%centers_set(ispins)%array,2)
+                ria = pbc(qs_loc_env%localized_wfn_control%centers_set(ispins)%array(1:3,i),cell)
+                DO j = 1, 3
+                   gvec  = twopi*cell%h_inv(j,:)
+                   theta = SUM(ria(:)*gvec(:))
+                   zeta  = CMPLX(COS(theta),SIN(theta),KIND=dp)**(-zwfc)
+                   ggamma(j)  = ggamma(j) * zeta
+                END DO
+             ENDDO
           ENDDO
-       ENDDO
-       
-       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
-            extension=".Dipole",log_filename=.FALSE.,on_file=.TRUE.,error=error)
+          ggamma = ggamma * zphase
+          IF (ALL(REAL(ggamma,KIND=dp) /= 0.0_dp)) THEN
+             tmp    = AIMAG(ggamma)/REAL(ggamma,KIND=dp)
+             ci     = ATAN(tmp)
+             dipole = MATMUL ( cell%hmat, ci )/twopi
+          END IF
+       ELSE
+          ! Charges of the atoms involved
+          DO i=1,SIZE(particle_set)
+             CALL get_atomic_kind(particle_set(i)%atomic_kind,ghost=ghost)
+             IF (.NOT.ghost) THEN
+                CALL get_atomic_kind(particle_set(i)%atomic_kind,core_charge=zeff)
+                ria = pbc(particle_set(i)%r, cell)
+                dipole=dipole + zeff*(ria-rcc)
+             END IF
+          END DO
+
+          ! Charges of the wfc involved
+          ! Warning, this assumes the same occupation for all states
+          zwfc = 3.0_dp-REAL(dft_control%nspins,dp)
+          
+          DO ispins=1,dft_control%nspins
+             DO i=1,SIZE(qs_loc_env%localized_wfn_control%centers_set(ispins)%array,2)
+                ria = pbc(qs_loc_env%localized_wfn_control%centers_set(ispins)%array(1:3,i),cell)
+                dipole=dipole - zwfc * (ria-rcc)
+             ENDDO
+          ENDDO
+       END IF 
+
+       ! Print and possibly store results
+       unit_nr=cp_print_key_unit_nr(logger,print_key,extension=".Dipole",&
+            middle_name="TOTAL_DIPOLE",error=error)
        IF (unit_nr>0) THEN
           IF (first_time) THEN
              WRITE(unit=unit_nr,fmt="(A,T31,A,T88,A,T136,A)")&
@@ -882,8 +940,7 @@ CPSourceFileRef,&
           WRITE(unit=unit_nr,fmt="(a,9(es18.8))")&
                iter(1:15), dipole, dipole*debye, (dipole-dipole_old)
        END IF
-       CALL cp_print_key_finished_output(unit_nr,logger,input,&
-            "DFT%PRINT%LOCALIZATION",on_file=.TRUE.,error=error)
+       CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
        CALL cp_results_erase(qs_env%results,description,error=error)
        CALL put_results(qs_env%results,description,dipole,error)
     END IF

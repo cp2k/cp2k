@@ -378,7 +378,8 @@ CPSourceFileRef,&
                         ext_mo_coeff=mo_localized,error=error)
 
                    ! maps wfc to molecules, and compute the molecular dipoles if required
-                   IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION/MOLECULAR_DIPOLES",&
+                   IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
+                       "PRINT%LOCALIZATION%MOLECULAR_DIPOLES",&
                        error=error),cp_p_file) .OR. p_molstates) THEN
                       loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error) 
                       CALL wfc_to_molecule(qs_loc_env, loc_print_key, scenter, molecule_set, error)
@@ -671,7 +672,7 @@ CPSourceFileRef,&
 
     failure = .FALSE.
     IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-         "DFT%PRINT%LOCALIZATION/TOTAL_DIPOLE",first_time=first_time,error=error),cp_p_file)) THEN
+         "DFT%PRINT%LOCALIZATION%TOTAL_DIPOLE",first_time=first_time,error=error),cp_p_file)) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="TOTAL DIPOLE  not implemented for Semi-Empirical calculations!!", &
             error=error, error_level=cp_warning_level)

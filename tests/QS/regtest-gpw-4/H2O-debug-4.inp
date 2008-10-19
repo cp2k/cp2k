@@ -27,6 +27,13 @@
             &END
           &END
         &END
+        &MOLECULAR_DIPOLES
+          PERIODIC
+        &END
+        &TOTAL_DIPOLE
+          PERIODIC T
+          REFERENCE COAC
+        &END
       &END
     &END
   &END DFT

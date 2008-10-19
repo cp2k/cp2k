@@ -33,7 +33,8 @@
         &LOCALIZE
            LIST 2 3 4 5
         &END
-        MOLECULAR_DIPOLES
+        &MOLECULAR_DIPOLES
+        &END
       &END
     &END
   &END DFT

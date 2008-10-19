@@ -452,8 +452,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: use_mom_ref_com=0,&
                                 use_mom_ref_coac=1,&
                                 use_mom_ref_user=2,&
-                                use_mom_ref_zero=3,&
-                                use_mom_ref_nondef=4
+                                use_mom_ref_zero=3
 
   INTEGER, PARAMETER, PUBLIC :: current_gauge_r=1,&
                                 current_gauge_r_and_Bader=2,&
