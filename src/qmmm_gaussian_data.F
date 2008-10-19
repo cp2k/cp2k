@@ -13,7 +13,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qmmm_gaussian_data
-
+  USE f77_blas
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE

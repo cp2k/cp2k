@@ -10,6 +10,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE cp2k_info
+  USE f77_blas
   USE input_constants,                 ONLY: id_development_version,&
                                              id_release_version
 

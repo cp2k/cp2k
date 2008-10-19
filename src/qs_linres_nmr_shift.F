@@ -11,7 +11,6 @@
 !> \author MI
 ! *****************************************************************************
 MODULE qs_linres_nmr_shift
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
@@ -23,6 +22,7 @@ MODULE qs_linres_nmr_shift
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get

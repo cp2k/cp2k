@@ -56,7 +56,7 @@
 !> \author Matthias Krack
 ! *****************************************************************************
 MODULE physcon
-
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE periodic_table,                  ONLY: init_periodic_table

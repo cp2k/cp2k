@@ -8,6 +8,7 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE scp_rho_types
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release

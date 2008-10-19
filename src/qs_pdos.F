@@ -11,7 +11,6 @@
 !> \author Marcella (29.02.2008,MK)
 ! *****************************************************************************
 MODULE qs_pdos
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -35,6 +34,7 @@ MODULE qs_pdos
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&

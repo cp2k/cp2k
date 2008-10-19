@@ -14,7 +14,6 @@
 !> \version 1.0
 ! *****************************************************************************
 MODULE dft_plus_u
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -36,6 +35,7 @@ MODULE dft_plus_u
   USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
                                              copy_sm_to_fm,&
                                              cp_sm_fm_multiply
+  USE f77_blas
   USE input_constants,                 ONLY: plus_u_lowdin,&
                                              plus_u_mulliken,&
                                              plus_u_mulliken_charges

@@ -10,6 +10,7 @@
 !> \author APSI & JGH
 ! *****************************************************************************
 MODULE machine_pgi
+USE f77_blas
 
   USE kinds,                           ONLY: dp,&
                                              int_8

@@ -11,6 +11,7 @@ MODULE scp_rspw_methods
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE f77_blas
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE kinds,                           ONLY: dp

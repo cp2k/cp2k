@@ -1,5 +1,6 @@
 !******************************************************************************
 MODULE powell
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
 

@@ -10,13 +10,13 @@
 !> \author JGH (20.07.2006)
 ! *****************************************************************************
 MODULE moments_utils
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE f77_blas
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              get_fist_env
   USE input_constants,                 ONLY: use_mom_ref_coac,&

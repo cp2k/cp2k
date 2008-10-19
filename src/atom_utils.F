@@ -11,12 +11,12 @@
 !>
 ! *****************************************************************************
 MODULE atom_utils
-
   USE atom_types,                      ONLY: CGTO_BASIS,&
                                              GTO_BASIS,&
                                              atom_basis_type,&
                                              eri
   USE erf_fn,                          ONLY: erf
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE lapack

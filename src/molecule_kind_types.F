@@ -11,7 +11,6 @@
 !> \author MK (22.08.2003)
 ! *****************************************************************************
 MODULE molecule_kind_types
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
@@ -25,6 +24,7 @@ MODULE molecule_kind_types
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
+  USE f77_blas
   USE force_field_types,               ONLY: &
        bend_kind_type, bond_kind_type, impr_kind_dealloc_ref, impr_kind_type, &
        onfo_kind_dealloc_ref, onfo_kind_type, torsion_kind_dealloc_ref, &

@@ -10,10 +10,10 @@
 !> \author Manuel Guidon 
 ! *****************************************************************************
 MODULE hfx_communication 
-  
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE hfx_types,                       ONLY: hfx_basis_type,&
                                              hfx_type
   USE kinds,                           ONLY: dp

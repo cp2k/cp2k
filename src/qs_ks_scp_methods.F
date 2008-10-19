@@ -8,6 +8,7 @@
 ! *****************************************************************************
 MODULE qs_ks_scp_methods
   USE cell_types,                      ONLY: cell_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE pw_env_types,                    ONLY: pw_env_get,&

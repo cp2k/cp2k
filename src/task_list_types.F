@@ -10,6 +10,7 @@
 !> \author Joost VandeVondele 
 ! *****************************************************************************
 MODULE task_list_types
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
 #include "cp_common_uses.h"

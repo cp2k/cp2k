@@ -20,6 +20,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE reference_manager
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length
   USE util,                            ONLY: sort
 

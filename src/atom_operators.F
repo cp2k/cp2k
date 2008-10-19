@@ -11,7 +11,6 @@
 !>
 ! *****************************************************************************
 MODULE atom_operators
-
   USE ai_onecenter,                    ONLY: &
        sg_conf, sg_coulomb, sg_erf, sg_exchange, sg_gpot, sg_kinetic, &
        sg_kinnuc, sg_nuclear, sg_overlap, sg_proj_ol
@@ -19,6 +18,7 @@ MODULE atom_operators
        CGTO_BASIS, GTH_PSEUDO, GTO_BASIS, NO_PSEUDO, NUM_BASIS, STO_BASIS, &
        atom_basis_type, atom_integrals, atom_potential_type
   USE atom_utils,                      ONLY: numpot_matrix
+  USE f77_blas
   USE input_constants,                 ONLY: do_dkh0_atom,&
                                              do_dkh1_atom,&
                                              do_dkh2_atom,&

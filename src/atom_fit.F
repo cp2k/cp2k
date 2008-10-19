@@ -7,7 +7,6 @@
 !> \brief routines that fit parameters for /from atomic calculations
 ! *****************************************************************************
 MODULE atom_fit
-
   USE atom_types,                      ONLY: atom_type,&
                                              create_opgrid,&
                                              opgrid_type,&
@@ -15,6 +14,7 @@ MODULE atom_fit
   USE atom_utils,                      ONLY: atom_denmat,&
                                              atom_density,&
                                              integrate_grid
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgesv

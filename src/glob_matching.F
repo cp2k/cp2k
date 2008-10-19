@@ -11,6 +11,8 @@
 !
 ! *****************************************************************************
 MODULE glob_matching
+  USE f77_blas
+
     IMPLICIT NONE
 
     CHARACTER(len=1), PARAMETER, PRIVATE :: backslash = '\\'

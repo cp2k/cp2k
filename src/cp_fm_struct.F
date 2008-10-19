@@ -18,6 +18,7 @@ MODULE cp_fm_struct
                                              cp_para_env_write
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum

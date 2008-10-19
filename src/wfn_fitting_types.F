@@ -19,6 +19,7 @@ MODULE wfn_fitting_types
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants
   USE qs_mo_types,                     ONLY: get_mo_set,&

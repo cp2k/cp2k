@@ -7,7 +7,6 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE scp_environment_types
-
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -17,6 +16,7 @@ MODULE scp_environment_types
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type

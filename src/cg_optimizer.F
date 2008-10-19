@@ -14,6 +14,7 @@ MODULE cg_optimizer
   USE cp_output_handling,              ONLY: cp_iterate,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: gopt_f_ii,&

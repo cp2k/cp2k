@@ -10,8 +10,8 @@
 !> \author Manuel Guidon 
 ! *****************************************************************************
 MODULE hfx_screening_methods 
-  
   USE erf_fn,                          ONLY: erfc
+  USE f77_blas
   USE hfx_libint_interface,            ONLY: evaluate_eri_screen,&
                                              pbc
   USE hfx_libint_wrapper,              ONLY: lib_int

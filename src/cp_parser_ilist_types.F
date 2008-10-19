@@ -13,8 +13,9 @@
 !> \date 25.02.2008
 ! *****************************************************************************
 MODULE cp_parser_ilist_types
-  
+  USE f77_blas
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 

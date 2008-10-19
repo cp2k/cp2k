@@ -13,6 +13,7 @@
 !> \author APSI & JGH
 ! *****************************************************************************
 MODULE machine_nag
+USE f77_blas
 
   USE f90_unix
   USE f90_unix_dir
@@ -227,6 +228,7 @@ END MODULE machine_nag
 !>      - adapted for g95 (29.05.2003,JVdV)
 !> \author APSI & JGH
 MODULE machine_nag
+USE f77_blas
 
   USE kinds,                           ONLY: dp, int_8
 

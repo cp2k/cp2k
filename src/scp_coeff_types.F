@@ -10,7 +10,6 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE scp_coeff_types
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
@@ -19,6 +18,7 @@ MODULE scp_coeff_types
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum

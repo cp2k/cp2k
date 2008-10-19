@@ -8,13 +8,14 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE scp_energy
-!  USE input_cp2k_restarts,             ONLY: write_restart
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE f77_blas
+!  USE input_cp2k_restarts,             ONLY: write_restart
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_sum

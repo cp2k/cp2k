@@ -10,7 +10,7 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE periodic_table
-
+  USE f77_blas
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE

@@ -9,7 +9,7 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE mol_force
-
+  USE f77_blas
   USE input_constants,                 ONLY: do_ff_charmm,&
                                              do_ff_cubic,&
                                              do_ff_g87,&

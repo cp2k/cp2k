@@ -20,6 +20,7 @@
 ! *****************************************************************************
 
 MODULE message_passing
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_8,&

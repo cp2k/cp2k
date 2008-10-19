@@ -9,6 +9,7 @@
 !> \date 08.2008
 ! *****************************************************************************
 MODULE cp_parser_buffer_types
+  USE f77_blas
   USE kinds,                           ONLY: max_line_length
 #include "cp_common_uses.h"
 

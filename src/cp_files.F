@@ -8,6 +8,7 @@
 !> \author CP2K_WORKSHOP 1.0 TEAM
 ! *****************************************************************************
 MODULE cp_files
+  USE f77_blas
   USE machine,                         ONLY: default_input_unit,&
                                              default_output_unit,&
                                              m_flush

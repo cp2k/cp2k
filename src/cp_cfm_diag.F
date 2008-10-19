@@ -11,8 +11,8 @@
 !> \author Joost VandeVondele (2003-09)
 ! *****************************************************************************
 MODULE cp_cfm_diag
-
   USE cp_cfm_types,                    ONLY: cp_cfm_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

@@ -9,7 +9,7 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE scp_force_types
-
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

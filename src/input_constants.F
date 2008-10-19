@@ -10,6 +10,7 @@
 !>      02.2005 created [fawzi&Joost]
 ! *****************************************************************************
 MODULE input_constants
+  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
 

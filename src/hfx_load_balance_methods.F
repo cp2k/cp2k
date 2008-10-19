@@ -10,9 +10,9 @@
 !> \author Manuel Guidon 
 ! *****************************************************************************
 MODULE hfx_load_balance_methods 
-  
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
+  USE f77_blas
   USE hfx_distribution_mc,             ONLY: optimize_distribution
   USE hfx_helpers,                     ONLY: FNV64
   USE hfx_libint_interface,            ONLY: pbc

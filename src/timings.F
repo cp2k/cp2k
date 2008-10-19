@@ -13,6 +13,7 @@
 ! *****************************************************************************
 MODULE timings
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_memory,&
                                              m_walltime

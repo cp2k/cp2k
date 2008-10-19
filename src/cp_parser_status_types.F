@@ -12,6 +12,7 @@ MODULE cp_parser_status_types
   USE cp_parser_buffer_types,          ONLY: buffer_type,&
                                              create_buffer_type,&
                                              release_buffer_type
+  USE f77_blas
   USE kinds,                           ONLY: max_line_length
 #include "cp_common_uses.h"
 

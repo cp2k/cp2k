@@ -8,12 +8,12 @@
 !>      for the atomic code
 ! *****************************************************************************
 MODULE atom_output
-
   USE atom_types,                      ONLY: &
        CGTO_BASIS, GTH_PSEUDO, GTO_BASIS, NO_PSEUDO, NUM_BASIS, STO_BASIS, &
        atom_basis_type, atom_potential_type, atom_state, atom_type
   USE atom_utils,                      ONLY: get_maxl_occ,&
                                              get_maxn_occ
+  USE f77_blas
   USE input_constants,                 ONLY: &
        do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, &
        do_dkh5_atom, do_nonrel_atom, do_rhf_atom, do_rks_atom, do_rohf_atom, &

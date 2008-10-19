@@ -12,6 +12,7 @@
 !> \author Benjamin G. Levine
 ! *****************************************************************************
 MODULE pw_methods_cuda
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              sp
   USE pw_types,                        ONLY: RECIPROCALSPACE,&

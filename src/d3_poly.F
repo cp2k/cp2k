@@ -19,6 +19,7 @@
 !>   \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE d3_poly
+  USE f77_blas
   USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 

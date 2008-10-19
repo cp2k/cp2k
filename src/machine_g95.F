@@ -11,8 +11,8 @@
 !> \author APSI & JGH
 ! *****************************************************************************
 MODULE machine_g95
-
   USE ISO_C_BINDING,                   ONLY: C_INT64_T
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
 

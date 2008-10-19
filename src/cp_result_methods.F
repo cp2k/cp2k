@@ -13,12 +13,12 @@
 !>                   - module more lean
 ! *****************************************************************************
 MODULE cp_result_methods
-
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_types,                 ONLY: &
        cp_result_clean, cp_result_copy, cp_result_create, cp_result_release, &
        cp_result_type, cp_result_value_copy, cp_result_value_create, &
        cp_result_value_init, cp_result_value_p_reallocate
+  USE f77_blas
   USE input_val_types,                 ONLY: integer_t,&
                                              logical_t,&
                                              real_t

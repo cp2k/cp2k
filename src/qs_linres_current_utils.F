@@ -48,6 +48,7 @@ MODULE qs_linres_current_utils
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE f77_blas
   USE input_constants,                 ONLY: current_gauge_r,&
                                              current_gauge_r_and_Bader,&
                                              current_gauge_r_and_step_func,&

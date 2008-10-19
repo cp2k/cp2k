@@ -10,7 +10,7 @@
 !> \author CJM & JGH
 ! *****************************************************************************
 MODULE util
-
+  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_4,&
                                              int_8

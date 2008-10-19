@@ -10,6 +10,7 @@
 !> \author APSI & JGH
 ! *****************************************************************************
 MODULE machine_irix
+USE f77_blas
 
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&

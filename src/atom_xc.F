@@ -8,12 +8,12 @@
 !>      for the atomic code
 ! *****************************************************************************
 MODULE atom_xc
-
   USE atom_types,                      ONLY: atom_type,&
                                              opmat_type
   USE atom_utils,                      ONLY: atom_density,&
                                              integrate_grid,&
                                              numpot_matrix
+  USE f77_blas
   USE input_constants,                 ONLY: xc_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&

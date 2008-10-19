@@ -33,6 +33,7 @@ MODULE qs_linres_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE f77_blas
   USE input_constants,                 ONLY: &
        do_loc_none, lr_cg, lr_diis, lr_precond_none, lr_sd, ls_2pnt, ls_3pnt, &
        ls_gold, ls_none, op_loc_berry, state_loc_all

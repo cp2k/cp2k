@@ -35,6 +35,7 @@ MODULE cp_error_handling
        cp_logger_release, cp_logger_retain, cp_logger_type, cp_to_string, &
        print_message
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_blas
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_max
   USE timings,                         ONLY: print_stack

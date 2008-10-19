@@ -7,6 +7,7 @@
 !> \brief currently for testing gfortran
 ! *****************************************************************************
 MODULE machine_gfortran
+USE f77_blas
 
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -169,3 +170,4 @@ SUBROUTINE m_getarg(i,arg)
 END SUBROUTINE m_getarg
 
 END MODULE machine_gfortran
+USE f77_blas

@@ -17,6 +17,8 @@
 ! *****************************************************************************
 MODULE neb_opt_utils
   USE f77_blas
+  USE f77_blas_extra
+  USE f77_blas_generic
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp

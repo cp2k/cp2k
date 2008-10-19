@@ -8,6 +8,7 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE scp_rho_methods
+  USE f77_blas
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&

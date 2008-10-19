@@ -10,7 +10,7 @@
 !> \author Manuel Guidon 
 ! *****************************************************************************
 MODULE hfx_helpers 
-  
+  USE f77_blas
   USE kinds,                           ONLY: int_8
   USE mathconstants
   USE orbital_pointers

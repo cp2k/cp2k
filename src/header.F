@@ -9,6 +9,7 @@
 !> \author APSI & CJM & JGH
 ! *****************************************************************************
 MODULE header
+  USE f77_blas
 
   IMPLICIT NONE
 
