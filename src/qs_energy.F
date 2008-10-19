@@ -78,8 +78,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nder
-    LOGICAL                                  :: do_et, my_calc_forces, &
-                                                right_iteration_level
+    LOGICAL                                  :: do_et, my_calc_forces
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -212,8 +211,7 @@ CONTAINS
     END IF
     
     !Properties
-    right_iteration_level = .TRUE.
-    IF(dft_control%do_xas_calculation .AND. right_iteration_level ) THEN
+    IF(dft_control%do_xas_calculation) THEN
       CALL xas(qs_env, dft_control%xas_control, globenv,error=error)
     END IF
 
