@@ -852,7 +852,8 @@ CONTAINS
        file_action, file_status, do_backup, on_file, is_new_file,error) RESULT(res)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
-    CHARACTER(len=*), INTENT(IN)             :: print_key_path, extension
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: print_key_path
+    CHARACTER(len=*), INTENT(IN)             :: extension
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: middle_name
     LOGICAL, INTENT(IN), OPTIONAL            :: local, log_filename, &
                                                 ignore_should_output
@@ -1093,8 +1094,8 @@ CONTAINS
        on_file, error)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
-    CHARACTER(len=*), INTENT(IN)             :: print_key_path, extension, &
-                                                message
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: print_key_path
+    CHARACTER(len=*), INTENT(IN)             :: extension, message
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: middle_name
     LOGICAL, INTENT(IN), OPTIONAL            :: local, log_filename, &
                                                 ignore_should_output, on_file

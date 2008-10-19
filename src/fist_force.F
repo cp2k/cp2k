@@ -840,12 +840,12 @@ END SUBROUTINE fist_force_control
     CALL section_vals_val_get(print_section,"DIPOLE%PERIODIC",l_val=do_berry,error=error)
     
     CALL get_reference_point(rcc,drcc,fist_env=fist_env,reference=reference,ref_point=ref_point,error=error)
-    rcc = pbc(rcc,cell)
 
     ! Dipole deriv will be the derivative of the Dipole (dM/dt=\sum e_j v_j)
-    dipole_deriv=0.0_dp
-    dipole = 0.0_dp
+    dipole_deriv = 0.0_dp
+    dipole       = 0.0_dp
     IF (do_berry) THEN
+       rcc = pbc(rcc,cell)
        charge_tot = 0._dp
        DO i = 1,SIZE(particle_set)
           atomic_kind => particle_set(i)%atomic_kind
@@ -900,9 +900,9 @@ END SUBROUTINE fist_force_control
           WRITE(unit_nr,'(1X,A,T48,3F11.6)')"MM DIPOLE [BERRY PHASE] DERIVATIVE (A.U.)|",dipole_deriv
        END IF
     ELSE
-       DO i = 1,SIZE(particle_set)
+       DO i = 1, SIZE(particle_set)
           atomic_kind => particle_set(i)%atomic_kind
-          ria = particle_set(i)%r(:)
+          ria = pbc(particle_set(i)%r(:),cell)
           CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=q)
           dipole = dipole - q * (ria-rcc)
           dipole_deriv(:) = dipole_deriv(:) - q * (particle_set(i)%v(:) - drcc)
