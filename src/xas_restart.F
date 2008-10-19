@@ -309,4 +309,4 @@ CONTAINS
 
   END SUBROUTINE xas_initialize_rho
 
-END MODULE  xas_restart
+END MODULE xas_restart

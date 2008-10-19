@@ -888,4 +888,4 @@ CONTAINS
 
   END SUBROUTINE multiply_sparse_mol_mo
 
-END MODULE  kg_gpw_fm_mol_methods
+END MODULE kg_gpw_fm_mol_methods

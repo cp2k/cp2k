@@ -188,4 +188,4 @@ CONTAINS
 
  END SUBROUTINE  prepare_gapw_den
 
- END MODULE  qs_gapw_densities
+END MODULE qs_gapw_densities

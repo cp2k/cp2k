@@ -919,5 +919,5 @@ CONTAINS
     !
   END SUBROUTINE epr_ind_magnetic_field
 
-END MODULE  qs_linres_epr_ownutils
+END MODULE qs_linres_epr_ownutils
 

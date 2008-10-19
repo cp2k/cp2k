@@ -139,4 +139,4 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE geoopt_lbfgs
 
- END MODULE cp_lbfgs_geo
+END MODULE cp_lbfgs_geo

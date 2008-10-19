@@ -360,4 +360,4 @@ CONTAINS
 
   END SUBROUTINE epr_env_cleanup
 
-END MODULE  qs_linres_epr_utils
+END MODULE qs_linres_epr_utils

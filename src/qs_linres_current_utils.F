@@ -1270,4 +1270,4 @@ CONTAINS
 
   END SUBROUTINE current_env_cleanup
 
-END MODULE  qs_linres_current_utils
+END MODULE qs_linres_current_utils

@@ -395,5 +395,5 @@ CONTAINS
 
   END SUBROUTINE qs_epr_hyp_calc
 
-END MODULE  qs_epr_hyp
+END MODULE qs_epr_hyp
 

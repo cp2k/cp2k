@@ -133,5 +133,5 @@ MODULE et_coupling_types
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END SUBROUTINE et_coupling_release
     
-  END MODULE et_coupling_types
+END MODULE et_coupling_types
   

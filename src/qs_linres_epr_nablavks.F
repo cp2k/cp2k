@@ -1090,5 +1090,5 @@ CONTAINS
 
   END SUBROUTINE epr_nablavks
 
-END MODULE  qs_linres_epr_nablavks
+END MODULE qs_linres_epr_nablavks
 

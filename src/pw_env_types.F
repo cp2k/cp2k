@@ -245,4 +245,4 @@ SUBROUTINE pw_env_flush_cache(pw_env,error)
   END IF
 END SUBROUTINE pw_env_flush_cache
 
-END MODULE
+END MODULE pw_env_types

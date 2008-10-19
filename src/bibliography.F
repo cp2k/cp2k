@@ -1427,4 +1427,4 @@ CONTAINS
 
    END SUBROUTINE add_all_references
 
-END MODULE
+END MODULE bibliography

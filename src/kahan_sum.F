@@ -1303,4 +1303,4 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_z7
   
- END MODULE kahan_sum
+END MODULE kahan_sum

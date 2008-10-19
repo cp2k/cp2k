@@ -1039,4 +1039,4 @@ MODULE hfx_derivatives
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE forces4_periodic
 
-END MODULE hfx_derivatives 
+END MODULE hfx_derivatives

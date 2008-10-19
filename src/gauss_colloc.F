@@ -705,4 +705,4 @@ SUBROUTINE collocGauss_safe(h,h_inv,grid,poly,alphai,posi,max_r2,&
     PRINT *,'miss2',min_miss,max_miss
 END SUBROUTINE
 
-END MODULE
+END MODULE gauss_colloc

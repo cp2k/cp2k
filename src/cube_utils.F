@@ -306,5 +306,5 @@ CONTAINS
     res = CEILING(-0.1E-7_dp-buf(1)*SQRT(MAX(buf(2)-kg2*buf(3)-jg2*buf(4),0.0_dp)))
   END FUNCTION do_and_hide_it_2
 
-END MODULE
+END MODULE cube_utils
 

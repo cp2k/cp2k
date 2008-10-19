@@ -1885,4 +1885,4 @@ SUBROUTINE poly_d32cp2k(poly_cp2k,grad,poly_d3,error)
     END IF
 END SUBROUTINE
 
-END MODULE
+END MODULE d3_poly

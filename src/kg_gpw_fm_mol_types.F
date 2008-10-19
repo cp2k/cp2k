@@ -776,4 +776,4 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE duplicate_kg_fm_p_type
-END MODULE  kg_gpw_fm_mol_types
+END MODULE kg_gpw_fm_mol_types

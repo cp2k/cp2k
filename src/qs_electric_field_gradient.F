@@ -594,5 +594,5 @@ CONTAINS
 
   END SUBROUTINE efgsort
 
-END MODULE  qs_electric_field_gradient
+END MODULE qs_electric_field_gradient
 

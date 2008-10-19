@@ -1079,5 +1079,5 @@ CONTAINS
 
   END SUBROUTINE read_mo_mol_restart
 
-END MODULE  kg_gpw_fm_mol_utils
+END MODULE kg_gpw_fm_mol_utils
 

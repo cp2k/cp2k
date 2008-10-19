@@ -1605,4 +1605,4 @@ SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
            RETURN
          END SUBROUTINE gequad
          
-       END MODULE
+END MODULE ps_wavelet_kernel

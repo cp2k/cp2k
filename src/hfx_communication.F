@@ -384,4 +384,4 @@ MODULE hfx_communication
 
   END SUBROUTINE scale_and_add_fock_to_ks_matrix 
 
-END MODULE hfx_communication 
+END MODULE hfx_communication

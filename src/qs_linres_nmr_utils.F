@@ -379,4 +379,4 @@ CONTAINS
 
   END SUBROUTINE nmr_env_cleanup
 
-END MODULE  qs_linres_nmr_utils
+END MODULE qs_linres_nmr_utils

@@ -1918,4 +1918,4 @@ MODULE hfx_energy_potential
     END DO
   END SUBROUTINE on_the_fly
 
-END MODULE hfx_energy_potential 
+END MODULE hfx_energy_potential

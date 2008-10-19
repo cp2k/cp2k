@@ -2905,5 +2905,5 @@ MODULE k290
         CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
       END SUBROUTINE invmat
 !------------------------------------------------------------------------------!
-    END MODULE k290
+END MODULE k290
 !------------------------------------------------------------------------------!

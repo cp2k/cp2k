@@ -997,4 +997,4 @@ MODULE hfx_screening_methods
 
   END SUBROUTINE update_pmax_mat
 
-END MODULE hfx_screening_methods 
+END MODULE hfx_screening_methods

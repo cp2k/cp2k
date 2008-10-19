@@ -98,5 +98,5 @@ CONTAINS
 
   END SUBROUTINE print_cp2k_license
 
-END MODULE
+END MODULE cp2k_info
 
