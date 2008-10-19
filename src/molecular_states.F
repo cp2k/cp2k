@@ -69,7 +69,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
        mo_coeff, mo_eigenvalues, Hks, matrix_S, qs_env, wf_r, wf_g,&
-       force_env_section, particles, error)
+       localization_section, particles, error)
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
@@ -78,7 +78,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: Hks, matrix_S
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type), INTENT(INOUT)           :: wf_r, wf_g
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: localization_section
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -123,7 +123,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 2.
     !-----------------------------------------------------------------------------
-    unit_report=cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%MOLECULAR_STATES",&
+    unit_report=cp_print_key_unit_nr(logger,localization_section,"MOLECULAR_STATES",&
          extension=".data",middle_name="Molecular_DOS",log_filename=.FALSE.,error=error)
     IF (unit_report>0) THEN
        WRITE(unit_report,*) SIZE(mo_eigenvalues)," number of states "
@@ -246,8 +246,8 @@ CONTAINS
        ENDDO
        CALL cp_fm_release(D_igk,error=error)
 
-       IF ( BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-            "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error),cp_p_file) ) THEN
+       IF ( BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
+            "MOLECULAR_STATES%CUBES",error=error),cp_p_file) ) THEN
 
           DO i=1,ns
              j=ind(i)
@@ -265,14 +265,13 @@ CONTAINS
 
              WRITE(filename,'(a9,I2.2,a1,I3.3)')"MOLECULE_",imol,"_",i
              WRITE(title,'(A,I0,A,I0,A,F16.8)') "Molecular Eigenstate ",i," of ",ns,". Energy [a.u.] = ",evals(i)
-             unit_nr=cp_print_key_unit_nr(logger,force_env_section,&
-                  "DFT%PRINT%MOLECULAR_STATES%CUBES",&
+             unit_nr=cp_print_key_unit_nr(logger,localization_section,"MOLECULAR_STATES%CUBES",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
              CALL pw_to_cube(wf_r%pw,unit_nr,para_env%ionode,particles=particles,title=title,&
-                  stride=section_get_ivals(force_env_section,&
-                  "DFT%PRINT%MOLECULAR_STATES%CUBES%STRIDE",error=error), error=error)
-             CALL cp_print_key_finished_output(unit_nr,logger,force_env_section,&
-                  "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error)
+                  stride=section_get_ivals(localization_section,&
+                  "MOLECULAR_STATES%CUBES%STRIDE",error=error), error=error)
+             CALL cp_print_key_finished_output(unit_nr,logger,localization_section,&
+                  "MOLECULAR_STATES%CUBES",error=error)
           END DO
        ENDIF
 
@@ -292,8 +291,8 @@ CONTAINS
     CALL cp_fm_release(smo,error=error)
     DEALLOCATE(nstates,STAT=isos)
     IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
-    CALL cp_print_key_finished_output(unit_report,logger,force_env_section,&
-         "DFT%PRINT%MOLECULAR_STATES",error=error)
+    CALL cp_print_key_finished_output(unit_report,logger,localization_section,&
+         "MOLECULAR_STATES",error=error)
     !------------------------------------------------------------------------------
   END SUBROUTINE construct_molecular_states
 

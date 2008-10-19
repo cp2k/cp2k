@@ -134,8 +134,8 @@ CONTAINS
 
     INTEGER :: handle, homo, ispin, n, n_mo(2), nao, nelectron, nhomo, nlumo, &
       nlumos, nmo, nmoloc(2), nmos, output_unit
-    LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, failure, ionode, &
-      my_localized_wfn, p_loc, p_molstates, uniform_occ
+    LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, explicit, failure, &
+      ionode, my_localized_wfn, p_loc, p_molstates, uniform_occ
     REAL(KIND=dp)                            :: maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, stm_biases
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
@@ -170,8 +170,8 @@ CONTAINS
       POINTER                                :: ks_rmpv, matrix_s
     TYPE(real_matrix_type), POINTER          :: stm_density_ao
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: input, loc_print_key, &
-                                                print_key
+    TYPE(section_vals_type), POINTER         :: input, localization_section, &
+                                                localize_section, print_key
 
     CALL timeset(routineN,handle)
 
@@ -207,20 +207,27 @@ CONTAINS
        ! Moments of charge distribution
        CALL qs_scf_post_moments(input, logger, qs_env, ionode, output_unit, error)
 
-       ! Print Localized orbitals
-       print_key => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
+       ! Determine if we need to computer properties using the localized centers
+       localization_section => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
+       localize_section     => section_vals_get_subs_vals(localization_section,"LOCALIZE",error=error)
+       print_key => section_vals_get_subs_vals(localization_section,"MOLECULAR_DIPOLES",error=error)
        p_loc=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+       print_key => section_vals_get_subs_vals(localization_section,"TOTAL_DIPOLE",error=error)
+       p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+       CALL section_vals_val_get(localize_section,"_SECTION_PARAMETERS_",l_val=explicit,error=error)
+       p_loc=p_loc.OR.explicit
+
        ! Print Molecular States
-       print_key => section_vals_get_subs_vals(dft_section,"PRINT%MOLECULAR_STATES",error=error)
-       p_molstates=BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
-            error=error),cp_p_file)
+       print_key => section_vals_get_subs_vals(localization_section,"MOLECULAR_STATES",error=error)
+       p_molstates=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+       p_loc=p_loc.OR.p_molstates
 
        CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%STM_BIAS",r_vals=stm_biases,error=error)
        do_stm=ASSOCIATED(stm_biases)
 
        do_mo_cubes=BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES", error=error),cp_p_file)
-       do_wannier_cubes=BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
-                        "PRINT%LOCALIZATION%LOCALIZE%PRINT%WANNIER_CUBES",error=error),cp_p_file)
+       do_wannier_cubes=BTEST(cp_print_key_should_output(logger%iter_info,localize_section,&
+                        "PRINT%WANNIER_CUBES",error=error),cp_p_file)
        nlumo=section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error)
        nhomo=section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)
 
@@ -291,15 +298,15 @@ CONTAINS
           ENDDO
           CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
                        stm_biases, .TRUE. , particles, ionode, output_unit,  error)
-          DEALLOCATE(mo_arrays, evals)
+          DEALLOCATE(mo_arrays)
+          DEALLOCATE(evals)
        ENDIF
 
        ! Initialize the localization environment, needed e.g. for wannier functions and molecular states
        IF (p_loc) THEN
           CALL qs_loc_env_create(qs_loc_env,error=error)
           CALL localized_wfn_control_create(qs_loc_env%localized_wfn_control,error=error)
-          loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION%LOCALIZE",error=error)
-          CALL read_loc_section(qs_loc_env%localized_wfn_control,loc_print_key,qs_loc_env%do_localize,&
+          CALL read_loc_section(qs_loc_env%localized_wfn_control,localize_section,qs_loc_env%do_localize,&
                error=error)
           IF (qs_loc_env%do_localize) THEN
              ! Some setup for MOs to be localized
@@ -370,26 +377,21 @@ CPSourceFileRef,&
                    IF (ionode) WRITE(output_unit,"(/,T2,A,I3)") "LOCALIZATION| Computing localization properties "//&
                         "for OCCUPIED ORBITALS. Spin:",ispin
 
-                   loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION%LOCALIZE",&
-                        error=error) 
                    scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
-                
-                   CALL qs_loc_driver(qs_env,qs_loc_env,loc_print_key,myspin=ispin,&
+                   CALL qs_loc_driver(qs_env,qs_loc_env,localize_section,myspin=ispin,&
                         ext_mo_coeff=mo_localized,error=error)
 
                    ! maps wfc to molecules, and compute the molecular dipoles if required
-                   IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
-                       "PRINT%LOCALIZATION%MOLECULAR_DIPOLES",&
-                       error=error),cp_p_file) .OR. p_molstates) THEN
-                      loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error) 
-                      CALL wfc_to_molecule(qs_loc_env, loc_print_key, scenter, molecule_set, error)
+                   IF (BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
+                       "MOLECULAR_DIPOLES",error=error),cp_p_file) .OR. p_molstates) THEN
+                      CALL wfc_to_molecule(qs_loc_env, localization_section, scenter, molecule_set, error)
                    END IF
 
                    ! Compute the molecular states
                    IF ( p_molstates ) THEN
-                      CALL construct_molecular_states(molecule_set, mo_localized, mo_coeff, &
-                           mo_eigenvalues, ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, &
-                           wf_r, wf_g, force_env_section=qs_env%input, particles=particles, error=error)
+                      CALL construct_molecular_states(molecule_set, mo_localized, mo_coeff, mo_eigenvalues,&
+                           ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env,  wf_r, wf_g,&
+                           localization_section=localization_section, particles=particles, error=error)
                    ENDIF
                 END IF
                 CALL cp_fm_release(mo_localized,error=error)
@@ -399,14 +401,6 @@ CPSourceFileRef,&
                 CALL qs_scf_post_loc_dip(input, dft_control, qs_loc_env, logger, qs_env, error)
              END IF
           ENDIF
-       ELSE
-          ! Print a warning on screen if molecular states have been required but the LOCALIZATION
-          ! section is not present
-          CALL cp_assert(.NOT.p_molstates,cp_warning_level,cp_assertion_failed,routineP,&
-               "Molecular States have been required but the LOCALIZATION keyword is not present! "//&
-               "Skipping the calculation of the Molecular States. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
        ENDIF
 
        ! Gets the lumos, and eigenvalues for the lumos

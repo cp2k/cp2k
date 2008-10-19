@@ -18,7 +18,6 @@
     &END XC
     &PRINT
       &LOCALIZATION
-        COMMON_ITERATION_LEVELS 2
         &LOCALIZE T
           &PRINT
             &WANNIER_CENTERS
@@ -28,9 +27,11 @@
           &END
         &END
         &MOLECULAR_DIPOLES
+          COMMON_ITERATION_LEVELS 2
           PERIODIC
         &END
         &TOTAL_DIPOLE
+          COMMON_ITERATION_LEVELS 2
           PERIODIC T
           REFERENCE COAC
         &END

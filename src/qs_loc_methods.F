@@ -168,13 +168,11 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
-    NULLIFY(opvec)
+    output_unit = cp_print_key_unit_nr(logger,loc_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".locInfo",error=error)
 
+    NULLIFY(opvec)
     ! get rows and cols of the input
     CALL cp_fm_get_info(vectors,nrow_global=nao,ncol_global=nmoloc,error=error)
     ! replicate the input kind of matrix
@@ -254,6 +252,7 @@ CONTAINS
     CALL centers_spreads_berry( qs_loc_env, zij_fm_set, nmoloc, cell, weights,&
          ispin, loc_section, error=error )
     CALL cp_fm_release(opvec,error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PRINT%PROGRAM_RUN_INFO",error=error)
     CALL timestop(handle)
 
   END SUBROUTINE optimize_loc_berry
@@ -282,7 +281,7 @@ CONTAINS
                                                 ldz, nao, natom, ncol, &
                                                 nmoloc, output_unit, sweeps
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf, nsgf
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_ao_fm_pools
     TYPE(cp_fm_type), POINTER                :: opvec, ov_fm
@@ -295,9 +294,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit = cp_print_key_unit_nr(logger,loc_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".locInfo",error=error)
 
     NULLIFY(particle_set)
     ! get rows and cols of the input
@@ -376,6 +374,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL cp_fm_release(opvec,error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PRINT%PROGRAM_RUN_INFO",error=error)
     CALL timestop(handle)
 
   END SUBROUTINE optimize_loc_pipek
@@ -403,7 +402,7 @@ CONTAINS
     COMPLEX(KIND=dp)                         :: almost_determinant, z
     INTEGER                                  :: idir, istate, jdir, nstates, &
                                                 output_unit, unit_out_s
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: spread_i, sum_spread_i
     REAL(dp), DIMENSION(3)                   :: c, cpbc, spreadtot
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
@@ -415,13 +414,12 @@ CONTAINS
     NULLIFY(centers,complexresult,logger,print_key)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
 
     file_tmp = TRIM(qs_loc_env%tag_mo)//"_spreads_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
+    output_unit = cp_print_key_unit_nr(logger,loc_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".locInfo",error=error)
     unit_out_s = cp_print_key_unit_nr(logger,loc_section,"PRINT%WANNIER_SPREADS",&
-         middle_name=file_tmp,extension=".data",log_filename=.FALSE.,error=error)
+         middle_name=file_tmp,extension=".data",error=error)
     iter = cp_iter_string(logger%iter_info,error=error)
     IF(unit_out_s>0) WRITE(unit_out_s,'(i6,/,A)') nmoloc, TRIM(iter)
 
@@ -474,6 +472,7 @@ CONTAINS
 
     IF (unit_out_s>0) WRITE (unit_out_s,'(A,3F16.10)') " Total ", spreadtot(1:3)
     CALL cp_print_key_finished_output(unit_out_s,logger,loc_section,"PRINT%WANNIER_SPREADS",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PRINT%PROGRAM_RUN_INFO",error=error)
 
   END SUBROUTINE centers_spreads_berry
 
@@ -504,10 +503,9 @@ CONTAINS
 
     CHARACTER(len=default_path_length)       :: file_tmp, iter
     INTEGER                                  :: iatom, istat, istate, natom, &
-                                                nstate, output_unit, &
-                                                unit_out_s
+                                                nstate, unit_out_s
     INTEGER, DIMENSION(:), POINTER           :: atom_of_state
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: r(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: Qii, ziimax
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: diag
@@ -518,9 +516,6 @@ CONTAINS
     NULLIFY(centers,logger, print_key)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
 
     CALL cp_fm_get_info ( zij_fm_set(1,1)%matrix, nrow_global = nstate,error=error)
     natom = SIZE(zij_fm_set,1)
