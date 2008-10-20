@@ -110,15 +110,37 @@ CONTAINS
     REAL(KIND=dp)                            :: mu_max, mu_min, mu_now, &
                                                 N_max, N_min, N_now
 
-! bisection search to find N, it is assumed that mu lies in the interval of the evals
+! bisection search to find N
+! first bracket
 
     mu_min=MINVAL(e)
-    CALL Fermi(f,N_min,kTS,e,mu_min,T, maxocc)
-    mu_max=MAXVAL(e)
-    CALL Fermi(f,N_max,kTS,e,mu_max,T, maxocc)
+    iter=0
+    DO
+      iter=iter+1
+      CALL Fermi(f,N_min,kTS,e,mu_min,T, maxocc)
+      IF (N_min>N .OR. iter>20) THEN
+         mu_min=mu_min-T
+      ELSE
+         EXIT
+      ENDIF
+    ENDDO
 
-    iter = 2
-    DO WHILE( mu_max-mu_min > EPSILON(mu) )
+    mu_max=MAXVAL(e)
+    iter=0
+    DO
+      iter=iter+1
+      CALL Fermi(f,N_max,kTS,e,mu_max,T, maxocc)
+      IF (N_max<N .OR. iter>20) THEN
+         mu_max=mu_max+T
+      ELSE
+         EXIT
+      ENDIF
+    ENDDO
+
+    ! now bisect
+    iter=0
+    DO WHILE( mu_max-mu_min > EPSILON(mu)*MAX(1.0_dp,ABS(mu_max),ABS(mu_min)) )
+       iter=iter+1
        mu_now = (mu_max+mu_min)/2.0_dp
        CALL Fermi(f,N_now,kTS,e,mu_now,T, maxocc)
        iter = iter + 1
@@ -129,6 +151,7 @@ CONTAINS
           mu_max = mu_now
           N_max  = N_now
        ENDIF
+       IF (iter>200) EXIT
     ENDDO
 
     mu=(mu_max+mu_min)/2.0_dp
