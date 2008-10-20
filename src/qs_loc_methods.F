@@ -162,7 +162,7 @@ CONTAINS
     INTEGER                                  :: handle, i, j, max_iter, nao, &
                                                 nmoloc, out_each, &
                                                 output_unit, sweeps
-    LOGICAL                                  :: converged, ionode
+    LOGICAL                                  :: converged
     REAL(dp)                                 :: eps_localization
     TYPE(cp_fm_type), POINTER                :: opvec
     TYPE(cp_logger_type), POINTER            :: logger
@@ -238,13 +238,13 @@ CONTAINS
        ENDDO
        END IF
     CASE ( do_loc_none )
-       IF (ionode) THEN
+       IF (output_unit>0) THEN
           WRITE(output_unit,'(A,I6,A)') " No MOS localization applied "
        ENDIF
     CASE DEFAULT
        CALL stop_program("qs_localization","unknown localization method")
     END SELECT
-    IF (ionode) THEN
+    IF (output_unit>0) THEN
        WRITE(output_unit,'(T15,A,I3,A,I6,A)') " Localization  for spin ",ispin ,&
             " converged in ",sweeps," iterations"
     ENDIF
