@@ -13,6 +13,8 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE xc_tpss
+  USE bibliography,                    ONLY: Tao2003,&
+                                             cite_reference
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -185,6 +187,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(bo)
+ 
+    CALL cite_reference(tao2003)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -284,6 +288,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(bo)
+
+    CALL cite_reference(tao2003)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)

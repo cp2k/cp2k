@@ -52,7 +52,7 @@ MODULE bibliography
              Yamada2000,Dudarev1997,Dudarev1998,Dewar1977,Dewar1985,Rocha2006,&
              Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003,Guidon2008,&
              Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
-             Stewart1982, E2002, Laino2008, Blochl1995
+             Stewart1982, E2002, Laino2008, Blochl1995, Tao2003
 
 CONTAINS
 
@@ -1424,6 +1424,25 @@ CONTAINS
           "UT ISI:A1982NN22800013",&
           "ER"),&
           DOI="10.1002/jcc.540030214")
+
+     CALL add_reference(key=Tao2003,ISI_record=s2a(&
+          "PT J",&
+          "AU Tao, JM",&
+          "   Perdew, JP",&
+          "   Staroverov, VN",&
+          "   Scuseria, GE",&
+          "TI Climbing the density functional ladder: Nonempirical meta-generalized",&
+          "   gradient approximation designed for molecules and solids",&
+          "SO PHYSICAL REVIEW LETTERS",&
+          "PD OCT 3",&
+          "PY 2003",&
+          "VL 91",&
+          "IS 14",&
+          "AR 146401",&
+          "DI 10.1103/PhysRevLett.91.146401",&
+          "UT ISI:000185719500032",&
+          "ER"),&
+          DOI="10.1103/PhysRevLett.91.146401")
 
    END SUBROUTINE add_all_references
 

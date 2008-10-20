@@ -16,8 +16,8 @@ MODULE input_cp2k_dft
        Iannuzzi2007, Krack2000, Krack2002, Lee1988, Lippert1997, Lippert1999, &
        Ortiz1994, Perdew1981, Perdew1996, Porezag1995, Repasky2002, &
        Rocha2006, Seifert1996, Stewart1982, Stewart1989, Stewart2007, &
-       Thiel1992, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
-       Vosko1980, Weber2008, Zhang1998, Zhechkov2005
+       Tao2003, Thiel1992, VandeVondele2003, VandeVondele2005a, &
+       VandeVondele2005b, Vosko1980, Weber2008, Zhang1998, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -2689,7 +2689,7 @@ CONTAINS
             description="The xc functional to use",&
             n_keywords=0, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
             citations=(/Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
-                        Heyd2004,Vosko1980, Goedecker1996,Perdew1981/),&
+                        Heyd2004,Vosko1980, Goedecker1996,Perdew1981,Tao2003/),&
             error=error)
 
        NULLIFY(subsection,keyword)
@@ -3077,7 +3077,7 @@ CONTAINS
        CALL section_create(subsection,name="TPSS",&
             description="Uses the TPSS functional",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            citations=(/Tao2003/), error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
             lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
