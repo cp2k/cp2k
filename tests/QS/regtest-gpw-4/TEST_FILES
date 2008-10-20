@@ -51,3 +51,5 @@ cell-1.inp           7
 cell-2.inp           7
 #multiple ddapc restraints
 He3_multi_ddapc.inp  1
+#many added MOS with LSD
+N.inp                1

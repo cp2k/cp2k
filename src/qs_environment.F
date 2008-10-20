@@ -822,7 +822,12 @@ CONTAINS
     scf_control%added_mos(1) = MIN(scf_control%added_mos(1),n_ao-n_mo(1))
 
     n_mo(1) = n_mo(1) + scf_control%added_mos(1)
-    IF (n_mo(2) /= 0) n_mo(2) = n_mo(2) + scf_control%added_mos(2)
+    IF (n_mo(2) /= 0 .AND. scf_control%added_mos(2).GT.0) THEN
+        scf_control%added_mos(2) = MIN(scf_control%added_mos(2),n_ao-n_mo(2))
+        n_mo(2) = n_mo(2) + scf_control%added_mos(2)
+        ! we require n_mo(2)<=n_mo(1)
+        n_mo(2) = MIN(n_mo(1),n_mo(2))
+    ENDIF
 
     IF (scf_control%smear%do_smear.AND.(scf_control%added_mos(1) == 0)) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
