@@ -3,7 +3,7 @@ acn.inp                   2
 #metadynamics distance_point_plane and angle
 nh3-meta-1.inp            2
 nh3-meta-ref.inp          0
-nh3-meta-ref2.inp          0
+nh3-meta-ref2.inp         0
 nh3-meta-2.inp            2
 #collective constraint both for nve and npt
 ethene_colv0.inp          2
@@ -62,3 +62,8 @@ ethene_colv1_growth.inp   2
 #combo restraint/constraint
 H2O-restraint_2.inp       2
 H2O-restraint_2r.inp      2
+#Multiple Walkers
+nh3-meta-walks_1.inp      2
+nh3-meta-walks_2.inp      2
+nh3-meta-walks_1r.inp     2
+nh3-meta-walks_2r.inp     2

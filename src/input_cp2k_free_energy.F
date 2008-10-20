@@ -148,8 +148,8 @@ CONTAINS
 
        CALL keyword_create(keyword, name="TEMP_TOL",&
             description="If a Lagrangian scheme is used the temperature tolerance for the collective "//&
-            "variables is specified. ",usage="TEMP_TOL <REAL>",&
-            type_of_var=real_t,unit_str='K',error=error)
+            "variables is specified.",usage="TEMP_TOL <REAL>",&
+            unit_str='K',default_r_val=0.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -184,6 +184,10 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL create_metavar_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_multiple_walkers_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -227,9 +231,88 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_metadyn_history(subsection, section, error)
-
     END IF
   END SUBROUTINE create_metadyn_section
+
+! *****************************************************************************
+!> \brief creates the multiple walker section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author teodoro laino [tlaino] 10.2008
+! *****************************************************************************
+  SUBROUTINE create_multiple_walkers_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_multiple_walkers_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="MULTIPLE_WALKERS",&
+            description="Enables and configures the metadynamics using multiple walkers.",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(subsection,keyword)
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="Controls the usage of the multiple walkers in a metadynamics run.",&
+            usage="&MULTIPLE_WALKERS T",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WALKER_ID",&
+            description="Sets the walker ID for the local metadynamics run.",&
+            usage="WALKER_ID <INTEGER>",type_of_var=integer_t,required=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NUMBER_OF_WALKERS",&
+            description="Sets the total number of walkers in the metadynamic run.",&
+            usage="NUMBER_OF_WALKERS <INTEGER>",type_of_var=integer_t,required=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WALKER_COMM_FREQUENCY",&
+            description="Sets the frequency (in unit of spawned hills) for the "//&
+            "communication between the several walkers, in order to update the "//&
+            "local list of hills with the ones coming from the other walkers",&
+            usage="WALKER_COMM_FREQUENCY <INTEGER>",default_i_val=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WALKERS_STATUS",&
+            description="Stores the status of the several walkers in the local run.",&
+            usage="WALKERS_STATUS <INTEGER> .. <INTEGER>",type_of_var=integer_t,n_var=-1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_create(subsection,name="WALKERS_FILE_NAME",&
+            description="Specify the basename for the NUMBER_OF_WALKERS files used to "//&
+            "communicate between the walkers. Absolute path can be input as well "//&
+            "together with the filename. One file will be created for each spawned hill.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specified the communication filename for each walker.",repeats=.TRUE.,&
+            usage="<STRING>", type_of_var=lchar_t, n_var=1, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+    END IF
+  END SUBROUTINE create_multiple_walkers_section
 
 ! *****************************************************************************
 !> \brief creates the alchemical section for free energy evaluation

@@ -996,6 +996,12 @@ CONTAINS
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_WALKERS",&
+            description="Restarts walkers informations from a previous metadynamics run "//&
+            "from the EXTERNAL file",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_BAND",&
             description="Restarts positions and velocities of the Band.",&
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)

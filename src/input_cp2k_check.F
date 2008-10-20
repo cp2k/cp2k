@@ -278,7 +278,10 @@ CONTAINS
       DIMENSION(:), POINTER                  :: restarted_infos
     INTEGER                                  :: ensemble, handle, i_rep_val, &
                                                 iforce_eval, myi, n_rep_val, &
-                                                nforce_eval1, nforce_eval2
+                                                nforce_eval1, nforce_eval2, &
+                                                stat
+    INTEGER, DIMENSION(:), POINTER           :: iwalkers_status, &
+                                                rwalkers_status
     LOGICAL                                  :: bsse_check, check, explicit1, &
                                                 explicit2, failure, flag, &
                                                 flag2, qmmm_check, &
@@ -294,7 +297,7 @@ CONTAINS
                                                 section1, section2, &
                                                 sections1, sections2
 
-    NULLIFY(restarted_infos)
+    NULLIFY(restarted_infos,iwalkers_status,rwalkers_status)
     CALL timeset(routineN,handle)   
     failure=.FALSE. 
     IF (.NOT. failure) THEN
@@ -577,6 +580,18 @@ CONTAINS
              CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",&
                   section,error=error)
              CALL set_restart_info("METADYNAMICS",restarted_infos,error)
+          END IF
+
+          CALL section_vals_val_get(r_section,"RESTART_WALKERS",l_val=flag,error=error)
+          IF (flag.AND.check_restart(input_file, restart_file, "MOTION%FREE_ENERGY%METADYN%MULTIPLE_WALKERS",error)) THEN
+             CALL section_vals_val_get(restart_file,"MOTION%FREE_ENERGY%METADYN%MULTIPLE_WALKERS%WALKERS_STATUS",&
+                  i_vals=rwalkers_status, error=error)
+             ALLOCATE(iwalkers_status(SIZE(rwalkers_status)),stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             iwalkers_status = rwalkers_status
+             CALL section_vals_val_set(input_file,"MOTION%FREE_ENERGY%METADYN%MULTIPLE_WALKERS%WALKERS_STATUS",&
+                  i_vals_ptr=iwalkers_status, error=error)
+             CALL set_restart_info("WALKERS INFO",restarted_infos,error)
           END IF
 
           CALL section_vals_val_get(r_section,"RESTART_DIMER",l_val=flag,error=error)

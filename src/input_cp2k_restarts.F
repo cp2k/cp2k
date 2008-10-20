@@ -502,7 +502,7 @@ CONTAINS
       isec, j, n_el, natom, natom_tot, nfield, nhc_len, nkind, nsgf, &
       nsgf_max, stat, tot_nhcneed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
-    INTEGER, DIMENSION(:), POINTER           :: lindex
+    INTEGER, DIMENSION(:), POINTER           :: lindex, walkers_status
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, my_save_mem
     REAL(KIND=dp), ALLOCATABLE, &
@@ -534,7 +534,7 @@ CONTAINS
     NULLIFY (logger, thermostat_part, thermostat_baro, npt, para_env, nhc, &
          atomic_kind_set, work_section, dyn_coeff_set, atomic_kind, coeffs, &
          aux_basis_set, thermostat_coeff, thermostat_shell, t, averages, &
-         constant, itimes)
+         constant, walkers_status, itimes)
     IF (PRESENT(md_env)) THEN
        CALL get_md_env ( md_env=md_env,&
                          thermostat_part=thermostat_part,&
@@ -876,6 +876,14 @@ CONTAINS
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_val=meta_env%metavar(irep)%vvp,&
                   i_rep_val=irep,error=error) 
           END DO
+       END IF
+       ! Multiple Walkers
+       IF (meta_env%do_multiple_walkers) THEN
+          ALLOCATE(walkers_status(meta_env%multiple_walkers%walkers_tot_nr),stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          walkers_status = meta_env%multiple_walkers%walkers_status
+          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"MULTIPLE_WALKERS",error=error)
+          CALL section_vals_val_set(work_section,"WALKERS_STATUS",i_vals_ptr=walkers_status,error=error) 
        END IF
     END IF
     CALL timestop(handle2)

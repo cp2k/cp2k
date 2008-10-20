@@ -1,0 +1,80 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/nh3.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 30
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONN_FILE_NAME ../sample_psf/nh3.psf
+      CONNECTIVITY UPSF
+      COORD_FILE_NAME ../sample_pdb/nh3_1mol.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+    &COLVAR
+       &DISTANCE_POINT_PLANE
+          ATOMS_PLANE 2 3 4
+          ATOM_POINT 1
+       &END DISTANCE_POINT_PLANE
+    &END COLVAR
+  &END SUBSYS
+&END FORCE_EVAL
+
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT WALKER2
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 50
+    TIMESTEP 1.0
+    TEMPERATURE 300.0
+    TEMP_TOL 10.0
+  &END MD
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS
+      NT_HILLS 3
+      WW 1.0e-2
+      &METAVAR
+        SCALE 0.02
+        COLVAR 1
+      &END METAVAR
+      &MULTIPLE_WALKERS
+        NUMBER_OF_WALKERS 2
+        WALKER_ID 2
+        &WALKERS_FILE_NAME
+           ./WALKER_1.data
+           ./WALKER_2.data
+        &END
+      &END
+      &PRINT
+        &HILLS
+          COMMON_ITERATION_LEVELS 5
+        &END
+        &COLVAR
+          COMMON_ITERATION_LEVELS 5
+        &END
+      &END
+    &END METADYN
+  &END
+&END MOTION
+
