@@ -885,9 +885,9 @@ END FUNCTION rs_grid_locate_rank
                         ub_recv_down ( idir ) - rs % border + 1 + ushifts(n_shifts-1) )
                 ELSE
                    lb_send_down( idir ) = 0
-                   ub_send_down( idir ) = lb_send_down( idir ) - 1
+                   ub_send_down( idir ) = -1
                    lb_recv_down( idir ) = 0
-                   ub_recv_down( idir ) = lb_recv_down( idir ) - 1
+                   ub_recv_down( idir ) = -1
                 ENDIF
 
                 DO i=1,3
@@ -938,9 +938,9 @@ END FUNCTION rs_grid_locate_rank
                         lb_recv_up ( idir ) + rs % border - 1 - dshifts(n_shifts-1))
                 ELSE
                    lb_send_up( idir ) = 0
-                   ub_send_up( idir ) = lb_send_up( idir ) - 1
+                   ub_send_up( idir ) = -1
                    lb_recv_up( idir ) = 0
-                   ub_recv_up( idir ) = lb_recv_up( idir ) - 1
+                   ub_recv_up( idir ) = -1
                 ENDIF
 
                 DO i=1,3
@@ -1433,9 +1433,9 @@ END FUNCTION rs_grid_locate_rank
                         ub_recv_down ( idir ) - rs%border + ushifts ( n_shifts )) 
                 ELSE
                    lb_send_down( idir ) = 0
-                   ub_send_down( idir ) = lb_send_down( idir ) - 1
+                   ub_send_down( idir ) = -1
                    lb_recv_down( idir ) = 0
-                   ub_recv_down( idir ) = lb_recv_down( idir ) - 1
+                   ub_recv_down( idir ) = -1
                 ENDIF
 
                 DO i=1,3
@@ -1486,9 +1486,9 @@ END FUNCTION rs_grid_locate_rank
                         lb_recv_up ( idir ) + rs % border - dshifts ( n_shifts )) 
                 ELSE
                    lb_send_up( idir ) = 0
-                   ub_send_up( idir ) = lb_send( idir ) - 1
+                   ub_send_up( idir ) = -1
                    lb_recv_up( idir ) = 0
-                   ub_recv_up( idir ) = lb_recv( idir ) - 1
+                   ub_recv_up( idir ) = -1
                 ENDIF
 
                 DO i=1,3
