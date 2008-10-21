@@ -910,7 +910,7 @@ CPSourceFileRef,&
     logger  => cp_error_get_logger(error)
 
     ! Locally dump information on file..
-    IF (logger%para_env%mepos==logger%para_env%mepos) THEN
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
        ! Generate file name for the specific Hill
        i = multiple_walkers%walker_id
        filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"//&
