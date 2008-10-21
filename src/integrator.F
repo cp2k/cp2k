@@ -1140,6 +1140,7 @@ CONTAINS
     LOGICAL                                  :: failure, init, my_end, test_ok
     REAL(KIND=dp)                            :: cell_time, h(3,3), trj_epot, &
                                                 trj_time, vol
+    REAL(KIND=dp), POINTER                   :: time
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -1232,6 +1233,8 @@ CPSourceFileRef,&
     reftraj_env%epot   = trj_epot
     reftraj_env%itimes = trj_itimes
     reftraj_env%time   = trj_time/femtoseconds
+    CALL get_md_env(md_env, t=time, error=error)
+    time = reftraj_env%time
     
     IF(reftraj_env%info%variable_volume)THEN
        cell%hmat(1:3,1) = h(1:3,1)
