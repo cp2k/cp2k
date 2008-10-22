@@ -360,3 +360,5 @@ H2O-fixed.inp
 K2.inp
 # new test
 vdW_PP_GRIMME.inp
+# create a new reference (with the correct IO)
+vdW_PP_GRIMME.inp
