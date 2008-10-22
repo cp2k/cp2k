@@ -358,3 +358,5 @@ H2O-geoopt.inp
 H2O-fixed.inp
 # more numerics: NAG
 K2.inp
+# new test
+vdW_PP_GRIMME.inp
