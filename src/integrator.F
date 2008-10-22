@@ -1140,7 +1140,6 @@ CONTAINS
     LOGICAL                                  :: failure, init, my_end, test_ok
     REAL(KIND=dp)                            :: cell_time, h(3,3), trj_epot, &
                                                 trj_time, vol
-    REAL(KIND=dp), POINTER                   :: time
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
