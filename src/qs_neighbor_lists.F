@@ -186,9 +186,9 @@ CONTAINS
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_atom
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), POINTER               :: dftb_potential
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
-    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
 
     CALL timeset(routineN,handle)
     NULLIFY(logger)

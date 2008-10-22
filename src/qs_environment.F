@@ -94,10 +94,11 @@ MODULE qs_environment
                                              se_header
   USE hfx_types,                       ONLY: hfx_create
   USE input_constants,                 ONLY: &
-       do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, do_method_gpw,&
-       do_method_gapw, do_method_gapw_xc, do_method_mndo, do_method_mndod, &
-       do_method_pdg, do_method_pm3, do_method_pm6, do_method_rm1, &
-       general_roks, restart_guess, use_aux_fit_basis_set, xc_vdw_fun_pairpot
+       do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
+       do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_mndo, &
+       do_method_mndod, do_method_pdg, do_method_pm3, do_method_pm6, &
+       do_method_rm1, general_roks, restart_guess, use_aux_fit_basis_set, &
+       xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -126,10 +127,10 @@ MODULE qs_environment
                                              write_structure_data
   USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
   USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
-  USE qs_dispersion_types,             ONLY: qs_dispersion_type
   USE qs_dispersion_pairpot,           ONLY: qs_dispersion_pairpot_init,&
                                              qs_scaling_init,&
                                              write_dispersion
+  USE qs_dispersion_types,             ONLY: qs_dispersion_type
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_setup
@@ -368,8 +369,8 @@ CONTAINS
       nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
-                                                harris_flag, ionode, &
-                                                was_present, explicit
+                                                explicit, harris_flag, &
+                                                ionode, was_present
     REAL(dp)                                 :: ewald_rcut, maxocc, rc, &
                                                 verlet_skin
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -399,6 +400,7 @@ CONTAINS
     TYPE(qs_control_type), POINTER           :: qs_control
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), POINTER               :: dftb_potential
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
@@ -413,7 +415,6 @@ CONTAINS
       POINTER                                :: se_control
     TYPE(semi_empirical_si_type), POINTER    :: se_store_int_env
     TYPE(taper_type), POINTER                :: taper
-    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
 
     CALL timeset(routineN,handle)
     NULLIFY(logger)

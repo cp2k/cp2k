@@ -509,6 +509,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(qs_energy_type), POINTER            :: qs_energy
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_force_type), DIMENSION(:), &
@@ -518,10 +519,8 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, &
                                                 mol_charge_section, &
-                                                poisson_section, &
-                                                vdw_section,&
+                                                poisson_section, vdw_section, &
                                                 xc_fun_section
-    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
 
     failure=.FALSE.
 
