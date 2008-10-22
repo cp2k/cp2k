@@ -150,15 +150,15 @@ CONTAINS
     END IF
 
  
-
-    ! *** Perform a SCF run ***
-    CALL scf(qs_env=qs_env, globenv=globenv, error=error)
-
-    ! Add possible pair potential dispersion energy
+    ! Add possible pair potential dispersion energy - Evaluate first so we can print
+    ! energy info at the end of the SCF
     IF ( .NOT. dft_control%qs_control%semi_empirical .AND. &
          .NOT. dft_control%qs_control%dftb ) THEN
        CALL calculate_dispersion_pairpot(qs_env,calc_forces,error)
     END IF
+
+    ! *** Perform a SCF run ***
+    CALL scf(qs_env=qs_env, globenv=globenv, error=error)
 
     IF (PRESENT(consistent_energies)) THEN
       IF (consistent_energies) THEN

@@ -39,4 +39,4 @@ h2o_dip_iso.inp    17
 #pre-processor
 H2-inpp.inp        0
 # vdW correction
-vdW_PP_GRIMME.inp  9
+vdW_PP_GRIMME.inp  33
