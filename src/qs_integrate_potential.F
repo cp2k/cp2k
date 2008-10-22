@@ -1575,9 +1575,9 @@ CONTAINS
 
 ! *****************************************************************************
     SUBROUTINE integrate_general_opt()
-    INTEGER :: dir, i, i_index, il, ilx, ily, ilz, index_max(3), &
-      index_min(3), ismax, ismin, j, j_index, jl, jlx, jly, jlz, k, k_index, &
-      kl, klx, kly, klz, lpx, lpy, lpz, lx, ly, lz, offset(3)
+    INTEGER :: i, i_index, il, ilx, ily, ilz, index_max(3), index_min(3), &
+      ismax, ismin, j, j_index, jl, jlx, jly, jlz, k, k_index, kl, klx, kly, &
+      klz, lpx, lpy, lpz, lx, ly, lz, offset(3)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: grid_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: coef_map
     REAL(KIND=dp) :: a, b, c, d, di, dip, dj, djp, dk, dkp, exp0i, exp1i, &
