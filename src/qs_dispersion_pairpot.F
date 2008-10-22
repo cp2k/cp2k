@@ -12,12 +12,10 @@ MODULE qs_dispersion_pairpot
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
-                                             get_atomic_kind,&
                                              set_atomic_kind
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             dftb_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                              parser_get_object
@@ -25,21 +23,22 @@ MODULE qs_dispersion_pairpot
                                              parser_create,&
                                              parser_release
   USE f77_blas
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
   USE input_constants,                 ONLY: xc_vdw_fun_none,&
                                              xc_vdw_fun_pairpot
   USE input_cp2k_check,                ONLY: xc_functionals_expand
-  USE input_section_types,             ONLY: section_vals_val_get,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_get_subs_vals2,&
                                              section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE message_passing,                 ONLY: mp_sum
-  USE physcon,                         ONLY: kjmol, bohr
   USE particle_types,                  ONLY: particle_type
-  USE qs_dispersion_types,             ONLY: qs_dispersion_type,&
+  USE physcon,                         ONLY: bohr,&
+                                             kjmol
+  USE qs_dispersion_types,             ONLY: grimme_pp,&
                                              qs_atom_dispersion_type,&
-                                             grimme_pp
+                                             qs_dispersion_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -76,16 +75,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_pairpot_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, nkind, ikind, vdw_type, n_rep, i, elem
-    LOGICAL                                  :: failure, found, at_end, is_available
-    CHARACTER (LEN=default_string_length)    :: pptype, filename, aname
-    CHARACTER (LEN=2)                        :: symbol
+    CHARACTER(LEN=2)                         :: symbol
+    CHARACTER(LEN=default_string_length)     :: aname, filename, pptype
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
+    INTEGER                                  :: elem, i, ikind, n_rep, nkind, &
+                                                stat, vdw_type
+    LOGICAL                                  :: at_end, failure, found, &
+                                                is_available
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_parser_type), POINTER            :: parser
     TYPE(qs_atom_dispersion_type), POINTER   :: disp
     TYPE(section_vals_type), POINTER         :: pp_section
-    TYPE(cp_parser_type), POINTER            :: parser
 
     failure = .FALSE.
 
@@ -176,14 +177,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scaling_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, nkind, ikind, vdw_type, n_rep, i, ifun
-    LOGICAL                                  :: failure, found, at_end, is_available
-    CHARACTER (LEN=default_string_length)    :: pptype, filename, aname
-    CHARACTER (LEN=2)                        :: symbol
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: tmpstringlist
-    TYPE(qs_atom_dispersion_type), POINTER   :: disp
-    TYPE(section_vals_type), POINTER         :: pp_section, xc_fun, xc_section, vdw_section, xc_fun_section
+    CHARACTER(LEN=default_string_length)     :: pptype
+    INTEGER                                  :: ifun
+    LOGICAL                                  :: failure
+    TYPE(section_vals_type), POINTER         :: pp_section, vdw_section, &
+                                                xc_fun, xc_fun_section, &
+                                                xc_section
 
     failure = .FALSE.
 
@@ -246,16 +245,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_dispersion', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=2)                         :: symbol
+    INTEGER                                  :: ikind, nkind, output_unit
     LOGICAL                                  :: failure
-    INTEGER                                  :: output_unit, nkind, ikind
-    CHARACTER (LEN=2)                        :: symbol
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_atom_dispersion_type), POINTER   :: disp
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
+    TYPE(section_vals_type), POINTER         :: dft_section
 
     failure=.FALSE.
 
@@ -273,8 +272,7 @@ CONTAINS
          WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T67,'Pair Potential')") 
          ! Pair potentials
          IF ( TRIM(dispersion_env%pp_type) == "GRIMME" ) THEN
-           WRITE (output_unit, fmt="(' vdW POTENTIAL| ',&
-                  &T35,'Potential Form: S. Grimme, JCC 27: 1787 (2006)')") 
+           WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Potential Form: S. Grimme, JCC 27: 1787 (2006)')") 
            WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
            WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Scaling Factor:',T73,F8.4)") dispersion_env%scaling
            WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Exp Prefactor for Damping:',T73,F8.1)") dispersion_env%exp_pre
@@ -284,8 +282,8 @@ CONTAINS
              atomic_kind => atomic_kind_set(ikind)
              CALL get_atomic_kind(atomic_kind,element_symbol=symbol,dispersion=disp)
              IF ( disp%defined ) THEN
-               WRITE (output_unit, fmt="(' vdW PARAMETER| ',T18,'Atom=',A2,&
-                 &T28,'C6[J*nm^6*mol^-1]=',F8.4,T63,'r(vdW)[A]=',F8.4)") &
+               WRITE (output_unit, fmt="(' vdW PARAMETER| ',T18,'Atom=',A2,"//&
+                 "T28,'C6[J*nm^6*mol^-1]=',F8.4,T63,'r(vdW)[A]=',F8.4)") &
                  symbol, disp%c6/(1000._dp*bohr**6/kjmol), disp%vdw_radii/bohr
              ELSE
                WRITE (output_unit, fmt="(' vdW PARAMETER| ',T20,'Atom=',A2,T70,'not defined')")
@@ -294,6 +292,8 @@ CONTAINS
          END IF
        END IF
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
+         "PRINT%DFT_CONTROL_PARAMETERS",error=error)
 
   END SUBROUTINE write_dispersion
 ! *****************************************************************************
@@ -311,13 +311,14 @@ CONTAINS
       istat, jatom, jkind, natom, nkind, nlist, nnode
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure, use_virial
-    REAL(KIND=dp)                            :: a, b, c, devdw, dij, dr, &
-                                                evdw, rc, rc_a, rc_b, x0ij, er,&
-                                                xij, xp, c6, c6a, c6b, s6, dd, fdmp, dfdmp
+    REAL(KIND=dp)                            :: c6, c6a, c6b, dd, devdw, &
+                                                dfdmp, dr, er, evdw, fdmp, &
+                                                rc, rc_a, rc_b, s6, xp
     REAL(KIND=dp), DIMENSION(3)              :: fdij, rij
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_vdw
@@ -326,13 +327,12 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: sab_vdw_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_atom_dispersion_type), POINTER   :: disp_a, disp_b
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(virial_type), POINTER               :: virial
-    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
-    TYPE(qs_atom_dispersion_type), POINTER   :: disp_a, disp_b
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
 !   ----------------------------------------------------------------------------
 
@@ -425,7 +425,7 @@ CONTAINS
               dr = SQRT(SUM(rij(:)**2))
               IF (dr <= dispersion_env%rc_disp) THEN
                 IF ( disp_a%type == grimme_pp .AND. dr > 0.001_dp ) THEN
-                  er = exp(-dd*(dr/rc-1._dp))
+                  er = EXP(-dd*(dr/rc-1._dp))
                   fdmp = 1._dp/(1._dp+er)
                   xp = s6*c6/dr**6
                   evdw = evdw - xp*fdmp
@@ -483,37 +483,36 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'grimme_param', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), DIMENSION(54), PARAMETER :: c6val = (/0.14_dp, 0.08_dp, &
+      1.61_dp, 1.61_dp, 3.13_dp, 1.75_dp, 1.23_dp, 0.70_dp, 0.75_dp, 0.63_dp, &
+      5.71_dp, 5.71_dp, 10.79_dp, 9.23_dp, 7.84_dp, 5.57_dp, 5.07_dp, 4.61_dp,&
+      10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, &
+      10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, 16.99_dp, 17.10_dp, &
+      16.37_dp, 12.64_dp, 12.47_dp, 12.01_dp, 24.67_dp, 24.67_dp, 24.67_dp, &
+      24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, &
+      24.67_dp, 24.67_dp, 37.32_dp, 38.71_dp, 38.44_dp, 31.74_dp, 31.50_dp, &
+      29.99_dp /), rval = (/1.001_dp, 1.012_dp, 0.825_dp, 1.408_dp, 1.485_dp, &
+      1.452_dp, 1.397_dp, 1.342_dp, 1.287_dp, 1.243_dp, 1.144_dp, 1.364_dp, &
+      1.639_dp, 1.716_dp, 1.705_dp, 1.683_dp, 1.639_dp, 1.595_dp, 1.485_dp, &
+      1.474_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, &
+      1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.650_dp, 1.727_dp, 1.760_dp, &
+      1.771_dp, 1.749_dp, 1.727_dp, 1.628_dp, 1.606_dp, 1.639_dp, 1.639_dp, &
+      1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, &
+      1.639_dp, 1.672_dp, 1.804_dp, 1.881_dp, 1.892_dp, 1.892_dp, 1.881_dp /)
 
-    LOGICAL                                  :: failure
-    !
-    ! GRIMME DISPERSION PARAMETERS
-    ! Stefan Grimme, Semiempirical GGA-Type Density Functional Constructed
-    !                with a Long-Range Dispersion Correction, J. Comp. Chem. 27: 1787-1799 (2006)
-    ! doi:10.1002/jcc.20495
-    !
-    ! Conversion factor [Jnm^6mol^-1] -> [a.u.] : 17.34527758021901
-    ! Conversion factor [A] -> [a.u.] : 1.889726132885643
-    !
-    ! C6 values in [Jnm^6/mol]
-    REAL(KIND=dp), DIMENSION(54), PARAMETER  :: c6val = (/&
-      0.14_dp, 0.08_dp, 1.61_dp, 1.61_dp, 3.13_dp, 1.75_dp, 1.23_dp, 0.70_dp, 0.75_dp, &
-      0.63_dp, 5.71_dp, 5.71_dp, 10.79_dp, 9.23_dp, 7.84_dp, 5.57_dp, 5.07_dp, 4.61_dp, &
-      10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, &
-      10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, 16.99_dp, 17.10_dp, 16.37_dp, 12.64_dp, &
-      12.47_dp, 12.01_dp, 24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, &
-      24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, 37.32_dp, 38.71_dp, &
-      38.44_dp, 31.74_dp, 31.50_dp, 29.99_dp /)
-    ! vdW radii [A]
-    REAL(KIND=dp), DIMENSION(54), PARAMETER  :: rval = (/&
-      1.001_dp, 1.012_dp, 0.825_dp, 1.408_dp, 1.485_dp, 1.452_dp, 1.397_dp, 1.342_dp, &
-      1.287_dp, 1.243_dp, 1.144_dp, 1.364_dp, 1.639_dp, 1.716_dp, 1.705_dp, 1.683_dp, &
-      1.639_dp, 1.595_dp, 1.485_dp, 1.474_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, &
-      1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.650_dp, 1.727_dp, &
-      1.760_dp, 1.771_dp, 1.749_dp, 1.727_dp, 1.628_dp, 1.606_dp, 1.639_dp, 1.639_dp, &
-      1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, &
-      1.672_dp, 1.804_dp, 1.881_dp, 1.892_dp, 1.892_dp, 1.881_dp /)
+!
+! GRIMME DISPERSION PARAMETERS
+! Stefan Grimme, Semiempirical GGA-Type Density Functional Constructed
+!                with a Long-Range Dispersion Correction, J. Comp. Chem. 27: 1787-1799 (2006)
+! doi:10.1002/jcc.20495
+!
+! Conversion factor [Jnm^6mol^-1] -> [a.u.] : 17.34527758021901
+! Conversion factor [A] -> [a.u.] : 1.889726132885643
+!
+! C6 values in [Jnm^6/mol]
+! vdW radii [A]
 
-    IF ( z > 0 .and. z <= 54 ) THEN
+    IF ( z > 0 .AND. z <= 54 ) THEN
       found =.TRUE.
       c6 = c6val(z)* 1000._dp*bohr**6/kjmol
       r  = rval(z)*bohr
