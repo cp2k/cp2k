@@ -39,6 +39,7 @@ MODULE qs_neighbor_lists
                                              get_potential,&
                                              gth_potential_type
   USE f77_blas
+  USE input_constants,                 ONLY: xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -53,6 +54,7 @@ MODULE qs_neighbor_lists
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
                                              qs_dftb_pairpot_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
+  USE qs_dispersion_types,             ONLY: qs_dispersion_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -186,6 +188,7 @@ CONTAINS
       DIMENSION(:, :), POINTER               :: dftb_potential
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
 
     CALL timeset(routineN,handle)
     NULLIFY(logger)
@@ -1146,6 +1149,25 @@ CONTAINS
           CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
             rcdisp=c_radius(ikind),error=error)
         END DO
+
+        CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&
+                                  .FALSE.,output_unit,orb_present,orb_present,&
+                                  c_radius,c_radius,name="DISPERSION")
+        ! Put the generated neighbor lists into the QS environment
+        CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
+
+        DEALLOCATE (c_radius,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius")
+      END IF
+
+    ELSE
+     
+      ! Build the neighbor lists for the vdW pair potential
+      CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,error=error)
+      IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
+        ALLOCATE (c_radius(nkind),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius",nkind*dp_size)
+        c_radius(:) = dispersion_env%rc_disp
 
         CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&
                                   .FALSE.,output_unit,orb_present,orb_present,&

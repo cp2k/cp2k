@@ -51,6 +51,7 @@ MODULE kg_environment
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: kg_header
+  USE input_constants,                 ONLY: xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -93,6 +94,7 @@ MODULE kg_environment
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_type
+  USE qs_dispersion_types,             ONLY: qs_dispersion_type
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
@@ -516,7 +518,10 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, &
                                                 mol_charge_section, &
-                                                poisson_section
+                                                poisson_section, &
+                                                vdw_section,&
+                                                xc_fun_section
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
 
     failure=.FALSE.
 
@@ -603,6 +608,18 @@ CONTAINS
     CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
     CALL set_qs_env(qs_env, qs_charges=qs_charges,error=error)
     CALL qs_charges_release(qs_charges,error=error)
+
+    ! setup the dispersion part (stop not implemented)
+    ALLOCATE(dispersion_env,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(vdw_section,xc_fun_section)
+    vdw_section =>  section_vals_get_subs_vals(dft_section,"XC%vdw_potential",error=error)
+    xc_fun_section => section_vals_get_subs_vals(dft_section,"XC%XC_FUNCTIONAL",error=error)
+    CALL section_vals_val_get(vdw_section, "POTENTIAL_TYPE", i_val=dispersion_env%type, error=error)
+    IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
+      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END IF
+    CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
 
     CALL qs_env_rebuild_pw_env(qs_env, error=error)
 

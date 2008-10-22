@@ -422,6 +422,8 @@ OBJECTS_GENERIC =\
  qs_dftb_utils.o\
  qs_diis.o\
  qs_diis_types.o\
+ qs_dispersion_pairpot.o\
+ qs_dispersion_types.o\
  qs_electric_field_gradient.o\
  qs_energy.o\
  qs_energy_types.o\

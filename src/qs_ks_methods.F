@@ -1179,7 +1179,7 @@ CONTAINS
        energy%total = energy%core_overlap + energy%core_self + &
             energy%core + energy%hartree + &
             energy%hartree_1c + energy%hartree_2c + energy%hartree_3c +&
-            energy%exc + energy%exc1 + energy%ex + &
+            energy%exc + energy%exc1 + energy%ex + energy%dispersion +&
             energy%qmmm_el + energy%mulliken + &
             energy%kg_gpw_ekin_mol + SUM(energy%ddapc_restraint) + energy%s2_restraint +&
             energy%becke + energy%dft_plus_u + energy%kTS
@@ -1211,9 +1211,9 @@ CONTAINS
           IF (energy%e_hartree /= 0.0_dp)&
                WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "Coulomb (electron-electron) energy:            ",energy%e_hartree
-          IF (energy%e_hartree /= 0.0_dp)&
+          IF (energy%dispersion/= 0.0_dp)&
                WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "Coulomb (electron-electron) energy:            ",energy%e_hartree
+               "Dispersion energy:                             ",energy%dispersion
           IF(gapw) THEN
              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&

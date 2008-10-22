@@ -94,10 +94,10 @@ MODULE qs_environment
                                              se_header
   USE hfx_types,                       ONLY: hfx_create
   USE input_constants,                 ONLY: &
-       do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
+       do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, do_method_gpw,&
        do_method_gapw, do_method_gapw_xc, do_method_mndo, do_method_mndod, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_rm1, &
-       general_roks, restart_guess, use_aux_fit_basis_set
+       general_roks, restart_guess, use_aux_fit_basis_set, xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -126,6 +126,10 @@ MODULE qs_environment
                                              write_structure_data
   USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
   USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
+  USE qs_dispersion_types,             ONLY: qs_dispersion_type
+  USE qs_dispersion_pairpot,           ONLY: qs_dispersion_pairpot_init,&
+                                             qs_scaling_init,&
+                                             write_dispersion
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_setup
@@ -365,7 +369,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
                                                 harris_flag, ionode, &
-                                                was_present
+                                                was_present, explicit
     REAL(dp)                                 :: ewald_rcut, maxocc, rc, &
                                                 verlet_skin
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -404,11 +408,12 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER :: dft_section, et_becke_section, &
       et_coupling_section, et_ddapc_section, ewald_section, poisson_section, &
-      print_section, qs_section, se_section
+      print_section, qs_section, se_section, vdw_section, xc_fun_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_si_type), POINTER    :: se_store_int_env
     TYPE(taper_type), POINTER                :: taper
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
 
     CALL timeset(routineN,handle)
     NULLIFY(logger)
@@ -742,9 +747,33 @@ CONTAINS
        CALL set_qs_env(qs_env, se_store_int_env=se_store_int_env, error=error)
     ENDIF
 
+    !   Initialize possible dispersion parameters
+    IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
+        dft_control%qs_control%method_id == do_method_gapw .OR. &
+        dft_control%qs_control%method_id == do_method_gapw_xc) THEN
+      ALLOCATE(dispersion_env,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dispersion_env",1)
+      NULLIFY(vdw_section,xc_fun_section)
+      vdw_section =>  section_vals_get_subs_vals(dft_section,"XC%vdw_potential",error=error)
+      xc_fun_section => section_vals_get_subs_vals(dft_section,"XC%XC_FUNCTIONAL",error=error)
+      CALL section_vals_val_get(vdw_section, "POTENTIAL_TYPE", i_val=dispersion_env%type, error=error)
+      IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
+        CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%TYPE", c_val=dispersion_env%pp_type, error=error)
+        CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%EXP_PRE", r_val=dispersion_env%exp_pre, error=error)
+        CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%SCALING" ,explicit=explicit,error=error)
+        IF ( .NOT. explicit ) THEN
+          CALL qs_scaling_init(dispersion_env%scaling,dft_section,error)
+        ELSE
+          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%SCALING", r_val=dispersion_env%scaling, error=error)
+        END IF
+        CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%R_CUTOFF", r_val=dispersion_env%rc_disp, error=error)
+        CALL qs_dispersion_pairpot_init(atomic_kind_set,vdw_section,para_env,error)
+      END IF
+      CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
+    END IF
+
     !   *** Allocate the MO data types ***
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, nsgf=n_ao, nelectron=nelectron)
-
 
     ! the total number of electrons
     nelectron = nelectron - dft_control%charge
@@ -920,6 +949,13 @@ CPSourceFileRef,&
 
     ! Print the DFT control parameters
     CALL write_dft_control(dft_control,dft_section,error)
+
+    ! Print the DFT control parameters
+    IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
+        dft_control%qs_control%method_id == do_method_gapw .OR. &
+        dft_control%qs_control%method_id == do_method_gapw_xc) THEN
+      CALL write_dispersion(qs_env,error)
+    END IF
 
     ! Print the Quickstep control parameters
     CALL write_qs_control(dft_control%qs_control,dft_section,error)

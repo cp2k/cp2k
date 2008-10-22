@@ -1084,6 +1084,9 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
          IF (energy%ex /= 0.0_dp)&
                WRITE (UNIT=output_unit,FMT="(T3,A,T55,F25.14)")&
                "Hartree-Fock Exchange energy:                  ",energy%ex
+         IF (energy%dispersion /= 0.0_dp)&
+               WRITE (UNIT=output_unit,FMT="(T3,A,T55,F25.14)")&
+               "Dispersion energy:                             ",energy%dispersion
          IF(gapw) THEN
            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
               "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&

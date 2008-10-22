@@ -60,6 +60,7 @@ MODULE atomic_kind_types
   USE qs_dftb_utils,                   ONLY: deallocate_dftb_atom_param,&
                                              get_dftb_atom_param,&
                                              write_dftb_atom_param
+  USE qs_dispersion_types,             ONLY: qs_atom_dispersion_type
   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
                                              deallocate_grid_atom,&
                                              grid_atom_type
@@ -137,6 +138,8 @@ MODULE atomic_kind_types
      LOGICAL                                :: shell_active
      TYPE(shell_kind_type), POINTER         :: shell
      TYPE(dft_plus_u_type), POINTER         :: dft_plus_u
+     !
+     TYPE(qs_atom_dispersion_type), POINTER :: dispersion
   END TYPE atomic_kind_type
 
 !> Provides a vector of pointers of type atomic_kind_type
@@ -213,6 +216,7 @@ CONTAINS
        NULLIFY (atomic_kind_set(ikind)%grid_atom)
        NULLIFY (atomic_kind_set(ikind)%shell)
        NULLIFY (atomic_kind_set(ikind)%dft_plus_u)
+       NULLIFY (atomic_kind_set(ikind)%dispersion)
        atomic_kind_set(ikind)%name = ""
        atomic_kind_set(ikind)%element_symbol = ""
        atomic_kind_set(ikind)%mass = 0.0_dp
@@ -315,6 +319,11 @@ CONTAINS
              DEALLOCATE (atomic_kind_set(ikind)%dft_plus_u,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
+
+          IF (ASSOCIATED(atomic_kind_set(ikind)%dispersion)) THEN
+             DEALLOCATE (atomic_kind_set(ikind)%dispersion,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
        END DO
        DEALLOCATE (atomic_kind_set,STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -337,7 +346,7 @@ CONTAINS
        soft_basis_set, elec_conf,hard_basis_set,paw_proj_set,softb,paw_atom,qm_atom,&
        hard_radius,hard0_radius,max_rad_local, gpw_type_forced,harmonics, max_iso_not0,&
        max_s_harm, grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active,&
-       dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, basis_set_id)
+       dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, basis_set_id)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, &
@@ -389,6 +398,8 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL           :: shell_active, dft_plus_u_atom
     INTEGER, INTENT(OUT), OPTIONAL           :: l_of_dft_plus_u
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: u_minus_j
+    TYPE(qs_atom_dispersion_type), &
+      OPTIONAL, POINTER                      :: dispersion
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atomic_kind', &
@@ -604,6 +615,8 @@ CONTAINS
              u_minus_j = 0.0_dp
           END IF
        END IF
+
+       IF (PRESENT(dispersion)) dispersion => atomic_kind%dispersion
 
     ELSE
 
@@ -1935,7 +1948,7 @@ CONTAINS
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
        natom,atom_list,elec_conf,paw_atom,qm_atom,hard_radius,hard0_radius,&
        elp_potential,soft_basis_set,hard_basis_set,lmax_rho0,zeff,ghost,shell,&
-       shell_active,error)
+       shell_active,dispersion,error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: element_symbol, name
@@ -1954,6 +1967,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: ghost
     TYPE(shell_kind_type), OPTIONAL, POINTER :: shell
     LOGICAL, INTENT(IN), OPTIONAL            :: shell_active
+    TYPE(qs_atom_dispersion_type), &
+      INTENT(IN), OPTIONAL, POINTER          :: dispersion
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -2015,6 +2030,8 @@ CONTAINS
           CALL shell_retain(shell,error)
        END IF
        IF (PRESENT(shell_active)) atomic_kind%shell_active=shell_active
+
+       IF (PRESENT(dispersion)) atomic_kind%dispersion => dispersion
 
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&

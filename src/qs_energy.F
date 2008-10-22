@@ -28,6 +28,7 @@ MODULE qs_energy
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
+  USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
   USE qs_dftb_dispersion,              ONLY: calculate_dftb_dispersion
   USE qs_dftb_matrices,                ONLY: build_dftb_matrices
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
@@ -153,6 +154,12 @@ CONTAINS
     ! *** Perform a SCF run ***
     CALL scf(qs_env=qs_env, globenv=globenv, error=error)
 
+    ! Add possible pair potential dispersion energy
+    IF ( .NOT. dft_control%qs_control%semi_empirical .AND. &
+         .NOT. dft_control%qs_control%dftb ) THEN
+       CALL calculate_dispersion_pairpot(qs_env,calc_forces,error)
+    END IF
+
     IF (PRESENT(consistent_energies)) THEN
       IF (consistent_energies) THEN
 ! **** SCP
@@ -170,6 +177,7 @@ CONTAINS
 ! **** SCP
       END IF
     END IF
+
     ! **********  Calculate the electron transfer coupling elements********
     do_et=.FALSE.
     do_et=qs_env%dft_control%qs_control%et_coupling_calc

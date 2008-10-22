@@ -523,7 +523,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: tddfpt_lanczos=0, tddfpt_davidson=1
   INTEGER, PARAMETER, PUBLIC :: oe_none=0, oe_lb=1, oe_gllb=2, oe_saop=3, oe_sic=4
   INTEGER, PARAMETER, PUBLIC :: no_excitations=0, tddfpt_excitations=1
-
+  INTEGER, PARAMETER, PUBLIC :: xc_vdw_fun_none=100, xc_vdw_fun_pairpot=101
+  
   ! Input constants for relativistic calculations
   INTEGER, PARAMETER, PUBLIC :: rel_none=0, rel_dkh=1
   INTEGER, PARAMETER, PUBLIC :: rel_trans_full=0, rel_trans_molecule=1, rel_trans_atom=2

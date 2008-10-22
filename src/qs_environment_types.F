@@ -95,6 +95,7 @@ MODULE qs_environment_types
   USE qs_charges_types,                ONLY: qs_charges_release,&
                                              qs_charges_retain,&
                                              qs_charges_type
+  USE qs_dispersion_types,             ONLY: qs_dispersion_type
   USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_release,&
                                              qs_dftb_pairpot_type
   USE qs_energy_types,                 ONLY: deallocate_qs_energy,&
@@ -264,6 +265,7 @@ MODULE qs_environment_types
 !> \param xas_env temporary information for xas calculation
 !> \param dftb_potential pair potentials for use with DFTB
 !> \param scp_env SCP environment for use with QS
+!> \param dispersion_env environment for use with QS dispersion
 !> 
 !>      compatibility get (things that you should get from the subsys):
 !> \param atomic_kind_set array with infos about the species (atomic_kinds)
@@ -362,6 +364,7 @@ MODULE qs_environment_types
     TYPE(task_list_type), POINTER                         :: task_list_aux_fit
     TYPE(task_list_type), POINTER                         :: task_list_soft
     TYPE(wfn_fitting_type), POINTER                       :: wfn_fitting_env
+    TYPE(qs_dispersion_type), POINTER                     :: dispersion_env
     ! Semi-empirical and DFTB types
     TYPE(ewald_environment_type),POINTER                  :: ewald_env
     TYPE(ewald_pw_type),POINTER                           :: ewald_pw
@@ -404,7 +407,7 @@ CONTAINS
        VH_3c_list,rho0_s_rs,rho0_s_gs,requires_mo_derivs,mo_derivs,mo_derivs_aux_fit,tddfpt_control,&
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
-       scp_env,taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, wfn_fitting_env, error)
+       scp_env,taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, wfn_fitting_env, dispersion_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -523,6 +526,8 @@ CONTAINS
       POINTER                                :: se_nonbond_env
     TYPE(wfn_fitting_type), OPTIONAL, &
       POINTER                                :: wfn_fitting_env
+    TYPE(qs_dispersion_type), OPTIONAL, &
+      POINTER                                :: dispersion_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -616,6 +621,7 @@ CONTAINS
     IF (PRESENT(se_nddo_mpole)) se_nddo_mpole => qs_env%se_nddo_mpole
     IF (PRESENT(se_nonbond_env)) se_nonbond_env => qs_env%se_nonbond_env
     IF (PRESENT(wfn_fitting_env)) wfn_fitting_env => qs_env%wfn_fitting_env
+    IF (PRESENT(dispersion_env)) dispersion_env => qs_env%dispersion_env
 
     IF (PRESENT(rho_atom_set)) &
        CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
@@ -765,6 +771,7 @@ CONTAINS
     NULLIFY (qs_env%se_nddo_mpole)
     NULLIFY (qs_env%se_nonbond_env)
     NULLIFY (qs_env%wfn_fitting_env)
+    NULLIFY (qs_env%dispersion_env)
     qs_env%outer_scf_ihistory=0
     qs_env%neighbor_list_id=-1
 
@@ -807,7 +814,7 @@ CONTAINS
        rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,requires_mo_derivs,mo_derivs,mo_derivs_aux_fit,&
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
-       scp_env,taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,wfn_fitting_env,error)
+       scp_env,taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,wfn_fitting_env,dispersion_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
@@ -905,6 +912,8 @@ CONTAINS
       POINTER                                :: se_nonbond_env
     TYPE(wfn_fitting_type), OPTIONAL, &
       POINTER                                :: wfn_fitting_env
+    TYPE(qs_dispersion_type), OPTIONAL, &
+      POINTER                                :: dispersion_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
@@ -1159,6 +1168,7 @@ CONTAINS
        qs_env%se_nonbond_env => se_nonbond_env
     END IF
     IF( PRESENT(wfn_fitting_env) ) qs_env%wfn_fitting_env => wfn_fitting_env
+    IF( PRESENT(dispersion_env) ) qs_env%dispersion_env => dispersion_env
   END SUBROUTINE set_qs_env
 
 ! *****************************************************************************
@@ -1537,6 +1547,10 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qs_env%wfn_fitting_env)) THEN
             CALL wfn_fitting_env_release(qs_env%wfn_fitting_env, error)
+          END IF
+          IF (ASSOCIATED(qs_env%dispersion_env)) THEN
+            DEALLOCATE(qs_env%dispersion_env, stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           ! no we are ready to deallocate the full structure
           DEALLOCATE(qs_env, stat=stat)

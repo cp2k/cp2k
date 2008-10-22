@@ -866,6 +866,17 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
+            name="sab_vdw",&
+            description="Activates the printing of the vdW "//&
+            "neighbor lists, "//&
+            "i.e. the dispersion neighbor lists",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
             name="sac_ppl",&
             description="Activates the printing of the orbital "//&
             "GTH-PPL neighbor lists (local part of the "//&
@@ -3213,8 +3224,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ENERGY",&
             description="How to determine the total energy.",&
             usage="ENERGY [NONE,XC_FUNCTIONAL,SUM_EIGENVALUES",&
-            enum_c_vals=s2a("NONE","XC_FUNCTIONAL","FUNCTIONAL","SUM_EIGENVALUES",&
-            "SOE"),&
+            enum_c_vals=s2a("NONE","XC_FUNCTIONAL","FUNCTIONAL","SUM_EIGENVALUES","SOE"),&
             enum_i_vals=(/ xc_pot_energy_none, &
             xc_pot_energy_xc_functional,&
             xc_pot_energy_xc_functional,&
@@ -3226,6 +3236,90 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_xc_potential_section
+
+! *****************************************************************************
+!> \brief creates the structure of the section needed for vdW potentials
+!> \param section the section that will be created
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author jgh              
+! *****************************************************************************
+  SUBROUTINE create_vdw_potential_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_vdw_potential_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="vdw_potential",&
+            description="This section combines all possible additional dispersion "//&
+            "corrections to the normal XC functionals. This can be more functionals "//&
+            "or simple empirical pair potentials. ",&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(subsection,keyword)
+       CALL keyword_create(keyword, name="POTENTIAL_TYPE",&
+            variants=s2a("DISPERSION_FUNCTIONAL"),&
+            description="Type of dispersion/vdW functional or potential to use",&
+            usage="POTENTIAL_TYPE PAIR_POTENTIAL",&
+            enum_c_vals=s2a("NONE","PAIR_POTENTIAL"),&
+            enum_i_vals=(/ xc_vdw_fun_none, xc_vdw_fun_pairpot /),&
+            default_i_val=xc_vdw_fun_none, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_create(subsection,name="PAIR_POTENTIAL",&
+            description="Information on the pair potential to calculate dispersion",&
+            n_keywords=5, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword,name="R_CUTOFF",&
+            description="Range of potential (default = 12.0 Bohr). The cutoff will be 2 times this value",&
+            usage="R_CUTOFF 12.0", default_r_val=12.0_dp,required=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="TYPE",&
+            description="Type of potential.",&
+            usage="TYPE GRIMME", default_c_val="GRIMME",error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="PARAMETER_FILE_NAME",&
+            description="Name of the parameter file, may include a path",&
+            usage="PARAMETER_FILE_NAME <FILENAME>",required=.FALSE.,&
+            default_lc_val="DISPERSION_PARAMETERS",error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="SCALING",&
+            description="Functional dependent scaling parameter.",&
+            usage="SCALING 0.2", default_r_val=0._dp,required=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="EXP_PRE",&
+            description="Prefactor in exponential damping factor (Grimme potential)",&
+            usage="EXP_PRE 20.", default_r_val=20._dp,required=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       ! parameter specification atom by atom
+       CALL keyword_create(keyword, name="ATOMPARM",&
+            description="Specifies parameters for atom types (in atomic units)",&
+            usage="ATOMPARM Ne par1 par2 ... ", required=.TRUE., repeats=.TRUE.,&
+            n_var=-1,type_of_var=char_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_vdw_potential_section
 
 ! *****************************************************************************
 !> \brief creates the input section for the tddfpt part
@@ -3493,6 +3587,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_xc_potential_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_vdw_potential_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
