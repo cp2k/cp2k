@@ -1515,8 +1515,8 @@ CONTAINS
        IF (rsgrid%orthorhombic ) THEN
           CALL collocate_ortho()
        ELSE
-          CALL collocate_general_wings()
-          !CALL collocate_general_opt()
+          ! CALL collocate_general_wings()
+          CALL collocate_general_opt()
        END IF
     END IF
 
@@ -1692,10 +1692,7 @@ CONTAINS
 
       CALL return_cube_nonortho(cube_info,radius,index_min,index_max,rp)
 
-      DO dir=1,3
-         offset(dir)=MODULO(cubecenter(dir),ng(dir))+rsgrid%lb(dir)
-         offset(dir)=offset(dir)-rsgrid%lb_local(dir)+1
-      ENDDO
+      offset(:)=MODULO(index_min(:)+rsgrid%lb(:)-rsgrid%lb_local(:),ng(:))+1
 
       ALLOCATE(grid_map(index_min(1):index_max(1)))
       DO i=index_min(1),index_max(1)
@@ -1703,7 +1700,7 @@ CONTAINS
         IF (rsgrid % perd ( 1 )==1) THEN
            grid_map(i)=MODULO(i,ng(1))+1
         ELSE
-           grid_map(i)=i-cubecenter(1)+offset(1)
+           grid_map(i)=i-index_min(1)+offset(1)
         ENDIF
       ENDDO
 
@@ -1715,7 +1712,7 @@ CONTAINS
         IF (rsgrid % perd ( 3 )==1) THEN
            k_index=MODULO(k,ng(3))+1
         ELSE
-           k_index=k-cubecenter(3)+offset(3)
+           k_index=k-index_min(3)+offset(3)
         ENDIF
 
         coef_xyt=0.0_dp
@@ -1739,7 +1736,7 @@ CONTAINS
           IF (rsgrid % perd ( 2 )==1) THEN
              j_index=MODULO(j,ng(2))+1
           ELSE
-             j_index=j-cubecenter(2)+offset(2)
+             j_index=j-index_min(2)+offset(2)
           ENDIF
 
           coef_xtt=0.0_dp
