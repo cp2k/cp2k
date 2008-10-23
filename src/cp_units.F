@@ -41,9 +41,9 @@ MODULE cp_units
   IMPLICIT NONE
   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  LOGICAL, PRIVATE, PARAMETER          :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_units'
-  INTEGER, SAVE, PRIVATE :: last_unit_id=0, last_unit_set_id=0
+  INTEGER, SAVE, PRIVATE               :: last_unit_id=0, last_unit_set_id=0
   
   INTEGER, PARAMETER, PUBLIC :: cp_ukind_none=0,&
                                 cp_ukind_energy=1,&
@@ -70,11 +70,15 @@ MODULE cp_units
                                 cp_units_kcalmol=133,&
                                 cp_units_Ry=134,&
                                 cp_units_eV=135,&
-                                cp_units_kjmol=136
+                                cp_units_kjmol=136,&
+                                cp_units_jmol=137
+  
   ! Length
   INTEGER, PARAMETER, PUBLIC :: cp_units_bohr=140,&
                                 cp_units_angstrom=141,&
-                                cp_units_m=142
+                                cp_units_m=142,&
+                                cp_units_pm=143,&
+                                cp_units_nm=144
   ! Temperature
   INTEGER, PARAMETER, PUBLIC :: cp_units_k=150
   ! Pressure
@@ -210,6 +214,9 @@ CONTAINS
        CASE("kjmol")
           unit_id(i_unit)=cp_units_kjmol
           kind_id(i_unit)=cp_ukind_energy
+       CASE("jmol")
+          unit_id(i_unit)=cp_units_jmol
+          kind_id(i_unit)=cp_ukind_energy
        CASE("Ry")
           unit_id(i_unit)=cp_units_Ry
           kind_id(i_unit)=cp_ukind_energy
@@ -230,6 +237,12 @@ CONTAINS
           kind_id(i_unit)=cp_ukind_length
        CASE("m")
           unit_id(i_unit)=cp_units_m
+          kind_id(i_unit)=cp_ukind_length
+       CASE("pm")
+          unit_id(i_unit)=cp_units_pm
+          kind_id(i_unit)=cp_ukind_length
+       CASE("nm")
+          unit_id(i_unit)=cp_units_nm
           kind_id(i_unit)=cp_ukind_length
        CASE("angstrom")
           unit_id(i_unit)=cp_units_angstrom
@@ -609,8 +622,8 @@ CONTAINS
        CASE(cp_ukind_energy)
           SELECT CASE (basic_unit)
           CASE(cp_units_hartree, cp_units_wavenum, cp_units_joule, cp_units_kcalmol,&
-               cp_units_kjmol,&
-               cp_units_Ry, cp_units_eV,cp_units_au,cp_units_k, cp_units_none)
+               cp_units_kjmol, cp_units_Ry, cp_units_eV,cp_units_au,cp_units_k,&
+               cp_units_jmol, cp_units_none)
           CASE default
              CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                   routineP,"unknown energy unit:"//TRIM(cp_to_string(basic_unit)),&
@@ -618,7 +631,8 @@ CONTAINS
           END SELECT
        CASE(cp_ukind_length)
           SELECT CASE (basic_unit)
-          CASE(cp_units_bohr, cp_units_angstrom, cp_units_au,cp_units_none, cp_units_m)
+          CASE(cp_units_bohr, cp_units_angstrom, cp_units_au, cp_units_none, cp_units_m,&
+               cp_units_pm, cp_units_nm)
           CASE default
              CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                   routineP,"unknown length unit:"//TRIM(cp_to_string(basic_unit)),&
@@ -735,6 +749,8 @@ CONTAINS
              res=kcalmol**(-my_power)*value
           CASE(cp_units_kjmol)
              res=kjmol**(-my_power)*value
+          CASE(cp_units_jmol)
+             res=(kjmol*1000.0_dp)**(-my_power)*value
           CASE(cp_units_Ry)
              res=0.5_dp**my_power*value
           CASE(cp_units_eV)
@@ -752,6 +768,10 @@ CONTAINS
              res=value
           CASE(cp_units_m)
              res=value*(1.e10_dp*bohr)**my_power
+          CASE(cp_units_pm)
+             res=value*(0.01_dp*bohr)**my_power
+          CASE(cp_units_nm)
+             res=value*(10_dp*bohr)**my_power
           CASE(cp_units_angstrom)
              res=value*bohr**my_power
           CASE default
@@ -855,8 +875,7 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author fawzi
 ! *****************************************************************************
-  FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
-       accept_undefined,error)&
+  FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,accept_undefined,error)&
        RESULT(res)
     INTEGER, INTENT(in)                      :: basic_kind, basic_unit
     INTEGER, INTENT(in), OPTIONAL            :: power
@@ -907,6 +926,8 @@ CONTAINS
              res="kcalmol"
           CASE(cp_units_kjmol)
              res="kjmol"
+          CASE(cp_units_jmol)
+             res="jmol"
           CASE(cp_units_Ry)
              res="Ry"
           CASE(cp_units_eV)
@@ -930,6 +951,10 @@ CONTAINS
              res="bohr"
           CASE(cp_units_m)
              res="m"
+          CASE(cp_units_pm)
+             res="pm"
+          CASE(cp_units_nm)
+             res="nm"
           CASE(cp_units_angstrom)
              res="angstrom"
           CASE default
