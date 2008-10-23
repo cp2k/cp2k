@@ -141,7 +141,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE optimize_loc_berry( method, qs_loc_env, vectors, op_sm_set, &
-       zij_fm_set, cell, weights,  ispin, loc_section, error)
+       zij_fm_set, cell, weights,  ispin, loc_section, print_loc_section,error)
 
     INTEGER, INTENT(IN)                      :: method
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -153,7 +153,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(section_vals_type), POINTER         :: loc_section
+    TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry', &
@@ -169,7 +169,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
-    output_unit = cp_print_key_unit_nr(logger,loc_section,"PRINT%PROGRAM_RUN_INFO",&
+    output_unit = cp_print_key_unit_nr(logger,loc_section,"PROGRAM_RUN_INFO",&
          extension=".locInfo",error=error)
 
     NULLIFY(opvec)
@@ -250,9 +250,9 @@ CONTAINS
     ENDIF
 
     CALL centers_spreads_berry( qs_loc_env, zij_fm_set, nmoloc, cell, weights,&
-         ispin, loc_section, error=error )
+         ispin, loc_section, print_loc_section, error=error )
     CALL cp_fm_release(opvec,error=error)
-    CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PRINT%PROGRAM_RUN_INFO",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PROGRAM_RUN_INFO",error=error)
     CALL timestop(handle)
 
   END SUBROUTINE optimize_loc_berry
@@ -263,7 +263,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE  optimize_loc_pipek(qs_env, method, qs_loc_env, vectors, zij_fm_set,&
-       ispin, loc_section, error)
+       ispin, loc_section, print_loc_section, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: method
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -271,7 +271,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: zij_fm_set
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(section_vals_type), POINTER         :: loc_section
+    TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek', &
@@ -294,7 +294,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    output_unit = cp_print_key_unit_nr(logger,loc_section,"PRINT%PROGRAM_RUN_INFO",&
+    output_unit = cp_print_key_unit_nr(logger,loc_section,"PROGRAM_RUN_INFO",&
          extension=".locInfo",error=error)
 
     NULLIFY(particle_set)
@@ -368,13 +368,13 @@ CONTAINS
          " converged in ",sweeps," iterations"
 
     CALL centers_spreads_pipek( qs_loc_env, zij_fm_set, particle_set, ispin,&
-         loc_section, error=error )
+         loc_section, print_loc_section, error=error )
 
     DEALLOCATE (first_sgf, last_sgf, nsgf, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL cp_fm_release(opvec,error=error)
-    CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PRINT%PROGRAM_RUN_INFO",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PROGRAM_RUN_INFO",error=error)
     CALL timestop(handle)
 
   END SUBROUTINE optimize_loc_pipek
@@ -385,14 +385,14 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE centers_spreads_berry( qs_loc_env, zij, nmoloc, cell, weights, ispin,&
-       loc_section, error)
+       loc_section, print_loc_section, error)
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: zij( :, : )
     INTEGER, INTENT(IN)                      :: nmoloc
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(section_vals_type), POINTER         :: loc_section
+    TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_berry', &
@@ -416,9 +416,9 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     file_tmp = TRIM(qs_loc_env%tag_mo)//"_spreads_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
-    output_unit = cp_print_key_unit_nr(logger,loc_section,"PRINT%PROGRAM_RUN_INFO",&
+    output_unit = cp_print_key_unit_nr(logger,loc_section,"PROGRAM_RUN_INFO",&
          extension=".locInfo",error=error)
-    unit_out_s = cp_print_key_unit_nr(logger,loc_section,"PRINT%WANNIER_SPREADS",&
+    unit_out_s = cp_print_key_unit_nr(logger,print_loc_section,"WANNIER_SPREADS",&
          middle_name=file_tmp,extension=".data",error=error)
     iter = cp_iter_string(logger%iter_info,error=error)
     IF(unit_out_s>0) WRITE(unit_out_s,'(i6,/,A)') nmoloc, TRIM(iter)
@@ -454,7 +454,7 @@ CONTAINS
     ENDDO
 
     ! Print of wannier centers
-    print_key => section_vals_get_subs_vals(loc_section,"PRINT%WANNIER_CENTERS",error=error)
+    print_key => section_vals_get_subs_vals(print_loc_section,"WANNIER_CENTERS",error=error)
     CALL print_wannier_centers(qs_loc_env, print_key, centers, logger, ispin, error)
 
     ! Now, find the spread of the orbitals
@@ -471,8 +471,8 @@ CONTAINS
     IF (output_unit>0)WRITE(output_unit,'(T4,A,10x,3F16.10)') " Total Spread (Berry) x,y,z: ",spreadtot(1:3)
 
     IF (unit_out_s>0) WRITE (unit_out_s,'(A,3F16.10)') " Total ", spreadtot(1:3)
-    CALL cp_print_key_finished_output(unit_out_s,logger,loc_section,"PRINT%WANNIER_SPREADS",error=error)
-    CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PRINT%PROGRAM_RUN_INFO",error=error)
+    CALL cp_print_key_finished_output(unit_out_s,logger,print_loc_section,"WANNIER_SPREADS",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PROGRAM_RUN_INFO",error=error)
 
   END SUBROUTINE centers_spreads_berry
 
@@ -487,7 +487,8 @@ CONTAINS
 !> \par History
 !>      05.2005 created [MI]
 ! *****************************************************************************
-  SUBROUTINE centers_spreads_pipek(qs_loc_env,zij_fm_set,particle_set,ispin,loc_section,error)
+  SUBROUTINE centers_spreads_pipek(qs_loc_env,zij_fm_set,particle_set,ispin,&
+       loc_section,print_loc_section,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -495,7 +496,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(section_vals_type), POINTER         :: loc_section
+    TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_pipek', &
@@ -525,7 +526,7 @@ CONTAINS
     CPPrecondition(SIZE(centers,2)==nstate,cp_failure_level,routineP,error,failure)
 
     file_tmp = TRIM(qs_loc_env%tag_mo)//"_spreads_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
-    unit_out_s = cp_print_key_unit_nr(logger,loc_section,"PRINT%WANNIER_SPREADS",&
+    unit_out_s = cp_print_key_unit_nr(logger,print_loc_section,"WANNIER_SPREADS",&
          middle_name=file_tmp,extension=".data",log_filename=.FALSE.,error=error)
     iter = cp_iter_string(logger%iter_info,error=error)
     IF(unit_out_s>0) WRITE(unit_out_s,'(i6,/,A)') TRIM(iter)
@@ -568,10 +569,10 @@ CONTAINS
     END DO
 
     ! Print the wannier centers
-    print_key => section_vals_get_subs_vals(loc_section,"PRINT%WANNIER_CENTERS",error=error)
+    print_key => section_vals_get_subs_vals(print_loc_section,"WANNIER_CENTERS",error=error)
     CALL print_wannier_centers(qs_loc_env, print_key, centers, logger, ispin, error)
 
-    CALL cp_print_key_finished_output(unit_out_s,logger,loc_section,"PRINT%WANNIER_SPREADS",error=error)
+    CALL cp_print_key_finished_output(unit_out_s,logger,print_loc_section,"WANNIER_SPREADS",error=error)
 
     DEALLOCATE(Qii,ziimax,atom_of_state,diag,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -584,11 +585,12 @@ CONTAINS
 !>      04.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE qs_loc_driver(qs_env,qs_loc_env,loc_section,myspin,ext_mo_coeff,error)
+  SUBROUTINE qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin,&
+       ext_mo_coeff,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(section_vals_type), POINTER         :: loc_section
+    TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
     INTEGER, INTENT(IN), OPTIONAL            :: myspin
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: ext_mo_coeff
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -680,8 +682,8 @@ CONTAINS
           END DO
           CALL cp_fm_struct_release(tmp_fm_struct,error=error)
 
-          CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix,&
-               op_sm_set, op_fm_set, cell, weights, ispin, loc_section, error=error)
+          CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set,&
+               op_fm_set, cell, weights, ispin, loc_section, print_loc_section, error=error)
 
           ! Here we dealloctate op_fm_set
           IF(ASSOCIATED(op_fm_set)) THEN
@@ -701,7 +703,7 @@ CONTAINS
 
        CASE(op_loc_pipek)
           CALL  optimize_loc_pipek(qs_env, loc_method, qs_loc_env, moloc_coeff(ispin)%matrix,&
-               op_fm_set,  ispin, loc_section, error=error)
+               op_fm_set,  ispin, loc_section, print_loc_section, error=error)
 
        END SELECT
 
@@ -752,7 +754,7 @@ CONTAINS
           NULLIFY(bounds, list, list_cubes)
  
          ! Provides boundaries of MOs
-          CALL section_vals_val_get(loc_section,"PRINT%WANNIER_CUBES%CUBES_LU_BOUNDS",i_vals=bounds,error=error) 
+          CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LU_BOUNDS",i_vals=bounds,error=error) 
           ncubes = bounds(2) - bounds(1)  + 1
           IF(ncubes > 0) THEN
              list_cubes_setup =.TRUE.
@@ -764,11 +766,11 @@ CONTAINS
           END IF
 
           ! Provides the list of MOs
-          CALL section_vals_val_get(loc_section,"PRINT%WANNIER_CUBES%CUBES_LIST",n_rep_val=n_rep,error=error)
+          CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LIST",n_rep_val=n_rep,error=error)
           IF (.NOT.list_cubes_setup) THEN
              ncubes = 0
              DO ir = 1,n_rep
-                CALL section_vals_val_get(loc_section,"PRINT%WANNIER_CUBES%CUBES_LIST",i_rep_val=ir,i_vals=list,error=error)
+                CALL section_vals_val_get(print_loc_section,"WANNIER_CUBES%CUBES_LIST",i_rep_val=ir,i_vals=list,error=error)
                 IF(ASSOCIATED(list)) THEN
                    CALL reallocate(list_cubes,1,ncubes+ SIZE(list))
                    DO i = 1, SIZE(list)
@@ -813,7 +815,7 @@ CONTAINS
           END DO ! ncubes
 
           ! Real call for dumping the cube files
-          print_key => section_vals_get_subs_vals(loc_section,"PRINT%WANNIER_CUBES",error=error)
+          print_key => section_vals_get_subs_vals(print_loc_section,"WANNIER_CUBES",error=error)
           CALL qs_print_cubes(qs_env,moloc_coeff(ispin)%matrix,ncubes,list_cubes,centers,&
                print_key,"loc",ispin=ispin,error=error)
 

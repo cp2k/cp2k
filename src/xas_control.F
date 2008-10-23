@@ -100,7 +100,8 @@ CONTAINS
     INTEGER                                  :: i, ir, istat, n_rep, nex_at
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
     LOGICAL                                  :: failure, was_present
-    TYPE(section_vals_type), POINTER         :: loc_section, xas_section
+    TYPE(section_vals_type), POINTER         :: loc_section, &
+                                                print_loc_section, xas_section
 
     failure=.FALSE.
     was_present = .FALSE.
@@ -209,9 +210,10 @@ CONTAINS
          l_val=xas_control%emission,error=error)
          
     CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
-    loc_section =>section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
+    loc_section => section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
+    print_loc_section => section_vals_get_subs_vals(xas_section,"PRINT",error=error)
     CALL read_loc_section(xas_control%localized_wfn_control,loc_section,&
-         xas_control%localized_wfn,do_xas=.TRUE.,&
+         print_loc_section, xas_control%localized_wfn,do_xas=.TRUE.,&
          nloc_xas=xas_control%nexc_search,error=error)
 
   END SUBROUTINE read_xas_control

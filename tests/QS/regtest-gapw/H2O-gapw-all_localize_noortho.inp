@@ -29,16 +29,14 @@
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
+    &LOCALIZE
+      OUT_ITER_EACH 1
+    &END
     &PRINT
       &LOCALIZATION
-        &LOCALIZE
-          OUT_ITER_EACH 1
-          &PRINT
-           &WANNIER_CENTERS
-           &END
-           &WANNIER_SPREADS
-           &END
-          &END
+        &WANNIER_CENTERS
+        &END
+        &WANNIER_SPREADS
         &END
       &END
     &END

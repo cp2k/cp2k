@@ -185,6 +185,7 @@ CONTAINS
       POINTER                                :: matrix_ks, op_sm, ostrength_sm
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, loc_section, &
+                                                print_loc_section, &
                                                 scf_section, xas_section
     TYPE(xas_environment_type), POINTER      :: xas_env
 
@@ -216,6 +217,7 @@ CONTAINS
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
     xas_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
     loc_section => section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
+    print_loc_section => section_vals_get_subs_vals(xas_section,"PRINT",error=error)
 
     output_unit = cp_print_key_unit_nr(logger,xas_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".Log",error=error)
@@ -356,7 +358,7 @@ CONTAINS
         CALL qs_loc_env_init(qs_loc_env,my_localized_wfn_control,&
              qs_env,myspin=1,do_localize=xas_control%localized_wfn,error=error)
       END IF
-      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,myspin=1,error=error)
+      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,error=error)
     END IF
 
     CALL cls_assign_core_states(xas_control,xas_env,my_localized_wfn_control,&

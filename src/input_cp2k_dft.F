@@ -415,6 +415,10 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_localize_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+    
     CALL create_print_dft_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -593,14 +597,14 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection
+    TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
-       NULLIFY(keyword, print_key, subsection)
+       NULLIFY(keyword, print_key)
        CALL section_create(section,name="LOCALIZE",&
             description="Use one of the available methods to define the localization "//&
             " and possibly to optimize it to a minimum or a maximum.",&
@@ -682,87 +686,100 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL section_create(subsection,"PRINT",&
-            "printing of information about the localization of the orbitals",&
-            error=error,repeats=.FALSE.,required=.FALSE.)
-
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing basic info about the method", &
             print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"WANNIER_CUBES",&
-            description="Controls the printing of the wannier functions ", &
-            print_level=high_print_level,add_last=add_last_numeric,filename="",&
-            error=error)
-       CALL keyword_create(keyword, name="stride",&
-            description="The stride (X,Y,Z) used to write the cube file "//&
-            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
-            " 1 number valid for all components.",&
-            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="CUBES_LU_BOUNDS",&
-            variants=(/"CUBES_LU"/),&
-            description="The lower and upper index of the states to be printed as cube",&
-            usage="CUBES_LU_BOUNDS integer integer",&
-            n_var=2,default_i_vals=(/0,-2/), type_of_var=integer_t,error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="CUBES_LIST",&
-            description="Indexes of the states to be printed as cube files"//&
-            "This keyword can be repeated several times"//&
-            "(useful if you have to specify many indexes).",&
-            usage="CUBES_LIST 1 2",&
-            n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"WANNIER_CENTERS",&
-            description="Controls the printing of the wannier functions", &
-            print_level=high_print_level,add_last=add_last_numeric,filename="",&
-            error=error)
-
-       CALL keyword_create(keyword, name="IONS+CENTERS",&
-            description="prints out the wannier centers together with the particles",&
-            usage="IONS+CENTERS", default_l_val=.FALSE., &
-            lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="format",&
-            description="Specifies the format of the output file when IONS+CENTERS is enabled.",&
-            usage="FORMAT (ATOMIC|XMOL|DCD)",&
-            default_i_val=dump_xmol,&
-            enum_c_vals=output_name_types,&
-            enum_i_vals=output_name_index,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"WANNIER_SPREADS",&
-            description="Controls the printing of the wannier functions", &
-            print_level=high_print_level,add_last=add_last_numeric,filename="",&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
     END IF
   END SUBROUTINE create_localize_section
+
+! *****************************************************************************
+!> \brief Controls the printing of the basic info coming from the LOCALIZE
+!>        section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE print_wanniers(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_wanniers', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    NULLIFY(print_key, keyword)
+    CALL cp_print_key_section_create(print_key,"WANNIER_CUBES",&
+         description="Controls the printing of the wannier functions ", &
+         print_level=high_print_level,add_last=add_last_numeric,filename="",&
+         error=error)
+    CALL keyword_create(keyword, name="stride",&
+         description="The stride (X,Y,Z) used to write the cube file "//&
+         "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+         " 1 number valid for all components.",&
+         usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    
+    CALL keyword_create(keyword,name="CUBES_LU_BOUNDS",&
+         variants=(/"CUBES_LU"/),&
+         description="The lower and upper index of the states to be printed as cube",&
+         usage="CUBES_LU_BOUNDS integer integer",&
+         n_var=2,default_i_vals=(/0,-2/), type_of_var=integer_t,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    
+    CALL keyword_create(keyword,name="CUBES_LIST",&
+         description="Indexes of the states to be printed as cube files"//&
+         "This keyword can be repeated several times"//&
+         "(useful if you have to specify many indexes).",&
+         usage="CUBES_LIST 1 2",&
+         n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
+    
+    NULLIFY(print_key)
+    CALL cp_print_key_section_create(print_key,"WANNIER_CENTERS",&
+         description="Controls the printing of the wannier functions", &
+         print_level=high_print_level,add_last=add_last_numeric,filename="",&
+         error=error)
+    
+    CALL keyword_create(keyword, name="IONS+CENTERS",&
+         description="prints out the wannier centers together with the particles",&
+         usage="IONS+CENTERS", default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE., error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    
+    CALL keyword_create(keyword, name="format",&
+         description="Specifies the format of the output file when IONS+CENTERS is enabled.",&
+         usage="FORMAT (ATOMIC|XMOL|DCD)",&
+         default_i_val=dump_xmol,&
+         enum_c_vals=output_name_types,&
+         enum_i_vals=output_name_index,&
+         error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
+    
+    NULLIFY(print_key)
+    CALL cp_print_key_section_create(print_key,"WANNIER_SPREADS",&
+         description="Controls the printing of the wannier functions", &
+         print_level=high_print_level,add_last=add_last_numeric,filename="",&
+         error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
+  END SUBROUTINE print_wanniers
 
 ! *****************************************************************************
 !> \brief Create the print dft section
@@ -1256,22 +1273,21 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL section_create(print_key,name="LOCALIZATION",&
-            description="Controls the calculation/printing of the Wannier centers and "//&
+            description="Collects all printing options related to the Wannier centers and "//&
             "properties computed with Wannier centers.",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
-       CALL create_localize_section(subsection,error)
-       CALL section_add_subsection(print_key, subsection, error=error)
-       CALL section_release(subsection,error=error)
-       ! TOTAL DIPOLE
+       ! Add printing of wannier infos
+       CALL print_wanniers(print_key, error)
+       ! Total Dipoles with wannier
        CALL create_dipoles_section(subsection,"TOTAL_DIPOLE",error)
        CALL section_add_subsection(print_key, subsection, error=error)
        CALL section_release(subsection,error=error)
-       ! MOLECULAR DIPOLES
+       ! Molecular Dipoles with wannier
        CALL create_dipoles_section(subsection,"MOLECULAR_DIPOLES",error)
        CALL section_add_subsection(print_key, subsection, error=error)
        CALL section_release(subsection,error=error)
-       ! MOLECULAR STATES
+       ! Molecular States with wannier
        CALL create_molecular_states_section(subsection,error)
        CALL section_add_subsection(print_key, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -5269,7 +5285,8 @@ CONTAINS
             usage="METHOD TP_HH",&
             default_i_val=xas_none,&
             enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TP_VAL", "TP_XHH","TP_XFH", "DSCF"),&
-            enum_desc=s2a("No XAS is calculated", "Transition potential halfhole",&
+            enum_desc=s2a(&
+            "No XAS is calculated", "Transition potential halfhole",&
             "Transition potential fullhole", "Hole in homo for XES " , &
             "Transition potential excited halfhole", &
             "Transition potential excited fullhole " , &
@@ -5361,14 +5378,14 @@ CONTAINS
             default_i_val=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-!MK to be done: new smear section
+       !MK to be done: new smear section
        CALL keyword_create(keyword, name="SMEAR",&
             description="smearing coefficient",&
             usage="SMEAR 0.5",&
             default_r_val=0._dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-!MK
+       !MK
        CALL keyword_create(keyword,name="ATOMS_LU_BOUNDS",&
             variants=(/"AT_LU"/),&
             description="The lower and upper index of the atoms to be excited",&
@@ -5436,22 +5453,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       NULLIFY(subsection)
-
        CALL create_localize_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-!MK       CALL create_smear_section(subsection,error)
-!MK       CALL section_add_subsection(section, subsection, error=error)
-!MK       CALL section_release(subsection,error=error)
-
-       NULLIFY(subsection)
        CALL section_create(subsection,"PRINT",&
             "printing of information during the core-level spectroscopy simulation",&
             error=error,repeats=.FALSE.,required=.FALSE.)
 
-        CALL cp_print_key_section_create(print_key,"iteration_info",&
+       ! Add printing of wannier infos
+       CALL print_wanniers(subsection, error)
+
+       CALL cp_print_key_section_create(print_key,"iteration_info",&
             description="Controls the printing of basic iteration information during the xas scf.", &
             print_level=low_print_level,filename="__STD_OUT__",&
             error=error)
@@ -5640,28 +5653,27 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       NULLIFY(subsection)
        CALL create_localize_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection)
        CALL create_current_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection)
        CALL create_nmr_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection)
        CALL create_epr_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
        CALL section_create(subsection,"PRINT","printing of information during the XAS calculation",&
             error=error,repeats=.FALSE.,required=.FALSE.)
+
+       ! Add printing of wannier infos
+       CALL print_wanniers(subsection, error)
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic iteration information during the XAS", &

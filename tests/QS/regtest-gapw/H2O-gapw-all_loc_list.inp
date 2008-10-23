@@ -28,11 +28,11 @@
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
+    &LOCALIZE
+       LIST 2 3 4 5
+    &END
     &PRINT
       &LOCALIZATION
-        &LOCALIZE
-           LIST 2 3 4 5
-        &END
         &MOLECULAR_DIPOLES
         &END
       &END

@@ -28,10 +28,10 @@
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
+    &LOCALIZE
+    &END
     &PRINT
       &LOCALIZATION
-        &LOCALIZE
-        &END
       &END
     &END
   &END DFT

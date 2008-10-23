@@ -296,7 +296,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
-    TYPE(section_vals_type), POINTER         :: loc_section
+    TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
 
     failure = .FALSE.
 
@@ -319,8 +319,9 @@ CONTAINS
        ! Localized Psi0 are required when the position operator has to be defined (nmr)
        CALL localized_wfn_control_create(linres_control%localized_wfn_control,error=error)
        loc_section =>section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
+       print_loc_section => section_vals_get_subs_vals(lr_section,"PRINT",error=error)
        CALL read_loc_section(linres_control%localized_wfn_control,loc_section,&
-            linres_control%localized_psi0, error=error)
+            print_loc_section,linres_control%localized_psi0, error=error)
        IF(linres_control%localized_psi0) THEN
          IF(output_unit>0) THEN
            WRITE (UNIT=output_unit,FMT="(/,T3,A,A)")&

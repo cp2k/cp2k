@@ -28,11 +28,11 @@
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
+    &LOCALIZE
+       METHOD CRAZY
+    &END
     &PRINT
       &LOCALIZATION
-        &LOCALIZE
-           METHOD CRAZY
-        &END
       &END
     &END
   &END DFT

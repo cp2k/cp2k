@@ -7,11 +7,11 @@
         WRITE_CUBE FALSE
       &END
       &LOCALIZATION
-        &LOCALIZE
-        &END
         &MOLECULAR_STATES
         &END
       &END
+    &END
+    &LOCALIZE
     &END
     BASIS_SET_FILE_NAME ./GTH_BASIS_SETS
     POTENTIAL_FILE_NAME ./POTENTIAL

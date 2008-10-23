@@ -209,10 +209,16 @@ CONTAINS
 
        ! Determine if we need to computer properties using the localized centers
        localization_section => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
-       localize_section     => section_vals_get_subs_vals(localization_section,"LOCALIZE",error=error)
+       localize_section     => section_vals_get_subs_vals(dft_section,"LOCALIZE",error=error)
        print_key => section_vals_get_subs_vals(localization_section,"MOLECULAR_DIPOLES",error=error)
        p_loc=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
        print_key => section_vals_get_subs_vals(localization_section,"TOTAL_DIPOLE",error=error)
+       p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+       print_key => section_vals_get_subs_vals(localization_section,"WANNIER_CENTERS",error=error)
+       p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+       print_key => section_vals_get_subs_vals(localization_section,"WANNIER_SPREADS",error=error)
+       p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
+       print_key => section_vals_get_subs_vals(localization_section,"WANNIER_CUBES",error=error)
        p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
        CALL section_vals_val_get(localize_section,"_SECTION_PARAMETERS_",l_val=explicit,error=error)
        p_loc=p_loc.OR.explicit
@@ -225,9 +231,11 @@ CONTAINS
        CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%STM_BIAS",r_vals=stm_biases,error=error)
        do_stm=ASSOCIATED(stm_biases)
 
-       do_mo_cubes=BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES", error=error),cp_p_file)
-       do_wannier_cubes=BTEST(cp_print_key_should_output(logger%iter_info,localize_section,&
-                        "PRINT%WANNIER_CUBES",error=error),cp_p_file)
+       ! Check for cubes MOs and WANNIERS
+       do_mo_cubes=BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
+                   error=error),cp_p_file)
+       do_wannier_cubes=BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
+                        "WANNIER_CUBES",error=error),cp_p_file)
        nlumo=section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error)
        nhomo=section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)
 
@@ -306,8 +314,8 @@ CONTAINS
        IF (p_loc) THEN
           CALL qs_loc_env_create(qs_loc_env,error=error)
           CALL localized_wfn_control_create(qs_loc_env%localized_wfn_control,error=error)
-          CALL read_loc_section(qs_loc_env%localized_wfn_control,localize_section,qs_loc_env%do_localize,&
-               error=error)
+          CALL read_loc_section(qs_loc_env%localized_wfn_control,localize_section,&
+               localization_section, qs_loc_env%do_localize, error=error)
           IF (qs_loc_env%do_localize) THEN
              ! Some setup for MOs to be localized
              nmoloc = 0
@@ -326,7 +334,7 @@ CONTAINS
              ! Let's inform in case the section is not present in the input
              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                   "User requested the calculation of the localized wavefunction but the section "//&
-                  "LOCALIZE (located in: DFT%PRINT%LOCALIZATION%LOCALIZE) was not specified. Localization "//&
+                  "LOCALIZE (located in: DFT%LOCALIZE) was not specified. Localization "//&
                   "will not be performed!"//&
 CPSourceFileRef,&
                   only_ionode=.TRUE.)
@@ -378,8 +386,8 @@ CPSourceFileRef,&
                         "for OCCUPIED ORBITALS. Spin:",ispin
 
                    scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
-                   CALL qs_loc_driver(qs_env,qs_loc_env,localize_section,myspin=ispin,&
-                        ext_mo_coeff=mo_localized,error=error)
+                   CALL qs_loc_driver(qs_env,qs_loc_env,localize_section,localization_section,&
+                        myspin=ispin,ext_mo_coeff=mo_localized,error=error)
 
                    ! maps wfc to molecules, and compute the molecular dipoles if required
                    IF (BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&

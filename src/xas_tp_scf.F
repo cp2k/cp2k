@@ -667,7 +667,8 @@ CONTAINS
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_s
-    TYPE(section_vals_type), POINTER         :: input, loc_section
+    TYPE(section_vals_type), POINTER         :: input, loc_section, &
+                                                print_loc_section
 
     CALL timeset(routineN,handle)
 
@@ -719,7 +720,8 @@ CONTAINS
        CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
             localized_wfn_control=localized_wfn_control,error=error)
        loc_section => section_vals_get_subs_vals(input,"DFT%XAS%LOCALIZE",error=error)
-       CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,myspin=1,error=error)
+       print_loc_section => section_vals_get_subs_vals(input,"DFT%XAS%PRINT",error=error)
+       CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,error=error)
        ra(1:3) = particle_set(iatom)%r(1:3)
 
        NULLIFY(atomic_kind)

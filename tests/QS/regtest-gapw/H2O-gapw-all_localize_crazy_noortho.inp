@@ -29,16 +29,14 @@
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
+    &LOCALIZE
+       METHOD CRAZY
+    &END
     &PRINT
       &LOCALIZATION
-        &LOCALIZE
-           METHOD CRAZY
-          &PRINT
-           &WANNIER_CENTERS
-           &END
-           &WANNIER_SPREADS
-           &END
-          &END
+        &WANNIER_CENTERS
+        &END
+        &WANNIER_SPREADS
         &END
       &END
     &END

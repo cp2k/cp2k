@@ -16,15 +16,13 @@
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
+    &LOCALIZE T
+    &END
     &PRINT
       &LOCALIZATION
-        &LOCALIZE T
-          &PRINT
-            &WANNIER_CENTERS
-              IONS+CENTERS
-              FORMAT XMOL
-            &END
-          &END
+        &WANNIER_CENTERS
+          IONS+CENTERS
+          FORMAT XMOL
         &END
         &MOLECULAR_DIPOLES
           COMMON_ITERATION_LEVELS 2

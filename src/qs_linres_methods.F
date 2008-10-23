@@ -106,13 +106,15 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(section_vals_type), POINTER         :: loc_section, lr_section
+    TYPE(section_vals_type), POINTER         :: loc_section, lr_section, &
+                                                print_loc_section
 
     failure = .FALSE.
     NULLIFY(logger, lr_section, loc_section)
     logger => cp_error_get_logger(error)
     lr_section  => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
     loc_section => section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
+    print_loc_section => section_vals_get_subs_vals(lr_section,"PRINT",error=error)
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
                                        extension=".linresLog",error=error)
     my_centers_only = .FALSE.
@@ -141,7 +143,7 @@ CONTAINS
     CALL qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,do_localize=.TRUE.,error=error)
     ! The localized orbitals are copied in the mos,
     ! The orbital centers are stored in linres_control%localized_wfn_control
-    CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,error=error)
+    CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,error=error)
     CALL qs_loc_env_release(qs_loc_env, error=error)
 
     ! Write Centers and Spreads on std out
