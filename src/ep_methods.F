@@ -52,7 +52,6 @@ MODULE ep_methods
                                              sm_pool_give_back_matrix,&
                                              sm_pools_create_matrix_vect
   USE distribution_2d_types,           ONLY: distribution_2d_get
-!  USE qs_overlap, only: write_sparse_matrix
   USE ep_qs_methods,                   ONLY: ep_qs_create
   USE ep_qs_types,                     ONLY: ep_qs_release,&
                                              ep_qs_type
@@ -74,7 +73,8 @@ MODULE ep_methods
   USE input_constants,                 ONLY: do_ep,&
                                              do_qs,&
                                              ot_precond_full_kinetic,&
-                                             ot_precond_solver_default
+                                             ot_precond_solver_default,&
+                                             wfi_use_prev_wf_method_nr
   USE input_cp2k,                      ONLY: create_cp2k_input_reading
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_get_subs_vals,&
@@ -145,7 +145,6 @@ MODULE ep_methods
                                              qs_wf_snapshot_type,&
                                              wfi_get_snapshot,&
                                              wfi_release,&
-                                             wfi_use_prev_wf_method_nr,&
                                              wfs_release
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE replica_types,                   ONLY: rep_env_calc_e_f,&

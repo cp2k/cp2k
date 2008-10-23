@@ -292,17 +292,17 @@ MODULE input_constants
        do_pwgrid_ns_fullspace=2,&
        do_pwgrid_ns_halfspace=3
 
-  INTEGER, PARAMETER, PUBLIC ::&
-       do_extrpl_use_guess=0,&
-       do_extrpl_use_prev_p=1,&
-       do_extrpl_use_prev_rho_r=2,&
-       do_extrpl_linear_wf=3,&
-       do_extrpl_linear_p=4,&
-       do_extrpl_linear_ps=5,&
-       do_extrpl_use_prev_wf=6,&
-       do_extrpl_ps=7,&
-       do_extrpl_frozen=8,&
-       do_extrpl_aspc=9
+  INTEGER, PARAMETER, PUBLIC :: &
+       wfi_use_guess_method_nr=0,&
+       wfi_use_prev_p_method_nr=1,&
+       wfi_use_prev_rho_r_method_nr=2,&
+       wfi_linear_wf_method_nr=3,&
+       wfi_linear_p_method_nr=4,&
+       wfi_linear_ps_method_nr=5,&
+       wfi_use_prev_wf_method_nr=6,&
+       wfi_ps_method_nr=7,&
+       wfi_frozen_method_nr=8,&
+       wfi_aspc_nr=9
 
   INTEGER, PARAMETER, PUBLIC ::&
        do_method_undef=0,&

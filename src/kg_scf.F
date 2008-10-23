@@ -31,7 +31,8 @@ MODULE kg_scf
   USE input_constants,                 ONLY: atomic_guess,&
                                              core_guess,&
                                              random_guess,&
-                                             restart_guess
+                                             restart_guess,&
+                                             wfi_use_guess_method_nr
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kahan_sum,                       ONLY: accurate_sum
@@ -100,7 +101,6 @@ MODULE kg_scf
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
                                              wfi_get_method_label,&
                                              wfi_update
-  USE qs_wf_history_types,             ONLY: wfi_use_guess_method_nr
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&

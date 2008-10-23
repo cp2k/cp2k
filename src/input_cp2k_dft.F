@@ -1890,17 +1890,18 @@ CONTAINS
             "Higher order extrapolation of the density matrix times the overlap matrix",&
             "Frozen ...",&
             "Always stable predictor corrector, similar to PS, but going for MD stability instead of intial guess accuracy."),&
-            enum_i_vals=(/ do_extrpl_use_guess,&
-            do_extrpl_use_prev_p,&
-            do_extrpl_use_prev_rho_r,&
-            do_extrpl_linear_wf,&
-            do_extrpl_linear_p,&
-            do_extrpl_linear_ps,&
-            do_extrpl_use_prev_wf,&
-            do_extrpl_ps,&
-            do_extrpl_frozen,&
-            do_extrpl_aspc /),&
-            default_i_val=do_extrpl_ps, error=error)
+            enum_i_vals=(/&
+            wfi_use_guess_method_nr,&
+            wfi_use_prev_p_method_nr,&
+            wfi_use_prev_rho_r_method_nr,&
+            wfi_linear_wf_method_nr,&
+            wfi_linear_p_method_nr,&
+            wfi_linear_ps_method_nr,&
+            wfi_use_prev_wf_method_nr,&
+            wfi_ps_method_nr,&
+            wfi_frozen_method_nr,&
+            wfi_aspc_nr/),&
+            default_i_val=wfi_ps_method_nr, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

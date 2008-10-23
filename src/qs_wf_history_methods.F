@@ -37,6 +37,11 @@ MODULE qs_wf_history_methods
                                              sm_pool_create_matrix,&
                                              sm_pools_create_matrix_vect
   USE f77_blas
+  USE input_constants,                 ONLY: &
+       wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
+       wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
+       wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
+       wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr
   USE kg_gpw_fm_mol_types,             ONLY: duplicate_kg_fm_p_type,&
                                              kg_fm_mol_set_create,&
                                              kg_fm_mol_set_release,&
@@ -73,13 +78,12 @@ MODULE qs_wf_history_methods
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-  USE qs_wf_history_types,             ONLY: &
-       qs_wf_history_type, qs_wf_snapshot_p_type, qs_wf_snapshot_type, &
-       wfi_aspc, wfi_clear_history, wfi_frozen_method_nr, wfi_get_snapshot, &
-       wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
-       wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
-       wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
-       wfi_use_prev_wf_method_nr, wfs_release
+  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
+                                             qs_wf_snapshot_p_type,&
+                                             qs_wf_snapshot_type,&
+                                             wfi_clear_history,&
+                                             wfi_get_snapshot,&
+                                             wfs_release
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              copy_matrix,&
                                              cp_sm_scale_and_add,&
@@ -655,7 +659,7 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
      CASE(wfi_frozen_method_nr)
         wf_history%memory_depth=1
         wf_history%store_frozen_density=.TRUE.
-     CASE (wfi_aspc)
+     CASE (wfi_aspc_nr)
        wf_history%memory_depth = my_extrapolation_order + 2
        wf_history%store_wf = .TRUE.
        wf_history%store_overlap = .TRUE.
@@ -719,7 +723,7 @@ FUNCTION wfi_get_method_label(method_nr,error) RESULT(res)
         res="PS Nth order"
      CASE(wfi_frozen_method_nr)
         res="frozen density approximation"
-     CASE(wfi_aspc)
+     CASE(wfi_aspc_nr)
        res = "ASPC"
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -1179,7 +1183,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
            CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
         END IF
-    CASE (wfi_aspc)
+    CASE (wfi_aspc_nr)
       ! figure out the actual number of vectors to use in the extrapolation:
       nvec = MIN(wf_history%memory_depth,wf_history%snapshot_count)
       CPPrecondition(nvec.GT.0,cp_failure_level,routineP,error,failure)

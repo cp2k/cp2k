@@ -33,12 +33,6 @@ MODULE qs_wf_history_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wf_history_types'
 
-  INTEGER, PARAMETER, PUBLIC :: wfi_use_guess_method_nr=0,&
-       wfi_use_prev_p_method_nr=1, wfi_use_prev_rho_r_method_nr=2,&
-       wfi_linear_wf_method_nr=3, wfi_linear_p_method_nr=4,&
-       wfi_linear_ps_method_nr=5, wfi_use_prev_wf_method_nr=6,&
-       wfi_ps_method_nr=7, wfi_frozen_method_nr=8, wfi_aspc=9
-
   PUBLIC :: qs_wf_snapshot_type, qs_wf_snapshot_p_type, &
             qs_wf_history_type, qs_wf_history_p_type
   PUBLIC :: wfs_retain, wfs_release, wfi_retain, wfi_release, wfi_get_snapshot, &

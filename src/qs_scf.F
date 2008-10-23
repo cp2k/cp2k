@@ -88,7 +88,8 @@ MODULE qs_scf
        ot_precond_full_single, ot_precond_full_single_inverse, &
        ot_precond_none, ot_precond_s_inverse, ot_precond_sparse_diag, &
        ot_precond_sparse_firstorder, ot_precond_sparse_kinetic, &
-       outer_scf_none, outer_scf_scp, plus_u_lowdin, restart_guess
+       outer_scf_none, outer_scf_scp, plus_u_lowdin, restart_guess, &
+       wfi_frozen_method_nr, wfi_use_guess_method_nr
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -165,8 +166,6 @@ MODULE qs_scf
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
                                              wfi_get_method_label,&
                                              wfi_update
-  USE qs_wf_history_types,             ONLY: wfi_frozen_method_nr,&
-                                             wfi_use_guess_method_nr
   USE scf_control_types,               ONLY: scf_control_type,&
                                              smear_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type
