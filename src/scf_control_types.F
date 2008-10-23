@@ -53,7 +53,8 @@ MODULE scf_control_types
 
   PUBLIC :: outer_scf_control_type,&
             scf_control_type,&
-            smear_type
+            smear_type,&
+            diagonalization_type
 
   ! Public subroutines
 
@@ -107,20 +108,26 @@ MODULE scf_control_types
     REAL(KIND=dp), DIMENSION(:), POINTER :: list
   END TYPE smear_type
 
+  TYPE diagonalization_type
+    INTEGER       :: method
+    REAL(KIND=dp) :: eps_jacobi
+    REAL(KIND=dp) :: jacobi_threshold
+  END TYPE diagonalization_type
+
   TYPE scf_control_type
     TYPE(outer_scf_control_type)          :: outer_scf
     TYPE(smear_type)                      :: smear
+    TYPE(diagonalization_type)            :: diagonalization
     INTEGER                               :: density_guess
     REAL(KIND=dp)                         :: eps_eigval,eps_scf,eps_scf_hist,&
                                              level_shift,p_mix,work_syevx,&
-                                             eps_lumos,eps_diis,eps_jacobi,&
-                                             jacobi_threshold,gspace_mixing_a,&
-                                             gspace_mixing_b
+                                             eps_lumos,eps_diis,&
+                                             gspace_mixing_a, gspace_mixing_b
     INTEGER                               :: nmixing, max_iter_lumos, max_diis
     INTEGER                               :: max_scf,nrow_block,max_scf_hist,&
                                              ncol_block,maxl,nkind
     LOGICAL                               :: gradient_functional,gth_potential_present,&
-                                             use_cholesky,use_ot
+                                             use_cholesky,use_ot,use_diag
     INTEGER                               :: ref_count,id_nr
     INTEGER, DIMENSION(2)                 :: added_mos
     INTEGER                               :: roks_scheme
@@ -176,17 +183,21 @@ CONTAINS
       scf_control%nmixing = 2
       scf_control%work_syevx = 1.0_dp
       scf_control%use_cholesky = .TRUE.
+      scf_control%use_diag = .TRUE.
       scf_control%use_ot = .FALSE.
       scf_control%max_diis = 4
       scf_control%eps_diis = 0.1_dp
       scf_control%ref_count=1
       scf_control%id_nr=last_scf_c_id_nr
-      scf_control%eps_jacobi = 0.0_dp
-      scf_control%jacobi_threshold = 1.0E-7_dp
       scf_control%added_mos(:) = 0
       scf_control%max_scf_hist = 0
       scf_control%gspace_mixing_a = 1.0_dp
       scf_control%gspace_mixing_b = 0.0_dp
+
+      ! Diagonalization
+      scf_control%diagonalization%method = 0.0_dp
+      scf_control%diagonalization%eps_jacobi = 0.0_dp
+      scf_control%diagonalization%jacobi_threshold = 1.0E-7_dp
 
       ! ROKS
 
@@ -361,9 +372,20 @@ CONTAINS
       CALL section_vals_val_get(scf_section,"ncol_block",&
                                 i_val=scf_control%ncol_block,&
                                 error=error)
+      CALL section_vals_val_get(scf_section,"DIAGONALIZATION%_SECTION_PARAMETERS_",&
+                                l_val=scf_control%use_diag,&
+                                error=error)
       CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",&
                                 l_val=scf_control%use_ot,&
                                 error=error)
+      IF ( scf_control%use_diag .AND. scf_control%use_ot ) THEN
+        ! don't allow both options to be true
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"Don't activate OT and Diagonaliztion together",error,failure)
+      ELSEIF ( .NOT. (scf_control%use_diag .OR. scf_control%use_ot) ) THEN
+        ! set default to diagonalization
+        scf_control%use_diag = .TRUE.
+      END IF
       CALL section_vals_val_get(scf_section,"SCF_GUESS",&
                                 i_val=scf_control%density_guess,&
                                 error=error)
@@ -382,12 +404,6 @@ CONTAINS
                                 error=error)
       CALL section_vals_val_get(scf_section,"eps_eigval",&
                                 r_val=scf_control%eps_eigval,&
-                                error=error)
-      CALL section_vals_val_get(scf_section,"eps_jacobi",&
-                                r_val=scf_control%eps_jacobi,&
-                                error=error)
-      CALL section_vals_val_get(scf_section,"jacobi_threshold",&
-                                r_val=scf_control%jacobi_threshold,&
                                 error=error)
       CALL section_vals_val_get(scf_section,"cholesky",&
                                 l_val=scf_control%use_cholesky,&
@@ -408,6 +424,16 @@ CONTAINS
                                 r_val=scf_control%work_syevx,&
                                 error=error)
       scf_control%work_syevx = MIN(MAX(0.0_dp,scf_control%work_syevx),1.0_dp)
+
+      ! Diagonaliztion section
+      IF ( scf_control%use_diag ) THEN
+        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%eps_jacobi",&
+                                r_val=scf_control%diagonalization%eps_jacobi,&
+                                error=error)
+        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%jacobi_threshold",&
+                                r_val=scf_control%diagonalization%jacobi_threshold,&
+                                error=error)
+      END IF
 
       ! Read ROKS parameters
 
@@ -597,7 +623,7 @@ CONTAINS
 
           WRITE (UNIT=output_unit,&
                  FMT="(/,/,T2,A,T25,A,T51,A30,/,T25,56('-'),3(/,T25,A,T76,I5),/,"//&
-                     "T25,56('-'),6(/,T25,A,T72,ES9.2),/,T25,56('-'),"//&
+                     "T25,56('-'),4(/,T25,A,T72,ES9.2),/,T25,56('-'),"//&
                      "5(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
             "SCF PARAMETERS",&
             "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess,error=error))),&
@@ -608,8 +634,8 @@ CONTAINS
             "eps_scf_history:   ",scf_control%eps_scf_hist,&
             "eps_diis:          ",scf_control%eps_diis,&
             "eps_eigval:        ",scf_control%eps_eigval,&
-            "eps_jacobi:        ",scf_control%eps_jacobi,&
-            "jacobi_threshold:  ",scf_control%jacobi_threshold,&
+!           "eps_jacobi:        ",scf_control%eps_jacobi,&
+!           "jacobi_threshold:  ",scf_control%jacobi_threshold,&
             "p_mix:             ",scf_control%p_mix,&
             "G-space mixing a:  ",scf_control%gspace_mixing_a,&
             "G-space mixing b:  ",scf_control%gspace_mixing_b,&

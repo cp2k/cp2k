@@ -310,7 +310,7 @@ CONTAINS
              END IF
           END IF
 
-          IF ((iter_count > 1).AND.(scf_env%iter_delta < scf_control%eps_jacobi)) THEN
+          IF ((iter_count > 1).AND.(scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
              use_jacobi = .TRUE.
           ELSE
              use_cholesky = scf_control%use_cholesky
@@ -327,7 +327,7 @@ CONTAINS
                   use_cholesky=use_cholesky,&
                   work_syevx=scf_control%work_syevx,&
                   use_jacobi=use_jacobi,&
-                  jacobi_threshold=scf_control%jacobi_threshold,&
+                  jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                   error=error)
 
              IF(ispin == 1) THEN

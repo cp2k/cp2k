@@ -869,7 +869,7 @@ CONTAINS
          "PRINT%MO/CARTESIAN",error=error),&
          cp_p_file).OR.&
          (scf_control%level_shift /= 0.0_dp).OR.&
-         (scf_control%eps_jacobi /= 0.0_dp).OR.&
+         (scf_control%diagonalization%eps_jacobi /= 0.0_dp).OR.&
          (dft_control%roks.AND.(.NOT.scf_control%use_ot))) THEN
        n_mo(:) = n_ao
     END IF
@@ -881,10 +881,6 @@ CONTAINS
 CPSourceFileRef,&
             only_ionode=.TRUE.)
 
-       IF (scf_control%eps_jacobi /= 0.0_dp) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "Pseudo-diagonalization for ROKS is not yet implemented")
-       END IF
        IF (scf_control%smear%do_smear) THEN
          CALL stop_program(routineN,moduleN,__LINE__,&
                            "The options ROKS and SMEAR are not compatible. "//&

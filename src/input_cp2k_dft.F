@@ -3715,6 +3715,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_diagonalization_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_outer_scf_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -3789,30 +3793,6 @@ CONTAINS
             description="If the cholesky method should be used for computing "//&
             "the inverse of S",&
             usage="CHOLESKY OFF", default_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="JACOBI_THRESHOLD",&
-            description="Controls the accuracy of the pseudo-diagonalization method using Jacobi rotations",&
-            usage="JACOBI_THRESHOLD 1.0E-6",&
-            default_r_val=1.0E-7_dp,&
-            citations=(/Stewart1982/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="EPS_JACOBI",&
-            description="Below this threshold value for the SCF convergence the pseudo-diagonalization "//&
-                        "method using Jacobi rotations is activated. This method is much faster than a "//&
-                        "real diagonalization and it is even speeding up while achieving full convergence."//&
-                        "However, it needs a pre-converged wavefunction obtained by at least one real "//&
-                        "diagonalization which is further optimized while keeping the original eigenvalue "//&
-                        "spectrum. The MO eigenvalues are NOT updated. The method might be useful to speed "//&
-                        "up calculations for large systems e.g. using a semi-empirical method.",&
-            usage="EPS_JACOBI 1.0E-5",&
-            default_r_val=0.0_dp,&
-            citations=(/Stewart1982/),&
-            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5238,6 +5218,81 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_ot_section
+
+! *****************************************************************************
+!> \brief creates the diagonalization section
+!> \par History
+!>      10.2008 created [JGH]
+! *****************************************************************************
+  SUBROUTINE create_diagonalization_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_diagonalization_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"DIAGONALIZATION",&
+            description="Sets the various options for Kohn-Sham matrix diagonalization.",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of the ot method",&
+            usage="&DIAGONALIZATION T",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ALGORITHM",&
+            description="Algorithm to be used for diagonalization",&
+            usage="ALGORITHM STANDARD",&
+            default_i_val=diag_standard,&
+            enum_c_vals=s2a( "STANDARD" ),&
+            enum_desc=s2a("Standard diagonalization: LAPACK methods or Jacobi."),&
+            enum_i_vals=(/diag_standard/),& 
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="JACOBI_THRESHOLD",&
+            description="Controls the accuracy of the pseudo-diagonalization method using Jacobi rotations",&
+            usage="JACOBI_THRESHOLD 1.0E-6",&
+            default_r_val=1.0E-7_dp,&
+            citations=(/Stewart1982/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_JACOBI",&
+            description="Below this threshold value for the SCF convergence the pseudo-diagonalization "//&
+                        "method using Jacobi rotations is activated. This method is much faster than a "//&
+                        "real diagonalization and it is even speeding up while achieving full convergence."//&
+                        "However, it needs a pre-converged wavefunction obtained by at least one real "//&
+                        "diagonalization which is further optimized while keeping the original eigenvalue "//&
+                        "spectrum. The MO eigenvalues are NOT updated. The method might be useful to speed "//&
+                        "up calculations for large systems e.g. using a semi-empirical method.",&
+            usage="EPS_JACOBI 1.0E-5",&
+            default_r_val=0.0_dp,&
+            citations=(/Stewart1982/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_diagonalization_section
 
 ! *****************************************************************************
 !> \brief makes the input section for core-level spectroscopy simulations

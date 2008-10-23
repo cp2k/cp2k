@@ -379,7 +379,7 @@ CPSourceFileRef,&
                            use_cholesky=scf_control%use_cholesky,&
                            work_syevx=scf_control%work_syevx,&
                            use_jacobi=.FALSE.,&
-                           jacobi_threshold=scf_control%jacobi_threshold,&
+                           jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                            error=error)
        END IF
 
@@ -725,7 +725,7 @@ CPSourceFileRef,&
                           use_cholesky=scf_control%use_cholesky,&
                           work_syevx=scf_control%work_syevx, &
                           use_jacobi=.FALSE.,&
-                          jacobi_threshold=scf_control%jacobi_threshold, &
+                          jacobi_threshold=scf_control%diagonalization%jacobi_threshold, &
                           error=error)
          CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
                                 smear=scf_control%smear,&

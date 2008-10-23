@@ -549,7 +549,7 @@ CONTAINS
                   scf_env%iter_method = "Mixing/Diag."
                END IF
            END IF
-           IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%eps_jacobi)) THEN
+           IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
                use_jacobi = .TRUE.
            ELSE
                use_cholesky = scf_control%use_cholesky
@@ -1244,7 +1244,7 @@ CONTAINS
                                    .FALSE.,0.0_dp,&
                                     use_cholesky=scf_control%use_cholesky, &
                                     use_jacobi=.FALSE.,&
-                                    jacobi_threshold=scf_control%jacobi_threshold,&
+                                    jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                                     smear=0.0_dp, error=error)
 
             IF (scf_control%level_shift /= 0.0_dp) THEN

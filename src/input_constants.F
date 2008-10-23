@@ -479,6 +479,8 @@ MODULE input_constants
                                 ot_precond_solver_inv_chol=2,&
                                 ot_precond_solver_direct=3
 
+  INTEGER, PARAMETER, PUBLIC :: diag_standard=1
+
   INTEGER, PARAMETER,PUBLIC :: dyn_coeff_mass_global=1, dyn_coeff_mass_kind=2,&
    dyn_coeff_mass_atom=3, dyn_coeff_mass_coeff=4
 

@@ -495,7 +495,7 @@ CONTAINS
                                    do_level_shift,scf_control%level_shift,&
                                    use_cholesky=scf_control%use_cholesky, &
                                    use_jacobi=use_jacobi,&
-                                   jacobi_threshold=scf_control%jacobi_threshold,&
+                                   jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                                    smear=scf_control%smear%window_size, error=error)
 
           CALL calculate_mol_density_matrix(mo_set,mol_block,&
