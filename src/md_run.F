@@ -108,21 +108,26 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_mol_dyn ( force_env, globenv, averages, error )
+  SUBROUTINE qs_mol_dyn ( force_env, globenv, averages, rm_restart_info, error )
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(average_quantities_type), &
       OPTIONAL, POINTER                      :: averages
+    LOGICAL, INTENT(IN), OPTIONAL            :: rm_restart_info
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: failure, my_rm_restart_info
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: md_section, motion_section
 
+    failure = .FALSE.
+    my_rm_restart_info = .TRUE.
+    IF (PRESENT(rm_restart_info)) my_rm_restart_info = rm_restart_info
     NULLIFY(md_env, para_env)
     para_env       => force_env%para_env
     motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
@@ -135,7 +140,7 @@ CONTAINS
     CALL md_env_release(md_env, error=error)
 
     ! Clean restartable sections..
-    CALL remove_restart_info(force_env%root_section,error=error)
+    IF (my_rm_restart_info) CALL remove_restart_info(force_env%root_section,error=error)
   END SUBROUTINE qs_mol_dyn
 
 ! *****************************************************************************

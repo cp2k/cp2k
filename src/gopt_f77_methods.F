@@ -245,7 +245,8 @@ CPSourceFileRef,&
                project_name, id_run=mol_dyn_run, error=error)
           CALL create_averages(averages, avgs_section, virial_avg=.TRUE., force_env=gopt_env%force_env,&
                error=error)
-          CALL qs_mol_dyn(gopt_env%force_env, gopt_env%globenv, averages, new_error)
+          CALL qs_mol_dyn(gopt_env%force_env, gopt_env%globenv, averages, rm_restart_info=.FALSE.,&
+                          error=new_error)
           ! Retrieve the average of the stress tensor and the average of the potential energy
           potential_energy=averages%avepot
           CALL cp_virial(averages%virial, virial_avg)
