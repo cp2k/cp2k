@@ -328,6 +328,7 @@ OBJECTS_GENERIC =\
  message_passing.o\
  metadynamics.o\
  metadynamics_types.o\
+ metadynamics_utils.o\
  mixed_energy_types.o\
  mixed_environment.o\
  mixed_environment_types.o\

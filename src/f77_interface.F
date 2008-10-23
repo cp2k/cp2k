@@ -80,9 +80,9 @@ MODULE f77_interface
        MPI_COMM_WORLD, add_mp_perf_env, get_mp_perf_env, mp_max, &
        mp_perf_env_release, mp_perf_env_retain, mp_perf_env_type, &
        mp_world_finalize, mp_world_init, rm_mp_perf_env
-  USE metadynamics,                    ONLY: metadyn_read
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_type
+  USE metadynamics_utils,              ONLY: metadyn_read
   USE mixed_main,                      ONLY: mixed_create_force_env
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: init_physcon

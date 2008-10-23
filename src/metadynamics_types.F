@@ -9,10 +9,12 @@
 !>      01.2005 created [fawzi and ale]
 ! *****************************************************************************
 MODULE metadynamics_types
-  USE cp_para_env,                     ONLY: cp_para_env_release
+  USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              dp
 #include "cp_common_uses.h"
@@ -21,10 +23,18 @@ MODULE metadynamics_types
 
   PRIVATE
 
+  INTEGER, SAVE, PRIVATE               :: last_meta_env_id=0
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics_types'
 
-  PUBLIC :: hills_env_type, meta_env_type, meta_env_retain, set_meta_env, &
-            meta_env_release, metavar_type, wall_type, multiple_walkers_type
+  PUBLIC :: metadyn_create,&
+            hills_env_type,&
+            meta_env_type,&
+            meta_env_retain,&
+            set_meta_env,&
+            meta_env_release,&
+            metavar_type,&
+            wall_type,&
+            multiple_walkers_type
 
 ! *****************************************************************************
 !> \brief defines types for HILLS
@@ -96,6 +106,109 @@ MODULE metadynamics_types
   END TYPE meta_env_type
 
 CONTAINS
+  
+! *****************************************************************************
+!> \brief allocates a metadynamic environment (performs only minimal 
+!>      initialization)
+!> \param meta_env the meta env_ that will be allocated
+!> \param n_colvar number of collectiva variables
+!> \param do_hills if the hills should be added
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      04.2004 created
+!>      02.2006 Reorganized the structure of the restart for Metadynamics (teo)
+!>              cleaned the metadynamic type
+!> \author - alessandro laio and fawzi mohamed
+!>         - Teodoro Laino [tlaino] - University of Zurich. 11.2007
+!>         - Teodoro Laino [tlaino] - University of Zurich. 10.2008
+!>           Major rewriting and addition of multiple walkers
+! *****************************************************************************
+  SUBROUTINE metadyn_create(meta_env, n_colvar, dt, para_env, metadyn_section, error)
+    TYPE(meta_env_type), POINTER             :: meta_env
+    INTEGER, INTENT(in)                      :: n_colvar
+    REAL(dp), INTENT(in)                     :: dt
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: metadyn_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(meta_env),cp_failure_level,routinep,error,failure)
+    ALLOCATE(meta_env,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY(meta_env%multiple_walkers,&
+               meta_env%metadyn_section,&
+               meta_env%time,&
+               meta_env%hills_env)
+
+       meta_env%metadyn_section => metadyn_section
+       meta_env%ref_count = 1
+       meta_env%restart   = .TRUE.
+       last_meta_env_id   =  last_meta_env_id+1
+       meta_env%id_nr     =  last_meta_env_id
+       meta_env%n_colvar  =  n_colvar
+       meta_env%para_env  => para_env
+       CALL cp_para_env_retain(para_env,error=error)
+
+       meta_env%ekin_s      = 0.0_dp
+       meta_env%cv_energy   = 0.0_dp
+       meta_env%n_steps     = 0
+       meta_env%dt          = dt
+       meta_env%tempcontrol = .FALSE.
+
+       ! Hills_env
+       ALLOCATE(meta_env%hills_env, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       ALLOCATE(meta_env%hills_env%ss_history(n_colvar,0), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       ALLOCATE(meta_env%hills_env%delta_s_history(n_colvar,0), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       ALLOCATE(meta_env%hills_env%ww_history(0), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       meta_env%hills_env%n_hills = 0
+       meta_env%hills_env%restart = .TRUE.
+
+       ! Colvar
+       ALLOCATE(meta_env%metavar(n_colvar), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DO i = 1, n_colvar
+          NULLIFY(meta_env%metavar(i)%walls)
+          meta_env%metavar(i)%mass      = -HUGE(0.0_dp)
+          meta_env%metavar(i)%lambda    = -HUGE(0.0_dp)
+          meta_env%metavar(i)%ss        = 0.0_dp
+          meta_env%metavar(i)%ss0       = 0.0_dp
+          meta_env%metavar(i)%ff_s      = 0.0_dp
+          meta_env%metavar(i)%vvp       = 0.0_dp
+          meta_env%metavar(i)%cv_energy = 0.0_dp
+          meta_env%metavar(i)%delta_s   = 0.0_dp
+          meta_env%metavar(i)%ff_hills  = 0.0_dp
+          meta_env%metavar(i)%do_wall   = .FALSE.
+          meta_env%metavar(i)%periodic  = .FALSE.
+          meta_env%metavar(i)%icolvar   = 0
+       END DO
+
+       ! Multiple Walkers
+       CALL section_vals_val_get(metadyn_section,"MULTIPLE_WALKERS%_SECTION_PARAMETERS_",&
+            l_val=meta_env%do_multiple_walkers,error=error)
+       IF (meta_env%do_multiple_walkers) THEN
+          ALLOCATE(meta_env%multiple_walkers,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          
+          ! Walkers status and Walkers file name
+          NULLIFY(meta_env%multiple_walkers%walkers_status,&
+                  meta_env%multiple_walkers%walkers_file_name)
+          meta_env%multiple_walkers%n_hills_local = 0
+       END IF
+    END IF
+  END SUBROUTINE metadyn_create
 
 ! *****************************************************************************
 !> \brief sets the meta_env
