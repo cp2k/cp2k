@@ -597,7 +597,7 @@ CONTAINS
 
     !   *** SCF parameters ***
     CALL scf_c_create(scf_control,error=error)
-    CALL scf_c_read_parameters(scf_control,root_section,qs_env%input,error=error)
+    CALL scf_c_read_parameters(scf_control,dft_section,error=error)
 
     !   *** Use the just read block sizes to set the optimal values in cp_fm_struct ***
     optimal_blacs_row_block_size=scf_control%nrow_block
