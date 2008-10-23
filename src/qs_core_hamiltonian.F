@@ -1744,11 +1744,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=6)                         :: extension
-    INTEGER                                  :: i, iw
+    INTEGER                                  :: handle, i, iw
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_v
     TYPE(section_vals_type), POINTER         :: input
+
+    CALL timeset(routineN,handle)
 
     NULLIFY(logger, matrix_v)
     logger => cp_error_get_logger(error)
@@ -1833,6 +1835,8 @@ CONTAINS
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/OCE_SOFT", error=error)
     END IF
+
+    CALL timestop(handle)
 
   END SUBROUTINE dump_info_core_hamiltonian
 

@@ -750,10 +750,12 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: lowdin_title, mulliken_title
-    INTEGER                                  :: unit_nr
+    INTEGER                                  :: handle, unit_nr
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: density_fit_section, print_key
+
+    CALL timeset(routineN,handle)
 
     NULLIFY(particle_set)
     CALL get_qs_env(qs_env=qs_env,&
@@ -794,6 +796,8 @@ CPSourceFileRef,&
        CALL cp_print_key_finished_output(unit_nr, logger,input,"PROPERTIES%FIT_CHARGE", error=error)
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE qs_scf_post_charges
 
 ! *****************************************************************************
@@ -817,7 +821,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: iter
     COMPLEX(KIND=dp)                         :: zeta
     COMPLEX(KIND=dp), DIMENSION(3)           :: ggamma, zphase
-    INTEGER                                  :: i, ispins, j, n_rep, &
+    INTEGER                                  :: handle, i, ispins, j, n_rep, &
                                                 reference, unit_nr
     LOGICAL                                  :: do_berry, failure, &
                                                 first_time, ghost
@@ -830,6 +834,8 @@ CPSourceFileRef,&
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION%TOTAL_DIPOLE", error=error)
@@ -939,6 +945,8 @@ CPSourceFileRef,&
        CALL put_results(qs_env%results,description,dipole,error)
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE qs_scf_post_loc_dip
 
 ! *****************************************************************************
@@ -965,14 +973,17 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename, title
-    INTEGER                                  :: ivector, my_basis_set_id, &
-                                                nhomo, unit_nr
+    INTEGER                                  :: handle, ivector, &
+                                                my_basis_set_id, nhomo, &
+                                                unit_nr
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+
+    CALL timeset(routineN,handle)
 
     IF(PRESENT(basis_set_id)) THEN
       my_basis_set_id = basis_set_id
@@ -1004,6 +1015,8 @@ CPSourceFileRef,&
        ENDDO
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE qs_scf_post_occ_cubes
 
 ! *****************************************************************************
@@ -1030,13 +1043,15 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename, title
-    INTEGER                                  :: ivector, unit_nr
+    INTEGER                                  :: handle, ivector, unit_nr
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+
+    CALL timeset(routineN,handle)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",error=error),cp_p_file)&
          .AND.  section_get_lval(dft_section,"PRINT%MO_CUBES%WRITE_CUBE",error=error) ) THEN
@@ -1060,6 +1075,8 @@ CPSourceFileRef,&
           CALL cp_print_key_finished_output(unit_nr,logger,input,"DFT%PRINT%MO_CUBES",error=error)
        ENDDO
     ENDIF
+
+    CALL timestop(handle)
 
   END SUBROUTINE qs_scf_post_unocc_cubes
 
@@ -1087,7 +1104,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER                                  :: homo, ispin, nmo, unit_nr
+    INTEGER                                  :: handle, homo, ispin, nmo, &
+                                                unit_nr
     LOGICAL                                  :: homoEQnmo
     REAL(KIND=dp)                            :: volume
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
@@ -1097,6 +1115,8 @@ CPSourceFileRef,&
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
+
+    CALL timeset(routineN,handle)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
          "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
@@ -1133,6 +1153,9 @@ CPSourceFileRef,&
           IF (ionode) WRITE(output_unit,*) " Results written to file ",filename
        ENDIF
     ENDIF
+
+    CALL timestop(handle)
+
   END SUBROUTINE qs_scf_post_optc
 
 ! *****************************************************************************
@@ -1153,10 +1176,13 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER                                  :: maxmom, reference, unit_nr
+    INTEGER                                  :: handle, maxmom, reference, &
+                                                unit_nr
     LOGICAL                                  :: periodic
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
     TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
 
     print_key => section_vals_get_subs_vals(section_vals=input,&
          subsection_name="DFT%PRINT%MOMENTS",error=error)
@@ -1197,6 +1223,8 @@ CPSourceFileRef,&
             error=error)
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE qs_scf_post_moments
 
 ! *****************************************************************************
@@ -1219,9 +1247,11 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER                                  :: unit_nr
+    INTEGER                                  :: handle, unit_nr
     REAL(KIND=dp)                            :: q_max
     TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
 
     print_key => section_vals_get_subs_vals(section_vals=input,&
                                             subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
@@ -1259,6 +1289,8 @@ CPSourceFileRef,&
                                         error=error)
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE qs_scf_post_xray
 
 ! *****************************************************************************
@@ -1276,7 +1308,10 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_efg', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
 
     print_key => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT",&
@@ -1285,6 +1320,8 @@ CPSourceFileRef,&
               cp_p_file)) THEN
        CALL qs_efg_calc(qs_env=qs_env,error=error)
     END IF
+
+    CALL timestop(handle)
 
   END SUBROUTINE qs_scf_post_efg
 
@@ -1303,11 +1340,13 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_et', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, stat
+    INTEGER                                  :: handle, ispin, stat
     LOGICAL                                  :: do_et
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_mos
     TYPE(section_vals_type), POINTER         :: et_section
+
+    CALL timeset(routineN,handle)
 
     do_et=.FALSE.
     et_section =>  section_vals_get_subs_vals(input,"PROPERTIES%ET_COUPLING",&
@@ -1332,6 +1371,8 @@ CPSourceFileRef,&
        END IF
     END IF    
 
+    CALL timestop(handle)
+
   END SUBROUTINE qs_scf_post_et
 
 ! *****************************************************************************
@@ -1353,7 +1394,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_molopt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nao, unit_nr
+    INTEGER                                  :: handle, nao, unit_nr
     REAL(KIND=dp)                            :: S_cond_number
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
     TYPE(cp_fm_struct_type), POINTER         :: ao_ao_fmstruct
@@ -1364,6 +1405,8 @@ CPSourceFileRef,&
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
 
     print_key => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="DFT%PRINT%BASIS_MOLOPT_QUANTITIES",&
@@ -1407,6 +1450,8 @@ CPSourceFileRef,&
 
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE qs_scf_post_molopt
 
 ! *****************************************************************************
@@ -1424,7 +1469,10 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_epr', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
 
     print_key => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="DFT%PRINT%HYPERFINE_COUPLING_TENSOR",&
@@ -1433,6 +1481,8 @@ CPSourceFileRef,&
               cp_p_file)) THEN
        CALL qs_epr_hyp_calc(qs_env=qs_env,error=error)
     END IF
+
+    CALL timestop(handle)
 
   END SUBROUTINE qs_scf_post_epr
 

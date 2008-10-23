@@ -119,7 +119,6 @@ MODULE qs_neighbor_lists
             build_gth_ppl_neighbor_lists,&
             build_qs_neighbor_lists,&
             deallocate_subcell,&
-            write_distribution,&
             write_neighbor_lists
 
 CONTAINS
@@ -1313,7 +1312,7 @@ CONTAINS
                                 print_key_path=print_key_path,&
                                 extension=".out",&
                                 error=error)
-      CALL write_distribution(sab_orb,atomic_kind_set,iw,para_env,error)
+      CALL write_neighbor_distribution(sab_orb,atomic_kind_set,iw,para_env,error)
       CALL cp_print_key_finished_output(unit_nr=iw,&
                                         logger=logger,&
                                         basis_section=force_env_section,&
@@ -3101,7 +3100,7 @@ CONTAINS
 !> \date    19.06.2003
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_distribution(ab,atomic_kind_set,output_unit,para_env,error)
+  SUBROUTINE write_neighbor_distribution(ab,atomic_kind_set,output_unit,para_env,error)
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -3110,7 +3109,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_distribution', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_neighbor_distribution', &
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: full_output = .FALSE.
 
@@ -3237,7 +3236,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE write_distribution
+  END SUBROUTINE write_neighbor_distribution
 
 ! *****************************************************************************
 !> \brief   Write a set of neighbor lists to the output unit.
