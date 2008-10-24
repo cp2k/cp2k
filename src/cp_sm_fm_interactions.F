@@ -92,7 +92,6 @@ CONTAINS
     INTEGER, EXTERNAL :: indxg2l,indxg2p
 
 #endif
-    !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -301,7 +300,6 @@ CONTAINS
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL :: indxg2l,indxg2p
 #endif
-    !   ---------------------------------------------------------------------------
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(real_matrix),cp_failure_level,routineP,error,failure)
@@ -671,7 +669,6 @@ CONTAINS
     INTEGER, EXTERNAL :: NUMROC
 #endif
 
-    !   ---------------------------------------------------------------------------
     failure=.FALSE.
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -847,7 +844,6 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp_sm_plus_fm_fm_t_general", &
          routineP = moduleN//"/"//routineN
 
-    !   ---------------------------------------------------------------------------
     failure=.FALSE.
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&

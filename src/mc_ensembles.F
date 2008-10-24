@@ -181,7 +181,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: particles_old
     TYPE(particle_list_type), POINTER        :: particles_bias
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)

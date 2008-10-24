@@ -372,7 +372,6 @@ CONTAINS
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block_a, mol_block_b
 
 !
-!   ---------------------------------------------------------------------------
 !
 
     failure = .FALSE.

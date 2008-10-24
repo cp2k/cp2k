@@ -1839,8 +1839,6 @@ END SUBROUTINE qs_scf_print_summary
                                                 matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct,&

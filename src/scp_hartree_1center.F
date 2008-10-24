@@ -588,8 +588,6 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: aux_basis
     TYPE(scp_energy_type), POINTER           :: energy
 
-!   ---------------------------------------------------------------------------
-
     my_debug = .FALSE.
     IF ( PRESENT ( debug ) ) my_debug = debug
     energy_only = .FALSE.
@@ -784,8 +782,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(gto_basis_set_type), POINTER        :: aux_basis
     TYPE(scp_energy_type), POINTER           :: energy
-
-!   ---------------------------------------------------------------------------
 
     NULLIFY(para_env, atomic_kind, aux_basis)
     NULLIFY(aux_coeff_set,local_coeffs,energy)

@@ -884,8 +884,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rho_mol_blocks
     TYPE(rho_mol_blocks_type), POINTER       :: rho_block
 
-!   ---------------------------------------------------------------------------
-
     failure = .FALSE.
     my_rebuild_grids = .FALSE.
     my_rebuild_ao = .FALSE.

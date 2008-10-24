@@ -401,8 +401,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: at_a, at_b, atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)

@@ -97,7 +97,6 @@ CONTAINS
 
     CHARACTER(LEN=240)                       :: message
 
-!   ---------------------------------------------------------------------------
 ! just in case there is not enough memory do even trim... and fail with
 ! with a mystery core dump
 

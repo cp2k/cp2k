@@ -107,8 +107,6 @@ MODULE qs_all_potential
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: vverf, vvnuc
 
-!   ---------------------------------------------------------------------------
-
     failure = .FALSE.
 
     IF(PRESENT(pab).AND.PRESENT(f_a).AND.PRESENT(f_b)) THEN

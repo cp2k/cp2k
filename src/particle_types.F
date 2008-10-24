@@ -151,8 +151,6 @@ END SUBROUTINE clone_particle
 
     INTEGER                                  :: iparticle, istat
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(particle_set)) CALL deallocate_particle_set(particle_set,error=error)
 
     ALLOCATE (particle_set(nparticle),STAT=istat)
@@ -187,8 +185,6 @@ END SUBROUTINE clone_particle
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iparticle, istat
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(particle_set)) THEN
 
@@ -261,8 +257,6 @@ END SUBROUTINE clone_particle
                                                 my_basis_set_id, nc, &
                                                 nparticle, ns, nset
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
-
-!   ---------------------------------------------------------------------------
 
     IF( PRESENT(basis_set_id) ) THEN
       my_basis_set_id = basis_set_id

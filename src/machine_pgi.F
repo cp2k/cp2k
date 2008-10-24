@@ -86,7 +86,6 @@ END SUBROUTINE m_datum
 
     INTEGER, INTENT(IN)                      :: lunit
 
-!   ---------------------------------------------------------------------------
 
     CALL flush(lunit)
 

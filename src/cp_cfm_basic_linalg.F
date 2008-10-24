@@ -44,8 +44,6 @@ CONTAINS
                                                 irow_local, mypcol, myprow, &
                                                 ncol_local, nrow_local
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     myprow=matrix_a%matrix_struct%context%mepos(1)
@@ -89,8 +87,6 @@ CONTAINS
       POINTER                                :: a, b
     INTEGER                                  :: handle, mypcol, myprow
     LOGICAL                                  :: failure
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -295,8 +291,6 @@ CPSourceFileRef,&
                                                 ipcol, iprow, irow_local, k, &
                                                 mypcol, myprow, n, npcol, &
                                                 nprow
-
-!   ---------------------------------------------------------------------------
 
     myprow=matrixa%matrix_struct%context%mepos(1)
     mypcol=matrixa%matrix_struct%context%mepos(2)

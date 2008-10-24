@@ -144,7 +144,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: my_c
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_logger_type), POINTER            :: logger
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -656,7 +655,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 

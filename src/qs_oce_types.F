@@ -102,8 +102,6 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     CALL allocate_matrix_set(oce_set%hardo,ndim,error=error)
     CALL allocate_matrix_set(oce_set%softo,ndim,error=error)
 
@@ -177,8 +175,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
-
-!   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(oce_set)) RETURN
 
@@ -275,8 +271,6 @@ CONTAINS
     INTEGER                                  :: handle, i, istat, maxder, &
                                                 nsotot
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_nso, last_nso
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -388,8 +382,6 @@ CONTAINS
     TYPE(qlist_type), DIMENSION(:, :, :), &
       POINTER                                :: tmp_neigh
     TYPE(qlist_type), POINTER                :: sac_list_neighbor
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -691,8 +683,6 @@ CONTAINS
     TYPE(neighbor_list_type), POINTER        :: sac_list_neighbor_list
     TYPE(neighbor_node_type), POINTER        :: sac_list_neighbor_node
     TYPE(qlist_type), POINTER                :: sac_list_neighbor
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 

@@ -8,17 +8,13 @@
 !> \author JGH 10-08-2004
 ! *****************************************************************************
     MODULE whittaker
-!
-!------------------------------------------------------------------------------!
 
   USE f77_blas
-!
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
                                              rootpi
   USE termination,                     ONLY: stop_program
-  USE timings,                         ONLY: timeset
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -33,19 +29,18 @@
 CONTAINS
 
 ! *****************************************************************************
+!> \brief int(y^(2+l) * exp(-alpha*y*y),y=0..x);
+!>        wc(:)    :: output
+!>        r(:)     :: coordinate
+!>        expa(:)  :: exp(-alpha*r(:)**2)
+!>        erfa(:)  :: erf(sqrt(alpha)*r(:))
+!>        alpha    :: exponent
+!>        l1, l2   :: L-quantum number
+!>        n        :: number of points
+!>
+!> \author JGH 10-08-2004
+! *****************************************************************************
   SUBROUTINE whittaker_c0a ( wc, r, expa, erfa, alpha, l1, l2, n )
-
-!
-!   int(y^(2+l) * exp(-alpha*y*y),y=0..x);
-!
-!   wc(:)    :: output
-!   r(:)     :: coordinate
-!   expa(:)  :: exp(-alpha*r(:)**2)
-!   erfa(:)  :: erf(sqrt(alpha)*r(:))
-!   alpha    :: exponent
-!   l1, l2   :: L-quantum number
-!   n        :: number of points
-
     INTEGER, INTENT(IN)                      :: n, l2, l1
     REAL(KIND=dp), INTENT(IN)                :: alpha
     REAL(KIND=dp), DIMENSION(n)              :: erfa, expa, r, wc
@@ -55,8 +50,6 @@ CONTAINS
 
     INTEGER                                  :: i, k, l
     REAL(dp)                                 :: t1, x, y
-
-! -----------------------------------------------------------------------------
 
     l = l1 + l2
 
@@ -91,19 +84,18 @@ CONTAINS
   END SUBROUTINE whittaker_c0a
 
 ! *****************************************************************************
+!> \brief int(y^(2+l) * exp(-alpha*y*y),y=0..x);
+!>        wc(:)    :: output
+!>        r(:)     :: coordinate
+!>        expa(:)  :: exp(-alpha*r(:)**2)
+!>        erfa(:)  :: erf(sqrt(alpha)*r(:))
+!>        alpha    :: exponent
+!>        l        :: L-quantum number
+!>        n        :: number of points
+!>
+!> \author JGH 10-08-2004
+! *****************************************************************************
   SUBROUTINE whittaker_c0 ( wc, r, expa, erfa, alpha, l, n )
-
-!
-!   int(y^(2+l) * exp(-alpha*y*y),y=0..x);
-!
-!   wc(:)    :: output
-!   r(:)     :: coordinate
-!   expa(:)  :: exp(-alpha*r(:)**2)
-!   erfa(:)  :: erf(sqrt(alpha)*r(:))
-!   alpha    :: exponent
-!   l        :: L-quantum number
-!   n        :: number of points
-!
     INTEGER, INTENT(IN)                      :: n, l
     REAL(KIND=dp), INTENT(IN)                :: alpha
     REAL(KIND=dp), DIMENSION(n)              :: erfa, expa, r, wc
@@ -115,9 +107,6 @@ CONTAINS
     REAL(dp) :: t1, t10, t11, t12, t13, t14, t16, t17, t18, t19, t2, t21, &
       t22, t23, t25, t28, t3, t30, t31, t34, t36, t39, t4, t41, t44, t45, &
       t46, t5, t50, t51, t52, t56, t6, t61, t7, t8, t9, x
-
-! -----------------------------------------------------------------------------
-!    CALL timeset(routineN,handle)
 
     IF ( MOD(l,2) /= 0 ) THEN
         CALL stop_program(moduleN,routineN,__LINE__,&
@@ -311,27 +300,25 @@ CONTAINS
 
     END SELECT
 
-!   CALL timestop(handle)
-
   END SUBROUTINE whittaker_c0
 
 ! *****************************************************************************
+!> \brief int(y^(l+1) * exp(-alpha*y*y),y=x..infinity);
+!>
+!>                  (-1 - 1/2 l~)                          2
+!>          1/2 alpha              GAMMA(1/2 l + 1, alpha x )
+!>        
+!>        
+!>        wc(:)    :: output
+!>        r(:)     :: coordinate
+!>        expa(:)  :: exp(-alpha*r(:)**2)
+!>        alpha    :: exponent
+!>        l        :: L-quantum number
+!>        n        :: number of points
+!>
+!> \author JGH 10-08-2004
+! *****************************************************************************
   SUBROUTINE whittaker_ci ( wc, r, expa, alpha, l, n )
-
-!
-!   int(y^(l+1) * exp(-alpha*y*y),y=x..infinity);
-!
-!             (-1 - 1/2 l~)                          2
-!     1/2 alpha              GAMMA(1/2 l + 1, alpha x )
-!
-!
-!   wc(:)    :: output
-!   r(:)     :: coordinate
-!   expa(:)  :: exp(-alpha*r(:)**2)
-!   alpha    :: exponent
-!   l        :: L-quantum number
-!   n        :: number of points
-!
     INTEGER, INTENT(IN)                      :: n, l
     REAL(KIND=dp), INTENT(IN)                :: alpha
     REAL(KIND=dp), DIMENSION(n)              :: expa, r, wc
@@ -343,9 +330,6 @@ CONTAINS
     REAL(dp)                                 :: t1, t10, t13, t14, t17, t18, &
                                                 t2, t21, t25, t29, t3, t30, &
                                                 t33, t4, t5, t6, t7, t8, t9, x
-
-! -----------------------------------------------------------------------------
-!    CALL timeset(routineN,handle)
 
     IF ( MOD(l,2) /= 0 ) THEN
         CALL stop_program(moduleN,routineN,__LINE__,&
@@ -482,8 +466,6 @@ CONTAINS
         END DO
 
     END SELECT
-
-!   CALL timestop(handle)
 
   END SUBROUTINE whittaker_ci
 

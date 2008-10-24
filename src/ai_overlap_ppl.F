@@ -111,8 +111,6 @@ CONTAINS
                                                 rcg2, rcp2, zetg, zetp
     REAL(KIND=dp), DIMENSION(3)              :: rag, rbg, rcg, rcp
 
-!   ---------------------------------------------------------------------------
-
     IF (PRESENT(pab)) THEN
       IF (PRESENT(force_a)) THEN
         calculate_force_a = .TRUE.

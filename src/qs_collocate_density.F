@@ -213,7 +213,6 @@ CONTAINS
 !TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 !TYPE(pw_p_type)                          :: rhoc_r
 !TYPE(cube_info_type), POINTER            :: cube_info
-!   ---------------------------------------------------------------------------
 
     NULLIFY(aux_basis_set, atomic_kind_set, atomic_kind, npgfa, cell, particle_set, &
             sphi_a, rs_rho, pw_env, cube_info, dft_control, rho_struct, atom_list, &
@@ -389,8 +388,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
     NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
          atom_list,pw_env,rs_rho,auxbas_rs_pool,auxbas_pw_pool,cores)
@@ -563,8 +560,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(section_vals_type), POINTER         :: input, interp_section
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
-
-!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
     NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, deltap, &

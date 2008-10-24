@@ -88,8 +88,6 @@ CONTAINS
                                                 matrix_s_aux_fit_vs_orb
     TYPE(section_vals_type), POINTER         :: input, rest_b_section
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     my_calc_forces = .FALSE.

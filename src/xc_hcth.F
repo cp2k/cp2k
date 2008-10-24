@@ -227,7 +227,6 @@ CONTAINS
 
     !   *** LSDA correlation parametrisation (PW92) ***
     !   *** GGA parametrisation (HCTH/iparset) ***
-    !   ---------------------------------------------------------------------------
 
     !     *** Load the HCTH parameter set HCTH/iparset ***
 

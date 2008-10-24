@@ -143,8 +143,6 @@ CONTAINS
 
     INTEGER                                  :: imolecule, istat
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(molecule_set)) CALL deallocate_molecule_set(molecule_set,error)
 
     ALLOCATE (molecule_set(nmolecule),STAT=istat)
@@ -179,8 +177,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imolecule, istat, j
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(molecule_set)) THEN
 
@@ -262,8 +258,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(molecule)) THEN
 
       IF (PRESENT(first_atom)) first_atom = molecule%first_atom
@@ -330,8 +324,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_molecule', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(molecule)) THEN
 
       IF (PRESENT(molecule_kind)) molecule%molecule_kind => molecule_kind
@@ -386,8 +378,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imolecule
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(molecule_set)) THEN
 

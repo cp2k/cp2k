@@ -109,8 +109,6 @@ CONTAINS
                                                 orb_basis_set, soft_basis
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
 
-!   ---------------------------------------------------------------------------
-
     NULLIFY ( atomic_kind, all_potential, gth_potential, elp_potential, &
               orb_basis_set, aux_basis_set, soft_basis, paw_proj_set)
     NULLIFY ( npgf, nprj_ppnl, nshell, nexp_ppl_elp, lshell, nprj )
@@ -515,8 +513,6 @@ CONTAINS
     REAL(KIND=dp)                            :: kind_radius
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-
-! ------------------------------------------------------------------------------
 
     NULLIFY (orb_basis_set,atomic_kind)
 

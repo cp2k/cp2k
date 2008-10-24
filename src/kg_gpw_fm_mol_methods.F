@@ -56,7 +56,6 @@ MODULE kg_gpw_fm_mol_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_gpw_fm_mol_methods'
 
 ! *** Public subroutines ***
-
   PUBLIC ::  build_local_fm_mol, calculate_mol_density_matrix,&
              fm_mol_eigensolver, fm_mol_orthonormality, &
              mol_make_basis, multiply_sparse_mol_mo, &
@@ -267,8 +266,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: fmo_coeff, mo_coeff, mol_p, &
                                                 p_block
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
@@ -385,8 +382,6 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: fmo_coeff, mo_coeff
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
@@ -458,8 +453,6 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: mo_eigenvalues, mo_occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: mo_coeff
     REAL(KIND=dp)                            :: c, maxocc, s, tan_theta, tau
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -627,8 +620,6 @@ CONTAINS
       POINTER                                :: mos
     TYPE(mol_mo_set_type), POINTER           :: mo_set
 
-! -----------------------------------------------------------------------------------
-
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
 
@@ -730,8 +721,6 @@ CONTAINS
     REAL(dp)                                 :: rone, rzero
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: matrix_cc
 
-!   ----------------------------------------------------------------------
-
     failure = .FALSE.
     use_pmatrix = .FALSE.
     use_cholesky = .FALSE.
@@ -818,8 +807,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: mol_s, s_block
 
-!   ---------------------------------------------------------------------------
-
     failure = .FALSE.
 
     NULLIFY(i_atom,ifirst_ao,ilast_ao,mol_s)
@@ -840,7 +827,7 @@ CONTAINS
     CPPrecondition(ldc>=nrow,cp_failure_level,routineP,error,failure)
     CPPrecondition(ldb>=nrow,cp_failure_level,routineP,error,failure)
 
- ! Transfer the sparse matrix in the molecular block
+    ! Transfer the sparse matrix in the molecular block
     DO iat = 1,natom
       iatom = i_atom(iat)
       row_first = ifirst_ao(iat)

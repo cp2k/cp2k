@@ -125,8 +125,6 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
     NULLIFY(atomic_kind_set,atomic_kind,orb_basis_set,cell,dft_control,&
             local_particles,particle_set,rs_rho,rspw,rs_pools,pw_pools,&
@@ -318,8 +316,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind,atomic_kind_set,cell,cube_info,dft_control,&
@@ -435,8 +431,6 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -640,8 +634,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(realspace_grid_type), POINTER       :: rs_v
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,atomic_kind,cell,dft_control,force,&
@@ -768,8 +760,6 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 

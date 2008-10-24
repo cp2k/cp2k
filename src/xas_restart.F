@@ -107,8 +107,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
@@ -286,8 +284,6 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
     failure=.FALSE.

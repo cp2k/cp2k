@@ -103,7 +103,6 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE p86_lda_eval ( rho_set, deriv_set, order, p86_params, error )
 
-    !   ---------------------------------------------------------------------------
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -123,8 +122,6 @@ CONTAINS
       e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_rho, e_rho_ndrho, &
       e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, e_rho_rho_rho, grho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -226,8 +223,6 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: cr, ep, g, or, phi, r, x
 
-!   ---------------------------------------------------------------------------
-
 !$omp parallel do private(ip,g,r,x,or,cr,phi,ep)
     DO ip = 1, npoints
 
@@ -258,8 +253,6 @@ CONTAINS
     REAL(KIND=dp)                            :: cr, dcr, dphig, dphir, dpv, &
                                                 dq, ep, ff, g, or, p, phi, q, &
                                                 r, x
-
-!   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,g,r,x,or,p,dpv,q,dq,cr,dcr,dphig,phi,dphir,ep,ff)
     DO ip = 1, npoints
@@ -304,8 +297,6 @@ CONTAINS
                                                 dcr, dphig, dphigr, dphir, &
                                                 dpv, dq, ep, g, or, p, phi, &
                                                 q, r, x
-
-!   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,x,r,cr,phi,ep,g,or,p,q,dpv,dq,dphir,dcr) &
 !$omp             private(dphig,dphigr,d2phir,d2cr,d2p,d2q)
@@ -366,8 +357,6 @@ CONTAINS
     REAL(KIND=dp) :: cr, d2cr, d2p, d2phir, d2phirg, d2pq, d2q, d2z, d3cr, &
       d3phir, d3pq, d3q, d3z, dcr, dphig, dphigr, dphir, dpq, dpv, dq, dz, &
       ep, g, or, oz, p, phi, pq, q, r, x
-
-!   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,x, r, cr, phi, ep, g, or, p, q, dpv, dq, dphir, dcr, dphig) &
 !$omp             private(dphigr, d2phir, d3phir, d2cr, d3cr, d2p, d2q, d2phirg, d3q) &

@@ -445,8 +445,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_all_potential', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(potential)) THEN
 
        IF (PRESENT(name)) name = potential%name
@@ -503,8 +501,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_elp_potential', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(potential)) THEN
 
@@ -571,8 +567,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_gth_potential', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(potential)) THEN
 
        IF (PRESENT(name)) name = potential%name
@@ -635,8 +629,6 @@ CONTAINS
                                                 lprj_ppnl, nprj, px, py, pz
     REAL(KIND=dp)                            :: alpha_ppnl, cp
 
-!   ---------------------------------------------------------------------------
-
     nprj = 0
 
     DO l=0,potential%lppnl
@@ -683,8 +675,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_gth_potential', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF (.NOT.ASSOCIATED(potential)) RETURN
 
     IF (potential%nppnl > 0) THEN
@@ -721,8 +711,6 @@ CONTAINS
     INTEGER                                  :: i, ico, iprj, iprj_ppnl, iso, &
                                                 j, jco, jprj, jprj_ppnl, l, &
                                                 nprj
-
-!   ---------------------------------------------------------------------------
 
     nprj = 0
 
@@ -763,8 +751,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dz
-
-!   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(potential)) RETURN
 
@@ -1748,8 +1734,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_elp_potential', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(potential)) THEN
 
        IF (PRESENT(name)) potential%name = name
@@ -1810,8 +1794,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_gth_potential', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(potential)) THEN
 

@@ -86,7 +86,6 @@ CONTAINS
     TYPE(mol_mo_set_type), POINTER           :: mo_set_a, mo_set_b
 
 !
-!   ---------------------------------------------------------------------------
 !
 
     failure = .FALSE.
@@ -235,7 +234,6 @@ CONTAINS
     TYPE(mol_mo_set_type), POINTER           :: mo_set_a, mo_set_b, mo_set_l
 
 !
-!   ---------------------------------------------------------------------------
 !
 
     failure = .FALSE.
@@ -392,7 +390,6 @@ CONTAINS
     TYPE(mol_mo_set_type), POINTER           :: mo_set
 
 !
-!   ---------------------------------------------------------------------------
 !
 
     failure = .FALSE.

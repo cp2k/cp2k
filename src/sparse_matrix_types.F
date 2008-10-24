@@ -346,7 +346,6 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a_block, b_block, c_block
     TYPE(real_block_node_type), POINTER      :: block_node
 
-!   ---------------------------------------------------------------------------
 !   *** Check the association status of the matrices ***
 
     IF (.NOT.ASSOCIATED(a)) THEN
@@ -473,7 +472,6 @@ END SUBROUTINE cp_sm_scale_and_add
     LOGICAL                                  :: failure
     TYPE(real_block_node_type), POINTER      :: block_node, new_block_node
 
-!   ---------------------------------------------------------------------------
 !   perform checks that we are only adding allowed blocks
 
     failure = .FALSE.
@@ -584,7 +582,6 @@ END SUBROUTINE cp_sm_scale_and_add
     LOGICAL                                  :: failure
     TYPE(real_block_node_type), POINTER      :: block_node, new_block_node
 
-!   ---------------------------------------------------------------------------
 !   perform checks that we are only adding allowed blocks
 
     failure = .FALSE.
@@ -720,7 +717,6 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER                                  :: irow, istat
 
-!   ---------------------------------------------------------------------------
 !   *** Deallocate the old matrix ***
 
     IF (ASSOCIATED(matrix)) CALL deallocate_matrix(matrix,error=error)
@@ -806,8 +802,6 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER                                  :: imatrix, istat
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(matrix_set)) CALL deallocate_matrix_set(matrix_set,error=error)
 
     ALLOCATE (matrix_set(nmatrix),STAT=istat)
@@ -835,8 +829,6 @@ END SUBROUTINE cp_sm_scale_and_add
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imatrix, istat, jmatrix
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(matrix_set)) CALL deallocate_matrix_set(matrix_set,error=error)
 
@@ -875,7 +867,6 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
 
-!   ---------------------------------------------------------------------------
 !   *** Check the association status of the input matrix ***
 
     CALL timeset(routineN,handle)
@@ -958,8 +949,6 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp)                            :: alpha_l, alpha_l_ji
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
-
-!   ---------------------------------------------------------------------------
 
     IF (PRESENT(alpha)) THEN
         alpha_l=alpha
@@ -1087,7 +1076,6 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
 
-!   ---------------------------------------------------------------------------
 !   *** Check the association status of the input matrix ***
 
     IF (ncol.EQ.0) RETURN
@@ -1169,7 +1157,6 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_block_node_type), POINTER      :: source_block_node, &
                                                 target_block_node
 
-!   ---------------------------------------------------------------------------
 !   *** Check the association status of the source matrix ***
 
     IF (.NOT.ASSOCIATED(source)) THEN
@@ -1281,8 +1268,6 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER                                  :: iblock_row, istat
 
-!   ---------------------------------------------------------------------------
-
     IF (.NOT.ASSOCIATED(matrix)) RETURN
 
     DO iblock_row=1,matrix%nblock_row
@@ -1329,8 +1314,6 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_block_node_type), POINTER      :: current_block_node, &
                                                 next_block_node
 
-!   ---------------------------------------------------------------------------
-
     current_block_node => matrix%block_list(block_row)%first_block_node
 
     DO WHILE (ASSOCIATED(current_block_node))
@@ -1366,8 +1349,6 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER                                  :: imatrix, istat
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(matrix_set)) THEN
       DO imatrix=1,SIZE(matrix_set)
         CALL deallocate_matrix(matrix_set(imatrix)%matrix,error=error)
@@ -1395,8 +1376,6 @@ END SUBROUTINE cp_sm_scale_and_add
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imatrix, istat, jmatrix
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(matrix_set)) THEN
       DO jmatrix=1,SIZE(matrix_set,2)
@@ -1426,8 +1405,6 @@ END SUBROUTINE cp_sm_scale_and_add
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: lb, ub
-
-!   ---------------------------------------------------------------------------
 
     ub = UBOUND(matrix%block_list,1)
     lb = LBOUND(matrix%block_list,1)
@@ -1463,8 +1440,6 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                      :: block_row
     TYPE(real_block_node_type), POINTER      :: first_block_node
 
-!   ---------------------------------------------------------------------------
-
     first_block_node => matrix%block_list(block_row)%first_block_node
 
   END FUNCTION first_real_block_node
@@ -1494,8 +1469,6 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER                                  :: iblock_row
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
     TYPE(real_block_node_type), POINTER      :: block_node
-
-!   ---------------------------------------------------------------------------
 
     IF (PRESENT(matrix_name)) matrix_name = matrix%name
     IF (PRESENT(matrix_symmetry)) matrix_symmetry = matrix%symmetry
@@ -1544,8 +1517,6 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: BLOCK
 
-!   ---------------------------------------------------------------------------
-
     IF (PRESENT(block_col)) block_col = block_node%block_col
     IF (PRESENT(BLOCK)) BLOCK => block_node%block
 
@@ -1570,8 +1541,6 @@ END SUBROUTINE cp_sm_scale_and_add
       OPTIONAL, POINTER                      :: BLOCK
 
     TYPE(real_block_node_type), POINTER      :: current_block_node
-
-!   ---------------------------------------------------------------------------
 
     IF (PRESENT(first_row)) first_row = matrix%first_row(block_row)
     IF (PRESENT(last_row)) last_row = matrix%last_row(block_row)
@@ -1610,7 +1579,6 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
     TYPE(real_block_node_type), POINTER      :: block_node
 
-!   ---------------------------------------------------------------------------
 !   *** Check the association status of the source matrix ***
 
     IF (.NOT.ASSOCIATED(matrix)) THEN
@@ -1656,8 +1624,6 @@ END SUBROUTINE cp_sm_scale_and_add
 
     TYPE(real_block_node_type), POINTER      :: block_node, next_block_node
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(block_node)) THEN
        next_block_node => block_node%next_block_node
     ELSE
@@ -1688,8 +1654,6 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER                                  :: ncol, nrow
     LOGICAL                                  :: add_block
-
-!   ---------------------------------------------------------------------------
 
     IF (PRESENT(add)) THEN
       add_block = add
@@ -1745,8 +1709,6 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER                                  :: ncol, nrow
     LOGICAL                                  :: add_block
     TYPE(real_block_node_type), POINTER      :: block_node
-
-!   ---------------------------------------------------------------------------
 
     IF ( PRESENT (add) ) THEN
       add_block = add
@@ -1825,7 +1787,6 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
     TYPE(real_block_node_type), POINTER      :: block_node
 
-!   ---------------------------------------------------------------------------
 !   *** Check the association status of the source matrix ***
 
     IF (.NOT.ASSOCIATED(source)) THEN
@@ -1908,7 +1869,6 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER                                  :: handle, iblock_col, iblock_row
     TYPE(real_block_node_type), POINTER      :: block_node
 
-!   ---------------------------------------------------------------------------
 !   *** Check the association status of the source matrix ***
 
     CALL timeset(routineN,handle)
@@ -1988,7 +1948,6 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
     TYPE(real_block_node_type), POINTER      :: block_node
 
-!   ---------------------------------------------------------------------------
 !   *** Check the association status of the matrices ***
 
     IF (.NOT.ASSOCIATED(a)) THEN
@@ -2038,7 +1997,6 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp), EXTERNAL                  :: DDOT
     TYPE(real_block_node_type), POINTER      :: block_node
 
-!   ---------------------------------------------------------------------------
 !   *** Check the association status of the matrices ***
 
     checksum_real_matrix = 0.0_dp
@@ -2078,7 +2036,6 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
     TYPE(real_block_node_type), POINTER      :: block_node
 
-!   ---------------------------------------------------------------------------
 !   *** Check the association status of the source matrix ***
 
     IF (.NOT.ASSOCIATED(matrix)) THEN
@@ -2125,7 +2082,6 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
     TYPE(real_block_node_type), POINTER      :: block_node
 
-!   ---------------------------------------------------------------------------
 !   *** Check the association status of the source matrix ***
 
     IF (.NOT.ASSOCIATED(matrix)) THEN
@@ -2190,7 +2146,6 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_block_node_type), POINTER      :: block_node_source, &
                                                 block_node_target
 
-!   ---------------------------------------------------------------------------
 !   *** Check the association status of the source matrix ***
 
     CALL timeset(routineN,handle)
@@ -2698,8 +2653,6 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env,error)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
     TYPE(real_block_node_type), POINTER      :: block_node
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     CALL allocate_matrix(matrix=dbm,&
@@ -2769,8 +2722,6 @@ SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env,error)
     INTEGER                                  :: handle, iblock_col, iblock_row
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
     TYPE(real_block_node_type), POINTER      :: block_node
-
-!   ---------------------------------------------------------------------------
 
   CALL timeset(routineN,handle)
 

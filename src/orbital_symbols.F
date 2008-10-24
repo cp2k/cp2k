@@ -50,8 +50,6 @@ CONTAINS
 
     INTEGER                                  :: i, ipos, l
 
-!   ---------------------------------------------------------------------------
-
     symbol = ""
 
     IF ((n > 0).AND.(n < 100)) THEN
@@ -111,8 +109,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
     CHARACTER(LEN=1), DIMENSION(-1:1), &
       PARAMETER                              :: yzx = (/"y","z","x"/)
-
-!   ---------------------------------------------------------------------------
 
     symbol = ""
 

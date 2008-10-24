@@ -271,8 +271,6 @@ CONTAINS
 
     INTEGER                                  :: ip
 
-!   ---------------------------------------------------------------------------
-
 !$omp parallel do private(ip)
     DO ip = 1, npoints
 
@@ -297,8 +295,6 @@ CONTAINS
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
-
-!   ---------------------------------------------------------------------------
 
     f = f53 * flda
 
@@ -327,8 +323,6 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
 
-!   ---------------------------------------------------------------------------
-
     f = f23 * f53 * flda
 
 !$omp parallel do private(ip)
@@ -356,8 +350,6 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
 
-!   ---------------------------------------------------------------------------
-
     f = -f13 * f23 * f53 * flda
 
 !$omp parallel do private(ip)
@@ -384,8 +376,6 @@ CONTAINS
 
     INTEGER                                  :: ip
 
-!   ---------------------------------------------------------------------------
-
 !$omp parallel do private(ip)
     DO ip = 1, npoints
 
@@ -408,8 +398,6 @@ CONTAINS
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
-
-!   ---------------------------------------------------------------------------
 
     f = f53 * flsd
 
@@ -436,8 +424,6 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
 
-!   ---------------------------------------------------------------------------
-
     f = f23 * f53 * flsd
 
 !$omp parallel do private(ip)
@@ -462,8 +448,6 @@ CONTAINS
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
-
-!   ---------------------------------------------------------------------------
 
     f = -f13 * f23 * f53 * flsd
 

@@ -126,8 +126,6 @@ MODULE qs_rho0_ggrid
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs_grid
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
@@ -292,8 +290,6 @@ MODULE qs_rho0_ggrid
     TYPE(pw_p_type), POINTER                 :: rho_gs, rho_rs
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
-!   ---------------------------------------------------------------------------
-
   failure=.FALSE.
   my_tddft = .FALSE.
   IF(PRESENT(tddft)) my_tddft = tddft
@@ -407,8 +403,6 @@ MODULE qs_rho0_ggrid
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
-
-!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
     c4pi = fourpi

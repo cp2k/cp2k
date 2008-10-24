@@ -122,8 +122,6 @@ CONTAINS
                                                 fz, rcp2, t, zetp, zetq, zetw
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp, rcp, rpw
 
-!   ---------------------------------------------------------------------------
-
     nmax = la_max + lb_max + 1
 
     verf = 0.0_dp

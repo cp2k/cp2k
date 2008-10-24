@@ -82,8 +82,6 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: overlap_vv, svmatrix
 
-!   ---------------------------------------------------------------------------
-
     IF (ncol.EQ.0) RETURN
 
     CALL timeset(routineN,handle)
@@ -133,8 +131,6 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: overlap_vv
-
-!   ---------------------------------------------------------------------------
 
     IF (ncol.EQ.0) RETURN
 
@@ -188,8 +184,6 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: overlap_vv
 
-!   ---------------------------------------------------------------------------
-
     IF (ncol.EQ.0) RETURN
 
     CALL timeset(routineN,handle)
@@ -237,8 +231,6 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: overlap_vv
 
-!   ---------------------------------------------------------------------------
-
     IF (ncol.EQ.0) RETURN
 
     CALL timeset(routineN,handle)
@@ -283,8 +275,6 @@ CONTAINS
 
     INTEGER                                  :: handle, imo
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     CALL cp_fm_syrk("U","N",mo_set%lfomo-1,mo_set%maxocc,mo_set%mo_coeff,&
@@ -323,8 +313,6 @@ CONTAINS
     INTEGER                                  :: handle
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_fm_type), POINTER                :: fm_tmp
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -396,8 +384,6 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: e_vectors, h_block, &
                                                 weighted_vectors
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 

@@ -645,8 +645,6 @@ CONTAINS
       nrestraints_tot
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(molecule_kind_set)) THEN
 
       IF (PRESENT(maxatom)) maxatom = 0
@@ -729,8 +727,6 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(molecule_kind_set)) THEN
 
@@ -859,8 +855,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(molecule_kind)) THEN
 

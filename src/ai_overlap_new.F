@@ -88,8 +88,6 @@ CONTAINS
                                                 faz, ftz, zetp
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp
 
-!   ---------------------------------------------------------------------------
-
     IF (PRESENT(pab).AND.PRESENT(force_a)) THEN
       calculate_force_a = .TRUE.
       force_a(:) = 0.0_dp

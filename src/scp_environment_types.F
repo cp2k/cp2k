@@ -108,8 +108,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
     CPPrecondition(scp_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
@@ -136,8 +134,6 @@ CONTAINS
 
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
-
-!   ---------------------------------------------------------------------------
 
     NULLIFY (scp_env%blacs_env)
     NULLIFY (scp_env%energy)

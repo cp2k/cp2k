@@ -126,8 +126,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: radius, threshold, prefactor
     REAL(KIND=dp)                            :: exponent
 
-!   ---------------------------------------------------------------------------
-
     exponent = 0.0_dp
 
     IF (radius < 1.0E-6_dp) RETURN
@@ -172,8 +170,6 @@ CONTAINS
     INTEGER                                  :: iter
     REAL(KIND=dp)                            :: a, ar2, d, epsiter, g, r, &
                                                 rhigh, rlow, rmid, t
-
-!   ---------------------------------------------------------------------------
 
     IF (PRESENT(epsin)) THEN
        epsiter=epsin

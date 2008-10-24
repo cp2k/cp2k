@@ -238,8 +238,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)

@@ -2457,8 +2457,6 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     TYPE(section_vals_type), POINTER         :: input, xc_section
     TYPE(virial_type), POINTER               :: virial
 
-!   ---------------------------------------------------------------------------
-
   CALL timeset( routineN ,handle)
 
   failure=.FALSE.
@@ -2976,8 +2974,6 @@ END SUBROUTINE qs_vxc_create
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigocc
     TYPE(cp_fm_type), POINTER                :: weighted_vectors
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(weighted_vectors)
@@ -3039,8 +3035,6 @@ END SUBROUTINE qs_vxc_create
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: gradient, h_block, h_block_t, &
                                                 weighted_vectors
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
     failure=.FALSE.

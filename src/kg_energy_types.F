@@ -55,8 +55,6 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     IF (.NOT.ASSOCIATED(kg_energy)) THEN
       ALLOCATE (kg_energy,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"kg_energy",8*dp_size)
@@ -80,8 +78,6 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(kg_energy)) THEN
       DEALLOCATE (kg_energy,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"kg_energy")
@@ -103,8 +99,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_kg_energy', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(kg_energy)) THEN
       kg_energy%bond_corr = 0.0_dp

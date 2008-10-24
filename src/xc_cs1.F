@@ -332,8 +332,6 @@ CONTAINS
                                                 F2, F3, F4, g, oc, ocp, od, &
                                                 odp, r, r3, x
 
-!   ---------------------------------------------------------------------------
-
     dpv = fsig*d
     cp = c*fsig*fsig
     c2p = c2*fsig**4
@@ -376,8 +374,6 @@ CONTAINS
     REAL(KIND=dp)                            :: c2p, c3p, c4p, cp, dF1, dF3, &
                                                 dgF2, dgF4, dpv, drF2, drF4, &
                                                 g, oc, ocp, od, odp, r, r3
-
-!   ---------------------------------------------------------------------------
 
     dpv = fsig*d
     cp = c*fsig*fsig
@@ -428,8 +424,6 @@ CONTAINS
                                                 d2F3, d2gF2, d2gF4, d2rF2, &
                                                 d2rF4, dpv, drgF2, drgF4, g, &
                                                 oc, ocp, od, odp, r, r3
-
-!   ---------------------------------------------------------------------------
 
     dpv = fsig*d
     cp = c*fsig*fsig
@@ -493,8 +487,6 @@ CONTAINS
       t1, t10, t11, t13, t15, t16, t17, t19, t2, t22, t23, t26, t29, t3, t32, &
       t33, t37, t4, t44, t45, t50, t51, t52, t58, t6, t61, t7, t74, t76, t77, &
       t8, t80, t81, t82, t9
-
-!   ---------------------------------------------------------------------------
 
     dpv = fsig*d
     cp = c*fsig*fsig
@@ -588,7 +580,6 @@ CONTAINS
                                                 oca, ocb, oda, odb, r3a, r3b, &
                                                 ra, rb, xa, xb
 
-!   ---------------------------------------------------------------------------
 !FM IF ( .NOT. debug_flag ) CALL stop_program("cs1_ss_0","Routine not tested")
 
     CALL cp_assert(.FALSE.,cp_warning_level, cp_assertion_failed,routineP,&
@@ -651,8 +642,6 @@ CONTAINS
                                                 drF2a, drF2b, ga, gb, oca, &
                                                 ocb, oda, odb, r3a, r3b, ra, &
                                                 rb
-
-!   ---------------------------------------------------------------------------
 
     CALL cp_assert(.FALSE.,cp_warning_level, cp_assertion_failed,routineP,&
          "not tested!"//&

@@ -363,8 +363,6 @@ CONTAINS
 
     INTEGER                                  :: ip
 
-!   ---------------------------------------------------------------------------
-
 !$omp parallel do private(ip)
     DO ip = 1, npoints
 
@@ -389,8 +387,6 @@ CONTAINS
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: a0, a1, sx, sy
-
-!   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,a0,a1,sx,sy)
     DO ip = 1, npoints
@@ -425,8 +421,6 @@ CONTAINS
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: a0, a1, a2, sx, sxx, sxy, sy
-
-!   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,a0,a1,a2,sx,sy,sxx,sxy)
     DO ip = 1, npoints
@@ -470,8 +464,6 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: a0, a1, a2, a3, sx, sxx, &
                                                 sxxx, sxxy, sxy, sy
-
-!   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,a0,a1,a2,a3,sx,sy,sxx,sxy,sxxx,sxxy)
     DO ip = 1, npoints

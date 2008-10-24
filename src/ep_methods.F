@@ -1395,8 +1395,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s,&
@@ -2077,8 +2075,6 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(weighted_vectors,f_env,maxao_maxmo_fm_pool,mos)
@@ -2283,8 +2279,6 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: diag_P_H_pi
     TYPE(replica_env_type), POINTER          :: rep_env
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(f_env, maxao_maxao_fm_pool, maxmo_maxmo_fm_pool, &
@@ -2472,8 +2466,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: cols, rows
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(source_m),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(diag_m),cp_failure_level,routineP,error,failure)
@@ -2542,8 +2534,6 @@ CONTAINS
     LOGICAL                                  :: failure, my_copy
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
     TYPE(real_block_node_type), POINTER      :: block_node
-
-!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(source_m),cp_failure_level,routineP,error,failure)

@@ -2024,8 +2024,6 @@ FUNCTION pw_integrate_function(fun,isign,OPERATOR) RESULT(total_fun)
 
     INTEGER                                  :: iop
 
-!   ---------------------------------------------------------------------------
-
     iop = 0
     IF ( PRESENT(OPERATOR) ) THEN
       SELECT CASE (OPERATOR)

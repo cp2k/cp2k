@@ -358,8 +358,6 @@ CONTAINS
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
     TYPE(virial_type), POINTER               :: virial
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
     NULLIFY(pw_env, rs_pools, tasks, dist_ab)
 
@@ -1190,7 +1188,6 @@ CONTAINS
     REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
     LOGICAL  :: failure
 
-!   ---------------------------------------------------------------------------
 
     failure = .FALSE.
     subpatch_integrate = .FALSE.

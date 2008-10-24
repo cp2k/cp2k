@@ -111,8 +111,6 @@ CONTAINS
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(scp_force_type), POINTER            :: force(:)
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
     output_unit = -1
     logger => cp_error_get_logger(error)

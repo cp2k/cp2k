@@ -74,8 +74,6 @@ CONTAINS
                                                 itabmin, n
     REAL(KIND=dp)                            :: t
 
-!   ---------------------------------------------------------------------------
-
     IF (current_nmax > -1) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "An incomplete Gamma function table is already "//&
@@ -135,8 +133,6 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     IF (current_nmax > -1) THEN
 
       DEALLOCATE (ftable,STAT=istat)
@@ -178,7 +174,6 @@ CONTAINS
     INTEGER                                  :: itab, k, n
     REAL(KIND=dp)                            :: expt, g, tdelta, tmp, ttab
 
-!   ---------------------------------------------------------------------------
 !   *** Calculate F(t) ***
 
     IF (t < teps) THEN
@@ -305,8 +300,6 @@ CONTAINS
 
     INTEGER                                  :: i, itab, k, n
     REAL(KIND=dp)                            :: expt, g, tdelta, tmp, ttab
-
-!   ---------------------------------------------------------------------------
 
     DO i=1,SIZE(t,1)
 
@@ -561,8 +554,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_md_ftable', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (nmax < 0) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&

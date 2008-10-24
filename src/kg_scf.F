@@ -938,7 +938,6 @@ CONTAINS
     TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
 
 !
-!   ---------------------------------------------------------------------------
 !
 
     CALL timeset(routineN,handle)
@@ -1097,7 +1096,6 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
 
 !
-!   ---------------------------------------------------------------------------
 !
 
     failure = .FALSE.

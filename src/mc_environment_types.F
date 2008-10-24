@@ -58,8 +58,6 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     ALLOCATE ( mc_env, stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
 
@@ -94,7 +92,6 @@ CONTAINS
        mc_env % force_env => force_env
     END IF
     
-!   ---------------------------------------------------------------------------
 
   END SUBROUTINE set_mc_env
 
@@ -115,8 +112,6 @@ CONTAINS
     TYPE(mc_environment_type), POINTER       :: mc_env
     TYPE(mc_simpar_type), OPTIONAL, POINTER  :: mc_par
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
-
-!   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( mc_par ) ) mc_par => mc_env % mc_par
     IF ( PRESENT ( force_env ) ) force_env => mc_env % force_env

@@ -43,8 +43,6 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     IF (.NOT.ASSOCIATED(scp_energy)) THEN
       ALLOCATE (scp_energy,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"scp_energy",8*dp_size)
@@ -64,8 +62,6 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(scp_energy)) THEN
       DEALLOCATE (scp_energy,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"scp_energy")
@@ -83,8 +79,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_scp_energy', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(scp_energy)) THEN
       scp_energy % e_scp_core = 0._dp

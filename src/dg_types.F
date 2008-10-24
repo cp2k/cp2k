@@ -54,8 +54,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_get', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF ( PRESENT ( id_nr ) ) id_nr = dg % id_nr
     IF ( PRESENT ( grid_index ) ) grid_index = dg % grid_index
     IF ( PRESENT ( dg_rho0 ) ) dg_rho0 => dg % dg_rho0
@@ -75,8 +73,6 @@ CONTAINS
 
     INTEGER                                  :: istat
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
-
-!   ---------------------------------------------------------------------------
 
     ALLOCATE ( dg, stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)

@@ -189,8 +189,6 @@ CONTAINS
                                                 scf_section, xas_section
     TYPE(xas_environment_type), POINTER      :: xas_env
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     failure = .FALSE.

@@ -135,8 +135,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
 
-! ------------------------------------------------------------------------------
-
     IF ( nmoments < 1 ) RETURN
 
     CALL timeset(routineN,handle)
@@ -415,8 +413,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-! ------------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
@@ -637,8 +633,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
-
-! -------------------------------------------------------------------------
 
      failure = .FALSE.
      CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -978,13 +972,13 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
     DO i=1,SIZE ( op_fm_set, 2 )   ! spin
-      CALL get_mo_set(mo_set=mos(i)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
-      CALL cp_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
-      CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
-              op_fm_set(1,i)%matrix,error=error)
-      CALL cp_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
-      CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
-              op_fm_set(2,i)%matrix,error=error)
+       CALL get_mo_set(mo_set=mos(i)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
+       CALL cp_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
+       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
+            op_fm_set(1,i)%matrix,error=error)
+       CALL cp_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
+       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
+            op_fm_set(2,i)%matrix,error=error)
     ENDDO
 
   END SUBROUTINE op_orbbas
@@ -1022,15 +1016,13 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, moments
 
-! -------------------------------------------------------------------------
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
-     failure = .FALSE.
-     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-
-     IF (.NOT.failure) THEN
+    IF (.NOT.failure) THEN
 
        CALL timeset(routineN,handle)
-
+       
        ! reference point
        CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point,error=error)
 

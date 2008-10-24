@@ -1596,8 +1596,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
     REAL(KIND=dp), DIMENSION(maxng)          :: gcc, zetg
 
-!   ---------------------------------------------------------------------------
-
     failure = .FALSE.
     IF (PRESENT(ngauss)) ng=ngauss
     IF (ng > maxng) CALL stop_program(routineN,moduleN,__LINE__,&

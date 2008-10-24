@@ -305,8 +305,6 @@ ELSE
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
 
-!   ---------------------------------------------------------------------------
-
     f = sx * flda
 !$omp parallel do private(ip)
 
@@ -330,8 +328,6 @@ ELSE
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
 
-!   ---------------------------------------------------------------------------
-
     f = f43 * flda * sx
 !$omp parallel do private(ip)
     DO ip = 1, n
@@ -354,8 +350,6 @@ ELSE
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
 
-!   ---------------------------------------------------------------------------
-
     f = f13 * f43 * flda * sx
 !$omp parallel do private(ip)
     DO ip = 1, n
@@ -377,8 +371,6 @@ ELSE
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
-
-!   ---------------------------------------------------------------------------
 
     f = -f23 * f13 * f43 * flda * sx
 !$omp parallel do private(ip)
@@ -403,7 +395,6 @@ ELSE
     REAL(KIND=dp)                            :: f
 
 ! number of points in array 
-!   ---------------------------------------------------------------------------
 
     f = sx * flsd
     
@@ -431,7 +422,6 @@ ELSE
     REAL(KIND=dp)                            :: f
 
 ! number of points in array 
-!   ---------------------------------------------------------------------------
 
     f = f43 * flsd * sx
 
@@ -459,7 +449,6 @@ ELSE
     REAL(KIND=dp)                            :: f
 
 ! number of points in array 
-!   ---------------------------------------------------------------------------
 
     f = f13 * f43 * flsd * sx
 
@@ -487,7 +476,6 @@ ELSE
     REAL(KIND=dp)                            :: f
 
 ! number of points in array 
-!   ---------------------------------------------------------------------------
 
     f = -f23 * f13 * f43 * flsd * sx
 

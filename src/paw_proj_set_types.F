@@ -804,8 +804,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_paw_proj_set', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(paw_proj_set)) THEN
        IF (PRESENT(cprj)) cprj => paw_proj_set%cprj
        IF (PRESENT(cprj_s)) cprj_s => paw_proj_set%cprj_s

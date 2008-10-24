@@ -154,8 +154,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(section_vals_type), POINTER         :: input, interp_section
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
 
     ! by default, do not compute the kinetic energy density (tau)
@@ -666,8 +664,6 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
     TYPE(section_vals_type), POINTER         :: input, interp_section
-
-!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
 

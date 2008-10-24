@@ -88,7 +88,6 @@ END SUBROUTINE m_datum
 SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
-!   ---------------------------------------------------------------------------
 
     CALL flush(lunit)
 
@@ -109,7 +108,6 @@ SUBROUTINE m_flush(lunit)
 
     CHARACTER(LEN=2*default_string_length+4) :: cmd
 
-!   ---------------------------------------------------------------------------
 
     cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
     CALL system(cmd)

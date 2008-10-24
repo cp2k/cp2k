@@ -94,8 +94,6 @@ CONTAINS
 
     INTEGER                                  :: iatom
 
-!   ---------------------------------------------------------------------------
-
       DO iatom=1,6
          IF(connectivity(iatom,current_atom) .NE. 0) THEN
             IF(connectivity(iatom,current_atom) .NE. avoid_atom) THEN
@@ -173,7 +171,6 @@ CONTAINS
                                                 molecule_kind_test
     TYPE(particle_list_type), POINTER        :: particles
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -486,7 +483,6 @@ END SUBROUTINE mc_conformation_change
     TYPE(particle_list_type), POINTER        :: particles
 
 !   *** Local Counters ***
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -722,7 +718,6 @@ END SUBROUTINE mc_conformation_change
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_type), POINTER        :: particles
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -1050,7 +1045,6 @@ END SUBROUTINE mc_conformation_change
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_type), POINTER        :: particles_old
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -1393,7 +1387,6 @@ END SUBROUTINE mc_conformation_change
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -1590,7 +1583,6 @@ END SUBROUTINE mc_conformation_change
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -1877,7 +1869,6 @@ END SUBROUTINE mc_conformation_change
     TYPE(torsion_type), DIMENSION(:), &
       POINTER                                :: torsion_list
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -2129,8 +2120,6 @@ END SUBROUTINE mc_conformation_change
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles, particles_force
-
-!   ---------------------------------------------------------------------------
 
       rdum=1.0_dp
 

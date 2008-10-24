@@ -94,8 +94,6 @@ END SUBROUTINE m_datum
   SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
-!   ---------------------------------------------------------------------------
-
     CALL flush(lunit)
 
   END SUBROUTINE m_flush
@@ -111,9 +109,6 @@ END SUBROUTINE m_datum
   SUBROUTINE m_mov(source,TARGET)
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
-
-!   ---------------------------------------------------------------------------
-!cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
 
     CALL rename(source(1:LEN_TRIM(source)), TARGET(1:LEN_TRIM(TARGET)))
 

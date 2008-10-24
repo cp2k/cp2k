@@ -268,8 +268,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i
 
-!   ---------------------------------------------------------------------------
-
     matrix%local_data(:,:) = alpha
     IF (PRESENT(beta)) THEN
       DO i=1,matrix%matrix_struct%nrow_global
@@ -345,8 +343,6 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(9)                    :: desca
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-!   ---------------------------------------------------------------------------
-
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
@@ -408,7 +404,6 @@ CPSourceFileRef,&
     INTEGER , EXTERNAL :: indxl2g
 #endif
 
-!   ---------------------------------------------------------------------------
     failure=.FALSE.
     IF (PRESENT(name)) name = matrix%name
     IF (PRESENT(nrow_global)) nrow_global = matrix%matrix_struct%nrow_global
@@ -492,8 +487,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: npcol, nprow
     LOGICAL                                  :: failure
-
-!   ---------------------------------------------------------------------------
 
     failure=.TRUE.
     nprow = source%matrix_struct%context%num_pe(1)

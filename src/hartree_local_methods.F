@@ -136,8 +136,6 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: wr
     REAL(dp), DIMENSION(:, :), POINTER       :: oor2l, r2l
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     nr = grid_atom%nr
@@ -267,8 +265,6 @@ CONTAINS
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
-
-!   -----------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 

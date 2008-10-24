@@ -79,8 +79,6 @@ CONTAINS
 
     INTEGER                                  :: iso, istat, l, lx, ly, lz, m
 
-!   ---------------------------------------------------------------------------
-
     IF (current_maxl > -1) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "Orbital pointers are already allocated. "//&
@@ -248,8 +246,6 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     IF (current_maxl > -1) THEN
 
       DEALLOCATE (co,STAT=istat)
@@ -319,8 +315,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_orbital_pointers', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (maxl < 0) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&

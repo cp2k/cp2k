@@ -525,8 +525,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-!   ---------------------------------------------------------------------------
-
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
@@ -857,7 +855,6 @@ CPSourceFileRef,&
     INTEGER , EXTERNAL :: indxl2g
 #endif
 
-!   ---------------------------------------------------------------------------
     failure=.FALSE.
     IF (PRESENT(name)) name = matrix%name
     IF (PRESENT(context)) context => matrix%matrix_struct%context
@@ -910,8 +907,6 @@ CPSourceFileRef,&
     REAL(dp)                                 :: my_max
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: a_max_vec
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -1001,8 +996,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: values
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     my_block => matrix%local_data
@@ -1039,8 +1032,6 @@ CPSourceFileRef,&
                                                 ncol_local, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -1193,8 +1184,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, npcol, nprow
     LOGICAL                                  :: failure
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 

@@ -336,8 +336,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF ( PRESENT ( nstep ) ) nstep = mc_par % nstep
     IF ( PRESENT ( nvirial ) ) nvirial = mc_par % nvirial
     IF ( PRESENT ( iuptrans ) ) iuptrans = mc_par % iuptrans
@@ -445,8 +443,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_molecule_info', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF ( PRESENT ( nboxes ) ) nboxes = mc_molecule_info % nboxes
     IF ( PRESENT ( nchain_total ) ) nchain_total = mc_molecule_info % nchain_total
     IF ( PRESENT ( nmol_types ) ) nmol_types = mc_molecule_info % nmol_types
@@ -521,7 +517,6 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
     INTEGER                                  :: iparm
 
-!   ---------------------------------------------------------------------------
 ! These are the only values that change during the course of the simulation
 ! or are computed outside of this module
 

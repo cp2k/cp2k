@@ -157,7 +157,6 @@ END SUBROUTINE kg_rspw_create
 ! KG doesn't setup the radius correctly. It appears that not all primitives that are actually mapped
 ! are being tested in the radius calculation. This safety_factor will lead to poorer parallel performance
 !   INTEGER, PARAMETER                       :: maxgridpoints = 100
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 !

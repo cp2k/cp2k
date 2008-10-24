@@ -46,8 +46,6 @@ CONTAINS
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(dftb_parameter)) &
             CALL deallocate_dftb_atom_param(dftb_parameter,error)
 
@@ -83,8 +81,6 @@ CONTAINS
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
     CPPrecondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,error,failure)
     DEALLOCATE (dftb_parameter,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -111,8 +107,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-
-!   ---------------------------------------------------------------------------
 
     CPPrecondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,error,failure)
 
@@ -154,8 +148,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
     CPPrecondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,error,failure)
 
     IF (PRESENT(name)) dftb_parameter%name = name
@@ -191,8 +183,6 @@ CONTAINS
     LOGICAL                                  :: defined
     REAL(dp)                                 :: zeff
     TYPE(cp_logger_type), POINTER            :: logger
-
-!   ---------------------------------------------------------------------------
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)

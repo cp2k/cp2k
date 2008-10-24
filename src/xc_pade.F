@@ -132,7 +132,6 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE pade_lda(derivative_set, rho, pot, order)
 
-!   ---------------------------------------------------------------------------
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
@@ -144,8 +143,6 @@ CONTAINS
                                                 mx(0:3,2), n
     LOGICAL                                  :: calc(0:4)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
-
-!   ---------------------------------------------------------------------------
 
     CALL setup_calculation(order,mx,calc,100)
     mp = SIZE ( pot, 2 )
@@ -197,8 +194,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_r, e_rr, e_rrr
     TYPE(xc_derivative_type), POINTER        :: deriv
-
-!   ---------------------------------------------------------------------------
 
     calc = .FALSE.
     IF (order >= 0) calc(0:order) = .TRUE.
@@ -260,8 +255,6 @@ CONTAINS
     LOGICAL                                  :: calc(0:4)
     REAL(KIND=dp)                            :: rs
     REAL(KIND=dp), DIMENSION(4)              :: fx
-
-!   ---------------------------------------------------------------------------
 
     CALL setup_calculation(order,mx,calc,201)
 
@@ -328,8 +321,6 @@ CONTAINS
                                                 e_rararb, e_rarb, e_rarbrb, &
                                                 e_rb, e_rbrb, e_rbrbrb
     TYPE(xc_derivative_type), POINTER        :: deriv
-
-!   ---------------------------------------------------------------------------
 
     calc = .FALSE.
     IF (order >= 0) calc(0:order) = .TRUE.
@@ -420,8 +411,6 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: epade, p, q
 
-!   ---------------------------------------------------------------------------
-
 !$omp parallel do private(ip,p,q,epade)
 
     DO ip = 1, n
@@ -445,8 +434,6 @@ CONTAINS
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: depade, dpv, dq, epade, p, q
-
-!   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,p,q,epade,dpv,dq,depade)
 
@@ -478,8 +465,6 @@ CONTAINS
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: depade, dpv, dq, epade, p, q
-
-!   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,p,q,epade,dpv,dq,depade)
 
@@ -513,8 +498,6 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: d2p, d2q, dpv, dq, p, q, rsr, &
                                                 t1, t2, t3
-
-!   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,p,q,dpv,dq,d2p,d2q,rsr,t1,t2,t3)
 
@@ -554,8 +537,6 @@ CONTAINS
     REAL(KIND=dp)                            :: ab1, ab2, ab3, d2p, d2q, d3p, &
                                                 d3q, dpv, dq, p, q, rsr1, &
                                                 rsr2, rsr3
-
-!   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,p,q,dpv,dq,d2p,d2q,d3p,d3q,ab1,ab2,ab3,rsr1,rsr2,rsr3)
 
@@ -599,8 +580,6 @@ CONTAINS
     REAL(KIND=dp)                            :: fa0, fa1, fa2, fa3, fb1, fb2, &
                                                 fb3, fb4, p, q, rhoab
 
-!   ---------------------------------------------------------------------------
-
       rhoab = rhoa + rhob
 
       IF ( rhoab > eps_rho ) THEN
@@ -633,8 +612,6 @@ CONTAINS
     REAL(KIND=dp)                            :: dc, dpv, dq, dr, dx, fa0, &
                                                 fa1, fa2, fa3, fb1, fb2, fb3, &
                                                 fb4, p, q, rhoab, xp, xq
-
-!   ---------------------------------------------------------------------------
 
       rhoab = rhoa + rhob
 
@@ -678,8 +655,6 @@ CONTAINS
     REAL(KIND=dp)                            :: dc, dpv, dq, dr, dx, fa0, &
                                                 fa1, fa2, fa3, fb1, fb2, fb3, &
                                                 fb4, p, q, rhoab, xp, xq
-
-!   ---------------------------------------------------------------------------
 
       rhoab = rhoa + rhob
 
@@ -726,8 +701,6 @@ CONTAINS
                                                 fa1, fa2, fa3, fb1, fb2, fb3, &
                                                 fb4, or, p, q, rhoab, xp, xq, &
                                                 xt, yt
-
-!   ---------------------------------------------------------------------------
 
       rhoab = rhoa + rhob
 
@@ -796,8 +769,6 @@ CONTAINS
     REAL(KIND=dp) :: d2p, d2q, d2xp, d2xq, d3p, d3q, dpv, dq, dr, drr, drrr, &
       dx, dxp, dxq, dxr, dxrr, dxx, dxxr, dxxx, fa0, fa1, fa2, fa3, fb1, fb2, &
       fb3, fb4, or, p, q, rhoab, xp, xq, xt, yt
-
-!   ---------------------------------------------------------------------------
 
     IF ( .NOT. debug_flag ) CALL stop_program("pade_lsd_3","Routine not tested")
 

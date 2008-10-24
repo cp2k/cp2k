@@ -54,8 +54,6 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     IF (.NOT.ASSOCIATED(fist_energy)) THEN
       ALLOCATE (fist_energy,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"fist_energy",8*dp_size)
@@ -79,8 +77,6 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(fist_energy)) THEN
       DEALLOCATE (fist_energy,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"fist_energy")
@@ -102,8 +98,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_fist_energy', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(fist_energy)) THEN
       fist_energy%kin = 0.0_dp

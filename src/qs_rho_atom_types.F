@@ -80,8 +80,6 @@ MODULE qs_rho_atom_types
 
     INTEGER                                  :: iat, istat
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(rho_atom_set)) THEN
       CALL deallocate_rho_atom_set(rho_atom_set)
     END IF

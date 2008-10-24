@@ -94,8 +94,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)

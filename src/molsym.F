@@ -214,8 +214,6 @@ CONTAINS
     REAL(dp)                                 :: length_of_a, scapro
     REAL(dp), DIMENSION(3)                   :: d
 
-!   ---------------------------------------------------------------------------
-
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
     d(:) = a(:)/length_of_a
 
@@ -255,8 +253,6 @@ CONTAINS
     REAL(dp)                                 :: length_of_a, scapro
     REAL(dp), DIMENSION(3)                   :: d
 
-!   ---------------------------------------------------------------------------
-
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
     d(:) = a(:)/length_of_a
 
@@ -294,8 +290,6 @@ CONTAINS
     LOGICAL                                  :: failure = .FALSE.
     REAL(dp)                                 :: length_of_a, scapro
     REAL(dp), DIMENSION(3)                   :: d
-
-!   ---------------------------------------------------------------------------
 
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
     d(:) = a(:)/length_of_a
@@ -358,7 +352,6 @@ CONTAINS
     REAL(dp)                                 :: phi
     REAL(dp), DIMENSION(3)                   :: a, b, d
 
-!   ---------------------------------------------------------------------------
 ! Find the correct main axis and rotate main axis to z axis
 
     IF ((sym%ncn == 2).AND.(sym%nses(2) == 3)) THEN
@@ -494,8 +487,6 @@ CONTAINS
     REAL(KIND=dp)                            :: phi
     REAL(KIND=dp), DIMENSION(3)              :: a
 
-!   ---------------------------------------------------------------------------
-
     natoms = SIZE(coord,2)
 
     IF (sym%sigmah) THEN
@@ -603,8 +594,6 @@ CONTAINS
     REAL(KIND=dp)                            :: length_of_a, phi
     REAL(KIND=dp), DIMENSION(3)              :: b
 
-!   ---------------------------------------------------------------------------
-
     caxis = .FALSE.
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
 
@@ -648,7 +637,6 @@ CONTAINS
                                                 phiii
     REAL(KIND=dp), DIMENSION(3)              :: a, b, c, d
 
-!   ---------------------------------------------------------------------------
 ! Angle between two adjacent atoms of the dodecahedron => <(C3,C3) 
 
     phidd = ATAN(0.4_dp*SQRT(5.0_dp))
@@ -851,8 +839,6 @@ CONTAINS
 
     INTEGER                                  :: iatom, natoms
 
-!   ---------------------------------------------------------------------------
-
     equatom = 0
     natoms = SIZE(coord,2)
     DO iatom=1,natoms
@@ -879,7 +865,6 @@ CONTAINS
     INTEGER                                  :: icn, incr, isec, ises, isn, &
                                                 jcn, jsn
 
-!   ---------------------------------------------------------------------------
 ! Count all symmetry elements of the symmetry group
 ! First E and all mirror planes
 
@@ -921,8 +906,6 @@ CONTAINS
     TYPE(molsym_type), INTENT(inout)         :: sym
 
     CHARACTER(4)                             :: degree
-
-!   ---------------------------------------------------------------------------
 
     IF (sym%linear) THEN
       IF (sym%invers) THEN
@@ -993,7 +976,6 @@ CONTAINS
 
     INTEGER                                  :: i, iatom, natoms
 
-!   ---------------------------------------------------------------------------
 ! Define the Cartesian axis vectors
 
     sym%x_axis = (/1.0_dp,0.0_dp,0.0_dp/)
@@ -1066,8 +1048,6 @@ CONTAINS
 
     INTEGER                                  :: iatom
 
-!   ---------------------------------------------------------------------------
-
     in_symequ_list = .FALSE.
 
     DO iatom=1,sym%ulequatom(sym%ngroup)
@@ -1096,8 +1076,6 @@ CONTAINS
 
     REAL(KIND=dp)                            :: phi
     REAL(KIND=dp), DIMENSION(3)              :: d
-
-!   ---------------------------------------------------------------------------
 
     IF (sym%nsn == 2) THEN
 
@@ -1138,8 +1116,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, natoms
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -1190,7 +1166,6 @@ CONTAINS
     LOGICAL                                  :: failed
     REAL(KIND=dp)                            :: eps_tenval
 
-!   ---------------------------------------------------------------------------
 ! Tolerance of degenerate eigenvalues for the molecular tensor of inertia
 
     eps_tenval = 0.01_dp*sym%eps_geo
@@ -1305,8 +1280,6 @@ CONTAINS
                                                 scapro
     REAL(KIND=dp), DIMENSION(3)              :: a_norm, b, b_norm
 
-!   ---------------------------------------------------------------------------
-
     naxis = 0
     natoms = SIZE(coord,2)
 
@@ -1346,8 +1319,6 @@ CONTAINS
 
     INTEGER                                  :: ise
 
-!   ---------------------------------------------------------------------------
-
     newse = .TRUE.
 
     DO ise=2,MIN(se1,se2)
@@ -1377,8 +1348,6 @@ CONTAINS
     REAL(KIND=dp)                            :: length_of_a, length_of_b, &
                                                 scapro
     REAL(KIND=dp), DIMENSION(3)              :: a_norm, b, b_norm
-
-!   ---------------------------------------------------------------------------
 
     nsigma = 0
 
@@ -1415,7 +1384,6 @@ CONTAINS
       INTENT(INOUT)                          :: se
     REAL(KIND=dp), INTENT(IN)                :: eps
 
-!   ---------------------------------------------------------------------------
 ! Positive z component for all vectors
 
     IF (ABS(se(3)) < eps) THEN
@@ -1455,7 +1423,6 @@ CONTAINS
                                                 isig, isn, j, secount
     REAL(KIND=dp)                            :: null
 
-!   ---------------------------------------------------------------------------
 ! Print point group symbol and point group order
 
     IF (sym%point_group_order == -1) THEN
@@ -1562,7 +1529,6 @@ CONTAINS
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: length_of_a
 
-!   ---------------------------------------------------------------------------
 ! Check the length of vector a
 
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
@@ -1613,8 +1579,6 @@ CONTAINS
     REAL(KIND=dp)                            :: length_of_a, phi
     REAL(KIND=dp), DIMENSION(3)              :: b
 
-!   ---------------------------------------------------------------------------
-
     saxis = .FALSE.
 
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
@@ -1659,8 +1623,6 @@ CONTAINS
     REAL(KIND=dp)                            :: length_of_a
     REAL(KIND=dp), DIMENSION(3)              :: b
 
-!   ---------------------------------------------------------------------------
-
     sigma = .FALSE.
 
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
@@ -1700,7 +1662,6 @@ CONTAINS
     LOGICAL                                  :: failure = .FALSE.
     REAL(KIND=dp)                            :: tt
 
-!   ---------------------------------------------------------------------------
 ! Find the vector center_of_mass to molecular center of mass
 
     natoms = SIZE(coord,2)

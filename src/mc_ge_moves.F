@@ -152,7 +152,6 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_bias
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -516,7 +515,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles_insert, &
                                                 particles_remove
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -1305,7 +1303,6 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_old
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)

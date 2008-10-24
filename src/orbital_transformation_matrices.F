@@ -85,8 +85,6 @@ CONTAINS
                                                 m, ma, nc, ns
     REAL(KIND=dp)                            :: s, s1, s2
 
-!   ---------------------------------------------------------------------------
-
     IF (current_maxl > -1) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "Spherical harmonics are already allocated. "//&
@@ -255,8 +253,6 @@ CONTAINS
 
     INTEGER                                  :: istat, l
 
-!   ---------------------------------------------------------------------------
-
     IF (current_maxl > -1) THEN
 
       DO l=0,SIZE(orbtramat,1)-1
@@ -384,7 +380,6 @@ CONTAINS
     INTEGER                                  :: from, i, ic, is, jc, lx, ly, &
                                                 lz, m, nc, to
 
-!   ---------------------------------------------------------------------------
 !   *** Write headline ***
 
     WRITE (UNIT=lunit,FMT="(/,/,T2,A)") TRIM(headline)

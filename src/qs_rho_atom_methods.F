@@ -786,8 +786,6 @@ MODULE qs_rho_atom_methods
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
 
-! -----------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     NULLIFY(rho_atom_set)
@@ -989,8 +987,6 @@ MODULE qs_rho_atom_methods
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-
-! --------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 

@@ -508,13 +508,11 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 ! *****************************************************************************
   SUBROUTINE calc_g(r, z, g, order)
 
-!   ---------------------------------------------------------------------------
 !   Calculates g and its derivatives wrt r up to 3rd order, where:
 !
 !   g = .... for r < 1
 !   g = .... for r > 100 and everywhere else
 !   g = 2A(1+a1*r)ln(1+1/(2A(b1*r^1/2 + b2*r + b3*r^(3/2) + b4*r^2))).
-!   ---------------------------------------------------------------------------
 
     REAL(KIND=dp), INTENT(IN)                :: r
     INTEGER, INTENT(IN)                      :: z

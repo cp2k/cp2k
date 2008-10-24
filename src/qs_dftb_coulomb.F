@@ -148,8 +148,6 @@ CONTAINS
                                                 matrix_s
     TYPE(virial_type), POINTER               :: virial
 
-!   ----------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
@@ -598,8 +596,6 @@ CONTAINS
     REAL(KIND=dp)                            :: dfr, dr, fr, pfr, rij(3)
     TYPE(neighbor_list_type), POINTER        :: n_list_ab, n_list_local
     TYPE(neighbor_node_type), POINTER        :: n_list_node
-
-!   ----------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 

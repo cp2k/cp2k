@@ -514,8 +514,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     REAL(KIND=dp), DIMENSION(3)              :: grand_total
 
-!   ---------------------------------------------------------------------------
-
     IF (output_unit>0) THEN
 
        IF (.NOT.ASSOCIATED(qs_force)) THEN

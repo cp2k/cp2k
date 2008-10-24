@@ -147,8 +147,6 @@ CONTAINS
                                                 matrix_p, matrix_s, matrix_w
     TYPE(virial_type), POINTER               :: virial
 
-!   ----------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     ! set pointers
@@ -648,8 +646,6 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_p, matrix_s
     TYPE(section_vals_type), POINTER         :: scf_section
 
-!   ----------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     NULLIFY(matrix_h, dft_control, logger, scf_section)
@@ -780,8 +776,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_s
-
-!   ----------------------------------------------------------------------------
 
     NULLIFY(matrix_s,matrix_h,particle_set,sab_orb,distribution_2d,&
             atomic_kind_set)

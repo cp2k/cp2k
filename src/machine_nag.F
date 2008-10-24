@@ -130,8 +130,6 @@ END SUBROUTINE m_datum
   SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
-!   ---------------------------------------------------------------------------
-
     CALL flush(lunit)
 
   END SUBROUTINE m_flush
@@ -148,8 +146,6 @@ END SUBROUTINE m_datum
   SUBROUTINE m_mov(source,TARGET)
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
-
-!   ---------------------------------------------------------------------------
 
     CALL rename(TRIM(source),TRIM(TARGET))
 
@@ -227,8 +223,7 @@ END MODULE machine_nag
 !>      - adapted for g95 (29.05.2003,JVdV)
 !> \author APSI & JGH
 MODULE machine_nag
-USE f77_blas
-
+  USE f77_blas
   USE kinds,                           ONLY: dp, int_8
 
   IMPLICIT NONE
@@ -339,8 +334,6 @@ END SUBROUTINE m_datum
   SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
 
-!   ---------------------------------------------------------------------------
-
   END SUBROUTINE m_flush
 
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
@@ -401,8 +394,6 @@ END SUBROUTINE m_getarg
   SUBROUTINE m_mov(source,TARGET)
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
-
-!   ---------------------------------------------------------------------------
 
     STOP "m_mov not supported .... "
 

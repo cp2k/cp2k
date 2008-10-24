@@ -265,8 +265,6 @@ CONTAINS
     INTEGER                                  :: i
     REAL(dp)                                 :: cost, f, sint, sint2, t, w, x
 
-!   ---------------------------------------------------------------------------
-
     f = pi/REAL(n + 1,dp)
 
     SELECT CASE (radial_quadrature)

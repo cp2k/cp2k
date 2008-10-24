@@ -110,8 +110,6 @@ CONTAINS
 
     INTEGER                                  :: iat, ikind, istat
 
-!   ---------------------------------------------------------------------------
-
     IF(ASSOCIATED(mp_rho)) THEN
       CALL deallocate_mpole_rho(mp_rho)
     END IF
@@ -160,8 +158,6 @@ CONTAINS
 
     INTEGER                                  :: iat, istat
 
-!   ---------------------------------------------------------------------------
-
     IF(ASSOCIATED(rho0_set)) THEN
       CALL deallocate_rho0_atom(rho0_set)
     END IF
@@ -188,8 +184,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat, tmpstat
-
-!   ---------------------------------------------------------------------------
 
     ALLOCATE(rho0_atom%rho0_rad_h,STAT=istat)
 
@@ -231,8 +225,6 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
-
     IF(ASSOCIATED(rho0)) THEN
       CALL deallocate_rho0_mpole(rho0,error=error)
     END IF
@@ -268,8 +260,6 @@ CONTAINS
                                                 z_s
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: erf_z_h, gexp, gh_tmp, &
                                                 gs_tmp, int1, int2
-
-!   ---------------------------------------------------------------------------
 
     nr = grid_atom%nr
     lmax = rho0_mpole%lmax0_kind(ik)
@@ -352,8 +342,6 @@ CONTAINS
 
     INTEGER                                  :: ikind, istat, nkind
 
-!   ---------------------------------------------------------------------------
-
     istat = 0
     nkind = SIZE(mp_gau)
 
@@ -395,8 +383,6 @@ CONTAINS
 
     INTEGER                                  :: iat, istat, natom
 
-!   ---------------------------------------------------------------------------
-
     natom = SIZE(mp_rho)
 
     DO iat = 1,natom
@@ -426,8 +412,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat, natom
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(rho0_atom_set)) THEN
 
@@ -469,8 +453,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(rho0)) THEN
 
@@ -569,8 +551,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_rho0_mpole', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(rho0_mpole)) THEN
 
       IF(PRESENT(lmax_0)) lmax_0 = rho0_mpole%lmax_0
@@ -623,8 +603,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: my_tddft
-
-!   ---------------------------------------------------------------------------
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft

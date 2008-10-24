@@ -51,8 +51,6 @@ CONTAINS
 
     INTEGER                                  :: ikind, istat, n, nkind
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(scp_forces)) THEN
       CALL deallocate_scp_force(scp_forces)
     END IF
@@ -98,8 +96,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, nkind
-
-!   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(scp_forces)) THEN
       CALL stop_program(routineP,"The scp_forces pointer is not associated "//&
@@ -152,8 +148,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
-
-!   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(scp_forces)) THEN
       CALL stop_program(routineP,"The scp_forces pointer is not associated "//&

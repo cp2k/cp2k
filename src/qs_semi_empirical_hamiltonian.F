@@ -420,8 +420,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
 
-!   ----------------------------------------------------------------------------
-
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,error=error)
 
     SELECT CASE (dft_control%qs_control%method_id)

@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
 ! *****************************************************************************
 MODULE qs_rho0_methods
 
@@ -92,8 +93,6 @@ MODULE qs_rho0_methods
     REAL(dp), DIMENSION(:, :), POINTER       :: zet
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     NULLIFY(lmax,lmin,npgf,my_CG,zet)
@@ -173,8 +172,6 @@ MODULE qs_rho0_methods
     TYPE(mpole_gau_overlap), POINTER         :: mpole_gau
     TYPE(mpole_rho_atom), POINTER            :: mpole_rho
     TYPE(rho_atom_type), POINTER             :: rho_atom
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -293,8 +290,6 @@ MODULE qs_rho0_methods
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: cpc_h, cpc_s
 
-!   ---------------------------------------------------------------------------
-
     NULLIFY(cpc_h,cpc_s)
     CALL get_rho_atom(rho_atom=rho_atom,cpc_h=cpc_h,cpc_s=cpc_s)
 
@@ -355,8 +350,6 @@ MODULE qs_rho0_methods
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
     TYPE(section_vals_type), POINTER         :: dft_section
-
-! -----------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -602,8 +595,6 @@ MODULE qs_rho0_methods
                                                 V_s, z0_h, z0_s
     REAL(dp), DIMENSION(:), POINTER          :: ng0_h, ng0_s
     REAL(dp), DIMENSION(:, :), POINTER       :: g0_h, g0_s
-
-!   ---------------------------------------------------------------------------
 
     CALL get_rho0_mpole(rho0_mpole, ikind =ik, l0_ikind=lmax,&
                         zet0_h=z0_h, zet0_s=z0_s, norm_g0l_h=ng0_h,&

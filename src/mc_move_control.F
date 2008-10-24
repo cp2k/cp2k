@@ -57,7 +57,6 @@ CONTAINS
 
     INTEGER                                  :: handle, stat
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
     CALL timeset(routineN,handle)
@@ -199,7 +198,6 @@ CONTAINS
 
     INTEGER                                  :: handle, stat
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
     CALL timeset(routineN,handle)
@@ -288,7 +286,6 @@ SUBROUTINE move_q_reinit ( moves , lbias )
 
     INTEGER                                  :: handle
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -336,7 +333,6 @@ SUBROUTINE q_move_accept(moves,lbias)
 
     INTEGER                                  :: handle
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -404,7 +400,6 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
     INTEGER                                  :: handle
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
     CALL timeset(routineN,handle)
@@ -492,7 +487,6 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
     REAL(KIND=dp)                            :: rmvolume, test_ratio
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
 
-!   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
@@ -714,8 +708,6 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
       CALL timestop(handle)
 
   END SUBROUTINE mc_move_update
-
-! -----------------------------------------------------------------------------
 
 END MODULE mc_move_control
 

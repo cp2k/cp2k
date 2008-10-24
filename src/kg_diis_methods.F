@@ -235,8 +235,6 @@ CONTAINS
       POINTER                                :: mos
     TYPE(mol_mo_set_type), POINTER           :: mo_set
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
@@ -412,8 +410,6 @@ CONTAINS
     TYPE(mol_mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(mol_mo_set_type), POINTER           :: mo_set
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 

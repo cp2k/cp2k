@@ -84,8 +84,6 @@ CONTAINS
       POINTER                                :: force
     TYPE(virial_type), POINTER               :: virial
 
-!   ----------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     NULLIFY (atomic_kind_set,sab_vdw)

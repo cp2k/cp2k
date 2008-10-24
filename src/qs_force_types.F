@@ -77,8 +77,6 @@ CONTAINS
 
     INTEGER                                  :: ikind, istat, n, nkind
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(qs_force)) THEN
       CALL deallocate_qs_force(qs_force)
     END IF
@@ -191,8 +189,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, nkind
-
-!   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(qs_force)) THEN
       CALL stop_program(routineP,"The qs_force pointer is not associated "//&
@@ -365,8 +361,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
-
-!   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(qs_force)) THEN
       CALL stop_program(routineP,"The qs_force pointer is not associated "//&

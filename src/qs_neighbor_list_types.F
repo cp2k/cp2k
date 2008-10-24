@@ -153,8 +153,6 @@ CONTAINS
     INTEGER                                  :: istat
     TYPE(neighbor_list_type), POINTER        :: new_neighbor_list
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(neighbor_list_set)) THEN
 
       IF (ASSOCIATED(neighbor_list_set%last_neighbor_list)) THEN
@@ -260,8 +258,6 @@ CONTAINS
     INTEGER                                  :: iatom, istat, my_nkind
     LOGICAL                                  :: my_l3c_oce, my_l3c_rho0
     TYPE(neighbor_node_type), POINTER        :: new_neighbor_node
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_list)) THEN
 
@@ -379,7 +375,6 @@ CONTAINS
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
 !   *** Deallocate the old neighbor list set ***
 
     IF (ASSOCIATED(neighbor_list_set)) THEN
@@ -421,8 +416,6 @@ CONTAINS
                                                 next_neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node, &
                                                 next_neighbor_node
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_list_set)) THEN
 
@@ -492,8 +485,6 @@ CONTAINS
 
     INTEGER                                  :: ikind, istat
 
-!   ---------------------------------------------------------------------------
-
     ALLOCATE(reduced_3c_list(nkind),STAT=istat)
     IF (istat /= 0) THEN
        CALL stop_memory(routineN,moduleN,__LINE__,"reduced_3c_list")
@@ -519,8 +510,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, nkind
-
-!   ---------------------------------------------------------------------------
 
     IF(ASSOCIATED(reduced_3c_list)) THEN
 
@@ -566,8 +555,6 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: neighbor_node, &
                                                 next_neighbor_node
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(neighbor_list)) THEN
 
       neighbor_node => neighbor_list%first_neighbor_node
@@ -610,8 +597,6 @@ CONTAINS
     TYPE(neighbor_list_type), POINTER        :: neighbor_list, &
                                                 next_neighbor_list
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(neighbor_list_set)) THEN
 
       neighbor_list => neighbor_list_set%first_neighbor_list
@@ -648,8 +633,6 @@ CONTAINS
 
     INTEGER                                  :: inode, nnode
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_list)) THEN
 
@@ -705,8 +688,6 @@ CONTAINS
     INTEGER                                  :: ilist
     TYPE(neighbor_list_type), POINTER        :: current_neighbor_list
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(neighbor_list_set)) THEN
 
       NULLIFY (neighbor_list)
@@ -750,8 +731,6 @@ CONTAINS
     INTEGER                                  :: ilist
     TYPE(neighbor_list_type), POINTER        :: current_neighbor_list
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(neighbor_list_set)) THEN
 
       NULLIFY (neighbor_list)
@@ -790,8 +769,6 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: first_neighbor_list
 
-!   ---------------------------------------------------------------------------
-
     first_neighbor_list => neighbor_list_set%first_neighbor_list
 
   END FUNCTION first_list
@@ -806,8 +783,6 @@ CONTAINS
  
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: first_neighbor_node
-
-!   ---------------------------------------------------------------------------
 
     first_neighbor_node => neighbor_list%first_neighbor_node
 
@@ -829,8 +804,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_list', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_list)) THEN
 
@@ -861,8 +834,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_list_set', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_list_set)) THEN
 
@@ -900,8 +871,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_node', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(neighbor_node)) THEN
 
       IF (PRESENT(neighbor)) neighbor = neighbor_node%neighbor
@@ -936,8 +905,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_neighbor_list', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_list)) THEN
 
@@ -974,8 +941,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_neighbor_list_set', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(neighbor_list_set)) THEN
 
 !     *** Initialize the pointers to the last neighbor list ***
@@ -1008,8 +973,6 @@ CONTAINS
  FUNCTION next_neighbor_list(neighbor_list) RESULT (next_list)
     TYPE(neighbor_list_type), POINTER        :: neighbor_list, next_list
 
-!   ---------------------------------------------------------------------------
-
     next_list => neighbor_list%next_neighbor_list
 
   END FUNCTION next_neighbor_list
@@ -1022,8 +985,6 @@ CONTAINS
 ! *****************************************************************************
   FUNCTION next_neighbor_node(neighbor_node) RESULT(next_node)
     TYPE(neighbor_node_type), POINTER        :: neighbor_node, next_node
-
-!   ---------------------------------------------------------------------------
 
     next_node => neighbor_node%next_neighbor_node
 
@@ -1043,8 +1004,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_neighbor_list', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_list)) THEN
 
@@ -1072,8 +1031,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_neighbor_list_set', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_list_set)) THEN
 
@@ -1104,8 +1061,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_neighbor_node', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_node)) THEN
 

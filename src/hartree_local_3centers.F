@@ -1094,8 +1094,6 @@ CONTAINS
     REAL(dp)                                 :: z1x2, z2x2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vabc_plus
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
     nch0 = ncoset(l0_max)
 

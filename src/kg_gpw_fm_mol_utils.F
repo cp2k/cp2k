@@ -101,8 +101,6 @@ CONTAINS
       POINTER                                :: mos_mol
     TYPE(mol_mo_set_type), POINTER           :: mo_set
 
-!   ---------------------------------------------------------------------------
-
     failure = .FALSE.
     nmolecule_kind = SIZE(fm_mol_set,1)
     NULLIFY(wmo_x_mot,mo,wmo)
@@ -239,8 +237,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha
 
-!  --------------------------------------------------------------------------------
-
     failure = .FALSE.
 
     CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
@@ -308,8 +304,6 @@ CONTAINS
     REAL(dp)                                 :: f, p
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigenvalues
 
-!   --------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     nrow = SIZE(matrix,1)
@@ -373,8 +367,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
 
-!   --------------------------------------------------------------------------
-
     failure = .FALSE.
 
     IF(ASSOCIATED(matrix)) THEN
@@ -435,8 +427,6 @@ CONTAINS
     REAL(dp)                                 :: abstol
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: w, work
     REAL(KIND=dp), EXTERNAL                  :: dlamch
-
-!   --------------------------------------------------------------------------
 
     failure =  .FALSE.
     abstol = 2.0_dp*dlamch("S")
@@ -505,8 +495,6 @@ CONTAINS
     LOGICAL                                  :: failure
     LOGICAL, SAVE                            :: FIRST = .TRUE.
 
-!   ---------------------------------------------------------------------------
-
     failure = .FALSE.
 
     IF (FIRST) THEN
@@ -563,8 +551,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: s_block
-
-!   ---------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -890,8 +876,6 @@ CONTAINS
       POINTER                                :: mos
     TYPE(mol_mo_set_type), POINTER           :: mo_set
     TYPE(section_vals_type), POINTER         :: dft_section
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 

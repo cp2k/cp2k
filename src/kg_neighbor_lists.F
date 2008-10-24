@@ -475,8 +475,6 @@ CONTAINS
     INTEGER                                  :: handle
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     NULLIFY (qs_env)

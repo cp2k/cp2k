@@ -233,8 +233,6 @@ CONTAINS
     REAL(KIND=dp)                            :: at, dpx, ln1, ln2, px, px0, &
                                                 q, xb
 
-!   ---------------------------------------------------------------------------
-
     q = SQRT ( 4.0_dp*c - b*b )
     xb = 2.0_dp*x0+b
     px0 = x0*x0+b*x0+c
@@ -269,8 +267,6 @@ CONTAINS
     REAL(KIND=dp)                            :: at, dat, dex, dln1, dln2, &
                                                 dpx, ex, ln1, ln2, pa, px, &
                                                 px0, q, xb
-
-!   ---------------------------------------------------------------------------
 
     q = SQRT ( 4.0_dp*c - b*b )
     xb = 2.0_dp*x0+b
@@ -311,8 +307,6 @@ CONTAINS
     REAL(KIND=dp)                            :: at, dat, dex, dln1, dln2, &
                                                 dpx, ex, ln1, ln2, pa, px, &
                                                 px0, q, xb
-
-!   ---------------------------------------------------------------------------
 
     q = SQRT ( 4.0_dp*c - b*b )
     xb = 2.0_dp*x0+b
@@ -356,8 +350,6 @@ CONTAINS
                                                 dat, dex, dln1, dln2, dpx, &
                                                 fp, ln1, ln2, pa, px, px0, q, &
                                                 xb
-
-!   ---------------------------------------------------------------------------
 
     q = SQRT ( 4.0_dp*c - b*b )
     xb = 2.0_dp*x0+b
@@ -407,8 +399,6 @@ CONTAINS
     REAL(KIND=dp) :: at, ax, bx, cx, d2at, d2bx, d2dx, d2ex, d2ln1, d2ln2, &
       d3at, d3ex, d3ln1, d3ln2, dat, dbx, ddx, dex, dln1, dln2, dpx, dx, fp, &
       ln1, ln2, pa, px, px0, q, xb
-
-!   ---------------------------------------------------------------------------
 
     q = SQRT ( 4.0_dp*c - b*b )
     xb = 2.0_dp*x0+b

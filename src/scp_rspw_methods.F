@@ -161,8 +161,6 @@ SUBROUTINE maxradius_scp_init ( scp_env, atomic_kind_set, gridlevel_info, &
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(pw_env_type), POINTER               :: pw_env
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     failure = .FALSE.

@@ -63,8 +63,6 @@ MODULE hartree_local_types
     INTEGER                                  :: iat, istat
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
     IF(ASSOCIATED(ecoul_1c)) THEN
       CALL deallocate_ecoul_1center(ecoul_1c,error)
     END IF
@@ -95,8 +93,6 @@ MODULE hartree_local_types
 
     INTEGER                                  :: iat, istat, natom
     LOGICAL                                  :: failure
-
-!   ---------------------------------------------------------------------------
 
     natom = SIZE(ecoul_1c,1)
 
@@ -131,8 +127,6 @@ MODULE hartree_local_types
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: Vh1_h, Vh1_s
 
-!   ---------------------------------------------------------------------------
-
     IF(PRESENT(iatom)) THEN
       IF(PRESENT(Vh1_h)) Vh1_h => ecoul_1c(iatom)%Vh1_h%r_coef
       IF(PRESENT(Vh1_s)) Vh1_s => ecoul_1c(iatom)%Vh1_s%r_coef
@@ -152,8 +146,6 @@ MODULE hartree_local_types
     CHARACTER(len=*), PARAMETER :: routineN = 'get_hartree_local', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
     IF(PRESENT(ecoul_1c)) ecoul_1c => hartree_local%ecoul_1c
     IF(PRESENT(vtriple))  vtriple => hartree_local%vtriple
 
@@ -170,8 +162,6 @@ MODULE hartree_local_types
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-
-!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
 
@@ -193,8 +183,6 @@ MODULE hartree_local_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-
-!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(hartree_local)) THEN
       IF (ASSOCIATED(hartree_local%ecoul_1c)) THEN
@@ -220,8 +208,6 @@ MODULE hartree_local_types
     REAL(dp), INTENT(IN), OPTIONAL           :: ecoul_1_h, ecoul_1_s, &
                                                 ecoul_1_z, ecoul_1_0
 
-!   ---------------------------------------------------------------------------
-
     IF(PRESENT(iatom)) THEN
       IF(PRESENT(ecoul_1_h)) ecoul_1c(iatom)%ecoul_1_h=ecoul_1_h
       IF(PRESENT(ecoul_1_s)) ecoul_1c(iatom)%ecoul_1_s=ecoul_1_s
@@ -242,8 +228,6 @@ MODULE hartree_local_types
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_hartree_local', &
       routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
 
     IF(PRESENT(ecoul_1c)) hartree_local%ecoul_1c => ecoul_1c
     IF(PRESENT(vtriple))  hartree_local%vtriple => vtriple

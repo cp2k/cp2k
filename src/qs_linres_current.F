@@ -721,8 +721,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(section_vals_type), POINTER         :: input, interp_section
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
     NULLIFY(atomic_kind,cell,dft_control,orb_basis_set,sab_orb_neighbor_list,&
          sab_orb_neighbor_node,atomic_kind_set,sab_orb,particle_set,&

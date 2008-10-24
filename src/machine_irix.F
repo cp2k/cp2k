@@ -90,7 +90,6 @@ END SUBROUTINE m_datum
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
 
     CALL flush(lunit,istat)
 
@@ -111,7 +110,6 @@ END SUBROUTINE m_datum
 
     CHARACTER(LEN=2*default_string_length+4) :: cmd
 
-!   ---------------------------------------------------------------------------
 
     cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
     CALL system(cmd)

@@ -58,8 +58,6 @@ CONTAINS
 
     INTEGER                                  :: ikind, istat, n, nkind
 
-!   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(kg_forces)) THEN
       CALL deallocate_kg_force(kg_forces)
     END IF
@@ -131,8 +129,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, nkind
-
-!   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(kg_forces)) THEN
       CALL stop_program(routineP,"The kg_forces pointer is not associated "//&
@@ -220,8 +216,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
-
-!   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(kg_forces)) THEN
       CALL stop_program(routineP,"The kg_forces pointer is not associated "//&

@@ -393,8 +393,6 @@ CONTAINS
 
     INTEGER                                  :: idir
 
-!   ---------------------------------------------------------------------------
-
     SELECT CASE(nspins)
     CASE(1)
 !     What is this for?

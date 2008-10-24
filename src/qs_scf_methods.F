@@ -357,8 +357,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_new_block, p_old_block
     TYPE(real_block_node_type), POINTER      :: block_node_m1, block_node_m2
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
     failure = .FALSE.
     delta = 0.0_dp

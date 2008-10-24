@@ -159,7 +159,6 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE ke_gga_lda_eval ( functional, rho_set, deriv_set, order, error )
 
-    !   ---------------------------------------------------------------------------
 
     INTEGER, INTENT(IN)                      :: functional
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -182,8 +181,6 @@ CONTAINS
       e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, e_rho_rho_rho, grho, &
       rho, rho13
     TYPE(xc_derivative_type), POINTER        :: deriv
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -314,7 +311,6 @@ CONTAINS
   SUBROUTINE ke_gga_lsd_eval ( functional, rho_set, deriv_set, order, &
        error )
 
-    !   ---------------------------------------------------------------------------
 
     INTEGER, INTENT(IN)                      :: functional
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -341,8 +337,6 @@ CONTAINS
       e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, e_rho_rho_rho
     TYPE(cp_3d_r_p_type), DIMENSION(2)       :: norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -498,8 +492,6 @@ CONTAINS
 
     INTEGER                                  :: ip
 
-!   ---------------------------------------------------------------------------
-
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -523,8 +515,6 @@ CONTAINS
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: a0, a1, sx, sy
-
-!   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,a0,a1,sx,sy)
     DO ip = 1, npoints
@@ -559,8 +549,6 @@ CONTAINS
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: a0, a1, a2, sx, sxx, sxy, sy
-
-!   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,a0,a1,a2,sx,sy,sxx,sxy)
     DO ip = 1, npoints
@@ -604,8 +592,6 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: a0, a1, a2, a3, sx, sxx, &
                                                 sxxx, sxxy, sxy, sy
-
-!   ---------------------------------------------------------------------------
 
 !$omp parallel do private(ip,a0,a1,a2,a3,sx,sy,sxx,sxy,sxxx,sxxy)
     DO ip = 1, npoints

@@ -114,8 +114,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-!   ---------------------------------------------------------------------------
-
     logger => cp_error_get_logger(error)
 
     group = logger%para_env%group
@@ -470,8 +468,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(section_vals_type), POINTER         :: distribution_section, &
                                                 mc_section
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 

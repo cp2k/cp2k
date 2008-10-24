@@ -85,8 +85,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
     para_env=>kg_env%para_env
     group = para_env%group

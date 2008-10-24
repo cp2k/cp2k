@@ -72,8 +72,6 @@ CONTAINS
     REAL(KIND=dp)                            :: my_beta
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
@@ -248,8 +246,6 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(9)                    :: desca, descb, descc
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     a => matrix_a%local_data
@@ -391,8 +387,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     REAL(KIND=dp), EXTERNAL                  :: DDOT
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
     norm = 0.0_dp
     a => matrix_a%local_data
@@ -504,8 +498,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, c
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     context => matrix_a%matrix_struct%context
@@ -556,8 +548,6 @@ CPSourceFileRef,&
                                                 nrow_local
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
     TYPE(cp_blacs_env_type), POINTER         :: context
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -612,8 +602,6 @@ CPSourceFileRef,&
                                                 nprow, nrow_local
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
     TYPE(cp_blacs_env_type), POINTER         :: context
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -780,8 +768,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
@@ -820,8 +806,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, c
     TYPE(cp_blacs_env_type), POINTER         :: context
-
-!   ---------------------------------------------------------------------------
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -889,7 +873,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     INTEGER, EXTERNAL :: indxl2g
 
 #endif
-!   ---------------------------------------------------------------------------
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -978,8 +961,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
                                                 mypcol, myprow, n, npcol, &
                                                 nprow
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-
-!   ---------------------------------------------------------------------------
 
     myprow=matrixa%matrix_struct%context%mepos(1)
     mypcol=matrixa%matrix_struct%context%mepos(2)

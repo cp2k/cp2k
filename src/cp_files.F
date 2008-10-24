@@ -134,8 +134,6 @@ CONTAINS
     INTEGER                                  :: istat
     LOGICAL                                  :: exists, opened
 
-!   ---------------------------------------------------------------------------
-
     IF (PRESENT(file_status)) THEN
       status_string = file_status
     ELSE

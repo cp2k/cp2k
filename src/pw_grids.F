@@ -192,8 +192,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
     CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
 
@@ -237,8 +235,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-
-!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
     CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
