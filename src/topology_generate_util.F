@@ -1274,7 +1274,10 @@ CONTAINS
     DO istart = 1, ndim
        IF (Ilist1(istart)>=tmp(1)) EXIT
     END DO
-    IF (Ilist1(istart)>tmp(1).AND.(istart/=1)) istart=istart-1
+    ! if nothing there stay within bounds
+    IF (istart<=ndim) THEN
+      IF (Ilist1(istart)>tmp(1).AND.(istart/=1)) istart=istart-1
+    ENDIF
     DO iend = istart, ndim
        IF (Ilist1(iend)/=tmp(1)) EXIT
     END DO
