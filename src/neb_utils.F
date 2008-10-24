@@ -542,10 +542,10 @@ CPSourceFileRef,&
           rep_env%f(:,j+1) = 0.0_dp
           Mmatrix          = 0.0_dp
        ELSE
-          rep_env%r=0.0_dp
-          rep_env%f=0.0_dp
-          cvalues(:,j+1)=0.0_dp
-          Mmatrix(:,j+1)=0.0_dp
+          rep_env%r(:,j+1) = 0.0_dp
+          rep_env%f(:,j+1) = 0.0_dp
+          cvalues(:,j+1)   = 0.0_dp
+          Mmatrix(:,j+1)   = 0.0_dp
        END IF
        IF (.NOT.failure) THEN
           CALL rep_env_sync(rep_env,rep_env%f,error=error)
@@ -626,10 +626,10 @@ CPSourceFileRef,&
                SIZE(coords%xyz,1), SIZE(coords%wrk,1), cvalues(:,j+1), Mmatrix(:,j+1),&
                error)
        ELSE
-          rep_env%r=0.0_dp
-          rep_env%f=0.0_dp
-          cvalues(:,j+1)=0.0_dp
-          Mmatrix(:,j+1)=0.0_dp
+          rep_env%r(:,j+1) = 0.0_dp
+          rep_env%f(:,j+1) = 0.0_dp
+          cvalues(:,j+1)   = 0.0_dp
+          Mmatrix(:,j+1)   = 0.0_dp
        END IF
        IF (.NOT.failure) THEN
           CALL rep_env_sync(rep_env,rep_env%f,error=error)
