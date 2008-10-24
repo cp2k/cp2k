@@ -28,7 +28,8 @@ MODULE cp2k_runs
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
-                                             cp_unit_set_type
+                                             cp_unit_set_type,&
+                                             print_all_units
   USE cuda_memory,                     ONLY: cuda_device_mem_init,&
                                              cuda_device_mem_release
   USE environment,                     ONLY: compile_date,&
@@ -899,6 +900,11 @@ CPSourceFileRef,&
        WRITE(unit_nr,FMT='(A)') '<H2>Journal papers</H2>'
        WRITE(unit_nr,FMT='(A)') '<A HREF="references.html">List of references</A> cited in the CP2K input manual.'
 
+       WRITE(unit_nr,FMT='(A)') '<H2>Units of Measurement</H2>'
+       WRITE(unit_nr,FMT='(A)') '<A HREF="units.html">List of unites</A> organized into groups based on the physical quantity '//&
+            "they measure. The units can be used to specify an alternative unit of measurement for keyword values, for which a "//&
+            "default unit has been explicitly defined."
+
        IF (enable_color_tags) THEN
           WRITE(unit_nr,FMT='(A)') "<H2>Color convention</H2>"
           WRITE(unit_nr,FMT='(A)') &
@@ -945,6 +951,7 @@ CPSourceFileRef,&
        CALL close_file(unit_nr)
        CALL section_release(root_section,error=error)
 
+       ! References
        CALL open_file(unit_number=unit_nr,file_name="references.html",&
             file_action="WRITE", file_status="REPLACE")
        WRITE(unit_nr,FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k literature list</TITLE>"
@@ -955,6 +962,15 @@ CPSourceFileRef,&
        WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
        CALL close_file(unit_nr)
 
+       ! Units
+       CALL open_file(unit_number=unit_nr,file_name="units.html",&
+            file_action="WRITE", file_status="REPLACE")
+       WRITE(unit_nr,FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k units list</TITLE>"
+       WRITE(unit_nr,FMT='(A)') "<H1>CP2K Available Units of Measurement</H1>"
+       CALL print_all_units(unit_nr=unit_nr)
+       WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="http://cp2k.berlios.de/">CP2K homepage</A>'
+       WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
+       CALL close_file(unit_nr)
     END IF
   END SUBROUTINE write_cp2k_html_manual
 
@@ -989,13 +1005,12 @@ CPSourceFileRef,&
 
       DO i=1,root_section%n_subsections
          CALL write_section_xml(root_section%subsections(i)%section,1,unit_number,error)
-      END DO
-
+      END DO      
       WRITE (UNIT=unit_number,FMT="(A)") "</CP2K_INPUT>"
-
       CALL close_file(unit_number=unit_number)
       CALL section_release(root_section,error=error)
 
+      ! References
       CALL open_file(unit_number=unit_number,file_name="references.html",&
            file_action="WRITE", file_status="REPLACE")
       WRITE(unit_number,FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k literature list</TITLE>"
@@ -1003,6 +1018,16 @@ CPSourceFileRef,&
       CALL print_all_references(sorted=.TRUE.,cited_only=.FALSE., &
                           FORMAT=print_format_html,unit=unit_number)
       WRITE(unit_number,FMT='(A)') "</BODY></HTML>"
+      CALL close_file(unit_number=unit_number)
+
+      ! Units
+      CALL open_file(unit_number=unit_number,file_name="units.html",&
+           file_action="WRITE", file_status="REPLACE")
+      WRITE(unit_number,FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k units list</TITLE>"
+      WRITE(unit_number,FMT='(A)') "<H1>CP2K Available Units of Measurement</H1>"
+      CALL print_all_units(unit_nr=unit_number)
+      WRITE(unit_number,FMT='(A)') "</BODY></HTML>"
+      CALL close_file(unit_number=unit_number)
     END IF
 
   END SUBROUTINE write_xml_file
@@ -1033,10 +1058,7 @@ CPSourceFileRef,&
     TYPE(cp_error_type)                      :: error
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-!XXXXXXXXXXXX uninitiliased error
-
     failure=.FALSE.
-
     IF (PRESENT(mpi_comm)) THEN
        NULLIFY(para_env)
        CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.,error=error) !XXXXXXXXXXXX uninitiliased error

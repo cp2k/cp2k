@@ -35,6 +35,7 @@ MODULE cp_units
        atm, bar, bohr, e_mass, evolt, femtoseconds, joule, kcalmol, kelvin, &
        kjmol, massunit, pascal, picoseconds, seconds, wavenumbers
   USE string_utilities,                ONLY: compress,&
+                                             s2a,&
                                              uppercase
 #include "cp_common_uses.h"
 
@@ -104,7 +105,7 @@ MODULE cp_units
   PUBLIC :: cp_unit_create, cp_unit_retain, cp_unit_release, &
        cp_unit_to_cp2k, cp_unit_from_cp2k, cp_unit_desc,&
        cp_unit_set_create, cp_unit_set_retain, cp_unit_set_release,&
-       cp_unit_to_cp2k1, cp_unit_from_cp2k1, cp_unit_compatible
+       cp_unit_to_cp2k1, cp_unit_from_cp2k1, cp_unit_compatible, print_all_units
   
 ! *****************************************************************************
 !> \brief stores a unit
@@ -1474,5 +1475,82 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE cp_unit_set_release
+
+! *****************************************************************************
+!> \brief Prints info on all available units in CP2K
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  SUBROUTINE print_all_units(unit_nr)
+    INTEGER, INTENT(IN)                      :: unit_nr
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_all_units', &
+      routineP = moduleN//':'//routineN
+
+    CALL print_section_unit(unit_label="Undefined",description="If the default unit "//&
+         "of a keyword is explicitly undefined, all possible units of measurement can "//&
+         "be used to define a proper value.",&
+         units_set=s2a("internal_cp2k"), unit_nr=unit_nr)
+
+    CALL print_section_unit(unit_label="Energy",description="Possible units of measurement "//&
+         "for Energies. The [energy] entry acts like a dummy flag (assumes the unit of "//&
+         "measurement of energy is in internal units), useful for dimensional analysis.",&
+         units_set=s2a("hartree","wavenumber_e","joule","kcalmol","kjmol","Ry",&
+         "eV","K_e","energy"), unit_nr=unit_nr)
+
+    CALL print_section_unit(unit_label="Length",description="Possible units of measurement "//&
+         "for Lengths. The [length] entry acts like a dummy flag (assumes the unit of "//&
+         "measurement of length is in internal units), useful for dimensional analysis.",&
+         units_set=s2a("bohr","m","pm","nm","angstrom","length"), unit_nr=unit_nr)
+
+    CALL print_section_unit(unit_label="Temperature",description="Possible units of measurement "//&
+         "for Temperature. The [temperature] entry acts like a dummy flag (assumes the unit of "//&
+         "measurement of temperature is in internal units), useful for dimensional analysis.",&
+         units_set=s2a("K","au_temp","temperature"), unit_nr=unit_nr)
+
+    CALL print_section_unit(unit_label="Pressure",description="Possible units of measurement "//&
+         "for Pressure. The [pressure] entry acts like a dummy flag (assumes the unit of "//&
+         "measurement of pressure is in internal units), useful for dimensional analysis.",&
+         units_set=s2a("bar","atm","kbar","Pa","MPa","GPa","au_p","pressure"),&
+         unit_nr=unit_nr)
+    
+    CALL print_section_unit(unit_label="Angle",description="Possible units of measurement "//&
+         "for Angles. The [angle] entry acts like a dummy flag (assumes the unit of "//&
+         "measurement of angle is in internal units), useful for dimensional analysis.",&
+         units_set=s2a("rad","deg","angle"),unit_nr=unit_nr)
+
+    CALL print_section_unit(unit_label="Time",description="Possible units of measurement "//&
+         "for Time. The [time] entry acts like a dummy flag (assumes the unit of "//&
+         "measurement of time is in internal units), useful for dimensional analysis.",&
+         units_set=s2a("s","fs","ps","au_t","wavenumber_t","time"),unit_nr=unit_nr)
+
+    CALL print_section_unit(unit_label="Mass",description="Possible units of measurement "//&
+         "for Masses. The [mass] entry acts like a dummy flag (assumes the unit of "//&
+         "measurement of mass is in internal units), useful for dimensional analysis.",&
+         units_set=s2a("kg","amu","m_e","mass"),unit_nr=unit_nr)
+
+  END SUBROUTINE print_all_units
+
+! *****************************************************************************
+!> \brief Prints info on all available units in CP2K - Low level
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  SUBROUTINE print_section_unit(unit_label, description, units_set, unit_nr)
+    CHARACTER(LEN=*), INTENT(IN)             :: unit_label, description
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(IN)                             :: units_set
+    INTEGER, INTENT(IN)                      :: unit_nr
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_section_unit', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+
+    WRITE(unit_nr,FMT='(A)') "<H2>"//TRIM(unit_label)//"</H2>"
+    WRITE(unit_nr,FMT='(A)')description//"<BR><DL>"
+    DO i =1, SIZE(units_set)
+       WRITE(unit_nr,FMT='(A)')"<DD><B>"//TRIM(units_set(i))//"</B></DD>"
+    END DO
+    WRITE(unit_nr,FMT='(A)')"</DL><P>"
+  END SUBROUTINE print_section_unit
 
 END MODULE cp_units
