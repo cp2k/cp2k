@@ -11,7 +11,8 @@
 MODULE constraint_clv
   USE cell_types,                      ONLY: cell_type
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
-  USE colvar_types,                    ONLY: colvar_type
+  USE colvar_types,                    ONLY: colvar_type,&
+                                             diff_colvar
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -469,8 +470,8 @@ CONTAINS
           ! Update colvar
           CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
                pos=pos, fixd_list=fixd_list, error=error)
-          lcolv ( iconst ) % sigma = lcolv ( iconst ) % colvar % ss - &
-               colv_list ( iconst ) % expected_value
+          lcolv ( iconst ) % sigma = diff_colvar(lcolv(iconst)%colvar,&
+               colv_list(iconst)%expected_value)
           fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar,&
                lcolv ( iconst ) % colvar_old, imass=imass, error=error)
           del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*dt*fdotf_sum)
@@ -491,8 +492,8 @@ CONTAINS
        IF (colv_list(iconst)%restraint%active) CYCLE
        CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
             pos=pos, fixd_list=fixd_list, error=error)
-       lcolv ( iconst ) % sigma = lcolv ( iconst ) % colvar % ss - &
-            colv_list ( iconst ) % expected_value
+       lcolv ( iconst ) % sigma = diff_colvar(lcolv ( iconst ) % colvar,&
+            colv_list ( iconst ) % expected_value)
        max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
     END DO
   END SUBROUTINE shake_colv_low
@@ -660,8 +661,8 @@ CONTAINS
           ! Update colvar
           CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
                pos=pos, fixd_list=fixd_list, error=error)
-          lcolv ( iconst ) % sigma = lcolv ( iconst ) % colvar % ss - &
-               colv_list ( iconst ) % expected_value
+          lcolv ( iconst ) % sigma = diff_colvar(lcolv ( iconst ) % colvar,&
+               colv_list ( iconst ) % expected_value)
           fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar,&
                lcolv ( iconst ) % colvar_old, roll=.TRUE., rmat=r_shake,&
                imass=imass, error=error)
@@ -683,8 +684,8 @@ CONTAINS
        IF (colv_list(iconst)%restraint%active) CYCLE
        CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
             pos=pos, fixd_list=fixd_list, error=error)
-       lcolv ( iconst ) % sigma = lcolv ( iconst ) % colvar % ss - &
-            colv_list ( iconst ) % expected_value
+       lcolv ( iconst ) % sigma = diff_colvar(lcolv ( iconst ) % colvar,&
+            colv_list ( iconst ) % expected_value)
        max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
     END DO
 
@@ -766,8 +767,7 @@ CONTAINS
 !>      Teodoro Laino [teo] created 04.2006
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  SUBROUTINE  update_con_colv(wrk, fac, lcolv, lambda, roll, rmat, imass,&
-       error)
+  SUBROUTINE  update_con_colv(wrk, fac, lcolv, lambda, roll, rmat, imass, error)
     REAL(KIND=dp), INTENT(INOUT)             :: wrk( :, : )
     REAL(KIND=dp), INTENT(IN)                :: fac
     TYPE(local_colvar_constraint_type), &
@@ -815,8 +815,7 @@ CONTAINS
 !>      Teodoro Laino [teo] created 04.2006
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  FUNCTION eval_Jac_colvar(colvar, colvar_old, roll, rmat, imass,&
-       error) RESULT(res)
+  FUNCTION eval_Jac_colvar(colvar, colvar_old, roll, rmat, imass, error) RESULT(res)
     TYPE(colvar_type), POINTER               :: colvar, colvar_old
     LOGICAL, INTENT(IN), OPTIONAL            :: roll
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -896,7 +895,7 @@ CONTAINS
        ind = colvar % i_atom (iatm)
        IF (my_roll) THEN
           pos    = particles ( ind ) % r
-          CALL MATVEC_3x3 (f_roll, rmat, colvar % dsdr(:,iatm) )
+          CALL matvec_3x3 (f_roll, rmat, colvar % dsdr(:,iatm) )
           CALL matvec_3x3 (tmp, veps, pos )
           v_roll = vel(:,ind) + tmp
        ELSE

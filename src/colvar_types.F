@@ -52,7 +52,8 @@ MODULE colvar_types
             colvar_check_points,&
             eval_point_der,&
             eval_point_pos,&
-            post_process_colvar
+            post_process_colvar,&
+            diff_colvar
 
   INTEGER, PARAMETER, PUBLIC :: no_colvar_id              =-2,&
                                 dist_colvar_id            = 1,&
@@ -1141,5 +1142,25 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE post_process_colvar
+
+! *****************************************************************************
+!> \brief subtract b from the ss value of a colvar: general function for handling
+!>        periodic/non-periodic colvar
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  FUNCTION diff_colvar(colvar, b) RESULT(diff)
+    TYPE(colvar_type), POINTER               :: colvar
+    REAL(KIND=dp), INTENT(IN)                :: b
+    REAL(KIND=dp)                            :: diff
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'diff_colvar', &
+      routineP = moduleN//':'//routineN
+
+    diff = colvar%ss - b
+    IF (colvar%type_id==torsion_colvar_id) THEN
+       ! The difference of a periodic COLVAR is always within [-pi,pi]
+       diff = SIGN(1.0_dp,ASIN(SIN(diff)))*ACOS(COS(diff))
+    END IF
+  END FUNCTION diff_colvar
 
 END MODULE colvar_types

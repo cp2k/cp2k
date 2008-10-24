@@ -11,7 +11,7 @@ MODULE restraint
   USE cell_types,                      ONLY: cell_type
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
   USE colvar_types,                    ONLY: colvar_counters,&
-                                             torsion_colvar_id
+                                             diff_colvar
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -603,11 +603,7 @@ CONTAINS
 
        k    = colv_list ( iconst )%restraint%k0
        targ = colv_list ( iconst )%expected_value
-       tab  = lcolv(iconst)%colvar%ss - targ
-       IF (lcolv(iconst)%colvar%type_id==torsion_colvar_id) THEN
-          ! The difference of a periodic COLVAR is always within [-pi,pi]
-          tab = SIGN(1.0_dp,ASIN(SIN(tab)))*ACOS(COS(tab))
-       END IF
+       tab  = diff_colvar(lcolv(iconst)%colvar,targ)
        ! Update Energy
        energy = energy + k * tab**2
        ! Update Forces
