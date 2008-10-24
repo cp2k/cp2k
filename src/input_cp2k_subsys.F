@@ -1499,7 +1499,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
             description="controls the activation of the bond",&
-            usage="&OT (ADD|REMOVE)",&
+            usage="&BOND (ADD|REMOVE)",&
             enum_c_vals=s2a("ADD","REMOVE"),&
             enum_i_vals=(/do_add,do_remove/),&
             default_i_val=do_add,&
@@ -1526,7 +1526,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
             description="controls the activation of the bond",&
-            usage="&OT (ADD|REMOVE)",&
+            usage="&ANGLE (ADD|REMOVE)",&
             enum_c_vals=s2a("ADD","REMOVE"),&
             enum_i_vals=(/do_add,do_remove/),&
             default_i_val=do_add,&
@@ -1553,7 +1553,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
             description="controls the activation of the bond",&
-            usage="&OT (ADD|REMOVE)",&
+            usage="&TORSION (ADD|REMOVE)",&
             enum_c_vals=s2a("ADD","REMOVE"),&
             enum_i_vals=(/do_add,do_remove/),&
             default_i_val=do_add,&
@@ -1580,7 +1580,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
             description="controls the activation of the bond",&
-            usage="&OT (ADD|REMOVE)",&
+            usage="&IMPROPER (ADD|REMOVE)",&
             enum_c_vals=s2a("ADD","REMOVE"),&
             enum_i_vals=(/do_add,do_remove/),&
             default_i_val=do_add,&
