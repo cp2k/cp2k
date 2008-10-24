@@ -30,6 +30,10 @@
    <p>
     <a href="references.html">List of references</a> cited in the CP2K input manual.
    </p>
+   <h2>CP2K units</h2>
+   <p>
+    <a href="units.html">Available units of measurement</a> which can be used in the CP2K input for keyword values.
+   </p>
    <h2>Internal input preprocessor</h2>
    <p>
     Before the input is parsed, the input is run through a simple internal preprocessor.
