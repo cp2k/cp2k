@@ -152,8 +152,8 @@ MODULE colvar_types
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
   TYPE colvar_type
-     INTEGER :: type_id
-     LOGICAL :: use_points
+     INTEGER                                  :: type_id
+     LOGICAL                                  :: use_points
      REAL(kind=dp)                            :: ss               ! Value of the colvar
      REAL(kind=dp), DIMENSION (:,:), POINTER  :: dsdr             ! Derivative of colvar (3,:)
      INTEGER, DIMENSION (:), POINTER          :: i_atom           ! Mapping of dsdr
