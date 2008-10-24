@@ -331,7 +331,7 @@ CONTAINS
     IF ( dft_control % qs_control % method /= "KG_NOPOL" ) THEN
       CALL scf_c_create(scf_control,error=error)
       CALL scf_c_read_parameters(scf_control,dft_section,error=error)
-      CALL scf_c_write_parameters(scf_control,kg_env%input,error=error)
+      CALL scf_c_write_parameters(scf_control,dft_section,error=error)
       CALL set_kg_env(kg_env=kg_env,scf_control=scf_control,error=error)
       CALL scf_c_release(scf_control,error=error)
     END IF

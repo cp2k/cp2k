@@ -187,8 +187,6 @@ MODULE qs_environment
 
 CONTAINS
 
-!****f* qs_environment/qs_init [1.0] *
-
 ! *****************************************************************************
 !> \brief Read the input and the database files for the setup of the
 !>      QUICKSTEP environment.
@@ -988,7 +986,7 @@ CPSourceFileRef,&
     CALL write_symmetry(particle_set,cell,subsys_section,error)
 
     ! Print the SCF parameters
-    CALL scf_c_write_parameters(scf_control,qs_env%input,error=error)
+    CALL scf_c_write_parameters(scf_control,dft_section,error=error)
 
     ! Sets up pw_env, qs_charges, mpools ...
     CALL qs_env_setup(qs_env,error)
@@ -1003,9 +1001,6 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE qs_init_subsys
-
-!****f* qs_environment/write_total_numbers [1.0] *
-
 ! *****************************************************************************
 !> \brief Write the total number of kinds, atoms, etc. to the logical unit
 !>      number lunit.
