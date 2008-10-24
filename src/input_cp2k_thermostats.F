@@ -362,16 +362,16 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN  
        CALL section_create(section,name="csvr",&
-            description="Paramameters of the canonical sampling through velocity rescaling thermostat.",&
+            description="Parameters of the canonical sampling through velocity rescaling thermostat.",&
             citations=(/Bussi2007/),required=.NOT.coupled_thermostat,error=error)
 
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="timecon",&
-            description="Timeconstant of the CSVR thermostat. A small time "//&
+            description="Time constant of the CSVR thermostat. A small time "//&
             "constant will result in strong thermostatting (useful for "//&
-            "initial equilibrations) and a large timeconstant would be adequate "//&
-            "get weak thermostatting in production runs.",&
+            "initial equilibrations) and a large time constant would be adequate "//&
+            "to get weak thermostatting in production runs.",&
             usage="timeconstant real", &
             default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
             unit_str="fs",error=error)
