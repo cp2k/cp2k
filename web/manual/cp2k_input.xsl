@@ -66,11 +66,10 @@
     </dd>
    </dl>
    <h2>Input structure</h2>
-    All sections and keywords that can be part of a CP2K input file are shown
-    with their allowed nestings. A detailed description can be obtained by
-    clicking on the section links. The links in the detailed descriptions switch
-    back to the corresponding index entries. In this way a toggling between the
-    index and the detailed description is feasible.
+    All sections that can be part of a CP2K input file are shown here with their allowed nestings.
+    A detailed description of each section and its keywords can be obtained by clicking on the
+    section links. The links in the detailed descriptions switch back to the corresponding index
+    entries. In this way a toggling between the index and the detailed description is feasible.
    <h2>Index of all input sections</h2>
    <h4>Last update: <xsl:value-of select="COMPILE_DATE"/></h4>
    <ul class="disc">
@@ -491,7 +490,7 @@
       <td class="l">
       </td>
       <td class="r">
-       Default unit:
+       <a href="{$root}units.html">Default unit:</a>
        <big class="tt">
         [<xsl:value-of select="DEFAULT_UNIT"/>]
        </big>
