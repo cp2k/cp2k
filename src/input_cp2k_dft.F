@@ -17,7 +17,8 @@ MODULE input_cp2k_dft
        Ortiz1994, Perdew1981, Perdew1996, Porezag1995, Repasky2002, &
        Rocha2006, Seifert1996, Stewart1982, Stewart1989, Stewart2007, &
        Tao2003, Thiel1992, VandeVondele2003, VandeVondele2005a, &
-       VandeVondele2005b, Vosko1980, Weber2008, Zhang1998, Zhechkov2005
+       VandeVondele2005b, VandeVondele2006, Vosko1980, Weber2008, Zhang1998, &
+       Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -1934,7 +1935,7 @@ CONTAINS
             do_method_mndo, do_method_mndod, do_method_am1, do_method_pm3, &
             do_method_pm6, do_method_pdg, do_method_rm1,do_method_dftb/),&
             citations=(/Lippert1997,Lippert1999,Krack2000,VandeVondele2005a,&
-            Iannuzzi2006,Dewar1977,Dewar1985,Rocha2006,Stewart1989,Thiel1992,&
+            Iannuzzi2006,VandeVondele2006,Dewar1977,Dewar1985,Rocha2006,Stewart1989,Thiel1992,&
             Repasky2002,Stewart2007/),&
             default_i_val=do_method_gpw, error=error)
        CALL section_add_keyword(section,keyword,error=error)

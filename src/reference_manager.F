@@ -306,7 +306,8 @@ CONTAINS
   SUBROUTINE print_reference_journal(key,unit)
     INTEGER, INTENT(IN)                      :: key, unit
 
-    CHARACTER(LEN=ISI_length)                :: author, journal, title
+    CHARACTER(LEN=4*ISI_length)              :: journal
+    CHARACTER(LEN=ISI_length)                :: author, title
     INTEGER                                  :: iauthor, ipos_line, ititle, &
                                                 line
 
@@ -382,7 +383,8 @@ CONTAINS
   SUBROUTINE print_reference_html(key,unit)
     INTEGER, INTENT(IN)                      :: key, unit
 
-    CHARACTER(LEN=ISI_length)                :: author, journal, title
+    CHARACTER(LEN=ISI_length)                :: author, title
+    CHARACTER(LEN=ISI_length*4)              :: journal
     INTEGER                                  :: iauthor, ititle, line
 
 ! write the author list
@@ -503,14 +505,24 @@ CONTAINS
   FUNCTION get_source(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
-    CHARACTER(LEN=ISI_length)                :: res
+    CHARACTER(LEN=4*ISI_length)              :: res
 
-    INTEGER                                  :: I, N
+    INTEGER                                  :: I, J, N
 
     N=SIZE(ISI_record,1)
     res=""
     DO I=1,N
-       IF (ISI_record(I)(1:3)=="SO ") res=ISI_record(I)(4:)
+       IF (ISI_record(I)(1:3)=="SO ") THEN
+           res=ISI_record(I)(4:)
+           DO J=I+1,N
+              IF (ISI_record(J)(1:3)=="   ") THEN
+                 res=TRIM(res)//" "//ISI_record(J)(4:)
+              ELSE
+                 EXIT
+              ENDIF
+           ENDDO
+           EXIT
+       ENDIF
     ENDDO
   END FUNCTION get_source
 

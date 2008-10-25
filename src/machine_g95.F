@@ -104,7 +104,6 @@ END SUBROUTINE m_datum
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
-
     CALL rename(TRIM(source),TRIM(TARGET))
 
   END SUBROUTINE m_mov
