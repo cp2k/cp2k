@@ -903,7 +903,7 @@ CONTAINS
                                CALL reallocate(sac_ppnl_neighbor%r,1,3,1,n)
                                CALL reallocate(sac_ppnl_neighbor%index_list,1,n)
                                CALL reallocate(sac_ppnl_neighbor%list,1,n)
-                               ALLOCATE (sac_ppnl_neighbor%sac(maxder))
+                               ALLOCATE (sac_ppnl_neighbor%sac(maxder),STAT=stat)
                                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                                DO i=1,maxder
                                   ncol = n*nppnl
