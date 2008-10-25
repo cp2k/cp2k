@@ -1526,6 +1526,7 @@ CONTAINS
                             DO kkind = 1,nkind
                                IF (.NOT. ASSOCIATED(vall(kkind)%force_c)) CYCLE
                                DEALLOCATE(vall(kkind)%force_c,STAT=stat)
+                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                             END DO
                          END IF
                       END IF
@@ -1716,7 +1717,10 @@ CONTAINS
        DEALLOCATE (ocest,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO i=1,SIZE(dist_list,1)
-          IF(ASSOCIATED(dist_list(i)%rdist)) DEALLOCATE(dist_list(i)%rdist,STAT=stat)
+          IF(ASSOCIATED(dist_list(i)%rdist)) THEN
+              DEALLOCATE(dist_list(i)%rdist,STAT=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
        END DO
        DEALLOCATE(dist_list,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
