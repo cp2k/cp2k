@@ -275,6 +275,7 @@ PROGRAM cp2k_shell
            err=MAX(err,ABS(pos(i)-pos2(i)))
         END DO
         DEALLOCATE(pos,pos2,stat=stat)
+        CALL my_assert(stat==0,'dealloc error',failure)
         IF (para_env%mepos==para_env%source) THEN
            WRITE (sout,'(ES22.13)') err*pos_fact
         END IF

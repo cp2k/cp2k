@@ -118,6 +118,7 @@ CONTAINS
 
     CPPostcondition(.NOT.ASSOCIATED(shell_list),cp_failure_level,routineP,error,failure)
     ALLOCATE(shell_list(ndim), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO i = 1,ndim
       NULLIFY (shell_list(i)%shell)

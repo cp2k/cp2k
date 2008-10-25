@@ -771,7 +771,8 @@ MODULE qs_rho_atom_methods
       max_s_harm, max_s_set, maxlgto, mm, mp, na, nat, natom, nkind, nr, &
       nspins, quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: do_dxyz_asym, paw_atom
+    LOGICAL                                  :: do_dxyz_asym, failure, &
+                                                paw_atom
     REAL(dp)                                 :: cosia, phi
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rga
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
@@ -787,6 +788,7 @@ MODULE qs_rho_atom_methods
       POINTER                                :: rho_atom_set
 
     CALL timeset(routineN,handle)
+    failure=.FALSE.
 
     NULLIFY(rho_atom_set)
     NULLIFY(atomic_kind_set)
@@ -825,6 +827,7 @@ MODULE qs_rho_atom_methods
     !  IF(linres_control%property==lr_gtensor) do_dxyz_asym=.TRUE.
     !END IF
     ALLOCATE(rga(lcleb,2),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DO lc1 = 0,maxlgto
       DO  iso1=nsoset(lc1-1)+1,nsoset(lc1)
         l1 = indso(1,iso1)
@@ -872,6 +875,7 @@ MODULE qs_rho_atom_methods
       ENDDO    ! iso1
     ENDDO      ! lc1
     DEALLOCATE(rga,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL clebsch_gordon_deallocate
 
 !   *** initialize the Lebedev grids ***

@@ -90,12 +90,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_unique1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, n, stat
+    INTEGER                                  :: i, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrk
 
     n = SIZE(arr)
     unique = .TRUE.
-    ALLOCATE(wrk(n),stat=stat)
+    ALLOCATE(wrk(n))
     CALL sort( arr, n, wrk)
     DO i = 2, n
        IF (arr(i)==arr(i-1)) THEN
@@ -103,7 +103,7 @@ CONTAINS
           EXIT
        END IF
     END DO
-    DEALLOCATE(wrk,stat=stat)
+    DEALLOCATE(wrk)
   END SUBROUTINE sort_unique1
 
 ! *****************************************************************************
@@ -119,12 +119,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_unique2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, n, stat
+    INTEGER                                  :: i, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrk
 
     n = SIZE(arr)
     unique = .TRUE.
-    ALLOCATE(wrk(n),stat=stat)
+    ALLOCATE(wrk(n))
     CALL sort( arr, n, wrk)
     DO i = 2, n
        IF (arr(i)==arr(i-1)) THEN
@@ -132,7 +132,7 @@ CONTAINS
           EXIT
        END IF
     END DO
-    DEALLOCATE(wrk,stat=stat)
+    DEALLOCATE(wrk)
   END SUBROUTINE sort_unique2
 
 ! *****************************************************************************

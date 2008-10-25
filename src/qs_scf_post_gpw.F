@@ -1349,12 +1349,13 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, stat
-    LOGICAL                                  :: do_et
+    LOGICAL                                  :: do_et, failure
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_mos
     TYPE(section_vals_type), POINTER         :: et_section
 
     CALL timeset(routineN,handle)
+    failure=.FALSE.
 
     do_et=.FALSE.
     et_section =>  section_vals_get_subs_vals(input,"PROPERTIES%ET_COUPLING",&
@@ -1364,7 +1365,9 @@ CPSourceFileRef,&
        IF(qs_env%et_coupling%first_run)THEN
           NULLIFY(my_mos)
           ALLOCATE(my_mos(dft_control%nspins),STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(qs_env%et_coupling%et_mo_coeff(dft_control%nspins),STAT=stat)          
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           DO ispin =1,dft_control%nspins
              NULLIFY(my_mos(ispin)%matrix)
              CALL cp_fm_create(matrix=my_mos(ispin)%matrix,&

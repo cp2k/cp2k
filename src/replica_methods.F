@@ -234,6 +234,7 @@ CONTAINS
        IF (ASSOCIATED(rep_env)) THEN
           CALL rep_env_calc_e_f(rep_env,error=error)
           ALLOCATE(f1(rep_env%ndim,rep_env%nrep),e1(rep_env%nrep),stat=stat)
+          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           f1=rep_env%f(:rep_env%ndim,:)
           e1=rep_env%f(rep_env%ndim+1,:)
        END IF
@@ -248,6 +249,7 @@ CONTAINS
        IF (ASSOCIATED(rep_env)) THEN
           CALL rep_env_calc_e_f(rep_env,error=error)
           ALLOCATE(f2(rep_env%ndim,rep_env%nrep),e2(rep_env%nrep),stat=stat)
+          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           f2=rep_env%f(:rep_env%ndim,:)
           e2=rep_env%f(rep_env%ndim+1,:)
        END IF
@@ -263,6 +265,7 @@ CONTAINS
           rep_env%r(:,2)=rep_env%r(:,1)+0.5_dp
           CALL rep_env_calc_e_f(rep_env,error=error)
           ALLOCATE(f3(rep_env%ndim,rep_env%nrep),e3(rep_env%nrep),stat=stat)
+          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           f3=rep_env%f(:rep_env%ndim,:)
           e3=rep_env%f(rep_env%ndim+1,:)
        END IF

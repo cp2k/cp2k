@@ -375,6 +375,7 @@ SUBROUTINE cp_cart_release(cart,error)
         DEALLOCATE(cart%source,cart%periodic,cart%mepos,cart%num_pe,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         DEALLOCATE(cart,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
   NULLIFY(cart)

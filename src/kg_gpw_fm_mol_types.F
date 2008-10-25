@@ -340,10 +340,10 @@ CONTAINS
     mo_set%lfomo = lfomo
 
     ALLOCATE (mo_set%mo(n_ao,nmo),STAT=istat)
-    mo_set%mo(:,:) = 0.0_dp
     IF (istat /= 0) THEN
-      CALL stop_memory(routineN,"mo_set%mo",n_ao*nmo*dp_size)
+      CALL stop_memory(routineN,"mo_set%mo",nmo*n_ao*dp_size)
     END IF
+    mo_set%mo(:,:) = 0.0_dp
 
   END SUBROUTINE init_mol_mo_set
 

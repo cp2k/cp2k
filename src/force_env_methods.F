@@ -1085,8 +1085,8 @@ CPSourceFileRef,&
     ! Transfer forces
     DO iforce_eval = 1, nforce_eval
        ALLOCATE(global_forces(iforce_eval)%forces(3,glob_natoms(iforce_eval)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        global_forces(iforce_eval)%forces = 0.0_dp
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
           IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
                force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN

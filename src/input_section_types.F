@@ -196,8 +196,8 @@ CONTAINS
        NULLIFY(section%citations)
        IF (PRESENT(citations)) THEN
           ALLOCATE(section%citations(SIZE(citations)),stat=stat)
-          section%citations=citations
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          section%citations=citations
        ENDIF
 
        ALLOCATE(section%keywords(-1:my_n_keywords),stat=stat)

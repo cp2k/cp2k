@@ -516,10 +516,11 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
           END IF
        END DO
        DEALLOCATE(vxc_rho2,rho2_r,rho2_g, stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        IF (ASSOCIATED(vxc_tau2)) THEN
           DEALLOCATE(vxc_tau2,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
 
   END IF
 END SUBROUTINE xc_vxc_pw_create_test_lsd
@@ -2920,6 +2921,7 @@ CPSourceFileRef,&
                    in_space = REALSPACE, error=error)
            ELSE
               ALLOCATE(tmp_r(1)%pw, stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
               ALLOCATE(tmp_r(1)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
                    stat=stat)
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

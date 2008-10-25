@@ -1189,8 +1189,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: difab
 
-    INTEGER                                  :: istat, lda_min, ldb_min, lds, &
-                                                lmax
+    INTEGER                                  :: lda_min, ldb_min, lds, lmax
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: s
@@ -1204,7 +1203,7 @@ CONTAINS
     ldb_min = MAX ( 0, lb_min-1 )
     lmax = MAX(la_max+1,lb_max+1)
     lds = ncoset(lmax+1)
-    ALLOCATE(s(lds,lds,ncoset(1)),STAT=istat)
+    ALLOCATE(s(lds,lds,ncoset(1)))
     sab = 0.0_dp 
     s = 0.0_dp
     CALL overlap(la_max+1,lda_min,npgfa,rpgfa,zeta,&
@@ -1215,7 +1214,7 @@ CONTAINS
                lb_max,npgfb,zetb,rpgfb,lb_min,&
                dab,sab,difab(:,:,1),difab(:,:,2),difab(:,:,3))
 
-    DEALLOCATE(s,STAT=istat)
+    DEALLOCATE(s)
 
   END SUBROUTINE diffop
 
@@ -1263,7 +1262,7 @@ CONTAINS
     lmax = MAX(la_max+1,lb_max+1)
     lda = ncoset(la_max)*npgfa
     ldb = ncoset(lb_max)*npgfb
-    ALLOCATE(difmab_tmp(lda,ldb,3),STAT=istat)
+    ALLOCATE(difmab_tmp(lda,ldb,3))
 
     IF(PRESENT(mab_ext)) THEN
       mab => mab_ext
@@ -1332,9 +1331,9 @@ CONTAINS
     IF(PRESENT(mab_ext)) THEN
       NULLIFY(mab)
     ELSE
-      DEALLOCATE(mab,STAT=istat)
+      DEALLOCATE(mab)
     END IF
-    DEALLOCATE(difmab_tmp,STAT=istat)
+    DEALLOCATE(difmab_tmp)
 
   END SUBROUTINE diff_momop
 

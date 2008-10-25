@@ -61,8 +61,8 @@ MODULE et_coupling_types
       failure=.FALSE.
       
       ALLOCATE(et_coupling, stat=stat)
-  
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
       IF (.NOT. failure) THEN
          NULLIFY(et_coupling%et_mo_coeff)
          NULLIFY(et_coupling%rest_mat)

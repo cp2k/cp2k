@@ -134,8 +134,8 @@ CONTAINS
           NULLIFY(pot0_2)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           ALLOCATE(pot0_2(2,np), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END SELECT
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb)

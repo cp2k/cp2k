@@ -202,6 +202,8 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: hx, hy, hz
 
+    failure=.FALSE.
+
     CALL timeset(routineN,handle)
     nproc=PRODUCT(pw_grid % para % rs_dims)
     iproc= pw_grid % para % rs_mpo
@@ -229,8 +231,8 @@ CONTAINS
     z_dim=md2/nproc
     !!!!!!!!!      indicies y and z are interchanged    !!!!!!!
     ALLOCATE(wavelet%rho_z_sliced(md1,md3,z_dim),stat=stat)
-
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     CALL createKernel(geocode,nx,ny,nz,hx,hy,hz,wavelet%itype_scf,iproc,nproc,wavelet%karray,&
                        pw_grid % para % rs_group ,error)
     

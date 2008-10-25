@@ -442,6 +442,7 @@ MODULE hfx_types
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ELSE
           ALLOCATE(actual_x_data%x_screening_buffer(max_set,max_set,natom,natom),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         
         ALLOCATE(actual_x_data%is_assoc_atomic_block(natom,natom),STAT=stat)
@@ -470,6 +471,7 @@ MODULE hfx_types
         actual_x_data%maxval_container%element_counter = 1
     
         ALLOCATE(actual_x_data%integral_containers(64), STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO i=1,64
           actual_x_data%integral_caches(i)%element_counter = 1
           actual_x_data%integral_caches(i)%data = 0
@@ -500,6 +502,7 @@ MODULE hfx_types
                                                            storage_id,"_",actual_x_data%maxval_container_disk%desc, "6"
         CALL compress(actual_x_data%maxval_container_disk%filename, .TRUE.)
         ALLOCATE(actual_x_data%integral_containers_disk(64), STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO i=1,64
           actual_x_data%integral_caches_disk(i)%element_counter = 1
           actual_x_data%integral_caches_disk(i)%data = 0

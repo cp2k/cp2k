@@ -376,8 +376,8 @@ CONTAINS
           np = paw_proj%nprj(lshell) 
 
           ALLOCATE(isoprj(np),STAT=stat)
-          isoprj = .FALSE.
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          isoprj = .FALSE.
 
           ALLOCATE(zet(np),zetp(np),gcc(np,np),smat(np,np),work(np,np),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

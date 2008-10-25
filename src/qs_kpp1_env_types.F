@@ -143,15 +143,18 @@ CONTAINS
           END IF
           IF (ASSOCIATED(kpp1_env%spin_pot)) THEN
              DEALLOCATE(kpp1_env%spin_pot, stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           IF (ASSOCIATED(kpp1_env%grad_pot)) THEN
              DEALLOCATE(kpp1_env%grad_pot, stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           IF (ASSOCIATED(kpp1_env%ndiag_term)) THEN
              DEALLOCATE(kpp1_env%ndiag_term, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           DEALLOCATE(kpp1_env, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
     NULLIFY(kpp1_env)

@@ -141,6 +141,7 @@ CONTAINS
         END IF
       END IF 
       DEALLOCATE(diis_buffer, STAT = istat)
+      CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     END IF
 
   END SUBROUTINE kg_diis_b_release

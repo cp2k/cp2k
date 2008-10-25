@@ -1535,7 +1535,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_test', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, i, istat, j, n, neig, &
+    INTEGER                                  :: group, i, j, n, neig, &
                                                 nrow_global, source, &
                                                 unit_number
     LOGICAL                                  :: ionode
@@ -1607,10 +1607,10 @@ CONTAINS
                       error=error)
     CALL cp_fm_set_all(matrix,0.0_dp,error=error)
 
-    ALLOCATE (eigenvalues(n),STAT=istat)
+    ALLOCATE (eigenvalues(n))
     eigenvalues = 0.0_dp
 
-    ALLOCATE (buffer(1,n),STAT=istat)
+    ALLOCATE (buffer(1,n))
 
     IF (ionode) THEN
        IF (nrow_global > 0) THEN
@@ -1676,7 +1676,7 @@ CONTAINS
        END IF
     END DO
 
-    DEALLOCATE (buffer,STAT=istat)
+    DEALLOCATE (buffer)
 
     IF (ionode) THEN
        IF (nrow_global > 0) THEN
@@ -1731,7 +1731,7 @@ CONTAINS
 
     ! Clean up
 
-    DEALLOCATE (eigenvalues,STAT=istat)
+    DEALLOCATE (eigenvalues)
     CALL cp_fm_release(matrix=work,error=error)
     CALL cp_fm_release(matrix=eigenvectors,error=error)
     CALL cp_fm_release(matrix=matrix,error=error)

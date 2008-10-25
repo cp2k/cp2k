@@ -369,6 +369,7 @@ MODULE qs_all_potential
                                zet=zeta)
 
         ALLOCATE(r_cut_set(nseta),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
         DO iset = 1,nseta
 
@@ -376,6 +377,7 @@ MODULE qs_all_potential
           r_cut_set = 0.0_dp
 
           ALLOCATE(int_tmp(ncoa,ncoa),STAT=istat)        
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
           DO i = 10,60 
             rac(1:3) = r(1:3,i)

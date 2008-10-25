@@ -914,9 +914,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: angab
 
-    INTEGER                                  :: i, ia, ib, istat, ja, jb, &
-                                                lda_min, ldb_min, lds, lmax, &
-                                                na, nb
+    INTEGER                                  :: i, ia, ib, ja, jb, lda_min, &
+                                                ldb_min, lds, lmax, na, nb
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: mab
@@ -929,8 +928,8 @@ CONTAINS
     ldb_min = MAX ( 0, lb_min-1 )
     lmax = MAX(la_max+1,lb_max+1)
     lds = ncoset(lmax+1)*MAX(npgfa,npgfb)
-    ALLOCATE(mab(lds,lds,3),STAT=istat)
-    ALLOCATE(dmab(lds,lds,3,3),STAT=istat)
+    ALLOCATE(mab(lds,lds,3))
+    ALLOCATE(dmab(lds,lds,3,3))
     mab = 0.0_dp
     CALL moment(lb_max+1,npgfb,zetb,rpgfb,ldb_min,&
                 la_max,npgfa,zeta,rpgfa,lda_min,&
@@ -958,7 +957,7 @@ CONTAINS
       na = na + ncoset(la_max)
     END DO
 
-    DEALLOCATE(mab,dmab,STAT=istat)
+    DEALLOCATE(mab,dmab)
 
   END SUBROUTINE angmom2
 

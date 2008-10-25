@@ -2680,6 +2680,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
               vxc_rho(ispin)%pw => my_vxc_rho(ispin)%pw
            END DO
            DEALLOCATE(my_vxc_rho,stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(my_vxc_tau)) THEN
            ALLOCATE(vxc_tau(dft_control%nspins),stat=stat)

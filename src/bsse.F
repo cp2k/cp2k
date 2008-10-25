@@ -594,10 +594,10 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:), INTENT(IN)        :: main_conf
     INTEGER, DIMENSION(:, :), POINTER        :: conf
 
-    INTEGER                                  :: i, ind, stat
+    INTEGER                                  :: i, ind
     INTEGER, DIMENSION(:, :), POINTER        :: tmp_conf
 
-    ALLOCATE(tmp_conf(SIZE(conf,1),SIZE(main_conf)), stat=stat)
+    ALLOCATE(tmp_conf(SIZE(conf,1),SIZE(main_conf)))
     tmp_conf = 0
     ind = 0
     DO i=1,SIZE(main_conf)
@@ -606,10 +606,10 @@ CPSourceFileRef,&
           tmp_conf(:,i) = conf(:,ind)
        END IF
     END DO
-    DEALLOCATE(conf, stat=stat)
-    ALLOCATE(conf(SIZE(tmp_conf,1),SIZE(tmp_conf,2)), stat=stat)
+    DEALLOCATE(conf)
+    ALLOCATE(conf(SIZE(tmp_conf,1),SIZE(tmp_conf,2)))
     conf = tmp_conf
-    DEALLOCATE(tmp_conf, stat=stat)
+    DEALLOCATE(tmp_conf)
 
   END SUBROUTINE make_plan_conf
 

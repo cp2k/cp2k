@@ -183,31 +183,34 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_atom_rad', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, tmpstat
+    INTEGER                                  :: istat
 
     ALLOCATE(rho0_atom%rho0_rad_h,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                            "rho0_rad_h",int_size)
 
     NULLIFY(rho0_atom%rho0_rad_h%r_coef)
-    ALLOCATE (rho0_atom%rho0_rad_h%r_coef(1:nr,1:nchannels),STAT=tmpstat)
-    istat = istat+tmpstat
+    ALLOCATE (rho0_atom%rho0_rad_h%r_coef(1:nr,1:nchannels),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "rho0_rad_h",int_size)
     rho0_atom%rho0_rad_h%r_coef = 0.0_dp
 
     ALLOCATE(rho0_atom%rho0_rad_s,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                            "rho0_rad_s",int_size)
 
     NULLIFY(rho0_atom%rho0_rad_s%r_coef)
-    ALLOCATE (rho0_atom%rho0_rad_s%r_coef(1:nr,1:nchannels),STAT=tmpstat)
-    istat = istat + tmpstat
+    ALLOCATE (rho0_atom%rho0_rad_s%r_coef(1:nr,1:nchannels),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "rho0_rad_s",int_size)
     rho0_atom%rho0_rad_s%r_coef = 0.0_dp
 
     ALLOCATE(rho0_atom%vrho0_rad_h,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                            "vrho0_rad_h",int_size)
 
     NULLIFY(rho0_atom%vrho0_rad_h%r_coef)
-    ALLOCATE (rho0_atom%vrho0_rad_h%r_coef(1:nr,1:nchannels),STAT=tmpstat)
-    istat = istat + tmpstat
+    ALLOCATE (rho0_atom%vrho0_rad_h%r_coef(1:nr,1:nchannels),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "vrho0_rad_h",int_size)
     rho0_atom%vrho0_rad_h%r_coef = 0.0_dp
@@ -387,11 +390,18 @@ CONTAINS
 
     DO iat = 1,natom
       DEALLOCATE(mp_rho(iat)%Qlm_h,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                      "Qlm_h,Qlm_s,Qlm_tot,Qlm_car_h,Qlm_car_s")
       DEALLOCATE(mp_rho(iat)%Qlm_s,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                      "Qlm_h,Qlm_s,Qlm_tot,Qlm_car_h,Qlm_car_s")
       DEALLOCATE(mp_rho(iat)%Qlm_tot,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                      "Qlm_h,Qlm_s,Qlm_tot,Qlm_car_h,Qlm_car_s")
       DEALLOCATE(mp_rho(iat)%Qlm_car_h,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                      "Qlm_h,Qlm_s,Qlm_tot,Qlm_car_h,Qlm_car_s")
       DEALLOCATE(mp_rho(iat)%Qlm_car_s,STAT=istat)
-
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                       "Qlm_h,Qlm_s,Qlm_tot,Qlm_car_h,Qlm_car_s")
     END DO

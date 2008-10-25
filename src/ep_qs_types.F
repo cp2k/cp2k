@@ -104,6 +104,7 @@ SUBROUTINE ep_qs_release(ep_qs_env,error)
         CALL deallocate_matrix_set(ep_qs_env%dH_coeffs,error=error)
         CALL deallocate_matrix_set(ep_qs_env%dS_coeffs,error=error)
         DEALLOCATE(ep_qs_env,stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
   END IF
   NULLIFY(ep_qs_env)

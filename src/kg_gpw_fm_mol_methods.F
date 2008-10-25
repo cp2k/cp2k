@@ -196,6 +196,8 @@ CONTAINS
           fm_mol_set%fm_mol_blocks(imol)%imol_global = iglobal
           molecule => molecule_set(iglobal)
           ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%mos(nspins),STAT=istat)
+          IF(istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                        "fm_mol_set%fm_mol_blocks(imol)%mos",nspins)
           DO ispin = 1,nspins
             NULLIFY(fm_mol_set%fm_mol_blocks(imol)%mos(ispin)%mo_set)
             CALL allocate_mol_mo_set(fm_mol_set%fm_mol_blocks(imol)%mos(ispin)%mo_set,&

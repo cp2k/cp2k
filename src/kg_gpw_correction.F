@@ -329,6 +329,7 @@ CONTAINS
                vxc_rho(ispin)%pw => my_vxc_rho(ispin)%pw
              END DO
              DEALLOCATE(my_vxc_rho,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           END IF
           IF (ASSOCIATED(my_vxc_tau)) THEN
              ALLOCATE(vxc_tau(nspins),STAT=istat)

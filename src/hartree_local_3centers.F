@@ -270,9 +270,13 @@ CONTAINS
 
     NULLIFY(CPC_ab,hab)
     ALLOCATE(CPC_ab(1,1,nspins),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "CPC_ab",nspins)
     ldcpc1 = 1
     ldcpc2 = 1
     ALLOCATE(hab(1,1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "hab",1)
     ldhab1 = 1
     ldhab2 = 1
     NULLIFY(Int_ab_sum,Int_dab_sum,Int_adb_sum,Int_abc)

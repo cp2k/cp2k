@@ -406,6 +406,8 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
          "atom_of_kind")
        DEALLOCATE(DCPC_h,dCPC_s,PC_h,PC_s,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
+         "DCPC_h,dCPC_s,PC_h,PC_s")
     END IF
 
     CALL timestop(handle)

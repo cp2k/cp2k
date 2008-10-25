@@ -165,6 +165,7 @@ CONTAINS
     INTEGER                                  :: i, n_cols, n_lumos, n_orbits, &
                                                 n_rows, n_spins, oo, spin, &
                                                 stat, vo
+    LOGICAL                                  :: failure
     REAL(KIND=DP)                            :: evd
     REAL(KIND=DP), ALLOCATABLE, &
       DIMENSION(:, :)                        :: guess, lumos
@@ -174,6 +175,8 @@ CONTAINS
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
 ! number of vectors to initialize
+
+    failure=.FALSE.
 
     tddfpt_control => qs_env%dft_control%tddfpt_control
     n_spins = qs_env%dft_control%nspins
@@ -236,6 +239,7 @@ CONTAINS
        END DO
 
        ALLOCATE(lumos(n_rows, n_lumos), guess(n_rows, n_orbits), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL cp_fm_get_submatrix(tddfpt_control%lumos(spin)%matrix, lumos, &
                                 start_col=1, n_cols=n_lumos,error=error)
 

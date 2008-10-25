@@ -142,12 +142,18 @@ CONTAINS
        CPPrecondition(localized_wfn_control%ref_count>0,cp_failure_level,routineP,error,failure)
        localized_wfn_control%ref_count=localized_wfn_control%ref_count-1
        IF (localized_wfn_control%ref_count==0) THEN
-          IF (ASSOCIATED(localized_wfn_control%loc_states)) &
+          IF (ASSOCIATED(localized_wfn_control%loc_states)) THEN
                DEALLOCATE(localized_wfn_control%loc_states,STAT=istat)
-          IF (ASSOCIATED(localized_wfn_control%centers_set(1)%array)) &
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
+          IF (ASSOCIATED(localized_wfn_control%centers_set(1)%array)) THEN
                DEALLOCATE(localized_wfn_control%centers_set(1)%array,STAT=istat)
-          IF (ASSOCIATED(localized_wfn_control%centers_set(2)%array)) &
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
+          IF (ASSOCIATED(localized_wfn_control%centers_set(2)%array)) THEN
                DEALLOCATE(localized_wfn_control%centers_set(2)%array,STAT=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
           localized_wfn_control%ref_count=0
           DEALLOCATE(localized_wfn_control,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

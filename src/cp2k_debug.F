@@ -97,6 +97,7 @@ CONTAINS
        IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
        iseq = subsys%particles%n_els
        ALLOCATE( analyt_forces(iseq,3), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        iseq = 0
        particles => subsys%particles%els
        DO ip = 1, subsys%particles%n_els
@@ -109,6 +110,7 @@ CONTAINS
        iseq = 0
        IF (ASSOCIATED( numer_forces)) DEALLOCATE( numer_forces)
        ALLOCATE(  numer_forces(subsys%particles%n_els,3), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        particles => subsys%particles%els
        Atom: DO ip = 1, subsys%particles%n_els
           iseq = iseq + 1

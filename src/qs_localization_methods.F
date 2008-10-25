@@ -276,6 +276,7 @@ CONTAINS
     COMPLEX(KIND=dp), POINTER                :: mii( : ), mij( : ), mjj( : )
     INTEGER                                  :: dim2, handle, idim, istat, &
                                                 istate, jstate, nstate
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ct, st, theta, tolerance
     TYPE(cp_cfm_p_type), DIMENSION(:), &
       POINTER                                :: c_zij
@@ -284,11 +285,15 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
+    failure=.FALSE.
+
     dim2 = SIZE(zij,2)
     NULLIFY(rmat,c_rmat,c_zij)
     ALLOCATE(c_zij(dim2),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(mii,mij,mjj)
     ALLOCATE(mii(dim2),mij(dim2),mjj(dim2),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL cp_fm_create ( rmat, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_fm_set_all ( rmat, 0._dp, 1._dp, error )
@@ -341,7 +346,9 @@ CONTAINS
        CALL cp_cfm_release( c_zij(idim)%matrix ,error=error)
     ENDDO
     DEALLOCATE(c_zij,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(mii,mij,mjj, STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     rmat % local_data = REAL ( c_rmat%local_data, dp )
     CALL cp_cfm_release( c_rmat ,error=error)
     CALL rotate_orbitals ( rmat, vectors )
@@ -638,11 +645,14 @@ CONTAINS
                                                 ncol_local, nrow_global, &
                                                 nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: maxeval, ra, rb, theta, &
                                                 tolerance, value
     REAL(KIND=dp), DIMENSION(:), POINTER     :: evals
     TYPE(cp_cfm_type), POINTER               :: cmat_A, cmat_R, cmat_t1
     TYPE(cp_fm_type), POINTER                :: mat_R, mat_t, mat_U
+
+    failure=.FALSE.
 
     CALL timeset(routineN,handle)
     NULLIFY(row_indices,col_indices)
@@ -656,8 +666,11 @@ CONTAINS
     NULLIFY(diag_z,evals,evals_exp,mii,mij,mjj)
     dim2 = SIZE(zij,2)
     ALLOCATE(diag_z(nrow_global,dim2),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(evals(nrow_global),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(evals_exp(nrow_global),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL cp_cfm_create ( cmat_A, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
     CALL cp_cfm_create ( cmat_R, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
@@ -670,6 +683,7 @@ CONTAINS
     CALL cp_fm_set_all( mat_R,0.0_dp,1.0_dp ,error=error)
     CALL cp_fm_set_all( mat_t, 0.0_dp,error=error)
     ALLOCATE(mii(dim2),mij(dim2),mjj(dim2),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DO idim=1,dim2
        CALL cp_fm_scale_and_add(1.0_dp,mat_t,1.0_dp,zij(1,idim) % matrix,error=error)
        CALL cp_fm_scale_and_add(1.0_dp,mat_t,1.0_dp,zij(2,idim) % matrix,error=error)
@@ -762,6 +776,7 @@ CONTAINS
     CALL cp_fm_release(mat_R,error=error)
     DEALLOCATE(evals_exp,evals,diag_z,STAT=istat)
     DEALLOCATE(mii,mij,mjj,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 

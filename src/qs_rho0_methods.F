@@ -726,6 +726,7 @@ MODULE qs_rho0_methods
     nco0 = ncoset(lmax_0)
     nso0 = nsoset(lmax_0)
     ALLOCATE(Qlm(nco0),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"Qlm")
     Qlm= 0.0_dp
 
     orb_rad => rho0_mpole%orb_radius_3c
@@ -756,15 +757,18 @@ MODULE qs_rho0_methods
       orb_rad(ikind) = 0.0_dp
       set_rad(:,ikind) = 0.0_dp
       ALLOCATE(r_cut_set(nseta),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"r_cut_set")
       r_cut_set = 0.0_dp
 
       DO iset = 1,nseta
 
         ncoa = npgfa(iset)*ncoset(la_max(iset))
         ALLOCATE(int_tmp(ncoa,ncoa,nco0),int_abc(ncoa,2,nco0),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"int_tmp")
         int_abc = 0.0_dp
 
         ALLOCATE(vabc(ncoa,ncoa),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vabc")
         vabc=0.0_dp
 
         DO i = 0,60

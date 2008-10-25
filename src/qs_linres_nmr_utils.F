@@ -148,6 +148,7 @@ CONTAINS
        CALL parser_get_next_line(parser,1,error=error)
        CALL parser_get_object(parser,nmr_env%n_nics,error=error)
        ALLOCATE(nmr_env%r_nics(3,nmr_env%n_nics),STAT=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL parser_get_next_line(parser,2,error=error)
        DO j = 1,nmr_env%n_nics
           CALL parser_get_object(parser,label,error=error)

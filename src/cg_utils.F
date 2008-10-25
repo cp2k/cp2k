@@ -1019,9 +1019,11 @@ CONTAINS
             iwork,info)
        lwork=CEILING(tmpw(1))
        ALLOCATE(work(lwork),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL dgesdd('S',SIZE(f,1),SIZE(f,2),f,SIZE(f,1),diag,u,SIZE(u,1),vt,SIZE(vt,1),work,lwork,&
             iwork,info)
        DEALLOCATE(work, stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL dgemv('T',SIZE(u,1),SIZE(u,2),1._dp,u,SIZE(u,1),b,1,0._dp,res1,1)
        DO i=1,3
           res2(i)=res1(i)/diag(i)

@@ -829,6 +829,7 @@ MODULE wfn_fitting_methods
           END DO
         END DO
         DEALLOCATE (ai_work,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END DO
     END DO
 

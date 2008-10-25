@@ -357,6 +357,7 @@ CONTAINS
           my_nspins = 1
        END IF
        ALLOCATE (moloc_coeff(my_nspins), STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ispin = s_spin,l_spin
           NULLIFY(tmp_fm_struct,mo_coeff)
           CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)

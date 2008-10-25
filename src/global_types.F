@@ -118,6 +118,7 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     ALLOCATE(globenv,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        last_globenv_id=last_globenv_id+1
        globenv%id_nr=last_globenv_id

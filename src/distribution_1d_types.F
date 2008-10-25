@@ -163,6 +163,7 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
         distribution_1d%n_el(1:my_n_lists)=n_el(1:my_n_lists)
         DO ilist=1,my_n_lists
           ALLOCATE(distribution_1d%list(ilist)%array(n_el(ilist)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           distribution_1d%list(ilist)%array=-1
         END DO
      ELSE

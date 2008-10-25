@@ -87,11 +87,11 @@ SUBROUTINE qs_charges_create(qs_charges,nspins,total_rho_core_rspace, &
      qs_charges%total_rho_soft_gspace = 0.0_dp
      qs_charges%background = 0.0_dp
      ALLOCATE(qs_charges%total_rho1_hard(nspins),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      qs_charges%total_rho1_hard(:) = 0.0_dp
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      ALLOCATE(qs_charges%total_rho1_soft(nspins),stat=stat)
-     qs_charges%total_rho1_soft(:) = 0.0_dp
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     qs_charges%total_rho1_soft(:) = 0.0_dp
      qs_charges%ref_count=1
   END IF
 END SUBROUTINE qs_charges_create

@@ -120,6 +120,7 @@ CPSourceFileRef,&
        nrow_local=matrix_struct%local_leading_dimension
        ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
        ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        CALL dcopy(2*nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)
 ! matrix%local_data(:,:) = 0.0_dp

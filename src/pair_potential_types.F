@@ -840,6 +840,7 @@ CONTAINS
           loc_lb = 1
           loc_ub = ndim
           ALLOCATE ( potparm%pot( loc_lb : loc_ub ), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF (PRESENT(lb).OR.PRESENT(ub)) THEN
              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END IF
@@ -847,13 +848,13 @@ CONTAINS
           loc_lb = lb
           loc_ub = ub
           ALLOCATE ( potparm%pot( loc_lb : loc_ub ), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF (PRESENT(ndim)) THEN
              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END IF
        ELSE
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END IF
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO i = loc_lb, loc_ub
           NULLIFY ( potparm%pot(i)%pot)
           CALL pair_potential_single_create(potparm%pot(i)%pot, error=error)
@@ -1111,9 +1112,9 @@ CONTAINS
     IF (.NOT.failure) THEN
        CPPostcondition(.NOT.ASSOCIATED(gp),cp_failure_level,routineP,error,failure)
        ALLOCATE(gp, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        NULLIFY (gp%parameters)
        NULLIFY (gp%values)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL pair_potential_gp_clean(gp, error=error)
     END IF
   END SUBROUTINE pair_potential_gp_create
