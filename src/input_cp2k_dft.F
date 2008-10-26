@@ -3930,7 +3930,7 @@ CONTAINS
             description="Controls the dumping of the MO restart file during scf."//&
                         "By default keeps a short history of three restarts."//&
                         "See also RESTART_HISTORY", &
-            print_level=silent_print_level, common_iter_levels=3,&
+            print_level=low_print_level, common_iter_levels=3,&
             each_iter_names=s2a("QS_SCF"),each_iter_values=(/20/), &
             add_last=add_last_numeric,filename="RESTART",error=error)
        CALL keyword_create(keyword, name="BACKUP_COPIES",&
@@ -3944,7 +3944,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"RESTART_HISTORY",&
             description="Dumps unique MO restart files during the run keeping all of them.",&
-            print_level=silent_print_level, common_iter_levels=0,&
+            print_level=low_print_level, common_iter_levels=0,&
             each_iter_names=s2a("__ROOT__","MD","GEO_OPT","ROT_OPT","NEB","METADYNAMICS","QS_SCF"),&
             each_iter_values=(/500,500,500,500,500,500,500/), &
             filename="RESTART",error=error)
@@ -4329,7 +4329,7 @@ CONTAINS
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of information regarding the run.",&
-            print_level=silent_print_level,filename="__STD_OUT__",&
+            print_level=low_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

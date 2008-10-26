@@ -198,7 +198,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of information regarding the run.",&
-            print_level=silent_print_level,filename="__STD_OUT__",&
+            print_level=low_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
