@@ -112,6 +112,13 @@
       &END
     &END
   &END GEO_OPT
+  &PRINT
+    &RESTART
+       &EACH
+         GEO_OPT    1
+       &END
+    &END
+  &END
 &END MOTION
 
 

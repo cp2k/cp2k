@@ -50,4 +50,11 @@
       &END
     &END
   &END
+  &PRINT
+    &RESTART
+      &EACH
+        GEO_OPT 1
+      &END
+    &END
+  &END
 &END MOTION

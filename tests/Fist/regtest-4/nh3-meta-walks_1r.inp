@@ -76,6 +76,13 @@
       &END
     &END METADYN
   &END
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END
+    &END
+  &END
 &END MOTION
 &EXT_RESTART
   RESTART_FILE_NAME WALKER1-1.restart

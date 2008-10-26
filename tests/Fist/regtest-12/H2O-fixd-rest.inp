@@ -53,4 +53,11 @@
       &END
     &END 
   &END CONSTRAINT
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END
+    &END
+  &END PRINT
 &END MOTION

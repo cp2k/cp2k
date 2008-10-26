@@ -185,6 +185,9 @@
     &RESTART
       FILENAME GLOBAL
       COMMON_ITERATION_LEVELS 100
+      &EACH
+        MD 1
+      &END
     &END
   &END
 &END MOTION

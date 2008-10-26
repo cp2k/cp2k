@@ -88,8 +88,14 @@
       &END METAVAR
     &END METADYN
   &END
+  &PRINT
+    &RESTART
+       &EACH
+         MD     1
+       &END
+    &END
+  &END
 &END MOTION
-
 &EXT_RESTART
  EXTERNAL_FILE H2O-1.restart
  RESTART_METADYNAMICS T
@@ -105,5 +111,3 @@
  RESTART_THERMOSTAT  T
  RESTART_CELL  T
 &END
-
-

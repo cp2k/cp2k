@@ -63,5 +63,12 @@
     MAX_ITER 300
     MINIMIZER BFGS
   &END
+  &PRINT
+    &RESTART
+      &EACH
+        CELL_OPT 1
+      &END
+    &END
+  &END
 &END
 

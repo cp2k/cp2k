@@ -187,4 +187,11 @@
       &END
     &END
   &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END
+    &END
+  &END
 &END MOTION

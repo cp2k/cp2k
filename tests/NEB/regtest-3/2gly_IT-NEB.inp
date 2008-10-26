@@ -47,6 +47,11 @@
 &END GLOBAL
 &MOTION
   &PRINT
+    &RESTART
+       &EACH
+         BAND     1
+       &END
+    &END
     &VELOCITIES OFF
     &END
   &END

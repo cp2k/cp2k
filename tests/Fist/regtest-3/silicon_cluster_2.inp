@@ -82,4 +82,11 @@
     TIMESTEP 0.5
     TEMPERATURE 298
   &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END
+    &END
+  &END
 &END MOTION

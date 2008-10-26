@@ -46,6 +46,13 @@
     TIMESTEP 2.5
     TEMPERATURE 298
   &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END
+    &END
+  &END
 &END MOTION
 &EXT_RESTART
   EXTERNAL_FILE water_1-1.restart

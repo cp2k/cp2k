@@ -80,4 +80,11 @@
       &END
     &END COLLECTIVE
   &END CONSTRAINT
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END
+    &END
+  &END
 &END MOTION

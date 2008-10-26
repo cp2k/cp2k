@@ -76,4 +76,11 @@
     OPTIMIZER BFGS
     MAX_ITER 50
   &END
+  &PRINT
+    &RESTART
+      &EACH
+        GEO_OPT 1
+      &END
+    &END
+  &END
 &END MOTION

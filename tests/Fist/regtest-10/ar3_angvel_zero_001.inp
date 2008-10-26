@@ -54,4 +54,11 @@
     TEMPERATURE 300
     ANGVEL_ZERO T
   &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END
+    &END
+  &END
 &END MOTION

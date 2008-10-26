@@ -157,7 +157,6 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-
   PROJECT H2O
   RUN_TYPE MD
 &END GLOBAL
@@ -184,4 +183,11 @@
       &END NOSE
     &END
   &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END
+    &END
+  &END
 &END MOTION

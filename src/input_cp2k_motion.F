@@ -296,8 +296,8 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"RESTART",&
             description="Controls the dumping of the restart file during runs."//&
-            "By default keeps a short history of three restarts."//&
-            "See also RESTART_HISTORY", &
+            "By default keeps a short history of three restarts.See also RESTART_HISTORY", &
+            each_iter_names=s2a("MD"),each_iter_values=(/20/), &
             print_level=silent_print_level, common_iter_levels=1,  &
             add_last=add_last_numeric, filename="",error=error)
 

@@ -54,4 +54,11 @@
     TIMESTEP 0.1
     TEMPERATURE 300.0
   &END MD
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END
+    &END
+  &END
 &END MOTION
