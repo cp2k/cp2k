@@ -40,8 +40,6 @@
        &MT
        &END
      &END
-
-
   &END DFT
 
   &SUBSYS
@@ -71,9 +69,7 @@
       BASIS_SET DZVP-GTH
       POTENTIAL GTH-PADE-q1
     &END KIND
-
   &END SUBSYS
-
 &END FORCE_EVAL
 
 &GLOBAL
@@ -99,14 +95,3 @@
     &END
   &END MD
 &END MOTION
-##&EXT_RESTART
-##   RESTART_FILE_NAME  hcn_md-1.restart
-##   RESTART_COUNTERS
-##   RESTART_POS
-##   RESTART_VEL
-##   RESTART_THERMOSTAT
-##&END EXT_RESTART
-
-
-
-
