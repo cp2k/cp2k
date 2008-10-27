@@ -29,8 +29,8 @@ MODULE semi_empirical_integrals
                                              rotint_num,&
                                              rotnuc_num
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
-  USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                             taper_type
+  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -86,14 +86,6 @@ MODULE semi_empirical_types
   END TYPE semi_empirical_type
 
 ! *****************************************************************************
-!> \brief Taper type
-! *****************************************************************************
-  TYPE taper_type
-     LOGICAL                               :: apply_taper
-     REAL(KIND=dp)                         :: r0, rscale
-  END TYPE taper_type
-
-! *****************************************************************************
 !> \brief Rotation Matrix Type
 ! *****************************************************************************
   TYPE rotmat_type
@@ -114,9 +106,6 @@ MODULE semi_empirical_types
   PUBLIC :: semi_empirical_type,&
             semi_empirical_create,&
             semi_empirical_release,&
-            taper_type,&
-            taper_create,&
-            taper_release,&
             rotmat_type,&
             rotmat_create,&
             rotmat_release,&
@@ -392,56 +381,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_se_param
-
-! *****************************************************************************
-!> \brief Creates taper type
-! ***************************************************************************** 
-  SUBROUTINE taper_create(taper, rc, range, error)
-    TYPE(taper_type), POINTER                :: taper
-    REAL(KIND=dp), INTENT(IN)                :: rc, range
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'taper_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(taper),cp_failure_level,routineP,error,failure)
-    ALLOCATE (taper,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (range > EPSILON(0.0_dp)) THEN
-       taper%apply_taper = .TRUE.
-       CPPrecondition(range>0.0_dp,cp_failure_level,routineP,error,failure)
-       taper%r0     = 2.0_dp*rc - 20.0_dp * range
-       taper%rscale = 1.0_dp/range
-    ELSE
-       taper%apply_taper = .FALSE.
-    END IF
-    
-  END SUBROUTINE taper_create
-
-! *****************************************************************************
-!> \brief Releases taper type
-! ***************************************************************************** 
-  SUBROUTINE taper_release(taper, error)
-    TYPE(taper_type), POINTER                :: taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'taper_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    IF (ASSOCIATED(taper)) THEN
-       DEALLOCATE (taper,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-   
-  END SUBROUTINE taper_release
 
 ! *****************************************************************************
 !> \brief Creates rotmat type

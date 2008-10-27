@@ -34,15 +34,15 @@ MODULE semi_empirical_int_ana
                                              terep_sp_num
   USE semi_empirical_int_utils,        ONLY: d_ijkl_d,&
                                              d_ijkl_sp,&
-                                             dtaper_eval,&
                                              rot_2el_2c_first,&
                                              rotmat,&
-                                             store_2el_2c_diag,&
-                                             taper_eval
+                                             store_2el_2c_diag
   USE semi_empirical_types,            ONLY: rotmat_create,&
                                              rotmat_release,&
                                              rotmat_type,&
-                                             semi_empirical_type,&
+                                             semi_empirical_type
+  USE taper_types,                     ONLY: dtaper_eval,&
+                                             taper_eval,&
                                              taper_type
 #include "cp_common_uses.h"
 

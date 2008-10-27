@@ -31,12 +31,12 @@ MODULE semi_empirical_int_num
                                              ijkl_sp,&
                                              rot_2el_2c_first,&
                                              rotmat,&
-                                             store_2el_2c_diag,&
-                                             taper_eval
+                                             store_2el_2c_diag
   USE semi_empirical_types,            ONLY: rotmat_create,&
                                              rotmat_release,&
                                              rotmat_type,&
-                                             semi_empirical_type,&
+                                             semi_empirical_type
+  USE taper_types,                     ONLY: taper_eval,&
                                              taper_type
 #include "cp_common_uses.h"
 

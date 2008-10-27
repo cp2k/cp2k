@@ -44,8 +44,7 @@ MODULE qmmm_se_energy
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_create,&
                                              semi_empirical_release,&
-                                             semi_empirical_type,&
-                                             taper_type
+                                             semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_type,&
                                              se_param_set_default
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
@@ -54,6 +53,7 @@ MODULE qmmm_se_energy
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
+  USE taper_types,                     ONLY: taper_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop

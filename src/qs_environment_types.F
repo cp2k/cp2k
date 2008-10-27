@@ -157,10 +157,10 @@ MODULE qs_environment_types
                                              nddo_mpole_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_release,&
                                              semi_empirical_si_type
-  USE semi_empirical_types,            ONLY: taper_release,&
-                                             taper_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
+  USE taper_types,                     ONLY: taper_release,&
+                                             taper_type
   USE task_list_types,                 ONLY: deallocate_task_list,&
                                              task_list_type
   USE timings,                         ONLY: timeset,&

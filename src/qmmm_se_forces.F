@@ -41,12 +41,12 @@ MODULE qmmm_se_forces
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_create,&
                                              semi_empirical_release,&
-                                             semi_empirical_type,&
-                                             taper_type
+                                             semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_type,&
                                              se_param_set_default
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type
+  USE taper_types,                     ONLY: taper_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop

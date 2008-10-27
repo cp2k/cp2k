@@ -22,6 +22,7 @@ MODULE semi_empirical_mpole_types
 
 ! *****************************************************************************
 !> \brief Semi-empirical integral multipole expansion type
+!> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   TYPE semi_empirical_mpole_type
      LOGICAL, DIMENSION(3)                    :: task
@@ -34,6 +35,7 @@ MODULE semi_empirical_mpole_types
 
 ! *****************************************************************************
 !> \brief Semi-empirical integral multipole expansion type - pointer type
+!> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   TYPE semi_empirical_mpole_p_type
      TYPE(semi_empirical_mpole_type), POINTER :: mpole
@@ -41,6 +43,7 @@ MODULE semi_empirical_mpole_types
 
 ! *****************************************************************************
 !> \brief Global Multipolar NDDO information type
+!> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   TYPE nddo_mpole_type
      REAL(KIND=dp), DIMENSION(:), POINTER     :: charge,     efield0
@@ -61,6 +64,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate semi-empirical mpole type
+!> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE semi_empirical_mpole_p_create(mpole, ndim, error)
     TYPE(semi_empirical_mpole_p_type), &
@@ -88,6 +92,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical mpole type
+!> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! ***************************************************************************** 
   SUBROUTINE semi_empirical_mpole_p_release(mpole, error)
     TYPE(semi_empirical_mpole_p_type), &
@@ -114,6 +119,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate semi-empirical mpole type
+!> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE semi_empirical_mpole_create(mpole, error)
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
@@ -140,6 +146,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical mpole type
+!> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! ***************************************************************************** 
   SUBROUTINE semi_empirical_mpole_release(mpole, error)
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
@@ -161,6 +168,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate NDDO multipole type
+!> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE nddo_mpole_create(nddo_mpole, error)
     TYPE(nddo_mpole_type), POINTER           :: nddo_mpole
@@ -186,6 +194,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate NDDO multipole type
+!> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE nddo_mpole_release(nddo_mpole, error)
     TYPE(nddo_mpole_type), POINTER           :: nddo_mpole

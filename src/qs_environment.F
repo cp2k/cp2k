@@ -163,7 +163,7 @@ MODULE qs_environment
   USE semi_empirical_mpole_types,      ONLY: nddo_mpole_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_create,&
                                              semi_empirical_si_type
-  USE semi_empirical_types,            ONLY: taper_create,&
+  USE taper_types,                     ONLY: taper_create,&
                                              taper_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

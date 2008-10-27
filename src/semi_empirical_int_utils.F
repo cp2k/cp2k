@@ -16,8 +16,8 @@ MODULE semi_empirical_int_utils
        CLMp, CLMxx, CLMxy, CLMyy, CLMz, CLMzp, CLMzz, clm_d, clm_sp, &
        ijkl_ind, indexa, indexb, int2c_type
   USE semi_empirical_types,            ONLY: rotmat_type,&
-                                             semi_empirical_type,&
-                                             taper_type
+                                             semi_empirical_type
+  USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -28,52 +28,10 @@ MODULE semi_empirical_int_utils
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_utils'
 
-  PUBLIC :: taper_eval, dtaper_eval, ijkl_d, ijkl_sp, rotmat, rot_2el_2c_first,&
-            store_2el_2c_diag, d_ijkl_sp, d_ijkl_d
+  PUBLIC ::   ijkl_sp,   ijkl_d, rotmat, rot_2el_2c_first, store_2el_2c_diag,&
+            d_ijkl_sp, d_ijkl_d
   
 CONTAINS
-
-! *****************************************************************************
-!> \brief Taper functions
-! *****************************************************************************
-  FUNCTION taper_eval (taper,rij, error) RESULT(ft)
-    TYPE(taper_type), POINTER                :: taper
-    REAL(KIND=dp), INTENT(IN)                :: rij
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(KIND=dp)                            :: ft
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'taper_eval', &
-      routineP = moduleN//':'//routineN
-
-    REAL(KIND=dp)                            :: dr
-
-    ft = 1._dp
-    IF (taper%apply_taper) THEN
-       dr = taper%rscale*(rij-taper%r0)
-       ft = 0.5_dp*(1.0_dp-TANH(dr))
-    END IF
-  END FUNCTION taper_eval
-  
-! *****************************************************************************
-!> \brief Analytical derivatives for taper function
-! *****************************************************************************
-  FUNCTION dtaper_eval (taper, rij, error ) RESULT(dft)
-    TYPE(taper_type), POINTER                :: taper
-    REAL(KIND=dp), INTENT(IN)                :: rij
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(KIND=dp)                            :: dft
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dtaper_eval', &
-      routineP = moduleN//':'//routineN
-
-    REAL(KIND=dp)                            :: dr
-
-    dft = 0.0_dp
-    IF (taper%apply_taper) THEN
-       dr  = taper%rscale*(rij-taper%r0)
-       dft = -0.5_dp*(1.0_dp-TANH(dr)**2)*taper%rscale
-    END IF
-  END FUNCTION dtaper_eval
 
 ! *****************************************************************************
 !> \brief General driver for computing semi-empirical integrals <ij|kl> with

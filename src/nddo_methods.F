@@ -73,13 +73,13 @@ MODULE nddo_methods
                                              semi_empirical_si_initialize,&
                                              semi_empirical_si_type
   USE semi_empirical_types,            ONLY: get_se_param,&
-                                             semi_empirical_type,&
-                                             taper_type
+                                             semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_type
   USE sparse_matrix_types,             ONLY: &
        allocate_matrix_set, cp_sm_scale_and_add, cp_sm_sm_trace, &
        create_dbm_from_sm, deallocate_dbm_from_sm, get_block_node, &
        real_matrix_p_type, set_matrix, transfer_matrix
+  USE taper_types,                     ONLY: taper_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

@@ -571,6 +571,7 @@ OBJECTS_GENERIC =\
  string_utilities.o\
  structure_factor_types.o\
  structure_factors.o\
+ taper_types.o\
  task_list_types.o\
  task_list_methods.o\
  termination.o\

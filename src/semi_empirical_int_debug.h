@@ -37,8 +37,8 @@ INTERFACE check_dssss_nucint_ana
   SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,shortrange,taper,error)
     USE f77_blas
     USE kinds,                           ONLY: dp
-    USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               taper_type  
+    USE semi_empirical_types,            ONLY: semi_empirical_type
+    USE taper_types,                     ONLY: taper_type  
 #include "cp_common_uses.h"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -63,8 +63,8 @@ INTERFACE check_dcore_nucint_ana
   SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,shortrange,taper,error)
     USE f77_blas
     USE kinds,                           ONLY: dp
-    USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               taper_type
+    USE semi_empirical_types,            ONLY: semi_empirical_type
+    USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -89,8 +89,8 @@ INTERFACE check_drotnuc_ana
    SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, shortrange, taper, e1b, e2a, de1b, de2a, error)
     USE f77_blas
     USE kinds,                           ONLY: dp
-    USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               taper_type
+    USE semi_empirical_types,            ONLY: semi_empirical_type
+    USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -118,8 +118,8 @@ INTERFACE check_dcorecore_ana
   SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,shortrange, taper, enuc, denuc, error)
     USE f77_blas
     USE kinds,                           ONLY: dp
-    USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               taper_type
+    USE semi_empirical_types,            ONLY: semi_empirical_type
+    USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -147,8 +147,8 @@ INTERFACE rot_2el_2c_first_debug
   SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, shortrange, taper, invert, ii, kk, v_d, error)
     USE f77_blas
     USE kinds,                           ONLY: dp
-    USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               taper_type
+    USE semi_empirical_types,            ONLY: semi_empirical_type
+    USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -174,8 +174,8 @@ INTERFACE check_dterep_ana
   SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,lgrad,error)
     USE f77_blas
     USE kinds,                           ONLY: dp
-    USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               taper_type
+    USE semi_empirical_types,            ONLY: semi_empirical_type
+    USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -199,8 +199,8 @@ INTERFACE check_rotint_ana
   SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,shortrange,taper,error)
     USE f77_blas
     USE kinds,                           ONLY: dp
-    USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               taper_type
+    USE semi_empirical_types,            ONLY: semi_empirical_type
+    USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
