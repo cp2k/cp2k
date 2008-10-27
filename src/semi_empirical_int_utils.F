@@ -191,6 +191,7 @@ CONTAINS
        sum = 0.0_dp
        dij = 0.0_dp
        dkl = 0.0_dp
+       add = 0.0_dp
        DO l1 = l1min, l1max
           IF (l1 /= 0) THEN
              dij = sepi%cs(lij)*fact_ij
@@ -200,7 +201,6 @@ CONTAINS
              IF (l2 /= 0) THEN
                 dkl = sepj%cs(lkl)*fact_kl
              END IF
-             add  = 0.0_dp
              lmin = MAX(l1, l2)
              s1   = 0.0_dp
              DO m = -lmin, lmin
@@ -781,6 +781,7 @@ CONTAINS
        sum = 0.0_dp
        dij = 0.0_dp
        dkl = 0.0_dp
+       add = 0.0_dp
        DO l1 = l1min, l1max
           IF (l1 /= 0) THEN
              dij = sepi%cs(lij)
@@ -790,7 +791,6 @@ CONTAINS
              IF (l2 /= 0) THEN
                 dkl = sepj%cs(lkl)
              END IF
-             add  = 0.0_dp
              lmin = MIN(l1, l2)
              s1   = 0.0_dp
              DO m = -lmin, lmin
