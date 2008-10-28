@@ -776,9 +776,11 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     DEALLOCATE (mc_par%pbias,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_par%pbias")
+   IF(mc_par%ensemble == "VIRIAL") THEN
     DEALLOCATE (mc_par%virial_temps,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_par%virial_temps")
+   END IF
 
    DEALLOCATE (mc_par,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -945,9 +947,9 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
        WRITE(iw,*)
        WRITE(iw,*) 'File name ',input_file_name
        WRITE(iw,*) 'Number of molecule types ',nmol_types
-       WRITE(iw,*) '&MOL_SET sections found ',irep
+       WRITE(iw,*) '&MOLECULE sections found ',irep
        CALL stop_program('mc_types.F/mc_input_file_create',&
-            'Did not find MOL_SET sections for every molecule in the simulation (make sure both input files have all types)')
+            'Did not find MOLECULE sections for every molecule in the simulation (make sure both input files have all types)')
     ENDIF
 
 ! now let's find the type of force_env...right now, I'm only concerned with
@@ -1198,16 +1200,30 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"DISCRETE_STEP",r_val=mc_par%discrete_step,error=error)
       CALL section_vals_val_get(mc_section,"RMVOLUME",r_val=mc_par%rmvolume,error=error)
 
+! finally the character values
+      CALL section_vals_val_get(mc_section,"ENSEMBLE",c_val=mc_par%ensemble,error=error)
+      CALL section_vals_val_get(mc_section,"RESTART_FILE_NAME",c_val=mc_par%restart_file_name,error=error)
+      CALL section_vals_val_get(mc_section,"COORDINATE_FILE_NAME",c_val=mc_par%coords_file,error=error)
+      CALL section_vals_val_get(mc_section,"ENERGY_FILE_NAME",c_val=mc_par%energy_file,error=error)
+      CALL section_vals_val_get(mc_section,"MOVES_FILE_NAME",c_val=mc_par%moves_file,error=error)
+      CALL section_vals_val_get(mc_section,"MOLECULES_FILE_NAME",c_val=mc_par%molecules_file,error=error)
+      CALL section_vals_val_get(mc_section,"CELL_FILE_NAME",c_val=mc_par%cell_file,error=error)
+      CALL section_vals_val_get(mc_section,"DATA_FILE_NAME",c_val=mc_par%data_file,error=error)
+      CALL section_vals_val_get(mc_section,"MAX_DISP_FILE_NAME",c_val=mc_par%displacement_file,error=error)
+      CALL section_vals_val_get(mc_section,"BOX2_FILE_NAME",c_val=mc_par%box2_file,error=error)
+
 ! set the values of the arrays...if we just point, we have problems when we start fooling around
 ! with releasing force_envs and wonky values get set (despite that these are private)
-      CALL section_vals_val_get(mc_section,"VIRIAL_TEMPS",r_vals=temp_r_array,error=error)
+      IF(mc_par%ensemble == "VIRIAL") THEN
+        CALL section_vals_val_get(mc_section,"VIRIAL_TEMPS",r_vals=temp_r_array,error=error)
 ! yes, I'm allocating here...I cannot find a better place to do it, though
-      ALLOCATE (mc_par%virial_temps(1:SIZE(temp_r_array)),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "virial_temps",dp_size*SIZE(temp_r_array))
-      DO imol=1,SIZE(temp_r_array)
-         mc_par%virial_temps(imol)=temp_r_array(imol)
-      ENDDO
+        ALLOCATE (mc_par%virial_temps(1:SIZE(temp_r_array)),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+           "virial_temps",dp_size*SIZE(temp_r_array))
+        DO imol=1,SIZE(temp_r_array)
+           mc_par%virial_temps(imol)=temp_r_array(imol)
+        ENDDO
+      END IF
       CALL section_vals_val_get(mc_section,"AVBMC_RMIN",r_vals=temp_r_array,error=error)
       DO imol=1,SIZE(temp_r_array)
          mc_par%avbmc_rmin(imol)=temp_r_array(imol)
@@ -1267,18 +1283,6 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"LSTOP",l_val=mc_par%lstop,error=error)
       CALL section_vals_val_get(mc_section,"RESTART",l_val=mc_par%lrestart,error=error)
       CALL section_vals_val_get(mc_section,"LBIAS",l_val=mc_par%lbias,error=error)
-
-! finally the character values
-      CALL section_vals_val_get(mc_section,"ENSEMBLE",c_val=mc_par%ensemble,error=error)
-      CALL section_vals_val_get(mc_section,"RESTART_FILE_NAME",c_val=mc_par%restart_file_name,error=error)
-      CALL section_vals_val_get(mc_section,"COORDINATE_FILE_NAME",c_val=mc_par%coords_file,error=error)
-      CALL section_vals_val_get(mc_section,"ENERGY_FILE_NAME",c_val=mc_par%energy_file,error=error)
-      CALL section_vals_val_get(mc_section,"MOVES_FILE_NAME",c_val=mc_par%moves_file,error=error)
-      CALL section_vals_val_get(mc_section,"MOLECULES_FILE_NAME",c_val=mc_par%molecules_file,error=error)
-      CALL section_vals_val_get(mc_section,"CELL_FILE_NAME",c_val=mc_par%cell_file,error=error)
-      CALL section_vals_val_get(mc_section,"DATA_FILE_NAME",c_val=mc_par%data_file,error=error)
-      CALL section_vals_val_get(mc_section,"MAX_DISP_FILE_NAME",c_val=mc_par%displacement_file,error=error)
-      CALL section_vals_val_get(mc_section,"BOX2_FILE_NAME",c_val=mc_par%box2_file,error=error)
 
 !..end of parsing the input section
 
