@@ -811,7 +811,7 @@ CONTAINS
 
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf,&
-                          last_sgf=last_sgf)
+                          last_sgf=last_sgf,error=error)
 
     IF ( dftb_control%self_consistent .AND. calculate_forces ) THEN
       ! we have to store the derivative overlap matrices

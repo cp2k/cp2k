@@ -198,7 +198,8 @@ CONTAINS
           CALL mp_sum(energy_3x3,force_env%para_env%group)
           CALL mp_sum(energy_4x6,force_env%para_env%group)
           CALL mp_sum(energy_colv,force_env%para_env%group)
-          CALL update_particle_set(particle_set,force_env%para_env%group,for=force,add=.TRUE.)
+          CALL update_particle_set(particle_set,force_env%para_env%group,for=force,add=.TRUE.,&
+               error=error)
           force = 0.0_dp
           n_restraint = 0
        ENDIF

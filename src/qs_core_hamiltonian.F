@@ -431,7 +431,8 @@ CONTAINS
     ALLOCATE (last_sgf(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,last_sgf=last_sgf)
+    CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,last_sgf=last_sgf,&
+         error=error)
 
     ! assert here that the S-matrix is of the type distribution_2d if this one is non-null
     ! we assert that the sparsity of s is determined by the neighbor list that is used to build it

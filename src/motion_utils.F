@@ -337,7 +337,8 @@ CONTAINS
        ELSE
           CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
        END IF
-       CALL write_particle_coordinates(particle_set,traj_unit,outformat,TRIM(id_wpc),TRIM(title),cell)
+       CALL write_particle_coordinates(particle_set,traj_unit,outformat,TRIM(id_wpc),TRIM(title),cell,&
+            error=error)
     END IF
     CALL cp_print_key_finished_output(traj_unit,logger,root_section,"MOTION%PRINT%"//TRIM(my_pk_name),error=error)
 

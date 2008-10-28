@@ -1601,7 +1601,7 @@ CONTAINS
 
     ALLOCATE (first_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set=particle_set, first_sgf=first_sgf)
+    CALL get_particle_set(particle_set=particle_set, first_sgf=first_sgf,error=error)
     ALLOCATE (sto_state_overlap(nexc_search),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (max_overlap(natom),STAT=istat)

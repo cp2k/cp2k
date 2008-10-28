@@ -1270,7 +1270,7 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       CALL get_particle_set(particle_set=particle_set,&
-                            first_sgf=first_sgf)
+                            first_sgf=first_sgf,error=error)
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxl)
       ALLOCATE (econf(0:maxl),STAT=istat)

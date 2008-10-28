@@ -1099,7 +1099,7 @@ CONTAINS
 
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf,&
-                          last_sgf=last_sgf)
+                          last_sgf=last_sgf,error=error)
     !Build 3 arrays where for each contracted basis function
     !the x y and z coordinates of the center are given
     DO iatom = 1,natom

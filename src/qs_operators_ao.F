@@ -1596,7 +1596,7 @@ CONTAINS
 
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf,&
-                          last_sgf=last_sgf)
+                          last_sgf=last_sgf,error=error)
 
     CALL allocate_matrix(matrix=matrix,&
                          nblock_row=natom,&

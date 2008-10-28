@@ -248,7 +248,7 @@ CONTAINS
     END IF
 
     ! Broadcast the new particle positions
-    CALL update_particle_set(particle_set,para_env%group,pos=pos)
+    CALL update_particle_set(particle_set,para_env%group,pos=pos,error=error)
 
     DEALLOCATE (pos,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -283,7 +283,7 @@ CONTAINS
     END IF
 
     ! Broadcast the new particle velocities
-    CALL update_particle_set(particle_set,para_env%group,vel=vel)
+    CALL update_particle_set(particle_set,para_env%group,vel=vel,error=error)
 
     DEALLOCATE (vel,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -373,13 +373,13 @@ CONTAINS
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind = molecule_kinds % n_els
-    molecule_kind_set => molecule_kinds % els
+    nmolecule_kind = molecule_kinds%n_els
+    molecule_kind_set => molecule_kinds%els
 
     nparticle = particles%n_els
     particle_set => particles%els
-    nmolecule = molecules % n_els
-    molecule_set => molecules % els
+    nmolecule = molecules%n_els
+    molecule_set => molecules%els
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          shell_present=shell_present,shell_adiabatic=shell_adiabatic)
@@ -470,11 +470,11 @@ CONTAINS
     CALL dynamical_coeff_verlet2(dyn_coeff_set, thermostat_coeff, para_env, dt, error)
 
     ! Update virial
-    IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
-         molecule_set,molecule_kind_set,particle_set, virial,para_env % group )
+    IF ( simpar%constraint ) CALL pv_constraint ( gci, local_molecules, &
+         molecule_set,molecule_kind_set,particle_set, virial,para_env%group )
 
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-         local_particles, virial, para_env % group  ,error=error)
+         local_particles, virial, para_env%group  ,error=error)
 
   END SUBROUTINE nve
 
@@ -687,13 +687,13 @@ CONTAINS
 
     nparticle_kind  = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind  = molecule_kinds % n_els
-    molecule_kind_set => molecule_kinds % els
+    nmolecule_kind  = molecule_kinds%n_els
+    molecule_kind_set => molecule_kinds%els
 
     nparticle    = particles%n_els
     particle_set => particles%els
-    nmolecule    = molecules % n_els
-    molecule_set => molecules % els
+    nmolecule    = molecules%n_els
+    molecule_set => molecules%els
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          shell_present=shell_present,shell_adiabatic=shell_adiabatic)
@@ -715,7 +715,7 @@ CONTAINS
     ! Apply Thermostat over the full set of particles
     IF(shell_adiabatic) THEN
        CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
-            particle_set, local_molecules, para_env % group, shell_adiabatic=shell_adiabatic,&
+            particle_set, local_molecules, para_env%group, shell_adiabatic=shell_adiabatic,&
             shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
             error=error)
 
@@ -789,15 +789,15 @@ CONTAINS
 
 
     ! Update constraint virial
-    IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
-         molecule_set,molecule_kind_set,particle_set, virial,para_env % group )
+    IF ( simpar%constraint ) CALL pv_constraint ( gci, local_molecules, &
+         molecule_set,molecule_kind_set,particle_set, virial,para_env%group )
 
     ! coefficients
     CALL dynamical_coeff_verlet2 ( dyn_coeff_set, thermostat_coeff, para_env, dt, error)
 
     !     **  Evaluate Virial
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-         local_particles, virial, para_env % group, error=error)
+         local_particles, virial, para_env%group, error=error)
 
   END SUBROUTINE nvt
 
@@ -876,7 +876,7 @@ CONTAINS
          thermostat_shell=thermostat_shell, npt=npt, first_time=first_time,&
          para_env=para_env, error=error)
     dt = simpar%dt
-    infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
+    infree = 1.0_dp / REAL ( simpar%nfree,KIND=dp)
 
     CALL force_env_get(force_env=force_env, subsys=subsys, virial=virial,&
          cell=cell, error=error)
@@ -890,20 +890,20 @@ CONTAINS
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind = molecule_kinds % n_els
-    molecule_kind_set => molecule_kinds % els
+    nmolecule_kind = molecule_kinds%n_els
+    molecule_kind_set => molecule_kinds%els
 
     nparticle = particles%n_els
     particle_set => particles%els
-    nmolecule = molecules % n_els
-    molecule_set => molecules % els
+    nmolecule = molecules%n_els
+    molecule_set => molecules%els
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          shell_present=shell_present,shell_adiabatic=shell_adiabatic)
 
     IF ( first_time ) THEN
        CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-            local_particles, virial, para_env % group, error=error)
+            local_particles, virial, para_env%group, error=error)
     END IF
 
     ! Allocate work storage for positions and velocities
@@ -923,7 +923,7 @@ CONTAINS
     CALL allocate_tmp(tmp, nparticle, nshell, shell_adiabatic, error=error)
 
     ! Initialize eps_0 the first time through
-    IF ( first_time ) eps_0 = npt (1,1) % eps
+    IF ( first_time ) eps_0 = npt (1,1)%eps
 
     ! Apply thermostat to  barostat
     CALL apply_thermostat_baro( thermostat_baro, npt, para_env%group, error)
@@ -973,22 +973,22 @@ CONTAINS
 
        CALL update_pv ( gci, simpar, atomic_kind_set, particle_set, &
             local_molecules, molecule_set, molecule_kind_set, &
-            local_particles, kin, pv_kin, virial, para_env % group )
+            local_particles, kin, pv_kin, virial, para_env%group )
        CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
-       tmp%arg_r(1) = ( 0.5_dp * npt ( 1, 1 ) % v * dt ) * &
-            ( 0.5_dp * npt ( 1, 1 ) % v * dt )
+       tmp%arg_r(1) = ( 0.5_dp * npt ( 1, 1 )%v * dt ) * &
+            ( 0.5_dp * npt ( 1, 1 )%v * dt )
        tmp%poly_r(1:3) = 1.0_dp + e2*tmp%arg_r(1) + e4*tmp%arg_r(1)*tmp%arg_r(1) + &
             e6*tmp%arg_r(1)**3 + e8*tmp%arg_r(1)**4
 
-       tmp%arg_v(1) = ( 0.25_dp * npt ( 1, 1 ) % v * dt *  &
-            (1.0_dp + 3.0_dp * infree ) )*( 0.25_dp * npt ( 1, 1 ) % v * &
+       tmp%arg_v(1) = ( 0.25_dp * npt ( 1, 1 )%v * dt *  &
+            (1.0_dp + 3.0_dp * infree ) )*( 0.25_dp * npt ( 1, 1 )%v * &
             dt * ( 1.0_dp + 3.0_dp * infree ) )
        tmp%poly_v(1:3) = 1.0_dp + e2*tmp%arg_v(1) + e4*tmp%arg_v(1)*tmp%arg_v(1) + &
             e6*tmp%arg_v(1)**3 + e8*tmp%arg_v(1)**4
 
-       tmp%scale_r(1:3) = EXP( 0.5_dp * dt * npt ( 1, 1 ) % v )
-       tmp%scale_v(1:3) = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * &
+       tmp%scale_r(1:3) = EXP( 0.5_dp * dt * npt ( 1, 1 )%v )
+       tmp%scale_v(1:3) = EXP( -0.25_dp * dt * npt ( 1, 1 )%v * &
             (1.0_dp + 3.0_dp * infree ) )
 
        ! first half of velocity verlet
@@ -1005,19 +1005,19 @@ CONTAINS
        vector_r ( : ) = tmp%scale_r(:) * tmp%poly_r(:)
        vector_v ( : ) = tmp%scale_v(:) * tmp%poly_v(:)
 
-       IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
+       IF ( simpar%constraint ) CALL shake_roll_control( gci, local_molecules, &
             molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar,  &
-            roll_tol, iroll, vector_r, vector_v, para_env % group, cell=cell, &
+            roll_tol, iroll, vector_r, vector_v, para_env%group, cell=cell, &
             local_particles=local_particles, error=error )
     END DO SR
 
     ! Update eps:
-    npt ( :, : ) % eps =  npt ( :, : ) % eps + dt * npt ( :, : ) % v
+    npt ( :, : )%eps =  npt ( :, : )%eps + dt * npt ( :, : )%v
 
     ! Update h_mat
-    cell % hmat ( :, : ) = cell % hmat ( :, : ) * EXP ( npt ( 1, 1 ) % eps - eps_0 )
+    cell%hmat ( :, : ) = cell%hmat ( :, : ) * EXP ( npt ( 1, 1 )%eps - eps_0 )
 
-    eps_0 =  npt ( 1, 1 ) % eps
+    eps_0 =  npt ( 1, 1 )%eps
 
     ! Update the inverse
     CALL init_cell ( cell )
@@ -1048,14 +1048,14 @@ CONTAINS
 
     RR: DO WHILE (ABS(roll_tol)>=roll_tol_thrs) ! RATTLE-ROLL LOOP
        roll_tol = 0.0_dp
-       IF ( simpar % constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
+       IF ( simpar%constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
             particle_set, local_particles, molecule_kind_set, molecule_set,  &
             local_molecules, tmp%vel, dt,  cell, npt, simpar, virial, vector_v,  &
             roll_tol, iroll, infree, first, para_env,error=error)
 
        CALL update_pv ( gci, simpar, atomic_kind_set, tmp%vel, particle_set, &
             local_molecules, molecule_set, molecule_kind_set, &
-            local_particles, kin, pv_kin, virial, para_env % group )
+            local_particles, kin, pv_kin, virial, para_env%group )
        CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
     END DO RR
@@ -1102,11 +1102,11 @@ CONTAINS
          core_particle_set, para_env, shell_adiabatic, vel=.TRUE.,  error=error )
 
     ! Update constraint virial
-    IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
-         molecule_set, molecule_kind_set, particle_set, virial, para_env % group )
+    IF ( simpar%constraint ) CALL pv_constraint ( gci, local_molecules, &
+         molecule_set, molecule_kind_set, particle_set, virial, para_env%group )
 
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-         local_particles, virial, para_env % group , error=error)
+         local_particles, virial, para_env%group , error=error)
 
     ! Deallocate old variables
     CALL deallocate_old (old, error=error )
@@ -1329,7 +1329,7 @@ CPSourceFileRef,&
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,npt = npt,&
          first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
-    infree = 1.0_dp / REAL ( simpar % nfree, dp )
+    infree = 1.0_dp / REAL ( simpar%nfree, dp )
 
     CALL force_env_get(force_env, subsys=subsys, virial = virial, cell=cell ,error=error)
 
@@ -1342,17 +1342,17 @@ CPSourceFileRef,&
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind = molecule_kinds % n_els
-    molecule_kind_set => molecule_kinds % els
+    nmolecule_kind = molecule_kinds%n_els
+    molecule_kind_set => molecule_kinds%els
 
     nparticle = particles%n_els
     particle_set => particles%els
-    nmolecule = molecules % n_els
-    molecule_set => molecules % els
+    nmolecule = molecules%n_els
+    molecule_set => molecules%els
 
     IF ( first_time ) THEN
        CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-            local_particles, virial, para_env % group  ,error=error)
+            local_particles, virial, para_env%group  ,error=error)
     END IF
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -1399,21 +1399,21 @@ CPSourceFileRef,&
        END IF
        CALL update_pv ( gci, simpar, atomic_kind_set, particle_set, &
             local_molecules, molecule_set, molecule_kind_set, &
-            local_particles, kin, pv_kin, virial, para_env % group )
+            local_particles, kin, pv_kin, virial, para_env%group )
        CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
-       tmp%arg_r(1) = ( 0.5_dp * npt ( 1, 1 ) % v * dt ) * &
-            ( 0.5_dp * npt ( 1, 1 ) % v * dt )
+       tmp%arg_r(1) = ( 0.5_dp * npt ( 1, 1 )%v * dt ) * &
+            ( 0.5_dp * npt ( 1, 1 )%v * dt )
        tmp%poly_r(1) = 1._dp + e2*tmp%arg_r(1) + e4*tmp%arg_r(1)*tmp%arg_r(1) + &
            e6*tmp%arg_r(1)**3 + e8*tmp%arg_r(1)**4
        tmp%poly_r(2) = 1.0_dp
        tmp%poly_r(3) = 1.0_dp
 
-       tmp%arg_v(1) = ( 0.25_dp * npt ( 1, 1 ) % v * dt *  &
-            (1._dp + infree ) )*( 0.25_dp * npt ( 1, 1 ) % v * &
+       tmp%arg_v(1) = ( 0.25_dp * npt ( 1, 1 )%v * dt *  &
+            (1._dp + infree ) )*( 0.25_dp * npt ( 1, 1 )%v * &
             dt * ( 1._dp + infree ) )
-       tmp%arg_v(2) = ( 0.25_dp * npt ( 1, 1 ) % v * dt * infree) * &
-            ( 0.25_dp * npt ( 1, 1 ) % v * dt * infree )
+       tmp%arg_v(2) = ( 0.25_dp * npt ( 1, 1 )%v * dt * infree) * &
+            ( 0.25_dp * npt ( 1, 1 )%v * dt * infree )
        tmp%poly_v(1) = 1._dp + e2*tmp%arg_v(1) + e4*tmp%arg_v(1)*tmp%arg_v(1) + &
             e6*tmp%arg_v(1)**3 + e8*tmp%arg_v(1)**4
        tmp%poly_v(2) = 1._dp + e2*tmp%arg_v(2) + e4*tmp%arg_v(2)*tmp%arg_v(2) + &
@@ -1421,14 +1421,14 @@ CPSourceFileRef,&
        tmp%poly_v(3) = 1._dp + e2*tmp%arg_v(2) + e4*tmp%arg_v(2)*tmp%arg_v(2) + &
             e6*tmp%arg_v(2)**3 + e8*tmp%arg_v(2)**4
 
-       tmp%scale_r(1) = EXP( 0.5_dp * dt * npt ( 1, 1 ) % v )
+       tmp%scale_r(1) = EXP( 0.5_dp * dt * npt ( 1, 1 )%v )
        tmp%scale_r(2) = 1.0_dp
        tmp%scale_r(3) = 1.0_dp
 
-       tmp%scale_v(1) = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * &
+       tmp%scale_v(1) = EXP( -0.25_dp * dt * npt ( 1, 1 )%v * &
             (1._dp + infree ) )
-       tmp%scale_v(2) = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * infree )
-       tmp%scale_v(3) = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * infree )
+       tmp%scale_v(2) = EXP( -0.25_dp * dt * npt ( 1, 1 )%v * infree )
+       tmp%scale_v(3) = EXP( -0.25_dp * dt * npt ( 1, 1 )%v * infree )
 
        ! first half of velocity verlet
        CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
@@ -1445,14 +1445,14 @@ CPSourceFileRef,&
        vector_v ( : ) = tmp%scale_v(:) * tmp%poly_v(:)
        vector_r ( 1 ) = tmp%scale_r(1) * tmp%poly_r(1)
 
-       IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
+       IF ( simpar%constraint ) CALL shake_roll_control( gci, local_molecules, &
             molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, simpar,&
-            roll_tol, iroll, vector_r, vector_v, para_env % group, cell=cell, &
+            roll_tol, iroll, vector_r, vector_v, para_env%group, cell=cell, &
             local_particles=local_particles, error=error )
     END DO SR
 
     ! Update h_mat
-    cell % hmat ( 1, 1 ) = cell % hmat ( 1, 1 ) * tmp%scale_r(1) * tmp%scale_r(1)
+    cell%hmat ( 1, 1 ) = cell%hmat ( 1, 1 ) * tmp%scale_r(1) * tmp%scale_r(1)
 
     ! Update the cell
     CALL init_cell ( cell )
@@ -1483,14 +1483,14 @@ CPSourceFileRef,&
 
     RR: DO WHILE (ABS(roll_tol)>=roll_tol_thrs) ! RATTLE-ROLL LOOP
        roll_tol = 0._dp
-       IF ( simpar % constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
+       IF ( simpar%constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
             particle_set, local_particles, molecule_kind_set, molecule_set,  &
             local_molecules, tmp%vel, dt, cell, npt, simpar, virial, vector_v,  &
             roll_tol, iroll, infree, first, para_env, error=error )
 
        CALL update_pv ( gci, simpar, atomic_kind_set, tmp%vel, particle_set, &
             local_molecules, molecule_set, molecule_kind_set, &
-            local_particles, kin, pv_kin, virial, para_env % group )
+            local_particles, kin, pv_kin, virial, para_env%group )
        CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
     END DO RR
 
@@ -1501,11 +1501,11 @@ CPSourceFileRef,&
          core_particle_set, para_env, shell_adiabatic, vel=.TRUE.,  error=error )
 
     ! Update constraint virial
-    IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
-         molecule_set,molecule_kind_set,particle_set, virial, para_env % group )
+    IF ( simpar%constraint ) CALL pv_constraint ( gci, local_molecules, &
+         molecule_set,molecule_kind_set,particle_set, virial, para_env%group )
 
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-         local_particles, virial, para_env % group, error=error)
+         local_particles, virial, para_env%group, error=error)
 
     ! Deallocate old variables
     CALL deallocate_old ( old, error=error )
@@ -1589,8 +1589,8 @@ CPSourceFileRef,&
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,npt = npt,&
          first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
-    infree = 1.0_dp / REAL ( simpar % nfree, dp )
-    gamma1 = simpar % gamma_nph
+    infree = 1.0_dp / REAL ( simpar%nfree, dp )
+    gamma1 = simpar%gamma_nph
 
     CALL force_env_get(force_env, subsys=subsys, virial = virial, cell = cell ,error=error)
 
@@ -1600,17 +1600,17 @@ CPSourceFileRef,&
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind = molecule_kinds % n_els
-    molecule_kind_set => molecule_kinds % els
+    nmolecule_kind = molecule_kinds%n_els
+    molecule_kind_set => molecule_kinds%els
 
     nparticle = particles%n_els
     particle_set => particles%els
-    nmolecule = molecules % n_els
-    molecule_set => molecules % els
+    nmolecule = molecules%n_els
+    molecule_set => molecules%els
 
     IF ( first_time ) THEN
        CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-            local_particles, virial, para_env % group , error=error)
+            local_particles, virial, para_env%group , error=error)
     END IF
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -1634,7 +1634,7 @@ CPSourceFileRef,&
 
     ! perform damping on velocities
     CALL damp_v ( molecule_kind_set, molecule_set, particle_set, local_molecules,&
-         gamma1, npt(1,1), dt, para_env % group )
+         gamma1, npt(1,1), dt, para_env%group )
 
     IF (simpar%constraint) THEN
        ! Possibly update the target values
@@ -1664,30 +1664,30 @@ CPSourceFileRef,&
        END IF
        CALL update_pv ( gci, simpar, atomic_kind_set, particle_set, &
             local_molecules, molecule_set, molecule_kind_set, &
-            local_particles, kin, pv_kin, virial, para_env % group )
+            local_particles, kin, pv_kin, virial, para_env%group )
        CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
        ! perform damping on the barostat momentum
        CALL damp_veps ( npt ( 1, 1 ), gamma1, dt )
 
-       tmp%arg_r(1) = ( 0.5_dp * npt ( 1, 1 ) % v * dt ) * &
-            ( 0.5_dp * npt ( 1, 1 ) % v * dt )
+       tmp%arg_r(1) = ( 0.5_dp * npt ( 1, 1 )%v * dt ) * &
+            ( 0.5_dp * npt ( 1, 1 )%v * dt )
        tmp%poly_r(1) = 1._dp + e2*tmp%arg_r(1) + e4*tmp%arg_r(1)*tmp%arg_r(1) +&
            e6*tmp%arg_r(1)**3 + e8*tmp%arg_r(1)**4
 
-       aax = npt ( 1, 1 ) % v * ( 1.0_dp + infree )
+       aax = npt ( 1, 1 )%v * ( 1.0_dp + infree )
        tmp%arg_v(1) = ( 0.25_dp * dt * aax ) * ( 0.25_dp * dt * aax )
        tmp%poly_v(1) = 1._dp + e2*tmp%arg_v(1) + e4*tmp%arg_v(1)*tmp%arg_v(1) +&
           e6*tmp%arg_v(1)**3 + e8*tmp%arg_v(1)**4
 
-       aa = npt ( 1, 1 ) % v *  infree
+       aa = npt ( 1, 1 )%v *  infree
        tmp%arg_v(2) = ( 0.25_dp * dt * aa ) * ( 0.25_dp * dt * aa )
        tmp%poly_v(2) = 1._dp + e2*tmp%arg_v(2) + e4*tmp%arg_v(2)*tmp%arg_v(2) +&
            e6*tmp%arg_v(2)**3 + e8*tmp%arg_v(2)**4
        tmp%poly_v(3) = 1._dp + e2*tmp%arg_v(2) + e4*tmp%arg_v(2)*tmp%arg_v(2) +&
            e6*tmp%arg_v(2)**3 + e8*tmp%arg_v(2)**4
 
-       tmp%scale_r(1) = EXP( 0.5_dp * dt * npt ( 1, 1 ) % v )
+       tmp%scale_r(1) = EXP( 0.5_dp * dt * npt ( 1, 1 )%v )
        tmp%scale_v(1) = EXP( -0.25_dp * dt * aax )
        tmp%scale_v(2) = EXP( -0.25_dp * dt * aa )
        tmp%scale_v(3) = EXP( -0.25_dp * dt * aa )
@@ -1708,14 +1708,14 @@ CPSourceFileRef,&
        vector_v ( : ) = tmp%scale_v(:) * tmp%poly_v(:)
        vector_r ( 1 ) = tmp%scale_r(1) * tmp%poly_r(1)
 
-       IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
+       IF ( simpar%constraint ) CALL shake_roll_control( gci, local_molecules, &
             molecule_set, molecule_kind_set, particle_set, tmp%pos,tmp%vel, dt, simpar,&
-            roll_tol, iroll, vector_r, vector_v, para_env % group, cell=cell,&
+            roll_tol, iroll, vector_r, vector_v, para_env%group, cell=cell,&
             local_particles=local_particles, error=error )
     END DO SR
 
     ! Update h_mat
-    cell % hmat ( 1, 1 ) = cell % hmat ( 1, 1 ) * tmp%scale_r(1) * tmp%scale_r(1)
+    cell%hmat ( 1, 1 ) = cell%hmat ( 1, 1 ) * tmp%scale_r(1) * tmp%scale_r(1)
 
     ! Update the inverse
     CALL init_cell ( cell )
@@ -1746,7 +1746,7 @@ CPSourceFileRef,&
 
     RR: DO WHILE (ABS(roll_tol)>=roll_tol_thrs) ! RATTLE-ROLL LOOP
        roll_tol = 0._dp
-       IF ( simpar % constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
+       IF ( simpar%constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
             particle_set, local_particles, molecule_kind_set, molecule_set, local_molecules,&
             tmp%vel, dt, cell, npt, simpar, virial, vector_v, roll_tol, iroll, infree, first,&
             para_env, error=error)
@@ -1755,7 +1755,7 @@ CPSourceFileRef,&
 
        CALL update_pv ( gci, simpar, atomic_kind_set, tmp%vel, particle_set, &
             local_molecules, molecule_set, molecule_kind_set, &
-            local_particles, kin, pv_kin, virial, para_env % group )
+            local_particles, kin, pv_kin, virial, para_env%group )
        CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
        ! perform damping on the barostat momentum
@@ -1765,7 +1765,7 @@ CPSourceFileRef,&
 
     ! perform damping on velocities
     CALL damp_v ( molecule_kind_set, molecule_set, particle_set, local_molecules,&
-         tmp%vel, gamma1,  npt ( 1, 1 ), dt, para_env % group )
+         tmp%vel, gamma1,  npt ( 1, 1 ), dt, para_env%group )
 
     IF (simpar%annealing)  tmp%vel(:,:)=tmp%vel(:,:)*simpar%f_annealing
 
@@ -1774,11 +1774,11 @@ CPSourceFileRef,&
          core_particle_set, para_env, shell_adiabatic, vel=.TRUE.,  error=error )
 
     ! Update constraint virial
-    IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
-         molecule_set, molecule_kind_set, particle_set, virial, para_env % group )
+    IF ( simpar%constraint ) CALL pv_constraint ( gci, local_molecules, &
+         molecule_set, molecule_kind_set, particle_set, virial, para_env%group )
 
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-         local_particles, virial, para_env % group, error=error)
+         local_particles, virial, para_env%group, error=error)
 
     ! Deallocate old variables
     CALL deallocate_old ( old, error=error)
@@ -1862,7 +1862,7 @@ CPSourceFileRef,&
          thermostat_baro=thermostat_baro, thermostat_shell=thermostat_shell,&
          npt=npt, first_time=first_time, para_env=para_env, error=error)
     dt = simpar%dt
-    infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
+    infree = 1.0_dp / REAL ( simpar%nfree,KIND=dp)
 
     CALL force_env_get(force_env, subsys=subsys,virial = virial, cell = cell ,error=error)
 
@@ -1876,20 +1876,20 @@ CPSourceFileRef,&
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind = molecule_kinds % n_els
-    molecule_kind_set => molecule_kinds % els
+    nmolecule_kind = molecule_kinds%n_els
+    molecule_kind_set => molecule_kinds%els
 
     nparticle = particles%n_els
     particle_set => particles%els
-    nmolecule = molecules % n_els
-    molecule_set => molecules % els
+    nmolecule = molecules%n_els
+    molecule_set => molecules%els
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          shell_present=shell_present,shell_adiabatic=shell_adiabatic)
 
     IF ( first_time ) THEN
        CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-            local_particles, virial, para_env % group  ,error=error)
+            local_particles, virial, para_env%group  ,error=error)
     END IF
 
     ! Allocate work storage for positions and velocities
@@ -1954,12 +1954,12 @@ CPSourceFileRef,&
        END IF
        CALL update_pv ( gci, simpar, atomic_kind_set, particle_set, &
             local_molecules, molecule_set, molecule_kind_set, &
-            local_particles, kin, pv_kin, virial, para_env % group )
+            local_particles, kin, pv_kin, virial, para_env%group )
        CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
-       trvg = npt ( 1, 1 ) % v  + npt ( 2, 2 ) % v + npt ( 3, 3 ) % v
+       trvg = npt ( 1, 1 )%v  + npt ( 2, 2 )%v + npt ( 3, 3 )%v
        !
-       ! find eigenvalues and eigenvectors of npt ( :, : ) % v
+       ! find eigenvalues and eigenvectors of npt ( :, : )%v
        !
 
        CALL diagonalise ( matrix = npt(:,:)%v, mysize = 3, &
@@ -1986,15 +1986,15 @@ CPSourceFileRef,&
            shell_particle_set, nparticle_kind, shell_adiabatic,npt=npt,error=error)
 
        roll_tol = 0.0_dp
-       IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
+       IF ( simpar%constraint ) CALL shake_roll_control( gci, local_molecules, &
             molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt,&
             simpar, roll_tol, iroll, tmp%scale_r*tmp%poly_r, tmp%scale_v*tmp%poly_v, &
-            para_env % group, u=tmp%u, cell=cell,&
+            para_env%group, u=tmp%u, cell=cell,&
             local_particles=local_particles, error=error )
     END DO SR
 
     ! Update h_mat
-    uh = MATMUL_3X3 ( TRANSPOSE_3D ( tmp%u ), cell % hmat )
+    uh = MATMUL_3X3 ( TRANSPOSE_3D ( tmp%u ), cell%hmat )
 
     DO i = 1, 3
        DO j = 1, 3
@@ -2002,7 +2002,7 @@ CPSourceFileRef,&
        END DO
     END DO
 
-    cell % hmat = MATMUL_3x3 ( tmp%u, uh )
+    cell%hmat = MATMUL_3x3 ( tmp%u, uh )
     ! Update the inverse
     CALL init_cell ( cell )
 
@@ -2032,14 +2032,14 @@ CPSourceFileRef,&
 
     RR: DO WHILE (ABS(roll_tol)>=roll_tol_thrs) ! RATTLE-ROLL LOOP
        roll_tol = 0.0_dp
-       IF ( simpar % constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
+       IF ( simpar%constraint ) CALL rattle_roll_setup ( old, gci, atomic_kind_set, &
             particle_set, local_particles, molecule_kind_set, molecule_set,  &
             local_molecules, tmp%vel, dt, cell, npt, simpar, virial, vector_v,  &
             roll_tol, iroll, infree, first, para_env, u=tmp%u, error=error)
 
        CALL update_pv ( gci, simpar, atomic_kind_set, tmp%vel, particle_set, &
             local_molecules, molecule_set, molecule_kind_set, &
-            local_particles, kin, pv_kin, virial, para_env % group )
+            local_particles, kin, pv_kin, virial, para_env%group )
        CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
     END DO RR
@@ -2085,12 +2085,12 @@ CPSourceFileRef,&
          core_particle_set, para_env, shell_adiabatic, vel=.TRUE., error=error )
 
     ! Update constraint virial
-    IF ( simpar % constraint ) &
+    IF ( simpar%constraint ) &
          CALL pv_constraint ( gci, local_molecules, molecule_set, &
-         molecule_kind_set, particle_set, virial, para_env % group )
+         molecule_kind_set, particle_set, virial, para_env%group )
 
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-         local_particles, virial, para_env % group, error=error  )
+         local_particles, virial, para_env%group, error=error  )
 
     ! Deallocate old variables
     CALL deallocate_old ( old, error=error )
@@ -2168,13 +2168,13 @@ CPSourceFileRef,&
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind = molecule_kinds % n_els
-    molecule_kind_set => molecule_kinds % els
+    nmolecule_kind = molecule_kinds%n_els
+    molecule_kind_set => molecule_kinds%els
 
     nparticle = particles%n_els
     particle_set => particles%els
-    nmolecule = molecules % n_els
-    molecule_set => molecules % els
+    nmolecule = molecules%n_els
+    molecule_set => molecules%els
 
     ! Allocate work storage for positions and velocities
     ALLOCATE (pos(3,nparticle),STAT=stat)
@@ -2229,7 +2229,7 @@ CPSourceFileRef,&
        END IF
 
        ! Broadcast the new particle positions
-       CALL update_particle_set ( particle_set, para_env % group, pos = pos )
+       CALL update_particle_set ( particle_set, para_env%group, pos = pos, error=error)
        DO iparticle = 1, SIZE(particle_set)
           particle_set_respa(iparticle)%r = particle_set(iparticle)%r
        END DO
@@ -2260,11 +2260,11 @@ CPSourceFileRef,&
        IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
 
        !     *** Update virial ***
-       IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
+       IF ( simpar%constraint ) CALL pv_constraint ( gci, local_molecules, &
             molecule_set, molecule_kind_set, particle_set, virial, para_env%group )
 
        CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-            local_particles, virial, para_env % group , error=error )
+            local_particles, virial, para_env%group , error=error )
     END DO
     DEALLOCATE (pos,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2288,7 +2288,7 @@ CPSourceFileRef,&
     END DO
 
     ! Broadcast the new particle velocities
-    CALL update_particle_set ( particle_set, para_env % group, vel = vel )
+    CALL update_particle_set ( particle_set, para_env%group, vel = vel, error=error)
 
     DEALLOCATE (vel,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

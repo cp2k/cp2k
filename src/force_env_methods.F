@@ -331,7 +331,8 @@ CONTAINS
        IF (print_forces>0 .AND. need_f) THEN
           CALL force_env_get(force_env, subsys=subsys, error=error)         
           CALL cp_subsys_get(subsys, particles=particles, error=error)
-          CALL write_particle_coordinates(particles%els,print_forces,dump_xmol,"FORCE"," FORCES| (a.u.) " )
+          CALL write_particle_coordinates(particles%els,print_forces,dump_xmol,"FORCE"," FORCES| (a.u.) ",&
+               error=error)
        ENDIF
        CALL cp_print_key_finished_output(print_forces,logger,force_env%force_env_section,"PRINT%FORCES",error=error)
 
@@ -1606,12 +1607,14 @@ CPSourceFileRef,&
        END IF
 
        IF (has_pos) THEN
-          CALL update_particle_set ( particles%els, force_env%para_env%group, pos=my_pos)
+          CALL update_particle_set ( particles%els, force_env%para_env%group, pos=my_pos,&
+               error=error)
           DEALLOCATE(my_pos,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
        IF (has_vel) THEN
-          CALL update_particle_set ( particles%els, force_env%para_env%group, vel=my_vel)
+          CALL update_particle_set ( particles%els, force_env%para_env%group, vel=my_vel,&
+               error=error)
           DEALLOCATE(my_vel,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
@@ -1762,7 +1765,8 @@ CPSourceFileRef,&
        END IF
 
        IF (has_vel) THEN
-          CALL update_particle_set ( particles%els, force_env%para_env%group, vel=my_vel)
+          CALL update_particle_set ( particles%els, force_env%para_env%group, vel=my_vel,&
+               error=error)
        END IF
        DEALLOCATE(my_vel,stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)

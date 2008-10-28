@@ -197,11 +197,11 @@ CONTAINS
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf_a,&
                           last_sgf=last_sgf_a,&
-                          basis_set_id=basis_set_id_a)
+                          basis_set_id=basis_set_id_a,error=error)
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf_b,&
                           last_sgf=last_sgf_b,&
-                          basis_set_id=basis_set_id_b)
+                          basis_set_id=basis_set_id_b,error=error)
 
    do_symmetric = .TRUE.
    symmetry_string = "symmetric"

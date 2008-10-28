@@ -203,7 +203,7 @@ CONTAINS
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
              CALL write_particle_coordinates(particle_set,crd,&
-                  dump_xmol,"POS",title,cell=cell,array=coords%xyz(:,irep))
+                  dump_xmol,"POS",title,cell=cell,array=coords%xyz(:,irep),error=error)
              CALL m_flush(crd)             
           END IF
           ! Dump Velocities
@@ -211,7 +211,7 @@ CONTAINS
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
              CALL write_particle_coordinates(particle_set,vel,&
-                  dump_xmol,"VEL",title,cell=cell,array=vels%xyz(:,irep))
+                  dump_xmol,"VEL",title,cell=cell,array=vels%xyz(:,irep),error=error)
              CALL m_flush(vel)
           END IF
           ! Dump Forces
@@ -219,7 +219,7 @@ CONTAINS
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
              CALL write_particle_coordinates(particle_set,frc,&
-                  dump_xmol,"FRC",title,cell=cell,array=forces%xyz(:,irep))
+                  dump_xmol,"FRC",title,cell=cell,array=forces%xyz(:,irep),error=error)
              CALL m_flush(frc)
           END IF
           CALL cp_print_key_finished_output(crd,logger,neb_env%motion_print_section,&

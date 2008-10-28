@@ -315,7 +315,7 @@ CONTAINS
 
     !   construction of
     CALL get_particle_set(particle_set=particle_set,&
-         first_sgf=first_sgf,last_sgf=last_sgf,nsgf=nsgf)
+         first_sgf=first_sgf,last_sgf=last_sgf,nsgf=nsgf,error=error)
 
     !   Copy the overlap sparse matrix in a full matrix
     CALL mpools_get(qs_env%mpools,ao_ao_fm_pools=ao_ao_fm_pools,error=error)
@@ -1079,7 +1079,8 @@ CONTAINS
     ELSE
        title = ""
     END IF
-    CALL write_particle_coordinates(particle_set,iunit,outformat,"POS",title,qs_loc_env%cell)
+    CALL write_particle_coordinates(particle_set,iunit,outformat,"POS",title,qs_loc_env%cell,&
+         error=error)
     CALL m_flush(iunit)
     CALL deallocate_particle_set(particle_set,error)
     CALL deallocate_atomic_kind_set(atomic_kind_set,error)

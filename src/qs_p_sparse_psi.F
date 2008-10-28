@@ -119,7 +119,7 @@ SUBROUTINE p_proj_create(p_proj, atoms, proj_indexes, particle_set, error)
           IF (.NOT.failure) THEN
             CALL get_particle_set(particle_set=particle_set,&
                                   first_sgf=first_sgf,&
-                                  last_sgf=last_sgf)
+                                  last_sgf=last_sgf,error=error)
             size_proj = 0
             DO i=1,SIZE(p_proj%atoms)
               size_proj = size_proj + last_sgf(p_proj%atoms(i)) -&

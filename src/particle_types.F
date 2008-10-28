@@ -35,8 +35,6 @@ MODULE particle_types
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             dp_size,&
-                                             int_size,&
                                              sp
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle,&
@@ -47,8 +45,7 @@ MODULE particle_types
                                              massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE string_utilities,                ONLY: compress
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort_unique
@@ -110,7 +107,7 @@ CONTAINS
 !>      05.2004 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
+  SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
     TYPE(particle_type), INTENT(in)          :: p_in
     TYPE(particle_type), INTENT(out)         :: p_out
     LOGICAL, INTENT(in)                      :: nullify_non_owned_pointers
@@ -119,20 +116,20 @@ SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'clone_particle', &
       routineP = moduleN//':'//routineN
 
-  NULLIFY(p_out%atomic_kind)
-  NULLIFY(p_out%list_exclude_vdw)
-  NULLIFY(p_out%list_exclude_ei)
-  IF (.NOT.nullify_non_owned_pointers) THEN
-     p_out%atomic_kind => p_in%atomic_kind
-     p_out%list_exclude_vdw => p_in%list_exclude_vdw
-     p_out%list_exclude_ei => p_in%list_exclude_ei
-  END IF
-  p_out%r=p_in%r
-  p_out%f=p_in%f
-  p_out%v=p_in%v
-  p_out%shell_index=p_in%shell_index
-  p_out%atom_index=p_in%atom_index
-END SUBROUTINE clone_particle
+    NULLIFY(p_out%atomic_kind)
+    NULLIFY(p_out%list_exclude_vdw)
+    NULLIFY(p_out%list_exclude_ei)
+    IF (.NOT.nullify_non_owned_pointers) THEN
+       p_out%atomic_kind => p_in%atomic_kind
+       p_out%list_exclude_vdw => p_in%list_exclude_vdw
+       p_out%list_exclude_ei => p_in%list_exclude_ei
+    END IF
+    p_out%r=p_in%r
+    p_out%f=p_in%f
+    p_out%v=p_in%v
+    p_out%shell_index=p_in%shell_index
+    p_out%atom_index=p_in%atom_index
+  END SUBROUTINE clone_particle
 
 ! *****************************************************************************
 !> \brief   Allocate a particle set.
@@ -149,13 +146,15 @@ END SUBROUTINE clone_particle
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_particle_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iparticle, istat
+    INTEGER                                  :: iparticle, stat
+    LOGICAL                                  :: failure
 
-    IF (ASSOCIATED(particle_set)) CALL deallocate_particle_set(particle_set,error=error)
-
-    ALLOCATE (particle_set(nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "particle_set",nparticle*int_size)
+    failure = .FALSE.
+    IF (ASSOCIATED(particle_set)) THEN 
+       CALL deallocate_particle_set(particle_set,error=error)
+    END IF
+    ALLOCATE (particle_set(nparticle),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO iparticle=1,nparticle
       NULLIFY (particle_set(iparticle)%atomic_kind)
@@ -184,37 +183,31 @@ END SUBROUTINE clone_particle
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_particle_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iparticle, istat
+    INTEGER                                  :: iparticle, stat
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     IF (ASSOCIATED(particle_set)) THEN
-
-      DO iparticle=1,SIZE(particle_set)
-         IF (ASSOCIATED(particle_set(iparticle)%list_exclude_vdw,&
-                        particle_set(iparticle)%list_exclude_ei)) THEN
-            DEALLOCATE(particle_set(iparticle)%list_exclude_vdw,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                 "particle_set(iparticle)%list_exclude_vdw")
-            NULLIFY(particle_set(iparticle)%list_exclude_vdw,&
-                    particle_set(iparticle)%list_exclude_ei)
-         ELSE
-            IF (ASSOCIATED(particle_set(iparticle)%list_exclude_vdw)) THEN
-               DEALLOCATE(particle_set(iparticle)%list_exclude_vdw,STAT=istat)
-               IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                    "particle_set(iparticle)%list_exclude_vdw")
-               NULLIFY(particle_set(iparticle)%list_exclude_vdw)
-            END IF
-            IF (ASSOCIATED(particle_set(iparticle)%list_exclude_ei)) THEN
-               DEALLOCATE(particle_set(iparticle)%list_exclude_ei,STAT=istat)
-               IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                    "particle_set(iparticle)%list_exclude_ei")
-               NULLIFY(particle_set(iparticle)%list_exclude_ei)
-            END IF
+       DO iparticle=1,SIZE(particle_set)
+          IF (ASSOCIATED(particle_set(iparticle)%list_exclude_vdw,&
+               particle_set(iparticle)%list_exclude_ei)) THEN
+             DEALLOCATE(particle_set(iparticle)%list_exclude_vdw,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             NULLIFY(particle_set(iparticle)%list_exclude_ei)
+          ELSE
+             IF (ASSOCIATED(particle_set(iparticle)%list_exclude_vdw)) THEN
+                DEALLOCATE(particle_set(iparticle)%list_exclude_vdw,STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF (ASSOCIATED(particle_set(iparticle)%list_exclude_ei)) THEN
+                DEALLOCATE(particle_set(iparticle)%list_exclude_ei,STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
          END IF
          NULLIFY(particle_set(iparticle)%atomic_kind)
       END DO
-      DEALLOCATE (particle_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "particle_set")
+      DEALLOCATE (particle_set,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer particle_set is not associated and "//&
@@ -232,8 +225,8 @@ END SUBROUTINE clone_particle
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE get_particle_set(particle_set,first_cgf,first_nco,first_nso,&
-                              first_sgf,last_cgf,last_nco,last_nso,&
-                              last_sgf,ncgf,ncotot,nsotot,nsgf,r,basis_set_id)
+       first_sgf,last_cgf,last_nco,last_nso,last_sgf,ncgf,ncotot,nsotot,nsgf,&
+       r,basis_set_id,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -248,6 +241,7 @@ END SUBROUTINE clone_particle
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: r
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_particle_set', &
       routineP = moduleN//':'//routineN
@@ -440,28 +434,32 @@ END SUBROUTINE clone_particle
 !  XMOL     POS, VEL, FORCE, POS_VEL, POS_VEL_FORCE    Angstrom, a.u., a.u. !hmmmm
 
 ! *****************************************************************************
-  SUBROUTINE write_particle_coordinates(particle_set,iunit,FORMAT,&
-       content,title,cell,array)
+  SUBROUTINE write_particle_coordinates(particle_set,iunit,output_format,&
+       content,title,cell,array,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    INTEGER                                  :: iunit, FORMAT
+    INTEGER                                  :: iunit, output_format
     CHARACTER(LEN=*)                         :: content, title
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: array
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_particle_coordinates', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=4)                         :: name
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
-    INTEGER                                  :: i, iatom, istat, j, natom, &
-                                                stat
-    LOGICAL                                  :: dummy
+    INTEGER                                  :: i, iatom, j, natom, stat
+    LOGICAL                                  :: dummy, failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: arr
     REAL(KIND=dp), DIMENSION(3)              :: f, r, v
     REAL(KIND=sp), DIMENSION(:), POINTER     :: x4, y4, z4
 
+    failure = .FALSE.
     natom = SIZE(particle_set)
     IF (PRESENT(array)) THEN
        SELECT CASE(TRIM(content))
@@ -469,7 +467,7 @@ END SUBROUTINE clone_particle
           CALL stop_program ("particle_types","illegal usage of write_particle_coordinates")
        END SELECT
     END IF
-    SELECT CASE (FORMAT)
+    SELECT CASE (output_format)
     CASE (dump_xmol)
        WRITE(iunit,"(I8)") natom
        WRITE(iunit,"(A)")  TRIM(title)
@@ -554,15 +552,18 @@ END SUBROUTINE clone_particle
           END SELECT
        END DO
     CASE (dump_dcd)
-       IF (.NOT.(PRESENT(cell))) CALL stop_memory('particle_types','cell not present')
+       IF (.NOT.(PRESENT(cell))) THEN 
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "Cell is not present! Report this bug!")
+       END IF
        IF (PRESENT(array)) THEN
           ALLOCATE(arr(3,natom),stat=stat)
-          IF (stat /=0) CALL stop_program ("particle_types","arr")
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           arr = RESHAPE(array,(/3,natom/))
        END IF
        NULLIFY(x4,y4,z4)
-       ALLOCATE(x4(natom),y4(natom),z4(natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory('particle_types','x4,y4,z4')
+       ALLOCATE(x4(natom),y4(natom),z4(natom),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        WRITE(iunit) ((cell%hmat(i,j)*angstrom,i=1,j),j=1,3)
        SELECT CASE (TRIM(content))
        CASE ("POS")
@@ -608,11 +609,11 @@ END SUBROUTINE clone_particle
           CALL stop_program ("particle_types","illegal dcd dump type")
        END SELECT
        IF (PRESENT(array)) THEN
-          DEALLOCATE(arr,STAT=istat)
-          IF (istat /= 0) CALL stop_memory('particle_types','arr')
+          DEALLOCATE(arr,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       DEALLOCATE(x4,y4,z4,STAT=istat)
-       IF (istat /= 0) CALL stop_memory('particle_types','x4,y4,z4')
+       DEALLOCATE(x4,y4,z4,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CASE DEFAULT
        CALL stop_program ("particle_types","illegal dump type")
     END SELECT
@@ -631,6 +632,10 @@ END SUBROUTINE clone_particle
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'write_fist_particle_coordinates', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: name
@@ -752,14 +757,16 @@ END SUBROUTINE clone_particle
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
-    INTEGER                                  :: iatom, istat, iw, jatom, natom
+    INTEGER                                  :: iatom, iw, jatom, natom, stat
     INTEGER, DIMENSION(3)                    :: periodic
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, unit_of_length
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: distance_matrix
     REAL(KIND=dp), DIMENSION(3)              :: rab
     TYPE(cp_logger_type), POINTER            :: logger
 
+    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,&
@@ -767,36 +774,32 @@ END SUBROUTINE clone_particle
 
     IF (iw>0) THEN
 
-      CALL get_cell(cell=cell,&
-                    periodic=periodic,&
-                    unit_of_length=unit_of_length,&
-                    unit_of_length_name=unit_of_length_name)
+       CALL get_cell(cell=cell,&
+            periodic=periodic,&
+            unit_of_length=unit_of_length,&
+            unit_of_length_name=unit_of_length_name)
 
-      natom = SIZE(particle_set)
+       natom = SIZE(particle_set)
 
-      ALLOCATE (distance_matrix(natom,natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "distance_matrix",dp_size*natom*natom)
+       ALLOCATE (distance_matrix(natom,natom),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      distance_matrix(:,:) = 0.0_dp
+       distance_matrix(:,:) = 0.0_dp
+       DO iatom=1,natom
+          DO jatom=iatom+1,natom
+             rab(:) = pbc(particle_set(iatom)%r(:),&
+                  particle_set(jatom)%r(:),cell)
+             dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
+             distance_matrix(iatom,jatom) = dab/unit_of_length
+             distance_matrix(jatom,iatom) = distance_matrix(iatom,jatom)
+          END DO
+       END DO
 
-      DO iatom=1,natom
-        DO jatom=iatom+1,natom
-          rab(:) = pbc(particle_set(iatom)%r(:),&
-                       particle_set(jatom)%r(:),cell)
-          dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
-          distance_matrix(iatom,jatom) = dab/unit_of_length
-          distance_matrix(jatom,iatom) = distance_matrix(iatom,jatom)
-        END DO
-      END DO
+       !     *** Print the distance matrix ***
+       WRITE (UNIT=iw,FMT="(/,/,T2,A)")&
+            "INTERATOMIC DISTANCES IN "//TRIM(unit_of_length_name)
 
-!     *** Print the distance matrix ***
-
-      WRITE (UNIT=iw,FMT="(/,/,T2,A)")&
-        "INTERATOMIC DISTANCES IN "//TRIM(unit_of_length_name)
-
-      CALL write_particle_matrix(distance_matrix,particle_set,iw,error=error)
-
+       CALL write_particle_matrix(distance_matrix,particle_set,iw,error=error)
     END IF
 
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
@@ -818,7 +821,9 @@ END SUBROUTINE clone_particle
                                                 katom, my_el_per_part, natom, &
                                                 to
     INTEGER, DIMENSION(:), POINTER           :: my_list
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     my_el_per_part = 1
     IF (PRESENT(el_per_part)) my_el_per_part = el_per_part
     IF (PRESENT(Ilist)) THEN
@@ -879,14 +884,14 @@ END SUBROUTINE clone_particle
                                                 wrk1(1), wrk2(2), wrk3(3), &
                                                 wrk4(4)
     INTEGER, DIMENSION(:), POINTER           :: atomic_indices
-    LOGICAL                                  :: unique
+    LOGICAL                                  :: failure, unique
     REAL(KIND=dp)                            :: dab, unit_of_length
     REAL(KIND=dp), DIMENSION(3)              :: rab, rbc, rcd
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: section
 
     CALL timeset(routineN,handle)
-
+    failure = .FALSE.
     NULLIFY (atomic_indices)
     NULLIFY (logger)
     NULLIFY (section)
@@ -1056,18 +1061,23 @@ END SUBROUTINE clone_particle
   END SUBROUTINE write_structure_data
 
 ! *****************************************************************************
-  SUBROUTINE update_particle_set ( particle_set, int_group,  pos, vel, for, add )
+  SUBROUTINE update_particle_set ( particle_set, int_group,  pos, vel, for, add, error )
     
     TYPE(particle_type), POINTER             :: particle_set( : )
     INTEGER, INTENT(IN)                      :: int_group
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: pos( :, : ), vel( :, : ), &
                                                 for(:,:)
     LOGICAL, INTENT(IN), OPTIONAL            :: add
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_particle_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iparticle, nparticle
-    LOGICAL                                  :: my_add, update_for, &
+    LOGICAL                                  :: failure, my_add, update_for, &
                                                 update_pos, update_vel
 
+    failure = .FALSE.
     nparticle  = SIZE ( particle_set )
     update_pos = PRESENT(pos)
     update_vel = PRESENT(vel)

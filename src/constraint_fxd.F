@@ -174,7 +174,8 @@ CONTAINS
              END DO
           END DO Mol_kind
           IF (.NOT.PRESENT(w)) THEN
-             CALL update_particle_set(particle_set,force_env%para_env%group,for=force)
+             CALL update_particle_set(particle_set,force_env%para_env%group,for=force,&
+                  error=error)
              DEALLOCATE(force,stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF

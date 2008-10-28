@@ -283,7 +283,7 @@ CONTAINS
 
     CALL get_particle_set(particle_set=particle_set, &
                           first_nso=first_nso,last_nso=last_nso,&
-                          nsotot=nsotot)
+                          nsotot=nsotot, error=error)
 
     CALL allocate_matrix(matrix=oce%hardo(1)%matrix,&
                          nblock_row=natom,&

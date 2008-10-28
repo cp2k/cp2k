@@ -411,8 +411,8 @@ CONTAINS
                WRITE(com_crd,*) 'INITIAL BOX ' // TRIM(ADJUSTL(cbox))
             ELSE
                CALL write_particle_coordinates(particles_old(ibox)%list%els,&
-                  com_crd,dump_xmol,'POS',&
-                  'INITIAL BOX ' // TRIM(ADJUSTL(cbox)))
+                  com_crd,dump_xmol,'POS','INITIAL BOX ' // TRIM(ADJUSTL(cbox)),&
+                  error=error)
             ENDIF
             CALL open_file(file_name=data_file(ibox),&
                unit_number=data_unit(ibox),file_position='APPEND',&
@@ -877,7 +877,7 @@ CONTAINS
                           particles_old(ibox)%list%els,&
                           com_crd,dump_xmol,'POS',&
                           'BOX ' // TRIM(ADJUSTL(cbox))// &
-                          ',  STEP ' // TRIM(ADJUSTL(cstep)))
+                          ',  STEP ' // TRIM(ADJUSTL(cstep)),error=error)
                   ENDIF
                ENDDO
             ENDIF  ! end the things we only do every iprint moves
@@ -1065,7 +1065,7 @@ CONTAINS
                CALL write_particle_coordinates(&
                particles_old(ibox)%list%els,&
                com_crd,dump_xmol,'POS',&
-               'FINAL BOX ' // TRIM(ADJUSTL(cbox)))
+               'FINAL BOX ' // TRIM(ADJUSTL(cbox)),error=error)
             ENDIF
 
 ! write a bunch of data to the screen

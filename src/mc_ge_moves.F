@@ -240,7 +240,7 @@ CONTAINS
                   WRITE(diff(ibox),*) nnstep
                   CALL write_particle_coordinates(&
                      particles(ibox)%list%els,&
-                     diff(ibox),dump_xmol,'POS','TRIAL')
+                     diff(ibox),dump_xmol,'POS','TRIAL',error=error)
                ENDIF
             ENDDO
          ENDIF

@@ -288,13 +288,13 @@ CONTAINS
 
     !      *** Broadcast the new particle positions ***
     IF(my_pos) THEN
-       CALL update_particle_set ( particle_set, para_env % group, pos = tmp%pos )
+       CALL update_particle_set ( particle_set, para_env % group, pos = tmp%pos, error=error)
        DEALLOCATE (tmp%pos,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        IF(shell_adiabatic)THEN
-          CALL update_particle_set ( shell_particle_set, para_env%group, pos=tmp%shell_pos )
-          CALL update_particle_set ( core_particle_set, para_env%group, pos=tmp%core_pos )
+          CALL update_particle_set ( shell_particle_set, para_env%group, pos=tmp%shell_pos, error=error )
+          CALL update_particle_set ( core_particle_set, para_env%group, pos=tmp%core_pos, error=error )
           DEALLOCATE (tmp%shell_pos,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE (tmp%core_pos,STAT=stat)
@@ -304,10 +304,10 @@ CONTAINS
 
     !     *** Broadcast the new particle velocities ***
     IF(my_vel) THEN
-       CALL update_particle_set ( particle_set, para_env % group, vel = tmp%vel )
+       CALL update_particle_set ( particle_set, para_env % group, vel = tmp%vel, error=error )
        IF (shell_adiabatic) THEN
-          CALL update_particle_set ( shell_particle_set, para_env%group, vel=tmp%shell_vel )
-          CALL update_particle_set ( core_particle_set, para_env%group, vel=tmp%core_vel )
+          CALL update_particle_set ( shell_particle_set, para_env%group, vel=tmp%shell_vel, error=error )
+          CALL update_particle_set ( core_particle_set, para_env%group, vel=tmp%core_vel, error=error )
        END IF
 
        DEALLOCATE (tmp%vel,STAT=stat)

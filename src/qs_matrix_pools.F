@@ -762,7 +762,7 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
        ALLOCATE (block_begins_at(n_atoms+1),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL get_particle_set(particle_set=particle_set,first_sgf=block_begins_at,&
-                             basis_set_id = my_basis_set_id)
+                             basis_set_id = my_basis_set_id,error=error)
   
        CALL sm_struct_create(s_mstruct,&
             block_begins_at_row=block_begins_at,&

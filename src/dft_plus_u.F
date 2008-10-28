@@ -272,7 +272,7 @@ CONTAINS
     first_sgf_atom(:) = 0
 
     CALL get_particle_set(particle_set=particle_set,&
-                          first_sgf=first_sgf_atom)
+                          first_sgf=first_sgf_atom,error=error)
 
     IF (PRESENT(matrix_h).OR.PRESENT(matrix_w)) THEN
       just_energy  = .FALSE.
@@ -1405,7 +1405,7 @@ CONTAINS
     first_sgf_atom(:) = 0
 
     CALL get_particle_set(particle_set=particle_set,&
-                          first_sgf=first_sgf_atom)
+                          first_sgf=first_sgf_atom,error=error)
 
     ALLOCATE (trps(nsgf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

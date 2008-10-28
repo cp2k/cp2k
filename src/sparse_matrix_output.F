@@ -191,7 +191,7 @@ CONTAINS
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL get_particle_set(particle_set=particle_set,&
                             first_sgf=first_sgf,&
-                            last_sgf=last_sgf)
+                            last_sgf=last_sgf,error=error)
 
       ! *** Definition of the variable formats ***
       fmtstr1 = "(/,T2,23X,  (  X,I5,  X))"
