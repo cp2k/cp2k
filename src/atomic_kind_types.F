@@ -1968,7 +1968,7 @@ CONTAINS
     TYPE(shell_kind_type), OPTIONAL, POINTER :: shell
     LOGICAL, INTENT(IN), OPTIONAL            :: shell_active
     TYPE(qs_atom_dispersion_type), &
-      INTENT(IN), OPTIONAL, POINTER          :: dispersion
+      OPTIONAL, POINTER                      :: dispersion
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
