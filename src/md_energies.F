@@ -35,15 +35,22 @@ MODULE md_energies
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_mixed_force
-  USE input_constants,                 ONLY: ensemble_name_types,&
-                                             npe_f_ensemble,&
+  USE input_constants,                 ONLY: npe_f_ensemble,&
                                              npe_i_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
                                              npt_i_ensemble,&
                                              reftraj_ensemble
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_cp2k_motion,               ONLY: create_md_section
+  USE input_enumeration_types,         ONLY: enum_i2c,&
+                                             enumeration_type
+  USE input_keyword_types,             ONLY: keyword_get,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_get_keyword,&
+                                             section_release,&
+                                             section_type,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -630,11 +637,19 @@ CPSourceFileRef,&
 
     INTEGER                                  :: iw
     LOGICAL                                  :: failure
+    TYPE(enumeration_type), POINTER          :: enum
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
 
     failure = .FALSE.
+    NULLIFY(enum, keyword, section)
     ! Print to the screen info about MD
     iw = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
          extension=".mdLog",file_position=my_pos,file_action=my_act,error=error)
+    CALL create_md_section(section,error=error)
+    keyword => section_get_keyword(section,"ENSEMBLE",error=error)
+    CALL keyword_get(keyword,enum=enum,error=error)
+    
     ! Performing protocol relevant to the first step of an MD run
     IF (iw>0) THEN
        IF (init) THEN
@@ -697,8 +712,8 @@ CPSourceFileRef,&
           WRITE (iw,'( )')
           WRITE (iw,'( A,A )') ' **************************************', &
                '*****************************************'
-          WRITE (iw,'( A,T61,A )') ' ENSEMBLE TYPE                = ', &
-               ADJUSTR( ensemble_name_types(simpar%ensemble)(1:20))
+          WRITE (iw,'( A,T61,A20)') ' ENSEMBLE TYPE                = ', &
+               ADJUSTR(TRIM(enum_i2c(enum,simpar%ensemble,error=error)))
           WRITE (iw,'( A,T71,I10 )') ' STEP NUMBER                  = ', itimes
           IF(simpar%variable_dt) THEN
             WRITE (iw,'( A,T60,1(1X,F20.6) )') ' TIME STEP [FS]             = ', dt*femtoseconds
@@ -779,6 +794,7 @@ CPSourceFileRef,&
           WRITE (iw,'( )')
        END IF
     END IF
+    CALL section_release(section, error)    
     CALL cp_print_key_finished_output(iw,logger,motion_section,&
          "MD%PRINT%PROGRAM_RUN_INFO", error=error)
   END SUBROUTINE md_write_info_low

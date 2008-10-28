@@ -52,10 +52,10 @@ MODULE input_cp2k_dft
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_dft'
 
-  PUBLIC :: create_dft_section,create_relativistic_section                     !JT
+  PUBLIC :: create_dft_section,create_relativistic_section
   PUBLIC :: create_bsse_section, create_qs_section, create_xc_section
   PUBLIC :: create_properties_section, create_scf_section, create_ep_section
-  !***
+
 CONTAINS
 
 ! *****************************************************************************
@@ -1821,7 +1821,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="LADDN0",&
-            description="GAPW : XXXXXXXXXX",&
+            description="GAPW : integer added to the max L of the basis set, used to determine the "//&
+            "maximum value of L for the compensation charge density.",&
             usage="LADDN0 integer",&
             default_i_val=99,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -1833,6 +1834,9 @@ CONTAINS
             usage="QUADRATURE GC_SIMPLE",&
             enum_c_vals=s2a("GC_SIMPLE","GC_TRANSFORMED","GC_LOG"),&
             enum_i_vals=(/ do_gapw_gcs,do_gapw_gct,do_gapw_log/),&
+            enum_desc=s2a("Gauss-Chebyshev",&
+                          "Trans_Gauss-Chebyshev",&
+                          "LogTrans-Gauss-Chebyshev"),&
             default_i_val=do_gapw_log, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

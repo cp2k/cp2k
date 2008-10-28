@@ -46,7 +46,8 @@ MODULE input_cp2k_motion
 
 PUBLIC :: create_motion_section,&
           create_band_section,&
-          add_format_keyword
+          add_format_keyword,&
+          create_md_section
 
 CONTAINS
 
@@ -390,63 +391,63 @@ CONTAINS
        CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
             description="Name of the restart file for MC information.",&
             usage="RESTART_FILE_NAME {filename}",&
-            default_lc_val="XXXXXXXX",error=error)
+            default_lc_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOVES_FILE_NAME",&
             description="The file to print the move statistics to.",&
             usage="MOVES_FILE_NAME {filename}",&
-            default_lc_val="XXXXXXXX",error=error)
+            default_lc_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLECULES_FILE_NAME",&
             description="The file to print the number of molecules to.",&
             usage="MOLECULES_FILE_NAME {filename}",&
-            default_lc_val="XXXXXXXX",error=error)
+            default_lc_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="COORDINATE_FILE_NAME",&
             description="The file to print the current coordinates to.",&
             usage="COORDINATE_FILE_NAME {filename}",&
-            default_lc_val="XXXXXXXX",error=error)
+            default_lc_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ENERGY_FILE_NAME",&
             description="The file to print current energies to.",&
             usage="ENERGY_FILE_NAME {filename}",&
-            default_lc_val="XXXXXXXX",error=error)
+            default_lc_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DATA_FILE_NAME",&
             description="The file to print current configurational info to.",&
             usage="DATA_FILE_NAME {filename}",&
-            default_lc_val="XXXXXXXX",error=error)
+            default_lc_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CELL_FILE_NAME",&
             description="The file to print current cell length info to.",&
             usage="CELL_FILE_NAME {filename}",&
-            default_lc_val="XXXXXXXX",error=error)
+            default_lc_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_DISP_FILE_NAME",&
             description="The file to print current maximum displacement info to.",&
             usage="MAX_DISP_FILE_NAME {filename}",&
-            default_lc_val="XXXXXXXX",error=error)
+            default_lc_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BOX2_FILE_NAME",&
             description="For GEMC, the name of the input file for the other box.",&
             usage="BOX2_FILE_NAME {filename}",&
-            default_lc_val="XXXXXXXX",error=error)
+            default_lc_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1358,10 +1359,24 @@ CONTAINS
             description="The ensemble/integrator that you want to use for MD propagation",&
             usage="ensemble nve",&
             default_i_val=nve_ensemble,&
-            enum_c_vals=ensemble_name_types,&
-            enum_desc=ensemble_name_desc,&
+            enum_c_vals=s2a("NVE", "NVT", "NPT_I", "NPT_F", "MSST", "MSST_DAMPED",&
+            "HYDROSTATICSHOCK", "ISOKIN", "REFTRAJ", "LANGEVIN", "NPE_F", "NPE_I" ),&
+            enum_desc=s2a("constant energy (microcanonical)",&
+            "constant temperature and volume (canonical)",&
+            "constant temperature and pressure using an isotropic cell",&
+            "constant temperature and pressure using a flexible cell",&
+            "simulate steady shock (uniaxial)",&
+            "simulate steady shock (uniaxial) with extra viscosity",&
+            "simulate steady shock with hydrostatic pressure",&
+            "constant kinetic energy",&
+            "reading frames from a file called reftraj.xyz (e.g. for property calculation)",&
+            "langevin dynamics (constant temperature)",&
+            "constant pressure ensemble (no thermostat)",&
+            "constant pressure ensemble using an isotropic cell (no thermostat)"),&
             citations=(/Evans1983,Minary2003/),&
-            enum_i_vals=ensemble_name_index,error=error)
+            enum_i_vals=(/nve_ensemble,nvt_ensemble,npt_i_ensemble,npt_f_ensemble,&
+            nph_uniaxial_ensemble,nph_uniaxial_damped_ensemble,nph_ensemble,isokin_ensemble,&
+            reftraj_ensemble,langevin_ensemble, npe_f_ensemble, npe_i_ensemble/),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2412,8 +2427,8 @@ CONTAINS
             description="Specifies the coordinate transformation to use",&
             usage="TRANSFORMATION (NORMAL|STAGE)",&
             default_i_val=transformation_normal,&
-            enum_c_vals=transformation_name_types,&
-            enum_i_vals=transformation_name_index,&
+            enum_c_vals=s2a("NORMAL","STAGE"),&
+            enum_i_vals=(/transformation_normal,transformation_stage/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

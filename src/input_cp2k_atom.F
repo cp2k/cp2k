@@ -85,8 +85,8 @@ CONTAINS
             description="Type of run that you want to perform [ENERGY,...] ",&
             usage="RUN_TYPE ENERGY",&
             default_i_val=atom_energy_run,&
-            enum_c_vals=atom_run_type_names,&
-            enum_i_vals=atom_run_type_index,&
+            enum_c_vals=s2a("NONE","ENERGY"),&
+            enum_i_vals=(/atom_no_run, atom_energy_run/),&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

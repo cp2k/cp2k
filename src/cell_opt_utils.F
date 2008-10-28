@@ -21,8 +21,15 @@ MODULE cell_opt_utils
   USE force_env_methods,               ONLY: force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE input_constants,                 ONLY: run_type_names
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_cp2k,                      ONLY: create_global_section
+  USE input_enumeration_types,         ONLY: enum_i2c,&
+                                             enumeration_type
+  USE input_keyword_types,             ONLY: keyword_get,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_get_keyword,&
+                                             section_release,&
+                                             section_type,&
+                                             section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set
   USE kinds,                           ONLY: default_path_length,&
@@ -91,13 +98,20 @@ CONTAINS
     INTEGER                                  :: i, lp, unit_nr
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: loc_logger, logger
+    TYPE(enumeration_type), POINTER          :: enum
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
 
     failure = .FALSE.
-    NULLIFY(loc_logger, logger)
+    NULLIFY(loc_logger, logger, enum, keyword, section)
     logger => cp_error_get_logger(error)
 
-    failure = .FALSE.
-    label = run_type_names(id_run)
+    CALL create_global_section(section,error=error)
+    keyword => section_get_keyword(section,"RUN_TYPE",error=error)
+    CALL keyword_get(keyword,enum=enum,error=error)
+    label = TRIM(enum_i2c(enum,id_run,error=error))
+    CALL section_release(section, error)
+
     ! Redirecting output of the sub_calculation to a different file
     CALL section_vals_val_get(root_section,"GLOBAL%PROJECT_NAME",c_val=project_name,error=error)
     input_file_path = TRIM(project_name)

@@ -455,7 +455,6 @@ CPSourceFileRef,&
     CALL section_vals_val_get(qs_section,"LMAXN0",i_val=qs_control%gapw_control%lmax_rho0,error=error)
     CALL section_vals_val_get(qs_section,"LADDN0",i_val=qs_control%gapw_control%ladd_rho0,error=error)
     CALL section_vals_val_get(qs_section,"QUADRATURE",i_val=qs_control%gapw_control%quadrature,error=error)
-    qs_control%gapw_control%quadrature_name=quadrature_name(qs_control%gapw_control%quadrature)
 
     ! Integers grids
     CALL section_vals_val_get(qs_section,"PW_GRID",i_val=itmp,error=error)
@@ -878,13 +877,22 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, igrid_level, ngrid_level, &
                                                 output_unit
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
+    TYPE(enumeration_type), POINTER          :: enum
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
 
+    failure = .FALSE.
+    NULLIFY(logger, enum, keyword, section)
     IF (qs_control%semi_empirical) RETURN
-    IF (qs_control%dftb) RETURN
-    NULLIFY(logger)
+    IF (qs_control%dftb)           RETURN
     logger => cp_error_get_logger(error)
+
+    CALL create_qs_section(section,error=error)
+    keyword => section_get_keyword(section,"QUADRATURE",error=error)
+    CALL keyword_get(keyword,enum=enum,error=error)
 
     output_unit = cp_print_key_unit_nr(logger, dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
@@ -955,7 +963,7 @@ CPSourceFileRef,&
                qs_control%gapw_control%eps_svd
           WRITE (UNIT=output_unit,FMT="(T2,A,T55,A30)")&
                "QS| GAPW|   atom-r-grid: quadrature:",&
-               qs_control%gapw_control%quadrature_name
+               enum_i2c(enum,qs_control%gapw_control%quadrature,error=error)
           WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
                "QS| GAPW|      atom-s-grid:  max l :",&
                qs_control%gapw_control%lmax_sphere ,&
@@ -984,7 +992,7 @@ CPSourceFileRef,&
                qs_control%gapw_control%eps_svd
           WRITE (UNIT=output_unit,FMT="(T2,A,T55,A30)")&
                "QS| GAPW_XC|atom-r-grid: quadrature:",&
-               qs_control%gapw_control%quadrature_name
+               enum_i2c(enum,qs_control%gapw_control%quadrature,error=error)
           WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
                "QS| GAPW_XC|   atom-s-grid:  max l :",&
                qs_control%gapw_control%lmax_sphere
@@ -1045,6 +1053,7 @@ CPSourceFileRef,&
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",error=error)
+    CALL section_release(section, error)
   END SUBROUTINE write_qs_control
 
 ! *****************************************************************************

@@ -80,9 +80,25 @@ CONTAINS
     CALL keyword_create(keyword, name="METHOD",&
          description="Which method should be used to compute forces",&
          usage="METHOD <STRING>",&
-         enum_c_vals=method_names,&
-         enum_desc=method_name_desc,&
-         enum_i_vals=method_name_index,&
+         enum_c_vals=s2a("QS",&
+                         "FIST",&
+                         "KG",&
+                         "QMMM",&
+                         "EIP",&
+                         "QUICKSTEP",&
+                         "KIM_GORDON",&
+                         "EP",&
+                         "MIXED"),&
+         enum_desc=s2a("Electronic structure methods (DFT, ...)",&
+                       "Molecular Mechanics",&
+                       "Kim Gordon models (DFT)",&
+                       "Hybrid quantum classical",&
+                       "Empirical Interatomic Potential",&
+                       "Electronic structure methods (DFT, ...)",&
+                       "Kim Gordon models (DFT)",&
+                       "Non-orthogonal perturbation",&
+                       "Use a combination of two of the above"),&
+         enum_i_vals=(/do_qs, do_fist, do_kg, do_qmmm, do_eip, do_qs, do_kg, do_ep, do_mixed/),&
          default_i_val=do_qs, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)

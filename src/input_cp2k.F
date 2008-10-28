@@ -52,6 +52,7 @@ MODULE input_cp2k
   
   PUBLIC :: create_cp2k_root_section, parsed_cp2k_input,&
        create_global_section, create_cp2k_input_reading
+
 CONTAINS
 
 ! *****************************************************************************
@@ -324,9 +325,12 @@ CONTAINS
          variants=(/"PROGRAM"/),&
          description="Which program should be run",&
          usage="PROGRAM_NAME <STRING>",&
-         enum_c_vals=program_names,&
-         enum_desc=program_name_desc,&
-         enum_i_vals=program_name_index,&
+         enum_c_vals=s2a("ATOM","FARMING","TEST","CP2K"),&
+         enum_desc=s2a("Runs single atom calculations",&
+                       "Runs N independent jobs in a single run",&
+                       "Do some benchmarking and testing",&
+                       "Runs one of the CP2K package"),&
+         enum_i_vals=(/do_atom, do_farming, do_test, do_cp2k/),&
          default_i_val=do_cp2k, supported_feature=.TRUE., error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -353,8 +357,23 @@ CONTAINS
          "optimization, md, montecarlo,...",&
          usage="RUN_TYPE MD",&
          default_i_val=energy_force_run,&
-         enum_c_vals=run_type_names,&
-         enum_i_vals=run_type_index,&
+         enum_c_vals=s2a("NONE", "ENERGY", "ENERGY_FORCE", "MD", "GEO_OPT",&
+         "MC", "SPECTRA", "DEBUG", "BSSE", "LR", "PINT", "VIBRATIONAL_ANALYSIS",&   
+         "BAND", "CELL_OPT", "WFN_OPT", "WAVEFUNCTION_OPTIMIZATION",&
+         "MOLECULAR_DYNAMICS", "GEOMETRY_OPTIMIZATION", "MONTECARLO",&
+         "ELECTRONIC_SPECTRA", "LINEAR_RESPONSE", "NORMAL_MODES" ),&
+         enum_i_vals=(/ none_run, energy_run, energy_force_run, mol_dyn_run,&
+          geo_opt_run, mon_car_run, electronic_spectra_run, debug_run,&
+          bsse_run, linear_response_run, pint_run, vib_anal,do_band,&
+          cell_opt_run, energy_run, energy_run, mol_dyn_run, geo_opt_run,&
+          mon_car_run, electronic_spectra_run, linear_response_run,&
+          vib_anal/),&
+         enum_desc=s2a("Perform no tasks", "Computes energy","Computes energy and forces",&
+         "Molecular Dynamics","Geometry Optimization","Monte Carlo", "Computes absorption Spectra",&
+         "Performs a Debug analysis","Basis set superposition error","Linear Response",&
+         "Path integral","Vibrational analysis","Band methods","Cell optimization",&
+         "Alias for ENERGY","Alias for ENERGY","Alias for MD","Alias for GEO_OPT",&
+         "Alias for MC","Alias for SPECTRA","Alias for LR","Alias for VIBRATIONAL_ANALYSIS"),&
          supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)

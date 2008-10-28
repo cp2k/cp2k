@@ -59,18 +59,19 @@ MODULE f77_interface
                                              do_kg,&
                                              do_mixed,&
                                              do_qmmm,&
-                                             do_qs,&
-                                             method_names
+                                             do_qs
   USE input_cp2k,                      ONLY: create_cp2k_input_reading
   USE input_cp2k_check,                ONLY: check_cp2k_input
-  USE input_section_types,             ONLY: section_vals_duplicate,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_release,&
-                                             section_vals_remove_values,&
-                                             section_vals_retain,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_write
+  USE input_cp2k_force_eval,           ONLY: create_force_eval_section
+  USE input_enumeration_types,         ONLY: enum_i2c,&
+                                             enumeration_type
+  USE input_keyword_types,             ONLY: keyword_get,&
+                                             keyword_type
+  USE input_section_types,             ONLY: &
+       section_get_keyword, section_release, section_type, &
+       section_vals_duplicate, section_vals_get_subs_vals, &
+       section_vals_release, section_vals_remove_values, section_vals_retain, &
+       section_vals_type, section_vals_val_get, section_vals_write
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_path_length,&
                                              dp
@@ -537,13 +538,16 @@ CONTAINS
     TYPE(cp_error_type)                      :: error, my_error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: my_para_env, para_env
+    TYPE(enumeration_type), POINTER          :: enum
     TYPE(f_env_p_type), DIMENSION(:), &
       POINTER                                :: f_envs_old
     TYPE(force_env_type), POINTER            :: force_env, my_force_env
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(keyword_type), POINTER              :: keyword
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
+    TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER :: fe_section, force_env_section, &
       force_env_sections, fp_section, input_file, root_section, &
       subsys_section, wrk_section
@@ -747,11 +751,15 @@ CPSourceFileRef,&
              use_multiple_para_env = .TRUE.
              lgroup_distribution => my_force_env%mixed_env%group_distribution
           CASE default
+             CALL create_force_eval_section(section,error)
+             keyword => section_get_keyword(section,"METHOD",error=error)
+             CALL keyword_get(keyword,enum=enum,error=error)
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Invalid METHOD <"//TRIM(method_names(method_name_id))//&
+                  "Invalid METHOD <"//TRIM(enum_i2c(enum,method_name_id,error=error))//&
                "> was specified, "//&
 CPSourceFileRef,&
                my_error,failure)
+             CALL section_release(section,error=error)
           END SELECT
 
           NULLIFY(meta_env, fp_env)

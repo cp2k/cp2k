@@ -21,11 +21,18 @@ MODULE simpar_methods
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
-       ensemble_name_types, isokin_ensemble, langevin_ensemble, &
-       npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &
-       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nvt_ensemble, &
-       reftraj_ensemble
-  USE input_section_types,             ONLY: section_vals_get,&
+       isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
+       npt_i_ensemble, nvt_ensemble, reftraj_ensemble
+  USE input_cp2k_motion,               ONLY: create_md_section
+  USE input_enumeration_types,         ONLY: enum_i2c,&
+                                             enumeration_type
+  USE input_keyword_types,             ONLY: keyword_get,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_get_keyword,&
+                                             section_release,&
+                                             section_type,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -60,13 +67,13 @@ CONTAINS
     INTEGER                                  :: iprint, iw
     REAL(kind=dp)                            :: tmp_r1, tmp_r2, tmp_r3
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(enumeration_type), POINTER          :: enum
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: print_key
     TYPE(unit_convert_type), POINTER         :: unit
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    NULLIFY(unit, print_key)
-
+    NULLIFY(logger,unit, print_key,enum, keyword, section)
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,md_section,"PRINT%PROGRAM_RUN_INFO",extension=".log",error=error)
 
@@ -89,12 +96,17 @@ CONTAINS
        END IF
     END IF
 
+    ! Create section for output enumeration infos
+    CALL create_md_section(section,error=error)
+    keyword => section_get_keyword(section,"ENSEMBLE",error=error)
+    CALL keyword_get(keyword,enum=enum,error=error)
+
     !..write some information to output
     IF ( iw > 0 ) THEN
        CALL get_cp2k_units ( unit )
        WRITE ( iw, '( A )' ) ' MD| Molecular Dynamics Protocol '
-       WRITE ( iw, '( A,T61,A )' ) ' MD| Ensemble Type ', &
-            ADJUSTR ( ensemble_name_types(simpar%ensemble)(1:20))
+       WRITE ( iw, '( A,T61,A20)' ) ' MD| Ensemble Type ', &
+            ADJUSTR (TRIM(enum_i2c(enum,simpar%ensemble,error=error)))
        WRITE ( iw, '( A,T71,I10 )' ) ' MD| Number of Time Steps ', &
             simpar%nsteps
        IF (simpar%variable_dt ) THEN
@@ -240,7 +252,7 @@ CPSourceFileRef,&
          END IF
        END IF
     END IF
-
+    CALL section_release(section, error)
     CALL cp_print_key_finished_output(iw,logger,md_section,&
                "PRINT%PROGRAM_RUN_INFO", error=error)
 

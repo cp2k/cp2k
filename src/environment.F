@@ -38,15 +38,17 @@ MODULE environment
        do_cp2k, do_eip, do_farming, do_fft_acml, do_fft_cu, do_fft_essl, &
        do_fft_fftw, do_fft_fftw2, do_fft_fftw3, do_fft_mkl, do_fft_sci, &
        do_fft_sg, do_fist, do_kg, do_qs, do_test, energy_run, &
-       id_development_version, mol_dyn_run, none_run, program_names, &
-       run_type_names
-  USE input_section_types,             ONLY: section_get_lval,&
-                                             section_get_rval,&
-                                             section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals3,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+       id_development_version, mol_dyn_run, none_run
+  USE input_cp2k,                      ONLY: create_global_section
+  USE input_enumeration_types,         ONLY: enum_i2c,&
+                                             enumeration_type
+  USE input_keyword_types,             ONLY: keyword_get,&
+                                             keyword_type
+  USE input_section_types,             ONLY: &
+       section_get_keyword, section_get_lval, section_get_rval, &
+       section_release, section_type, section_vals_get, &
+       section_vals_get_subs_vals, section_vals_get_subs_vals3, &
+       section_vals_type, section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp,&
@@ -96,8 +98,7 @@ MODULE environment
 
 ! *** Public subroutines ***
 
-  PUBLIC :: cp2k_finalize,&
-            cp2k_init, cp2k_read, cp2k_setup
+  PUBLIC :: cp2k_finalize, cp2k_init, cp2k_read, cp2k_setup
 
   PUBLIC :: compile_arch,compile_date,compile_host,compile_lastcvs
 
@@ -434,6 +435,9 @@ CONTAINS
     LOGICAL                                  :: ata, efl, explicit, failure, &
                                                 trace, trace_sync
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(enumeration_type), POINTER          :: enum1, enum2
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: dft_section, &
                                                 force_env_sections, &
                                                 global_section, qmmm_section, &
@@ -570,16 +574,25 @@ CONTAINS
        END DO
        DEALLOCATE(i_force_eval)
 
-       WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
+       NULLIFY (enum1,enum2,keyword,section)
+       CALL create_global_section(section,error=error)
+       keyword => section_get_keyword(section,"PROGRAM_NAME",error=error)
+       CALL keyword_get(keyword,enum=enum1,error=error)
+       keyword => section_get_keyword(section,"RUN_TYPE",error=error)
+       CALL keyword_get(keyword,enum=enum2,error=error)
+
+       WRITE (UNIT=output_unit,FMT="(T2,A,T41,A40)")&
             start_section_label//"| Method name",&
-            ADJUSTR(program_names(globenv%prog_name_id)(:40)),&
+            ADJUSTR(TRIM(enum_i2c(enum1,globenv%prog_name_id,error=error))),&
             start_section_label//"| Project name",&
             ADJUSTR(project_name(:40)),&
             start_section_label//"| Preferred FFT library",&
             ADJUSTR(globenv%default_fft_library(:40)),&
             start_section_label//"| Run type",&
-            ADJUSTR(run_type_names(globenv%run_type_id)(:40))
+            ADJUSTR(TRIM(enum_i2c(enum2,globenv%run_type_id,error=error)))
 
+       CALL section_release(section,error=error)
+       
        CALL section_vals_val_get(global_section,"ALLTOALL_SGL",l_val=ata,error=error)
        WRITE (UNIT=output_unit,FMT="(T2,A,T80,L1)")&
             start_section_label//"| All-to-all communication in single precision",ata
