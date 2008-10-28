@@ -426,13 +426,16 @@ CONTAINS
 
   END SUBROUTINE get_particle_set
 
-!  should be able to write a few formats e.g. xmol, and some binary format (dcd)
-!  some format can be used for x,v,f
-!  should work for fist, qs, kg
-!  still needs some rethinking of the units
-!  FORMAT   CONTENT                                    UNITS x,v,f
-!  XMOL     POS, VEL, FORCE, POS_VEL, POS_VEL_FORCE    Angstrom, a.u., a.u. !hmmmm
-
+! *****************************************************************************
+!> \brief   Should be able to write a few formats e.g. xmol, and some binary 
+!>          format (dcd) some format can be used for x,v,f
+!>          
+!>          FORMAT   CONTENT                                    UNITS x, v, f
+!>          XMOL     POS, VEL, FORCE, POS_VEL, POS_VEL_FORCE    Angstrom, a.u., a.u.
+!>
+!> \author  MK
+!> \date    14.01.2002
+!> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_particle_coordinates(particle_set,iunit,output_format,&
        content,title,cell,array,error)
@@ -859,16 +862,17 @@ CONTAINS
   END SUBROUTINE write_particle_matrix
 
 ! *****************************************************************************
+!> \brief   Write structure data requested by a separate structure data input
+!>          section to the output unit.
+!>          input_section can be either motion_section or subsys_section.
+!>
+!> \author  MK
+!> \date    11.03.04
+!> \version 1.0
+!> \par History
+!>          Recovered (23.03.06,MK)
+! *****************************************************************************
   SUBROUTINE write_structure_data(particle_set,cell,input_section,error)
-
-    ! Write structure data requested by a separate structure data input
-    ! section to the output unit.
-
-    ! input_section can be either motion_section or subsys_section.
-
-    ! Creation (11.03.04,MK)
-    ! Recovered (23.03.06,MK)
-
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
