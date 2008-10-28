@@ -582,6 +582,7 @@ OBJECTS_GENERIC =\
  timings.o\
  timings_mp.o\
  topology.o\
+ topology_amber.o\
  topology_coordinate_util.o\
  topology_connectivity_util.o\
  topology_constraint_util.o\

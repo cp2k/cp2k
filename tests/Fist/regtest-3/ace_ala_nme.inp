@@ -1,0 +1,53 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/ace_ala_nme.pot
+      parmtype CHM
+      &SPLINE
+        EMAX_SPLINE 1.0
+      &END
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .36
+        GMAX 29
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 50.0 50.0 50.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CHARGE_BETA
+      CONN_FILE_NAME ../sample_psf/ace_ala_nme.psf
+      CONNECTIVITY PSF
+      COORD_FILE_NAME ../sample_crd/ace_ala_nme.crd
+      COORDINATE CRD
+      &DUMP_PDB
+      &END
+      &DUMP_PSF
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ace_ala_nme
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+    MAX_ITER 50
+  &END
+  &PRINT
+    &TRAJECTORY 
+    &END
+    &RESTART OFF
+    &END
+  &END
+&END MOTION

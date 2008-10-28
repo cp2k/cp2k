@@ -20,8 +20,8 @@ MODULE topology
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, &
-       do_conn_off, do_conn_psf, do_conn_psf_u, do_coord_g96, do_coord_pdb, &
-       do_coord_xyz
+       do_conn_off, do_conn_psf, do_conn_psf_u, do_coord_crd, do_coord_g96, &
+       do_coord_pdb, do_coord_xyz
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -40,6 +40,7 @@ MODULE topology
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE topology_amber,                  ONLY: read_coordinate_crd
   USE topology_connectivity_util,      ONLY: topology_connectivity_pack
   USE topology_constraint_util,        ONLY: topology_constraint_pack
   USE topology_coordinate_util,        ONLY: topology_coordinate_pack
@@ -505,6 +506,10 @@ CONTAINS
     SELECT CASE (topology%coord_type)
     CASE (do_coord_g96)
        CALL read_coordinate_g96 (topology,para_env,subsys_section,error)
+       CALL read_atoms_input ( topology, overwrite=.TRUE.,&
+                               subsys_section=subsys_section,save_mem=save_mem,error=error)
+    CASE (do_coord_crd)
+       CALL read_coordinate_crd (topology,para_env,subsys_section,error)
        CALL read_atoms_input ( topology, overwrite=.TRUE.,&
                                subsys_section=subsys_section,save_mem=save_mem,error=error)
     CASE (do_coord_pdb)

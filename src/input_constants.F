@@ -274,7 +274,8 @@ MODULE input_constants
                                               do_coord_pdb=0,&
                                               do_coord_xyz=1,&
                                               do_coord_g96=2,&
-                                              do_coord_off=3
+                                              do_coord_crd=3,&
+                                              do_coord_off=4
                                            
   INTEGER, PARAMETER, PUBLIC               :: do_ff_undef=0,&
                                               do_ff_quartic=1,&

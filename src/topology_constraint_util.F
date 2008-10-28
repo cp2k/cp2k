@@ -977,14 +977,14 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE setup_g4x6_list(g4x6_list, ilist, cons_info, ng4x6_restraint, error)
     TYPE(g4x6_constraint_type), &
-         DIMENSION(:), POINTER                  :: g4x6_list
+      DIMENSION(:), POINTER                  :: g4x6_list
     INTEGER, DIMENSION(:), POINTER           :: ilist
     TYPE(constraint_info_type), POINTER      :: cons_info
     INTEGER, INTENT(OUT)                     :: ng4x6_restraint
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_g4x6_list', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, ng4x6
     LOGICAL                                  :: failure
@@ -1123,14 +1123,14 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE setup_lg4x6(lg4x6, g4x6_list, first_atom, last_atom, error)
     TYPE(local_g4x6_constraint_type), &
-         DIMENSION(:), POINTER                  :: lg4x6
+      DIMENSION(:), POINTER                  :: lg4x6
     TYPE(g4x6_constraint_type), &
-         DIMENSION(:), POINTER                  :: g4x6_list
+      DIMENSION(:), POINTER                  :: g4x6_list
     INTEGER, INTENT(IN)                      :: first_atom, last_atom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_lg4x6', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: kk
     LOGICAL                                  :: failure

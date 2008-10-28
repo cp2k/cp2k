@@ -365,6 +365,11 @@ CONTAINS
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"crd_info",&
+            description="if the printkey is active prints information regarding CRD",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"gtop_info",&
             description="if the printkey is active prints information regarding GROMOS Topology",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
@@ -1245,12 +1250,13 @@ CONTAINS
        CALL keyword_create(keyword, name="COORD_FILE_FORMAT",&
             variants=s2a("COORDINATE"),&
             description="Set up the way in which coordinates will be read.",&
-            usage="COORD_FILE_FORMAT (PDB||XYZ||G96||OFF)", &
-            enum_c_vals=s2a( "PDB","XYZ","G96","OFF"),&
-            enum_i_vals=(/do_coord_pdb, do_coord_xyz, do_coord_g96, do_coord_off/),&
+            usage="COORD_FILE_FORMAT (PDB|XYZ|G96|CRD|OFF)", &
+            enum_c_vals=s2a( "PDB","XYZ","G96","CRD","OFF"),&
+            enum_i_vals=(/do_coord_pdb, do_coord_xyz, do_coord_g96, do_coord_crd, do_coord_off/),&
             enum_desc=s2a("Coordinates provided through a PDB file format",&
                           "Coordinates provided through an XYZ file format",&
                           "Coordinates provided through a GROMOS96 file format",&
+                          "Coordinates provided through an AMBER file format",&
                           "Coordinates read in the &COORD section of the input file"),&
             default_i_val=do_coord_off,error=error)
        CALL section_add_keyword(section,keyword,error=error)
