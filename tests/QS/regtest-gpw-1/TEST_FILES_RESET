@@ -362,3 +362,5 @@ K2.inp
 vdW_PP_GRIMME.inp
 # create a new reference (with the correct IO)
 vdW_PP_GRIMME.inp
+# corrected build of ppnl lists 
+NO2_lsd.inp

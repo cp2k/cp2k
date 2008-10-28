@@ -2610,16 +2610,18 @@ CONTAINS
         natom_c = SIZE(atom(kkind)%list)
 
         ! Calculate the square of the maximum interaction distance
-
-        rac_max = radius_a(ikind) + radius_c(kkind) + r_skin
-        rac2_max = rac_max*rac_max
-
+        ! for sac_max / ncell this must be the maximum over all kinds
+        ! to be correct for three center terms involving different kinds
+        rac_max = MAXVAL(radius_a(:)) + radius_c(kkind) + r_skin
         sac_max(1) = rac_max/plane_distance(1,0,0,cell)
         sac_max(2) = rac_max/plane_distance(0,1,0,cell)
         sac_max(3) = rac_max/plane_distance(0,0,1,cell)
-
         ncell(:) = (INT(sac_max(:)) + 1)*periodic(:)
         nsubcell(:) = MIN(MAX(1,NINT(0.5_dp*subcells/sac_max(:))),20)
+
+        ! actual inclusion still follows the normal rule
+        rac_max = radius_a(ikind) + radius_c(kkind) + r_skin
+        rac2_max = rac_max*rac_max
 
         ! Print subcell information for the current atomic kind pair
 

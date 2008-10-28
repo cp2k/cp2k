@@ -149,3 +149,5 @@ nh3-meta-walks_2r.inp
 # numerics
 ethene_colv2.inp
 ethene_colv2_npt.inp
+# corrected build of ppnl lists 
+nh3-meta-walks_2r.inp
