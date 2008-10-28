@@ -1173,8 +1173,7 @@ END FUNCTION wfi_get_method_label
         ! figure out the actual number of vectors to use in the extrapolation:
         nvec = MIN(wf_history%memory_depth,wf_history%snapshot_count)
         CPPrecondition(nvec.GT.0,cp_failure_level,routineP,error,failure)
-        ! Stable relaxation parameter of the corrector (i.e. Hartree damping)
-        qs_env%scf_control%p_mix = REAL(nvec,KIND=dp)/REAL(2*nvec - 1,KIND=dp)
+        !MK omega = REAL(nvec,KIND=dp)/REAL(2*nvec - 1,KIND=dp)
         IF (nvec >= wf_history%memory_depth) THEN
           IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist

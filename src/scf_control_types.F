@@ -376,15 +376,6 @@ CONTAINS
        CALL section_vals_val_get(scf_section,"SCF_GUESS",i_val=scf_control%density_guess,error=error)
        CALL section_vals_val_get(scf_section,"MIXING",r_val=scf_control%p_mix,explicit=explicit,&
             error=error)
-       ! Print a warning on screen in case we do ASPC (MIXING is determined internally)
-       IF (explicit) THEN
-          CALL section_vals_val_get(dft_section,"QS%EXTRAPOLATION",i_val=wf_interpolation_method_nr,error=error)
-          CALL cp_assert((wf_interpolation_method_nr/=wfi_aspc_nr),cp_warning_level,cp_assertion_failed,routineP,&
-               "EXTRAPOLATION ASPC does not allow an external tuning of the mixing parameter. "//&
-               "The MIXING value specified will be ignored! "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
-       END IF
        CALL section_vals_val_get(scf_section,"NMIXING",i_val=scf_control%nmixing,error=error)
        CALL section_vals_val_get(scf_section,"GSPACE_MIXING",r_vals=r_vals,error=error)
        scf_control%gspace_mixing_a = r_vals(1)

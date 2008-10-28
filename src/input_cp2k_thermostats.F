@@ -372,7 +372,7 @@ CONTAINS
             "constant will result in strong thermostatting (useful for "//&
             "initial equilibrations) and a large time constant would be adequate "//&
             "to get weak thermostatting in production runs.",&
-            usage="timeconstant real", &
+            usage="timecon 100", &
             default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
             unit_str="fs",error=error)
        CALL section_add_keyword(section,keyword,error=error)
