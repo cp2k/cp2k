@@ -10,7 +10,8 @@
 ! *****************************************************************************
 MODULE topology_constraint_util
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+                                             get_atomic_kind,&
+                                             is_hydrogen
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
   USE colvar_types,                    ONLY: &
        colvar_clone, colvar_counters, colvar_create, colvar_p_reallocate, &
@@ -263,20 +264,18 @@ CONTAINS
              j = bond_list(k)%a
              IF (j<1.OR.j>natom)CYCLE
              atomic_kind => atom_list(j)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name,element_symbol=element_symbol)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,name=name)
              is_qm = qmmm_ff_precond_only_qm(id1=name)
-             IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H"))    ishbond = .TRUE.
+             IF((name(1:1)=="H").OR.is_hydrogen(atomic_kind))    ishbond = .TRUE.
              IF(      is_qm .AND.exclude_qm) ishbond = .FALSE.
              IF(.NOT.(is_qm).AND.exclude_mm) ishbond = .FALSE.
              IF (.NOT.ishbond) THEN
                 j = bond_list(k)%b
                 IF (j<1.OR.j>natom)CYCLE
                 atomic_kind => atom_list(j)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name,element_symbol=element_symbol)
+                CALL get_atomic_kind(atomic_kind=atomic_kind,name=name)
                 is_qm = qmmm_ff_precond_only_qm(id1=name)
-                IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) ishbond = .TRUE.
+                IF((name(1:1)=="H").OR.is_hydrogen(atomic_kind)) ishbond = .TRUE.
                 IF(      is_qm .AND.exclude_qm) ishbond = .FALSE.
                 IF(.NOT.(is_qm).AND.exclude_mm) ishbond = .FALSE.
              END IF
@@ -321,20 +320,18 @@ CONTAINS
              j = bond_list(k)%a
              IF (j<1.OR.j>natom)CYCLE
              atomic_kind => atom_list(j)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name,element_symbol=element_symbol)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,name=name)
              is_qm = qmmm_ff_precond_only_qm(id1=name)
-             IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H"))    ishbond = .TRUE.
+             IF((name(1:1)=="H").OR.is_hydrogen(atomic_kind))    ishbond = .TRUE.
              IF(      is_qm .AND.exclude_qm) ishbond = .FALSE.
              IF(.NOT.(is_qm).AND.exclude_mm) ishbond = .FALSE.
              IF (.NOT.ishbond) THEN
                 j = bond_list(k)%b
                 IF (j<1.OR.j>natom)CYCLE
                 atomic_kind => atom_list(j)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name,element_symbol=element_symbol)
+                CALL get_atomic_kind(atomic_kind=atomic_kind,name=name)
                 is_qm = qmmm_ff_precond_only_qm(id1=name)
-                IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) ishbond = .TRUE.
+                IF((name(1:1)=="H").OR.is_hydrogen(atomic_kind)) ishbond = .TRUE.
                 IF(      is_qm .AND.exclude_qm) ishbond = .FALSE.
                 IF(.NOT.(is_qm).AND.exclude_mm) ishbond = .FALSE.
              END IF
@@ -978,42 +975,42 @@ CONTAINS
 !>      Updated 2007 for intermolecular constraints
 !> \author Teodoro Laino [2007]
 ! *****************************************************************************
-SUBROUTINE setup_g4x6_list(g4x6_list, ilist, cons_info, ng4x6_restraint, error)
+  SUBROUTINE setup_g4x6_list(g4x6_list, ilist, cons_info, ng4x6_restraint, error)
     TYPE(g4x6_constraint_type), &
-      DIMENSION(:), POINTER                  :: g4x6_list
+         DIMENSION(:), POINTER                  :: g4x6_list
     INTEGER, DIMENSION(:), POINTER           :: ilist
     TYPE(constraint_info_type), POINTER      :: cons_info
     INTEGER, INTENT(OUT)                     :: ng4x6_restraint
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_g4x6_list', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, ng4x6
     LOGICAL                                  :: failure
 
-  failure = .FALSE.
-  ng4x6 = 0
-  ng4x6_restraint = 0
-  DO ng4x6 = 1, SIZE(ilist)
-     j = ilist(ng4x6)
-     g4x6_list(ng4x6)%a   = cons_info%const_g46_a(j)
-     g4x6_list(ng4x6)%b   = cons_info%const_g46_b(j)
-     g4x6_list(ng4x6)%c   = cons_info%const_g46_c(j)
-     g4x6_list(ng4x6)%d   = cons_info%const_g46_d(j)
-     g4x6_list(ng4x6)%dab = cons_info%const_g46_dab(j)
-     g4x6_list(ng4x6)%dac = cons_info%const_g46_dac(j)
-     g4x6_list(ng4x6)%dbc = cons_info%const_g46_dbc(j)
-     g4x6_list(ng4x6)%dad = cons_info%const_g46_dad(j)
-     g4x6_list(ng4x6)%dbd = cons_info%const_g46_dbd(j)
-     g4x6_list(ng4x6)%dcd = cons_info%const_g46_dcd(j)
-     ! Restraint
-     g4x6_list(ng4x6)%restraint%active = cons_info%g46_restraint(j)
-     g4x6_list(ng4x6)%restraint%k0     = cons_info%g46_k0(j)
-     IF (g4x6_list(ng4x6)%restraint%active) ng4x6_restraint = ng4x6_restraint+ 1
-  END DO
+    failure = .FALSE.
+    ng4x6 = 0
+    ng4x6_restraint = 0
+    DO ng4x6 = 1, SIZE(ilist)
+       j = ilist(ng4x6)
+       g4x6_list(ng4x6)%a   = cons_info%const_g46_a(j)
+       g4x6_list(ng4x6)%b   = cons_info%const_g46_b(j)
+       g4x6_list(ng4x6)%c   = cons_info%const_g46_c(j)
+       g4x6_list(ng4x6)%d   = cons_info%const_g46_d(j)
+       g4x6_list(ng4x6)%dab = cons_info%const_g46_dab(j)
+       g4x6_list(ng4x6)%dac = cons_info%const_g46_dac(j)
+       g4x6_list(ng4x6)%dbc = cons_info%const_g46_dbc(j)
+       g4x6_list(ng4x6)%dad = cons_info%const_g46_dad(j)
+       g4x6_list(ng4x6)%dbd = cons_info%const_g46_dbd(j)
+       g4x6_list(ng4x6)%dcd = cons_info%const_g46_dcd(j)
+       ! Restraint
+       g4x6_list(ng4x6)%restraint%active = cons_info%g46_restraint(j)
+       g4x6_list(ng4x6)%restraint%k0     = cons_info%g46_k0(j)
+       IF (g4x6_list(ng4x6)%restraint%active) ng4x6_restraint = ng4x6_restraint+ 1
+    END DO
 
-END SUBROUTINE setup_g4x6_list
+  END SUBROUTINE setup_g4x6_list
 
 ! *****************************************************************************
 !> \brief Setup the lcolv for the packing of constraints
@@ -1124,64 +1121,64 @@ END SUBROUTINE setup_g4x6_list
 !>      Updated 2007 for intermolecular constraints
 !> \author Teodoro Laino [2007]
 ! *****************************************************************************
-SUBROUTINE setup_lg4x6(lg4x6, g4x6_list, first_atom, last_atom, error)
+  SUBROUTINE setup_lg4x6(lg4x6, g4x6_list, first_atom, last_atom, error)
     TYPE(local_g4x6_constraint_type), &
-      DIMENSION(:), POINTER                  :: lg4x6
+         DIMENSION(:), POINTER                  :: lg4x6
     TYPE(g4x6_constraint_type), &
-      DIMENSION(:), POINTER                  :: g4x6_list
+         DIMENSION(:), POINTER                  :: g4x6_list
     INTEGER, INTENT(IN)                      :: first_atom, last_atom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_lg4x6', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: kk
     LOGICAL                                  :: failure
 
-  failure = .FALSE.  
-  DO kk = 1, SIZE(lg4x6)
-     lg4x6(kk)%init      = .FALSE.
-     lg4x6(kk)%scale     = 0.0_dp
-     lg4x6(kk)%scale_old = 0.0_dp
-     lg4x6(kk)%fa        = 0.0_dp
-     lg4x6(kk)%fb        = 0.0_dp
-     lg4x6(kk)%fc        = 0.0_dp
-     lg4x6(kk)%fd        = 0.0_dp
-     lg4x6(kk)%fe        = 0.0_dp
-     lg4x6(kk)%ff        = 0.0_dp
-     lg4x6(kk)%ra_old    = 0.0_dp
-     lg4x6(kk)%rb_old    = 0.0_dp
-     lg4x6(kk)%rc_old    = 0.0_dp
-     lg4x6(kk)%rd_old    = 0.0_dp
-     lg4x6(kk)%re_old    = 0.0_dp
-     lg4x6(kk)%rf_old    = 0.0_dp
-     lg4x6(kk)%va        = 0.0_dp
-     lg4x6(kk)%vb        = 0.0_dp
-     lg4x6(kk)%vc        = 0.0_dp
-     lg4x6(kk)%vd        = 0.0_dp
-     lg4x6(kk)%ve        = 0.0_dp
-     lg4x6(kk)%vf        = 0.0_dp
-     lg4x6(kk)%lambda    = 0.0_dp
-     IF  ((g4x6_list(kk)%a+first_atom-1 < first_atom).OR.&
-          (g4x6_list(kk)%b+first_atom-1 < first_atom).OR.&
-          (g4x6_list(kk)%c+first_atom-1 < first_atom).OR.&
-          (g4x6_list(kk)%d+first_atom-1 < first_atom).OR.&
-          (g4x6_list(kk)%a+first_atom-1 > last_atom ).OR.&
-          (g4x6_list(kk)%b+first_atom-1 > last_atom ).OR.&
-          (g4x6_list(kk)%c+first_atom-1 > last_atom ).OR.&
-          (g4x6_list(kk)%d+first_atom-1 > last_atom )) THEN
-        WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
-        WRITE(*,'(T5,"|",T8,A)')"A constrained has been defined for a molecule type",&
-             " but the atoms specified in the constraint and the atoms defined for",&
-             " the molecule DO NOT match!",&
-             "This could be very probable due to a wrong connectivity, or an error",&
-             " in the constraint specification in the input file.",&
-             " Please check it carefully!"
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-     END IF
-  END DO
+    failure = .FALSE.  
+    DO kk = 1, SIZE(lg4x6)
+       lg4x6(kk)%init      = .FALSE.
+       lg4x6(kk)%scale     = 0.0_dp
+       lg4x6(kk)%scale_old = 0.0_dp
+       lg4x6(kk)%fa        = 0.0_dp
+       lg4x6(kk)%fb        = 0.0_dp
+       lg4x6(kk)%fc        = 0.0_dp
+       lg4x6(kk)%fd        = 0.0_dp
+       lg4x6(kk)%fe        = 0.0_dp
+       lg4x6(kk)%ff        = 0.0_dp
+       lg4x6(kk)%ra_old    = 0.0_dp
+       lg4x6(kk)%rb_old    = 0.0_dp
+       lg4x6(kk)%rc_old    = 0.0_dp
+       lg4x6(kk)%rd_old    = 0.0_dp
+       lg4x6(kk)%re_old    = 0.0_dp
+       lg4x6(kk)%rf_old    = 0.0_dp
+       lg4x6(kk)%va        = 0.0_dp
+       lg4x6(kk)%vb        = 0.0_dp
+       lg4x6(kk)%vc        = 0.0_dp
+       lg4x6(kk)%vd        = 0.0_dp
+       lg4x6(kk)%ve        = 0.0_dp
+       lg4x6(kk)%vf        = 0.0_dp
+       lg4x6(kk)%lambda    = 0.0_dp
+       IF  ((g4x6_list(kk)%a+first_atom-1 < first_atom).OR.&
+            (g4x6_list(kk)%b+first_atom-1 < first_atom).OR.&
+            (g4x6_list(kk)%c+first_atom-1 < first_atom).OR.&
+            (g4x6_list(kk)%d+first_atom-1 < first_atom).OR.&
+            (g4x6_list(kk)%a+first_atom-1 > last_atom ).OR.&
+            (g4x6_list(kk)%b+first_atom-1 > last_atom ).OR.&
+            (g4x6_list(kk)%c+first_atom-1 > last_atom ).OR.&
+            (g4x6_list(kk)%d+first_atom-1 > last_atom )) THEN
+          WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
+          WRITE(*,'(T5,"|",T8,A)')"A constrained has been defined for a molecule type",&
+               " but the atoms specified in the constraint and the atoms defined for",&
+               " the molecule DO NOT match!",&
+               "This could be very probable due to a wrong connectivity, or an error",&
+               " in the constraint specification in the input file.",&
+               " Please check it carefully!"
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
+    END DO
 
-END SUBROUTINE setup_lg4x6
+  END SUBROUTINE setup_lg4x6
 
 ! *****************************************************************************
 !> \brief Gives back a list of molecule to which apply the constraint
