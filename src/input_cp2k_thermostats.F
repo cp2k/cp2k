@@ -304,7 +304,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="timecon",&
             description="timeconstant of the thermostat chain",&
-            usage="timeconstant real", &
+            usage="timecon <REAL>", &
             default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
             unit_str="fs",error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -372,7 +372,7 @@ CONTAINS
             "constant will result in strong thermostatting (useful for "//&
             "initial equilibrations) and a large time constant would be adequate "//&
             "to get weak thermostatting in production runs.",&
-            usage="timecon 100", &
+            usage="timecon <REAL>", &
             default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
             unit_str="fs",error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -385,7 +385,6 @@ CONTAINS
        CALL create_rng_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
-
     END IF
 
   END SUBROUTINE create_csvr_section
