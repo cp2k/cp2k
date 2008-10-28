@@ -24,7 +24,7 @@ MODULE scf_control_types
        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
        outer_scf_s2_constraint, outer_scf_scp, smear_energy_window, &
-       smear_fermi_dirac, smear_list, wfi_aspc_nr
+       smear_fermi_dirac, smear_list
   USE input_cp2k_dft,                  ONLY: create_scf_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -346,8 +346,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, &
-                                                wf_interpolation_method_nr
+    INTEGER                                  :: stat
     INTEGER, DIMENSION(:), POINTER           :: added_mos
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals, roks_parameter
