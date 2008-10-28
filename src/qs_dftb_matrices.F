@@ -11,7 +11,8 @@ MODULE qs_dftb_matrices
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind_set,&
+                                             is_hydrogen
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -517,9 +518,8 @@ CONTAINS
                     hb_sr_damp = dftb_control%hb_sr_damp
                     IF (hb_sr_damp) THEN
                        ! short range correction enabled only when iatom XOR jatom are hydrogens
-                       hb_sr_damp = &
-                            (particle_set(iatom)%atomic_kind%element_symbol(1:1)=="H").NEQV.&
-                            (particle_set(jatom)%atomic_kind%element_symbol(1:1)=="H")
+                       hb_sr_damp = is_hydrogen(particle_set(iatom)%atomic_kind).NEQV.&
+                                    is_hydrogen(particle_set(jatom)%atomic_kind)
                     END IF
                     ga = eta_a(0)
                     gb = eta_b(0)

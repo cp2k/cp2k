@@ -162,7 +162,8 @@ MODULE atomic_kind_types
             set_atomic_kind,&
             write_atomic_kind,&
             write_atomic_kind_set,&
-            write_gto_basis_sets
+            write_gto_basis_sets,&
+            is_hydrogen
 
   ! Public data types
   PUBLIC :: atomic_kind_type,&
@@ -2199,5 +2200,16 @@ CONTAINS
          "PRINT%KINDS/BASIS_SET",error=error)
 
   END SUBROUTINE write_gto_basis_sets
+
+! *****************************************************************************
+!> \brief Determines if the atomic_kind is HYDROGEN
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  PURE FUNCTION is_hydrogen(atomic_kind) RESULT(res)
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    LOGICAL                                  :: res
+
+    res = TRIM(atomic_kind%element_symbol)=="H"
+  END FUNCTION is_hydrogen
 
 END MODULE atomic_kind_types
