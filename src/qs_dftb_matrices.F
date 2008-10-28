@@ -106,8 +106,8 @@ CONTAINS
       lmaxi, lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, ncol, &
       neighbor_list_id, ngrd, ngrdcut, nkind, nlist, nmat, nnode, nrow, spdim
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, felem, lelem
-    LOGICAL                                  :: defined, failure, new_atom_b, &
-                                                use_virial
+    LOGICAL                                  :: defined, failure, hb_sr_damp, &
+                                                new_atom_b, use_virial
     REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
                                                 drp, erep, f0, foab, fow, ga, &
                                                 gb, s_cut, urep_cut
@@ -498,43 +498,50 @@ CONTAINS
                  END IF
 
                  IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
-                   atom_a = atom_of_kind(iatom)
-                   atom_b = atom_of_kind(jatom)
-                   IF ( irow == iatom ) force_ab = -force_ab
-                   IF ( irow == iatom ) force_w = -force_w
-                   force(ikind)%all_potential(:,atom_a) =&
-                       force(ikind)%all_potential(:,atom_a) - force_ab(:)
-                   force(jkind)%all_potential(:,atom_b) =&
-                       force(jkind)%all_potential(:,atom_b) + force_ab(:)
-                   force(ikind)%overlap(:,atom_a) =&
-                       force(ikind)%overlap(:,atom_a) - force_w(:)
-                   force(jkind)%overlap(:,atom_b) =&
-                       force(jkind)%overlap(:,atom_b) + force_w(:)
+                    atom_a = atom_of_kind(iatom)
+                    atom_b = atom_of_kind(jatom)
+                    IF ( irow == iatom ) force_ab = -force_ab
+                    IF ( irow == iatom ) force_w = -force_w
+                    force(ikind)%all_potential(:,atom_a) =&
+                         force(ikind)%all_potential(:,atom_a) - force_ab(:)
+                    force(jkind)%all_potential(:,atom_b) =&
+                         force(jkind)%all_potential(:,atom_b) + force_ab(:)
+                    force(ikind)%overlap(:,atom_a) =&
+                         force(ikind)%overlap(:,atom_a) - force_w(:)
+                    force(jkind)%overlap(:,atom_b) =&
+                         force(jkind)%overlap(:,atom_b) + force_w(:)
                  END IF
 
                  ! gamma matrix
                  IF ( dftb_control%self_consistent ) THEN
-                   ga = eta_a(0)
-                   gb = eta_b(0)
-                   gblock(1,1)= gblock(1,1) + gamma_rab_sr(dr,ga,gb)
-                   IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
-                     drp = dr + ddr
-                     drm = dr - ddr
-                     dgam = 0.5_dp*(gamma_rab_sr(drp,ga,gb)-gamma_rab_sr(drm,ga,gb))/ddr
-                     DO i=1,3
-                       NULLIFY (dgblock)
-                       CALL get_block_node(matrix=gamma_matrix(1+i)%matrix,&
-                                         block_row=irow,&
-                                         block_col=icol,&
-                                         block=dgblock)
-                       CPPrecondition(ASSOCIATED(dgblock),cp_failure_level,routineP,error,failure)
-                       IF ( irow == iatom ) THEN
-                         dgblock(1,1)= dgblock(1,1) + dgam*rij(i)/dr
-                       ELSE
-                         dgblock(1,1)= dgblock(1,1) - dgam*rij(i)/dr
-                       END IF
-                     END DO
-                   END IF
+                    hb_sr_damp = dftb_control%hb_sr_damp
+                    IF (hb_sr_damp) THEN
+                       ! short range correction enabled only when iatom XOR jatom are hydrogens
+                       hb_sr_damp = &
+                            (particle_set(iatom)%atomic_kind%element_symbol(1:1)=="H").NEQV.&
+                            (particle_set(jatom)%atomic_kind%element_symbol(1:1)=="H")
+                    END IF
+                    ga = eta_a(0)
+                    gb = eta_b(0)
+                    gblock(1,1)= gblock(1,1) + gamma_rab_sr(dr,ga,gb,hb_sr_damp)
+                    IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
+                       drp = dr + ddr
+                       drm = dr - ddr
+                       dgam = 0.5_dp*(gamma_rab_sr(drp,ga,gb,hb_sr_damp)-gamma_rab_sr(drm,ga,gb,hb_sr_damp))/ddr
+                       DO i=1,3
+                          NULLIFY (dgblock)
+                          CALL get_block_node(matrix=gamma_matrix(1+i)%matrix,&
+                                              block_row=irow,&
+                                              block_col=icol,&
+                                              BLOCK=dgblock)
+                          CPPrecondition(ASSOCIATED(dgblock),cp_failure_level,routineP,error,failure)
+                          IF ( irow == iatom ) THEN
+                             dgblock(1,1)= dgblock(1,1) + dgam*rij(i)/dr
+                          ELSE
+                             dgblock(1,1)= dgblock(1,1) - dgam*rij(i)/dr
+                          END IF
+                       END DO
+                    END IF
                  END IF
 
                END IF
@@ -853,15 +860,11 @@ CONTAINS
 
   END SUBROUTINE setup_matrices
 
-! module dftb_sktools
-!
-! Creation: 07. Feb. 2004, TH
-!
+! *****************************************************************************
+!> \brief Gets matrix elements on z axis, as they are stored in the tables
+!> \author 07. Feb. 2004, TH
 ! *****************************************************************************
   SUBROUTINE getskz(slakotab,skpar,dx,ngrd,ngrdcut,dgrd,llm)
-    !
-    ! Gets matrix elements on z axis, as they are stored in the tables
-    !
     REAL(dp), INTENT(in)                     :: slakotab(:,:), dx
     INTEGER, INTENT(in)                      :: ngrd, ngrdcut
     REAL(dp), INTENT(in)                     :: dgrd
@@ -869,9 +872,6 @@ CONTAINS
     REAL(dp), INTENT(out)                    :: skpar(llm)
 
     INTEGER                                  :: clgp
-
-!
-!
 
     skpar = 0._dp
     !
@@ -913,20 +913,6 @@ CONTAINS
     REAL(dp)                                 :: error, xa(max_inter), &
                                                 ya(max_inter)
 
-! closest grid point
-! number of grid points
-! grid spacing
-! dimension of skpar
-! interpolated Slater-Koster values
-! Slater-Koster table
-! diatomic distance
-!
-!loop variables
-! first and last grid points -1
-!
-! Get grid points for interpolation
-!
-
     lgpm = MIN(clgp+max_inter/2,ngrd)
     fgpm = lgpm - max_inter + 1
     DO k = 0,max_inter-1
@@ -955,18 +941,6 @@ CONTAINS
     INTEGER                                  :: fgp, k, l, lgp, ntable, nzero
     REAL(dp)                                 :: error, xa(max_extra), &
                                                 ya(max_extra)
-
-! dimension of Slako vector
-! extrapolated Slater-Koster value
-! Slater-Koster table
-! number of grid points
-! grid spacing
-! diatomic distance
-!
-!loop variables
-!
-! Get the last three grid points of the table
-!
 
     nzero = max_extra/3
     ntable = max_extra-nzero
@@ -1146,12 +1120,9 @@ CONTAINS
       END IF
       !
     END SUBROUTINE sksp
-    !
-    !
+
 ! *****************************************************************************
     SUBROUTINE skpp(skpar,mat,ind)
-      !
-      !
     REAL(dp), INTENT(in)                     :: skpar(:)
     REAL(dp), INTENT(inout)                  :: mat(:,:)
     INTEGER, INTENT(in)                      :: ind(0:,0:,0:)
@@ -1183,12 +1154,9 @@ CONTAINS
         mat(ir+1,ir+1) = mat(ir+1,ir+1) + matel(ir)
       END DO
     END SUBROUTINE skpp
-    !
-    !
+
 ! *****************************************************************************
     SUBROUTINE sksd(skpar,mat,ind,transposed)
-      !
-      !
     REAL(dp), INTENT(in)                     :: skpar(:)
     REAL(dp), INTENT(inout)                  :: mat(:,:)
     INTEGER, INTENT(in)                      :: ind(0:,0:,0:)
@@ -1196,9 +1164,6 @@ CONTAINS
 
     INTEGER                                  :: l
     REAL(dp)                                 :: d4, d5, es(5), r3, sksds
-
-!
-!
 
       sksds = skpar(ind(2,0,0))
       r3 = SQRT(3._dp)
@@ -1221,12 +1186,9 @@ CONTAINS
         END DO
       END IF
     END SUBROUTINE sksd
-    !
-    !
+
 ! *****************************************************************************
     SUBROUTINE skpd(skpar,mat,ind,transposed)
-      !
-      !
     REAL(dp), INTENT(in)                     :: skpar(:)
     REAL(dp), INTENT(inout)                  :: mat(:,:)
     INTEGER, INTENT(in)                      :: ind(0:,0:,0:)
@@ -1235,9 +1197,6 @@ CONTAINS
     INTEGER                                  :: ir, is, k, l, m
     REAL(dp)                                 :: d3, d4, d5, d6, dm(15), &
                                                 epd(13,2), r3, sktmp
-
-!
-!
 
       r3 = SQRT(3.0_dp)
       d3 = rr2(1) + rr2(2)
@@ -1298,12 +1257,9 @@ CONTAINS
       END IF
       !
     END SUBROUTINE skpd
-    !
-    !
+
 ! *****************************************************************************
     SUBROUTINE skdd(skpar,mat,ind)
-      !
-      !
     REAL(dp), INTENT(in)                     :: skpar(:)
     REAL(dp), INTENT(inout)                  :: mat(:,:)
     INTEGER, INTENT(in)                      :: ind(0:,0:,0:)
@@ -1311,9 +1267,6 @@ CONTAINS
     INTEGER                                  :: ii, ir, is, k, l, m
     REAL(dp)                                 :: d3, d4, d5, dd(3), dm(15), &
                                                 e(15,3), r3
-
-!
-!
 
       r3 = SQRT(3._dp)
       d3 = rr2(1) + rr2(2)
@@ -1453,10 +1406,6 @@ CONTAINS
     INTEGER                                  :: ic, isp, jsp, nsp
     REAL(dp)                                 :: de_z, rz
 
-! interatomic distance vector
-! interatomic distance
-!
-
     derep=0._dp
     de_z = 0._dp
     IF (n_urpoly > 0) THEN
@@ -1546,17 +1495,16 @@ CONTAINS
 !>         interaction of normalized exp(-a*r) charge distribution - 1/r 
 !> \par Literature
 !>         Elstner et al, PRB 58 (1998) 7260 
-!> \version 1.0
+!> \version 1.1
+!> \par HIstory
+!>      10.2008 Axel Kohlmeyer - adding sr_damp
 ! *****************************************************************************
-  FUNCTION gamma_rab_sr(r,ga,gb) RESULT(gamma)
+  FUNCTION gamma_rab_sr(r,ga,gb,sr_damp) RESULT(gamma)
     REAL(dp), INTENT(in)                     :: r, ga, gb
+    LOGICAL, INTENT(in)                      :: sr_damp
     REAL(dp)                                 :: gamma
 
     REAL(dp)                                 :: a, b, fac, g_sum
-
-! distance and onsite hardness values for elements a and b
-! local work parameters based on ga and gb
-!
 
     gamma = 0.0_dp
     a = 3.2_dp*ga ! 3.2 = 16/5 in Eq. 18 and ff.
@@ -1582,6 +1530,13 @@ CONTAINS
                 (a**6 - 3._dp*b**2*a**4)/(r*(b**2-a**2)**3)) ! b-> a
     END IF
     !
+    ! damping function for better short range hydrogen bonds.
+    ! functional form from Hu H. et al., J. Phys. Chem. A 2007, 111, 5685-5691
+    ! according to Elstner M, Theor. Chem. Acc. 2006, 116, 316-325,
+    ! this should only be applied to a-b pairs involving hydrogen.
+    IF (sr_damp) THEN   
+      gamma = gamma * EXP(-(0.5_dp*(ga+gb))**4 * r*r)
+    END IF
   END FUNCTION gamma_rab_sr
 
 END MODULE qs_dftb_matrices

@@ -8,7 +8,7 @@
 ! *****************************************************************************
 MODULE cp_control_utils
   USE bibliography,                    ONLY: &
-       Dewar1977, Dewar1985, Elstner1998, Krack2000, Lippert1997, &
+       Dewar1977, Dewar1985, Elstner1998, Hu2007, Krack2000, Lippert1997, &
        Lippert1999, Porezag1995, Repasky2002, Rocha2006, Seifert1996, &
        Stewart1989, Stewart2007, Thiel1992, VandeVondele2005a, &
        VandeVondele2005b, Zhechkov2005, cite_reference
@@ -617,6 +617,8 @@ CPSourceFileRef,&
             l_val=qs_control%dftb_control%self_consistent,error=error)
        CALL section_vals_val_get(dftb_section,"DISPERSION",&
             l_val=qs_control%dftb_control%dispersion,error=error)
+       CALL section_vals_val_get(dftb_section,"HB_SR_GAMMA",&
+            l_val=qs_control%dftb_control%hb_sr_damp,error=error)
        CALL section_vals_val_get(dftb_section,"EPS_DISP",&
             r_val=qs_control%dftb_control%eps_disp,error=error)
        CALL section_vals_val_get(dftb_section,"DO_EWALD",&
@@ -637,10 +639,9 @@ CPSourceFileRef,&
        CALL section_vals_val_get(dftb_parameter,"UFF_FORCE_FIELD",&
             c_val=qs_control%dftb_control%uff_force_field,error=error)
        
-       IF (qs_control%dftb) THEN
-          IF (qs_control%dftb_control%dispersion)      CALL cite_reference(Zhechkov2005)
-          IF (qs_control%dftb_control%self_consistent) CALL cite_reference(Elstner1998)
-       ENDIF
+       IF (qs_control%dftb_control%dispersion)      CALL cite_reference(Zhechkov2005)
+       IF (qs_control%dftb_control%self_consistent) CALL cite_reference(Elstner1998)
+       IF (qs_control%dftb_control%hb_sr_damp)      CALL cite_reference(Hu2007)
     END IF
   END SUBROUTINE read_qs_section
 
@@ -1160,14 +1161,14 @@ CPSourceFileRef,&
     END SELECT
   END FUNCTION xc_get_routine_label
 
-  ! *****************************************************************************
-  !> \brief reads the input parameters needed for ddapc.
-  !> \note
-  !>      either reads DFT%QS%DDAPC_RESTRAINT or PROPERTIES%ET_coupling
-  !>      if(qs_section is present the DFT part is read, if ddapc_restraint_section
-  !>      is present ET_COUPLING is read. Avoid having both!!!
-  !> \author fschiff
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief reads the input parameters needed for ddapc.
+!> \note
+!>      either reads DFT%QS%DDAPC_RESTRAINT or PROPERTIES%ET_coupling
+!>      if(qs_section is present the DFT part is read, if ddapc_restraint_section
+!>      is present ET_COUPLING is read. Avoid having both!!!
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE read_ddapc_section(qs_control,qs_section,ddapc_restraint_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control

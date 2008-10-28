@@ -50,6 +50,7 @@ MODULE cp_control_types
      LOGICAL                              :: self_consistent
      LOGICAL                              :: orthogonal_basis
      LOGICAL                              :: dispersion
+     LOGICAL                              :: hb_sr_damp
      REAL(KIND = dp)                      :: eps_disp
      LOGICAL                              :: do_ewald
      CHARACTER(LEN=default_path_length)   :: sk_file_path

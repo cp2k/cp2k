@@ -52,7 +52,7 @@ MODULE bibliography
              Yamada2000,Dudarev1997,Dudarev1998,Dewar1977,Dewar1985,Rocha2006,&
              Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003,Guidon2008,&
              Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
-             Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006
+             Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007
 
 CONTAINS
 
@@ -67,6 +67,29 @@ CONTAINS
 !>      08.2007 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE add_all_references()
+
+    CALL add_reference(key=Hu2007, ISI_record=s2a(&
+         "AU Hu, H",&
+         "   Lu, ZY",&
+         "   Elstner, M",&
+         "   Hermans, J",&
+         "   Yang, WT",&
+         "TI Simulating water with the self-consistent-charge density functional",&
+         "   tight binding method: From molecular clusters to the liquid state",&
+         "SO JOURNAL OF PHYSICAL CHEMISTRY A",&
+         "CT 232nd National Meeting of the American-Chemical-Society",&
+         "CY SEP 10-14, 2006",&
+         "CL San Francisco, CA",&
+         "SN 1089-5639",&
+         "PD JUL 5",&
+         "PY 2007",&
+         "VL 111",&
+         "IS 26",&
+         "BP 5685",&
+         "EP 5691",&
+         "UT ISI:000247573600013",&
+         "ER"),&
+         DOI="10.1021/jp070308d")
 
     CALL add_reference(key=Blochl1995, ISI_record=s2a(&
          "AU BLOCHL, PE",&

@@ -12,7 +12,7 @@
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
        Avezac2005, Becke1988, Dewar1977, Dewar1985, Elstner1998, &
-       Goedecker1996, Heyd2004, Hunt2003, Iannuzzi2005, Iannuzzi2006, &
+       Goedecker1996, Heyd2004, Hu2007, Hunt2003, Iannuzzi2005, Iannuzzi2006, &
        Iannuzzi2007, Krack2000, Krack2002, Lee1988, Lippert1997, Lippert1999, &
        Ortiz1994, Perdew1981, Perdew1996, Porezag1995, Repasky2002, &
        Rocha2006, Seifert1996, Stewart1982, Stewart1989, Stewart2007, &
@@ -2063,8 +2063,16 @@ CONTAINS
 
        CALL keyword_create(keyword, name="dispersion",&
             description="Use dispersion correction",&
-            citations=(/Zhechkov2005/),&
+            citations=(/Zhechkov2005/),lone_keyword_l_val=.TRUE.,&
             usage="DISPERSION",default_l_val=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="HB_SR_GAMMA",&
+            description="Uses a modified version for the GAMMA within the SCC-DFTB scheme, "//&
+            "specifically tuned for hydrogen bonds.",&
+            citations=(/Hu2007/),lone_keyword_l_val=.TRUE.,&
+            usage="HB_SR_GAMMA",default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
