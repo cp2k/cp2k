@@ -45,9 +45,9 @@ MODULE input_cp2k_motion
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_motion'
 
 PUBLIC :: create_motion_section,&
-          create_band_section
+          create_band_section,&
+          add_format_keyword
 
-!***
 CONTAINS
 
 ! *****************************************************************************
@@ -126,15 +126,8 @@ CONTAINS
             description="controls the output of the trajectory",&
             print_level=low_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL keyword_create(keyword, name="format",&
-            description="Specifies the format of the output file for the trajectory.",&
-            usage="FORMAT (ATOMIC|XMOL|DCD)",&
-            default_i_val=dump_xmol,&
-            enum_c_vals=output_name_types,&
-            enum_i_vals=output_name_index,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL add_format_keyword(keyword, print_key, &
+            description="Specifies the format of the output file for the trajectory.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -142,15 +135,8 @@ CONTAINS
             description="controls the output of the trajectory of shells when the shell-model is used ",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL keyword_create(keyword, name="format",&
-            description="Specifies the format of the output file for the trajectory of shells.",&
-            usage="FORMAT (ATOMIC|XMOL|DCD)",&
-            default_i_val=dump_xmol,&
-            enum_c_vals=output_name_types,&
-            enum_i_vals=output_name_index,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       CALL add_format_keyword(keyword, print_key, &
+            description="Specifies the format of the output file for the trajectory of shells.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -158,15 +144,8 @@ CONTAINS
             description="controls the output of the trajectory of cores when the shell-model is used ",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL keyword_create(keyword, name="format",&
-            description="Specifies the format of the output file for the trajectory of cores.",&
-            usage="FORMAT (ATOMIC|XMOL|DCD)",&
-            default_i_val=dump_xmol,&
-            enum_c_vals=output_name_types,&
-            enum_i_vals=output_name_index,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       CALL add_format_keyword(keyword, print_key, &
+            description="Specifies the format of the output file for the trajectory of cores.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -183,15 +162,8 @@ CONTAINS
             description="controls the output of the velocities",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL keyword_create(keyword, name="format",&
-            description="Specifies the format of the output file for the velocities.",&
-            usage="FORMAT (ATOMIC|XMOL|DCD)",&
-            default_i_val=dump_xmol,&
-            enum_c_vals=output_name_types,&
-            enum_i_vals=output_name_index,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL add_format_keyword(keyword, print_key, &
+            description="Specifies the format of the output file for the velocities.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -199,15 +171,8 @@ CONTAINS
             description="controls the output of the velocities of shells when the shell model is used",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL keyword_create(keyword, name="format",&
-            description="Specifies the format of the output file for the velocities of shells.",&
-            usage="FORMAT (ATOMIC|XMOL|DCD)",&
-            default_i_val=dump_xmol,&
-            enum_c_vals=output_name_types,&
-            enum_i_vals=output_name_index,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       CALL add_format_keyword(keyword, print_key, &
+            description="Specifies the format of the output file for the velocities of shells.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -215,15 +180,8 @@ CONTAINS
             description="controls the output of the velocities of cores when the shell model is used",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL keyword_create(keyword, name="format",&
-            description="Specifies the format of the output file for the velocities of cores.",&
-            usage="FORMAT (ATOMIC|XMOL|DCD)",&
-            default_i_val=dump_xmol,&
-            enum_c_vals=output_name_types,&
-            enum_i_vals=output_name_index,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       CALL add_format_keyword(keyword, print_key, &
+            description="Specifies the format of the output file for the velocities of cores.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -235,15 +193,8 @@ CONTAINS
             description="controls the output of the forces",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL keyword_create(keyword, name="format",&
-            description="Specifies the format of the output file for the forces.",&
-            usage="FORMAT (ATOMIC|XMOL|DCD)",&
-            default_i_val=dump_xmol,&
-            enum_c_vals=output_name_types,&
-            enum_i_vals=output_name_index,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL add_format_keyword(keyword, print_key, &
+            description="Specifies the format of the output file for the forces.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -251,30 +202,17 @@ CONTAINS
             description="controls the output of the forces on shells when shell-model is used",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL keyword_create(keyword, name="format",&
-            description="Specifies the format of the output file for the forces on shells.",&
-            usage="FORMAT (ATOMIC|XMOL|DCD)",&
-            default_i_val=dump_xmol,&
-            enum_c_vals=output_name_types,&
-            enum_i_vals=output_name_index,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       CALL add_format_keyword(keyword, print_key, &
+            description="Specifies the format of the output file for the forces on shells.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"core_forces",&
             description="controls the output of the forces on cores when shell-model is used",&
             print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
-       CALL keyword_create(keyword, name="format",&
-            description="Specifies the format of the output file for the forces on cores.",&
-            usage="FORMAT (ATOMIC|XMOL|DCD)",&
-            default_i_val=dump_xmol,&
-            enum_c_vals=output_name_types,&
-            enum_i_vals=output_name_index,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       CALL add_format_keyword(keyword, print_key, &
+            description="Specifies the format of the output file for the forces on cores.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -2602,15 +2540,9 @@ CONTAINS
             description="Controls how often the centroids are written", &
             print_level=low_print_level,add_last=add_last_numeric,&
             error=error)
-       CALL keyword_create(keyword, name="format",&
-            description="Specifies the format of the output file for the trajectory.",&
-            usage="FORMAT (ATOMIC|XMOL|DCD)",&
-            default_i_val=dump_xmol,&
-            enum_c_vals=output_name_types,&
-            enum_i_vals=output_name_index,&
+       CALL add_format_keyword(keyword, print_key, &
+            description="Specifies the format of the output file for the trajectory of centroids.",&
             error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)        
        CALL section_add_subsection(section,subsection,error=error)
@@ -2618,6 +2550,43 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_pint_section
+
+! *****************************************************************************
+!> \brief creates the FORMAT keyword
+!> \param section will contain the pint section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino 10.2008 [tlaino]
+! *****************************************************************************
+  SUBROUTINE add_format_keyword(keyword, section, description, error)
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(LEN=*), INTENT(IN)             :: description
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_format_keyword', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
+
+    CALL keyword_create(keyword, name="FORMAT",&
+         description=description,usage="FORMAT (ATOMIC|XMOL|XYZ|DCD)",&
+         default_i_val=dump_xmol,&
+         enum_c_vals=s2a("ATOMIC","XMOL","XYZ","DCD"),&
+         enum_i_vals= (/dump_atomic,dump_xmol,dump_xmol,dump_dcd/),&
+         enum_desc=s2a( "Prints in a formatted file only the coordinates X,Y,Z without element labels",&
+                        "Mostly known as XYZ format, provides in a formatted files: elements, X Y Z",&
+                        "Alias for XMOL",&
+                        "Binary file with information on coordinates and cells (no element labels)"),&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+  END SUBROUTINE add_format_keyword
 
 ! *****************************************************************************
 !> \brief creates the section for a BAND run

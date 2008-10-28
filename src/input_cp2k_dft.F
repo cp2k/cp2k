@@ -26,6 +26,7 @@ MODULE input_cp2k_dft
   USE input_cp2k_distribution,         ONLY: create_distribution_section
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
   USE input_cp2k_mm,                   ONLY: create_neighbor_lists_section
+  USE input_cp2k_motion,               ONLY: add_format_keyword
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_cp2k_resp,                 ONLY: create_resp_section
   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
@@ -761,15 +762,9 @@ CONTAINS
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     
-    CALL keyword_create(keyword, name="format",&
+    CALL add_format_keyword(keyword, print_key, &
          description="Specifies the format of the output file when IONS+CENTERS is enabled.",&
-         usage="FORMAT (ATOMIC|XMOL|DCD)",&
-         default_i_val=dump_xmol,&
-         enum_c_vals=output_name_types,&
-         enum_i_vals=output_name_index,&
          error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
     

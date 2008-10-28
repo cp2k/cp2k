@@ -347,6 +347,7 @@ MODULE input_constants
                                 transformation_stage=2
   INTEGER, PARAMETER, PUBLIC, DIMENSION(2) :: transformation_name_index=&
        (/transformation_normal,transformation_stage/)
+
   ! Free Energy methods
   INTEGER, PARAMETER, PUBLIC :: do_fe_meta=0,&
                                 do_fe_ui=1,&
@@ -359,18 +360,10 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC :: do_wall_p=0,&
                                 do_wall_m=1
-  !
-  ! Output format files
-  !
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(3), PUBLIC :: output_name_types=&
-  (/"ATOMIC",&
-    "XMOL  ",&
-    "DCD   "/)
+  ! Output formats
   INTEGER, PARAMETER, PUBLIC :: dump_atomic=1,&
                                 dump_xmol=2,&
                                 dump_dcd=3
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(3) :: output_name_index=&
-       (/dump_atomic,dump_xmol,dump_dcd/)
 
   INTEGER, PARAMETER, PUBLIC :: do_qmmm_none=0,&
                                 do_qmmm_coulomb=1,&
