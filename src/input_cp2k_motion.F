@@ -810,9 +810,11 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="KEEP_SHAPE",&
-         description="Keep fixed the shape of the cell (angles between cell vectors do not change)",&
-         usage="KEEP_SHAPE {LOGICAL}",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL keyword_create(keyword, name="KEEP_ANGLES",&
+         description="Keep angles between the cell vectors constant, but allow the lenghts of the"//&
+                     " cell vectors to change independently."//&
+                     " For example, a cubic cell might become orthorhombic, but not triclinic.",&
+         usage="KEEP_ANGLES TRUE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)       
 

@@ -245,7 +245,7 @@ CPSourceFileRef,&
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE get_dg_dh(gradient,av_ptens,pres_ext,cell,mtrx,keep_shape,pres_int,error)
+  SUBROUTINE get_dg_dh(gradient,av_ptens,pres_ext,cell,mtrx,keep_angles,pres_int,error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: av_ptens
@@ -253,7 +253,7 @@ CPSourceFileRef,&
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: mtrx
-    LOGICAL, INTENT(IN), OPTIONAL            :: keep_shape
+    LOGICAL, INTENT(IN), OPTIONAL            :: keep_angles
     REAL(KIND=dp), INTENT(OUT)               :: pres_int
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -261,14 +261,14 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_keep_shape
+    LOGICAL                                  :: failure, my_keep_angles
     REAL(KIND=dp)                            :: norm, norm_b, norm_c
     REAL(KIND=dp), DIMENSION(3, 3)           :: correction, pten_hinv_old, &
                                                 ptens
 
     failure       = .FALSE.
-    my_keep_shape = .FALSE.
-    IF (PRESENT(keep_shape)) my_keep_shape =  keep_shape
+    my_keep_angles = .FALSE.
+    IF (PRESENT(keep_angles)) my_keep_angles =  keep_angles
     gradient = 0.0_dp
     ptens      = av_ptens
 
@@ -293,8 +293,8 @@ CPSourceFileRef,&
     gradient(5) = pten_hinv_old(3,2) - correction(3,2)
     gradient(6) = pten_hinv_old(3,3) - correction(3,3)
 
-    IF (my_keep_shape) THEN
-       ! If we want to keep the shape constant we have to project out the
+    IF (my_keep_angles) THEN
+       ! If we want to keep the angles constant we have to project out the
        ! components of the cell angles
        norm_b        = SQRT(DOT_PRODUCT(cell%hmat(:,2),cell%hmat(:,2)))
        norm          = DOT_PRODUCT(cell%hmat(1:2,2),gradient(2:3))

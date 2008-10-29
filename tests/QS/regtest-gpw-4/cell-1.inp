@@ -50,7 +50,7 @@
     RMS_DR 0.01
     MAX_FORCE 0.002
     RMS_FORCE 0.001
-    KEEP_SHAPE
+    KEEP_ANGLES
     &CG
       &LINE_SEARCH
         TYPE 2PNT
