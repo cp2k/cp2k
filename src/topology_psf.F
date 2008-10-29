@@ -151,8 +151,7 @@ CONTAINS
     INTEGER :: handle, i, iatom, ibond, idum, index_now, iphi, itheta, iw, &
       natom, natom_prev, nbond, nbond_prev, nphi, nphi_prev, ntheta, &
       ntheta_prev, output_unit
-    LOGICAL                                  :: do_onfo, failure, found, &
-                                                ionode
+    LOGICAL                                  :: failure, found, ionode
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -162,11 +161,8 @@ CONTAINS
     failure = .FALSE.
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-      output_unit = -1
-    END IF
+    output_unit = -1
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog",error=error)
     CALL timeset(routineN,handle)
@@ -174,7 +170,6 @@ CONTAINS
 
     atom_info => topology%atom_info
     conn_info => topology%conn_info
-    do_onfo = (topology%exclude_vdw/=do_skip_14).OR.(topology%exclude_ei/=do_skip_14)
     natom_prev = 0
     IF(ASSOCIATED(atom_info%label_molname)) natom_prev = SIZE(atom_info%label_molname)
     c_int      = 'I8'
@@ -186,7 +181,7 @@ CONTAINS
        END IF
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
-    DO WHILE (parser_test_next_token(parser,error=error)/="EOL")          
+    DO WHILE (parser_test_next_token(parser,error=error)/="EOL")
        CALL parser_get_object  (parser,field,error=error)
        SELECT CASE(field(1:3))
        CASE ("PSF")
