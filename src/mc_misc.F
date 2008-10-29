@@ -15,11 +15,11 @@ MODULE mc_misc
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE external_potential_types,        ONLY: elp_potential_type,&
@@ -607,8 +607,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "  &MM"
          WRITE(unit,10000) "    &POISSON"
          WRITE(unit,10000) "      &EWALD"
-         CALL convert_to_cp2k_units ( 'BOHR', length = alpha,&
-            l_power = -1 )
+         alpha = cp_unit_to_cp2k(alpha,"bohr^-1",error=error)
          SELECT CASE ( ewald_type )
          CASE ( do_ewald_ewald )
             WRITE(unit,10000) "       EWALD_TYPE ewald"

@@ -21,7 +21,6 @@ MODULE qs_linres_nmr_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -32,6 +31,7 @@ MODULE qs_linres_nmr_utils
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -155,9 +155,9 @@ CONTAINS
           CALL parser_get_object(parser,nmr_env%r_nics(1,j),error=error)
           CALL parser_get_object(parser,nmr_env%r_nics(2,j),error=error)
           CALL parser_get_object(parser,nmr_env%r_nics(3,j),error=error)
-          CALL convert_to_cp2k_units("ANGSTROM",length=nmr_env%r_nics(1,j))
-          CALL convert_to_cp2k_units("ANGSTROM",length=nmr_env%r_nics(2,j))
-          CALL convert_to_cp2k_units("ANGSTROM",length=nmr_env%r_nics(3,j))
+          nmr_env%r_nics(1,j) = cp_unit_to_cp2k(nmr_env%r_nics(1,j),"angstrom",error=error)
+          nmr_env%r_nics(2,j) = cp_unit_to_cp2k(nmr_env%r_nics(2,j),"angstrom",error=error)
+          nmr_env%r_nics(3,j) = cp_unit_to_cp2k(nmr_env%r_nics(3,j),"angstrom",error=error)
           CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
           IF (my_end) EXIT
        ENDDO

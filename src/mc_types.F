@@ -15,12 +15,12 @@ MODULE mc_types
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              get_fist_env
@@ -1420,26 +1420,20 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       mc_par % min_val     = 0.0_dp
 
 ! convert from bar to a.u.
-      CALL convert_to_cp2k_units(pressure=mc_par%pressure)
+      mc_par%pressure = cp_unit_to_cp2k(mc_par%pressure,"bar",error=error)
 ! convert from angstrom to a.u.
       DO itype=1,mc_par%mc_molecule_info%nmol_types
 ! convert from degrees to radians
          mc_par%rmrot(itype) = mc_par%rmrot(itype)/180.0e0_dp*pi
          mc_par%rmangle(itype) = mc_par%rmangle(itype)/180.0e0_dp*pi
          mc_par%rmdihedral(itype) = mc_par%rmdihedral(itype)/180.0e0_dp*pi
-         CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-              length=mc_par%rmtrans(itype))
-         CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-              length=mc_par%rmbond(itype))
-         CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-              length=mc_par%avbmc_rmin(itype))
-         CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-              length=mc_par%avbmc_rmax(itype))
+         mc_par%rmtrans(itype) = cp_unit_to_cp2k(mc_par%rmtrans(itype),"angstrom",error=error)
+         mc_par%rmbond(itype) = cp_unit_to_cp2k(mc_par%rmbond(itype),"angstrom",error=error)
+         mc_par%avbmc_rmin(itype) = cp_unit_to_cp2k(mc_par%avbmc_rmin(itype),"angstrom",error=error)
+         mc_par%avbmc_rmax(itype) = cp_unit_to_cp2k(mc_par%avbmc_rmax(itype),"angstrom",error=error)
       ENDDO
-      CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-           length=mc_par%rmvolume,l_power=3)
-      CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-         length=mc_par%discrete_step)
+      mc_par%rmvolume = cp_unit_to_cp2k(mc_par%rmvolume,"angstrom^3",error=error)
+      mc_par%discrete_step = cp_unit_to_cp2k(mc_par%discrete_step,"angstrom",error=error)
 
 ! end the timing
       CALL timestop(handle)

@@ -5,7 +5,6 @@
 
 ! *****************************************************************************
 MODULE topology_gromos
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -15,6 +14,7 @@ MODULE topology_gromos
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: do_skip_14
   USE input_cp2k_restarts,             ONLY: section_velocity_val_set
@@ -746,9 +746,9 @@ CONTAINS
                itemp, atom_info%r(1,natom), atom_info%r(2,natom), atom_info%r(3,natom)
           atom_info%label_molname(natom) = atom_info%label_resname(natom)
           atom_info%element(natom)       = atom_info%label_atmname(natom) 
-          CALL convert_to_cp2k_units("NM",length=atom_info%r(1,natom))
-          CALL convert_to_cp2k_units("NM",length=atom_info%r(2,natom))
-          CALL convert_to_cp2k_units("NM",length=atom_info%r(3,natom))
+          atom_info%r(1,natom) = cp_unit_to_cp2k(atom_info%r(1,natom),"nm",error=error)
+          atom_info%r(2,natom) = cp_unit_to_cp2k(atom_info%r(2,natom),"nm",error=error)
+          atom_info%r(3,natom) = cp_unit_to_cp2k(atom_info%r(3,natom),"nm",error=error)
           IF(iw>0) WRITE(iw,*) "G96_INFO| PUT POSITION INFO HERE!!!!"
           CALL parser_get_next_line(parser,1,error=error)
           CALL parser_get_object(parser,string,string_length=default_string_length,error=error)
@@ -775,12 +775,9 @@ CONTAINS
                   itemp,velocity(1,natom),velocity(2,natom),velocity(3,natom)
              atom_info%label_molname(natom) = atom_info%label_resname(natom)
              atom_info%element(natom)       = atom_info%label_atmname(natom) 
-             CALL convert_to_cp2k_units("NM",length=velocity(1,natom))
-             CALL convert_to_cp2k_units("NM",length=velocity(2,natom))
-             CALL convert_to_cp2k_units("NM",length=velocity(3,natom))
-             CALL convert_to_cp2k_units("PS",time=velocity(1,natom),t_power=-1)
-             CALL convert_to_cp2k_units("PS",time=velocity(2,natom),t_power=-1)
-             CALL convert_to_cp2k_units("PS",time=velocity(3,natom),t_power=-1)
+             velocity(1,natom) = cp_unit_to_cp2k(velocity(1,natom),"nm*ps^-1",error=error)
+             velocity(2,natom) = cp_unit_to_cp2k(velocity(2,natom),"nm*ps^-1",error=error)
+             velocity(3,natom) = cp_unit_to_cp2k(velocity(3,natom),"nm*ps^-1",error=error)
              IF(iw>0) WRITE(iw,*) "G96_INFO| PUT VELOCITY INFO HERE!!!!"
              CALL parser_get_next_line(parser,1,error=error)
              CALL parser_get_object(parser,string,string_length=default_string_length,error=error)

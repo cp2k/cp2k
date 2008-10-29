@@ -15,7 +15,6 @@ MODULE reftraj_util
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -24,6 +23,7 @@ MODULE reftraj_util
   USE cp_parser_methods,               ONLY: parser_get_next_line
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
@@ -230,9 +230,9 @@ CPSourceFileRef,&
           name=TRIM(particle_set(iatom)%atomic_kind%element_symbol)
           CPPostcondition((TRIM(AA)==name),cp_failure_level,routineP,error,failure)
 
-          CALL convert_to_cp2k_units("ANGSTROM",length=x)
-          CALL convert_to_cp2k_units("ANGSTROM",length=y)
-          CALL convert_to_cp2k_units("ANGSTROM",length=z)
+          x = cp_unit_to_cp2k(x,"angstrom",error=error)
+          y = cp_unit_to_cp2k(y,"angstrom",error=error)
+          z = cp_unit_to_cp2k(z,"angstrom",error=error)
           msd%ref0_pos(1,iatom) = x
           msd%ref0_pos(2,iatom) = y
           msd%ref0_pos(3,iatom) = z

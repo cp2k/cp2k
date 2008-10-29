@@ -151,3 +151,9 @@ ethene_colv2.inp
 ethene_colv2_npt.inp
 # corrected build of ppnl lists 
 nh3-meta-walks_2r.inp
+# numerics after new units converter
+nh3-meta-walks_1r.inp
+nh3-meta-walks_2.inp
+nh3-meta-walks_2r.inp
+# numerics after new units converter
+nh3-meta-walks_1.inp

@@ -35,7 +35,6 @@
 ! *****************************************************************************
 MODULE topology_pdb
 
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
                                              cp_print_key_unit_nr
@@ -44,6 +43,7 @@ MODULE topology_pdb
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -184,9 +184,9 @@ CONTAINS
                atom_info%r(3,natom),&
                TRIM(atom_info%label_resname(natom)),&
                atom_info%label_resid(natom)
-          CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(1,natom))
-          CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(2,natom))
-          CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(3,natom))
+          atom_info%r(1,natom) = cp_unit_to_cp2k(atom_info%r(1,natom),"angstrom",error=error)
+          atom_info%r(2,natom) = cp_unit_to_cp2k(atom_info%r(2,natom),"angstrom",error=error)
+          atom_info%r(3,natom) = cp_unit_to_cp2k(atom_info%r(3,natom),"angstrom",error=error)
        CASE ("TER")
           inum_mol = inum_mol + 1
           WRITE(root_mol_name,'(A3,I0)')"MOL",inum_mol

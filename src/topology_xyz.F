@@ -4,8 +4,6 @@
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 MODULE topology_xyz
-
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -14,6 +12,7 @@ MODULE topology_xyz
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -117,9 +116,9 @@ CONTAINS
                atom_info%r(3,j),&
                TRIM(atom_info%label_resname(j)),&
                atom_info%label_resid(j)
-          CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(1,j))
-          CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(2,j))
-          CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(3,j))
+          atom_info%r(1,j) = cp_unit_to_cp2k(atom_info%r(1,j),"angstrom",error=error)
+          atom_info%r(2,j) = cp_unit_to_cp2k(atom_info%r(2,j),"angstrom",error=error)
+          atom_info%r(3,j) = cp_unit_to_cp2k(atom_info%r(3,j),"angstrom",error=error)
           CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
           IF (my_end) THEN 
              CALL cp_assert(j==natom,cp_fatal_level,cp_assertion_failed,routineP,&

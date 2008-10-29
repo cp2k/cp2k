@@ -16,13 +16,11 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE force_fields_input
-
   USE bibliography,                    ONLY: Tersoff1988,&
                                              Tosi1964a,&
                                              Tosi1964b,&
                                              Yamada2000,&
                                              cite_reference
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -33,6 +31,7 @@ MODULE force_fields_input
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE force_field_types,               ONLY: charmm_info_type,&
                                              force_field_type,&
@@ -429,40 +428,28 @@ CPSourceFileRef,&
 !> \brief Set up of the BMHFT force fields
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE set_BMHFT_ff(at1, at2, ft )
+  SUBROUTINE set_BMHFT_ff(at1, at2, ft, error)
     CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
     TYPE(ft_pot_type), POINTER               :: ft
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    ft%b =  3.1545_dp     ! Ang^-1
-    CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%b , l_power = -1  )
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_BMHFT_ff', &
+      routineP = moduleN//':'//routineN
+
+    ft%b = cp_unit_to_cp2k(3.1545_dp,"angstrom^-1",error=error)
     IF  ( ( at1(1:2) == 'NA' ) .AND. ( at2 (1:2) == 'NA' ) ) THEN
-       ft%a = 424.097_dp  ! eV
-       CALL convert_to_cp2k_units ( "EV", energy = ft%a )
-       ft%c =    1.05_dp  ! eV * Ang^6
-       CALL convert_to_cp2k_units ( "EV", energy = ft%c )
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%c , l_power = 6  )
-       ft%d =   0.499_dp  ! eV * Ang^8
-       CALL convert_to_cp2k_units ( "EV", energy = ft%d )
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%d , l_power = 8  )
+       ft%a = cp_unit_to_cp2k(424.097_dp,"eV",error=error)
+       ft%c = cp_unit_to_cp2k(1.05_dp,"eV*angstrom^6",error=error)
+       ft%d = cp_unit_to_cp2k(0.499_dp,"eV*angstrom^8",error=error)
     ELSEIF(((at1(1:2) == 'NA').AND.(at2(1:2) == 'CL')).OR.&
          ((at1(1:2) == 'CL').AND.(at2(1:2) == 'NA'))) THEN
-       ft%a = 1256.31_dp  ! eV
-       CALL convert_to_cp2k_units ( "EV", energy = ft%a )
-       ft%c =    7.00_dp  ! eV * Ang^6
-       CALL convert_to_cp2k_units ( "EV", energy = ft%c )
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%c , l_power = 6  )
-       ft%d =   8.676_dp  ! eV * Ang^8
-       CALL convert_to_cp2k_units ( "EV", energy = ft%d )
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%d , l_power = 8  )
+       ft%a = cp_unit_to_cp2k(1256.31_dp,"eV",error=error)
+       ft%c = cp_unit_to_cp2k(7.00_dp,"eV*angstrom^6",error=error)
+       ft%d = cp_unit_to_cp2k(8.676_dp,"eV*angstrom^8",error=error)
     ELSEIF ( ( at1(1:2) == 'CL' ) .AND. ( at2 (1:2) == 'CL' ) ) THEN
-       ft%a = 3488.998_dp ! eV
-       CALL convert_to_cp2k_units ( "EV", energy = ft%a )
-       ft%c =    72.50_dp ! eV * Ang^6
-       CALL convert_to_cp2k_units ( "EV", energy = ft%c )
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%c , l_power = 6  )
-       ft%d =  145.427_dp ! eV * Ang^8
-       CALL convert_to_cp2k_units ( "EV", energy = ft%d )
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  ft%d , l_power = 8  )
+       ft%a = cp_unit_to_cp2k(3488.998_dp,"eV",error=error)
+       ft%c = cp_unit_to_cp2k(72.50_dp,"eV*angstrom^6",error=error)
+       ft%d = cp_unit_to_cp2k(145.427_dp,"eV*angstrom^8",error=error)
     ELSE
        CALL stop_program ("input_nonbonded","BMHFT only for NaCl")
     ENDIF
@@ -728,7 +715,8 @@ CPSourceFileRef,&
           map_atoms = atm_names
           CALL uppercase(map_atoms(1))
           CALL uppercase(map_atoms(2))
-          CALL set_BMHFT_ff(map_atoms(1), map_atoms(2), nonbonded%pot(start+isec)%pot%set(1)%ft )
+          CALL set_BMHFT_ff(map_atoms(1), map_atoms(2), nonbonded%pot(start+isec)%pot%set(1)%ft,&
+                            error=error)
        END IF
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
        nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
@@ -1400,15 +1388,12 @@ CPSourceFileRef,&
           CALL parser_get_object(parser,gro_info%bond_k(itype),error=error)
           CALL parser_get_object(parser,gro_info%bond_r0(itype),error=error)
           IF(ff_type%ff_type==do_ff_g96) THEN
-             CALL convert_to_cp2k_units("KJ",energy=gro_info%bond_k(itype))
-             CALL convert_to_cp2k_units("NM",length=gro_info%bond_k(itype),l_power=-4)
-             CALL convert_to_cp2k_units("NM",length=gro_info%bond_r0(itype))
+             gro_info%bond_k(itype) = cp_unit_to_cp2k(gro_info%bond_k(itype),"kjmol*nm^-4",error=error)
           ELSE ! Assume its G87
              gro_info%bond_k(itype) = (2.0_dp) * gro_info%bond_k(itype) * gro_info%bond_r0(itype)**2
-             CALL convert_to_cp2k_units("KJ",energy=gro_info%bond_k(itype))
-             CALL convert_to_cp2k_units("NM",length=gro_info%bond_k(itype),l_power=-2)
-             CALL convert_to_cp2k_units("NM",length=gro_info%bond_r0(itype))
+             gro_info%bond_k(itype) = cp_unit_to_cp2k(gro_info%bond_k(itype),"kjmol*nm^-2",error=error)
           END IF
+          gro_info%bond_r0(itype)= cp_unit_to_cp2k(gro_info%bond_r0(itype),"nm",error=error)
           IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDTYPE INFO HERE!!!!"
        END DO
     END IF
@@ -1426,25 +1411,16 @@ CPSourceFileRef,&
           CALL parser_get_next_line(parser,1,error=error)
           CALL parser_get_object(parser,gro_info%bend_k(itype),error=error)
           CALL parser_get_object(parser,gro_info%bend_theta0(itype),error=error)
+          gro_info%bend_theta0(itype) = cp_unit_to_cp2k(gro_info%bend_theta0(itype),"deg",error=error)
           IF(ff_type%ff_type==do_ff_g96) THEN
-
-             CALL convert_to_cp2k_units("DEGREE",angle=gro_info%bend_theta0(itype))
              gro_info%bend_theta0(itype) = COS(gro_info%bend_theta0(itype))
-             CALL convert_to_cp2k_units("KJ",energy=gro_info%bend_k(itype))
-
           ELSE ! Assume its G87
-
-             CALL convert_to_cp2k_units("DEGREE",angle=gro_info%bend_theta0(itype))
-
              cost2 = COS(gro_info%bend_theta0(itype))*COS(gro_info%bend_theta0(itype))
              sdet = cost2*cost2 - (2.0_dp*cost2-1.0_dp)*(1.0_dp-ekt/gro_info%bend_k(itype))
              csq = (cost2-SQRT(sdet))/(2.0_dp*cost2-1.0_dp)
              gro_info%bend_k(itype) = ekt/ACOS(csq)**2
-
-             CALL convert_to_cp2k_units("KJ",energy=gro_info%bend_k(itype))
-
           END IF
-
+          gro_info%bend_k(itype) = cp_unit_to_cp2k(gro_info%bend_k(itype),"kjmol",error=error)
           IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDANGLETYPE INFO HERE!!!!"
        END DO
     END IF
@@ -1462,12 +1438,8 @@ CPSourceFileRef,&
           CALL parser_get_next_line(parser,1,error=error)
           CALL parser_get_object(parser,gro_info%impr_k(itype),error=error)
           CALL parser_get_object(parser,gro_info%impr_phi0(itype),error=error)
-
-          CALL convert_to_cp2k_units("DEGREE",angle=gro_info%impr_phi0(itype))
-
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%impr_k(itype))
-          CALL convert_to_cp2k_units("DEGREE",angle=gro_info%impr_k(itype),l_power=-2)
-
+          gro_info%impr_phi0(itype) = cp_unit_to_cp2k(gro_info%impr_phi0(itype),"deg",error=error)
+          gro_info%impr_k(itype) = cp_unit_to_cp2k(gro_info%impr_k(itype),"kjmol*deg^-2",error=error)
           IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT IMPDIHEDRALTYPE INFO HERE!!!!"
        END DO
     END IF
@@ -1487,10 +1459,7 @@ CPSourceFileRef,&
           CALL parser_get_object(parser,gro_info%torsion_k(itype),error=error)
           CALL parser_get_object(parser,gro_info%torsion_cosphi0(itype),error=error)
           CALL parser_get_object(parser,gro_info%torsion_m(itype),error=error)
-
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%torsion_k(itype))
-          !gro_info%torsion_cosphi0(itype)= -gro_info%torsion_cosphi0(itype)
-
+          gro_info%torsion_k(itype) = cp_unit_to_cp2k(gro_info%torsion_k(itype),"kjmol",error=error) 
           IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT DIHEDRALTYPE INFO HERE!!!!"
        END DO
     END IF
@@ -1532,14 +1501,11 @@ CPSourceFileRef,&
           CALL parser_get_object(parser,gro_info%nonbond_c6(iatom,jatom),error=error)
           CALL parser_get_object(parser,gro_info%nonbond_c12_14(iatom,jatom),error=error)
           CALL parser_get_object(parser,gro_info%nonbond_c6_14(iatom,jatom),error=error)
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6(iatom,jatom))
-          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6(iatom,jatom),l_power=6)
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12(iatom,jatom))
-          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12(iatom,jatom),l_power=12)
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6_14(iatom,jatom))
-          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6_14(iatom,jatom),l_power=6)
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12_14(iatom,jatom))
-          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12_14(iatom,jatom),l_power=12)
+          gro_info%nonbond_c6(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c6(iatom,jatom),"kjmol*nm^6",error=error)
+          gro_info%nonbond_c12(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c12(iatom,jatom),"kjmol*nm^12",error=error)
+          gro_info%nonbond_c6_14(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c6_14(iatom,jatom),"kjmol*nm^6",error=error)
+          gro_info%nonbond_c12_14(iatom,jatom) = cp_unit_to_cp2k(gro_info%nonbond_c12_14(iatom,jatom),"kjmol*nm^12",error=error)
+          
           gro_info%nonbond_c6_14(jatom,iatom)= gro_info%nonbond_c6_14(iatom,jatom)
           gro_info%nonbond_c12_14(jatom,iatom)= gro_info%nonbond_c12_14(iatom,jatom)
           gro_info%nonbond_c6(jatom,iatom)= gro_info%nonbond_c6(iatom,jatom)
@@ -1653,10 +1619,8 @@ CPSourceFileRef,&
                      chm_info%bond_k(nbond),&
                      chm_info%bond_r0(nbond)
                 ! Do some units conversion into internal atomic units
-                CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%bond_r0(nbond))
-                CALL convert_to_cp2k_units("KCAL",energy=chm_info%bond_k(nbond))
-                CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
-                CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
+                chm_info%bond_r0(nbond) = cp_unit_to_cp2k(chm_info%bond_r0(nbond),"angstrom",error=error)
+                chm_info%bond_k(nbond) = cp_unit_to_cp2k(chm_info%bond_k(nbond),"kcalmol*angstrom^-2",error=error)
                 CALL charmm_get_next_line(parser,1,error=error)
              END DO
           ELSE
@@ -1711,8 +1675,8 @@ CPSourceFileRef,&
                      chm_info%bend_k(nbend),&
                      chm_info%bend_theta0(nbend)
                 ! Do some units conversion into internal atomic units
-                CALL convert_to_cp2k_units("DEGREE",angle=chm_info%bend_theta0(nbend))
-                CALL convert_to_cp2k_units("KCAL",energy=chm_info%bend_k(nbend))
+                chm_info%bend_theta0(nbend) = cp_unit_to_cp2k(chm_info%bend_theta0(nbend),"deg",error=error)
+                chm_info%bend_k(nbend) = cp_unit_to_cp2k(chm_info%bend_k(nbend),"kcalmol*rad^-2",error=error)
                 IF (parser_test_next_token(parser,error=error) == "FLT") THEN
                    nub = nub + 1
                    CALL reallocate(chm_info%ub_a,1,nub)
@@ -1732,10 +1696,8 @@ CPSourceFileRef,&
                         chm_info%ub_k(nub),&
                         chm_info%ub_r0(nub)
                    ! Do some units conversion into internal atomic units
-                   CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%ub_r0(nub))
-                   CALL convert_to_cp2k_units("KCAL",energy=chm_info%ub_k(nub))
-                   CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
-                   CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
+                   chm_info%ub_r0(nub) = cp_unit_to_cp2k(chm_info%ub_r0(nub),"angstrom",error=error)
+                   chm_info%ub_k(nub) = cp_unit_to_cp2k(chm_info%ub_k(nub),"kcalmol*angstrom^-2",error=error)
                 END IF
                 CALL charmm_get_next_line(parser,1,error=error)
              END DO
@@ -1795,9 +1757,10 @@ CPSourceFileRef,&
                      chm_info%torsion_m(ntorsion),&
                      chm_info%torsion_cosphi0(ntorsion)
                 ! Do some units conversion into internal atomic units
-                CALL convert_to_cp2k_units("DEGREE",&
-                     angle=chm_info%torsion_cosphi0(ntorsion))
-                CALL convert_to_cp2k_units("KCAL",energy=chm_info%torsion_k(ntorsion))
+                chm_info%torsion_cosphi0(ntorsion) = cp_unit_to_cp2k(chm_info%torsion_cosphi0(ntorsion),&
+                     "deg",error=error)
+                chm_info%torsion_k(ntorsion) = cp_unit_to_cp2k(chm_info%torsion_k(ntorsion),"kcalmol",&
+                     error=error)
                 chm_info%torsion_cosphi0(ntorsion)=&
                      COS(chm_info%torsion_cosphi0(ntorsion))
                 CALL charmm_get_next_line(parser,1,error=error)
@@ -1856,8 +1819,8 @@ CPSourceFileRef,&
                      chm_info%impr_k(nimpr),&
                      chm_info%impr_phi0(nimpr)
                 ! Do some units conversion into internal atomic units
-                CALL convert_to_cp2k_units("DEGREE",angle=chm_info%impr_phi0(nimpr))
-                CALL convert_to_cp2k_units("KCAL",energy=chm_info%impr_k(nimpr))
+                chm_info%impr_phi0(nimpr) = cp_unit_to_cp2k(chm_info%impr_phi0(nimpr),"deg",error=error)
+                chm_info%impr_k(nimpr) = cp_unit_to_cp2k(chm_info%impr_k(nimpr),"kcalmol",error=error)
                 CALL charmm_get_next_line(parser,1,error=error)
              END DO
           ELSE
@@ -1897,10 +1860,10 @@ CPSourceFileRef,&
                      TRIM(chm_info%nonbond_a(nnonbond))," ",&
                      chm_info%nonbond_eps(nnonbond),&
                      chm_info%nonbond_rmin2(nnonbond)
-                CALL convert_to_cp2k_units("ANGSTROM",&
-                     length=chm_info%nonbond_rmin2(nnonbond))
-                CALL convert_to_cp2k_units("KCAL",&
-                     energy=chm_info%nonbond_eps(nnonbond))
+                chm_info%nonbond_rmin2(nnonbond) = cp_unit_to_cp2k(chm_info%nonbond_rmin2(nnonbond),&
+                     "angstrom", error=error)
+                chm_info%nonbond_eps(nnonbond) = cp_unit_to_cp2k(chm_info%nonbond_eps(nnonbond),&
+                     "kcalmol",error=error)
                 IF (parser_test_next_token(parser,error=error) == "FLT") THEN
                    nonfo = nonfo + 1
                    CALL reallocate(chm_info%nonbond_a_14,1,nonfo)
@@ -1914,10 +1877,10 @@ CPSourceFileRef,&
                         TRIM(chm_info%nonbond_a_14(nonfo))," ",&
                         chm_info%nonbond_eps_14(nonfo),&
                         chm_info%nonbond_rmin2_14(nonfo)
-                   CALL convert_to_cp2k_units("ANGSTROM",&
-                        length=chm_info%nonbond_rmin2_14(nonfo))
-                   CALL convert_to_cp2k_units("KCAL",&
-                        energy=chm_info%nonbond_eps_14(nonfo))
+                   chm_info%nonbond_rmin2_14(nonfo) = cp_unit_to_cp2k(chm_info%nonbond_rmin2_14(nonfo),&
+                        "angstrom",error=error)
+                   chm_info%nonbond_eps_14(nonfo) = cp_unit_to_cp2k(chm_info%nonbond_eps_14(nonfo),&
+                        "kcalmol",error=error)
                 END IF
                 CALL charmm_get_next_line(parser,1,error=error)
              END DO
@@ -1995,8 +1958,8 @@ CPSourceFileRef,&
 
        CALL parser_get_next_line(parser,2,error=error)
        READ(parser%input_line,*) eam%drar, eam%drhoar, eam%acutal, eam%npoints
-       CALL convert_to_cp2k_units ("ANGSTROM",length=eam%drar )
-       CALL convert_to_cp2k_units ("ANGSTROM",length=eam%acutal )
+       eam%drar = cp_unit_to_cp2k(eam%drar,"angstrom",error=error)
+       eam%acutal = cp_unit_to_cp2k(eam%acutal,"angstrom",error=error)
        ! Relocating arrays with the right size
        CALL reallocate(eam%rho, 1, eam%npoints)
        CALL reallocate(eam%rhop, 1, eam%npoints)
@@ -2010,7 +1973,7 @@ CPSourceFileRef,&
        DO i = 1,eam%npoints
           CALL parser_get_next_line(parser,1,error=error)
           READ (parser%input_line,*) eam%rho(i), eam%rhop(i)
-          CALL convert_to_cp2k_units ("ANGSTROM",length=eam%rhop(i), l_power=-1 )
+          eam%rhop(i) = cp_unit_to_cp2k(eam%rhop(i),"angstrom^-1",error=error)
           eam%rval(i)   = REAL(i-1,KIND=dp)*eam%drar
           eam%rhoval(i) = REAL(i-1,KIND=dp)*eam%drhoar
        END DO
@@ -2018,16 +1981,15 @@ CPSourceFileRef,&
        DO i = 1,eam%npoints
           CALL parser_get_next_line(parser,1,error=error)
           READ (parser%input_line,*) eam%phi(i), eam%phip(i)
-          CALL convert_to_cp2k_units ("EV",energy=eam%phi(i))
-          CALL convert_to_cp2k_units ("EV",energy=eam%phip(i))
-          CALL convert_to_cp2k_units ("ANGSTROM",length=eam%phip(i),l_power=-1)
+          eam%phi(i)  = cp_unit_to_cp2k(eam%phi(i),"eV",error=error)
+          eam%phip(i) = cp_unit_to_cp2k(eam%phip(i),"eV*angstrom^-1",error=error)
        END DO
        ! Reading embedded function and its derivative (with respect to density)
        DO i = 1,eam%npoints
           CALL parser_get_next_line(parser,1,error=error)
           READ (parser%input_line,*) eam%frho(i), eam%frhop(i)
-          CALL convert_to_cp2k_units ("EV",energy=eam%frho(i))
-          CALL convert_to_cp2k_units ("EV",energy=eam%frhop(i))
+          eam%frho(i) = cp_unit_to_cp2k(eam%frho(i),"eV",error=error)
+          eam%frhop(i) = cp_unit_to_cp2k(eam%frhop(i),"eV",error=error)
        END DO
 
        IF (iw>0) WRITE(iw,*)"Finished EAM data"

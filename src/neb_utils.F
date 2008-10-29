@@ -26,7 +26,6 @@ MODULE neb_utils
   USE colvar_utils,                    ONLY: eval_colvar,&
                                              get_clv_force,&
                                              set_colvars_target
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -35,6 +34,7 @@ MODULE neb_utils
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
@@ -214,9 +214,9 @@ CONTAINS
 CPSourceFileRef,&
                 only_ionode=.TRUE.)
                 READ(parser%input_line,*)dummy_char,coords%xyz((j-1)*3+1:(j-1)*3+3,i)
-                CALL convert_to_cp2k_units("ANGSTROM",length=coords%xyz((j-1)*3+1,i))
-                CALL convert_to_cp2k_units("ANGSTROM",length=coords%xyz((j-1)*3+2,i))
-                CALL convert_to_cp2k_units("ANGSTROM",length=coords%xyz((j-1)*3+3,i))
+                coords%xyz((j-1)*3+1,i) = cp_unit_to_cp2k(coords%xyz((j-1)*3+1,i),"angstrom",error=error)
+                coords%xyz((j-1)*3+2,i) = cp_unit_to_cp2k(coords%xyz((j-1)*3+2,i),"angstrom",error=error)
+                coords%xyz((j-1)*3+3,i) = cp_unit_to_cp2k(coords%xyz((j-1)*3+3,i),"angstrom",error=error)
              END DO
              CALL parser_release(parser,error=error)
           END IF

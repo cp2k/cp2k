@@ -14,10 +14,10 @@ MODULE topology_generate_util
                                              deallocate_atomic_kind_set,&
                                              set_atomic_kind
   USE cell_types,                      ONLY: pbc
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_deallocate,&
                                              fist_neighbor_type
@@ -604,7 +604,7 @@ CONTAINS
           END IF
           ! isolated atoms? put the radius to 0.0_dp
           IF (ANY(isolated_atoms==iatom)) radius(iatom) = 0.0_dp
-          CALL convert_to_cp2k_units("ANGSTROM",length=radius(iatom))
+          radius(iatom) = cp_unit_to_cp2k(radius(iatom),"angstrom",error=error)
           IF(iw>0) WRITE(iw,'(T2,"GENERATE|",5X,A,T50,A5,T60,A,T69,F12.6)') &
                "In topology_generate_bond :: iatom = ",ptable(ielem_found)%symbol,&
                "radius:",radius(iatom)

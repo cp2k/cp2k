@@ -2,3 +2,6 @@
 # bug fix restraint torsion
 2gly_IT-NEB-CV.inp
 2gly_IT-NEB-CV-res.inp
+# numerics after new units converter
+2gly_IT-NEB-CV.inp
+2gly_IT-NEB-CV-res.inp
