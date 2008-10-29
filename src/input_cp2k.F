@@ -400,6 +400,13 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="FLUSH_SHOULD_FLUSH",&
+         description="Flush output regularly, enabling this option might degrade performance significantly.",&
+         usage="FLUSH_SHOULD_FLUSH",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="TRACE_SYNC",&
          description="For parallel TRACEd runs: synchronize the output of all processes,"//&
                      "i.e. all output written by the parent node."//&

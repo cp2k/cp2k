@@ -14,73 +14,73 @@ MODULE machine
   USE  kinds,  ONLY        : dp
 #if defined ( __AIX )
   USE machine_aix, ONLY    : & 
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __IRIX )
   USE machine_irix, ONLY   : &
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __G95 )
   USE machine_g95, ONLY    : &
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __GFORTRAN )
   USE machine_gfortran, ONLY    : &
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __INTEL )
   USE machine_intel, ONLY  : &
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 ! must be before __PGI because pgf90 defines __PGI
 #elif defined ( __XT3 )
   USE machine_xt3, ONLY    : &
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __XT5 )
   USE machine_xt5, ONLY    : &
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __PGI )
   USE machine_pgi, ONLY    : &
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __T3E )
   USE machine_t3e, ONLY    : &
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __DEC )
   USE machine_dec, ONLY    : &
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __ABSOFT )
   USE machine_absoft, ONLY : &
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __SUN )
   USE machine_sun, ONLY    : &
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __NAG )
   USE machine_nag, ONLY    : &
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __SX )
   USE machine_sx, ONLY    : &
-       m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush_internal=>m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #endif
@@ -105,8 +105,22 @@ MODULE machine
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 
-CONTAINS
+  ! should only be set according to the state in &GLOBAL
+  LOGICAL, SAVE, PUBLIC :: flush_should_flush=.FALSE.
 
+CONTAINS
+! *****************************************************************************
+!> \brief flushes units if the &GLOBAL flag is set accordingly
+!> \note
+!>      flushing might degrade performance significantly (30% and more)
+!> \par History
+!>      10.2008 created [Joost VandeVondele]
+! *****************************************************************************
+SUBROUTINE m_flush(lunit)
+    INTEGER, INTENT(IN)                      :: lunit
+
+   IF (flush_should_flush) CALL m_flush_internal(lunit)
+END SUBROUTINE
 ! *****************************************************************************
 !> \brief returns time from a real-time clock, protected against rolling 
 !>      early/easily 
