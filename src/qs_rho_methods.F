@@ -273,11 +273,13 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, nspins
+    INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure, gapw, gapw_xc
     REAL(KIND=dp)                            :: dum
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho_xc
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
@@ -359,6 +361,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
          ENDIF
       ENDIF
     END IF
+
+    CALL timestop(handle)
 
 END SUBROUTINE qs_rho_update_rho
 

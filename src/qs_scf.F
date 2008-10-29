@@ -488,7 +488,7 @@ CONTAINS
        exit_inner_loop    = .FALSE.
        scf_loop: DO
 
-          CALL timeset(routineN,handle2)
+          CALL timeset(routineN//"_inner_loop",handle2)
 
           scf_env%iter_count = scf_env%iter_count + 1
           iter_count =  iter_count + 1
@@ -936,11 +936,14 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: has_unit_metric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: ispin
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_do_ot', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
 
-! in case of LSD the first spin qs_ot_env will drive the minimization
-! in the case of a restricted calculation, it will make sure the spin orbitals are equal
+    CALL timeset(routineN,handle)
+
 
     IF (has_unit_metric) THEN
       NULLIFY(orthogonality_metric)
@@ -948,6 +951,8 @@ CONTAINS
       orthogonality_metric=>matrix_s(1)%matrix
     END IF
 
+    ! in case of LSD the first spin qs_ot_env will drive the minimization
+    ! in the case of a restricted calculation, it will make sure the spin orbitals are equal
 
     CALL ot_scf_mini(mos,mo_derivs,smear,orthogonality_metric, &
                      total_energy, aux_coeff_set,    &
@@ -966,8 +971,11 @@ CONTAINS
                                     error=error)
     END DO
 
+
     scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
     scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
+
+    CALL timestop(handle)
 
   END SUBROUTINE qs_scf_loop_do_ot
 
@@ -1020,8 +1028,13 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
     TYPE(dft_control_type), POINTER          :: dft_control
     LOGICAL, INTENT(IN)                      :: qmmm, gapw, gapw_xc
 
-    INTEGER                                  :: ispin
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_print_summary', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin
     REAL(kind=dp)                            :: tot1_h, tot1_s
+
+    CALL timeset(routineN,handle)
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
@@ -1127,6 +1140,8 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
        END IF
        CALL m_flush(output_unit)
     END IF
+
+    CALL timestop(handle)
 
 END SUBROUTINE qs_scf_print_summary
 

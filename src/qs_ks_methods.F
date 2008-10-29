@@ -2360,33 +2360,40 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_chang
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_did_change', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    CALL timeset(routineN,handle)
+    
 
-  CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     IF (PRESENT(rho_changed)) THEN
-        IF (rho_changed) ks_env%rho_changed=.TRUE.
-     END IF
-     IF (PRESENT(potential_changed)) THEN
-        IF (potential_changed) ks_env%potential_changed=.TRUE.
-     END IF
-     IF (PRESENT(s_mstruct_changed)) THEN
-        IF (s_mstruct_changed) THEN
-           ks_env%s_mstruct_changed=.TRUE.
-        END IF
-     END IF
-     IF (PRESENT(full_reset)) THEN
-        IF (full_reset) THEN
-           ks_env%potential_changed=.TRUE.
-           ks_env%s_mstruct_changed=.TRUE.
-        END IF
-     END IF
-     IF (ks_env%s_mstruct_changed.OR.ks_env%potential_changed.or.&
-          ks_env%rho_changed) ks_env%forces_up_to_date=.FALSE.
-  END IF
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       IF (PRESENT(rho_changed)) THEN
+          IF (rho_changed) ks_env%rho_changed=.TRUE.
+       END IF
+       IF (PRESENT(potential_changed)) THEN
+          IF (potential_changed) ks_env%potential_changed=.TRUE.
+       END IF
+       IF (PRESENT(s_mstruct_changed)) THEN
+          IF (s_mstruct_changed) THEN
+             ks_env%s_mstruct_changed=.TRUE.
+          END IF
+       END IF
+       IF (PRESENT(full_reset)) THEN
+          IF (full_reset) THEN
+             ks_env%potential_changed=.TRUE.
+             ks_env%s_mstruct_changed=.TRUE.
+          END IF
+       END IF
+       IF (ks_env%s_mstruct_changed.OR.ks_env%potential_changed.or.&
+            ks_env%rho_changed) ks_env%forces_up_to_date=.FALSE.
+    END IF
+
+    CALL  timestop(handle)
+
 END SUBROUTINE qs_ks_did_change
 
 ! *****************************************************************************
