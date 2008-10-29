@@ -384,7 +384,7 @@
  <ul class="disc">
   <xsl:for-each select="$element">
    <xsl:sort select="NAME[@type='default']"/>
-   <xsl:if test="not(starts-with(NAME[@type='default'],'__'))">
+   <xsl:if test="not(starts-with(NAME[@type='default'],'__CONTROL'))">
     <li>
      <a href="#desc_{string(NAME[@type='default'])}" id="list_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
     </li>
@@ -399,7 +399,7 @@
  <xsl:param name="section_filename"/>
  <xsl:for-each select="$element">
   <xsl:sort select="NAME[@type='default']"/>
-  <xsl:if test="not(starts-with(NAME[@type='default'],'__'))">
+  <xsl:if test="not(starts-with(NAME[@type='default'],'__CONTROL'))">
    <table class="default">
     <tr>
      <td class="l">

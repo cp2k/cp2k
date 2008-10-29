@@ -30,6 +30,10 @@
    <p>
     <a href="references.html">List of references</a> cited in the CP2K input manual.
    </p>
+   <h2>CP2K units</h2>
+   <p>
+    <a href="units.html">Available units of measurement</a> which can be used in the CP2K input for keyword values.
+   </p>
    <h2>Internal input preprocessor</h2>
    <p>
     Before the input is parsed, the input is run through a simple internal preprocessor.
@@ -66,11 +70,10 @@
     </dd>
    </dl>
    <h2>Input structure</h2>
-    All sections and keywords that can be part of a CP2K input file are shown
-    with their allowed nestings. A detailed description can be obtained by
-    clicking on the section links. The links in the detailed descriptions switch
-    back to the corresponding index entries. In this way a toggling between the
-    index and the detailed description is feasible.
+    All sections that can be part of a CP2K input file are shown here with their allowed nestings.
+    A detailed description of each section and its keywords can be obtained by clicking on the
+    section links. The links in the detailed descriptions switch back to the corresponding index
+    entries. In this way a toggling between the index and the detailed description is feasible.
    <h2>Index of all input sections</h2>
    <h4>Last update: <xsl:value-of select="COMPILE_DATE"/></h4>
    <p>
@@ -436,7 +439,7 @@
  <ul class="disc">
   <xsl:for-each select="$element">
    <xsl:sort select="NAME[@type='default']"/>
-   <xsl:if test="not(starts-with(NAME[@type='default'],'__'))">
+   <xsl:if test="not(starts-with(NAME[@type='default'],'__CONTROL'))">
     <li>
      <a href="#desc_{string(NAME[@type='default'])}" id="list_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
     </li>
@@ -451,7 +454,7 @@
  <xsl:param name="section_filename"/>
  <xsl:for-each select="$element">
   <xsl:sort select="NAME[@type='default']"/>
-  <xsl:if test="not(starts-with(NAME[@type='default'],'__'))">
+  <xsl:if test="not(starts-with(NAME[@type='default'],'__CONTROL'))">
    <table class="default">
     <tr>
      <td class="l">
@@ -546,7 +549,7 @@
       <td class="l">
       </td>
       <td class="r">
-       Default unit:
+       <a href="{$root}units.html">Default unit:</a>
        <big class="tt">
         [<xsl:value-of select="DEFAULT_UNIT"/>]
        </big>
