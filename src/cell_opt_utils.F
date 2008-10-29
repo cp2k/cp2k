@@ -7,7 +7,7 @@
 !> \brief contains a functional that calculates the energy and its derivatives
 !>      for the geometry optimizer
 !> \par History
-!>      none
+!>      03.2008 - Teodoro Laino [tlaino] - University of Zurich - Cell Optimization
 ! *****************************************************************************
 MODULE cell_opt_utils
   USE cell_types,                      ONLY: cell_type,&
@@ -49,8 +49,7 @@ MODULE cell_opt_utils
 CONTAINS
 ! *****************************************************************************
 !> \param Transform a general cell matrix into an upper triangular one
-!> \par History
-!>      none
+!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
   SUBROUTINE get_ut_cell_matrix(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -76,8 +75,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \param creates a new error used for cell optimization algorithm
-!> \par History
-!>      none
+!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
   SUBROUTINE gopt_new_error_create(new_error, root_section, para_env, project_name,&
        id_run, error)
@@ -148,8 +146,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \param releases a new error used for cell optimization algorithm
-!> \par History
-!>      none
+!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
   SUBROUTINE gopt_new_error_release(new_error, root_section, para_env, project_name, id_run, error)
     TYPE(cp_error_type), INTENT(inout)       :: new_error
@@ -179,8 +176,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \param Reads the external pressure tensor
-!> \par History
-!>      none
+!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
   SUBROUTINE read_external_press_tensor(geo_section, cell, pres_ext, mtrx, rot, error)
     TYPE(section_vals_type), POINTER         :: geo_section
@@ -242,8 +238,7 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \param Computes the derivatives for the cell
-!> \par History
-!>      none
+!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
   SUBROUTINE get_dg_dh(gradient,av_ptens,pres_ext,cell,mtrx,keep_angles,pres_int,error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient
