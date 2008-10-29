@@ -19,9 +19,9 @@ MODULE topology
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: &
-       do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, &
-       do_conn_off, do_conn_psf, do_conn_psf_u, do_coord_crd, do_coord_g96, &
-       do_coord_pdb, do_coord_xyz
+       do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
+       do_conn_mol_set, do_conn_off, do_conn_psf, do_conn_psf_u, &
+       do_coord_crd, do_coord_g96, do_coord_pdb, do_coord_xyz
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -40,7 +40,8 @@ MODULE topology
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology_amber,                  ONLY: read_coordinate_crd
+  USE topology_amber,                  ONLY: read_connectivity_amber,&
+                                             read_coordinate_crd
   USE topology_connectivity_util,      ONLY: topology_connectivity_pack
   USE topology_constraint_util,        ONLY: topology_constraint_pack
   USE topology_coordinate_util,        ONLY: topology_coordinate_pack
@@ -352,16 +353,19 @@ CONTAINS
        CALL pre_read_topology_psf(topology,subsys_section,error)
        CALL read_topology_psf(topology%conn_file_name,topology,para_env,subsys_section,&
             topology%conn_type, error)
-    CASE(do_conn_generate,do_conn_off)
+    CASE (do_conn_amb7)
+       CALL read_connectivity_amber(topology%conn_file_name,topology,para_env,subsys_section,&
+            error)
+    CASE (do_conn_generate, do_conn_off)
        ! Do nothing for the time being.. after we check element we go on if that is
        ! the case
     CASE DEFAULT
        ! No default.. stop the execution
        CALL stop_program ("connectivity_control","no default")
     END SELECT
-    ! Post process of PSF information
+    ! Post process of PSF and AMBER information 
     SELECT CASE (topology%conn_type)
-    CASE (do_conn_mol_set,do_conn_psf, do_conn_psf_u)
+    CASE (do_conn_mol_set, do_conn_psf, do_conn_psf_u, do_conn_amb7)
        CALL psf_post_process(topology,subsys_section,error)
     END SELECT
     !-----------------------------------------------------------------------------
@@ -454,7 +458,8 @@ CONTAINS
 !> \brief 1. If reading in from external file, make sure its there first
 !>      2. Read in the coordinates from the corresponding locations
 !> \par History
-!>      none
+!>      - Teodoro Laino [tlaino] - University of Zurich 10.2008
+!>        adding support for AMBER coordinates
 !> \author IKUO 08.11.2003
 ! *****************************************************************************
   SUBROUTINE coordinate_control(topology,root_section,para_env,subsys_section,error)

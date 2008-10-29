@@ -31,7 +31,8 @@ MODULE topology_generate_util
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathlib,                         ONLY: matvec_3x3
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: allocate_particle_set,&
@@ -71,9 +72,90 @@ MODULE topology_generate_util
             topology_generate_impr,&
             topology_generate_onfo,&
             topology_generate_ub,&
-            topology_generate_molecule
+            topology_generate_molecule,&
+            topology_generate_molname
   
 CONTAINS
+
+! *****************************************************************************
+!> \brief Generates molnames: useful when the connectivity on file does not 
+!>        provide them
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  SUBROUTINE topology_generate_molname(conn_info, natom, label_molname, error)
+    TYPE(connectivity_info_type), POINTER    :: conn_info
+    INTEGER, INTENT(IN)                      :: natom
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: label_molname
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molname', &
+      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=default_string_length), &
+      PARAMETER                              :: basename = "MOL"
+
+    CHARACTER(LEN=default_string_length)     :: molname
+    INTEGER                                  :: i, N, nmol, stat
+    LOGICAL                                  :: failure
+    TYPE(array1_list_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: atom_bond_list
+
+    failure = .FALSE.
+    ! convert a simple list of bonds to a list of bonds per atom
+    ! (each bond is present in the forward and backward direction
+    ALLOCATE(atom_bond_list(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO I=1,natom
+       ALLOCATE(atom_bond_list(I)%array1(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    N = 0
+    IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
+    CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
+    
+    nmol=0
+    DO i = 1, natom
+       IF (label_molname(i)=="__UNDEF__") THEN
+          molname = TRIM(basename)//ADJUSTL(cp_to_string(nmol))
+          CALL generate_molname_low(i, atom_bond_list, molname, label_molname, error)
+          nmol = nmol + 1
+       END IF
+    END DO
+    DO I=1,natom
+       DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(atom_bond_list,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     
+  END SUBROUTINE topology_generate_molname
+
+! *****************************************************************************
+!> \brief Generates molnames: useful when the connectivity on file does not 
+!>        provide them
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  RECURSIVE SUBROUTINE generate_molname_low(i, atom_bond_list, molname, label_molname, error)
+    INTEGER, INTENT(IN)                      :: i
+    TYPE(array1_list_type), DIMENSION(:)     :: atom_bond_list
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN)                             :: molname
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: label_molname
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'generate_molname_low', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: j
+
+    label_molname(i) = molname
+    DO j = 1, SIZE(atom_bond_list(i)%array1)
+       IF (atom_bond_list(i)%array1(j)<=i) CYCLE
+       CALL generate_molname_low(atom_bond_list(i)%array1(j), atom_bond_list, molname,&
+                                 label_molname, error)
+    END DO
+  END SUBROUTINE generate_molname_low
 
 ! *****************************************************************************
 !> \brief Use information from bond list to generate molecule. (ie clustering)

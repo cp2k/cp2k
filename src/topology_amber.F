@@ -14,7 +14,9 @@ MODULE topology_amber
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_methods,               ONLY: parser_get_next_line,&
-                                             parser_get_object
+                                             parser_get_object,&
+                                             parser_search_string,&
+                                             parser_test_next_token
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
@@ -27,17 +29,27 @@ MODULE topology_amber
   USE memory_utilities,                ONLY: reallocate
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE topology_generate_util,          ONLY: topology_generate_molname
   USE topology_types,                  ONLY: atom_info_type,&
+                                             connectivity_info_type,&
                                              topology_parameters_type
+  USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_amber'
-  REAL(KIND=dp), PARAMETER, PUBLIC     :: amber_conv_factor = 20.455_dp
+  REAL(KIND=dp), PARAMETER, PUBLIC     :: amber_conv_factor = 20.4550_dp,&
+                                          amber_conv_charge = 18.2223_dp
 
   PRIVATE
-  PUBLIC :: read_coordinate_crd
+  PUBLIC :: read_coordinate_crd, read_connectivity_amber
+
+  ! Reading Amber sections routines
+  INTERFACE rd_amber_section
+     MODULE PROCEDURE rd_amber_section_i1, rd_amber_section_c1, rd_amber_section_r1,&
+                      rd_amber_section_i3, rd_amber_section_i4, rd_amber_section_i5
+  END INTERFACE
 
 CONTAINS
 
@@ -104,10 +116,13 @@ CONTAINS
     IF(iw>0) WRITE(iw,'(T2,A)') 'CRD_INFO| Parsing the TITLE section'
     CALL parser_create(parser,topology%coord_file_name,para_env=para_env,error=error)
     CALL parser_get_next_line(parser,1,error=error)
-    CALL parser_get_object(parser,string,string_length=default_string_length,error=error)
-    IF(iw>0) WRITE(iw,'(T2,A)') 'CRD_INFO| '//TRIM(string)
-    ! Natom and Time (which we ignore)
-    CALL parser_get_next_line(parser,1,error=error)
+    ! Title may be missing
+    IF (parser_test_next_token(parser,error=error)=="STR") THEN
+       CALL parser_get_object(parser,string,string_length=default_string_length,error=error)
+       IF(iw>0) WRITE(iw,'(T2,A)') 'CRD_INFO| '//TRIM(string)
+       ! Natom and Time (which we ignore)
+       CALL parser_get_next_line(parser,1,error=error)
+    END IF
     CALL parser_get_object(parser,natom,error=error)
     topology%natoms = natom
     IF(iw>0) WRITE(iw,'(T2,A,I0)') 'CRD_INFO| Number of atoms: ',natom
@@ -123,7 +138,6 @@ CONTAINS
     CALL reallocate(atom_info%element,       1,    natom)    
     ! Coordinates
     topology%aa_element        = .TRUE.
-    topology%molname_generated = .TRUE.
     CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
     DO j = 1, natom-MOD(natom,2), 2
        IF (my_end) EXIT
@@ -261,6 +275,976 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE read_coordinate_crd
+
+! *****************************************************************************
+!> \brief Read AMBER topology file (.top) : At this level we parse only the 
+!>        connectivity info the .top file. ForceField information will be
+!>        handled later
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  SUBROUTINE read_connectivity_amber (filename, topology, para_env, subsys_section, error)
+    CHARACTER(LEN=*), INTENT(IN)             :: filename
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_connectivity_amber', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iatom, iw, output_unit
+    LOGICAL                                  :: failure, ionode
+    TYPE(atom_info_type), POINTER            :: atom_info
+    TYPE(connectivity_info_type), POINTER    :: conn_info
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    NULLIFY(logger)
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit = -1
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/AMBER_INFO",&
+         extension=".subsysLog",error=error)
+    CALL timeset(routineN,handle)
+    atom_info => topology%atom_info
+    conn_info => topology%conn_info
+
+    ! Read the Amber topology file
+    CALL rdparm_amber_8(filename, iw, para_env, do_connectivity=.TRUE., do_forcefield=.FALSE.,&
+         atom_info=atom_info, conn_info=conn_info, error=error)
+
+    ! In case element was autoassigned let's keep up2date the element name 
+    ! with the atom_name
+    IF (topology%aa_element) THEN
+       DO iatom=1,topology%natoms
+          atom_info%element(iatom) = atom_info%label_atmname(iatom)
+       END DO
+    END IF
+
+    ! Molnames have been internally generated
+    topology%molname_generated = .TRUE.
+    
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/AMBER_INFO",error=error)
+    CALL timestop(handle)
+  END SUBROUTINE read_connectivity_amber
+
+! *****************************************************************************
+!> \brief  Access information form the AMBER topology file
+!>         Notes on file structure:
+!>
+!>          NATOM        ! Total number of Atoms                                                     
+!>          NTYPES       ! Total number of distinct atom types                                       
+!>          NBONH        ! Number of bonds containing hydrogens                                      
+!>          MBONA        ! Number of bonds not containing hydrogens                                  
+!>          NTHETH       ! Number of angles containing hydrogens                                     
+!>          MTHETA       ! Number of angles not containing hydrogens                                 
+!>          NPHIH        ! Number of dihedrals containing hydrogens                                  
+!>          MPHIA        ! Number of dihedrals not containing hydrogens                              
+!>          NHPARM       !    currently NOT USED                                                     
+!>          NPARM        !    set to 1 if LES is used                                                
+!>          NNB          !    number of excluded atoms                                               
+!>          NRES         ! Number of residues                                                        
+!>          NBONA        !    MBONA  + number of constraint bonds     ( in v.8 NBONA=MBONA)          
+!>          NTHETA       !    MTHETA + number of constraint angles    ( in v.8 NBONA=MBONA)          
+!>          NPHIA        !    MPHIA  + number of constraint dihedrals ( in v.8 NBONA=MBONA)          
+!>          NUMBND       ! Number of unique bond types                                               
+!>          NUMANG       ! Number of unique angle types                                              
+!>          NPTRA        ! Number of unique dihedral types                                           
+!>          NATYP        ! Number of atom types in parameter file                                    
+!>          NPHB         ! Number of distinct 10-12 hydrogen bond pair types                         
+!>          IFPERT       !    Variable not used in this converter...                                 
+!>          NBPER        !    Variable not used in this converter...                                 
+!>          NGPER        !    Variable not used in this converter...                                 
+!>          NDPER        !    Variable not used in this converter...                                 
+!>          MBPER        !    Variable not used in this converter...                                 
+!>          MGPER        !    Variable not used in this converter...                                 
+!>          MDPER        !    Variable not used in this converter...                                 
+!>          IFBOX        !    Variable not used in this converter...                                 
+!>          NMXRS        !    Variable not used in this converter...                                 
+!>          IFCAP        !    Variable not used in this converter...                                 
+!>          NUMEXTRA     !    Variable not used in this converter...
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  SUBROUTINE rdparm_amber_8(filename, output_unit, para_env, do_connectivity,&
+       do_forcefield, atom_info, conn_info, error)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: filename
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, INTENT(IN)                      :: do_connectivity, do_forcefield
+    TYPE(atom_info_type), OPTIONAL, POINTER  :: atom_info
+    TYPE(connectivity_info_type), OPTIONAL, &
+      POINTER                                :: conn_info
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rdparm_amber_8', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: input_format, section, title
+    CHARACTER(LEN=default_string_length), &
+      ALLOCATABLE, DIMENSION(:)              :: isymbl, labres
+    INTEGER :: i, ifbox, ifcap, ifpert, info(31), istart, mbona, mbper, &
+      mdper, mgper, mphia, mtheta, natom, natyp, nbona, nbonh, nbper, ndper, &
+      ngper, nhparm, nmxrs, nnb, nparm, nphb, nphia, nphih, nptra, nres, &
+      ntheta, ntheth, ntypes, numang, numbnd, numextra, stat, unique_torsions
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: iac, ib, ibh, icb, icbh, ico, icp, &
+      icph, ict, icth, ip, iph, ipres, it, ith, iwork, jb, jbh, jp, jph, jt, &
+      jth, kp, kph, kt, kth, lp, lph
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: full_torsions
+    LOGICAL                                  :: check, failure, valid_format
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: asol, bsol, cn1, cn2, phase, &
+                                                pk, pn, req, rk, teq, tk
+    TYPE(cp_parser_type), POINTER            :: parser
+
+    failure = .FALSE.
+    NULLIFY(parser)
+    IF (output_unit>0) WRITE(output_unit,'(/,A)')" AMBER_INFO| Reading Amber Topology File: "//&
+         TRIM(filename)
+    CALL parser_create(parser,filename,para_env=para_env,error=error)
+    valid_format = check_amber_8_std(parser, output_unit, error)
+    IF (valid_format) THEN
+       DO WHILE (get_section_parmtop(parser, section, input_format, error))
+          SELECT CASE (TRIM(section))
+          CASE("TITLE")
+             ! Who cares about the title?
+             CYCLE
+          CASE("POINTERS")
+             CALL rd_amber_section(parser, section, info, 31, error)
+             ! Assign pointers to the corresponding labels 
+             ! just for convenience to have something more human readable
+             natom    = info( 1)
+             ntypes   = info( 2)
+             nbonh    = info( 3)
+             mbona    = info( 4)
+             ntheth   = info( 5)
+             mtheta   = info( 6)
+             nphih    = info( 7)
+             mphia    = info( 8)
+             nhparm   = info( 9)
+             nparm    = info(10)
+             nnb      = info(11)
+             nres     = info(12)
+             nbona    = info(13)
+             ntheta   = info(14)
+             nphia    = info(15)
+             numbnd   = info(16)
+             numang   = info(17)
+             nptra    = info(18)
+             natyp    = info(19)
+             nphb     = info(20)
+             ifpert   = info(21)
+             nbper    = info(22)
+             ngper    = info(23)
+             ndper    = info(24)
+             mbper    = info(25)
+             mgper    = info(26)
+             mdper    = info(27)
+             ifbox    = info(28)
+             nmxrs    = info(29)
+             ifcap    = info(30)
+             numextra = info(31)
+
+             ! Print some info if requested
+             IF (output_unit>0) THEN
+                WRITE(output_unit,'(A,/)')" AMBER_INFO| Information from AMBER topology file:"
+                WRITE(output_unit,1000)&
+                     natom, ntypes, nbonh,    mbona, ntheth, mtheta, nphih,  &
+                     mphia, nhparm, nparm,    nnb,   nres,   nbona,  ntheta, &
+                     nphia, numbnd, numang,   nptra, natyp,  nphb,   ifbox,  &
+                     nmxrs, ifcap,  numextra
+             END IF
+             
+             ! Allocate temporary arrays
+             IF (do_connectivity) THEN
+                check = PRESENT(atom_info).AND.PRESENT(conn_info)
+                CPPrecondition(check,cp_failure_level,routineP,error,failure)
+                ! Allocate for extracting connectivity infos
+                ALLOCATE(labres (nres               ),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(ipres  (nres               ),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF (do_forcefield) THEN
+                ! Allocate for extracting forcefield infos
+                ALLOCATE(iac    (natom              ),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(ico    (ntypes*ntypes      ),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(rk     (numbnd             ),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(req    (numbnd             ),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(tk     (numang             ),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(teq    (numang             ),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(pk     (nptra              ),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(pn     (nptra              ),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(phase  (nptra              ),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(cn1    (ntypes*(ntypes+1)/2),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(cn2    (ntypes*(ntypes+1)/2),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(asol   (ntypes*(ntypes+1)/2),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(bsol   (ntypes*(ntypes+1)/2),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             ! Always Allocate
+             ALLOCATE(ibh    (nbonh              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(jbh    (nbonh              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(icbh   (nbonh              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(ib     (nbona              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(jb     (nbona              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(icb    (nbona              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(ith    (ntheth             ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(jth    (ntheth             ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(kth    (ntheth             ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(icth   (ntheth             ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(it     (ntheta             ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(jt     (ntheta             ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(kt     (ntheta             ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(ict    (ntheta             ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(iph    (nphih              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(jph    (nphih              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(kph    (nphih              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(lph    (nphih              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(icph   (nphih              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(ip     (nphia              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(jp     (nphia              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(kp     (nphia              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(lp     (nphia              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(icp    (nphia              ),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CASE("ATOM_NAME")
+             ! Atom names are just ignored according the CP2K philosophy
+             CYCLE
+          CASE("AMBER_ATOM_TYPE")
+             IF (.NOT.do_connectivity) CYCLE
+             CALL reallocate(atom_info%label_atmname,1,natom)
+             CALL rd_amber_section(parser, section, atom_info%label_atmname, natom, error)
+          CASE("CHARGE")
+             IF (.NOT.do_connectivity) CYCLE
+             CALL reallocate(atom_info%atm_charge,1,natom)
+             CALL rd_amber_section(parser, section, atom_info%atm_charge, natom, error)
+             ! Convert charges into atomic units
+             atom_info%atm_charge = atom_info%atm_charge/amber_conv_charge
+          CASE("MASS")
+             IF (.NOT.do_connectivity) CYCLE
+             CALL reallocate(atom_info%atm_mass,1,natom)
+             CALL rd_amber_section(parser, section, atom_info%atm_mass, natom, error)
+          CASE("RESIDUE_LABEL")
+             IF (.NOT.do_connectivity) CYCLE
+             CALL reallocate(atom_info%label_resname,1,natom)
+             CALL rd_amber_section(parser, section, labres, nres, error)
+          CASE("RESIDUE_POINTER")
+             IF (.NOT.do_connectivity) CYCLE
+             CALL reallocate(atom_info%label_resid,1,natom)
+             CALL rd_amber_section(parser, section, ipres, nres, error)
+          CASE("ATOM_TYPE_INDEX")
+             IF (.NOT.do_forcefield) CYCLE
+             CALL rd_amber_section(parser, section, iac, natom, error)
+          CASE("NONBONDED_PARM_INDEX")
+             IF (.NOT.do_forcefield) CYCLE
+             CALL rd_amber_section(parser, section, ico, ntypes**2, error)
+          CASE("BOND_FORCE_CONSTANT")
+             IF (.NOT.do_forcefield) CYCLE
+             CALL rd_amber_section(parser, section, rk, numbnd, error)
+          CASE("BOND_EQUIL_VALUE")
+             IF (.NOT.do_forcefield) CYCLE
+             CALL rd_amber_section(parser, section, req, numbnd, error)
+          CASE("ANGLE_FORCE_CONSTANT")
+             IF (.NOT.do_forcefield) CYCLE
+             CALL rd_amber_section(parser, section, tk, numang, error)
+          CASE("ANGLE_EQUIL_VALUE")
+             IF (.NOT.do_forcefield) CYCLE
+             CALL rd_amber_section(parser, section, teq, numang, error)
+          CASE("DIHEDRAL_FORCE_CONSTANT")
+             IF (.NOT.do_forcefield) CYCLE
+             CALL rd_amber_section(parser, section, pk, nptra, error)
+          CASE("DIHEDRAL_PERIODICITY")
+             IF (.NOT.do_forcefield) CYCLE
+             CALL rd_amber_section(parser, section, pn, nptra, error)
+          CASE("DIHEDRAL_PHASE")
+             IF (.NOT.do_forcefield) CYCLE
+             CALL rd_amber_section(parser, section, phase, nptra, error)
+          CASE("LENNARD_JONES_ACOEF")
+             IF (.NOT.do_forcefield) CYCLE
+             CALL rd_amber_section(parser, section, cn1, ntypes*(ntypes+1)/2, error)
+          CASE("LENNARD_JONES_BCOEF")
+             IF (.NOT.do_forcefield) CYCLE
+             CALL rd_amber_section(parser, section, cn2, ntypes*(ntypes+1)/2, error)
+          CASE("HBOND_ACOEF")
+             IF (.NOT.do_forcefield) CYCLE
+             CALL rd_amber_section(parser, section, asol, nphb, error)
+          CASE("HBOND_BCOEF")
+             IF (.NOT.do_forcefield) CYCLE
+             CALL rd_amber_section(parser, section, bsol, nphb, error)
+          CASE("BONDS_INC_HYDROGEN")
+             ! We always need to parse this information both for connectivity and forcefields
+             CALL rd_amber_section(parser, section, ibh, jbh, icbh, nbonh, error)
+          CASE("BONDS_WITHOUT_HYDROGEN")
+             ! We always need to parse this information both for connectivity and forcefields
+             CALL rd_amber_section(parser, section, ib, jb, icb, nbona, error)
+          CASE("ANGLES_INC_HYDROGEN")
+             ! We always need to parse this information both for connectivity and forcefields
+             CALL rd_amber_section(parser, section, ith, jth, kth, icth, ntheth, error)
+          CASE("ANGLES_WITHOUT_HYDROGEN")
+             ! We always need to parse this information both for connectivity and forcefields
+             CALL rd_amber_section(parser, section, it, jt, kt, ict, ntheta, error)
+          CASE("DIHEDRALS_INC_HYDROGEN")
+             ! We always need to parse this information both for connectivity and forcefields
+             CALL rd_amber_section(parser, section, iph, jph, kph, lph, icph, nphih, error)
+          CASE("DIHEDRALS_WITHOUT_HYDROGEN")
+             ! We always need to parse this information both for connectivity and forcefields
+             CALL rd_amber_section(parser, section, ip, jp, kp, lp, icp, nphia, error)
+          CASE DEFAULT
+             ! Just Ignore other sections...
+          END SELECT
+       END DO
+    END IF
+
+    ! Deallocate temporary arrays
+    IF (do_connectivity) THEN
+       ! ----------------------------------------------------------
+       ! Conform Amber Names with CHARMM convention (kind<->charge)
+       ! ----------------------------------------------------------
+       ALLOCATE(isymbl(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(iwork(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       isymbl = atom_info%label_atmname
+
+       ! Sort atom names + charges and identify unique types
+       CALL sort(isymbl, natom, iwork)
+
+       istart = 1
+       DO i = 2, natom
+          IF (TRIM(isymbl(i))/=TRIM(isymbl(istart))) THEN
+             CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge, error)
+             istart = i
+          END IF
+       END DO
+       CALL conform_atom_type_low(isymbl, iwork, i, istart, atom_info%atm_charge, error)
+
+       ! Copy back the modified and conformed atom types
+       DO i = 1, natom
+          atom_info%label_atmname(iwork(i)) = isymbl(i)
+       END DO
+
+       ! -----------------------------------------------------------
+       ! Fill residue_name and residue_id information before exiting
+       ! -----------------------------------------------------------
+       DO i = 1, nres-1
+          atom_info%label_resname(ipres(i):ipres(i+1)) = labres(i)
+          atom_info%label_resid(ipres(i):ipres(i+1))   = i
+       END DO
+       atom_info%label_resname(ipres(i):natom) = labres(i)
+       atom_info%label_resid(ipres(i):natom)   = i
+
+       ! Deallocate when extracting connectivity infos
+       DEALLOCATE(iwork,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(isymbl,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(labres,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(ipres,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       ! ----------------------------------------------------------
+       ! Copy connectivity
+       ! ----------------------------------------------------------
+       ! BONDS
+       CALL reallocate(conn_info%bond_a,1,nbonh+nbona)
+       CALL reallocate(conn_info%bond_b,1,nbonh+nbona)
+       DO i = 1, nbonh
+          conn_info%bond_a(i)       = ibh(i)/3+1
+          conn_info%bond_b(i)       = jbh(i)/3+1
+       END DO
+       DO i = 1, nbona
+          conn_info%bond_a(nbonh+i) = ib(i)/3+1
+          conn_info%bond_b(nbonh+i) = jb(i)/3+1
+       END DO
+       ! ANGLES
+       CALL reallocate(conn_info%theta_a,1,ntheth+ntheta)
+       CALL reallocate(conn_info%theta_b,1,ntheth+ntheta)
+       CALL reallocate(conn_info%theta_c,1,ntheth+ntheta)
+       DO i = 1, ntheth
+          conn_info%theta_a(i)        = ith(i)/3+1
+          conn_info%theta_b(i)        = jth(i)/3+1
+          conn_info%theta_c(i)        = kth(i)/3+1
+       END DO
+       DO i = 1, ntheta
+          conn_info%theta_a(ntheth+i) = it(i)/3+1
+          conn_info%theta_b(ntheth+i) = jt(i)/3+1
+          conn_info%theta_c(ntheth+i) = kt(i)/3+1
+       END DO
+       ! TORSIONS
+       ! For torsions we need to find out the unique torsions 
+       ! defined in the amber parmtop
+       CALL reallocate(conn_info%phi_a,1,nphih+nphia)
+       CALL reallocate(conn_info%phi_b,1,nphih+nphia)
+       CALL reallocate(conn_info%phi_c,1,nphih+nphia)
+       CALL reallocate(conn_info%phi_d,1,nphih+nphia)
+
+       ALLOCATE(full_torsions(4,nphih+nphia),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(iwork(nphih+nphia),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       DO i = 1, nphih
+          full_torsions(1,i)          = iph(i)/3+1
+          full_torsions(2,i)          = jph(i)/3+1
+          full_torsions(3,i)          = ABS(kph(i))/3+1
+          full_torsions(4,i)          = ABS(lph(i))/3+1
+       END DO
+       DO i = 1, nphia
+          full_torsions(1,nphih+i)    = ip(i)/3+1
+          full_torsions(2,nphih+i)    = jp(i)/3+1
+          full_torsions(3,nphih+i)    = ABS(kp(i))/3+1
+          full_torsions(4,nphih+i)    = ABS(lp(i))/3+1
+       END DO
+       CALL sort(full_torsions, 1, nphih+nphia, 1, 4, iwork)
+
+       unique_torsions = 1
+       conn_info%phi_a(1) = full_torsions(1,1)
+       conn_info%phi_b(1) = full_torsions(2,1)
+       conn_info%phi_c(1) = full_torsions(3,1)
+       conn_info%phi_d(1) = full_torsions(4,1)
+       DO i = 2, nphih+nphia
+          IF ( (full_torsions(1,i)/=full_torsions(1,i-1)).OR.&
+               (full_torsions(2,i)/=full_torsions(2,i-1)).OR.&
+               (full_torsions(3,i)/=full_torsions(3,i-1)).OR.&
+               (full_torsions(4,i)/=full_torsions(4,i-1))) THEN
+             unique_torsions = unique_torsions + 1
+             conn_info%phi_a(unique_torsions) = full_torsions(1,i)
+             conn_info%phi_b(unique_torsions) = full_torsions(2,i)
+             conn_info%phi_c(unique_torsions) = full_torsions(3,i)
+             conn_info%phi_d(unique_torsions) = full_torsions(4,i)
+          END IF
+       END DO
+       CALL reallocate(conn_info%phi_a,1,unique_torsions)
+       CALL reallocate(conn_info%phi_b,1,unique_torsions)
+       CALL reallocate(conn_info%phi_c,1,unique_torsions)
+       CALL reallocate(conn_info%phi_d,1,unique_torsions)
+
+       DEALLOCATE(full_torsions,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(iwork,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! IMPROPERS
+       CALL reallocate(conn_info%impr_a,1,0)
+       CALL reallocate(conn_info%impr_b,1,0)
+       CALL reallocate(conn_info%impr_c,1,0)
+       CALL reallocate(conn_info%impr_d,1,0)
+
+       ! ----------------------------------------------------------
+       ! Generate molecule names
+       ! ----------------------------------------------------------
+       CALL reallocate(atom_info%label_molname,1,natom)
+       atom_info%label_molname = "__UNDEF__"
+       CALL topology_generate_molname(conn_info, natom, atom_info%label_molname, error)
+    END IF
+    IF (do_forcefield) THEN
+       ! Deallocate when extracting forcefield infos
+       DEALLOCATE(iac,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(ico,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(rk,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(req,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(tk,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(teq,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(pk,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(pn,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(phase,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(cn1,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(cn2,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(asol,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(bsol,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    ! Always Deallocate
+    DEALLOCATE(ibh,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(jbh,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(icbh,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(ib,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(jb,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(icb,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(ith,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(jth,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(kth,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(icth,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(it,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(jt,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(kt,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(ict,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(iph,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(jph,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(kph,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(lph,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(icph,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(ip,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(jp,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(kp,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(lp,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(icp,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL parser_release(parser,error=error)
+
+    RETURN
+    ! Output info Format
+1000 FORMAT(T2, &
+          /' NATOM  = ',i7,' NTYPES = ',i7,' NBONH = ',i7,' MBONA  = ',i7, &
+          /' NTHETH = ',i7,' MTHETA = ',i7,' NPHIH = ',i7,' MPHIA  = ',i7, &
+          /' NHPARM = ',i7,' NPARM  = ',i7,' NNB   = ',i7,' NRES   = ',i7, &
+          /' NBONA  = ',i7,' NTHETA = ',i7,' NPHIA = ',i7,' NUMBND = ',i7, &
+          /' NUMANG = ',i7,' NPTRA  = ',i7,' NATYP = ',i7,' NPHB   = ',i7, &
+          /' IFBOX  = ',i7,' NMXRS  = ',i7,' IFCAP = ',i7,' NEXTRA = ',i7, /)
+  END SUBROUTINE rdparm_amber_8
+
+! *****************************************************************************
+!> \brief Low level routine to identify and rename unique atom types
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  SUBROUTINE conform_atom_type_low(isymbl, iwork, i, istart, charges, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:)                           :: isymbl
+    INTEGER, DIMENSION(:)                    :: iwork
+    INTEGER, INTENT(INOUT)                   :: i, istart
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'conform_atom_type_low', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: counter, gind, iend, ind, &
+                                                isize, j, k, kend, kstart, &
+                                                stat
+    INTEGER, DIMENSION(:), POINTER           :: cindx, lindx
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: ctmp
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cwork
+
+    failure = .FALSE.
+    iend = i - 1
+    isize= iend-istart+1
+    ALLOCATE(cwork(isize),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(lindx(isize),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(cindx(isize),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ind = 0
+    DO k = istart, iend
+       ind = ind + 1
+       cwork(ind) = charges(iwork(k))
+       lindx(ind) = k
+    END DO
+    CALL sort(cwork, isize, cindx)
+    
+    ctmp    = cwork(1)
+    counter = 1
+    DO k = 2, isize
+       IF (cwork(k)/=ctmp) THEN
+          counter = counter + 1
+          ctmp = cwork(k)
+       END IF
+    END DO
+    IF (counter /= 1) THEN
+       counter = 1
+       kstart  = 1
+       ctmp    = cwork(1)
+       DO k = 2, isize
+          IF (cwork(k)/=ctmp) THEN
+             kend = k - 1
+             DO j = kstart, kend
+                gind= lindx(cindx(j))
+                isymbl(gind) = TRIM(isymbl(gind))//ADJUSTL(cp_to_string(counter))
+             END DO
+             counter = counter + 1
+             ctmp    = cwork(k)
+             kstart  = k
+          END IF
+       END DO
+       kend = k - 1
+       DO j = kstart, kend
+          gind= lindx(cindx(j))
+          isymbl(gind) = TRIM(isymbl(gind))//ADJUSTL(cp_to_string(counter))
+       END DO
+    END IF
+    DEALLOCATE(cwork, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(lindx, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(cindx, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE conform_atom_type_low
+
+! *****************************************************************************
+!> \brief Set of Low level subroutines reading section for parmtop
+!>        reading 1 array of integers of length dim
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  SUBROUTINE rd_amber_section_i1(parser, section, array1, dim, error)
+    TYPE(cp_parser_type), POINTER            :: parser
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN)                             :: section
+    INTEGER, DIMENSION(:)                    :: array1
+    INTEGER, INTENT(IN)                      :: dim
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, my_end
+
+    failure = .FALSE.
+#include "rd_amber_section_1.f90"
+  END SUBROUTINE rd_amber_section_i1
+
+! *****************************************************************************
+!> \brief Set of Low level subroutines reading section for parmtop
+!>        reading 3 arrays of integers of length dim
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  SUBROUTINE rd_amber_section_i3(parser, section, array1, array2, array3, dim, error)
+    TYPE(cp_parser_type), POINTER            :: parser
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN)                             :: section
+    INTEGER, DIMENSION(:)                    :: array1, array2, array3
+    INTEGER, INTENT(IN)                      :: dim
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i3', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, my_end
+
+    failure = .FALSE.
+    CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+    i = 1
+    DO WHILE ((i<=dim).AND.(.NOT.my_end))
+       !array1
+       IF (parser_test_next_token(parser,error=error)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (my_end) EXIT
+       CALL parser_get_object  (parser,array1(i),error=error)
+       !array2
+       IF (parser_test_next_token(parser,error=error)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (my_end) EXIT
+       CALL parser_get_object  (parser,array2(i),error=error)
+       !array3
+       IF (parser_test_next_token(parser,error=error)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (my_end) EXIT
+       CALL parser_get_object  (parser,array3(i),error=error)
+       i = i + 1
+    END DO
+    ! Trigger end of file aborting
+    CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
+         "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
+CPSourceFileRef,&
+         error=error,failure=failure)
+  END SUBROUTINE rd_amber_section_i3
+
+! *****************************************************************************
+!> \brief Set of Low level subroutines reading section for parmtop
+!>        reading 4 arrays of integers of length dim
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  SUBROUTINE rd_amber_section_i4(parser, section, array1, array2, array3, array4, dim, error)
+    TYPE(cp_parser_type), POINTER            :: parser
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN)                             :: section
+    INTEGER, DIMENSION(:)                    :: array1, array2, array3, array4
+    INTEGER, INTENT(IN)                      :: dim
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i4', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, my_end
+
+    failure = .FALSE.
+    CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+    i = 1
+    DO WHILE ((i<=dim).AND.(.NOT.my_end))
+       !array1
+       IF (parser_test_next_token(parser,error=error)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (my_end) EXIT
+       CALL parser_get_object  (parser,array1(i),error=error)
+       !array2
+       IF (parser_test_next_token(parser,error=error)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (my_end) EXIT
+       CALL parser_get_object  (parser,array2(i),error=error)
+       !array3
+       IF (parser_test_next_token(parser,error=error)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (my_end) EXIT
+       CALL parser_get_object  (parser,array3(i),error=error)
+       !array4
+       IF (parser_test_next_token(parser,error=error)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (my_end) EXIT
+       CALL parser_get_object  (parser,array4(i),error=error)
+       i = i + 1
+    END DO
+    ! Trigger end of file aborting
+    CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
+         "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
+CPSourceFileRef,&
+         error=error,failure=failure)
+  END SUBROUTINE rd_amber_section_i4
+
+! *****************************************************************************
+!> \brief Set of Low level subroutines reading section for parmtop
+!>        reading 5 arrays of integers of length dim
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  SUBROUTINE rd_amber_section_i5(parser, section, array1, array2, array3, array4, &
+       array5, dim, error)
+    TYPE(cp_parser_type), POINTER            :: parser
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN)                             :: section
+    INTEGER, DIMENSION(:)                    :: array1, array2, array3, &
+                                                array4, array5
+    INTEGER, INTENT(IN)                      :: dim
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i5', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, my_end
+
+    failure = .FALSE.
+    CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+    i = 1
+    DO WHILE ((i<=dim).AND.(.NOT.my_end))
+       !array1
+       IF (parser_test_next_token(parser,error=error)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (my_end) EXIT
+       CALL parser_get_object  (parser,array1(i),error=error)
+       !array2
+       IF (parser_test_next_token(parser,error=error)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (my_end) EXIT
+       CALL parser_get_object  (parser,array2(i),error=error)
+       !array3
+       IF (parser_test_next_token(parser,error=error)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (my_end) EXIT
+       CALL parser_get_object  (parser,array3(i),error=error)
+       !array4
+       IF (parser_test_next_token(parser,error=error)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (my_end) EXIT
+       CALL parser_get_object  (parser,array4(i),error=error)
+       !array5
+       IF (parser_test_next_token(parser,error=error)=="EOL")&
+            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       IF (my_end) EXIT
+       CALL parser_get_object  (parser,array5(i),error=error)
+       i = i + 1
+    END DO
+    ! Trigger end of file aborting
+    CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
+         "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
+CPSourceFileRef,&
+         error=error,failure=failure)
+  END SUBROUTINE rd_amber_section_i5
+
+! *****************************************************************************
+!> \brief Set of Low level subroutines reading section for parmtop
+!>        reading 1 array of strings of length dim
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  SUBROUTINE rd_amber_section_c1(parser, section, array1, dim, error)
+    TYPE(cp_parser_type), POINTER            :: parser
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN)                             :: section
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:)                           :: array1
+    INTEGER, INTENT(IN)                      :: dim
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_c1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, my_end
+
+    failure = .FALSE.
+#include "rd_amber_section_1.f90"
+  END SUBROUTINE rd_amber_section_c1
+
+! *****************************************************************************
+!> \brief Set of Low level subroutines reading section for parmtop
+!>        reading 1 array of strings of length dim
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  SUBROUTINE rd_amber_section_r1(parser, section, array1, dim, error)
+    TYPE(cp_parser_type), POINTER            :: parser
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN)                             :: section
+    REAL(KIND=dp), DIMENSION(:)              :: array1
+    INTEGER, INTENT(IN)                      :: dim
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_r1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, my_end
+
+    failure = .FALSE.
+#include "rd_amber_section_1.f90"
+  END SUBROUTINE rd_amber_section_r1
+
+! *****************************************************************************
+!> \brief Check the version of the AMBER topology file (we can handle from v8 on)
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  FUNCTION  get_section_parmtop(parser, section, input_format, error) RESULT(another_section)
+    TYPE(cp_parser_type), POINTER            :: parser
+    CHARACTER(LEN=default_string_length), &
+      INTENT(OUT)                            :: section, input_format
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL                                  :: another_section
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_section_parmtop', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: end_f, indflag, start_f
+    LOGICAL                                  :: failure, found, my_end
+
+    failure = .FALSE.
+    CALL parser_search_string(parser,"%FLAG",.TRUE.,found,begin_line=.TRUE.,error=error)
+    IF (found) THEN
+       ! section label
+       indflag = INDEX(parser%input_line,"%FLAG")+LEN_TRIM("%FLAG")
+       DO WHILE (INDEX(parser%input_line(indflag:indflag)," ") /= 0)
+          indflag = indflag + 1
+       END DO
+       section = TRIM(parser%input_line(indflag:))
+       ! Input format
+       CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       CALL cp_assert((INDEX(parser%input_line,"%FORMAT")/=0).AND.(.NOT.my_end),&
+            cp_fatal_level, cp_assertion_failed, routineP,&
+            "Expecting %FORMAT. Not found! Abort reading of AMBER topology file! "//&
+CPSourceFileRef,&
+            error=error,failure=failure)
+
+       start_f = INDEX(parser%input_line,"(")
+       end_f   = INDEX(parser%input_line,")")
+       input_format  = parser%input_line(start_f:end_f)
+       another_section = .TRUE.
+    ELSE
+       another_section = .FALSE.
+    END IF
+  END FUNCTION get_section_parmtop
+
+! *****************************************************************************
+!> \brief Check the version of the AMBER topology file (we can handle from v8 on)
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  FUNCTION check_amber_8_std(parser, output_unit, error) RESULT(found_AMBER_V8)
+    TYPE(cp_parser_type), POINTER            :: parser
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL                                  :: found_AMBER_V8
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'check_amber_8_std', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure        = .FALSE.
+    CALL parser_search_string(parser,"%VERSION ",.TRUE.,found_AMBER_V8,begin_line=.TRUE.,error=error)
+    CALL cp_assert(found_AMBER_V8, cp_failure_level, cp_assertion_failed, routineP,&
+            "This is not an AMBER V.8 PRMTOP format file. Cannot interpret older "//&
+            "AMBER file formats. "//&
+CPSourceFileRef,&
+            error=error,failure=failure)
+    IF (output_unit>0) WRITE(output_unit,'(" AMBER_INFO| ",A)')"Amber PrmTop V.8 or greater.",&
+         TRIM(parser%input_line)
+
+  END FUNCTION check_amber_8_std
 
 END MODULE topology_amber
 
