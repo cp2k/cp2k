@@ -26,7 +26,7 @@ MODULE util
        sort_unique
 
   INTERFACE sort
-     MODULE PROCEDURE sort2, sort2i_int_4, sort2i_int_8
+     MODULE PROCEDURE sort_rv, sort_int_4v, sort_int_8v, sort_cv, sort_im
   END INTERFACE
 
   INTERFACE sort_unique
@@ -136,60 +136,188 @@ CONTAINS
   END SUBROUTINE sort_unique2
 
 ! *****************************************************************************
+!> \brief Sorts an array of strings
+!> \author Teodoro Laino [tlaino] - University of Zurich  10.2008
+! *****************************************************************************
+  SUBROUTINE sort_cv ( arr, n, index )
+    INTEGER, INTENT(IN)                      :: n
+    CHARACTER(LEN=*), INTENT(INOUT)          :: arr(1:n)
+    INTEGER, INTENT(OUT)                     :: INDEX(1:n)
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_cv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, max_length
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: entries
+    LOGICAL                                  :: failure
+
+    failure    = .FALSE.
+    max_length = 0
+    DO i = 1, n
+      max_length = MAX(max_length,LEN_TRIM(arr(i)))
+    END DO
+    ALLOCATE(entries(max_length,SIZE(arr)))
+    DO i = 1, n
+       DO j = 1, LEN_TRIM(arr(i))
+          entries(j,i) = ICHAR(arr(i)(j:j))
+       END DO
+       IF (j<=max_length) THEN
+          entries(j:max_length,i) = ICHAR(" ")
+       END IF
+    END DO
+    CALL sort_im(entries, istart=1, iend=n, j=1, jsize=max_length, INDEX=INDEX)
+    ! Recover string once ordered
+    DO i = 1, n
+       DO j = 1, max_length
+          arr(i)(j:j) = CHAR(entries(j,i))
+       END DO
+    END DO
+    DEALLOCATE(entries)
+  END SUBROUTINE sort_cv
+
+! *****************************************************************************
+!> \brief Sorts a multiple arrays of integers M(j,i), ordering iteratively over
+!>        i with fixed j
+!> \author Teodoro Laino [tlaino] - University of Zurich  10.2008
+! *****************************************************************************
+  RECURSIVE SUBROUTINE sort_im(matrix, istart, iend, j, jsize, INDEX)
+    INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: matrix
+    INTEGER, INTENT(IN)                      :: istart, iend, j, jsize
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: INDEX
+
+    INTEGER                                  :: i, ind, isize, item, k, kend, &
+                                                kstart
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: bck_index, tmp_index, work, &
+                                                work2
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    isize   = iend-istart+1
+    ! Initialize the INDEX array only for the first row..
+    IF (j==1) THEN
+       FORALL(i = 1:isize) INDEX(i) = i
+    END IF
+
+    ! Allocate scratch arrays
+    ALLOCATE(work(isize), work2(isize), tmp_index(isize), bck_index(isize))
+    ind = 0
+    DO i = istart, iend
+      ind = ind + 1
+      work(ind)      = matrix(j,i)
+      bck_index(ind) = INDEX(i)
+    END DO
+
+    ! Ordering row (j) interval istart..iend
+    CALL sort(work, isize, tmp_index)
+
+    ! Copy into global INDEX array with a proper mapping
+    ind = 0
+    DO i = istart, iend
+       ind = ind + 1
+       INDEX(i)=bck_index(tmp_index(ind))
+       matrix(j,i)=work(ind)
+    END DO
+
+    ! Reorder the rest of the array according the present reordering
+    DO k = j+1, jsize
+       ind = 0
+       DO i = istart, iend
+          ind = ind + 1
+          work2(ind)      = matrix(k,i)
+       END DO
+       ind = 0
+       DO i = istart, iend
+          ind = ind + 1
+          matrix(k,i)=work2(tmp_index(ind))
+       END DO
+    END DO
+
+    ! There are more rows to order..
+    IF (j<jsize) THEN
+       kstart = istart
+       item   = work(1)
+       ind    = 0
+       DO i = istart, iend
+          ind = ind + 1
+          IF (item/=work(ind)) THEN
+             kend = i-1
+             IF (kstart/=kend) THEN
+                CALL sort_im(matrix, kstart, kend, j+1, jsize, INDEX)
+             END IF
+             item   = work(ind)
+             kstart = i 
+          END IF
+       END DO
+       kend = i-1
+       IF (kstart/=kend) THEN
+          CALL sort_im(matrix, kstart, kend, j+1, jsize, INDEX)
+       END IF
+    END IF
+    DEALLOCATE(work, tmp_index, bck_index)
+  END SUBROUTINE sort_im
+
+! *****************************************************************************
 !> \brief Sorts an array of reals
 ! *****************************************************************************
-  SUBROUTINE sort2 ( arr, n, index )
+  SUBROUTINE sort_rv ( arr, n, index )
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), INTENT(INOUT)             :: arr(1:n)
     INTEGER, INTENT(OUT)                     :: INDEX(1:n)
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort2', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_rv', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: m = 7, nstack = 50
 
     INTEGER                                  :: i, ib, ir, istack(1:nstack), &
                                                 itemp, j, jstack, k, l
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, temp
+
+    failure = .FALSE.
 #include "sort.f90"
-  END SUBROUTINE sort2
+  END SUBROUTINE sort_rv
 
 ! *****************************************************************************
 !> \brief Sorts an array of integers
 ! *****************************************************************************
-  SUBROUTINE sort2i_int_4 ( arr, n, index )
+  SUBROUTINE sort_int_4v ( arr, n, index )
     INTEGER, INTENT(IN)                      :: n
-    INTEGER(kind=int_4), INTENT(INOUT)                   :: arr(1:n)
+    INTEGER(KIND=int_4), INTENT(INOUT)       :: arr(1:n)
     INTEGER, INTENT(OUT)                     :: INDEX(1:n)
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort2i_int_4', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_int_4v', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: m = 7, nstack = 50
 
-    INTEGER(kind=int_4) :: a, temp
-    INTEGER                                  :: i, ib, ir, &
-                                                istack(1:nstack), itemp, j, &
-                                                jstack, k, l
+    INTEGER                                  :: i, ib, ir, istack(1:nstack), &
+                                                itemp, j, jstack, k, l
+    INTEGER(kind=int_4)                      :: a, temp
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
 #include "sort.f90"
-  END SUBROUTINE sort2i_int_4
+  END SUBROUTINE sort_int_4v
 
 ! *****************************************************************************
 !> \brief Sorts an array of int_8 integers
 ! *****************************************************************************
-  SUBROUTINE sort2i_int_8 ( arr, n, index )
+  SUBROUTINE sort_int_8v ( arr, n, index )
     INTEGER, INTENT(IN)                      :: n
-    INTEGER(kind=int_8), INTENT(INOUT)       :: arr(1:n)
+    INTEGER(KIND=int_8), INTENT(INOUT)       :: arr(1:n)
     INTEGER, INTENT(OUT)                     :: INDEX(1:n)
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort2i_int_8', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_int_8v', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: m = 7, nstack = 50
 
-    INTEGER(kind=int_8)                      :: a,temp
-    INTEGER                                  :: i, ib, ir, &
-                                                istack(1:nstack), itemp, j, &
-                                                jstack, k, l
+    INTEGER                                  :: i, ib, ir, istack(1:nstack), &
+                                                itemp, j, jstack, k, l
+    INTEGER(kind=int_8)                      :: a, temp
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
 #include "sort.f90"
-  END SUBROUTINE sort2i_int_8
+  END SUBROUTINE sort_int_8v
 
 ! *****************************************************************************
 !> \brief divide m entries into n parts, return size of part me
