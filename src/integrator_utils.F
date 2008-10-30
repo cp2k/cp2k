@@ -40,7 +40,8 @@ MODULE integrator_utils
                                              update_particle_set
   USE shell_potential_types,           ONLY: shell_kind_type
   USE simpar_types,                    ONLY: simpar_type
-  USE thermostat_types,                ONLY: thermostats_type
+  USE thermostat_types,                ONLY: set_thermostats,&
+                                             thermostats_type
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
@@ -1359,7 +1360,7 @@ CONTAINS
 !> \author MI (October 2008)
 ! *****************************************************************************
   SUBROUTINE  variable_timestep(md_env,tmp,dt,simpar,para_env,atomic_kind_set, local_particles,&
-      particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
+       particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(tmp_variables_type), POINTER        :: tmp
@@ -1398,58 +1399,58 @@ CONTAINS
     itime = itime + 1
     CALL mp_max(tmp%max_dr,para_env%group)
     IF(tmp%max_dr > simpar%dr_tol) THEN
-      CALL mp_max(tmp%max_dvel,para_env%group)
-      dt_fact = SQRT(simpar%dr_tol*dt/tmp%max_dvel)/dt
+       CALL mp_max(tmp%max_dvel,para_env%group)
+       dt_fact = SQRT(simpar%dr_tol*dt/tmp%max_dvel)/dt
     END IF
 
     IF(shell_adiabatic) THEN
-      CALL mp_max(tmp%max_dsc,para_env%group)
-      IF(tmp%max_dsc > simpar%dsc_tol) THEN
-        CALL mp_max(tmp%max_dvel_sc,para_env%group)
-        dt_fact_sc = SQRT(simpar%dsc_tol*dt/tmp%max_dvel_sc)/dt
-      END IF
+       CALL mp_max(tmp%max_dsc,para_env%group)
+       IF(tmp%max_dsc > simpar%dsc_tol) THEN
+          CALL mp_max(tmp%max_dvel_sc,para_env%group)
+          dt_fact_sc = SQRT(simpar%dsc_tol*dt/tmp%max_dvel_sc)/dt
+       END IF
     END IF
 
     dt_fact_f = MIN(dt_fact, dt_fact_sc,1.0_dp)
     IF(dt_fact_f < 1.0_dp) THEN
-      ! repeat the first vv half-step with the rescaled time step 
-      dt = dt*dt_fact_f
-      simpar%dt_fact = dt_fact_f
-      CALL rescaled_vv_first(tmp,dt,simpar,atomic_kind_set, local_particles,&
-           particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
+       ! repeat the first vv half-step with the rescaled time step 
+       dt = dt*dt_fact_f
+       simpar%dt_fact = dt_fact_f
+       CALL rescaled_vv_first(tmp,dt,simpar,atomic_kind_set, local_particles,&
+            particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
     ELSE
 
-      dt_fact = 1.0_dp
-      dt_fact_sc = 1.0_dp
-      CALL mp_max(tmp%max_dr,para_env%group)
-      IF(tmp%max_dr  > simpar%dr_tol) THEN
-        CALL mp_max(tmp%max_vel,para_env%group)
-        dt_fact = simpar%dr_tol/tmp%max_vel/dt
-      END IF
-   
-      IF(shell_adiabatic) THEN
-        CALL mp_max(tmp%max_dsc,para_env%group)
-        IF(tmp%max_dsc > simpar%dsc_tol) THEN
-          CALL mp_max(tmp%max_vel_sc,para_env%group)
-          dt_fact_sc = simpar%dsc_tol/tmp%max_vel_sc/dt
-        END IF
-      END IF
-      dt_fact_v = MIN(dt_fact, dt_fact_sc,1.0_dp)
-   
-      IF(dt_fact_v < 1.0_dp) THEN
-        ! repeat the first vv half-step with the rescaled time step 
-        dt = dt*dt_fact_v
-        simpar%dt_fact = dt_fact_f*dt_fact_v
-        CALL rescaled_vv_first(tmp,dt,simpar,atomic_kind_set, local_particles,&
-             particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
-      END IF
+       dt_fact = 1.0_dp
+       dt_fact_sc = 1.0_dp
+       CALL mp_max(tmp%max_dr,para_env%group)
+       IF(tmp%max_dr  > simpar%dr_tol) THEN
+          CALL mp_max(tmp%max_vel,para_env%group)
+          dt_fact = simpar%dr_tol/tmp%max_vel/dt
+       END IF
+
+       IF(shell_adiabatic) THEN
+          CALL mp_max(tmp%max_dsc,para_env%group)
+          IF(tmp%max_dsc > simpar%dsc_tol) THEN
+             CALL mp_max(tmp%max_vel_sc,para_env%group)
+             dt_fact_sc = simpar%dsc_tol/tmp%max_vel_sc/dt
+          END IF
+       END IF
+       dt_fact_v = MIN(dt_fact, dt_fact_sc,1.0_dp)
+
+       IF(dt_fact_v < 1.0_dp) THEN
+          ! repeat the first vv half-step with the rescaled time step 
+          dt = dt*dt_fact_v
+          simpar%dt_fact = dt_fact_f*dt_fact_v
+          CALL rescaled_vv_first(tmp,dt,simpar,atomic_kind_set, local_particles,&
+               particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
+       END IF
     END IF
 
     CALL get_md_env(md_env, t=time, thermostats=thermostats, error=error)
     simpar%dt_fact = dt_fact_f*dt_fact_v
     time = time - dt_old + dt_old*simpar%dt_fact
     IF(ASSOCIATED(thermostats)) THEN
-      thermostats%dt_fact = simpar%dt_fact
+       CALL set_thermostats(thermostats, dt_fact=simpar%dt_fact, error=error)
     END IF
 
   END SUBROUTINE variable_timestep

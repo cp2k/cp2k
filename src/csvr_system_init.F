@@ -44,13 +44,12 @@ CONTAINS
 !> \brief fire up the thermostats, if NPT
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
-  SUBROUTINE initialize_csvr_baro ( simpar, para_env, csvr, csvr_section, dt_fact, error )
+  SUBROUTINE initialize_csvr_baro ( simpar, para_env, csvr, csvr_section, error )
 
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section
-    REAL(KIND=dp), POINTER                   :: dt_fact
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_baro', &
@@ -60,7 +59,6 @@ CONTAINS
 
     failure = .FALSE.
     CALL csvr_to_barostat_mapping ( simpar,  csvr, para_env, error)
-    csvr%dt_fact => dt_fact
     CALL restart_csvr( csvr, csvr_section, error)
 
   END SUBROUTINE initialize_csvr_baro
@@ -70,7 +68,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE initialize_csvr_part ( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, csvr, csvr_section,&
-       gci, dt_fact,  error)
+       gci, error)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
@@ -81,7 +79,6 @@ CONTAINS
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section
     TYPE(global_constraint_type), POINTER    :: gci
-    REAL(KIND=dp), POINTER                   :: dt_fact
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_part', &
@@ -92,7 +89,6 @@ CONTAINS
     failure = .FALSE.
     CALL csvr_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
          molecule, molecule_kind_set, csvr, para_env, gci, error )
-    csvr%dt_fact => dt_fact
     CALL restart_csvr( csvr, csvr_section, error)
 
   END SUBROUTINE initialize_csvr_part
@@ -101,7 +97,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
   SUBROUTINE initialize_csvr_coef ( dyn_coeff_set, para_env, csvr, &
-             coeff_section, dt, csvr_section, dt_fact, error )
+             coeff_section, dt, csvr_section, error )
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -109,7 +105,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: coeff_section
     REAL(KIND=dp), INTENT(IN)                :: dt
     TYPE(section_vals_type), POINTER         :: csvr_section
-    REAL(KIND=dp), POINTER                   :: dt_fact
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_coef', &
@@ -123,7 +118,6 @@ CONTAINS
     CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp,error=error)
 
     CALL csvr_to_coef_mapping ( dyn_coeff_set, csvr, coeff_section, para_env ,error=error)
-    csvr%dt_fact => dt_fact
     CALL restart_csvr( csvr, csvr_section, error)
 
   END SUBROUTINE initialize_csvr_coef
@@ -133,7 +127,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE initialize_csvr_shell( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, csvr, csvr_section,&
-       gci, dt_fact, error)
+       gci, error)
  
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
@@ -144,7 +138,6 @@ CONTAINS
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section
     TYPE(global_constraint_type), POINTER    :: gci
-    REAL(KIND=dp), POINTER                   :: dt_fact
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_shell', &
@@ -155,7 +148,6 @@ CONTAINS
     failure = .FALSE.
     CALL csvr_to_shell_mapping(thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, csvr, para_env, gci, error)
-    csvr%dt_fact => dt_fact
     CALL restart_csvr( csvr, csvr_section, error)
 
   END SUBROUTINE  initialize_csvr_shell

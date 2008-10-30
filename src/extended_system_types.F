@@ -76,9 +76,8 @@ MODULE extended_system_types
   TYPE lnhc_parameters_type
      INTEGER                                 :: nyosh, nc, nhc_len
      INTEGER                                 :: glob_num_nhc, loc_num_nhc, region
-     REAL(KIND=dp)                           :: tau_nhc
+     REAL(KIND=dp)                           :: tau_nhc, dt_fact
      REAL(KIND=dp), POINTER                  :: dt_yosh(:)
-     REAL(KIND=dp), POINTER                  :: dt_fact
      TYPE(nhc_info_type), POINTER            :: nvt(:,:)
      TYPE(map_info_type), POINTER            :: map_info
   END TYPE lnhc_parameters_type
@@ -103,9 +102,9 @@ CONTAINS
     NULLIFY(lnhc%dt_yosh)
     NULLIFY(lnhc%nvt)
     NULLIFY(lnhc%map_info)
-    NULLIFY(lnhc%dt_fact)
     lnhc%loc_num_nhc=0
     lnhc%glob_num_nhc=0
+    lnhc%dt_fact=1.0_dp
     CALL cite_reference(Nose1984a)
     CALL cite_reference(Nose1984b)
     CALL section_vals_val_get(section,"LENGTH",i_val=lnhc%nhc_len,error=error)
@@ -218,9 +217,6 @@ CONTAINS
           DEALLOCATE (lnhc%nvt, STAT=stat)
           CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        ENDIF
-       IF(ASSOCIATED(lnhc%dt_fact)) THEN
-         NULLIFY(lnhc%dt_fact)
-       END IF
        CALL release_map_info_type(lnhc%map_info, error)
        DEALLOCATE (lnhc, STAT=stat)
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)

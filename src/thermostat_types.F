@@ -37,7 +37,8 @@ MODULE thermostat_types
             create_thermostat_type,&
             release_thermostat_type,&
             thermostat_info_type,&
-            release_thermostat_info
+            release_thermostat_info,&
+            set_thermostats
 
 ! *****************************************************************************
 !> \brief Define thermostat types
@@ -49,13 +50,12 @@ MODULE thermostat_types
 ! *****************************************************************************
   TYPE thermostats_type
      INTEGER :: id_nr, ref_count
-     REAL(KIND=dp), POINTER :: dt_fact
      TYPE (thermostat_info_type), POINTER :: thermostat_info_part
      TYPE (thermostat_info_type), POINTER :: thermostat_info_shell
-     TYPE(thermostat_type), POINTER :: thermostat_part
-     TYPE(thermostat_type), POINTER :: thermostat_coef
-     TYPE(thermostat_type), POINTER :: thermostat_shell
-     TYPE(thermostat_type), POINTER :: thermostat_baro
+     TYPE(thermostat_type), POINTER       :: thermostat_part
+     TYPE(thermostat_type), POINTER       :: thermostat_coef
+     TYPE(thermostat_type), POINTER       :: thermostat_shell
+     TYPE(thermostat_type), POINTER       :: thermostat_baro
   END TYPE thermostats_type
 
   ! Single thermostat_type
@@ -116,9 +116,6 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(thermostats%thermostat_info_shell, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(thermostats%dt_fact, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    thermostats%dt_fact =  1.0_dp
 
     NULLIFY(thermostats%thermostat_info_part%map_loc_thermo_gen)
     NULLIFY(thermostats%thermostat_info_shell%map_loc_thermo_gen)
@@ -192,10 +189,6 @@ CONTAINS
           END IF
           IF (ASSOCIATED(thermostats%thermostat_coef)) THEN
              CALL release_thermostat_type(thermostats%thermostat_coef, error)
-          END IF
-          IF (ASSOCIATED(thermostats%dt_fact)) THEN
-             DEALLOCATE(thermostats%dt_fact, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           DEALLOCATE(thermostats, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -320,5 +313,64 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE release_thermostat_type
+
+! *****************************************************************************
+!> \brief access internal structures of thermostats
+!> \par History
+!>      10.2008 created [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
+! *****************************************************************************
+  SUBROUTINE set_thermostats(thermostats, dt_fact, error)
+    TYPE(thermostats_type), POINTER          :: thermostats
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: dt_fact
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_thermostats', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure =.FALSE.
+    IF (ASSOCIATED(thermostats)) THEN
+       IF (PRESENT(dt_fact)) THEN
+          ! Particles
+          IF (ASSOCIATED(thermostats%thermostat_part)) THEN
+             SELECT CASE(thermostats%thermostat_part%type_of_thermostat)
+             CASE(do_thermo_nose)
+                thermostats%thermostat_part%nhc%dt_fact  = dt_fact
+             CASE(do_thermo_csvr)
+                thermostats%thermostat_part%csvr%dt_fact = dt_fact
+             END SELECT
+          END IF
+          ! Coefficients
+          IF (ASSOCIATED(thermostats%thermostat_coef)) THEN
+             SELECT CASE(thermostats%thermostat_coef%type_of_thermostat)
+             CASE(do_thermo_nose)
+                thermostats%thermostat_coef%nhc%dt_fact  = dt_fact
+             CASE(do_thermo_csvr)
+                thermostats%thermostat_coef%csvr%dt_fact = dt_fact
+             END SELECT
+          END IF
+          ! Shell
+          IF (ASSOCIATED(thermostats%thermostat_shell)) THEN
+             SELECT CASE(thermostats%thermostat_shell%type_of_thermostat)
+             CASE(do_thermo_nose)
+                thermostats%thermostat_shell%nhc%dt_fact  = dt_fact
+             CASE(do_thermo_csvr)
+                thermostats%thermostat_shell%csvr%dt_fact = dt_fact
+             END SELECT
+          END IF
+          ! Baro
+          IF (ASSOCIATED(thermostats%thermostat_baro)) THEN
+             SELECT CASE(thermostats%thermostat_baro%type_of_thermostat)
+             CASE(do_thermo_nose)
+                thermostats%thermostat_baro%nhc%dt_fact  = dt_fact
+             CASE(do_thermo_csvr)
+                thermostats%thermostat_baro%csvr%dt_fact = dt_fact
+             END SELECT
+          END IF
+       END IF
+    END IF
+  END SUBROUTINE set_thermostats
 
 END MODULE thermostat_types
