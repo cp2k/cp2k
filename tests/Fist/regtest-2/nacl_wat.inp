@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parm_file_name ../sample_pot/nacl_wat.pot
+      parm_file_name ../sample_pot/nacl_wat_again.pot
       parmtype CHM
     &END FORCEFIELD
     &POISSON
@@ -21,7 +21,7 @@
     &END CELL
     &TOPOLOGY
       CONNECTIVITY GENERATE
-      COORD_FILE_NAME ../sample_pdb/nacl_wat.pdb
+      COORD_FILE_NAME ../sample_pdb/nacl_wat_again.pdb
       COORDINATE PDB
       CHARGE_EXTENDED
       &GENERATE
