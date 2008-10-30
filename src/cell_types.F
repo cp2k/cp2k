@@ -805,9 +805,9 @@ CPSourceFileRef,&
             cell%hmat(:,3)/cell%unit_of_length,&
             "|c| = ",abc(3)/cell%unit_of_length
        WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-            "CELL| Angle (b,c) [degree]: ",alpha,&
-            "CELL| Angle (a,c) [degree]: ",beta,&
-            "CELL| Angle (a,b) [degree]: ",gamma
+            "CELL| Angle (b,c), alpha [degree]: ",alpha,&
+            "CELL| Angle (a,c), beta  [degree]: ",beta,&
+            "CELL| Angle (a,b), gamma [degree]: ",gamma
        WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
             "CELL| Grid size for subcell generation",cell%subcells
 
@@ -828,10 +828,10 @@ CPSourceFileRef,&
                "CELL_REF| Vector c ["//TRIM(cell_ref%unit_of_length_name)//"]:",&
                cell_ref%hmat(:,3)/cell_ref%unit_of_length,&
                "|c| = ",abc(3)/cell_ref%unit_of_length
-          WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-               "CELL_REF| Angle (b,c) [degree]: ",alpha,&
-               "CELL_REF| Angle (a,c) [degree]: ",beta,&
-               "CELL_REF| Angle (a,b) [degree]: ",gamma
+       WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
+            "CELL_REF| Angle (b,c), alpha [degree]: ",alpha,&
+            "CELL_REF| Angle (a,c), beta  [degree]: ",beta,&
+            "CELL_REF| Angle (a,b), gamma [degree]: ",gamma
           WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
                "CELL_REF| Grid size for subcell generation",cell_ref%subcells
        ENDIF
