@@ -137,3 +137,5 @@ hcl_ot.inp
 # 
 md.inp
 scan_zn_1w_cp2k.inp
+# numerical instabilities
+hcl_ot.inp

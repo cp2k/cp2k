@@ -28,3 +28,6 @@ nh3-meta-3.inp
 nh3-meta-4.inp
 # numerics after new units converter
 nh3-meta-2.inp
+# numerical instabilities
+nh3-meta-3.inp
+nh3-meta-4.inp
