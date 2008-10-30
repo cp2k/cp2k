@@ -250,7 +250,7 @@ CONTAINS
        kin_energy =  kin_energy * 0.5_dp
        kin_target =  csvr%nvt(i)%nkt * 0.5_dp
        ndeg       =  csvr%nvt(i)%degrees_of_freedom
-       taut       =  csvr%tau_csvr
+       taut       =  csvr%tau_csvr/csvr%dt_fact
        rng_stream => csvr%nvt(i)%gaussian_rng_stream
        map_info%v_scale(imap) = rescaling_factor(kin_energy, kin_target, ndeg, taut,&
             rng_stream, error)

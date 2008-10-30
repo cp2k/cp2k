@@ -409,7 +409,7 @@ CONTAINS
 
     ! Velocity Verlet (first part)
     CALL vv_first(tmp,atomic_kind_set, local_particles, particle_set, &
-         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, error=error)
 
     IF(simpar%variable_dt) CALL variable_timestep(md_env,tmp, dt, simpar, para_env, atomic_kind_set,&
          local_particles, particle_set, core_particle_set, shell_particle_set,&
@@ -439,7 +439,7 @@ CONTAINS
 
     ! Velocity Verlet (second part)
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
-         core_particle_set, shell_particle_set, nparticle_kind,shell_adiabatic, dt )
+         core_particle_set, shell_particle_set, nparticle_kind,shell_adiabatic, dt, error=error )
 
     IF (simpar%constraint) CALL rattle_control(gci,local_molecules, molecule_set, &
          molecule_kind_set, particle_set, tmp%vel, dt,simpar%shake_tol,&
@@ -576,7 +576,7 @@ CONTAINS
     tmp%poly_v(1:3) = 2.0_dp*tmp%s/SQRT(tmp%ds)/dt
     CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
          core_particle_set, shell_particle_set, nparticle_kind,&
-         shell_adiabatic, dt)
+         shell_adiabatic, dt, error=error)
 
 
     IF(simpar%variable_dt) CALL variable_timestep(md_env,tmp, dt, simpar,para_env,atomic_kind_set, &
@@ -599,7 +599,7 @@ CONTAINS
     tmp%poly_v(1:3) = 2.0_dp*tmp%s/SQRT(tmp%ds)/dt
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
          core_particle_set, shell_particle_set, nparticle_kind,&
-         shell_adiabatic, dt)
+         shell_adiabatic, dt, error=error)
 
     IF (simpar%annealing)  tmp%vel(:,:)=tmp%vel(:,:)*simpar%f_annealing
 
@@ -732,7 +732,7 @@ CONTAINS
 
    ! Velocity Verlet (first part)
     CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
-         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, error=error)
 
     IF(simpar%variable_dt) CALL variable_timestep(md_env,tmp, dt, simpar,para_env,atomic_kind_set,&
       local_particles, particle_set, core_particle_set, shell_particle_set,&
@@ -762,7 +762,7 @@ CONTAINS
 
     ! Velocity Verlet (second part)
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
-         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, error=error)
 
     IF (simpar%constraint) CALL rattle_control( gci, local_molecules, molecule_set, &
          molecule_kind_set, particle_set, tmp%vel, dt,simpar%shake_tol,&
@@ -994,7 +994,7 @@ CONTAINS
        ! first half of velocity verlet
        CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
             core_particle_set, shell_particle_set, nparticle_kind,&
-            shell_adiabatic, dt )
+            shell_adiabatic, dt, error=error )
 
        IF(simpar%variable_dt) CALL  variable_timestep(md_env,tmp, dt, simpar,para_env,&
             atomic_kind_set, local_particles, particle_set, core_particle_set,&
@@ -1034,7 +1034,7 @@ CONTAINS
     ! Velocity Verlet (second part)
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
          core_particle_set, shell_particle_set, nparticle_kind,&
-         shell_adiabatic, dt )
+         shell_adiabatic, dt, error=error )
 
     IF (simpar%constraint) THEN
        roll_tol_thrs = simpar%roll_tol
@@ -1140,6 +1140,7 @@ CONTAINS
     LOGICAL                                  :: failure, init, my_end, test_ok
     REAL(KIND=dp)                            :: cell_time, h(3,3), trj_epot, &
                                                 trj_time, vol
+    REAL(KIND=dp), POINTER                   :: time
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -1232,6 +1233,9 @@ CPSourceFileRef,&
     reftraj_env%epot   = trj_epot
     reftraj_env%itimes = trj_itimes
     reftraj_env%time   = trj_time/femtoseconds
+    CALL get_md_env(md_env, t=time, error=error)
+    time = reftraj_env%time
+
     
     IF(reftraj_env%info%variable_volume)THEN
        cell%hmat(1:3,1) = h(1:3,1)
@@ -1433,7 +1437,7 @@ CPSourceFileRef,&
        ! first half of velocity verlet
        CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
             core_particle_set, shell_particle_set, nparticle_kind,&
-            shell_adiabatic, dt )
+            shell_adiabatic, dt, error=error )
 
        IF(simpar%variable_dt) CALL variable_timestep(md_env,tmp, dt, simpar,para_env,&
           atomic_kind_set, local_particles, particle_set, core_particle_set,&
@@ -1469,7 +1473,7 @@ CPSourceFileRef,&
     ! Velocity Verlet (second part)
      CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
           core_particle_set, shell_particle_set, nparticle_kind,&
-          shell_adiabatic, dt )
+          shell_adiabatic, dt, error=error )
 
     IF (simpar%constraint) THEN
        roll_tol_thrs = simpar%roll_tol
@@ -1695,7 +1699,7 @@ CPSourceFileRef,&
        ! first half of velocity verlet
        CALL vv_first( tmp, atomic_kind_set, local_particles, particle_set, &
             core_particle_set, shell_particle_set, nparticle_kind,&
-            shell_adiabatic, dt )
+            shell_adiabatic, dt, error=error )
 
 
        IF(simpar%variable_dt)  CALL variable_timestep(md_env,tmp, dt, simpar,para_env,&
@@ -1732,7 +1736,7 @@ CPSourceFileRef,&
     ! Velocity Verlet (second part)
      CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
           core_particle_set, shell_particle_set, nparticle_kind,&
-          shell_adiabatic, dt )
+          shell_adiabatic, dt, error=error )
 
     IF (simpar%constraint) THEN
        roll_tol_thrs = simpar%roll_tol
@@ -1979,7 +1983,7 @@ CPSourceFileRef,&
 
        CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
             core_particle_set, shell_particle_set, nparticle_kind,&
-            shell_adiabatic, dt, u=tmp%u)
+            shell_adiabatic, dt, u=tmp%u, error=error)
 
        IF(simpar%variable_dt) CALL  variable_timestep(md_env,tmp, dt, simpar,para_env,&
            atomic_kind_set, local_particles, particle_set, core_particle_set,&
@@ -2018,7 +2022,7 @@ CPSourceFileRef,&
     ! Velocity Verlet (second part)
     CALL vv_second (tmp, atomic_kind_set, local_particles, particle_set,&
          core_particle_set, shell_particle_set, nparticle_kind,&
-         shell_adiabatic, dt, tmp%u )
+         shell_adiabatic, dt, tmp%u, error=error )
 
     IF (simpar%constraint) THEN
        roll_tol_thrs = simpar%roll_tol

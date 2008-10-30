@@ -145,8 +145,8 @@ CONTAINS
           ENDDO
        ELSE
           CALL init_barostat_variables ( npt_info, simpar % tau_cell, temp,  &
-               cell % deth, simpar % nfree, simpar % ensemble, simpar % cmass,&
-               para_env, globenv ,error=error)
+               simpar % nfree, simpar % ensemble, simpar % cmass,&
+               globenv ,error=error)
        END IF
 
     END IF
@@ -156,7 +156,7 @@ CONTAINS
 !> \brief fire up the thermostats, if NPT
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE initialize_nhc_baro ( simpar, para_env, globenv, nhc, nose_section, save_mem, error )
+  SUBROUTINE initialize_nhc_baro ( simpar, para_env, globenv, nhc, nose_section, save_mem, dt_fact, error )
 
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -164,6 +164,7 @@ CONTAINS
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(section_vals_type), POINTER         :: nose_section
     LOGICAL, INTENT(IN)                      :: save_mem
+    REAL(KIND=dp), POINTER                   :: dt_fact
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_baro', &
@@ -176,6 +177,7 @@ CONTAINS
     failure = .FALSE.
     restart = .FALSE.
     CALL nhc_to_barostat_mapping ( simpar, nhc, para_env, error)
+    nhc % dt_fact => dt_fact
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
@@ -204,7 +206,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE initialize_nhc_part ( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, globenv, nhc, nose_section,&
-       gci, save_mem, error)
+       gci, save_mem, dt_fact, error)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
@@ -217,6 +219,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: nose_section
     TYPE(global_constraint_type), POINTER    :: gci
     LOGICAL, INTENT(IN)                      :: save_mem
+    REAL(KIND=dp), POINTER                   :: dt_fact
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_part', &
@@ -232,11 +235,12 @@ CONTAINS
     CALL nhc_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
          molecule, molecule_kind_set, nhc, para_env, gci, error )
 
+    nhc % dt_fact => dt_fact
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-       CALL set_yoshida_coef ( nhc, simpar % dt )
+       CALL set_yoshida_coef ( nhc, simpar % dt)
     ENDIF
 
     CALL restart_nose(nhc,nose_section,save_mem,restart,error)
@@ -257,16 +261,17 @@ CONTAINS
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, para_env, globenv, nhc, &
-             coeff_section, dt, save_mem, nose_section, error )
+             coeff_section, simpar, save_mem, nose_section, dt_fact, error )
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(section_vals_type), POINTER         :: coeff_section
-    REAL(KIND=dp), INTENT(IN)                :: dt
+    TYPE(simpar_type), POINTER               :: simpar
     LOGICAL, INTENT(IN)                      :: save_mem
     TYPE(section_vals_type), POINTER         :: nose_section
+    REAL(KIND=dp), POINTER                   :: dt_fact
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_coef', &
@@ -283,6 +288,7 @@ CONTAINS
     ! fire up the thermostats
     CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, coeff_section, para_env ,error=error)
 
+    nhc % dt_fact => dt_fact
     IF ( nhc % nhc_len /= 0 ) THEN
        CALL restart_nose(nhc, nose_section, save_mem, restart, error)
        
@@ -294,7 +300,7 @@ CONTAINS
           IF ( nhc % nyosh > 0 ) THEN
              ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
              CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-             CALL set_yoshida_coef ( nhc, dt )
+             CALL set_yoshida_coef ( nhc, simpar%dt )
           ENDIF
        END IF
     ELSE
@@ -309,7 +315,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE initialize_nhc_shell( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, globenv, nhc, nose_section,&
-       gci, save_mem, error)
+       gci, save_mem, dt_fact, error)
  
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(simpar_type), POINTER               :: simpar
@@ -322,6 +328,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: nose_section
     TYPE(global_constraint_type), POINTER    :: gci
     LOGICAL, INTENT(IN)                      :: save_mem
+    REAL(KIND=dp), POINTER                   :: dt_fact
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_shell', &
@@ -335,6 +342,7 @@ CONTAINS
        molecule, molecule_kind_set, nhc, para_env, gci, error)
 
     restart = .FALSE.
+    nhc % dt_fact => dt_fact
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
@@ -662,15 +670,14 @@ CONTAINS
 !>      none
 !> \date 14-NOV-2000
 ! *****************************************************************************
-  SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
-       cmass, para_env, globenv, error )
+  SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, nfree, ensemble, &
+       cmass, globenv, error )
     
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
-    REAL(KIND=dp), INTENT(IN)                :: tau_cell, temp_ext, deth
+    REAL(KIND=dp), INTENT(IN)                :: tau_cell, temp_ext
     INTEGER, INTENT(IN)                      :: nfree, ensemble
     REAL(KIND=dp), INTENT(IN)                :: cmass
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 

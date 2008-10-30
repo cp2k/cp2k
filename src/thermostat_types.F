@@ -21,7 +21,8 @@ MODULE thermostat_types
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE simpar_types,                    ONLY: simpar_type
 #include "cp_common_uses.h"
 
@@ -48,6 +49,7 @@ MODULE thermostat_types
 ! *****************************************************************************
   TYPE thermostats_type
      INTEGER :: id_nr, ref_count
+     REAL(KIND=dp), POINTER :: dt_fact
      TYPE (thermostat_info_type), POINTER :: thermostat_info_part
      TYPE (thermostat_info_type), POINTER :: thermostat_info_shell
      TYPE(thermostat_type), POINTER :: thermostat_part
@@ -114,6 +116,9 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(thermostats%thermostat_info_shell, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(thermostats%dt_fact, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    thermostats%dt_fact =  1.0_dp
 
     NULLIFY(thermostats%thermostat_info_part%map_loc_thermo_gen)
     NULLIFY(thermostats%thermostat_info_shell%map_loc_thermo_gen)
@@ -187,6 +192,10 @@ CONTAINS
           END IF
           IF (ASSOCIATED(thermostats%thermostat_coef)) THEN
              CALL release_thermostat_type(thermostats%thermostat_coef, error)
+          END IF
+          IF (ASSOCIATED(thermostats%dt_fact)) THEN
+             DEALLOCATE(thermostats%dt_fact, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           DEALLOCATE(thermostats, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

@@ -49,6 +49,7 @@ MODULE csvr_system_types
   TYPE csvr_system_type
      INTEGER                                 :: region, glob_num_csvr, loc_num_csvr
      REAL(KIND=dp)                           :: tau_csvr
+     REAL(KIND=dp), POINTER                  :: dt_fact
      TYPE(csvr_thermo_type), POINTER         :: nvt(:)
      TYPE(map_info_type), POINTER            :: map_info
   END TYPE csvr_system_type
@@ -75,6 +76,7 @@ CONTAINS
 
     NULLIFY(csvr%nvt)
     NULLIFY(csvr%map_info)
+    NULLIFY(csvr%dt_fact)
     csvr%loc_num_csvr=0
     csvr%glob_num_csvr=0
     CALL cite_reference(Bussi2007)
@@ -163,6 +165,9 @@ CONTAINS
     IF (ASSOCIATED(csvr)) THEN
        CALL csvr_thermo_dealloc(csvr%nvt, error)
        CALL release_map_info_type(csvr%map_info, error)
+       IF(ASSOCIATED(csvr%dt_fact)) THEN
+          NULLIFY(csvr%dt_fact)
+       END IF
        DEALLOCATE (csvr, STAT=stat)
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
     ENDIF

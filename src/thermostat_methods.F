@@ -183,14 +183,14 @@ CONTAINS
              CALL initialize_nhc_part(thermostats%thermostat_info_part, simpar, local_molecules,&
                   molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
                   thermostats%thermostat_part%nhc, nose_section=work_section,&
-                  gci=gci, save_mem=save_mem, error=error)
+                  gci=gci, save_mem=save_mem, dt_fact=thermostats%dt_fact, error=error)
           ELSE IF (thermostats%thermostat_part%type_of_thermostat==do_thermo_csvr) THEN
              ! Initialize or possibly restart CSVR thermostat on Particles
              work_section => section_vals_get_subs_vals(thermo_part_section,"CSVR",error=error)
              CALL initialize_csvr_part(thermostats%thermostat_info_part,simpar,local_molecules,&
                   molecules_new%els, molecule_kinds_new%els, para_env, &
                   thermostats%thermostat_part%csvr, csvr_section=work_section,&
-                  gci=gci, error=error)
+                  gci=gci, dt_fact=thermostats%dt_fact, error=error)
           END IF
           CALL thermostat_info(thermostats%thermostat_part, "PARTICLES", thermo_part_section, &
                                simpar, para_env, error)
@@ -235,14 +235,14 @@ CPSourceFileRef,&
                    CALL initialize_nhc_shell(thermostats%thermostat_info_shell, simpar, local_molecules,&
                         molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
                         thermostats%thermostat_shell%nhc, nose_section=work_section,gci=gci,&
-                        save_mem=save_mem, error=error) 
+                        save_mem=save_mem, dt_fact=thermostats%dt_fact, error=error) 
                 ELSE IF (thermostats%thermostat_shell%type_of_thermostat==do_thermo_csvr) THEN
                    ! Initialize or possibly restart CSVR thermostat on Shells
                    work_section => section_vals_get_subs_vals(thermo_shell_section,"CSVR",error=error)
                    CALL initialize_csvr_shell(thermostats%thermostat_info_shell, simpar, local_molecules,&
                         molecules_new%els, molecule_kinds_new%els, para_env, &
                         thermostats%thermostat_shell%csvr, csvr_section=work_section, gci=gci,&
-                        error=error)               
+                        dt_fact=thermostats%dt_fact, error=error)               
                 END IF
                 CALL thermostat_info(thermostats%thermostat_shell, "CORE-SHELL", thermo_shell_section, &
                                      simpar, para_env, error)
@@ -286,14 +286,14 @@ CPSourceFileRef,&
                 work_section      => section_vals_get_subs_vals(kg_coeff_section,"THERMOSTAT%NOSE",error=error)
                 CALL initialize_nhc_coef(dyn_coeff_set, para_env, globenv,&
                      thermostats%thermostat_coef%nhc, coeff_section=kg_coeff_section,&
-                     nose_section=work_section, dt=simpar%dt, save_mem=save_mem,&
-                     error=error)
+                     nose_section=work_section, simpar=simpar, save_mem=save_mem,&
+                     dt_fact=thermostats%dt_fact, error=error)
              ELSE IF (thermostats%thermostat_coef%type_of_thermostat==do_thermo_csvr) THEN
                 ! Initialize or possibly restart CSVR thermostat on Coeffs
                 work_section      => section_vals_get_subs_vals(kg_coeff_section,"THERMOSTAT%CSVR",error=error)
                 CALL initialize_csvr_coef(dyn_coeff_set, para_env, &
                      thermostats%thermostat_coef%csvr, coeff_section=kg_coeff_section,&
-                     csvr_section=work_section, dt=simpar%dt, error=error)                
+                     csvr_section=work_section, dt=simpar%dt, dt_fact=thermostats%dt_fact, error=error)                
              END IF
              CALL thermostat_info(thermostats%thermostat_coef, "KG COEFFICIENTS", thermo_coef_section, &
                                   simpar, para_env, error)
@@ -332,12 +332,12 @@ CPSourceFileRef,&
              ! Initialize or possibly restart Nose on Barostat
              work_section => section_vals_get_subs_vals(thermo_baro_section,"NOSE",error=error)
              CALL initialize_nhc_baro(simpar, para_env, globenv, thermostats%thermostat_baro%nhc,&
-                  nose_section=work_section, save_mem=save_mem, error=error)
+                  nose_section=work_section, save_mem=save_mem, dt_fact=thermostats%dt_fact, error=error)
           ELSE IF (thermostats%thermostat_baro%type_of_thermostat==do_thermo_csvr) THEN
              ! Initialize or possibly restart CSVR thermostat on Barostat
              work_section => section_vals_get_subs_vals(thermo_baro_section,"CSVR",error=error)
              CALL initialize_csvr_baro(simpar, para_env, thermostats%thermostat_baro%csvr,&
-                  csvr_section=work_section, error=error)
+                  csvr_section=work_section, dt_fact=thermostats%dt_fact, error=error)
           END IF
           CALL thermostat_info(thermostats%thermostat_baro, "BAROSTAT", thermo_baro_section,&
                                simpar, para_env, error)

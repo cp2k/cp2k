@@ -322,16 +322,16 @@ CONTAINS
 
           ! update velocity on the last thermostat in the chain    ! O1
           nhc % nvt(nhc % nhc_len,:) % v = nhc % nvt(nhc % nhc_len,:) % v + &
-               nhc % nvt(nhc % nhc_len,:) % f * 0.25_dp*nhc % dt_yosh(iyosh)
+               nhc % nvt(nhc % nhc_len,:) % f * 0.25_dp*nhc % dt_yosh(iyosh)*nhc%dt_fact
 
           ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
           DO n = 1, nhc%loc_num_nhc
              IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
              DO inhc = nhc % nhc_len - 1, 1, -1
-                scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh))
+                scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh)*nhc%dt_fact)
                 nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
                 nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
-                     nhc % nvt(inhc,n) % f* 0.25_dp*nhc % dt_yosh(iyosh) ! shift
+                     nhc % nvt(inhc,n) % f* 0.25_dp*nhc % dt_yosh(iyosh)*nhc%dt_fact ! shift
                 nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
              END DO
           END DO
@@ -339,13 +339,13 @@ CONTAINS
           ! the core of the operator ----- START------
           ! update nhc positions
           nhc % nvt ( :, : ) % eta = nhc % nvt ( :, : ) % eta + &
-               0.5_dp*nhc % nvt ( :, : ) % v* nhc % dt_yosh(iyosh)
+               0.5_dp*nhc % nvt ( :, : ) % v* nhc % dt_yosh(iyosh)*nhc%dt_fact
 
           ! now accumulate the scale factor for particle velocities
           DO n = 1, nhc%loc_num_nhc
              imap = nhc%map_info%map_index(n)
              IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
-             map_info%v_scale(imap) = map_info%v_scale(imap)*EXP(-0.5_dp* nhc%dt_yosh(iyosh)*nhc % nvt(1,n)%v)
+             map_info%v_scale(imap) = map_info%v_scale(imap)*EXP(-0.5_dp* nhc%dt_yosh(iyosh)*nhc%dt_fact*nhc % nvt(1,n)%v)
           END DO
           ! the core of the operator ------ END ------
 
@@ -361,10 +361,10 @@ CONTAINS
           DO inhc = 1, nhc % nhc_len - 1
              DO n = 1, nhc%loc_num_nhc
                 IF (nhc % nvt(1,n) % nkt == 0.0_dp) CYCLE
-                scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh))
+                scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh)*nhc%dt_fact)
                 nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
                 nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
-                     nhc % nvt(inhc,n) % f*0.25_dp*nhc % dt_yosh(iyosh) ! shift
+                     nhc % nvt(inhc,n) % f*0.25_dp*nhc % dt_yosh(iyosh)*nhc%dt_fact ! shift
                 nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
              END DO
 
@@ -377,7 +377,7 @@ CONTAINS
           END DO
           ! update velocity on last thermostat                             ! O1
           nhc % nvt(nhc % nhc_len,:) % v = nhc % nvt(nhc % nhc_len,:) % v + &
-               nhc % nvt(nhc % nhc_len,:) % f * 0.25_dp*nhc % dt_yosh(iyosh)
+               nhc % nvt(nhc % nhc_len,:) % f * 0.25_dp*nhc % dt_yosh(iyosh)*nhc%dt_fact
        END DO YOSH
     END DO NCLOOP
   END SUBROUTINE multiple_step_yoshida
