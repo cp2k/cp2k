@@ -13,11 +13,10 @@ MODULE gopt_f_methods
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
-  USE cp2k_units,                      ONLY: get_cp2k_units,&
-                                             unit_convert_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE dimer_types,                     ONLY: dimer_env_type
   USE dimer_utils,                     ONLY: update_dimer_vec
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -158,7 +157,7 @@ CONTAINS
     CASE(default_ts_method_id,default_minimization_method_id)
        ! Geometry Optimization (Minimization and Transition State Search)
        IF (.NOT.gopt_env%dimer_rotation) THEN
-          CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,wildcard=wildcard)
+          CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,wildcard=wildcard,error=error)
        ELSE
           CALL write_rot_cycle_infos(output_unit,it=0,etot=opt_energy,dimer_env=gopt_env%dimer_env,&
                wildcard=wildcard)
@@ -166,7 +165,8 @@ CONTAINS
     CASE(default_cell_method_id)
        ! Cell Optimization
        pres_int = gopt_env%cell_env%pres_int
-       CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,pres_int=pres_int,wildcard=wildcard)
+       CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,pres_int=pres_int,wildcard=wildcard,&
+                              error=error)
     END SELECT
 
   END SUBROUTINE gopt_f_io_init
@@ -210,13 +210,13 @@ CONTAINS
           CALL geo_opt_io(force_env=force_env, root_section=root_section, &
                motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy, error=error)
           CALL write_cycle_infos(output_unit,its,etot=opt_energy,ediff=opt_energy-eold,&
-               pred=pred,rat=rat,step=step,rad=rad,emin=emin,wildcard=wildcard)
+               pred=pred,rat=rat,step=step,rad=rad,emin=emin,wildcard=wildcard,error=error)
           ! Possibly check convergence
           IF (PRESENT(conv)) THEN 
              CPPostcondition(PRESENT(ndf),cp_failure_level,routineP,error,failure)
              CPPostcondition(PRESENT(dx),cp_failure_level,routineP,error,failure)
              CPPostcondition(PRESENT(xi),cp_failure_level,routineP,error,failure)
-             CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param)
+             CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param,error=error)
           END IF
        ELSE
           CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section, error)
@@ -238,13 +238,14 @@ CONTAINS
        CALL geo_opt_io(force_env=force_env, root_section=root_section, &
             motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy, error=error)
        CALL write_cycle_infos(output_unit,its,etot=opt_energy,ediff=opt_energy-eold,&
-            pred=pred,rat=rat,step=step,rad=rad,emin=emin,pres_int=pres_int,wildcard=wildcard)
+            pred=pred,rat=rat,step=step,rad=rad,emin=emin,pres_int=pres_int,wildcard=wildcard,&
+            error=error)
        ! Possibly check convergence
        IF (PRESENT(conv)) THEN 
           CPPostcondition(PRESENT(ndf),cp_failure_level,routineP,error,failure)
           CPPostcondition(PRESENT(dx),cp_failure_level,routineP,error,failure)
           CPPostcondition(PRESENT(xi),cp_failure_level,routineP,error,failure)
-          CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param,pres_diff,pres_tol)
+          CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param,pres_diff,pres_tol,error=error)
        END IF
     END SELECT
   END SUBROUTINE gopt_f_io
@@ -283,21 +284,20 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin,&
-       pres_int,wildcard)
+       pres_int,wildcard,error)
 
     INTEGER, INTENT(IN)                      :: output_unit, it
     REAL(KIND=dp), INTENT(IN)                :: etot
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: ediff, pred, rat, step, rad, &
                                                 emin, pres_int
     CHARACTER(LEN=5), OPTIONAL               :: wildcard
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_cycle_infos', &
       routineP = moduleN//':'//routineN
 
-    TYPE(unit_convert_type), POINTER         :: unit
+    REAL(KIND=dp)                            :: tmp_r1
 
-    NULLIFY(unit)
-    CALL get_cp2k_units(unit)
     IF (output_unit>0)THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,12('-'))")&
             "  Informations at step = ",it
@@ -306,8 +306,9 @@ CONTAINS
        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
             " Total Energy               = ",etot
        IF (PRESENT(pres_int)) THEN
+          tmp_r1 = cp_unit_from_cp2k(pres_int,"bar",error=error)
           WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-               " Internal Pressure [bar]    = ",pres_int*unit%bar
+               " Internal Pressure [bar]    = ",tmp_r1
        END IF
        IF (PRESENT(ediff)) THEN
           WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
@@ -388,7 +389,7 @@ CONTAINS
   END SUBROUTINE write_rot_cycle_infos
 
 ! *****************************************************************************
-  SUBROUTINE check_converg(ndf,dr,g,output_unit,conv,gopt_param,pres_diff,pres_tol)
+  SUBROUTINE check_converg(ndf,dr,g,output_unit,conv,gopt_param,pres_diff,pres_tol,error)
 
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(IN)                :: dr(ndf), g(ndf)
@@ -396,6 +397,7 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: conv
     TYPE(gopt_param_type), POINTER           :: gopt_param
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pres_diff, pres_tol
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_converg', &
       routineP = moduleN//':'//routineN
@@ -404,11 +406,8 @@ CONTAINS
     LOGICAL                                  :: conv_dx, conv_g, conv_p, &
                                                 conv_rdx, conv_rg
     REAL(KIND=dp)                            :: dumm, dxcon, gcon, maxdum(4), &
-                                                rmsgcon, rmsxcon
-    TYPE(unit_convert_type), POINTER         :: unit
+                                                rmsgcon, rmsxcon, tmp_r1
 
-    NULLIFY(unit)
-    CALL get_cp2k_units(unit)
     dxcon = gopt_param%max_dr
     gcon = gopt_param%max_force
     rmsgcon = gopt_param%rms_force
@@ -500,10 +499,12 @@ CONTAINS
                "              NO"
        END IF
        IF (PRESENT(pres_diff).AND.PRESENT(pres_tol)) THEN
+          tmp_r1 = cp_unit_from_cp2k(pres_diff,"bar",error=error)
           WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-               " Pressure Deviation [bar]   = ",pres_diff*unit%bar
+               " Pressure Deviation [bar]   = ",tmp_r1
+          tmp_r1 = cp_unit_from_cp2k(pres_tol,"bar",error=error)
           WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-               " Pressure Tolerance [bar]   = ",pres_tol*unit%bar
+               " Pressure Tolerance [bar]   = ",tmp_r1
           IF(conv_p)THEN
              WRITE(UNIT=output_unit,FMT="(T2,2A)")&
                   " Conv. for  PRESSURE        =     ",&
@@ -733,13 +734,11 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(unit_convert_type), POINTER         :: unit
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
-    NULLIFY(unit, para_env, atomic_kind_set, subsys, particle_set, local_particles,&
-            atomic_kinds, particles)
-    CALL get_cp2k_units(unit)
+    NULLIFY(para_env, atomic_kind_set, subsys, particle_set, &
+         local_particles, atomic_kinds, particles)
 
     ! Write Restart File
     CALL write_restart(force_env=force_env,root_section=root_section,&
@@ -757,7 +756,7 @@ CONTAINS
     particle_set => particles%els
     CALL virial_evaluate(atomic_kind_set, particle_set,  local_particles, &
          virial, para_env%group, error=error)
-    CALL write_stress_tensor(virial, cell, motion_section, unit, its, 0.0_dp, error=error)
+    CALL write_stress_tensor(virial, cell, motion_section, its, 0.0_dp, error=error)
     
     ! Write the cell
     CALL write_simulation_cell(cell, motion_section, its, 0.0_dp, error=error)

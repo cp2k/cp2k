@@ -10,8 +10,6 @@
 !> \author CJM NOV-30-2003
 ! *****************************************************************************
 MODULE ewald_environment_types
-  USE cp2k_units,                      ONLY: get_cp2k_units,&
-                                             unit_convert_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -209,18 +207,15 @@ CONTAINS
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    TYPE(unit_convert_type), POINTER         :: units
 
     failure=.FALSE.
 
     ALLOCATE( ewald_env, stat=stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       NULLIFY(units)
        ewald_env%ref_count=1
        last_ewald_env_id_nr=last_ewald_env_id_nr+1
        ewald_env%id_nr=last_ewald_env_id_nr
-       CALL get_cp2k_units(units)
        NULLIFY(ewald_env%poisson_section)
        CALL cp_para_env_retain(para_env, error=error)
        ewald_env%para_env => para_env
@@ -310,12 +305,9 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: multipole_section
-    TYPE(unit_convert_type), POINTER         :: units
 
-    NULLIFY( units, enum, keyword, section,multipole_section)
+    NULLIFY(enum, keyword, section, multipole_section)
     logger=>cp_error_get_logger(error)
-    CALL get_cp2k_units ( units )
-
     failure = .FALSE.
     IF (.NOT.failure) THEN
        CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=ewald_env%ewald_type,error=error)

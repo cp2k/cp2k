@@ -17,8 +17,6 @@
 ! *****************************************************************************
 MODULE f77_interface
   USE bibliography,                    ONLY: add_all_references
-  USE cp2k_units,                      ONLY: init_cp2k_units,&
-                                             rm_cp2k_units
   USE cp_files,                        ONLY: open_file
   USE cp_output_handling,              ONLY: cp_iterate
   USE cp_para_env,                     ONLY: cp_para_env_create,&
@@ -212,9 +210,7 @@ CONTAINS
        ierr=0
 
        !   *** Initialize mathematical constants ***
-
        CALL init_physcon()
-       CALL init_cp2k_units(error=error)
 
        !   *** init the bibliography ***
        CALL add_all_references()
@@ -257,7 +253,7 @@ CONTAINS
           ierr=0
        ENDIF
        CALL cp_rm_default_logger()
-       CALL rm_cp2k_units(error=error)
+
        !   *** deallocate the bibliography ***
        CALL remove_all_references()
        CALL rm_timer_env()

@@ -686,7 +686,7 @@ CPSourceFileRef,&
              
              ! Check convergence
              IF (is_master) CALL check_converg(SIZE(optimizer%x),optimizer%x-xold,optimizer%gradient,&
-                  dataunit,conv,gopt_param)
+                  dataunit,conv,gopt_param,error=error)
              CALL mp_bcast(conv,optimizer%master,optimizer%para_env%group)
 
              CALL cp_print_key_finished_output(dataunit,logger,geo_section,&

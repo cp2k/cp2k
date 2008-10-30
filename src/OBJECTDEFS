@@ -49,7 +49,6 @@ OBJECTS_GENERIC =\
  cp2k_debug.o\
  cp2k_info.o\
  cp2k_runs.o\
- cp2k_units.o\
  cp_array_i_utils.o\
  cp_array_logical_utils.o\
  cp_array_r_utils.o\

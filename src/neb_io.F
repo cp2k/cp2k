@@ -17,10 +17,9 @@
 ! *****************************************************************************
 MODULE neb_io
   USE cell_types,                      ONLY: cell_type
-  USE cp2k_units,                      ONLY: get_cp2k_units,&
-                                             unit_convert_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get
   USE input_constants,                 ONLY: band_md_opt,&
@@ -169,17 +168,14 @@ CONTAINS
                                                 irep, ndig, ndigl, stat, &
                                                 ttst, vel
     LOGICAL                                  :: explicit, failure, lval
-    REAL(KIND=dp)                            :: f_ann
+    REAL(KIND=dp)                            :: f_ann, tmp_r1
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ekin, temperatures
     TYPE(cell_type), POINTER                 :: cell
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: tc_section, vc_section
-    TYPE(unit_convert_type), POINTER         :: unit
 
-    NULLIFY(unit)
-    CALL get_cp2k_units ( unit )
     failure = .FALSE.
     CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
@@ -280,8 +276,9 @@ CONTAINS
              CALL section_vals_val_get(tc_section,"TEMP_TOL_STEPS",i_val=ttst, error=error)
              IF (istep<=ttst) THEN
                 CALL section_vals_val_get(tc_section,"TEMPERATURE",r_val=f_ann, error=error)
+                tmp_r1 = cp_unit_from_cp2k(f_ann,"K",error=error)
                 WRITE ( output_unit, '( A,T71,F10.5)' )&
-               ' TEMPERATURE TARGET            =',f_ann/unit%kelvin
+               ' TEMPERATURE TARGET            =',tmp_r1
              END IF
           END IF
           WRITE ( output_unit, '( A,T71,I10 )' )&

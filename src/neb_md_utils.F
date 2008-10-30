@@ -16,8 +16,7 @@
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
 MODULE neb_md_utils
-  USE cp2k_units,                      ONLY: get_cp2k_units,&
-                                             unit_convert_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: band_md_opt,&
@@ -66,16 +65,14 @@ CONTAINS
     INTEGER                                  :: k, kind, nfield, ref_dim
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: akin, mass, mass_tot, sc, &
-                                                temp, temp_ext, vcom(3)
+                                                temp, temp_ext, tmp_r1, &
+                                                vcom(3)
     TYPE(section_vals_type), POINTER         :: md_section
-    TYPE(unit_convert_type), POINTER         :: unit
 
     failure = .FALSE.
-    NULLIFY(unit)
     IF (neb_env%opt_type==band_md_opt) THEN
        md_section => section_vals_get_subs_vals(neb_section,"OPTIMIZE_BAND%MD",error=error)
        CALL section_vals_val_get(md_section,"TEMPERATURE",r_val=temp_ext,error=error)
-       CALL get_cp2k_units ( unit )
        ! Initialize velocity according external temperature
        mass_tot = 0.0_dp
        vcom     = 0.0_dp
@@ -139,8 +136,9 @@ CONTAINS
        ! Dump information
        IF (iw>0) THEN
           temp = 2.0_dp * akin / REAL ( ref_dim, KIND=dp)
+          tmp_r1 = cp_unit_from_cp2k(temp,"K",error=error)
           WRITE ( iw, '( A, T61, F18.2, A2 )' ) &
-               ' NEB| Initial Temperature ', temp / unit % kelvin, " K"
+               ' NEB| Initial Temperature ', tmp_r1, " K"
           WRITE ( iw, '( A, T61, F20.12 )' ) &
                ' NEB| Centre of mass velocity in direction x:', vcom ( 1 )
           WRITE ( iw, '( A, T61, F20.12 )' ) &
@@ -174,13 +172,10 @@ CONTAINS
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: ext_temp, f_annealing, &
                                                 factor, scale, temp_tol, &
-                                                temploc
+                                                temploc, tmp_r1, tmp_r2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: temperatures
-    TYPE(unit_convert_type), POINTER         :: unit
 
     failure = .FALSE.
-    NULLIFY(unit)
-    CALL get_cp2k_units ( unit )
     ! Temperature control
     CALL section_vals_get(tc_section,explicit=explicit,error=error)
     IF (explicit) THEN
@@ -197,9 +192,12 @@ CONTAINS
              temploc = temperatures(i)
              IF (ABS(temploc-ext_temp) > temp_tol) THEN
                 IF (output_unit>0) THEN
+                   tmp_r1 =cp_unit_from_cp2k(temploc,"K",error=error)
+                   tmp_r2 =cp_unit_from_cp2k(ext_temp,"K",error=error)
                    WRITE(output_unit,'(T2,"NEB| Replica Nr.",I5,'//&
                         '"  - Velocity rescaled from: ",F12.6," to: ",F12.6,".")')&
-                        i, temploc/ unit % kelvin, ext_temp/ unit % kelvin
+                        i, tmp_r1, tmp_r2
+                        
                 END IF
                 scale = SQRT(ext_temp/temploc)
                 vels%wrk(:,i) = scale * vels%wrk(:,i)
@@ -279,11 +277,8 @@ CONTAINS
 
     INTEGER                                  :: i, k, kind, nfield, ref_dim
     REAL(KIND=dp)                            :: akin, mass, myfactor, temploc
-    TYPE(unit_convert_type), POINTER         :: unit
 
-    NULLIFY(unit)
-    CALL get_cp2k_units ( unit )
-    myfactor     = unit % kelvin
+    myfactor     = cp_unit_from_cp2k(1.0_dp,"K",error=error)
     IF (PRESENT(factor)) myfactor = factor
     IF (PRESENT(ekin))   ekin = 0.0_dp
     temperatures = 0.0_dp
@@ -307,7 +302,7 @@ CONTAINS
        END DO
        IF (PRESENT(ekin)) ekin(i) = akin
        temploc = 2.0_dp * akin / REAL ( ref_dim, KIND=dp)
-       temperatures(i) = temploc / myfactor
+       temperatures(i) = temploc * myfactor
     END DO
   END SUBROUTINE get_temperatures
 

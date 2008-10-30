@@ -21,8 +21,6 @@ MODULE md_energies
   USE barostat_utils,                  ONLY: print_barostat_status
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
-  USE cp2k_units,                      ONLY: get_cp2k_units,&
-                                             unit_convert_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -30,6 +28,7 @@ MODULE md_energies
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
@@ -296,7 +295,8 @@ CONTAINS
                                                 new_file, qmmm, &
                                                 shell_adiabatic, shell_present
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
-                                                dt, econs, pv_scalar, pv_xx
+                                                dt, econs, pv_scalar, pv_xx, &
+                                                pv_xx_nc
     REAL(KIND=dp)                            :: harm_shell, hugoniot
     REAL(KIND=dp), POINTER                   :: time, used_time
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -318,14 +318,12 @@ CONTAINS
                                                 root_section
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostats_type), POINTER          :: thermostats
-    TYPE(unit_convert_type), POINTER         :: unit
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
-    NULLIFY(logger,unit)
+    NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL timeset(routineN,handle)
-    CALL get_cp2k_units(unit)
 
     ! Zeroing
     hugoniot = 0.0_dp
@@ -362,8 +360,9 @@ CONTAINS
           pv_scalar = pv_scalar + virial%pv_total(i,i)
        END DO
        pv_scalar = pv_scalar/3._dp/cell%deth
-       pv_scalar = pv_scalar * unit%bar
-       pv_xx     = virial%pv_total(1,1)/cell%deth*unit%bar
+       pv_scalar = cp_unit_from_cp2k(pv_scalar,"bar",error=error)
+       pv_xx_nc  = virial%pv_total(1,1)/cell%deth
+       pv_xx     = cp_unit_from_cp2k(virial%pv_total(1,1)/cell%deth,"bar",error=error)
     ENDIF
 
     CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
@@ -396,7 +395,7 @@ CONTAINS
        IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.&
             simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
           IF (simpar%e0 == 0._dp ) simpar%e0 = md_ener%epot + md_ener%ekin
-          hugoniot = md_ener%epot + md_ener%ekin - simpar%e0 - 0.5_dp*(pv_xx/unit%bar + simpar%p0)*&
+          hugoniot = md_ener%epot + md_ener%ekin - simpar%e0 - 0.5_dp*(pv_xx_nc + simpar%p0)*&
                (simpar%v0-cell%deth)
        ENDIF
 
@@ -404,7 +403,7 @@ CONTAINS
     ELSE
        ! Performing protocol for anything beyond the first step of MD
        IF ( simpar%ensemble == nph_uniaxial_ensemble .OR. simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
-          hugoniot = md_ener%epot + md_ener%ekin - simpar%e0 - 0.5_dp * ( pv_xx/unit%bar + simpar%p0 ) * &
+          hugoniot = md_ener%epot + md_ener%ekin - simpar%e0 - 0.5_dp * ( pv_xx_nc + simpar%p0 ) * &
                ( simpar%v0 - cell%deth )
        END IF
 
@@ -423,7 +422,7 @@ CONTAINS
     END IF
     
     ! Print md information
-    CALL md_write_info_low(simpar, md_ener, unit, qmmm, virial, reftraj, cell, abc,&
+    CALL md_write_info_low(simpar, md_ener, qmmm, virial, reftraj, cell, abc,&
          cell_angle, itimes, dt, time, used_time, averages, econs, pv_scalar, pv_xx,&
          hugoniot, nat, init, logger, motion_section, my_pos, my_act, error)
 
@@ -495,7 +494,7 @@ CONTAINS
        CALL print_barostat_status(barostat, simpar, my_pos, my_act, cell, itimes, time, error)
 
        ! Print Stress Tensor
-       CALL write_stress_tensor(virial, cell, motion_section, unit, itimes, time*femtoseconds,&
+       CALL write_stress_tensor(virial, cell, motion_section, itimes, time*femtoseconds,&
             my_pos, my_act, error)
 
        ! Temperature per Kinds
@@ -606,13 +605,12 @@ CPSourceFileRef,&
 !>                  All output on screen must be included in this function!
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE md_write_info_low(simpar, md_ener, unit, qmmm, virial, reftraj, cell,&
+  SUBROUTINE md_write_info_low(simpar, md_ener, qmmm, virial, reftraj, cell,&
        abc, cell_angle, itimes, dt, time, used_time, averages, econs, pv_scalar, &
        pv_xx, hugoniot, nat, init, logger, motion_section, my_pos, my_act, error)
 
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(md_ener_type), POINTER              :: md_ener
-    TYPE(unit_convert_type), POINTER         :: unit
     LOGICAL, INTENT(IN)                      :: qmmm
     TYPE(virial_type), POINTER               :: virial
     TYPE(reftraj_type), POINTER              :: reftraj
@@ -661,23 +659,23 @@ CPSourceFileRef,&
           WRITE (iw,'( A,A )') ' ******************************** ', &
                'GO CP2K GO! **********************************'
           WRITE (iw,'( A,A,T40,A,T60,1(1X,E20.12) )') ' INITIAL POTENTIAL ENERGY', &
-               ADJUSTL( unit%e_label), '= ', md_ener%epot
+               '[hartree]', '= ', md_ener%epot
           IF (simpar%ensemble/=reftraj_ensemble) THEN
              IF (.NOT.qmmm) THEN
                 ! NO QM/MM info
                 WRITE (iw,'( A,A,T40,A,T60,1(1X,E20.12) )') ' INITIAL KINETIC ENERGY', &
-                     ADJUSTL( unit%e_label), '= ', md_ener%ekin
+                     '[hartree]', '= ', md_ener%ekin
                 WRITE (iw,'( A,A,T40,A,T60,1(1X,F20.3) )') ' INITIAL TEMPERATURE', &
-                     ADJUSTL( unit%temp_label ), '= ', md_ener%temp_part
+                     '[K]', '= ', md_ener%temp_part
              ELSE
                 WRITE (iw,'( A,A,T40,A,T60,1(1X,E20.12) )') ' TOTAL INITIAL KINETIC ENERGY', &
-                     ADJUSTL( unit%e_label), '= ', md_ener%ekin
+                     '[hartree]', '= ', md_ener%ekin
                 WRITE (iw,'( A,A,T40,A,T60,1(1X,E20.12) )') ' QM INITIAL KINETIC ENERGY', &
-                     ADJUSTL( unit%e_label), '= ', md_ener%ekin_qm
+                     '[hartree]', '= ', md_ener%ekin_qm
                 WRITE (iw,'( A,A,T40,A,T60,1(1X,F20.3) )') ' TOTAL INITIAL TEMPERATURE', &
-                     ADJUSTL( unit%temp_label ), '= ', md_ener%temp_part
+                     '[K]', '= ', md_ener%temp_part
                 WRITE (iw,'( A,A,T40,A,T60,1(1X,F20.3) )') ' QM INITIAL TEMPERATURE', &
-                     ADJUSTL( unit%temp_label ), '= ', md_ener%temp_qm
+                     '[K]', '= ', md_ener%temp_qm
              END IF
           END IF
           IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.&
@@ -687,24 +685,24 @@ CPSourceFileRef,&
                simpar%ensemble == npe_i_ensemble.OR.&
                simpar%ensemble == npe_f_ensemble)  &
                WRITE (iw,'( A,A,T40,A,T60,1(1X,E20.12) )') ' INITIAL BAROSTAT TEMP', &
-               ADJUSTL( unit%temp_label), '= ', md_ener%temp_baro
+               '[K]', '= ', md_ener%temp_baro
           IF ( virial%pv_availability ) &
                WRITE (iw,'( A,A,T40,A,T60,1(1X,E20.12) )') ' INITIAL PRESSURE', &
-               ADJUSTL( unit%pres_label), '= ', pv_scalar
+               '[bar]', '= ', pv_scalar
           IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.&
                simpar%ensemble == nph_uniaxial_damped_ensemble)&
                WRITE (iw,'( A,A,T40,A,T60,1(1X,E20.12) )') ' INITIAL HUGONIOT CONSTRAINT', &
-               ADJUSTL( unit%temp_label), '= ', hugoniot
+               '[K]', '= ', hugoniot
           IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.&
                simpar%ensemble == nph_uniaxial_damped_ensemble)&
                WRITE (iw,'( A,A,T40,A,T60,1(1X,E20.12) )') ' INITIAL E0', &
-               ADJUSTL( unit%e_label), '= ', simpar%e0
+               '[hartree]', '= ', simpar%e0
           WRITE (iw,'( A,A,T40,A,T60,1(1X,E20.12) )') ' INITIAL VOLUME', &
-               ADJUSTL( unit%vol_label), '= ', cell%deth
+               '[bohr^3]', '= ', cell%deth
           WRITE (iw,'( A,A,T29,A,T33,3(1X,E15.7) )') ' INITIAL CELL LNTHS', &
-               ADJUSTL(unit%l_label), '= ', abc(1), abc(2), abc(3)
+               '[bohr]', '= ', abc(1), abc(2), abc(3)
           WRITE (iw,'( A,A,T29,A,T33,3(1X,E15.7) )') ' INITIAL CELL ANGLS', &
-               ADJUSTL(unit%angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
+               '[deg]', '= ', cell_angle(3), cell_angle(2), cell_angle(1)
           WRITE (iw,'( A,A )') ' ******************************** ', &
                'GO CP2K GO! **********************************'
        ELSE
@@ -728,34 +726,34 @@ CPSourceFileRef,&
           WRITE (iw,'( A,T39,2(1X,E20.12) )') ' {E-E0}/{k_b*N_at}            = ', &
                econs, averages%econs
           WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' POTENTIAL ENERGY', &
-               ADJUSTL(unit%e_label), '= ', md_ener%epot, averages%avepot
+               '[hartree]', '= ', md_ener%epot, averages%avepot
           IF(simpar%ensemble/=reftraj_ensemble) THEN
              IF (.NOT.qmmm) THEN
                 ! No QM/MM info
                 WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' KINETIC ENERGY', &
-                     ADJUSTL(unit%e_label), '= ', md_ener%ekin, averages%avekin
+                     '[hartree]', '= ', md_ener%ekin, averages%avekin
                 WRITE (iw,'( A,A,T31,A,T39,2(1X,F20.3) )') ' TEMPERATURE', &
-                     ADJUSTL(unit%temp_label), '= ', md_ener%temp_part, averages%avetemp
+                     '[K]', '= ', md_ener%temp_part, averages%avetemp
              ELSE
                 WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' TOTAL KINETIC ENERGY', &
-                     ADJUSTL(unit%e_label), '= ', md_ener%ekin, averages%avekin
+                     '[hartree]', '= ', md_ener%ekin, averages%avekin
                 WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' QM KINETIC ENERGY', &
-                     ADJUSTL(unit%e_label), '= ', md_ener%ekin_qm, averages%avekin_qm
+                     '[hartree]', '= ', md_ener%ekin_qm, averages%avekin_qm
                 WRITE (iw,'( A,A,T31,A,T39,2(1X,F20.3) )') ' TOTAL TEMPERATURE', &
-                     ADJUSTL(unit%temp_label), '= ', md_ener%temp_part, averages%avetemp
+                     '[K]', '= ', md_ener%temp_part, averages%avetemp
                 WRITE (iw,'( A,A,T31,A,T39,2(1X,F20.3) )') ' QM TEMPERATURE', &
-                     ADJUSTL(unit%temp_label), '= ', md_ener%temp_qm, averages%avetemp_qm
+                     '[K]', '= ', md_ener%temp_qm, averages%avetemp_qm
              END IF
           END IF
           IF ( virial%pv_availability ) &
                WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' PRESSURE', &
-               ADJUSTL(unit%pres_label), '= ', pv_scalar, averages%avepress
+               '[bar]', '= ', pv_scalar, averages%avepress
           IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.&
                simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
              WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' P_XX', &
-                  ADJUSTL(unit%pres_label), '= ', pv_xx, averages%avepxx
+                  '[bar]', '= ', pv_xx, averages%avepxx
              WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' HUGONIOT', &
-                  ADJUSTL(unit%temp_label), '= ', hugoniot/3._dp/nat*kelvin,&
+                  '[K]', '= ', hugoniot/3._dp/nat*kelvin,&
                   averages%avehugoniot/3._dp/nat*kelvin
           END IF
           IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.&
@@ -765,21 +763,21 @@ CPSourceFileRef,&
                simpar%ensemble == npe_i_ensemble.OR.&
                simpar%ensemble == npe_f_ensemble) THEN
              WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' BAROSTAT TEMP', &
-                  ADJUSTL(unit%temp_label), '= ', md_ener%temp_baro, averages%avetemp_baro
+                  '[K]', '= ', md_ener%temp_baro, averages%avetemp_baro
              WRITE (iw,'( A,A,T31,A,T39,2(1X,E20.12) )') ' VOLUME', &
-                  ADJUSTL(unit%vol_label), '= ', cell%deth, averages%avevol
+                  '[bohr^3]', '= ', cell%deth, averages%avevol
              WRITE (iw,'( A,A,T31,A,T33,3(1X,E15.7) )') ' CELL LNTHS', &
-                  ADJUSTL(unit%l_label), '= ', abc(1), abc(2), abc(3)
+                  '[bohr]', '= ', abc(1), abc(2), abc(3)
              WRITE (iw,'( A,A,T31,A,T33,3(1X,E15.7) )') ' AVE. CELL LNTHS', &
-                  ADJUSTL(unit%l_label), '= ', averages%aveca, averages%avecb, &
+                  '[bohr]', '= ', averages%aveca, averages%avecb, &
                   averages%avecc
           END IF
           IF (simpar%ensemble==npt_f_ensemble .OR. &
               simpar%ensemble == npe_f_ensemble) THEN
              WRITE (iw,'( A,A,T31,A,T33,3(1X,E15.7) )') ' CELL ANGLS', &
-                  ADJUSTL(unit%angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
+                  '[deg]', '= ', cell_angle(3), cell_angle(2), cell_angle(1)
              WRITE (iw,'( A,A,T31,A,T33,3(1X,E15.7) )') ' AVE. CELL ANGLS', &
-                  ADJUSTL(unit%angl_label), '= ', averages%aveal, averages%avebe, averages%avega
+                  '[deg]', '= ', averages%aveal, averages%avebe, averages%avega
           END IF
           IF(simpar%ensemble==reftraj_ensemble) THEN
              IF(reftraj%info%msd) THEN

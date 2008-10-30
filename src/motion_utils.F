@@ -11,11 +11,11 @@
 MODULE motion_utils
 
   USE cell_types,                      ONLY: cell_type
-  USE cp2k_units,                      ONLY: unit_convert_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
@@ -378,11 +378,10 @@ CONTAINS
 !> \date    02.2008
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_stress_tensor(virial, cell, motion_section, unit, itimes, time, pos, act, error)
+  SUBROUTINE write_stress_tensor(virial, cell, motion_section, itimes, time, pos, act, error)
     TYPE(virial_type), POINTER               :: virial
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: motion_section
-    TYPE(unit_convert_type), POINTER         :: unit
     INTEGER, INTENT(IN)                      :: itimes
     REAL(KIND=dp), INTENT(IN)                :: time
     CHARACTER(LEN=default_string_length), &
@@ -394,6 +393,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: my_act, my_pos
     INTEGER                                  :: str
+    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_total_bar
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
@@ -411,16 +411,26 @@ CONTAINS
       str = 0
     END IF
     IF ( str > 0 ) THEN
+       pv_total_bar(1,1) = cp_unit_from_cp2k(virial%pv_total(1,1)/cell%deth,"bar",error=error)
+       pv_total_bar(1,2) = cp_unit_from_cp2k(virial%pv_total(1,2)/cell%deth,"bar",error=error)
+       pv_total_bar(1,3) = cp_unit_from_cp2k(virial%pv_total(1,3)/cell%deth,"bar",error=error)
+       pv_total_bar(2,1) = cp_unit_from_cp2k(virial%pv_total(2,1)/cell%deth,"bar",error=error)
+       pv_total_bar(2,2) = cp_unit_from_cp2k(virial%pv_total(2,2)/cell%deth,"bar",error=error)
+       pv_total_bar(2,3) = cp_unit_from_cp2k(virial%pv_total(2,3)/cell%deth,"bar",error=error)
+       pv_total_bar(3,1) = cp_unit_from_cp2k(virial%pv_total(3,1)/cell%deth,"bar",error=error)
+       pv_total_bar(3,2) = cp_unit_from_cp2k(virial%pv_total(3,2)/cell%deth,"bar",error=error)
+       pv_total_bar(3,3) = cp_unit_from_cp2k(virial%pv_total(3,3)/cell%deth,"bar",error=error)
+       
        WRITE(UNIT=str,FMT="(I10,F12.3,9F20.10)") itimes,time,&
-                     virial%pv_total(1,1)/cell%deth*unit%bar,&
-                     virial%pv_total(1,2)/cell%deth*unit%bar,&
-                     virial%pv_total(1,3)/cell%deth*unit%bar,&
-                     virial%pv_total(2,1)/cell%deth*unit%bar,&
-                     virial%pv_total(2,2)/cell%deth*unit%bar,&
-                     virial%pv_total(2,3)/cell%deth*unit%bar,& 
-                     virial%pv_total(3,1)/cell%deth*unit%bar,&
-                     virial%pv_total(3,2)/cell%deth*unit%bar,&
-                     virial%pv_total(3,3)/cell%deth*unit%bar
+                                                 pv_total_bar(1,1),&
+                                                 pv_total_bar(1,2),&
+                                                 pv_total_bar(1,3),&
+                                                 pv_total_bar(2,1),&
+                                                 pv_total_bar(2,2),&
+                                                 pv_total_bar(2,3),& 
+                                                 pv_total_bar(3,1),&
+                                                 pv_total_bar(3,2),&
+                                                 pv_total_bar(3,3)
        CALL m_flush(str)
     END IF
     IF( virial % pv_availability ) THEN

@@ -16,8 +16,6 @@ MODULE md_vel_utils
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE cp2k_units,                      ONLY: get_cp2k_units,&
-                                             unit_convert_type
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -25,6 +23,7 @@ MODULE md_vel_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE extended_system_types,           ONLY: npt_info_type
   USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
@@ -446,7 +445,7 @@ CONTAINS
                                                 is_ok, shellvel_explicit
     REAL(KIND=dp)                            :: ecom, ekin, fac_massc, &
                                                 fac_masss, mass, mass_tot, &
-                                                temp
+                                                temp, tmp_r1
     REAL(KIND=dp), DIMENSION(3)              :: rcom, vang, vc, vcom, vs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -463,7 +462,6 @@ CONTAINS
                                                 corevel_section, &
                                                 shellvel_section
     TYPE(shell_kind_type), POINTER           :: shell
-    TYPE(unit_convert_type), POINTER         :: unit
     TYPE(val_type), POINTER                  :: val
 
     CALL timeset(routineN,handle)
@@ -471,7 +469,7 @@ CONTAINS
     ! Initializing parameters
     failure = .FALSE.
     NULLIFY (atomic_kind, fixd_list, atom_list, shell_list, core_list, logger, molecule_kind)
-    NULLIFY (molecule_kind_set, shell, unit, val)
+    NULLIFY (molecule_kind_set, shell, val)
 
     NULLIFY (atomvel_section,shellvel_section, corevel_section)
     atomvel_section  => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
@@ -526,7 +524,6 @@ CONTAINS
     END IF
 
     ! Read or initialize the particle velocities
-    CALL get_cp2k_units ( unit )
     CALL section_vals_get(atomvel_section,explicit=atomvel_explicit,error=error)
     CALL section_vals_get(shellvel_section,explicit=shellvel_explicit,error=error)
     CALL section_vals_get(corevel_section,explicit=corevel_explicit,error=error)
@@ -669,7 +666,8 @@ CONTAINS
        ELSE
           temp = 2.0_dp * ekin / REAL ( simpar%nfree,KIND=dp)
        END IF
-       WRITE (iw, '( A, T61, F18.2, A2 )' ) ' Initial Temperature ', temp / unit%kelvin, " K"
+       tmp_r1 = cp_unit_from_cp2k(temp,"K",error=error)
+       WRITE (iw, '( A, T61, F18.2, A2 )' ) ' Initial Temperature ', tmp_r1, " K"
        WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' COM velocity:', vcom ( 1 ), vcom ( 2 ), vcom ( 3 )
 
        ! compute and log rcom and vang if not periodic

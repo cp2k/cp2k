@@ -15,8 +15,6 @@ MODULE ewalds
   USE bibliography,                    ONLY: Ewald1921,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_type
-  USE cp2k_units,                      ONLY: get_cp2k_units,&
-                                             unit_convert_type
   USE dg_rho0_types,                   ONLY: dg_rho0_type
   USE dg_types,                        ONLY: dg_get,&
                                              dg_type
@@ -349,22 +347,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_print', &
       routineP = moduleN//':'//routineN
 
-    TYPE(unit_convert_type), POINTER         :: units
-
-    CALL get_cp2k_units ( units )
     IF (iw>0) THEN
        WRITE ( iw, '( A, A )' ) ' *********************************', &
             '**********************************************'
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' INITIAL GSPACE ENERGY', &
-            units % e_label, '= ', e_gspace
+            '[hartree]', '= ', e_gspace
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' INITIAL NONBONDED ENERGY', &
-            units % e_label, '= ', pot_nonbond
+            '[hartree]', '= ', pot_nonbond
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' SELF ENERGY CORRECTION', &
-            units % e_label, '= ', e_self
+            '[hartree]', '= ', e_self
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' NEUT. BACKGROUND',&
-            units % e_label, '= ', e_neut
+            '[hartree]', '= ', e_neut
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' BONDED CORRECTION',&
-            units % e_label,'= ', e_bonded
+            '[hartree]','= ', e_bonded
        WRITE ( iw, '( A, A )' ) ' *********************************', &
             '**********************************************'
     END IF

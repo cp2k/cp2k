@@ -9,8 +9,6 @@
 ! *****************************************************************************
 MODULE cp_ddapc_methods
   USE cell_types,                      ONLY: cell_type
-  USE cp2k_units,                      ONLY: get_cp2k_units,&
-                                             unit_convert_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
   USE f77_blas
@@ -555,16 +553,14 @@ CONTAINS
       rcut2, t1, tol, tol1
     REAL(KIND=dp), DIMENSION(3)              :: fvec, gvec, ra, rvec
     REAL(KIND=dp), DIMENSION(:), POINTER     :: EwM
-    TYPE(unit_convert_type), POINTER         :: units
 
     failure = .FALSE.
-    NULLIFY( EwM, units)
+    NULLIFY(EwM)
     CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        CPPostcondition(.NOT.ASSOCIATED(M),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,error,failure)
        CPPostcondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
-       CALL get_cp2k_units ( units )
        sfact = factor
        rcut = MIN(cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3))/2.0_dp 
        CALL section_vals_val_get(multipole_section,"RCUT",n_rep_val=n_rep,error=error)

@@ -13,8 +13,6 @@ MODULE simpar_methods
   USE bibliography,                    ONLY: Evans1983,&
                                              Minary2003,&
                                              cite_reference
-  USE cp2k_units,                      ONLY: get_cp2k_units,&
-                                             unit_convert_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
                                              cp_print_key_unit_nr
@@ -71,9 +69,8 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: print_key
-    TYPE(unit_convert_type), POINTER         :: unit
 
-    NULLIFY(logger,unit, print_key,enum, keyword, section)
+    NULLIFY(logger, print_key,enum, keyword, section)
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,md_section,"PRINT%PROGRAM_RUN_INFO",extension=".log",error=error)
 
@@ -103,28 +100,26 @@ CONTAINS
 
     !..write some information to output
     IF ( iw > 0 ) THEN
-       CALL get_cp2k_units ( unit )
        WRITE ( iw, '( A )' ) ' MD| Molecular Dynamics Protocol '
        WRITE ( iw, '( A,T61,A20)' ) ' MD| Ensemble Type ', &
             ADJUSTR (TRIM(enum_i2c(enum,simpar%ensemble,error=error)))
        WRITE ( iw, '( A,T71,I10 )' ) ' MD| Number of Time Steps ', &
             simpar%nsteps
        IF (simpar%variable_dt ) THEN
-            
             WRITE ( iw, '( A )' ) ' MD| Variable Time Step is activated '
-            WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Max. Time Step [','fs','] ',&
-            simpar%dt /unit%fs
-            WRITE ( iw, '( A, T71, F10.4 )' ) ' MD| Max. atomic displacement permitted [A] ',&
-            simpar%dr_tol/ unit%angstrom
+            tmp_r1 = cp_unit_from_cp2k(simpar%dt,"fs",error=error)
+            WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Max. Time Step [','fs','] ',tmp_r1
+            tmp_r1 = cp_unit_from_cp2k(simpar%dr_tol,"angstrom",error=error)
+            WRITE ( iw, '( A, T71, F10.4 )' ) ' MD| Max. atomic displacement permitted [A] ',tmp_r1
        ELSE
-         WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Time Step [','fs','] ',&
-            simpar%dt /unit%fs
-
+         tmp_r1 = cp_unit_from_cp2k(simpar%dt,"fs",error=error)
+         WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Time Step [','fs','] ',tmp_r1
        END IF
-       WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature [K] ', &
-            simpar%temp_ext/ unit%kelvin
-       WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature tolerance [K] ', &
-            simpar%temp_tol/ unit%kelvin
+       tmp_r1 = cp_unit_from_cp2k(simpar%temp_ext,"K",error=error)
+       WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature [K] ', tmp_r1
+       tmp_r1 = cp_unit_from_cp2k(simpar%temp_tol,"K",error=error)
+       WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature tolerance [K] ', tmp_r1
+            
        IF ( simpar%annealing ) &
             WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Annealing ion factor      ', &
             simpar%f_annealing
@@ -136,11 +131,12 @@ CONTAINS
              simpar%ensemble == npt_f_ensemble .OR. &
              simpar%ensemble == npe_i_ensemble .OR. &
              simpar%ensemble == npe_f_ensemble ) THEN
+          tmp_r1 = cp_unit_from_cp2k(simpar%p_ext,"bar",error=error)
           WRITE ( iw, '( A,A3,A, T71, F10.2 )' ) &
-               ' MD| Pressure [','Bar','] ', simpar%p_ext*unit%bar
+               ' MD| Pressure [','Bar','] ', tmp_r1
+          tmp_r1 = cp_unit_from_cp2k(simpar%tau_cell,"fs",error=error)
           WRITE ( iw, '( A,A4,A, T71, F10.2 )' ) &
-               ' MD| Barostat time constant [','fs','] ', &
-               simpar%tau_cell/unit%fs
+               ' MD| Barostat time constant [','fs','] ', tmp_r1
        END IF
        IF (  simpar%ensemble == isokin_ensemble ) THEN
           CALL cite_reference(Evans1983)
@@ -205,17 +201,17 @@ CONTAINS
        IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.  &
             simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
           WRITE ( iw, '( A )' ) ' SHOCK| Uniaxial Shock Parameters: '
+          tmp_r1 = cp_unit_from_cp2k(simpar%v_shock,"m*s^-1",error=error)
           WRITE ( iw, '( A,A4,A,T71,F10.4 )' ) &
-               ' SHOCK| Shock Velocity [', 'm/s' ,'] ',&
-               simpar%v_shock * 1.e-10_dp * 1.e15_dp / unit%angstrom * unit%fs
+               ' SHOCK| Shock Velocity [', 'm/s' ,'] ',tmp_r1
+          tmp_r1 = cp_unit_from_cp2k(simpar%gamma_nph,"fs^-1",error=error)
           WRITE ( iw, '( A,A4,A,T71,F10.4 )' ) &
-               ' SHOCK| Damping Coefficient [', '1/fs' ,'] ',&
-               simpar%gamma_nph*unit%fs
+               ' SHOCK| Damping Coefficient [', '1/fs' ,'] ',tmp_r1
+          tmp_r1 = cp_unit_from_cp2k(simpar%p0,"bar",error=error)
           WRITE ( iw, '( A,A3,A, T71, F10.2 )' ) &
-               ' SHOCK| Pressure [','Bar','] ', simpar%p0*unit%bar
+               ' SHOCK| Pressure [','Bar','] ', tmp_r1
           WRITE ( iw, '( A,A4,A, T71, E10.4 )' ) &
-               ' SHOCK| Barostat Mass [', 'au', '] ', &
-               simpar%cmass
+               ' SHOCK| Barostat Mass [', 'au', '] ', simpar%cmass
        END IF
        ! Print warning for temp_tol
        IF (simpar%temp_tol > 0.0_dp) THEN

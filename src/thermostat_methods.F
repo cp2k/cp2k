@@ -12,13 +12,12 @@ MODULE thermostat_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE cp2k_units,                      ONLY: get_cp2k_units,&
-                                             unit_convert_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE csvr_system_dynamics,            ONLY: csvr_barostat,&
                                              csvr_coeffs,&
                                              csvr_particles,&
@@ -429,11 +428,9 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kin_energy, pot_energy, tmp
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(unit_convert_type), POINTER         :: unit
 
     failure = .FALSE.
-    NULLIFY(logger, unit)
-    CALL get_cp2k_units ( unit )
+    NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,section,"PRINT%THERMOSTAT_INFO",extension=".log",error=error)
     ! Total Tehrmostat Energy
@@ -444,9 +441,9 @@ CPSourceFileRef,&
        CASE(do_thermo_nose)
           WRITE ( iw, '( A,T63,A )' ) ' THERMOSTAT| Type of thermostat','Nose-Hoover-Chains'
           WRITE ( iw, '( A,T77,I4 )' ) ' THERMOSTAT| Nose-Hoover-Chain length ', thermostat%nhc%nhc_len
+          tmp = cp_unit_from_cp2k(thermostat%nhc%tau_nhc,"fs",error=error)
           WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
-               ' THERMOSTAT| Nose-Hoover-Chain time constant [', 'fs' ,'] ',&
-               thermostat%nhc%tau_nhc/unit%fs
+               ' THERMOSTAT| Nose-Hoover-Chain time constant [', 'fs' ,'] ',tmp
           WRITE ( iw, '( A,T77,I4 )' ) ' THERMOSTAT| Order of Yoshida integrator ', &
                thermostat%nhc%nyosh
           WRITE ( iw, '( A,T77,I4 )' ) ' THERMOSTAT| Number of multiple time steps', &
@@ -457,9 +454,9 @@ CPSourceFileRef,&
                kin_energy
        CASE(do_thermo_csvr)
           WRITE ( iw, '( A,T44,A )' ) ' THERMOSTAT| Type of thermostat','Canonical Sampling/Velocity Rescaling'
-          tmp = 0.5_dp*simpar%dt
+          tmp = cp_unit_from_cp2k(thermostat%csvr%tau_csvr,"fs",error=error)*0.5_dp*simpar%dt
           WRITE ( iw, '( A,A4,A,T71,F10.2 )' ) &
-               ' THERMOSTAT| CSVR time constant [', 'fs' ,'] ',thermostat%csvr%tau_csvr/unit%fs*tmp
+               ' THERMOSTAT| CSVR time constant [', 'fs' ,'] ',tmp
           WRITE ( iw, '( A,T69,F12.6 )' ) &
                ' THERMOSTAT| Initial Kinetic Energy ',kin_energy
        END SELECT

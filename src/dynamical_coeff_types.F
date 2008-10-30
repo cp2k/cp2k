@@ -15,13 +15,12 @@ MODULE dynamical_coeff_types
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp2k_units,                      ONLY: get_cp2k_units,&
-                                             unit_convert_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
@@ -665,12 +664,11 @@ CONTAINS
     LOGICAL                                  :: gmass
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vbuffer
     REAL(KIND=dp)                            :: denom, ekin, scale, &
-                                                temp_coefs, vcom
+                                                temp_coefs, tmp_r1, vcom
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(unit_convert_type), POINTER         :: unit
 
-    NULLIFY (coeffs,unit)
+    NULLIFY (coeffs)
     gmass=(dyn_coeff_set%mass_storage==dyn_coeff_mass_global)
     group = para_env%group
 
@@ -775,10 +773,10 @@ CONTAINS
          extension=".log",error=error)
 
     IF ( output_unit>0 ) THEN
-       CALL get_cp2k_units ( unit )
-       temp_coefs = 2.0_dp * ekin / REAL ( dyn_coeff_set%ncoef_tot, dp )
+       temp_coefs = 2.0_dp * ekin / REAL(dyn_coeff_set%ncoef_tot, dp)
+       tmp_r1 = cp_unit_from_cp2k(temp_coefs,"K",error=error)
        WRITE ( output_unit, '( A, T61, F18.2, A2 )' ) &
-            ' Initial Coef Temperature ', temp_coefs / unit % kelvin, " K"
+            ' Initial Coef Temperature ', tmp_r1, " K"
        WRITE ( output_unit, '( A, T61, F20.12 )' ) &
             'Coefs Centre of mass velocity ', vcom
     END IF
