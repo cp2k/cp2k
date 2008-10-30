@@ -16,14 +16,14 @@
         SHELL_CHARGE 6.840000
         MASS_FRACTION  0.1
         SPRING  [eV*angstrom^-2] 171.556
- 
+        MAX_DISTANCE [angstrom] 0.1
       &END SHELL
       &SHELL O
         CORE_CHARGE 1.186267
         SHELL_CHARGE -3.186267
         MASS_FRACTION 0.2
         SPRING [eV*angstrom^-2] 70.824
-  
+        MAX_DISTANCE [angstrom] 0.01
       &END SHELL
       &NONBONDED
         &WILLIAMS
@@ -83,29 +83,15 @@
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT uo2_shell_nvt_res
+  PROJECT uo2_shell_nve
   RUN_TYPE MD
 &END GLOBAL
 &MOTION
   &MD
-    ENSEMBLE NVT
-    STEPS  30
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-    COMVEL_TOL  2.0E-7
-    &SHELL
-      TEMPERATURE 25.0
-      TEMP_TOL 25.0
-    &END
-    &THERMOSTAT
-      REGION MOLECULE
-      &NOSE
-        LENGTH 6
-        YOSHIDA 3
-        TIMECON 1000
-        MTS 2
-      &END NOSE
-    &END
+    ENSEMBLE NVE
+    STEPS  20
+    TIMESTEP 2.0
+    TEMPERATURE 2000.0
     &PRINT
       &ENERGY
       &END
@@ -119,36 +105,6 @@
     &VELOCITIES
       &EACH
         MD 1000
-      &END
-    &END
-    &SHELL_TRAJECTORY LOW
-      &EACH
-        MD 1
-      &END
-    &END
-    &SHELL_VELOCITIES LOW
-      &EACH
-        MD 200
-      &END
-    &END
-    &SHELL_FORCES LOW
-      &EACH
-        MD 200
-      &END
-    &END
-    &CORE_TRAJECTORY LOW
-      &EACH
-        MD 1
-      &END
-    &END
-    &CORE_VELOCITIES LOW
-      &EACH
-        MD 200
-      &END
-    &END
-    &CORE_FORCES LOW
-      &EACH
-        MD 200
       &END
     &END
     &STRESS
@@ -165,13 +121,11 @@
     &END
   &END
 &END MOTION
-&EXT_RESTART
-    RESTART_FILE_NAME uo2_shell_nvt-1.restart
-    RESTART_COUNTERS  T
-    RESTART_POS  T
-    RESTART_VEL  T
-    RESTART_SHELL_POS  T
-    RESTART_SHELL_VELOCITY  T
-    RESTART_CORE_POS  T
-    RESTART_CORE_VELOCITY  T
-&END EXT_RESTART
+##&EXT_RESTART
+##  RESTART_FILE_NAME uo2_shell_nve-1.restart
+##  RESTART_COUNTERS  T
+##  RESTART_POS  T
+##  RESTART_VEL  T
+##  RESTART_SHELL_POS  T
+##  RESTART_SHELL_VELOCITY  T
+##&END EXT_RESTART

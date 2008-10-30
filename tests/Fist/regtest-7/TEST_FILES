@@ -44,3 +44,5 @@ uo2_shell_nve_vdt.inp           2
 uo2_shell_nve_vdt_r.inp         2
 uo2_shell_npt_vdt.inp           2
 uo2_shell_npt_vdt_2.inp         2
+#Check on shell-core distance
+uo2_shell_nve_dsc.inp             2
