@@ -1383,7 +1383,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER, SAVE                            :: itime = 0
-    REAL(KIND=dp)                            :: dt_fact, dt_fact_f, &
+    REAL(KIND=dp)                            :: dt_fact, dt_fact_f, dt_fact_old, &
                                                 dt_fact_sc, dt_fact_v, dt_old
     REAL(KIND=dp), POINTER                   :: time
     TYPE(thermostats_type), POINTER          :: thermostats
@@ -1393,6 +1393,7 @@ CONTAINS
     dt_fact_f = 1.0_dp
     dt_fact_v = 1.0_dp
     dt_old = dt
+    dt_fact_old = simpar%dt_fact
     simpar%dt_fact = 1.0_dp
     NULLIFY(thermostats)
 
@@ -1446,11 +1447,13 @@ CONTAINS
        END IF
     END IF
 
-    CALL get_md_env(md_env, t=time, thermostats=thermostats, error=error)
     simpar%dt_fact = dt_fact_f*dt_fact_v
-    time = time - dt_old + dt_old*simpar%dt_fact
-    IF(ASSOCIATED(thermostats)) THEN
-       CALL set_thermostats(thermostats, dt_fact=simpar%dt_fact, error=error)
+    IF(simpar%dt_fact  /= dt_fact_old) THEN
+      CALL get_md_env(md_env, t=time, thermostats=thermostats, error=error)
+      time = time - dt_old + dt_old*simpar%dt_fact
+      IF(ASSOCIATED(thermostats)) THEN
+         CALL set_thermostats(thermostats, dt_fact=simpar%dt_fact, error=error)
+      END IF
     END IF
 
   END SUBROUTINE variable_timestep
