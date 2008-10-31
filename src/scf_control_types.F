@@ -19,7 +19,7 @@ MODULE scf_control_types
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
-       atomic_guess, core_guess, general_roks, high_spin_roks, &
+       atomic_guess, core_guess, diag_ot, general_roks, high_spin_roks, &
        outer_scf_becke_constraint, outer_scf_ddapc_constraint, &
        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
@@ -33,11 +33,17 @@ MODULE scf_control_types
   USE input_section_types,             ONLY: section_get_keyword,&
                                              section_release,&
                                              section_type,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE qs_ot_types,                     ONLY: ot_readwrite_input,&
+                                             qs_ot_settings_init,&
+                                             qs_ot_settings_type
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -112,6 +118,10 @@ MODULE scf_control_types
     INTEGER       :: method
     REAL(KIND=dp) :: eps_jacobi
     REAL(KIND=dp) :: jacobi_threshold
+    INTEGER       :: max_iter
+    REAL(KIND=dp) :: eps_iter
+    REAL(KIND=dp) :: eps_adapt
+    TYPE(qs_ot_settings_type) :: ot_settings
   END TYPE diagonalization_type
 
   TYPE scf_control_type
@@ -195,9 +205,13 @@ CONTAINS
       scf_control%gspace_mixing_b = 0.0_dp
 
       ! Diagonalization
-      scf_control%diagonalization%method = 0.0_dp
+      scf_control%diagonalization%method = 0
       scf_control%diagonalization%eps_jacobi = 0.0_dp
       scf_control%diagonalization%jacobi_threshold = 1.0E-7_dp
+      scf_control%diagonalization%max_iter = 0
+      scf_control%diagonalization%eps_iter = 0.0_dp
+      scf_control%diagonalization%eps_adapt = 0.0_dp
+      CALL qs_ot_settings_init(scf_control%diagonalization%ot_settings)
 
       ! ROKS
 
@@ -391,10 +405,22 @@ CONTAINS
  
        ! Diagonaliztion section
        IF ( scf_control%use_diag ) THEN
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%eps_jacobi",&
+          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%ALGORITHM",&
+               i_val=scf_control%diagonalization%method,error=error)
+          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_JACOBI",&
                r_val=scf_control%diagonalization%eps_jacobi,error=error)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%jacobi_threshold",&
+          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%JACOBI_THRESHOLD",&
                r_val=scf_control%diagonalization%jacobi_threshold,error=error)
+          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%MAX_ITER",&
+               i_val=scf_control%diagonalization%max_iter,error=error)
+          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_ITER",&
+               r_val=scf_control%diagonalization%eps_iter,error=error)
+          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_ADAPT",&
+               r_val=scf_control%diagonalization%eps_adapt,error=error)
+          IF ( scf_control%diagonalization%method == diag_ot ) THEN
+            ! read OT section
+            CALL ot_diag_read_input(scf_control%diagonalization%ot_settings,scf_section,error)
+          END IF
        END IF
        
        ! Read ROKS parameters
@@ -558,7 +584,7 @@ CONTAINS
              WRITE (UNIT=output_unit,&
                   FMT="(/,/,T2,A,T25,A,T51,A30,/,T25,56('-'),3(/,T25,A,T76,I5),/,"//&
                   "T25,56('-'),4(/,T25,A,T72,ES9.2),/,T25,56('-'),"//&
-                  "5(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
+                  "5(/,T25,A,T76,F5.2))")&
                   "SCF PARAMETERS",&
                   "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess,error=error))),&
                   "max_scf:           ",scf_control%max_scf,&
@@ -572,8 +598,11 @@ CONTAINS
                   "G-space mixing a:  ",scf_control%gspace_mixing_a,&
                   "G-space mixing b:  ",scf_control%gspace_mixing_b,&
                   "work_syevx:        ",scf_control%work_syevx,&
-                  "level_shift [a.u.]:",scf_control%level_shift,&
+                  "level_shift [a.u.]:",scf_control%level_shift
+             IF ( SUM(scf_control%added_mos) > 0 ) THEN
+               WRITE (UNIT=output_unit,FMT="(T25,A,T71,2I5)")&
                   "added MOs          ",scf_control%added_mos
+             END IF
 
              IF (scf_control%smear%do_smear) THEN
                 keyword => section_get_keyword(section,"SMEAR%METHOD",error=error)
@@ -671,5 +700,46 @@ CONTAINS
     END IF ! not failure
 
   END SUBROUTINE scf_c_write_parameters
+
+! *****************************************************************************
+
+  SUBROUTINE ot_diag_read_input(settings,scf_section,error)
+    TYPE(qs_ot_settings_type)                :: settings
+    TYPE(section_vals_type), POINTER         :: scf_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ot_diag_read_input', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, output_unit
+    LOGICAL                                  :: explicit, failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: ot_section
+
+    failure=.FALSE.
+
+    CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+    output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".log",error=error)
+
+    ! decide default settings
+    CALL qs_ot_settings_init(settings)
+
+    ! use ot input new style
+    ot_section=>section_vals_get_subs_vals(scf_section,"DIAGONALIZATION%OT",error=error)
+    CALL section_vals_get(ot_section,explicit=explicit,error=error)
+
+    CALL ot_readwrite_input(settings,ot_section,output_unit,error)
+
+    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+         "PRINT%PROGRAM_RUN_INFO", error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE ot_diag_read_input
+
+! *****************************************************************************
 
 END MODULE scf_control_types

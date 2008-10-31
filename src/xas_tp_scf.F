@@ -52,9 +52,9 @@ MODULE xas_tp_scf
   USE message_passing,                 ONLY: mp_sync
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
-  USE preconditioner,                  ONLY: destroy_preconditioner,&
+  USE preconditioner,                  ONLY: make_preconditioner
+  USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
-                                             make_preconditioner,&
                                              preconditioner_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_diis,                         ONLY: qs_diis_b_step

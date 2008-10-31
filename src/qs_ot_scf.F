@@ -10,8 +10,6 @@
 !> \author Joost VandeVondele (25.08.2002)
 ! *****************************************************************************
 MODULE qs_ot_scf
-  USE bibliography,                    ONLY: Weber2008,&
-                                             cite_reference
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
@@ -24,29 +22,25 @@ MODULE qs_ot_scf
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE f77_blas
-  USE input_constants,                 ONLY: &
-       ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, &
-       ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_cg, &
-       ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
-       ot_precond_full_kinetic, ot_precond_full_single, &
-       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-       ot_precond_solver_default, ot_precond_solver_direct, &
-       ot_precond_solver_inv_chol, ot_precond_sparse_diag, &
-       ot_precond_sparse_kinetic
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_restrict,&
                                              set_mo_occupation
-  USE qs_ot,                           ONLY: &
-       qs_ot_allocate, qs_ot_destroy, qs_ot_get_orbitals, &
-       qs_ot_get_orbitals_ref, qs_ot_get_p, qs_ot_get_scp_coeffs, qs_ot_init, &
-       qs_ot_settings_init, qs_ot_type
+  USE qs_ot,                           ONLY: qs_ot_get_orbitals,&
+                                             qs_ot_get_orbitals_ref,&
+                                             qs_ot_get_p,&
+                                             qs_ot_get_scp_coeffs
   USE qs_ot_minimizer,                 ONLY: ot_mini
+  USE qs_ot_types,                     ONLY: ot_readwrite_input,&
+                                             qs_ot_allocate,&
+                                             qs_ot_destroy,&
+                                             qs_ot_init,&
+                                             qs_ot_settings_init,&
+                                             qs_ot_type
   USE scf_control_types,               ONLY: smear_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
                                              aux_coeff_type,&
@@ -79,10 +73,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_read_input', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=40)                        :: value
-    INTEGER                                  :: handle, ispin, ls_method, &
-                                                nspin, ot_algorithm, &
-                                                ot_method, ot_ortho_irac, &
+    INTEGER                                  :: handle, ispin, nspin, &
                                                 output_unit
     LOGICAL                                  :: explicit, failure
     TYPE(cp_logger_type), POINTER            :: logger
@@ -103,230 +94,7 @@ CONTAINS
     ot_section=>section_vals_get_subs_vals(scf_section,"OT",error=error)
     CALL section_vals_get(ot_section,explicit=explicit,error=error)
 
-    ! choose algorithm
-    CALL section_vals_val_get(ot_section,"ALGORITHM",i_val=ot_algorithm,error=error)
-    SELECT CASE(ot_algorithm)
-    CASE (ot_algo_taylor_or_diag)
-       qs_ot_env(1)%settings%ot_algorithm="TOD"
-    CASE (ot_algo_irac)
-       CALL cite_reference(Weber2008)
-       qs_ot_env(1)%settings%ot_algorithm="REF"
-    CASE DEFAULT
-       CALL stop_program("READ OT ALGORITHM","VALUE UNKNOWN")
-    END SELECT
-
-    ! irac input
-    CALL section_vals_val_get(ot_section,"IRAC_DEGREE",i_val=qs_ot_env(1)%settings%irac_degree,&
-         &                    error=error)
-    IF(   qs_ot_env(1)%settings%irac_degree.LT.2.OR.&
-         &qs_ot_env(1)%settings%irac_degree.GT.4) THEN
-       CALL stop_program("READ OT IRAC_DEGREE","VALUE UNKNOWN")
-    ENDIF
-    CALL section_vals_val_get(ot_section,"MAX_IRAC",i_val=qs_ot_env(1)%settings%max_irac,&
-         &                    error=error)
-    IF(qs_ot_env(1)%settings%max_irac.LT.1) THEN
-       CALL stop_program("READ OT MAX_IRAC","VALUE MUST BE GREATER THAN ZERO")
-    ENDIF
-    CALL section_vals_val_get(ot_section,"EPS_IRAC",r_val=qs_ot_env(1)%settings%eps_irac,&
-         &                    error=error)
-    IF(qs_ot_env(1)%settings%eps_irac.LT.0.0_dp) THEN
-       CALL stop_program("READ OT EPS_IRAC","VALUE MUST BE GREATER THAN ZERO")
-    ENDIF
-    CALL section_vals_val_get(ot_section,"EPS_IRAC_QUICK_EXIT",r_val=qs_ot_env(1)%settings%eps_irac_quick_exit,&
-         &                    error=error)
-    IF(qs_ot_env(1)%settings%eps_irac_quick_exit.LT.0.0_dp) THEN
-       CALL stop_program("READ OT EPS_IRAC_QUICK_EXIT","VALUE MUST BE GREATER THAN ZERO")
-    ENDIF
-
-    CALL section_vals_val_get(ot_section,"EPS_IRAC_SWITCH",r_val=qs_ot_env(1)%settings%eps_irac_switch,&
-         &                    error=error)
-    IF(qs_ot_env(1)%settings%eps_irac_switch.LT.0.0_dp) THEN
-       CALL stop_program("READ OT EPS_IRAC_SWITCH","VALUE MUST BE GREATER THAN ZERO")
-    ENDIF
-
-    CALL section_vals_val_get(ot_section,"ORTHO_IRAC",i_val=ot_ortho_irac,error=error)
-    SELECT CASE(ot_ortho_irac)
-    CASE(ot_chol_irac)
-       qs_ot_env(1)%settings%ortho_irac="CHOL"
-    CASE(ot_poly_irac)
-       qs_ot_env(1)%settings%ortho_irac="POLY"
-    CASE(ot_lwdn_irac)
-       qs_ot_env(1)%settings%ortho_irac="LWDN"
-    CASE DEFAULT
-       CALL stop_program("READ OT ORTHO_IRAC","VALUE UNKNOWN")
-    END SELECT
-
-    CALL section_vals_val_get(ot_section,"ON_THE_FLY_LOC",l_val=qs_ot_env(1)%settings%on_the_fly_loc, &
-         &                    error=error)
-
-    CALL section_vals_val_get(ot_section,"MINIMIZER",i_val=ot_method,error=error)
-    ! compatibility
-    SELECT CASE(ot_method)
-    CASE (ot_mini_sd)
-       qs_ot_env(1)%settings%ot_method="SD"
-    CASE (ot_mini_cg)
-       qs_ot_env(1)%settings%ot_method="CG"
-    CASE (ot_mini_diis)
-       qs_ot_env(1)%settings%ot_method="DIIS"
-       CALL section_vals_val_get(ot_section,"N_DIIS",i_val=qs_ot_env(1)%settings%diis_m,error=error)
-    CASE DEFAULT
-       CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")
-    END SELECT
-    CALL section_vals_val_get(ot_section,"SAFER_DIIS",l_val=qs_ot_env(1)%settings%safer_diis,error=error)
-    CALL section_vals_val_get(ot_section,"LINESEARCH",i_val=ls_method,error=error)
-    SELECT CASE(ls_method)
-    CASE (ls_none)
-       qs_ot_env(1)%settings%line_search_method="NONE"
-    CASE (ls_2pnt)
-       qs_ot_env(1)%settings%line_search_method="2PNT"
-    CASE (ls_3pnt)
-       qs_ot_env(1)%settings%line_search_method="3PNT"
-    CASE (ls_gold)
-       qs_ot_env(1)%settings%line_search_method="GOLD"
-       CALL section_vals_val_get(ot_section,"GOLD_TARGET",r_val=qs_ot_env(1)%settings%gold_target,error=error)
-    CASE DEFAULT
-       CALL stop_program("READ OTSCF LS","VALUE UNKNOWN")
-    END SELECT
-
-    CALL section_vals_val_get(ot_section,"PRECOND_SOLVER",i_val=qs_ot_env(1)%settings%precond_solver_type,error=error)
-    SELECT CASE(qs_ot_env(1)%settings%precond_solver_type)
-    CASE(ot_precond_solver_default)
-       qs_ot_env(1)%settings%precond_solver_name="DEFAULT"
-    CASE(ot_precond_solver_inv_chol)
-       qs_ot_env(1)%settings%precond_solver_name="INVERSE_CHOLESKY"
-    CASE(ot_precond_solver_direct)
-       qs_ot_env(1)%settings%precond_solver_name="DIRECT"
-    CASE DEFAULT
-       CALL stop_program("READ OTSCF SOLVER","VALUE UNKNOWN")
-    END SELECT
-
-    CALL section_vals_val_get(ot_section,"PRECONDITIONER",i_val=qs_ot_env(1)%settings%preconditioner_type,error=error)
-    SELECT CASE(qs_ot_env(1)%settings%preconditioner_type)
-    CASE(ot_precond_none)
-       qs_ot_env(1)%settings%preconditioner_name="NONE"
-    CASE(ot_precond_full_single)
-       qs_ot_env(1)%settings%preconditioner_name="FULL_SINGLE"
-    CASE(ot_precond_full_single_inverse)
-       qs_ot_env(1)%settings%preconditioner_name="FULL_SINGLE_INVERSE"
-    CASE(ot_precond_full_all)
-       qs_ot_env(1)%settings%preconditioner_name="FULL_ALL"
-    CASE(ot_precond_full_kinetic)
-       qs_ot_env(1)%settings%preconditioner_name="FULL_KINETIC"
-    CASE(ot_precond_s_inverse)
-       qs_ot_env(1)%settings%preconditioner_name="FULL_S_INVERSE"
-    CASE(ot_precond_sparse_diag)
-       qs_ot_env(1)%settings%preconditioner_name="SPARSE_DIAG"
-    CASE(ot_precond_sparse_kinetic)
-       qs_ot_env(1)%settings%preconditioner_name="SPARSE_KINETIC"
-    CASE DEFAULT
-       CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
-    END SELECT
-    CALL section_vals_val_get(ot_section,"STEPSIZE",r_val=qs_ot_env(1)%settings%ds_min,error=error)
-    CALL section_vals_val_get(ot_section,"ENERGY_GAP",r_val=qs_ot_env(1)%settings%energy_gap,error=error)
-    CALL section_vals_val_get(ot_section,"EPS_TAYLOR",r_val=qs_ot_env(1)%settings%eps_taylor,error=error)
-    CALL section_vals_val_get(ot_section,"MAX_TAYLOR",i_val=qs_ot_env(1)%settings%max_taylor,error=error)
-    CALL section_vals_val_get(ot_section,"ROTATION",l_val=qs_ot_env(1)%settings%do_rotation,error=error)
-    CALL section_vals_val_get(ot_section,"SCP",l_val=qs_ot_env(1)%settings%scp,error=error)
-    CALL section_vals_val_get(ot_section,"ENERGIES",l_val=qs_ot_env(1)%settings%do_ener,error=error)
-    CALL section_vals_val_get(ot_section,"OCCUPATION_PRECONDITIONER", &
-           l_val=qs_ot_env(1)%settings%occupation_preconditioner,error=error)
-    CALL section_vals_val_get(ot_section,"NONDIAG_ENERGY",l_val=qs_ot_env(1)%settings%add_nondiag_energy,error=error)
-    CALL section_vals_val_get(ot_section,"NONDIAG_ENERGY_STRENGTH",&
-           r_val=qs_ot_env(1)%settings%nondiag_energy_strength,error=error)
-    ! not yet fully implemented
-    CPPostcondition(.NOT.qs_ot_env(1)%settings%do_ener,cp_failure_level,routineP,error,failure)
-
-    ! write OT output
-
-    IF (output_unit>0) THEN
-       WRITE(output_unit,'(A)') " "
-       WRITE(output_unit,'(A)') "  ----------------------------------- OT --------------------------------------"
-       WRITE(output_unit,'(A)') " "
-       WRITE(output_unit,'(A,L2)') "  Allowing for rotations: ",qs_ot_env(1)%settings%do_rotation
-       WRITE(output_unit,'(A,L2)') "  Optimizing orbital energies: ",qs_ot_env(1)%settings%do_ener
-       SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
-       CASE ("SD")
-          WRITE(output_unit,'(A)') "  minimizer      : SD                  : steepest descent"
-       CASE ("CG")
-          WRITE(output_unit,'(A)') "  minimizer      : CG                  : conjugate gradient"
-       CASE ("DIIS")
-          WRITE(output_unit,'(A)') "  minimizer      : DIIS                : direct inversion "
-          WRITE(output_unit,'(A)') "                                         in the iterative subspace"
-          WRITE(output_unit,'(A,I3,A)')    "                            using      : - ",&
-               qs_ot_env(1)%settings%diis_m," diis vectors"
-          IF (qs_ot_env(1)%settings%safer_diis) THEN
-             WRITE(output_unit,'(A,I3,A)') "                                         - safer DIIS on"
-          ELSE
-             WRITE(output_unit,'(A,I3,A)') "                                         - safer DIIS off"
-          ENDIF
-       CASE DEFAULT
-          WRITE(output_unit,'(3A)') "  minimizer      :      ",qs_ot_env(1)%settings%OT_METHOD," : UNKNOWN"
-       END SELECT
-       SELECT CASE (qs_ot_env(1)%settings%preconditioner_name)
-       CASE ("FULL_SINGLE")
-          WRITE(output_unit,'(A)') "  preconditioner : FULL_SINGLE         : diagonalization based "
-       CASE ("FULL_SINGLE_INVERSE")
-          WRITE(output_unit,'(A)') "  preconditioner : FULL_SINGLE_INVERSE : cholesky inversion of H + eS "
-       CASE ("FULL_ALL")
-          WRITE(output_unit,'(A)') "  preconditioner : FULL_ALL            : diagonalization, state selective "
-       CASE ("FULL_KINETIC")
-          WRITE(output_unit,'(A)') "  preconditioner : FULL_KINETIC        : cholesky inversion of T + eS"
-       CASE ("FULL_S_INVERSE")
-          WRITE(output_unit,'(A)')            "  preconditioner : FULL_S_INVERSE      : cholesky inversion of S"
-       CASE ("SPARSE_DIAG")
-          WRITE(output_unit,'(A)')  &
-               "  preconditioner : SPARSE_DIAG    : diagonal atomic block diagonalization"
-       CASE ("SPARSE_KINETIC")
-          WRITE(output_unit,'(A)') "  preconditioner : SPARSE_KINETIC      : sparse linear solver for T + eS"
-       CASE ("NONE")
-          WRITE(output_unit,'(A)') "  preconditioner : NONE  "
-       CASE DEFAULT
-          WRITE(output_unit,'(3A)') "  preconditioner : ",qs_ot_env(1)%settings%preconditioner_name," : UNKNOWN"
-       END SELECT
-
-       WRITE(output_unit,'(A)') "  precond_solver : "//TRIM(qs_ot_env(1)%settings%precond_solver_name)
-
-       IF (qs_ot_env(1)%settings%OT_METHOD .EQ."SD".OR.qs_ot_env(1)%settings%OT_METHOD.EQ."CG") THEN
-          SELECT CASE (qs_ot_env(1)%settings%line_search_method)
-          CASE ("2PNT")
-             WRITE(output_unit,'(A)') "  line search    : 2PNT                : 2 energies, one gradient "
-          CASE ("3PNT")
-             WRITE(output_unit,'(A)') "  line search    : 3PNT                : 3 energies "
-          CASE ("GOLD")
-             WRITE(output_unit,'(A)')       "  line search    : GOLD                : bracketing and golden section search "
-             WRITE(output_unit,'(A,F14.8)') "                   target rel accuracy : ", &
-                  qs_ot_env(1)%settings%gold_target
-          CASE ("NONE")
-             WRITE(output_unit,'(A)') "  line search    : NONE "
-          CASE DEFAULT
-             WRITE(output_unit,'(3A)') "  line search : ", &
-                  qs_ot_env(1)%settings%line_search_method," : UNKNOWN"
-          END SELECT
-       ENDIF
-       WRITE(output_unit,'(A,F14.8)') "  stepsize       :",qs_ot_env(1)%settings%ds_min
-       WRITE(output_unit,'(A,F14.8)') "  energy_gap     :",qs_ot_env(1)%settings%energy_gap
-       WRITE(output_unit,'(A,E14.5)') "  eps_taylor     :",qs_ot_env(1)%settings%eps_taylor
-       WRITE(output_unit,'(A,I14)')   "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
-       WRITE(output_unit,'(A)') "  "
-       IF(qs_ot_env(1)%settings%ot_algorithm.EQ.'REF') THEN
-          WRITE(output_unit,'(A,1X,A)') "  ortho_irac         :",&
-               & qs_ot_env(1)%settings%ortho_irac
-          WRITE(output_unit,'(A,I14)')  "  irac_degree        :",&
-               & qs_ot_env(1)%settings%irac_degree
-          WRITE(output_unit,'(A,I14)')  "  max_irac           :",&
-               & qs_ot_env(1)%settings%max_irac
-          WRITE(output_unit,'(A,E14.5)')"  eps_irac           :",&
-               & qs_ot_env(1)%settings%eps_irac
-          WRITE(output_unit,'(A,E14.5)')"  eps_irac_switch    :",&
-               & qs_ot_env(1)%settings%eps_irac_switch
-          WRITE(output_unit,'(A,E14.5)')"  eps_irac_quick_exit:",&
-               & qs_ot_env(1)%settings%eps_irac_quick_exit
-          WRITE(output_unit,'(A,L2)')   "  on_the_fly_loc     :",&
-               & qs_ot_env(1)%settings%on_the_fly_loc
-          WRITE(output_unit,'(A)') "  "
-       ENDIF
-       WRITE(output_unit,'(A)') "  ----------------------------------- OT --------------------------------------"
-    END IF
+    CALL ot_readwrite_input(qs_ot_env(1)%settings,ot_section,output_unit,error)
 
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
@@ -340,6 +108,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE ot_scf_read_input
+! *****************************************************************************
   !
   ! performs the actual minimisation, needs only limited info
   ! updated for restricted calculations

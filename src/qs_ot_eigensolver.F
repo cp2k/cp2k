@@ -28,18 +28,19 @@ MODULE qs_ot_eigensolver
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE preconditioner,                  ONLY: preconditioner_in_use,&
+  USE preconditioner_types,            ONLY: preconditioner_in_use,&
                                              preconditioner_type
   USE qs_mo_methods,                   ONLY: make_basis_sv
-  USE qs_ot,                           ONLY: qs_ot_allocate,&
-                                             qs_ot_destroy,&
-                                             qs_ot_get_orbitals,&
+  USE qs_ot,                           ONLY: qs_ot_get_orbitals,&
                                              qs_ot_get_p,&
-                                             qs_ot_init,&
-                                             qs_ot_new_preconditioner,&
-                                             qs_ot_settings_init,&
-                                             qs_ot_type
+                                             qs_ot_new_preconditioner
   USE qs_ot_minimizer,                 ONLY: ot_mini
+  USE qs_ot_types,                     ONLY: qs_ot_allocate,&
+                                             qs_ot_destroy,&
+                                             qs_ot_init,&
+                                             qs_ot_settings_init,&
+                                             qs_ot_settings_type,&
+                                             qs_ot_type
   USE sparse_matrix_types,             ONLY: real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -62,7 +63,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE ot_eigensolver(matrix_h,matrix_s,matrix_orthogonal_space, &
                             matrix_c,preconditioner,eps_gradient, &
-                            iter_max,size_ortho_space,error)
+                            iter_max,size_ortho_space,silent,ot_settings,error)
 
     TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_orthogonal_space
@@ -72,6 +73,9 @@ CONTAINS
     REAL(KIND=dp)                            :: eps_gradient
     INTEGER, INTENT(IN)                      :: iter_max
     INTEGER, INTENT(IN), OPTIONAL            :: size_ortho_space
+    LOGICAL, INTENT(IN), OPTIONAL            :: silent
+    TYPE(qs_ot_settings_type), INTENT(IN), &
+      OPTIONAL                               :: ot_settings
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_eigensolver', &
@@ -82,7 +86,8 @@ CONTAINS
     INTEGER                                  :: handle, ieigensolver, &
                                                 iter_total, k, n, ortho_k, &
                                                 ortho_space_k, output_unit
-    LOGICAL                                  :: energy_only, ionode, ortho
+    LOGICAL                                  :: energy_only, ionode, &
+                                                my_silent, ortho
     REAL(KIND=dp)                            :: delta, energy
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: matrix_hc
@@ -104,6 +109,12 @@ CONTAINS
        output_unit = -1
     END IF
 
+    IF ( PRESENT(silent) ) THEN
+      my_silent = silent
+    ELSE
+      my_silent = .FALSE.
+    END IF
+
     iter_total=0
 
     outer_scf: DO 
@@ -121,13 +132,16 @@ CONTAINS
       IF (PRESENT(matrix_orthogonal_space)) ortho=.TRUE.
 
       ! decide settings
-      CALL qs_ot_settings_init(qs_ot_env(1)%settings)
-      ! overwrite defaults
-      qs_ot_env(1)%settings%ds_min=0.10_dp
+      IF ( PRESENT(ot_settings) ) THEN
+        qs_ot_env(1)%settings = ot_settings
+      ELSE
+        CALL qs_ot_settings_init(qs_ot_env(1)%settings)
+        ! overwrite defaults
+        qs_ot_env(1)%settings%ds_min=0.10_dp
+      END IF
 
       IF (ortho) THEN
-         CALL cp_fm_get_info(matrix_orthogonal_space,&
-                                    ncol_global=ortho_space_k,error=error)
+         CALL cp_fm_get_info(matrix_orthogonal_space,ncol_global=ortho_space_k,error=error)
          IF (PRESENT(size_ortho_space)) ortho_space_k=size_ortho_space
          ortho_k=ortho_space_k+k
       ELSE
@@ -194,7 +208,9 @@ CONTAINS
          CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
                                  qs_ot_env(1)%matrix_sc0,k,error=error)
          CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, qs_ot_env(1)%matrix_sc0,error=error)
+
       ENDIF
+
       ! init
       CALL qs_ot_init(qs_ot_env(1),error=error)
       energy_only=qs_ot_env(1)%energy_only
@@ -246,9 +262,10 @@ CONTAINS
         CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1),error=error)
         CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1),error=error)
 
-        ! write(6,*) iter_total,energy,delta
-
-        IF (delta < eps_gradient .OR. iter_total .GE. iter_max .OR. ieigensolver .GE. max_iter_inner_loop ) EXIT eigensolver_loop
+        ! exit on convergence or if maximum of inner loop  cycles is reached
+        IF ( delta < eps_gradient .OR. ieigensolver >= max_iter_inner_loop ) EXIT eigensolver_loop
+        ! exit if total number of steps is reached, but not during a line search step
+        IF ( iter_total >= iter_max .AND. qs_ot_env(1)%OT_METHOD_FULL /= "OT LS" ) EXIT eigensolver_loop
 
       END DO eigensolver_loop
 
@@ -258,22 +275,23 @@ CONTAINS
       DEALLOCATE(matrix_hc)
 
       IF (delta < eps_gradient) THEN
-          IF (ionode) THEN
-             WRITE(output_unit,*) " Reached convergence in ",iter_total, &
-                                  " iterations "
+          IF (ionode .AND. .NOT.my_silent) THEN
+             WRITE(output_unit,*) " Reached convergence in ",iter_total," iterations "
           ENDIF
           EXIT outer_scf
       ENDIF
-      IF (iter_total .GE. iter_max) THEN
+      IF (iter_total >= iter_max) THEN
          IF (ionode) THEN
-           WRITE(output_unit,*) "WARNING : did not converge in ot_eigensolver"
-           ! assuming all callers use MAX_ITER_LUMO to set the target
-           WRITE(output_unit,*) "number of iterations ",ieigensolver," exceeded MAX_ITER_LUMO"
-           WRITE(output_unit,*) "current gradient / target gradient",delta," / ",eps_gradient
+           IF ( my_silent ) THEN
+             WRITE(output_unit,"(A,T60,E20.10)") "  WARNING OT eigensolver did not converge: current gradient",delta
+           ELSE
+             WRITE(output_unit,*) "WARNING : did not converge in ot_eigensolver"
+             WRITE(output_unit,*) "number of iterations ",iter_total," exceeded maximum"
+             WRITE(output_unit,*) "current gradient / target gradient",delta," / ",eps_gradient
+           END IF
          ENDIF
          EXIT outer_scf
       ENDIF
-
 
     ENDDO outer_scf
 

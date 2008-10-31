@@ -23,8 +23,8 @@ MODULE qs_ot_minimizer
   USE preconditioner,                  ONLY: apply_preconditioner
   USE qs_ot,                           ONLY: qs_ot_get_derivative,&
                                              qs_ot_get_derivative_ref,&
-                                             qs_ot_get_scp_derivative,&
-                                             qs_ot_type
+                                             qs_ot_get_scp_derivative
+  USE qs_ot_types,                     ONLY: qs_ot_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&

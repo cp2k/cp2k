@@ -5243,6 +5243,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -5250,7 +5251,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"DIAGONALIZATION",&
             description="Sets the various options for Kohn-Sham matrix diagonalization.",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -5268,9 +5269,10 @@ CONTAINS
             description="Algorithm to be used for diagonalization",&
             usage="ALGORITHM STANDARD",&
             default_i_val=diag_standard,&
-            enum_c_vals=s2a( "STANDARD" ),&
-            enum_desc=s2a("Standard diagonalization: LAPACK methods or Jacobi."),&
-            enum_i_vals=(/diag_standard/),& 
+            enum_c_vals=s2a( "STANDARD","OT" ),&
+            enum_desc=s2a("Standard diagonalization: LAPACK methods or Jacobi.",&
+                          "Iterative diagonalization using OT method"),&
+            enum_i_vals=(/diag_standard, diag_ot/),& 
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5298,6 +5300,35 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_ADAPT",&
+            description="Required accuracy in iterative diagonalization as compared to current SCF convergence",&
+            usage="EPS_ADAPT 0.01",&
+            default_r_val=0._dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_ITER",&
+            description="Maximum number of iterations in iterative diagonalization",&
+            usage="MAX_ITER 20",&
+            default_i_val=50,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_ITER",&
+            description="Required accuracy in iterative diagonalization",&
+            usage="EPS_ITER 1.e-8",&
+            default_r_val=1.e-8_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(subsection)
+       CALL create_ot_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
 

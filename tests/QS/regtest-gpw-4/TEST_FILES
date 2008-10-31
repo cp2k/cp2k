@@ -53,3 +53,7 @@ cell-2.inp           7
 He3_multi_ddapc.inp  1
 #many added MOS with LSD
 N.inp                1
+#new diagonalization
+h2o-otdiag.inp       1
+h2o-diag.inp         1
+h2o-otdiag-lsd.inp   1

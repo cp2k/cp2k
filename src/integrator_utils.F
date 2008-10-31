@@ -1383,8 +1383,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER, SAVE                            :: itime = 0
-    REAL(KIND=dp)                            :: dt_fact, dt_fact_f, dt_fact_old, &
-                                                dt_fact_sc, dt_fact_v, dt_old
+    REAL(KIND=dp)                            :: dt_fact, dt_fact_f, &
+                                                dt_fact_old, dt_fact_sc, &
+                                                dt_fact_v, dt_old
     REAL(KIND=dp), POINTER                   :: time
     TYPE(thermostats_type), POINTER          :: thermostats
 

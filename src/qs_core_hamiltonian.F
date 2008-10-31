@@ -91,7 +91,8 @@ MODULE qs_core_hamiltonian
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type
-  USE input_constants,                 ONLY: linear_response_run,&
+  USE input_constants,                 ONLY: diag_ot,&
+                                             linear_response_run,&
                                              lr_precond_kinetic,&
                                              rel_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -504,6 +505,7 @@ CONTAINS
         qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error)/=0.OR.&
         cp_print_key_should_output(logger%iter_info,&
         qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error)/=0.OR.&
+        (scf_control%use_diag .AND. scf_control%diagonalization%method == diag_ot ) .OR.&
         lr_precond == lr_precond_kinetic .OR. xas_calculation .OR. epr_calculation)
    ! Assume false by default
    return_t_derivatives = .FALSE.

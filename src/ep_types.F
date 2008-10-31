@@ -24,7 +24,7 @@ MODULE ep_types
                                              section_vals_retain,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE preconditioner,                  ONLY: destroy_preconditioner,&
+  USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                              preconditioner_p_type
   USE qs_environment_types,            ONLY: qs_env_release,&
                                              qs_environment_type

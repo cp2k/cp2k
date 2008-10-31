@@ -11,8 +11,6 @@
 !> \author Joost VandeVondele (09.2002)
 ! *****************************************************************************
 MODULE preconditioner
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                             cp_blacs_env_retain
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -29,10 +27,6 @@ MODULE preconditioner
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_init_random, &
        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
-  USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                             cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE input_constants,                 ONLY: &
@@ -44,6 +38,7 @@ MODULE preconditioner
        ot_precond_sparse_firstorder, ot_precond_sparse_kinetic
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
+  USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
                                              make_basis_sm
   USE sparse_matrix_types,             ONLY: &
@@ -63,10 +58,6 @@ MODULE preconditioner
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner'
 
-  PUBLIC  :: preconditioner_type, preconditioner_p_type
-  PUBLIC  :: init_preconditioner
-  PUBLIC  :: preconditioner_in_use
-  PUBLIC  :: destroy_preconditioner
   PUBLIC  :: make_preconditioner
   PUBLIC  :: apply_preconditioner,apply_preconditioner_lr
 
@@ -77,85 +68,10 @@ MODULE preconditioner
   PRIVATE :: make_sparse_diag, make_full_single, make_local_block
 
 ! *****************************************************************************
-  TYPE preconditioner_type
-!    PRIVATE
-       TYPE(real_matrix_type),    POINTER :: sparse_matrix,sparse_matrix_inner
-       TYPE(cp_fm_type), POINTER :: fm
-       TYPE(cp_para_env_type),  POINTER   :: para_env
-       TYPE(cp_blacs_env_type), POINTER   :: ctxt
-       INTEGER :: in_use, solver
-       REAL(KIND = dp), DIMENSION(:), POINTER :: occ_evals,full_evals
-       REAL(KIND = dp) :: energy_gap
-  END TYPE preconditioner_type
-
-! *****************************************************************************
-  TYPE preconditioner_p_type
-     TYPE(preconditioner_type), POINTER :: preconditioner
-  END TYPE preconditioner_p_type
 
 CONTAINS
 
 ! *****************************************************************************
-FUNCTION preconditioner_in_use(preconditioner)
-    TYPE(preconditioner_type)                :: preconditioner
-    LOGICAL                                  :: preconditioner_in_use
-
-  preconditioner_in_use = .NOT. (preconditioner%in_use .EQ. 0)
-END FUNCTION
-
-! *****************************************************************************
-SUBROUTINE init_preconditioner(preconditioner_env,para_env,blacs_env, error)
-
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-   NULLIFY(preconditioner_env%sparse_matrix)
-   NULLIFY(preconditioner_env%sparse_matrix_inner)
-   NULLIFY(preconditioner_env%fm)
-   NULLIFY(preconditioner_env%occ_evals)
-   NULLIFY(preconditioner_env%full_evals)
-   preconditioner_env%in_use=0
-   preconditioner_env%solver=ot_precond_solver_default
-   preconditioner_env%para_env => para_env
-   preconditioner_env%ctxt     => blacs_env
-   CALL cp_para_env_retain(preconditioner_env%para_env,error=error)
-   CALL cp_blacs_env_retain(preconditioner_env%ctxt,error=error)
-
-END SUBROUTINE init_preconditioner
-
-! *****************************************************************************
-SUBROUTINE destroy_preconditioner(preconditioner_env, error)
-
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-   IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-      CALL deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
-      NULLIFY(preconditioner_env%sparse_matrix)
-   ENDIF
-   IF (ASSOCIATED(preconditioner_env%sparse_matrix_inner)) THEN
-      CALL deallocate_matrix(preconditioner_env%sparse_matrix_inner,error=error)
-      NULLIFY(preconditioner_env%sparse_matrix_inner)
-   ENDIF
-
-   IF (ASSOCIATED(preconditioner_env%fm)) THEN
-      CALL cp_fm_release(preconditioner_env%fm,error=error)
-   ENDIF
-   IF (ASSOCIATED(preconditioner_env%occ_evals)) THEN
-      DEALLOCATE(preconditioner_env%occ_evals)
-   ENDIF
-   IF (ASSOCIATED(preconditioner_env%full_evals)) THEN
-      DEALLOCATE(preconditioner_env%full_evals)
-   ENDIF
-
-   CALL cp_para_env_release(preconditioner_env%para_env,error=error)
-   CALL cp_blacs_env_release(preconditioner_env%ctxt,error=error)
-
-   preconditioner_env%in_use=0
-
-END SUBROUTINE destroy_preconditioner
 
 ! creates a preconditioner for the system (H-energy_homo S)
 ! this preconditioner is (must be) symmetric positive definite.

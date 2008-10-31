@@ -19,7 +19,7 @@ MODULE qs_p_env_types
   USE hartree_local_types,             ONLY: hartree_local_release,&
                                              hartree_local_type
   USE kinds,                           ONLY: dp
-  USE preconditioner,                  ONLY: destroy_preconditioner,&
+  USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                              preconditioner_type
   USE qs_kpp1_env_types,               ONLY: kpp1_release,&
                                              qs_kpp1_env_type

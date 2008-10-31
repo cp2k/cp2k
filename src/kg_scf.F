@@ -75,7 +75,7 @@ MODULE kg_scf
                                              mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
-  USE preconditioner,                  ONLY: destroy_preconditioner
+  USE preconditioner_types,            ONLY: destroy_preconditioner
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self

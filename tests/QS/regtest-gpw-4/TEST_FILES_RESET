@@ -490,3 +490,7 @@ He3_multi_ddapc.inp
 # numerics
 He3_multi_ddapc.inp
 spin_restraint.inp
+#new diagonalization
+h2o-otdiag.inp
+h2o-diag.inp
+h2o-otdiag-lsd.inp

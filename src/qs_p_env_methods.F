@@ -54,7 +54,7 @@ MODULE qs_p_env_methods
                                              section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE preconditioner,                  ONLY: init_preconditioner
+  USE preconditioner_types,            ONLY: init_preconditioner
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_calc_k_p_p1,&

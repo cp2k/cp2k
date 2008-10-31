@@ -12,9 +12,9 @@ MODULE kg_scf_types
   USE kg_diis_types,                   ONLY: kg_diis_b_release,&
                                              kg_diis_buffer_type
   USE kinds,                           ONLY: dp
-  USE preconditioner,                  ONLY: destroy_preconditioner,&
+  USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                              preconditioner_p_type
-  USE qs_ot,                           ONLY: qs_ot_destroy,&
+  USE qs_ot_types,                     ONLY: qs_ot_destroy,&
                                              qs_ot_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type

@@ -42,7 +42,7 @@ MODULE qs_pdos
   USE orbital_pointers,                ONLY: nso,&
                                              nsoset
   USE particle_types,                  ONLY: particle_type
-  USE preconditioner,                  ONLY: preconditioner_type
+  USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues

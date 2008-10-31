@@ -71,7 +71,7 @@ MODULE qs_scf_post_gpw
   USE physcon,                         ONLY: angstrom,&
                                              debye,&
                                              evolt
-  USE preconditioner,                  ONLY: preconditioner_type
+  USE preconditioner_types,            ONLY: preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grids,                        ONLY: get_pw_grid_info

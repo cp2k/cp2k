@@ -69,7 +69,8 @@ MODULE qs_scf
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
+  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
+                                             copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pools_create_matrix_vect,&
@@ -83,13 +84,14 @@ MODULE qs_scf
                                              harris_energy_correction,&
                                              harris_postprocessing
   USE input_constants,                 ONLY: &
-       core_guess, debug_run, densities_guess, general_roks, high_spin_roks, &
-       history_guess, ot_precond_full_all, ot_precond_full_kinetic, &
-       ot_precond_full_single, ot_precond_full_single_inverse, &
-       ot_precond_none, ot_precond_s_inverse, ot_precond_sparse_diag, &
-       ot_precond_sparse_firstorder, ot_precond_sparse_kinetic, &
-       outer_scf_none, outer_scf_scp, plus_u_lowdin, restart_guess, &
-       wfi_frozen_method_nr, wfi_use_guess_method_nr
+       core_guess, debug_run, densities_guess, diag_ot, diag_standard, &
+       general_roks, high_spin_roks, history_guess, ot_precond_full_all, &
+       ot_precond_full_kinetic, ot_precond_full_single, &
+       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+       ot_precond_sparse_diag, ot_precond_sparse_firstorder, &
+       ot_precond_sparse_kinetic, outer_scf_none, outer_scf_scp, &
+       plus_u_lowdin, restart_guess, wfi_frozen_method_nr, &
+       wfi_use_guess_method_nr
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -100,9 +102,9 @@ MODULE qs_scf
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt,&
                                              kcalmol
-  USE preconditioner,                  ONLY: destroy_preconditioner,&
-                                             init_preconditioner,&
-                                             make_preconditioner
+  USE preconditioner,                  ONLY: make_preconditioner
+  USE preconditioner_types,            ONLY: destroy_preconditioner,&
+                                             init_preconditioner
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
@@ -137,6 +139,7 @@ MODULE qs_scf
                                              set_mo_set,&
                                              write_mo_set
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner
+  USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                              ot_scf_init,&
                                              ot_scf_mini,&
@@ -155,14 +158,10 @@ MODULE qs_scf
                                              simple_eigensolver
   USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
   USE qs_scf_post_se,                  ONLY: scf_post_calculation_se
-  USE qs_scf_types,                    ONLY: ao_mixing_nr,&
-                                             general_diag_method_nr,&
-                                             no_mixing_nr,&
-                                             ot_method_nr,&
-                                             qs_scf_env_type,&
-                                             scf_env_create,&
-                                             scf_env_release,&
-                                             special_diag_method_nr
+  USE qs_scf_types,                    ONLY: &
+       ao_mixing_nr, general_diag_method_nr, no_mixing_nr, ot_diag_method_nr, &
+       ot_method_nr, qs_scf_env_type, scf_env_create, scf_env_release, &
+       special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
                                              wfi_get_method_label,&
                                              wfi_update
@@ -247,16 +246,33 @@ CONTAINS
           CALL get_qs_env(qs_env,scf_env=scf_env,scf_control=scf_control, &
                           dft_control=dft_control, error=error)
 
-          scf_env%method=general_diag_method_nr
-          IF (dft_control%qs_control%semi_empirical) THEN
-            IF (dft_control%qs_control%se_control%orthogonal_basis) &
-              scf_env%method=special_diag_method_nr
+          IF (scf_control%use_diag) THEN
+            IF ( scf_control%diagonalization%method == diag_standard ) THEN
+              scf_env%method=general_diag_method_nr
+              IF (dft_control%qs_control%semi_empirical) THEN
+                IF (dft_control%qs_control%se_control%orthogonal_basis) &
+                  scf_env%method=special_diag_method_nr
+              END IF
+              IF (dft_control%qs_control%dftb) THEN
+                IF (dft_control%qs_control%dftb_control%orthogonal_basis) &
+                  scf_env%method=special_diag_method_nr
+              END IF
+            ELSEIF ( scf_control%diagonalization%method == diag_ot ) THEN
+              scf_env%method=ot_diag_method_nr
+              IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                  routineP,"DFTB and SE not possible with OT diagonalization",error,failure)
+              END IF
+            ELSE
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                  routineP,"Unknown diagonalization method",error,failure)
+            END IF
+          ELSEIF (scf_control%use_ot) THEN
+            scf_env%method=ot_method_nr
+          ELSE
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                  routineP,"OT or DIAGONALIZATION have to be set",error,failure)
           END IF
-          IF (dft_control%qs_control%dftb) THEN
-            IF (dft_control%qs_control%dftb_control%orthogonal_basis) &
-              scf_env%method=special_diag_method_nr
-          END IF
-          IF (scf_control%use_ot) scf_env%method=ot_method_nr
 
           SELECT CASE(scf_env%method)
           CASE(ot_method_nr)
@@ -537,6 +553,11 @@ CONTAINS
                                                  scf_control,scf_section, &
                                                  diis_step,error)
              END IF
+          CASE(ot_diag_method_nr)
+             CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
+                  routineP,"ROKS with OT diagonalization not possible",error,failure)
+             CALL qs_scf_loop_do_ot_diag(scf_env,mos,rho,matrix_ks,matrix_s,&
+                                         scf_control,scf_section,diis_step,error)
           CASE(ot_method_nr)
              ! ***SCP
              IF ( scp ) THEN
@@ -909,6 +930,83 @@ CONTAINS
     END DO ! ispin
 
   END SUBROUTINE qs_scf_loop_do_special_diag
+
+! *****************************************************************************
+!> \brief the inner loop of scf, specific to iterative diagonalization using OT
+!>        with S matrix; basically, in goes the ks matrix out goes a new p matrix
+!> \par History
+!>      10.2008 created [JGH]
+! *****************************************************************************
+  SUBROUTINE qs_scf_loop_do_ot_diag(scf_env,mos,rho,matrix_ks,matrix_s,&
+               scf_control,scf_section,diis_step,error)
+
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: scf_section
+    LOGICAL, INTENT(INOUT)                   :: diis_step
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: ispin, nmo
+    LOGICAL                                  :: do_level_shift
+    REAL(kind=dp)                            :: diis_error, eps_iter
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+
+    DO ispin=1,SIZE(matrix_ks)
+      CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix,error=error)
+    END DO
+
+    IF (scf_env%iter_count > 1) THEN
+      CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
+                          scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
+                          scf_control%eps_diis,scf_control%nmixing,&
+                          s_matrix=matrix_s,&
+                          scf_section=scf_section,error=error)
+    END IF
+
+    do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
+                      ((scf_control%density_guess == core_guess).OR.&
+                       (scf_env%iter_count > 1)))
+
+    eps_iter = scf_control%diagonalization%eps_iter
+    IF (diis_step) THEN
+      scf_env%p_mix = 1.0_dp
+      scf_env%iter_param = diis_error
+      scf_env%iter_method = "DIIS/OTdiag"
+      DO ispin=1,SIZE(matrix_ks)
+        CALL copy_fm_to_sm(scf_env%scf_work1(ispin)%matrix,matrix_ks(ispin)%matrix)
+      END DO
+      eps_iter = MAX(eps_iter,scf_control%diagonalization%eps_adapt*diis_error)
+    ELSE
+      scf_env%iter_method = "Mixing/OTdiag"
+    END IF
+
+    scf_env%iter_delta = 0.0_dp
+
+    DO ispin=1,SIZE(matrix_ks)
+       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nmo=nmo)
+       CALL ot_eigensolver(matrix_h=matrix_ks(ispin)%matrix,&
+                           matrix_s=matrix_s(1)%matrix,&
+                           matrix_c=mo_coeff,&
+                           preconditioner=scf_env%ot_preconditioner(1)%preconditioner,&
+                           eps_gradient=eps_iter,&
+                           iter_max=scf_control%diagonalization%max_iter,&
+                           silent=.TRUE.,&
+                           ot_settings=scf_control%diagonalization%ot_settings,&
+                           error=error)
+
+       CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
+              para_env=mo_coeff%matrix_struct%para_env, do_rotation = .TRUE., error=error)
+
+       CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
+       CALL calculate_density_matrix(mos(ispin)%mo_set,scf_env%p_mix_new(ispin)%matrix,error=error)
+    END DO
+
+  END SUBROUTINE qs_scf_loop_do_ot_diag
 
 ! *****************************************************************************
 !> \brief the inner loop of scf, specific to using to the orbital transformation method
@@ -1286,8 +1384,7 @@ END SUBROUTINE qs_scf_print_summary
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(scf_control,matrix_s,matrix_ks,dft_control,mos,&
-         mo_coeff)
+    NULLIFY(scf_control,matrix_s,matrix_ks,dft_control,mos,mo_coeff)
 ! **SCP
     NULLIFY ( scp_env, aux_coeff_set )
 ! **SCP
@@ -1326,11 +1423,88 @@ END SUBROUTINE qs_scf_print_summary
     CASE (general_diag_method_nr,special_diag_method_nr)
 
        IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN
-          CALL qs_diis_b_create(scf_env%scf_diis_buffer,&
-               nbuffer=scf_control%max_diis,&
-               error=error)
+          CALL qs_diis_b_create(scf_env%scf_diis_buffer,nbuffer=scf_control%max_diis,error=error)
        END IF
        CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
+
+    CASE (ot_diag_method_nr)
+
+       IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+          CALL qs_diis_b_create(scf_env%scf_diis_buffer,nbuffer=scf_control%max_diis,error=error)
+       END IF
+       CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
+
+       ! disable DFTB and SE for now
+       IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
+         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"DFTB and SE not available with OT/DIAG",error,failure)
+       END IF
+
+       ! if an old preconditioner is still around (i.e. outer SCF is active),
+       ! remove it if this could be worthwhile
+       IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
+         SELECT CASE(scf_control%diagonalization%ot_settings%preconditioner_type)
+           ! these depend on the ks matrix
+           CASE(ot_precond_full_all,ot_precond_full_single, ot_precond_full_single_inverse) 
+             DO ispin=1,SIZE(scf_env%ot_preconditioner)
+                CALL destroy_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
+                DEALLOCATE(scf_env%ot_preconditioner(ispin)%preconditioner)
+             ENDDO
+             DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse, &
+                  ot_precond_sparse_diag,ot_precond_sparse_kinetic,&
+                  ot_precond_sparse_firstorder) ! these are 'independent'
+           ! do nothing
+           CASE DEFAULT
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+         END SELECT
+       END IF
+
+       ! add an OT preconditioner if none is present
+       IF (.NOT.ASSOCIATED(scf_env%ot_preconditioner)) THEN
+         SELECT CASE(scf_control%diagonalization%ot_settings%preconditioner_type)
+           CASE(ot_precond_full_all,ot_precond_full_single_inverse)
+             ALLOCATE(scf_env%ot_preconditioner(dft_control%nspins), stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           CASE DEFAULT
+             ALLOCATE(scf_env%ot_preconditioner(1), stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         END SELECT
+         DO i=1,SIZE(scf_env%ot_preconditioner)
+           ALLOCATE(scf_env%ot_preconditioner(i)%preconditioner)
+           CALL init_preconditioner(scf_env%ot_preconditioner(i)%preconditioner,&
+                  para_env=qs_env%para_env,blacs_env=qs_env%blacs_env,error=error)
+         ENDDO
+       END IF
+
+       SELECT CASE(scf_control%diagonalization%ot_settings%preconditioner_type)
+         CASE(ot_precond_none)
+           !
+         CASE(ot_precond_full_all,ot_precond_full_single_inverse)
+           DO ispin=1,dft_control%nspins
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+             CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
+                        para_env=mo_coeff%matrix_struct%para_env, &
+                        do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix,error=error)
+             CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
+                        scf_control%diagonalization%ot_settings%preconditioner_type, &
+                        scf_control%diagonalization%ot_settings%precond_solver_type, &
+                        matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
+                        qs_env%kinetic(1)%matrix, &
+                        mo_coeff,scf_control%diagonalization%ot_settings%energy_gap,error=error)
+           ENDDO
+         CASE DEFAULT
+           ! constuct the preconditioner based on the first spin set.
+           ! this might or might not be reasonable. Presumably it is.
+           CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
+           CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
+                     scf_control%diagonalization%ot_settings%preconditioner_type, &
+                     scf_control%diagonalization%ot_settings%precond_solver_type, &
+                     matrix_ks(1)%matrix,matrix_s(1)%matrix,&
+                     qs_env%kinetic(1)%matrix, &
+                     mo_coeff,scf_control%diagonalization%ot_settings%energy_gap,error=error)
+       END SELECT
 
     CASE (ot_method_nr)
 
@@ -1732,6 +1906,7 @@ END SUBROUTINE qs_scf_print_summary
 ! calc ortho matrix
     ndep = 0
     IF (scf_env%method /= ot_method_nr .AND. &
+        scf_env%method /= ot_diag_method_nr .AND. &
         scf_env%method /= special_diag_method_nr ) THEN
        CALL copy_sm_to_fm(matrix_s(1)%matrix,scf_env%ortho,error=error)
        IF (scf_control%use_cholesky) THEN
@@ -2279,6 +2454,8 @@ END SUBROUTINE qs_scf_print_summary
           ENDDO
           DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CASE(ot_diag_method_nr)
+          !
        CASE(general_diag_method_nr)
           !
        CASE(special_diag_method_nr)
@@ -2341,6 +2518,8 @@ END SUBROUTINE qs_scf_print_summary
           ENDDO
           DEALLOCATE(scf_env%qs_ot_env,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CASE(ot_diag_method_nr)
+          !
        CASE(general_diag_method_nr)
           !
        CASE(special_diag_method_nr)

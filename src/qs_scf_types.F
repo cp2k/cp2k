@@ -16,11 +16,11 @@ MODULE qs_scf_types
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE preconditioner,                  ONLY: destroy_preconditioner,&
+  USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                              preconditioner_p_type
   USE qs_diis_types,                   ONLY: qs_diis_b_release,&
                                              qs_diis_buffer_type
-  USE qs_ot,                           ONLY: qs_ot_destroy,&
+  USE qs_ot_types,                     ONLY: qs_ot_destroy,&
                                              qs_ot_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
@@ -38,7 +38,8 @@ MODULE qs_scf_types
   INTEGER, PARAMETER, PUBLIC :: &
                                 general_diag_method_nr=1,&
                                 special_diag_method_nr=2,&
-                                ot_method_nr=3
+                                ot_diag_method_nr=3,&
+                                ot_method_nr=10
   INTEGER, PARAMETER, PUBLIC :: no_mixing_nr=0, ao_mixing_nr=1
 
   INTEGER, SAVE, PRIVATE :: last_scf_env_id=0

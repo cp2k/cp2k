@@ -95,9 +95,9 @@ MODULE ep_methods
                                              mp_sum
   USE particle_types,                  ONLY: particle_type
   USE preconditioner,                  ONLY: apply_preconditioner,&
-                                             destroy_preconditioner,&
-                                             init_preconditioner,&
                                              make_preconditioner
+  USE preconditioner_types,            ONLY: destroy_preconditioner,&
+                                             init_preconditioner
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self

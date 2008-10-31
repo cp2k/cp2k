@@ -49,7 +49,7 @@ MODULE qs_scf_post_se
   USE mulliken,                        ONLY: mulliken_charges
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE preconditioner,                  ONLY: preconditioner_type
+  USE preconditioner_types,            ONLY: preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
