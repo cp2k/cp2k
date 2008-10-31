@@ -62,9 +62,6 @@ knowledge about the active development.
 </UL>
 
 <H3> upcoming tutorials and workshops related to CP2K </H3>
-<UL>
-<LI> <A HREF="http://www.cecam.org/workshop-222.html">Standardisation and databasing of ab-initio and classical simulations</A>
-</UL>
 
 <H3> Who is behind this project? </H3>
 
