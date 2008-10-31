@@ -66,7 +66,7 @@ CONTAINS
   SUBROUTINE check_cp2k_input(input_file,para_env,output_unit,error)
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(IN)                      :: output_unit
+    INTEGER, INTENT(IN),OPTIONAL             :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_cp2k_input', &
@@ -88,7 +88,8 @@ CONTAINS
     END IF
     IF (.NOT. failure) THEN
        ! ext_restart
-       CALL handle_ext_restart(input_file,para_env,output_unit,error)
+       IF(PRESENT(output_unit)) &
+          CALL handle_ext_restart(input_file,para_env,output_unit,error)
 
        ! checks on force_eval section
        sections => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)

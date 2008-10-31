@@ -6259,13 +6259,13 @@ CONTAINS
             error=error,repeats=.FALSE.,required=.FALSE.)
 
        CALL cp_print_key_section_create(print_key,"kg_info",&
-            description="",&
+            description="kg_info descriptor here",&
             print_level=medium_print_level, filename="__STD_OUT__",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"MOMENTS",&
-            description="",print_level=high_print_level, filename="",error=error)
+            description="moments descriptor here",print_level=high_print_level, filename="",error=error)
 
        CALL keyword_create(keyword, name="NMOMENTS",&
               description="Moment order",&
