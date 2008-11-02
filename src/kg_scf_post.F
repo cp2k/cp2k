@@ -114,8 +114,6 @@ CONTAINS
       POINTER                                :: moments
     TYPE(section_vals_type), POINTER         :: input
 
-!------------------------------------------------------------------------------!
-
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
@@ -196,7 +194,6 @@ CONTAINS
         CALL mp_sum(num_mol,para_env%group)
   
         ! dipole, quadrupole, octapole matrices
-        nmoments = 2
         CALL section_vals_val_get(input,"DFT%KG%PRINT%MOMENTS%NMOMENTS",&
              i_val=nmoments,error=error)
 

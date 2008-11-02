@@ -6215,7 +6215,7 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="kg",&
+       CALL section_create(section,name="KG",&
             description="Parameters specific to KG methods",&
             n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
@@ -6226,9 +6226,6 @@ CONTAINS
             description="This section is used to set a fixed charge for a molecule kind.",&
             n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
-
-       NULLIFY(keyword)
-
        ! Integer
        CALL keyword_create(keyword, name="MOLECULE",&
             variants=(/"MOL"/),&
@@ -6256,19 +6253,14 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       NULLIFY(subsection)
        CALL section_create(subsection,name="PRINT",&
-            description="print results of kg_gpw calculation",&
+            description="Controls the printing of kg_gpw calculation's results",&
             error=error,repeats=.FALSE.,required=.FALSE.)
 
-       CALL cp_print_key_section_create(print_key,"kg_info",&
-            description="kg_info descriptor here",&
-            print_level=medium_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
        CALL cp_print_key_section_create(print_key,"MOMENTS",&
-            description="moments descriptor here",print_level=high_print_level, filename="",error=error)
+            description="Calculates molecular moments through a direct evaluation"//&
+            " of the integrals <a|r^m|b>",print_level=high_print_level, &
+            filename="",error=error)
 
        CALL keyword_create(keyword, name="NMOMENTS",&
               description="Moment order",&

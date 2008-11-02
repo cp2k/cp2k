@@ -937,9 +937,6 @@ CONTAINS
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
     TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
 
-!
-!
-
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
@@ -1094,9 +1091,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
-
-!
-!
 
     failure = .FALSE.
     NULLIFY( aux_matrix, atomic_kind_set, dft_control, &
@@ -1434,8 +1428,6 @@ CONTAINS
       POINTER                                :: kg_fm_mol_set
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
 
-!    -------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
@@ -1506,9 +1498,6 @@ CONTAINS
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
 
-!
-!    -------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
@@ -1567,7 +1556,7 @@ CONTAINS
 !> \par History
 !>      11.2004 created [MI]
 ! *****************************************************************************
-SUBROUTINE kg_scf_env_did_change(scf_env,error)
+  SUBROUTINE kg_scf_env_did_change(scf_env,error)
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1577,21 +1566,19 @@ SUBROUTINE kg_scf_env_did_change(scf_env,error)
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-!    -------------------------------------------------------------------------
+    CALL timeset(routineN,handle)
 
-  CALL timeset(routineN,handle)
+    failure=.FALSE.
 
-  failure=.FALSE.
+    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       IF (ASSOCIATED(scf_env%p_mix_new)) THEN
+          CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
+       END IF
+    END IF
+    CALL timestop(handle)
 
-  CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-        CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
-     END IF
-  END IF
-  CALL timestop(handle)
-
-END SUBROUTINE kg_scf_env_did_change
+  END SUBROUTINE kg_scf_env_did_change
 
 END MODULE kg_scf
