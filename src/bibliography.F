@@ -52,7 +52,8 @@ MODULE bibliography
              Yamada2000,Dudarev1997,Dudarev1998,Dewar1977,Dewar1985,Rocha2006,&
              Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003,Guidon2008,&
              Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
-             Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007
+             Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
+             Grimme2006
 
 CONTAINS
 
@@ -1504,6 +1505,25 @@ CONTAINS
           "UT ISI:000243725000009",&
           "ER"),& 
           DOI="10.1007/3-540-35273-2_8")
+
+     CALL add_reference(key=Grimme2006,ISI_record=s2a(&
+          "PT J",&
+          "AU Grimme, S",&
+          "AF Grimme, Stefan",&
+          "TI Semiempirical GGA-type density functional constructed with a long-range",&
+          "   dispersion correction",&
+          "SO JOURNAL OF COMPUTATIONAL CHEMISTRY",&
+          "SN 0192-8651",&
+          "PD NOV 30",&
+          "PY 2006",&
+          "VL 27",&
+          "IS 15",&
+          "BP 1787",&
+          "EP 1799",&
+          "DI 10.1002/jcc.20495",&
+          "UT ISI:000241477200003",&
+          "ER"),&
+          DOI="10.1002/jcc.20495")
 
    END SUBROUTINE add_all_references
 

@@ -66,7 +66,7 @@ CONTAINS
   SUBROUTINE check_cp2k_input(input_file,para_env,output_unit,error)
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(IN),OPTIONAL             :: output_unit
+    INTEGER, INTENT(IN), OPTIONAL            :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_cp2k_input', &

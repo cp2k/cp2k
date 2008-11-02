@@ -13,6 +13,8 @@ MODULE qs_dispersion_pairpot
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
                                              set_atomic_kind
+  USE bibliography,                    ONLY: cite_reference,&
+                                             grimme2006
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -110,6 +112,7 @@ CONTAINS
              CASE DEFAULT
                 CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
              CASE ("GRIMME")
+                CALL cite_reference(Grimme2006)
                 disp%type = grimme_pp
                 ! get filename of parameter file
                 CALL section_vals_val_get(pp_section,"PARAMETER_FILE_NAME",c_val=filename,error=error)

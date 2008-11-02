@@ -12,13 +12,13 @@
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
        Avezac2005, Becke1988, Dewar1977, Dewar1985, Elstner1998, &
-       Goedecker1996, Heyd2004, Hu2007, Hunt2003, Iannuzzi2005, Iannuzzi2006, &
-       Iannuzzi2007, Krack2000, Krack2002, Lee1988, Lippert1997, Lippert1999, &
-       Ortiz1994, Perdew1981, Perdew1996, Porezag1995, Repasky2002, &
-       Rocha2006, Seifert1996, Stewart1982, Stewart1989, Stewart2007, &
-       Tao2003, Thiel1992, VandeVondele2003, VandeVondele2005a, &
-       VandeVondele2005b, VandeVondele2006, Vosko1980, Weber2008, Zhang1998, &
-       Zhechkov2005
+       Goedecker1996, Grimme2006, Heyd2004, Hu2007, Hunt2003, Iannuzzi2005, &
+       Iannuzzi2006, Iannuzzi2007, Krack2000, Krack2002, Lee1988, &
+       Lippert1997, Lippert1999, Ortiz1994, Perdew1981, Perdew1996, &
+       Porezag1995, Repasky2002, Rocha2006, Seifert1996, Stewart1982, &
+       Stewart1989, Stewart2007, Tao2003, Thiel1992, VandeVondele2003, &
+       VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Vosko1980, &
+       Weber2008, Zhang1998, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -3288,6 +3288,7 @@ CONTAINS
             description="This section combines all possible additional dispersion "//&
             "corrections to the normal XC functionals. This can be more functionals "//&
             "or simple empirical pair potentials. ",&
+            citations=(/grimme2006/),&
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
@@ -3307,12 +3308,13 @@ CONTAINS
             n_keywords=5, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
        CALL keyword_create(keyword,name="R_CUTOFF",&
-            description="Range of potential (default = 12.0 Bohr). The cutoff will be 2 times this value",&
+            description="Range of potential. The cutoff will be 2 times this value",&
             usage="R_CUTOFF 12.0", default_r_val=12.0_dp,required=.FALSE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="TYPE",&
             description="Type of potential.",&
+            citations=(/grimme2006/),&
             usage="TYPE GRIMME", default_c_val="GRIMME",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -3323,7 +3325,8 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="SCALING",&
-            description="Functional dependent scaling parameter.",&
+            description="XC Functional dependent scaling parameter, if set to zero CP2K attempts"//&
+                        " to guess the xc functional that is in use and sets the associated scaling parameter.",&
             usage="SCALING 0.2", default_r_val=0._dp,required=.FALSE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
