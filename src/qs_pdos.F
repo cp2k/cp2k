@@ -394,7 +394,7 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(preconditioner_type), POINTER       :: preconditioner
+    TYPE(preconditioner_type), POINTER       :: local_preconditioner
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, s_matrix
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -416,12 +416,12 @@ CONTAINS
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
        CALL cp_fm_init_random(mo_virt,nvirt,error=error)
 
-       NULLIFY (preconditioner)
+       NULLIFY (local_preconditioner)
 
        CALL ot_eigensolver(matrix_h=ks_matrix(ispin)%matrix,matrix_s=s_matrix(1)%matrix, &
             matrix_c=mo_virt, matrix_orthogonal_space=mo_coeff, &
             eps_gradient=scf_control%eps_lumos, &
-            preconditioner=preconditioner, &
+            preconditioner=local_preconditioner, &
             iter_max=scf_control%max_iter_lumos,&
             size_ortho_space=nmo,error=error)
 

@@ -663,7 +663,7 @@ CONTAINS
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(preconditioner_type), POINTER       :: preconditioner
+    TYPE(preconditioner_type), POINTER       :: local_preconditioner
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_s
@@ -673,7 +673,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind,dft_control,matrix_h,matrix_s,matrix_ks)
-    NULLIFY(cell,particle_set,preconditioner,vecbuffer,vecbuffer2)
+    NULLIFY(cell,particle_set,local_preconditioner,vecbuffer,vecbuffer2)
     NULLIFY(dft_control,input,loc_section,mos,mo_coeff,eigenvalues)
     NULLIFY(centers_wfn,mykind_of_kind,qs_loc_env,localized_wfn_control,stogto_overlap)
     NULLIFY(all_evals,all_vectors,excvec_coeff,excvec_overlap,uno_evals)
@@ -787,13 +787,13 @@ CONTAINS
     CALL mp_sync(qs_env%para_env%group)
     !Calculate the virtual states from the KS matrix matrix_ks(1)
     IF(nvirtual2 .GT. 0) THEN
-       NULLIFY(mo_coeff,uno_orbs,uno_evals,preconditioner)
-       ALLOCATE(preconditioner,STAT=istat)
+       NULLIFY(mo_coeff,uno_orbs,uno_evals,local_preconditioner)
+       ALLOCATE(local_preconditioner,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       CALL init_preconditioner(preconditioner,para_env=qs_env%para_env,&
+       CALL init_preconditioner(local_preconditioner,para_env=qs_env%para_env,&
             blacs_env=qs_env%blacs_env,error=error)
        CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
-       CALL make_preconditioner(preconditioner, &
+       CALL make_preconditioner(local_preconditioner, &
             precon_type=ot_precond_full_kinetic, &
             solver_type=ot_precond_solver_default, &
             matrix_h=matrix_ks(1)%matrix, &
@@ -807,14 +807,14 @@ CONTAINS
 
        CALL ot_eigensolver(matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix, &
             matrix_c=uno_orbs,matrix_orthogonal_space=mo_coeff,&
-            preconditioner=preconditioner,eps_gradient=uno_eps,&
+            preconditioner=local_preconditioner,eps_gradient=uno_eps,&
             iter_max=uno_iter,size_ortho_space=nmo,error=error)
 
        CALL calculate_subspace_eigenvalues(uno_orbs,matrix_ks(1)%matrix,&
             uno_evals,para_env=qs_env%para_env,do_rotation=.TRUE.,error=error)
-       CALL destroy_preconditioner(preconditioner,error=error)
+       CALL destroy_preconditioner(local_preconditioner,error=error)
 
-       DEALLOCATE(preconditioner,STAT=istat)
+       DEALLOCATE(local_preconditioner,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 

@@ -207,7 +207,7 @@ CONTAINS
       POINTER                                :: mos
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(preconditioner_type), POINTER       :: preconditioner
+    TYPE(preconditioner_type), POINTER       :: local_preconditioner
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: wf_g, wf_r
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -496,12 +496,12 @@ CPSourceFileRef,&
              CALL cp_fm_init_random(unoccupied_orbs(ispin)%matrix,nlumos,error=error)
 
              ! the full_all preconditioner makes not much sense for lumos search
-             NULLIFY(preconditioner)
+             NULLIFY(local_preconditioner)
              IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
-                preconditioner=>scf_env%ot_preconditioner(1)%preconditioner
+                local_preconditioner=>scf_env%ot_preconditioner(1)%preconditioner
                 ! this one can for sure not be right (as it has to match a given C0)
-                IF (preconditioner%in_use == ot_precond_full_all) THEN
-                    NULLIFY(preconditioner)
+                IF (local_preconditioner%in_use == ot_precond_full_all) THEN
+                    NULLIFY(local_preconditioner)
                 ENDIF
              ENDIF
 
@@ -509,7 +509,7 @@ CPSourceFileRef,&
                   matrix_c=unoccupied_orbs(ispin)%matrix, &
                   matrix_orthogonal_space=mo_coeff, &
                   eps_gradient=scf_control%eps_lumos, &
-                  preconditioner=preconditioner, &
+                  preconditioner=local_preconditioner, &
                   iter_max=scf_control%max_iter_lumos,&
                   size_ortho_space=homo,error=error)
 
