@@ -33,7 +33,8 @@ MODULE input_cp2k_mm
                                              integer_t,&
                                              lchar_t,&
                                              real_t
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE string_utilities,                ONLY: s2a
 #include "cp_common_uses.h"
 
@@ -344,7 +345,7 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_BOND_section(subsection, error=error)
+       CALL create_BOND_section(subsection, "BOND", error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -624,44 +625,8 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL section_create(subsection,name="UB",&
-            description="Specifies the bond potential the MM system",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-
-       CALL keyword_create(keyword=keyword, name="KIND",&
-            description="Define the kind of Urey-Bradley potential.",&
-            usage="KIND {HARMONIC,CHARMM,G87,G96,QUARTIC}",&
-            enum_c_vals=s2a("HARMONIC","CHARMM","G87","G96","QUARTIC"),&
-            enum_desc=s2a("Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2",&
-                          "Functional Form (HARMONIC|CHARMM|G87): K*(R-R0)^2",&
-                          "Functional Form (HARMONIC|CHARMM|G87): K*(R-R0)^2",&
-                          "Functional Form (G96): 1/4*K*(R-R0)^2",&
-                          "Functional Form (HARMONIC|CHARMM|G87): K*(R-R0)^2"),&
-            enum_i_vals=(/ do_ff_harmonic,&
-                           do_ff_charmm,&
-                           do_ff_g87,&
-                           do_ff_g96,&
-                           do_ff_quartic/),&
-            default_i_val=do_ff_charmm, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="K",&
-            description="Defines the force constant of the potential. For QUARTIC potentials"//&
-            " three numbers are expected.",&
-            usage="K {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=-1, unit_str="hartree*bohr^-2",error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="R0",&
-            description="Defines the equilibrium distance.",&
-            usage="R0 {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="bohr", error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
+       ! Create the Urey-Bradley section
+       CALL create_BOND_section(subsection,"UB",error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -676,13 +641,15 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE create_BOND_section(section,error)
+  SUBROUTINE create_BOND_section(section,label,error)
     TYPE(section_type), POINTER              :: section
+    CHARACTER(LEN=*), INTENT(IN)             :: label
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_BOND_section', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: tag
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
@@ -690,22 +657,33 @@ CONTAINS
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="BOND",&
-            description="Specifies the bond potential the MM system",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
        NULLIFY(keyword)
        
-       CALL keyword_create(keyword, name="ATOMS",&
-            description="Defines the atomic kinds involved in the bond.",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
-            n_var=2, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       IF (TRIM(label)=="UB") THEN
+          tag = " Urey-Bradley "
+          CALL section_create(section,name=TRIM(label),&
+               description="Specifies the Urey-Bradley potential between the external atoms"//&
+               " defining the angle",&
+               n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+               error=error)
+
+       ELSE
+          tag = " Bond "
+          CALL section_create(section,name=TRIM(label),&
+               description="Specifies the bond potential",&
+               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+               error=error)
+
+          CALL keyword_create(keyword, name="ATOMS",&
+               description="Defines the atomic kinds involved in the bond.",&
+               usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+               n_var=2, error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+       END IF
 
        CALL keyword_create(keyword=keyword, name="KIND",&
-            description="Define the kind of bond potential.",&
+            description="Define the kind of"//TRIM(tag)//"potential.",&
             usage="KIND HARMONIC",&
             enum_c_vals=s2a("HARMONIC","CHARMM","G87","G96","QUARTIC","MORSE","CUBIC"),&
             enum_desc=s2a("Functional Form (HARMONIC|G87): 1/2*K*(R-R0)^2",&
