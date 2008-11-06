@@ -2104,7 +2104,7 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
 
   nx = boin ( 2, 1, mip ) - boin ( 1, 1, mip ) + 1
   ny = boin ( 2, 2, mip ) - boin ( 1, 2, mip ) + 1
-  mz = MAXVAL ( boin ( 2, 3, : ) - boin ( 1, 3, : ) + 1 )
+  mz = MAXVAL ( boout ( 2, 3, : ) - boout ( 1, 3, : ) + 1 )
 
   rbuf => fft_scratch%rbuf2
 
@@ -2906,7 +2906,7 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
           mcy3   = fft_sizes%mcy3
           ALLOCATE ( fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2,0:DIM(2)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz1,0:DIM(2)-1),STAT=ierr)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz2,0:DIM(2)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
           ALLOCATE ( fft_scratch_new%fft_scratch%rbuf3(mx2*mz3*mcy3,0:DIM(1)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -3039,7 +3039,7 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
           mcz2   = fft_sizes%mcz2
           ALLOCATE ( fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2,0:DIM(2)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz1,0:DIM(2)-1),STAT=ierr)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz2,0:DIM(2)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
 
           CALL mp_cart_sub( fft_sizes%rs_group, (/.FALSE.,.TRUE./), fft_scratch_new%fft_scratch%cart_sub_comm(2))
