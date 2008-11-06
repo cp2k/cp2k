@@ -379,3 +379,5 @@ He2_ddapc_constraint-4.inp
 He2_ddapc_constraint.inp
 # corrected build of ppnl lists 
 sic_energy.inp
+#  
+sic_ddapc_rt.inp

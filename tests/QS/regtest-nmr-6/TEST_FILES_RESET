@@ -112,3 +112,5 @@ w2_qmmm-3.inp
 #  
 ch4-gapw-1-distributed.inp
 ch4-gapw-1-distributed.inp
+#  
+no-gapw-gpw-1.inp
