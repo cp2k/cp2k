@@ -496,3 +496,6 @@ h2o-diag.inp
 h2o-otdiag-lsd.inp
 #  
 NO2-EFG-1.inp
+# more numerics ppnl
+h2o-otdiag.inp
+h2o-otdiag-lsd.inp

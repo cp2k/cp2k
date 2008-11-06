@@ -489,3 +489,5 @@ N3-9.inp
 N3-10.inp
 #  
 H2O.inp
+# more numerics ppnl
+C_fermi.inp

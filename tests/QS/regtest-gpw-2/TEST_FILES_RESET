@@ -468,3 +468,5 @@ hcn_meta_chaincoord.inp
 hcn_meta_coord.inp
 #  
 hcn_ts.inp
+# more numerics ppnl
+hcn_ts_r.inp

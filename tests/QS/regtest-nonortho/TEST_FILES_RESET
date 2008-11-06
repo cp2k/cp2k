@@ -47,3 +47,7 @@ graphite.inp
 graphite2.inp
 # temporarily switch back to the other generalised collocate 
 graphite3.inp
+# more numerics ppnl
+graphite2.inp
+graphite3.inp
+graphite.inp

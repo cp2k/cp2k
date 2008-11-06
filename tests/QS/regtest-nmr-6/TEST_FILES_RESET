@@ -114,3 +114,5 @@ ch4-gapw-1-distributed.inp
 ch4-gapw-1-distributed.inp
 #  
 no-gapw-gpw-1.inp
+# more numerics ppnl
+ch4-gapw-gpw-1.inp
