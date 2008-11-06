@@ -10,14 +10,9 @@
 ! *****************************************************************************
 MODULE mol_force
   USE f77_blas
-  USE input_constants,                 ONLY: do_ff_charmm,&
-                                             do_ff_cubic,&
-                                             do_ff_g87,&
-                                             do_ff_g96,&
-                                             do_ff_harmonic,&
-                                             do_ff_mixed_bend_stretch,&
-                                             do_ff_morse,&
-                                             do_ff_quartic
+  USE input_constants,                 ONLY: &
+       do_ff_amber, do_ff_charmm, do_ff_cubic, do_ff_g87, do_ff_g96, &
+       do_ff_harmonic, do_ff_mixed_bend_stretch, do_ff_morse, do_ff_quartic
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
@@ -73,7 +68,7 @@ CONTAINS
        disp    = dij - r0*r0
        energy  = f14*k(1)*disp*disp
        fscalar = k(1)*disp
-    CASE (do_ff_charmm)
+    CASE (do_ff_charmm, do_ff_amber)
        dij = SQRT ( DOT_PRODUCT ( rij, rij ) )
        disp = dij - r0
        IF(ABS(disp) < EPSILON(1.0_dp)) THEN
@@ -126,7 +121,7 @@ CONTAINS
        g1 = (b32*id32-b12*id12*COS(theta))*id12
        g3 = (b12*id12-b32*id32*COS(theta))*id32
        g2 = -g1-g3 
-    CASE (do_ff_charmm)
+    CASE (do_ff_charmm, do_ff_amber)
        denom = id12*id12*id32*id32
        energy = k * ( theta - theta0 ) ** 2
        fscalar = 2.0_dp* k *(theta-theta0)/SIN(theta)
@@ -196,7 +191,7 @@ CONTAINS
 !>      none
 !> \author DG
 ! *****************************************************************************
-  SUBROUTINE force_torsions (id_type, is32, dist1, dist2, u1, u2, iw1, iw2, &
+  RECURSIVE SUBROUTINE force_torsions (id_type, is32, dist1, dist2, u1, u2, iw1, iw2, &
        k, cosphi0, m, gt1, gt2, gt3, gt4, energy, fscalar )
     INTEGER, INTENT(IN)                      :: id_type
     REAL(KIND=dp), INTENT(IN)                :: is32, dist1, dist2
@@ -209,7 +204,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_torsions', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: cosphi, trig
+    REAL(KIND=dp)                            :: cosphi, lcosphi0, trig
 
     cosphi = DOT_PRODUCT ( u1, u2 ) * iw1 * iw2
 
@@ -253,15 +248,21 @@ CONTAINS
 
        ! compute fscalar
        fscalar = -fscalar * cosphi0 * k
+
+       ! compute the gradients
+       gt1 = ( u2 * iw2 - cosphi * u1 * iw1 ) * iw1
+       gt4 = ( u1 * iw1 - cosphi * u2 * iw2 ) * iw2
+       gt2 = ( dist1 * is32 ** 2 - 1.0_dp ) * gt1 + dist2 * is32 ** 2 * gt4
+       gt3 = ( - dist2 * is32 ** 2 - 1.0_dp ) * gt4 - dist1 * is32 ** 2 * gt1
+       
+    CASE (do_ff_amber)
+       ! Use the same expression of CHARMM for AMBER (to be checked!)
+       lcosphi0 = COS(cosphi0)
+       CALL force_torsions (do_ff_charmm, is32, dist1, dist2, u1, u2, iw1, iw2, &
+            k, lcosphi0, m, gt1, gt2, gt3, gt4, energy, fscalar )
     CASE DEFAULT
        CALL stop_program (routineP,"unmatched torsion kind")
     END SELECT
-
-    ! compute the gradients
-    gt1 = ( u2 * iw2 - cosphi * u1 * iw1 ) * iw1
-    gt4 = ( u1 * iw1 - cosphi * u2 * iw2 ) * iw2
-    gt2 = ( dist1 * is32 ** 2 - 1.0_dp ) * gt1 + dist2 * is32 ** 2 * gt4
-    gt3 = ( - dist2 * is32 ** 2 - 1.0_dp ) * gt4 - dist1 * is32 ** 2 * gt1
 
   END SUBROUTINE force_torsions
 
@@ -271,8 +272,8 @@ CONTAINS
 !>      none
 !> \author DG
 ! *****************************************************************************
-  SUBROUTINE force_imp_torsions (id_type,s32, is32, ism, isn,  dist1, dist2, tm, tn, t12, t32, &
-       k, phi0, gt1, gt2, gt3, gt4, energy, fscalar )
+  SUBROUTINE force_imp_torsions (id_type,s32, is32, ism, isn,  dist1, dist2, tm,&
+       tn, t12, t32, k, phi0, gt1, gt2, gt3, gt4, energy, fscalar )
     INTEGER, INTENT(IN)                      :: id_type
     REAL(KIND=dp), INTENT(IN)                :: s32, is32, ism, isn, dist1, &
                                                 dist2
@@ -287,44 +288,37 @@ CONTAINS
 
     REAL(KIND=dp)                            :: cosphi, phi
 
+! define cosphi
+
+    cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
+    IF(cosphi > 1.0_dp) cosphi = 1.0_dp
+    IF(cosphi < -1.0_dp) cosphi = -1.0_dp
+    phi = SIGN ( ACOS ( cosphi ), DOT_PRODUCT ( t12, tn ) )
+
     SELECT CASE (id_type)
     CASE (do_ff_charmm)
-       ! define cosphi
-       cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
-       IF(cosphi > 1.0_dp) cosphi = 1.0_dp
-       IF(cosphi < -1.0_dp) cosphi = -1.0_dp
-       phi = SIGN ( ACOS ( cosphi ), DOT_PRODUCT ( t12, tn ) )
        ! compute energy
        energy = k * ( phi - phi0 )**2
 
        ! compute fscalar
        fscalar = - 2.0_dp * k * ( phi - phi0 ) 
 
-       ! compute the gradients
-       gt1 = ( s32* ism * ism ) * tm
-       gt4 = -( s32 * isn * isn ) * tn
-       gt2 = ( dist1 * is32 ** 2 - 1.0_dp ) * gt1 - dist2 * is32 ** 2 * gt4
-       gt3 = ( dist2 * is32 ** 2 - 1.0_dp ) * gt4 - dist1 * is32 ** 2 * gt1
     CASE (do_ff_harmonic,do_ff_g87,do_ff_g96)
-       ! define cosphi
-       cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
-       IF(cosphi > 1.0_dp) cosphi = 1.0_dp
-       IF(cosphi < -1.0_dp) cosphi = -1.0_dp
-       phi = SIGN ( ACOS ( cosphi ), DOT_PRODUCT ( t12, tn ) )
        ! compute energy
        energy = f12 * k * ( phi - phi0 )**2
 
        ! compute fscalar
        fscalar = - k * ( phi - phi0 ) 
 
-       ! compute the gradients
-       gt1 = ( s32* ism * ism ) * tm
-       gt4 = -( s32 * isn * isn ) * tn
-       gt2 = ( dist1 * is32 ** 2 - 1.0_dp ) * gt1 - dist2 * is32 ** 2 * gt4
-       gt3 = ( dist2 * is32 ** 2 - 1.0_dp ) * gt4 - dist1 * is32 ** 2 * gt1
     CASE DEFAULT
        CALL stop_program (routineP,"unmatched impr kind")
     END SELECT
+
+    ! compute the gradients
+    gt1 = ( s32* ism * ism ) * tm
+    gt4 = -( s32 * isn * isn ) * tn
+    gt2 = ( dist1 * is32 ** 2 - 1.0_dp ) * gt1 - dist2 * is32 ** 2 * gt4
+    gt3 = ( dist2 * is32 ** 2 - 1.0_dp ) * gt4 - dist1 * is32 ** 2 * gt1
 
   END SUBROUTINE force_imp_torsions
 

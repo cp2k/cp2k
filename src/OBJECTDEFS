@@ -188,6 +188,7 @@ OBJECTS_GENERIC =\
  force_field_types.o\
  force_fields.o\
  force_fields_all.o\
+ force_fields_ext.o\
  force_fields_input.o\
  force_fields_util.o\
  fparser.o\

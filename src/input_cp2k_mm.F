@@ -203,29 +203,35 @@ CONTAINS
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key, "FF_PARAMETER_FILE", description=&
+            "Controls the printing of Force Field parameter file", &
+            print_level=debug_print_level+1,filename="",common_iter_levels=2,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)       
+
+       CALL cp_print_key_section_create(print_key, "FF_INFO", description=&
+            "Controls the printing of information in the forcefield settings", &
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
        
-    CALL cp_print_key_section_create(print_key, "ff_info", description=&
-         "controls the printing of information in the forcefield settings", &
-         print_level=high_print_level,filename="__STD_OUT__",&
-         error=error)
-
-    CALL keyword_create(keyword,"spline_info",&
-         description="if the printkey is active prints information regarding the splines"//&
-         " used in the nonbonded interactions",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword,"spline_data",&
-         description="if the printkey is active prints on separated files the splined function"//&
-         " together with the reference one. Useful to check the spline behavior.",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL section_add_subsection(section,print_key,error=error)
-    CALL section_release(print_key,error=error)
-
+       CALL keyword_create(keyword,"spline_info",&
+            description="if the printkey is active prints information regarding the splines"//&
+            " used in the nonbonded interactions",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword,"spline_data",&
+            description="if the printkey is active prints on separated files the splined function"//&
+            " together with the reference one. Useful to check the spline behavior.",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       
     END IF
   END SUBROUTINE create_print_mm_section
 
@@ -263,15 +269,17 @@ CONTAINS
        CALL keyword_create(keyword, name="PARMTYPE",&
             description="Define the kind of torsion potential",&
             usage="PARMTYPE {OFF,CHM,G87,G96}",&
-            enum_c_vals=s2a("OFF","CHM","G87","G96"),&
+            enum_c_vals=s2a("OFF","CHM","G87","G96","AMBER"),&
             enum_desc=s2a("Provides force field parameters through the input file",&
                           "Provides force field parameters through an external file with CHARMM format",&
                           "Provides force field parameters through an external file with GROMOS 87 format",&
-                          "Provides force field parameters through an external file with GROMOS 96 format"),&
+                          "Provides force field parameters through an external file with GROMOS 96 format",&
+                          "Provides force field parameters through an external file with AMBER format (from v.8 on)"),&
             enum_i_vals=(/do_ff_undef,&
                           do_ff_charmm,&
                           do_ff_g87,&
-                          do_ff_g96/),&
+                          do_ff_g96,&
+                          do_ff_amber/),&
             default_i_val=do_ff_undef, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -480,14 +488,16 @@ CONTAINS
 
        CALL keyword_create(keyword=keyword, name="KIND",&
             description="Define the kind of torsion potential",&
-            usage="KIND {HARMONIC,CHARMM,G87,G96}",&
-            enum_c_vals=s2a("CHARMM","G87","G96"),&
+            usage="KIND CHARMM",&
+            enum_c_vals=s2a("CHARMM","G87","G96","AMBER"),&
             enum_desc=s2a("Functional Form (CHARMM|G87|G96): K * [ 1 +  cos[M*PHI] * cos[PHI0]]",&
                           "Functional Form (CHARMM|G87|G96): K * [ 1 +  cos[M*PHI] * cos[PHI0]]",&
-                          "Functional Form (CHARMM|G87|G96): K * [ 1 +  cos[M*PHI] * cos[PHI0]]"),&
+                          "Functional Form (CHARMM|G87|G96): K * [ 1 +  cos[M*PHI] * cos[PHI0]]",&
+                          "Function Form AMBER             : K * [ 1 +  cos[M*PHI - PHI0]]"),&
             enum_i_vals=(/ do_ff_charmm,&
                            do_ff_g87,&
-                           do_ff_g96/),&
+                           do_ff_g96,&
+                           do_ff_amber/),&
             default_i_val=do_ff_charmm, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -554,17 +564,19 @@ CONTAINS
 
        CALL keyword_create(keyword=keyword, name="KIND",&
             description="Define the kind of bend potential",&
-            usage="KIND {HARMONIC,CHARMM,G87,G96}",&
-            enum_c_vals=s2a("HARMONIC","CHARMM","G87","G96","CUBIC","MIXED_BEND_STRETCH"),&
-            enum_desc=s2a("Functional Form (HARMONIC/G87): 1/2*K*(THETA-THETA0)^2",&
-                          "Functional Form (CHARMM): K*(THETA-THETA0)^2",&
-                          "Functional Form (HARMONIC/G87): 1/2*K*(THETA-THETA0)^2",&
+            usage="KIND HARMONIC",&
+            enum_c_vals=s2a("HARMONIC","CHARMM","AMBER","G87","G96","CUBIC","MIXED_BEND_STRETCH"),&
+            enum_desc=s2a("Functional Form (HARMONIC|G87): 1/2*K*(THETA-THETA0)^2",&
+                          "Functional Form (CHARMM|AMBER): K*(THETA-THETA0)^2",&
+                          "Functional Form (CHARMM|AMBER): K*(THETA-THETA0)^2",&
+                          "Functional Form (HARMONIC|G87): 1/2*K*(THETA-THETA0)^2",&
                           "Functional Form (G96): 1/2*K*(COS(THETA)-THETA0)^2",&
-                          "Functional Form (Cubic): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))",&
-                          "Functional Form (Mixed_Bend_Stretch): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))+"//&
+                          "Functional Form (CUBIC): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))",&
+                          "Functional Form (MIXED_BEND_STRETCH): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))+"//&
                              " KSS*(R12-R012)*(R32-R032)+KBS12*(R12-R012)*(THETA-THETA0)+KBS32*(R32-R032)*(THETA-THETA0)"),&
             enum_i_vals=(/ do_ff_harmonic,&
                            do_ff_charmm,&
+                           do_ff_amber,&
                            do_ff_g87,&
                            do_ff_g96,&
                            do_ff_cubic,&
@@ -685,9 +697,10 @@ CONTAINS
        CALL keyword_create(keyword=keyword, name="KIND",&
             description="Define the kind of"//TRIM(tag)//"potential.",&
             usage="KIND HARMONIC",&
-            enum_c_vals=s2a("HARMONIC","CHARMM","G87","G96","QUARTIC","MORSE","CUBIC"),&
+            enum_c_vals=s2a("HARMONIC","CHARMM","AMBER","G87","G96","QUARTIC","MORSE","CUBIC"),&
             enum_desc=s2a("Functional Form (HARMONIC|G87): 1/2*K*(R-R0)^2",&
-                          "Functional Form (CHARMM): K*(R-R0)^2",&
+                          "Functional Form (CHARMM|AMBER): K*(R-R0)^2",&
+                          "Functional Form (CHARMM|AMBER): K*(R-R0)^2",&
                           "Functional Form (HARMONIC|G87): 1/2*K*(R-R0)^2",&
                           "Functional Form (G96): 1/4*K*(R-R0)^2",&
                           "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2",&
@@ -695,6 +708,7 @@ CONTAINS
                           "Functional Form (Cubic): K*(R-R0)**2*(1+cs*(R-R0)+7/12*(cs**2*(R-R0)**2))"),&
             enum_i_vals=(/ do_ff_harmonic,&
                            do_ff_charmm,&
+                           do_ff_amber,&
                            do_ff_g87,&
                            do_ff_g96,&
                            do_ff_quartic, &

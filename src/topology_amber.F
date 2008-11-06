@@ -6,6 +6,7 @@
 ! *****************************************************************************
 !> \brief  Handles all functions used to read and interpret AMBER coordinates
 !>         and topology files
+!>
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
 MODULE topology_amber
@@ -21,12 +22,14 @@ MODULE topology_amber
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
+  USE force_field_types,               ONLY: amber_info_type
   USE input_cp2k_restarts,             ONLY: section_velocity_val_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
+  USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_generate_util,          ONLY: topology_generate_molname
@@ -39,11 +42,13 @@ MODULE topology_amber
   IMPLICIT NONE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_amber'
-  REAL(KIND=dp), PARAMETER, PUBLIC     :: amber_conv_factor = 20.4550_dp,&
+  REAL(KIND=dp), PARAMETER, PRIVATE    :: amber_conv_factor = 20.4550_dp,&
                                           amber_conv_charge = 18.2223_dp
+  INTEGER, PARAMETER, PRIVATE          :: buffer_size = 1
+                                          
 
   PRIVATE
-  PUBLIC :: read_coordinate_crd, read_connectivity_amber
+  PUBLIC :: read_coordinate_crd, read_connectivity_amber, rdparm_amber_8
 
   ! Reading Amber sections routines
   INTERFACE rd_amber_section
@@ -362,7 +367,7 @@ CPSourceFileRef,&
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   SUBROUTINE rdparm_amber_8(filename, output_unit, para_env, do_connectivity,&
-       do_forcefield, atom_info, conn_info, error)
+       do_forcefield, atom_info, conn_info, amb_info, particle_set, error)
 
     CHARACTER(LEN=*), INTENT(IN)             :: filename
     INTEGER, INTENT(IN)                      :: output_unit
@@ -371,18 +376,22 @@ CPSourceFileRef,&
     TYPE(atom_info_type), OPTIONAL, POINTER  :: atom_info
     TYPE(connectivity_info_type), OPTIONAL, &
       POINTER                                :: conn_info
+    TYPE(amber_info_type), OPTIONAL, POINTER :: amb_info
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rdparm_amber_8', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: input_format, section, title
+    CHARACTER(LEN=default_string_length)     :: input_format, section
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: isymbl, labres
     INTEGER :: i, ifbox, ifcap, ifpert, info(31), istart, mbona, mbper, &
       mdper, mgper, mphia, mtheta, natom, natyp, nbona, nbonh, nbper, ndper, &
       ngper, nhparm, nmxrs, nnb, nparm, nphb, nphia, nphih, nptra, nres, &
-      ntheta, ntheth, ntypes, numang, numbnd, numextra, stat, unique_torsions
+      nsize, ntheta, ntheth, ntypes, numang, numbnd, numextra, stat, &
+      unique_torsions
     INTEGER, ALLOCATABLE, DIMENSION(:) :: iac, ib, ibh, icb, icbh, ico, icp, &
       icph, ict, icth, ip, iph, ipres, it, ith, iwork, jb, jbh, jp, jph, jt, &
       jth, kp, kph, kt, kth, lp, lph
@@ -605,28 +614,52 @@ CPSourceFileRef,&
           CASE("BONDS_INC_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
              CALL rd_amber_section(parser, section, ibh, jbh, icbh, nbonh, error)
+             ! Conver to an atomic index
+             ibh = ibh/3+1
+             jbh = jbh/3+1
           CASE("BONDS_WITHOUT_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
              CALL rd_amber_section(parser, section, ib, jb, icb, nbona, error)
+             ! Conver to an atomic index
+             ib  =  ib/3+1
+             jb  =  jb/3+1
           CASE("ANGLES_INC_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
              CALL rd_amber_section(parser, section, ith, jth, kth, icth, ntheth, error)
+             ! Conver to an atomic index
+             ith = ith/3+1
+             jth = jth/3+1
+             kth = kth/3+1
           CASE("ANGLES_WITHOUT_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
              CALL rd_amber_section(parser, section, it, jt, kt, ict, ntheta, error)
+             ! Conver to an atomic index
+             it  =  it/3+1
+             jt  =  jt/3+1
+             kt  =  kt/3+1
           CASE("DIHEDRALS_INC_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
              CALL rd_amber_section(parser, section, iph, jph, kph, lph, icph, nphih, error)
+             ! Conver to an atomic index
+             iph = iph/3+1
+             jph = jph/3+1
+             kph = ABS(kph)/3+1
+             lph = ABS(lph)/3+1
           CASE("DIHEDRALS_WITHOUT_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
              CALL rd_amber_section(parser, section, ip, jp, kp, lp, icp, nphia, error)
+             ! Conver to an atomic index
+             ip  = ip/3+1
+             jp  = jp/3+1
+             kp  = ABS(kp)/3+1
+             lp  = ABS(lp)/3+1
           CASE DEFAULT
              ! Just Ignore other sections...
           END SELECT
        END DO
     END IF
 
-    ! Deallocate temporary arrays
+    ! Extracts connectivity info from the AMBER topology file
     IF (do_connectivity) THEN
        ! ----------------------------------------------------------
        ! Conform Amber Names with CHARMM convention (kind<->charge)
@@ -681,26 +714,26 @@ CPSourceFileRef,&
        CALL reallocate(conn_info%bond_a,1,nbonh+nbona)
        CALL reallocate(conn_info%bond_b,1,nbonh+nbona)
        DO i = 1, nbonh
-          conn_info%bond_a(i)       = ibh(i)/3+1
-          conn_info%bond_b(i)       = jbh(i)/3+1
+          conn_info%bond_a(i)       = ibh(i)
+          conn_info%bond_b(i)       = jbh(i)
        END DO
        DO i = 1, nbona
-          conn_info%bond_a(nbonh+i) = ib(i)/3+1
-          conn_info%bond_b(nbonh+i) = jb(i)/3+1
+          conn_info%bond_a(nbonh+i) = ib(i)
+          conn_info%bond_b(nbonh+i) = jb(i)
        END DO
        ! ANGLES
        CALL reallocate(conn_info%theta_a,1,ntheth+ntheta)
        CALL reallocate(conn_info%theta_b,1,ntheth+ntheta)
        CALL reallocate(conn_info%theta_c,1,ntheth+ntheta)
        DO i = 1, ntheth
-          conn_info%theta_a(i)        = ith(i)/3+1
-          conn_info%theta_b(i)        = jth(i)/3+1
-          conn_info%theta_c(i)        = kth(i)/3+1
+          conn_info%theta_a(i)        = ith(i)
+          conn_info%theta_b(i)        = jth(i)
+          conn_info%theta_c(i)        = kth(i)
        END DO
        DO i = 1, ntheta
-          conn_info%theta_a(ntheth+i) = it(i)/3+1
-          conn_info%theta_b(ntheth+i) = jt(i)/3+1
-          conn_info%theta_c(ntheth+i) = kt(i)/3+1
+          conn_info%theta_a(ntheth+i) = it(i)
+          conn_info%theta_b(ntheth+i) = jt(i)
+          conn_info%theta_c(ntheth+i) = kt(i)
        END DO
        ! TORSIONS
        ! For torsions we need to find out the unique torsions 
@@ -716,16 +749,16 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        DO i = 1, nphih
-          full_torsions(1,i)          = iph(i)/3+1
-          full_torsions(2,i)          = jph(i)/3+1
-          full_torsions(3,i)          = ABS(kph(i))/3+1
-          full_torsions(4,i)          = ABS(lph(i))/3+1
+          full_torsions(1,i)          = iph(i)
+          full_torsions(2,i)          = jph(i)
+          full_torsions(3,i)          = kph(i)
+          full_torsions(4,i)          = lph(i)
        END DO
        DO i = 1, nphia
-          full_torsions(1,nphih+i)    = ip(i)/3+1
-          full_torsions(2,nphih+i)    = jp(i)/3+1
-          full_torsions(3,nphih+i)    = ABS(kp(i))/3+1
-          full_torsions(4,nphih+i)    = ABS(lp(i))/3+1
+          full_torsions(1,nphih+i)    = ip(i)
+          full_torsions(2,nphih+i)    = jp(i)
+          full_torsions(3,nphih+i)    = kp(i)
+          full_torsions(4,nphih+i)    = lp(i)
        END DO
        CALL sort(full_torsions, 1, nphih+nphia, 1, 4, iwork)
 
@@ -768,8 +801,106 @@ CPSourceFileRef,&
        atom_info%label_molname = "__UNDEF__"
        CALL topology_generate_molname(conn_info, natom, atom_info%label_molname, error)
     END IF
+
+    ! Extracts force fields info from the AMBER topology file
     IF (do_forcefield) THEN
-       ! Deallocate when extracting forcefield infos
+       ! ----------------------------------------------------------
+       ! Force Fields informations related to bonds
+       ! ----------------------------------------------------------
+       CALL reallocate(amb_info%bond_a, 1,buffer_size)
+       CALL reallocate(amb_info%bond_b, 1,buffer_size)
+       CALL reallocate(amb_info%bond_k, 1,buffer_size)
+       CALL reallocate(amb_info%bond_r0,1,buffer_size)
+       nsize = 0
+       ! Bonds containing hydrogens
+       CALL post_process_bonds_info(amb_info%bond_a, amb_info%bond_b,&
+            amb_info%bond_k, amb_info%bond_r0, particle_set, nsize, &
+            nbonh, ibh, jbh, icbh, rk, req, error)
+       ! Bonds non-containing hydrogens
+       CALL post_process_bonds_info(amb_info%bond_a, amb_info%bond_b,&
+            amb_info%bond_k, amb_info%bond_r0, particle_set, nsize, &
+            nbona, ib, jb, icb, rk, req, error)
+       ! Shrink arrays size to the minimal request
+       CALL reallocate(amb_info%bond_a, 1,nsize)
+       CALL reallocate(amb_info%bond_b, 1,nsize)
+       CALL reallocate(amb_info%bond_k, 1,nsize)
+       CALL reallocate(amb_info%bond_r0,1,nsize)
+
+       ! ----------------------------------------------------------
+       ! Force Fields informations related to bends
+       ! ----------------------------------------------------------
+       CALL reallocate(amb_info%bend_a, 1,buffer_size)
+       CALL reallocate(amb_info%bend_b, 1,buffer_size)
+       CALL reallocate(amb_info%bend_c, 1,buffer_size)
+       CALL reallocate(amb_info%bend_k, 1,buffer_size)
+       CALL reallocate(amb_info%bend_theta0,1,buffer_size)
+       nsize = 0
+       ! Bends containing hydrogens
+       CALL post_process_bends_info(amb_info%bend_a, amb_info%bend_b,&
+            amb_info%bend_c, amb_info%bend_k, amb_info%bend_theta0, &
+            particle_set, nsize, ntheth, ith, jth, kth, icth, tk, teq, error)
+       ! Bends non-containing hydrogens
+       CALL post_process_bends_info(amb_info%bend_a, amb_info%bend_b,&
+            amb_info%bend_c, amb_info%bend_k, amb_info%bend_theta0, &
+            particle_set, nsize, ntheta, it, jt, kt, ict, tk, teq, error)
+       ! Shrink arrays size to the minimal request
+       CALL reallocate(amb_info%bend_a, 1,nsize)
+       CALL reallocate(amb_info%bend_b, 1,nsize)
+       CALL reallocate(amb_info%bend_c, 1,nsize)
+       CALL reallocate(amb_info%bend_k, 1,nsize)
+       CALL reallocate(amb_info%bend_theta0,1,nsize)
+
+       ! ----------------------------------------------------------
+       ! Force Fields informations related to torsions
+       ! in amb_info%cosphi0 we store PHI0 and not its cosine, this
+       ! is just to avoid an additional field in the torsional kind.
+       ! Just beware of it!
+       ! ----------------------------------------------------------
+       CALL reallocate(amb_info%torsion_a, 1,buffer_size)
+       CALL reallocate(amb_info%torsion_b, 1,buffer_size)
+       CALL reallocate(amb_info%torsion_c, 1,buffer_size)
+       CALL reallocate(amb_info%torsion_d, 1,buffer_size)
+       CALL reallocate(amb_info%torsion_k, 1,buffer_size)
+       CALL reallocate(amb_info%torsion_m, 1,buffer_size)
+       CALL reallocate(amb_info%torsion_cosphi0, 1,buffer_size)
+       nsize = 0
+       ! Torsions containing hydrogens
+       CALL post_process_torsions_info(amb_info%torsion_a, amb_info%torsion_b,&
+            amb_info%torsion_c, amb_info%torsion_d, amb_info%torsion_k, &
+            amb_info%torsion_m, amb_info%torsion_cosphi0, particle_set, nsize,&
+            nphih, iph, jph, kph, lph, icph, pk, pn, phase, error)
+       ! Torsions non-containing hydrogens
+       CALL post_process_torsions_info(amb_info%torsion_a, amb_info%torsion_b,&
+            amb_info%torsion_c, amb_info%torsion_d, amb_info%torsion_k, &
+            amb_info%torsion_m, amb_info%torsion_cosphi0, particle_set, nsize,&
+            nphia, ip, jp, kp, lp, icp, pk, pn, phase, error)
+       ! Shrink arrays size to the minimal request
+       CALL reallocate(amb_info%torsion_a, 1,nsize)
+       CALL reallocate(amb_info%torsion_b, 1,nsize)
+       CALL reallocate(amb_info%torsion_c, 1,nsize)
+       CALL reallocate(amb_info%torsion_d, 1,nsize)
+       CALL reallocate(amb_info%torsion_k, 1,nsize)
+       CALL reallocate(amb_info%torsion_m, 1,nsize)
+       CALL reallocate(amb_info%torsion_cosphi0, 1,nsize)
+
+       ! ----------------------------------------------------------
+       ! Post process of LJ parameters
+       ! ----------------------------------------------------------
+       CALL reallocate(amb_info%nonbond_a,     1, buffer_size)
+       CALL reallocate(amb_info%nonbond_eps,   1, buffer_size)
+       CALL reallocate(amb_info%nonbond_rmin2, 1, buffer_size)
+
+       nsize = 0
+       CALL post_process_LJ_info(amb_info%nonbond_a, amb_info%nonbond_eps,&
+            amb_info%nonbond_rmin2, particle_set, ntypes, nsize, iac, ico,&
+            cn1, cn2, error)
+
+       ! Shrink arrays size to the minimal request
+       CALL reallocate(amb_info%nonbond_a,     1, nsize)
+       CALL reallocate(amb_info%nonbond_eps,   1, nsize)
+       CALL reallocate(amb_info%nonbond_rmin2, 1, nsize)
+
+       ! Deallocate at the end of the dirty job
        DEALLOCATE(iac,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(ico,stat=stat)
@@ -1211,7 +1342,6 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Check the version of the AMBER topology file (we can handle from v8 on)
-!>
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   FUNCTION check_amber_8_std(parser, output_unit, error) RESULT(found_AMBER_V8)
@@ -1236,6 +1366,346 @@ CPSourceFileRef,&
          TRIM(parser%input_line)
 
   END FUNCTION check_amber_8_std
+
+! *****************************************************************************
+!> \brief Post processing of forcefield information related to bonds
+!> \author Teodoro Laino [tlaino] - 11.2008
+! *****************************************************************************
+  SUBROUTINE post_process_bonds_info(label_a, label_b, k, r0, particle_set, ibond, &
+       nbond, ib, jb, icb, rk, req, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: label_a, label_b
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: k, r0
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    INTEGER, INTENT(INOUT)                   :: ibond
+    INTEGER, INTENT(IN)                      :: nbond
+    INTEGER, DIMENSION(:), INTENT(IN)        :: ib, jb, icb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rk, req
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bonds_info', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      ALLOCATABLE, DIMENSION(:, :)           :: work_label
+    INTEGER                                  :: i, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
+    LOGICAL                                  :: failure
+
+    failure        = .FALSE.
+    ALLOCATE(work_label(2,nbond),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(iwork(nbond),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, nbond
+       work_label(1,i) = particle_set(ib(i))%atomic_kind%name
+       work_label(2,i) = particle_set(jb(i))%atomic_kind%name
+    END DO
+       
+    CALL sort(work_label, 1, nbond, 1, 2, iwork)
+
+    ibond = ibond + 1
+    ! In case we need more space ... give it up...
+    IF (ibond>SIZE(label_a)) THEN
+       CALL reallocate(label_a, 1,INT(buffer_size+ibond*1.5_dp))
+       CALL reallocate(label_b, 1,INT(buffer_size+ibond*1.5_dp))
+       CALL reallocate(k, 1,INT(buffer_size+ibond*1.5_dp))
+       CALL reallocate(r0,1,INT(buffer_size+ibond*1.5_dp))
+    END IF
+    label_a(ibond)  = work_label(1,1)
+    label_b(ibond)  = work_label(2,1)
+    k(ibond)  = rk (icb(iwork(1)))
+    r0(ibond) = req(icb(iwork(1)))
+    
+    DO i = 2, nbond
+       IF  ((work_label(1,i)/=label_a(ibond)).OR.&
+            (work_label(2,i)/=label_b(ibond))) THEN
+          ibond = ibond + 1
+          ! In case we need more space ... give it up...
+          IF (ibond>SIZE(label_a)) THEN
+             CALL reallocate(label_a, 1,INT(buffer_size+ibond*1.5_dp))
+             CALL reallocate(label_b, 1,INT(buffer_size+ibond*1.5_dp))
+             CALL reallocate(k, 1,INT(buffer_size+ibond*1.5_dp))
+             CALL reallocate(r0,1,INT(buffer_size+ibond*1.5_dp))
+          END IF
+          label_a(ibond)  = work_label(1,i)
+          label_b(ibond)  = work_label(2,i)
+          k(ibond)  = rk(icb(iwork(i)))
+          r0(ibond) = req(icb(iwork(i)))
+       END IF
+    END DO
+
+    DEALLOCATE(work_label,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(iwork, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END SUBROUTINE post_process_bonds_info
+
+! *****************************************************************************
+!> \brief Post processing of forcefield information related to bends
+!> \author Teodoro Laino [tlaino] - 11.2008
+! *****************************************************************************
+  SUBROUTINE post_process_bends_info(label_a, label_b, label_c, k, theta0, &
+       particle_set, itheta, ntheta, it, jt, kt, ict, tk, teq, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: label_a, label_b, label_c
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: k, theta0
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    INTEGER, INTENT(INOUT)                   :: itheta
+    INTEGER, INTENT(IN)                      :: ntheta
+    INTEGER, DIMENSION(:), INTENT(IN)        :: it, jt, kt, ict
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: tk, teq
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bends_info', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      ALLOCATABLE, DIMENSION(:, :)           :: work_label
+    INTEGER                                  :: i, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
+    LOGICAL                                  :: failure
+
+    failure        = .FALSE.
+    ALLOCATE(work_label(3,ntheta),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(iwork(ntheta),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, ntheta
+       work_label(1,i) = particle_set(it(i))%atomic_kind%name
+       work_label(2,i) = particle_set(jt(i))%atomic_kind%name
+       work_label(3,i) = particle_set(kt(i))%atomic_kind%name
+    END DO
+       
+    CALL sort(work_label, 1, ntheta, 1, 3, iwork)
+
+    itheta = itheta + 1
+    ! In case we need more space ... give it up...
+    IF (itheta>SIZE(label_a)) THEN
+       CALL reallocate(label_a, 1,INT(buffer_size+itheta*1.5_dp))
+       CALL reallocate(label_b, 1,INT(buffer_size+itheta*1.5_dp))
+       CALL reallocate(label_c, 1,INT(buffer_size+itheta*1.5_dp))
+       CALL reallocate(k, 1,INT(buffer_size+itheta*1.5_dp))
+       CALL reallocate(theta0,1,INT(buffer_size+itheta*1.5_dp))
+    END IF
+    label_a(itheta)  = work_label(1,1)
+    label_b(itheta)  = work_label(2,1)
+    label_c(itheta)  = work_label(3,1)
+    k(itheta)      = tk (ict(iwork(1)))
+    theta0(itheta) = teq(ict(iwork(1)))
+    
+    DO i = 2, ntheta
+       IF  ((work_label(1,i)/=label_a(itheta)).OR.&
+            (work_label(2,i)/=label_b(itheta)).OR.&
+            (work_label(3,i)/=label_c(itheta))) THEN
+          itheta = itheta + 1
+          ! In case we need more space ... give it up...
+          IF (itheta>SIZE(label_a)) THEN
+             CALL reallocate(label_a, 1,INT(buffer_size+itheta*1.5_dp))
+             CALL reallocate(label_b, 1,INT(buffer_size+itheta*1.5_dp))
+             CALL reallocate(label_c, 1,INT(buffer_size+itheta*1.5_dp))
+             CALL reallocate(k, 1,INT(buffer_size+itheta*1.5_dp))
+             CALL reallocate(theta0,1,INT(buffer_size+itheta*1.5_dp))
+          END IF
+          label_a(itheta)  = work_label(1,i)
+          label_b(itheta)  = work_label(2,i)
+          label_c(itheta)  = work_label(3,i)
+          k(itheta)      = tk (ict(iwork(i)))
+          theta0(itheta) = teq(ict(iwork(i)))
+       END IF
+    END DO
+
+    DEALLOCATE(work_label,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(iwork, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END SUBROUTINE post_process_bends_info
+
+! *****************************************************************************
+!> \brief Post processing of forcefield information related to torsions
+!> \author Teodoro Laino [tlaino] - 11.2008
+! *****************************************************************************
+  SUBROUTINE post_process_torsions_info(label_a, label_b, label_c, label_d, k,&
+       m, phi0, particle_set, iphi, nphi, ip, jp, kp, lp, icp, pk, pn, phase,&
+       error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: label_a, label_b, label_c, &
+                                                label_d
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: k, m, phi0
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    INTEGER, INTENT(INOUT)                   :: iphi
+    INTEGER, INTENT(IN)                      :: nphi
+    INTEGER, DIMENSION(:), INTENT(IN)        :: ip, jp, kp, lp, icp
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pk, pn, phase
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'post_process_torsions_info', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      ALLOCATABLE, DIMENSION(:, :)           :: work_label
+    INTEGER                                  :: i, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
+    LOGICAL                                  :: failure
+
+    failure        = .FALSE.
+    ALLOCATE(work_label(6,nphi),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(iwork(nphi),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, nphi
+       work_label(1,i) = particle_set(ip(i))%atomic_kind%name
+       work_label(2,i) = particle_set(jp(i))%atomic_kind%name
+       work_label(3,i) = particle_set(kp(i))%atomic_kind%name
+       work_label(4,i) = particle_set(lp(i))%atomic_kind%name
+       ! Phase and multiplicity must be kept into account 
+       ! for the ordering of the torsions
+       work_label(5,i) = TRIM(ADJUSTL(cp_to_string(phase(icp(i)))))
+       work_label(6,i) = TRIM(ADJUSTL(cp_to_string(pn(icp(i)))))
+    END DO
+       
+    CALL sort(work_label, 1, nphi, 1, 6, iwork)
+
+    iphi = iphi + 1
+    ! In case we need more space ... give it up...
+    IF (iphi>SIZE(label_a)) THEN
+       CALL reallocate(label_a, 1,INT(buffer_size+iphi*1.5_dp))
+       CALL reallocate(label_b, 1,INT(buffer_size+iphi*1.5_dp))
+       CALL reallocate(label_c, 1,INT(buffer_size+iphi*1.5_dp))
+       CALL reallocate(label_d, 1,INT(buffer_size+iphi*1.5_dp))
+       CALL reallocate(k, 1,  INT(buffer_size+iphi*1.5_dp))
+       CALL reallocate(m, 1,  INT(buffer_size+iphi*1.5_dp))
+       CALL reallocate(phi0,1,INT(buffer_size+iphi*1.5_dp))
+    END IF
+    label_a(iphi)  = work_label(1,1)
+    label_b(iphi)  = work_label(2,1)
+    label_c(iphi)  = work_label(3,1)
+    label_d(iphi)  = work_label(4,1)
+    k(iphi)    = pk   (icp(iwork(1)))
+    m(iphi)    = pn   (icp(iwork(1)))
+    phi0(iphi) = phase(icp(iwork(1)))
+    
+    DO i = 2, nphi
+       ! We don't consider the possibility that a torsion can have same 
+       ! phase, periodicity but different value of k.. in this case the
+       ! potential should be summed-up
+       IF  ((work_label(1,i)/=label_a(iphi)).OR.&
+            (work_label(2,i)/=label_b(iphi)).OR.&
+            (work_label(3,i)/=label_c(iphi)).OR.&
+            (work_label(4,i)/=label_d(iphi)).OR.&
+            (pn(icp(iwork(i)))/=m(iphi))    .OR.&
+            (phase(icp(iwork(i)))/=phi0(iphi))) THEN
+          iphi = iphi + 1
+          ! In case we need more space ... give it up...
+          IF (iphi>SIZE(label_a)) THEN
+             CALL reallocate(label_a, 1,INT(buffer_size+iphi*1.5_dp))
+             CALL reallocate(label_b, 1,INT(buffer_size+iphi*1.5_dp))
+             CALL reallocate(label_c, 1,INT(buffer_size+iphi*1.5_dp))
+             CALL reallocate(label_d, 1,INT(buffer_size+iphi*1.5_dp))
+             CALL reallocate(k,   1,INT(buffer_size+iphi*1.5_dp))
+             CALL reallocate(m,   1,INT(buffer_size+iphi*1.5_dp))
+             CALL reallocate(phi0,1,INT(buffer_size+iphi*1.5_dp))
+          END IF
+          label_a(iphi)  = work_label(1,i)
+          label_b(iphi)  = work_label(2,i)
+          label_c(iphi)  = work_label(3,i)
+          label_d(iphi)  = work_label(4,i)
+          k(iphi)    = pk   (icp(iwork(i)))
+          m(iphi)    = pn   (icp(iwork(i)))
+          phi0(iphi) = phase(icp(iwork(i)))
+       END IF
+    END DO
+
+    DEALLOCATE(work_label,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(iwork, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE post_process_torsions_info
+
+! *****************************************************************************
+!> \brief Post processing of forcefield information related to Lennard-Jones
+!> \author Teodoro Laino [tlaino] - 11.2008
+! *****************************************************************************
+  SUBROUTINE post_process_LJ_info(atom_label, eps, sigma, particle_set,&
+       ntypes, nsize, iac, ico, cn1, cn2, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atom_label
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eps, sigma
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    INTEGER, INTENT(IN)                      :: ntypes
+    INTEGER, INTENT(INOUT)                   :: nsize
+    INTEGER, DIMENSION(:), INTENT(IN)        :: iac, ico
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: cn1, cn2
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'post_process_LJ_info', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      ALLOCATABLE, DIMENSION(:)              :: work_label
+    INTEGER                                  :: i, natom, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: F12, F6, my_eps, my_sigma, &
+                                                sigma6
+
+    failure = .FALSE.
+    natom   = SIZE(particle_set)
+    ALLOCATE(work_label(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(iwork(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, natom
+       work_label(i) = particle_set(i)%atomic_kind%name
+    END DO
+    CALL sort(work_label, natom, iwork)
+    
+    nsize = nsize + 1
+    IF (nsize>SIZE(atom_label)) THEN
+       CALL reallocate(atom_label, 1, INT(buffer_size+nsize*1.5_dp))
+       CALL reallocate(eps,        1, INT(buffer_size+nsize*1.5_dp))
+       CALL reallocate(sigma,      1, INT(buffer_size+nsize*1.5_dp))
+    END IF
+    F12 = cn1( ico(ntypes*(iac(iwork(1))-1) + iac(iwork(1))))
+    F6  = cn2( ico(ntypes*(iac(iwork(1))-1) + iac(iwork(1))))
+    sigma6   = (2.0_dp*F12/F6)
+    my_sigma = sigma6**(1.0_dp/6.0_dp)
+    my_eps   = F6/(2.0_dp*sigma6) 
+    atom_label(nsize) = work_label(1)
+    sigma(nsize)      = my_sigma/2.0_dp
+    eps(nsize)        = my_eps
+
+    DO i = 2, natom
+       IF  (work_label(i)/=atom_label(nsize)) THEN
+          nsize = nsize + 1
+          ! In case we need more space ... give it up...
+          IF (nsize>SIZE(atom_label)) THEN
+             CALL reallocate(atom_label, 1, INT(buffer_size+nsize*1.5_dp))
+             CALL reallocate(eps,        1, INT(buffer_size+nsize*1.5_dp))
+             CALL reallocate(sigma,      1, INT(buffer_size+nsize*1.5_dp))
+          END IF
+          F12 = cn1( ico(ntypes*(iac(iwork(i))-1) + iac(iwork(i))))
+          F6  = cn2( ico(ntypes*(iac(iwork(i))-1) + iac(iwork(i))))
+          sigma6   = (2.0_dp*F12/F6)
+          my_sigma = sigma6**(1.0_dp/6.0_dp)
+          my_eps   = F6/(2.0_dp*sigma6) 
+          atom_label(nsize) = work_label(i)
+          sigma(nsize)      = my_sigma/2.0_dp
+          eps(nsize)        = my_eps
+       END IF
+    END DO
+
+    DEALLOCATE(work_label,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(iwork,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE post_process_LJ_info
 
 END MODULE topology_amber
 

@@ -25,11 +25,12 @@ MODULE force_fields_all
   USE force_field_types,               ONLY: &
        allocate_bend_kind_set, allocate_bond_kind_set, &
        allocate_impr_kind_set, allocate_onfo_kind_set, &
-       allocate_torsion_kind_set, allocate_ub_kind_set, bend_kind_type, &
-       bond_kind_type, charmm_info_type, force_field_type, gromos_info_type, &
-       impr_kind_type, input_info_type, onfo_kind_type, torsion_kind_type, &
-       ub_kind_type
-  USE input_constants,                 ONLY: do_ff_charmm,&
+       allocate_torsion_kind_set, allocate_ub_kind_set, amber_info_type, &
+       bend_kind_type, bond_kind_type, charmm_info_type, force_field_type, &
+       gromos_info_type, impr_kind_type, input_info_type, onfo_kind_type, &
+       torsion_kind_type, ub_kind_type
+  USE input_constants,                 ONLY: do_ff_amber,&
+                                             do_ff_charmm,&
                                              do_ff_g87,&
                                              do_ff_g96,&
                                              do_ff_undef,&
@@ -774,7 +775,7 @@ CONTAINS
 !> \brief Pack in bonds information needed for the force_field
 ! *****************************************************************************
   SUBROUTINE force_field_pack_bond (particle_set, molecule_kind_set, molecule_set, &
-      fatal, Ainfo, chm_info, inp_info, gro_info, error)
+      fatal, Ainfo, chm_info, inp_info, gro_info, amb_info, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -788,6 +789,7 @@ CONTAINS
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(gromos_info_type), POINTER          :: gro_info
+    TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_bond', &
@@ -829,7 +831,7 @@ CONTAINS
           CALL uppercase(name_atm_a)
           CALL uppercase(name_atm_b)
 
-          ! loop over params from gromos
+          ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%bond_k)) THEN
              k=SIZE(gro_info%bond_k)
              itype = bond_list(j)%itype
@@ -841,12 +843,12 @@ CONTAINS
                 bond_list(j)%bond_kind%k(1) = gro_info%solvent_k(itype)
                 bond_list(j)%bond_kind%r0   = gro_info%solvent_r0(itype)
              END IF
-             bond_list(j)%bond_kind%id_type =  gro_info%ff_type
-             bond_list(j)%id_type           =  gro_info%ff_type
+             bond_list(j)%bond_kind%id_type =  gro_info%ff_gromos_type
+             bond_list(j)%id_type           =  gro_info%ff_gromos_type
              found = .TRUE.
           END IF
 
-          ! loop over params from charmm
+          ! loop over params from CHARMM
           IF(ASSOCIATED(chm_info%bond_a)) THEN
              DO k=1,SIZE(chm_info%bond_a)
                 IF( (((chm_info%bond_a(k))==(name_atm_a)) .AND. &
@@ -856,11 +858,26 @@ CONTAINS
                    bond_list(j)%bond_kind%id_type = do_ff_charmm
                    bond_list(j)%bond_kind%k(1) = chm_info%bond_k(k)
                    bond_list(j)%bond_kind%r0   = chm_info%bond_r0(k)
-                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                        "Multiple Bond declarations: "//TRIM(name_atm_a)//" and "//&
-                        TRIM(name_atm_b)//" overwriting! "//&
-CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+                   CALL issue_duplications(found,routineP,"Bond", name_atm_a, name_atm_b,&
+                        error=error)
+                   found = .TRUE.
+                   EXIT
+                END IF
+             END DO
+          END IF
+
+          ! loop over params from AMBER
+          IF(ASSOCIATED(amb_info%bond_a)) THEN
+             DO k=1,SIZE(amb_info%bond_a)
+                IF( (((amb_info%bond_a(k))==(name_atm_a)) .AND. &
+                     ((amb_info%bond_b(k))==(name_atm_b))) .OR. &
+                     (((amb_info%bond_a(k))==(name_atm_b)) .AND. &
+                     ((amb_info%bond_b(k))==(name_atm_a))) ) THEN
+                   bond_list(j)%bond_kind%id_type = do_ff_amber
+                   bond_list(j)%bond_kind%k(1) = amb_info%bond_k(k)
+                   bond_list(j)%bond_kind%r0   = amb_info%bond_r0(k)
+                   CALL issue_duplications(found,routineP,"Bond", name_atm_a, name_atm_b,&
+                        error=error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -878,11 +895,8 @@ CPSourceFileRef,&
                    bond_list(j)%bond_kind%k(:)    = inp_info%bond_k(:,k)
                    bond_list(j)%bond_kind%r0      = inp_info%bond_r0(k)
                    bond_list(j)%bond_kind%cs      = inp_info%bond_cs(k)
-                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                        "Multiple Bond declarations: "//TRIM(name_atm_a)//" and "//&
-                        TRIM(name_atm_b)//" overwriting! "//&
-CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+                   CALL issue_duplications(found,routineP,"Bond", name_atm_a, name_atm_b,&
+                        error=error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -912,7 +926,7 @@ CPSourceFileRef,&
 !> \brief Pack in bends information needed for the force_field
 ! *****************************************************************************
   SUBROUTINE force_field_pack_bend (particle_set, molecule_kind_set, molecule_set, &
-       fatal, Ainfo, chm_info, inp_info, gro_info, error)
+       fatal, Ainfo, chm_info, inp_info, gro_info, amb_info, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -926,6 +940,7 @@ CPSourceFileRef,&
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(gromos_info_type), POINTER          :: gro_info
+    TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_bend', &
@@ -984,8 +999,8 @@ CPSourceFileRef,&
                bend_list(j)%bend_kind%k      = gro_info%bend_k(itype/k)
                bend_list(j)%bend_kind%theta0 = gro_info%bend_theta0(itype/k)
              END IF
-             bend_list(j)%bend_kind%id_type = gro_info%ff_type
-             bend_list(j)%id_type           = gro_info%ff_type
+             bend_list(j)%bend_kind%id_type = gro_info%ff_gromos_type
+             bend_list(j)%id_type           = gro_info%ff_gromos_type
              found = .TRUE.
           END IF
 
@@ -1001,11 +1016,28 @@ CPSourceFileRef,&
                    bend_list(j)%bend_kind%id_type = do_ff_charmm
                    bend_list(j)%bend_kind%k       = chm_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0  = chm_info%bend_theta0(k)
-                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                        "Multiple Bend declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
-CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+                   CALL issue_duplications(found,routineP, "Bend", name_atm_a, name_atm_b,&
+                        name_atm_c, error=error)
+                   found = .TRUE.
+                   EXIT
+                END IF
+             END DO
+          END IF
+
+          ! loop over params from AMBER
+          IF(ASSOCIATED(amb_info%bend_a)) THEN
+             DO k=1,SIZE(amb_info%bend_a)
+                IF( (((amb_info%bend_a(k))==(name_atm_a)) .AND. &
+                     ((amb_info%bend_b(k))==(name_atm_b)) .AND. &
+                     ((amb_info%bend_c(k))==(name_atm_c))) .OR. &
+                     (((amb_info%bend_a(k))==(name_atm_c)) .AND. &
+                     ((amb_info%bend_b(k))==(name_atm_b)) .AND. &
+                     ((amb_info%bend_c(k))==(name_atm_a))) ) THEN
+                   bend_list(j)%bend_kind%id_type = do_ff_amber
+                   bend_list(j)%bend_kind%k       = amb_info%bend_k(k)
+                   bend_list(j)%bend_kind%theta0  = amb_info%bend_theta0(k)
+                   CALL issue_duplications(found,routineP, "Bend", name_atm_a, name_atm_b,&
+                        name_atm_c, error=error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1030,11 +1062,8 @@ CPSourceFileRef,&
                    bend_list(j)%bend_kind%kbs12   = inp_info%bend_kbs12(k)
                    bend_list(j)%bend_kind%kbs32   = inp_info%bend_kbs32(k)
                    bend_list(j)%bend_kind%kss     = inp_info%bend_kss(k)
-                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                        "Multiple Bend declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
-CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+                   CALL issue_duplications(found,routineP, "Bend", name_atm_a, name_atm_b,&
+                        name_atm_c, error=error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1128,7 +1157,7 @@ CPSourceFileRef,&
           ! loop over params from GROMOS
           ! ikuo - None that I know...
 
-          ! loop over params from charmm
+          ! loop over params from CHARMM
           IF(ASSOCIATED(chm_info%ub_a)) THEN
              DO k=1,SIZE(chm_info%ub_a)
                 IF( (((chm_info%ub_a(k))==(name_atm_a)) .AND. &
@@ -1142,16 +1171,16 @@ CPSourceFileRef,&
                    ub_list(j)%ub_kind%r0      = chm_info%ub_r0(k)
                    IF(iw>0) WRITE(iw,*) "    Found UB ",TRIM(name_atm_a)," ",&
                         TRIM(name_atm_b)," ",TRIM(name_atm_c)
-                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                        "Multiple UB declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
-CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+                   CALL issue_duplications(found,routineP, "Urey-Bradley", name_atm_a,&
+                        name_atm_b, name_atm_c, error=error)
                    found = .TRUE.
                    EXIT
                 END IF
              END DO
           END IF
+
+          ! loop over params from AMBER
+          ! teo - None that I know...
 
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%ub_a)) THEN
@@ -1165,11 +1194,8 @@ CPSourceFileRef,&
                    ub_list(j)%ub_kind%id_type = inp_info%ub_kind(k)
                    ub_list(j)%ub_kind%k(:)    = inp_info%ub_k(:,k)
                    ub_list(j)%ub_kind%r0      = inp_info%ub_r0(k)
-                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                        "Multiple UB declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting! "//&
-CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+                   CALL issue_duplications(found,routineP, "Urey-Bradley", name_atm_a,&
+                        name_atm_b, name_atm_c, error=error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1206,7 +1232,7 @@ CPSourceFileRef,&
 !> \brief Pack in torsion information needed for the force_field
 ! *****************************************************************************
   SUBROUTINE force_field_pack_tors (particle_set, molecule_kind_set, molecule_set, &
-       Ainfo, chm_info, inp_info, gro_info, iw, error)
+       Ainfo, chm_info, inp_info, gro_info, amb_info, iw, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1219,6 +1245,7 @@ CPSourceFileRef,&
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(gromos_info_type), POINTER          :: gro_info
+    TYPE(amber_info_type), POINTER           :: amb_info
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1296,8 +1323,8 @@ CPSourceFileRef,&
                    torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype/k)
                    torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype/k)
                 END IF
-                torsion_list(j)%torsion_kind%id_type = gro_info%ff_type
-                torsion_list(j)%id_type              = gro_info%ff_type
+                torsion_list(j)%torsion_kind%id_type = gro_info%ff_gromos_type
+                torsion_list(j)%id_type              = gro_info%ff_gromos_type
                 found = .TRUE.
                 imul = torsion_list(j)%torsion_kind%nmul
              END IF
@@ -1350,6 +1377,56 @@ CPSourceFileRef,&
                    END DO
                 END IF
              END IF
+
+             ! loop over params from AMBER
+             IF(ASSOCIATED(amb_info%torsion_a)) THEN
+                DO k=1,SIZE(amb_info%torsion_a)
+                   IF( (((amb_info%torsion_a(k))==(name_atm_a)) .AND. &
+                        ((amb_info%torsion_b(k))==(name_atm_b)) .AND. &
+                        ((amb_info%torsion_c(k))==(name_atm_c)) .AND. &
+                        ((amb_info%torsion_d(k))==(name_atm_d))) .OR. &
+                       (((amb_info%torsion_a(k))==(name_atm_d)) .AND. &
+                        ((amb_info%torsion_b(k))==(name_atm_c)) .AND. &
+                        ((amb_info%torsion_c(k))==(name_atm_b)) .AND. &
+                        ((amb_info%torsion_d(k))==(name_atm_a))) ) THEN
+                      imul = torsion_list(j)%torsion_kind%nmul + 1
+                      CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
+                      CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
+                      CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
+                      torsion_list(j)%torsion_kind%id_type = do_ff_amber
+                      torsion_list(j)%torsion_kind%k(imul) = amb_info%torsion_k(k)
+                      torsion_list(j)%torsion_kind%m(imul) = amb_info%torsion_m(k)
+                      torsion_list(j)%torsion_kind%cosphi0(imul) = amb_info%torsion_cosphi0(k)
+                      torsion_list(j)%torsion_kind%nmul = imul
+                      found = .TRUE.
+                   END IF
+                END DO
+
+                IF(.NOT.found) THEN
+                   DO k=1,SIZE(amb_info%torsion_a)
+                      IF( (((amb_info%torsion_a(k))==("X")) .AND. &
+                           ((amb_info%torsion_b(k))==(name_atm_b)) .AND. &
+                           ((amb_info%torsion_c(k))==(name_atm_c)) .AND. &
+                           ((amb_info%torsion_d(k))==("X"))) .OR. &
+                           (((amb_info%torsion_a(k))==("X")) .AND. &
+                           ((amb_info%torsion_b(k))==(name_atm_c)) .AND. &
+                           ((amb_info%torsion_c(k))==(name_atm_b)) .AND. &
+                           ((amb_info%torsion_d(k))==("X"))) ) THEN
+                         imul = torsion_list(j)%torsion_kind%nmul + 1
+                         CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
+                         CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
+                         CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
+                         torsion_list(j)%torsion_kind%id_type = do_ff_amber
+                         torsion_list(j)%torsion_kind%k(imul) = amb_info%torsion_k(k)
+                         torsion_list(j)%torsion_kind%m(imul) = amb_info%torsion_m(k)
+                         torsion_list(j)%torsion_kind%cosphi0(imul) = amb_info%torsion_cosphi0(k)
+                         torsion_list(j)%torsion_kind%nmul = imul
+                         found = .TRUE.
+                      END IF
+                   END DO
+                END IF
+             END IF
+
              ! always have the input param last to overwrite all the other ones
              IF(ASSOCIATED(inp_info%torsion_a)) THEN
                 DO k=1,SIZE(inp_info%torsion_a)
@@ -1422,7 +1499,7 @@ CPSourceFileRef,&
 !> \brief Pack in impropers information needed for the force_field
 ! *****************************************************************************
   SUBROUTINE force_field_pack_impr (particle_set, molecule_kind_set, molecule_set, &
-       Ainfo, chm_info, inp_info, gro_info, error)
+       Ainfo, chm_info, inp_info, gro_info, amb_info, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1435,6 +1512,7 @@ CPSourceFileRef,&
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(gromos_info_type), POINTER          :: gro_info
+    TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_impr', &
@@ -1499,11 +1577,11 @@ CPSourceFileRef,&
               impr_list(j)%impr_kind%phi0 = gro_info%impr_phi0(itype)
             END IF
             found = .TRUE.
-            impr_list(j)%impr_kind%id_type = gro_info%ff_type
-            impr_list(j)%id_type           = gro_info%ff_type
+            impr_list(j)%impr_kind%id_type = gro_info%ff_gromos_type
+            impr_list(j)%id_type           = gro_info%ff_gromos_type
           END IF
 
-          ! loop over params from charmm
+          ! loop over params from CHARMM
           IF(ASSOCIATED(chm_info%impr_a)) THEN
              DO k=1,SIZE(chm_info%impr_a)
                 IF( (((chm_info%impr_a(k))==(name_atm_a)) .AND. &
@@ -1517,12 +1595,8 @@ CPSourceFileRef,&
                    impr_list(j)%impr_kind%id_type = do_ff_charmm
                    impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
                    impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
-                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                        "Multiple Improper declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                        " overwriting! "//&
-CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+                   CALL issue_duplications(found,routineP, "Impropers", name_atm_a, name_atm_b,&
+                        name_atm_c, name_atm_d, error=error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1540,12 +1614,8 @@ CPSourceFileRef,&
                       impr_list(j)%impr_kind%id_type = do_ff_charmm
                       impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
                       impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
-                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple Improper declarations: "//TRIM(name_atm_a)//&
-                           ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                           " overwriting! "//&
-CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      CALL issue_duplications(found,routineP, "Impropers", name_atm_a, name_atm_b,&
+                           name_atm_c,name_atm_d, error=error)
                       found = .TRUE.
                       EXIT
                    END IF
@@ -1553,6 +1623,9 @@ CPSourceFileRef,&
              END IF
           END IF
 
+          ! loop over params from AMBER not needed since impropers in AMBER
+          ! are treated like standard torsions
+          
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%impr_a)) THEN
              DO k=1,SIZE(inp_info%impr_a)
@@ -1567,12 +1640,8 @@ CPSourceFileRef,&
                    impr_list(j)%impr_kind%id_type = inp_info%impr_kind(k)
                    impr_list(j)%impr_kind%k       = inp_info%impr_k(k)
                    impr_list(j)%impr_kind%phi0    = inp_info%impr_phi0(k)
-                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                        "Multiple Improper declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                        " overwriting! "//&
-CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+                   CALL issue_duplications(found,routineP, "Impropers", name_atm_a, name_atm_b,&
+                        name_atm_c,name_atm_d, error=error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1612,7 +1681,7 @@ CPSourceFileRef,&
 !>      parameters
 ! *****************************************************************************
   SUBROUTINE force_field_pack_ch  ( atomic_kind_set, qmmm_env, fatal, iw, iw4,&
-       Ainfo, my_qmmm, chm_info, inp_info, error)
+       Ainfo, my_qmmm, inp_info, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1622,7 +1691,6 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: Ainfo
     LOGICAL                                  :: my_qmmm
-    TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1668,11 +1736,7 @@ CPSourceFileRef,&
              IF (iw>0) WRITE(iw,*)"Charge Checking ::",TRIM(inp_info%charge_atm(j)),atmname
              IF((inp_info%charge_atm(j))==atmname) THEN
                 charge(i) = inp_info%charge(j)
-                CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                     "Multiple charge declarations: "//TRIM(atmname)//&
-                     " overwriting! "//&
-CPSourceFileRef,&
-                     only_ionode=.TRUE.)
+                CALL issue_duplications(found,routineP, "Charge", atmname, error=error)
                 found = .TRUE.
              END IF
           END DO
@@ -1856,11 +1920,7 @@ CPSourceFileRef,&
                 
                 shell%mass_shell=shell%massfrac*atmmass
                 shell%mass_core=atmmass-shell%mass_shell
-                CALL cp_assert(.NOT.found_shell,cp_warning_level,cp_assertion_failed,routineP,&
-                     "Multiple Shell declarations: "//TRIM(atmname)//&
-                     " overwriting! "//&
-CPSourceFileRef,&
-                     only_ionode=.TRUE.)
+                CALL issue_duplications(found_shell,routineP, "Shell", atmname, error=error)
                 found_shell = .TRUE.
                 CALL set_atomic_kind(atomic_kind=atomic_kind,&
                      shell=shell, shell_active=.TRUE.,error=error)
@@ -1974,8 +2034,8 @@ CPSourceFileRef,&
 !> \brief Set spline_bond_env, use for ONFO interaction
 ! *****************************************************************************
   SUBROUTINE force_field_pack_sbe  (atomic_kind_set, ff_type, qmmm_env,&
-       iw, Ainfo,  chm_info, inp_info, gro_info, potparm_bond, ewald_env, &
-       spline_bond_env, iw2, iw3, iw4, error)
+       iw, Ainfo,  chm_info, inp_info, gro_info, amb_info, potparm_bond,&
+       ewald_env, spline_bond_env, iw2, iw3, iw4, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1987,6 +2047,7 @@ CPSourceFileRef,&
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(gromos_info_type), POINTER          :: gro_info
+    TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(pair_potential_pp_type), POINTER    :: potparm_bond
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(spline_environment_type), POINTER   :: spline_bond_env
@@ -2034,6 +2095,7 @@ CPSourceFileRef,&
           CALL uppercase(name_atm_b)
           pot => potparm_bond%pot(i,j)%pot
 
+          ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%nonbond_a_14)) THEN
              ii = 0 
              jj = 0
@@ -2060,11 +2122,7 @@ CPSourceFileRef,&
                 pot%set(1)%lj%sigma6  = gro_info%nonbond_c6_14(ii,jj)
                 pot%set(1)%lj%sigma12 = gro_info%nonbond_c12_14(ii,jj)
                 pot%rcutsq     = (10.0_dp*bohr)**2
-                CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                     "Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting! "//&
-CPSourceFileRef,&
-                     only_ionode=.TRUE.)
+                CALL issue_duplications(found,routineP, "Lennard-Jones", name_atm_a, name_atm_b, error=error)
                 found = .TRUE.
              END IF
           END IF
@@ -2122,12 +2180,49 @@ CPSourceFileRef,&
              pot%set(1)%lj%sigma6  = 0.5_dp*rmin**6
              pot%set(1)%lj%sigma12 = 0.25_dp*rmin**12
              pot%rcutsq     = (10.0_dp*bohr)**2
-             CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                  "Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                  " and "//TRIM(name_atm_b)//" overwriting! "//&
-CPSourceFileRef,&
-                  only_ionode=.TRUE.)
+             CALL issue_duplications(found,routineP, "Lennard-Jones", name_atm_a, name_atm_b,&
+                  error=error)
              found = .TRUE.
+          END IF
+
+          ! loop over params from AMBER
+          IF(ASSOCIATED(amb_info%nonbond_a)) THEN
+             ii = 0
+             jj = 0
+             IF(.NOT.found_a) THEN
+                DO k=1,SIZE(amb_info%nonbond_a)
+                   IF((name_atm_a)==(amb_info%nonbond_a(k))) THEN
+                      ii = k
+                      rmin2_a   = amb_info%nonbond_rmin2(k)
+                      epsilon_a = amb_info%nonbond_eps(k)
+                   END IF
+                END DO
+             END IF
+             IF(.NOT.found_b) THEN
+                DO k=1,SIZE(amb_info%nonbond_a)
+                   IF((name_atm_b)==(amb_info%nonbond_a(k))) THEN
+                      jj = k
+                      rmin2_b   = amb_info%nonbond_rmin2(k)
+                      epsilon_b = amb_info%nonbond_eps(k)
+                   END IF
+                END DO
+             END IF
+             IF(ii/=0 .AND. jj/=0) THEN
+                rmin = rmin2_a + rmin2_b
+                ! ABS to allow for mixing the two different sign conventions for epsilon
+                epsilon0 = SQRT(ABS(epsilon_a*epsilon_b))
+                CALL  pair_potential_lj_create(pot%set(1)%lj, error)
+                pot%type       = lj_charmm_type
+                pot%at1        = name_atm_a
+                pot%at2        = name_atm_b
+                pot%set(1)%lj%epsilon = epsilon0
+                pot%set(1)%lj%sigma6  = 0.5_dp*rmin**6
+                pot%set(1)%lj%sigma12 = 0.25_dp*rmin**12
+                pot%rcutsq     = (10.0_dp*bohr)**2
+                CALL issue_duplications(found,routineP, "Lennard-Jones", name_atm_a,&
+                     name_atm_b, error=error)
+                found = .TRUE.
+             END IF
           END IF
 
           ! always have the input param last to overwrite all the other ones
@@ -2329,7 +2424,8 @@ CPSourceFileRef,&
 !> \brief Pack in spline nonbond env the information needed for the force_field
 ! *****************************************************************************
   SUBROUTINE force_field_pack_sne (atomic_kind_set, ff_type, qmmm_env,&
-       fatal, iw, Ainfo, chm_info, inp_info, gro_info, potparm_nonbond, error)
+       fatal, iw, Ainfo, chm_info, inp_info, gro_info, amb_info, potparm_nonbond,&
+       error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -2342,6 +2438,7 @@ CPSourceFileRef,&
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(gromos_info_type), POINTER          :: gro_info
+    TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -2408,11 +2505,7 @@ CPSourceFileRef,&
                 pot%set(1)%lj%sigma6  = gro_info%nonbond_c6(ii,jj)
                 pot%set(1)%lj%sigma12 = gro_info%nonbond_c12(ii,jj)
                 pot%rcutsq     = (10.0_dp*bohr)**2
-                CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                     "Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting! "//&
-CPSourceFileRef,&
-                     only_ionode=.TRUE.)
+                CALL issue_duplications(found,routineP, "Lennard-Jones", name_atm_a, name_atm_b, error=error)
                 found = .TRUE.
              END IF
           END IF
@@ -2444,11 +2537,38 @@ CPSourceFileRef,&
                 pot%set(1)%lj%sigma6  = 0.5_dp*rmin**6
                 pot%set(1)%lj%sigma12 = 0.25_dp*rmin**12
                 pot%rcutsq     = (10.0_dp*bohr)**2
-                CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                     "Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting! "//&
-CPSourceFileRef,&
-                     only_ionode=.TRUE.)
+                CALL issue_duplications(found,routineP, "Lennard-Jones", name_atm_a, name_atm_b, error=error)
+                found = .TRUE.
+             END IF
+          END IF
+
+          ! loop over params from AMBER
+          IF(ASSOCIATED(amb_info%nonbond_a)) THEN
+             ii = 0
+             jj = 0
+             DO k=1,SIZE(amb_info%nonbond_a)
+                IF((name_atm_a)==(amb_info%nonbond_a(k))) THEN
+                   ii = k
+                END IF
+             END DO
+             DO k=1,SIZE(amb_info%nonbond_a)
+                IF((name_atm_b)==(amb_info%nonbond_a(k))) THEN
+                   jj = k
+                END IF
+             END DO
+
+             IF(ii/=0 .AND. jj/=0) THEN
+                rmin = amb_info%nonbond_rmin2(ii)+amb_info%nonbond_rmin2(jj)
+                epsilon0 = SQRT(amb_info%nonbond_eps(ii)*amb_info%nonbond_eps(jj))
+                CALL  pair_potential_lj_create(pot%set(1)%lj, error)
+                pot%type       = lj_charmm_type
+                pot%at1        = name_atm_a
+                pot%at2        = name_atm_b
+                pot%set(1)%lj%epsilon = epsilon0
+                pot%set(1)%lj%sigma6  = 0.5_dp*rmin**6
+                pot%set(1)%lj%sigma12 = 0.25_dp*rmin**12
+                pot%rcutsq     = (10.0_dp*bohr)**2
+                CALL issue_duplications(found,routineP, "Lennard-Jones", name_atm_a, name_atm_b, error=error)
                 found = .TRUE.
              END IF
           END IF
@@ -2695,6 +2815,46 @@ CPSourceFileRef,&
     CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_pp
+
+! *****************************************************************************
+!> \brief Issues on screen a warning when repetitions are present in the 
+!>        definition of the forcefield
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
+! *****************************************************************************
+  SUBROUTINE issue_duplications(found, routinePext, tag_label, name_atm_a, name_atm_b,&
+       name_atm_c, name_atm_d, error)
+
+    LOGICAL, INTENT(IN)                      :: found
+    CHARACTER(LEN=*), INTENT(IN)             :: routinePext, tag_label, &
+                                                name_atm_a
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name_atm_b, name_atm_c, &
+                                                name_atm_d
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'issue_duplications', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: item
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    item="( "//TRIM(name_atm_a)
+    IF (PRESENT(name_atm_b)) THEN
+       item = TRIM(item)//" , "//TRIM(name_atm_b)
+    END IF
+    IF (PRESENT(name_atm_c)) THEN
+       item = TRIM(item)//" , "//TRIM(name_atm_c)
+    END IF
+    IF (PRESENT(name_atm_d)) THEN
+       item = TRIM(item)//" , "//TRIM(name_atm_d)
+    END IF
+    item = TRIM(item)//" )"
+    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routinePext,&
+         "Multiple "//TRIM(tag_label)//" declarations: "//TRIM(item)//" overwriting! "//&
+CPSourceFileRef,&
+         only_ionode=.TRUE.)
+
+  END SUBROUTINE issue_duplications
 
 ! *****************************************************************************
 !> \brief Store informations on possible missing ForceFields parameters

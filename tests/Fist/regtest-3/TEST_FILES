@@ -26,3 +26,4 @@ argon.inp                25
 #amber files
 ace_ala_nme.inp           7
 ace_ala_nme-ambconn.inp   7
+ace_ala_nme-amber.inp     7

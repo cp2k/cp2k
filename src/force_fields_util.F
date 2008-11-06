@@ -30,7 +30,7 @@ MODULE force_fields_util
   USE force_field_types,               ONLY: &
        allocate_bend_kind_set, allocate_bond_kind_set, &
        allocate_impr_kind_set, allocate_torsion_kind_set, &
-       allocate_ub_kind_set, bend_kind_type, bond_kind_type, &
+       allocate_ub_kind_set, amber_info_type, bend_kind_type, bond_kind_type, &
        charmm_info_type, deallocate_bend_kind_set, deallocate_bond_kind_set, &
        force_field_type, gromos_info_type, impr_kind_dealloc_ref, &
        impr_kind_type, input_info_type, torsion_kind_dealloc_ref, &
@@ -119,6 +119,7 @@ CONTAINS
     LOGICAL                                  :: failure, fatal, ionode, &
                                                 my_qmmm, shell_present
     REAL(KIND=dp)                            :: ewald_rcut, verlet_skin
+    TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gromos_info_type), POINTER          :: gro_info
@@ -135,11 +136,10 @@ CONTAINS
     NULLIFY(logger, Ainfo)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-      output_unit = -1
-    END IF    
+    ! Error unit
+    output_unit = -1
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
     iw2= cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO/SPLINE_INFO",&
@@ -154,6 +154,7 @@ CONTAINS
     inp_info => ff_type%inp_info
     chm_info => ff_type%chm_info
     gro_info => ff_type%gro_info
+    amb_info => ff_type%amb_info
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. Determine the number of unique bond kind and allocate bond_kind_set
@@ -195,13 +196,13 @@ CONTAINS
     ! 7. Bonds
     !-----------------------------------------------------------------------------
     CALL force_field_pack_bond (particle_set, molecule_kind_set, molecule_set,   &
-         fatal, Ainfo, chm_info, inp_info, gro_info, error)
+         fatal, Ainfo, chm_info, inp_info, gro_info, amb_info, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 8. Bends
     !-----------------------------------------------------------------------------
     CALL force_field_pack_bend (particle_set, molecule_kind_set, molecule_set,   &
-         fatal, Ainfo, chm_info, inp_info, gro_info, error)
+         fatal, Ainfo, chm_info, inp_info, gro_info, amb_info, error)
     ! Give information and abort if any bond or angle parameter is missing..
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)    
     !-----------------------------------------------------------------------------
@@ -215,13 +216,13 @@ CONTAINS
     ! 10. Torsions
     !-----------------------------------------------------------------------------
     CALL force_field_pack_tors (particle_set, molecule_kind_set, molecule_set,   &
-         Ainfo, chm_info, inp_info, gro_info, iw, error)
+         Ainfo, chm_info, inp_info, gro_info, amb_info, iw, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 11. Impropers
     !-----------------------------------------------------------------------------
     CALL force_field_pack_impr (particle_set, molecule_kind_set, molecule_set,   &
-         Ainfo, chm_info, inp_info, gro_info, error)
+         Ainfo, chm_info, inp_info, gro_info, amb_info, error)
     ! Give information only if any Urey-Bradley, Torsion or improper is missing
     ! continue calculation..
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
@@ -230,7 +231,7 @@ CONTAINS
     ! 12. Set up atomic_kind_set()%elp_potentail%qeff (PART 2)
     !-----------------------------------------------------------------------------
     CALL force_field_pack_ch  (atomic_kind_set, qmmm_env, fatal, iw, iw4,&
-         Ainfo, my_qmmm, chm_info, inp_info, error)
+         Ainfo, my_qmmm, inp_info, error)
 
     ! Give information only if charge is missing and abort..
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
@@ -248,8 +249,8 @@ CONTAINS
     IF (ff_type%nonbonded14) THEN
        NULLIFY(spline_bond_env)
        CALL force_field_pack_sbe  (atomic_kind_set, ff_type, qmmm_env, iw, Ainfo,&
-            chm_info, inp_info, gro_info, potparm_bond, ewald_env, spline_bond_env,&
-            iw2, iw3, iw4, error)
+            chm_info, inp_info, gro_info, amb_info, potparm_bond, ewald_env, &
+            spline_bond_env, iw2, iw3, iw4, error)
        ! Give information if any 1-4 is missing.. continue calculation..
        CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
        !--------------------------------------------------------------------------
@@ -265,7 +266,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     IF (ff_type%nonbonded) THEN
        CALL force_field_pack_sne (atomic_kind_set, ff_type, qmmm_env, fatal, iw, &
-            Ainfo, chm_info, inp_info, gro_info, potparm_nonbond, error)
+            Ainfo, chm_info, inp_info, gro_info, amb_info, potparm_nonbond, error)
        ! Give information and abort if any pair potential spline is missing..
        CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
        !--------------------------------------------------------------------------

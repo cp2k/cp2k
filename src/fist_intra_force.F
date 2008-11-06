@@ -327,7 +327,7 @@ CONTAINS
              iw2 = 1.0_dp/w2
              DO imul = 1, torsion_list(itorsion)%torsion_kind%nmul
                 CALL force_torsions(torsion_list(itorsion)%torsion_kind%id_type, &
-                                    is32,dist1,dist2,u1,u2,iw1,iw2, &
+                                    is32,dist1,dist2,u1,u2,iw1,iw2,&
                                     torsion_list(itorsion)%torsion_kind%k(imul), &
                                     torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
                                     torsion_list(itorsion)%torsion_kind%m(imul), &
@@ -440,7 +440,8 @@ CONTAINS
              ! EI contribution
              rinv2 = 1.0_dp/rab2
              rinv  = SQRT(rinv2)
-             pot_onef = pot_onef + (spl_p(1)%spline_data%ei_scale14 * rinv - spl_p(1)%spline_data%ei_cutoff14)*spl_f%fscale(1)
+             pot_onef = pot_onef + (spl_p(1)%spline_data%ei_scale14 * rinv - &
+                                    spl_p(1)%spline_data%ei_cutoff14)*spl_f%fscale(1)
              fscalar  = fscalar + (spl_p(1)%spline_data%ei_scale14 * rinv2 * rinv)*spl_f%fscale(1)
              particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1) -rij(1) * fscalar
              particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2) -rij(2) * fscalar
