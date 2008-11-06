@@ -567,7 +567,6 @@ CONTAINS
     ldsab = MAX(maxco,ncoset(maxlppnl),maxsgf,maxppnl)
     maxblock = MAX(SIZE(matrix_s),maxder)
     nthread = 1
-! !$  nthread = omp_get_max_threads()
     ldai = ncoset(maxl+nder+1)
     
     CALL reallocate(habt,1,ldsab,1,ldsab*maxder,0,nthread-1)
@@ -753,30 +752,7 @@ CONTAINS
           CALL get_neighbor_list_set(neighbor_list_set=sab_orb(iab)%neighbor_list_set,nlist=nlist)
           
           NULLIFY ( sab_orb_neighbor_list )
-! !$OMP parallel &
-! !$OMP default(none) &
-! !$OMP private(ithread,hab,sab,sdab,work,pab,ilist,iatom,nnode,atom_a,kkind,iac) &
-! !$OMP private(sac_ppl_neighbor_list,stat,sac_ppl_neighbor_node,nneighbor,kneighbor) &
-! !$OMP private(sac_ppnl_neighbor_list,ncol,sac_ppnl_neighbor_node,rac,rac2,dac,nrow) &
-! !$OMP private(iset,ncoa,prjc,l,nprjc,lc_max,lc_min,zetc,ncoc,i,first_col,last_jatom) &
-! !$OMP private(sab_orb_neighbor_node,inode,jatom,rab,new_atom_b,atom_b,f0,irow,icol) &
-! !$OMP private(reduced_3c_oce,reduced_3c_rho0)&
-! !$OMP private(rab2,dab,sgfa,jset,ncob,sgfb,f,ffa,ffb,katom,rbc,rbc2,dbc,atom_c,jco,ico,rprjc) &
-! !$OMP private(ibc,sbc_ppnl_neighbor_list,nnode_c,sbc_ppnl_neighbor_node,knode) &
-! !$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b,neighbor_att) &
-! !$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,vall,ai_work,oceh,oces) &
-! !$OMP private(icell,jcell,kcell,idx,n,lppnl,nppnl,cell_c_max,cell_c_min,sac_ppnl_neighbor,dir) &
-! !$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
-! !$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldai,maxlppl) &
-! !$OMP shared(sab_orb,first_sgfb,lb_max,npgfb,nsetb,first_sgfa,matrix_w,globenv,matrix_p,matrix_h,matrix_t,iab) &
-! !$OMP shared(oce,sac_oce,sbc_oce,sac_3c,sbc_3c,VH_3c_list,oce_present)&
-! !$OMP shared(build_kinetic_energy_matrix,matrix_s,maxder,nder,la_min,rpgfa,zeta) &
-! !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,vallt,sac_ppnl,ppnl_present,all_potential_present) &
-! !$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list,rho0_present) &
-! !$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt,oceht,ocest,dist_list,qs_env,error) &
-! !$OMP shared(atomic_kind_set,virial,use_virial,para_env)
           ithread = 0
-! !$      ithread = omp_get_thread_num()
           hab => habt(:,:,ithread)
           sab => sabt(:,:,ithread)
           sdab => sdabt(:,:,:,ithread)
@@ -801,16 +777,13 @@ CONTAINS
           END IF
           ALLOCATE (ai_work(ldai,ldai,MAX(1,ncoset(maxlppl)),ncoset(nder+1)),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-! !$OMP do
           DO ilist=1,nlist
-! !$OMP critical (qs_core_neighbor_list)
              IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
                 sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
              ELSE
                 sab_orb_neighbor_list => next(sab_orb_neighbor_list)
              END IF
              sab_orb_neighbor_list_local => sab_orb_neighbor_list
-! !$OMP end critical (qs_core_neighbor_list)
              CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,atom=iatom,nnode=nnode)
 
              IF (calculate_forces) atom_a = atom_of_kind(iatom)
@@ -1138,13 +1111,11 @@ CONTAINS
                                  rpgfb(:,jset),zetb(:,jset),&
                                  rab,dab,sab,nder,return_s_derivatives,&
                                  ai_work,ldai,sdab,pab,force_a)
-! !$OMP critical (qs_core_force_overlap)
                             force(ikind)%overlap(:,atom_a)=force(ikind)%overlap(:,atom_a) - 2.0_dp*force_a(:)
                             force(jkind)%overlap(:,atom_b)=force(jkind)%overlap(:,atom_b) + 2.0_dp*force_a(:)
                             IF (use_virial) THEN
                                CALL virial_pair_force ( virial%pv_virial, -f0, force_a, rab, error)
                             END IF
-! !$OMP end critical (qs_core_force_overlap)
                          ELSE
                             ! *** Calculate the primitive overlap integrals ***
                             CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
@@ -1209,13 +1180,11 @@ CONTAINS
                                  rpgfb(:,jset),zetb(:,jset),&
                                  rab,dab,sdab,hab,nder,return_t_derivatives,&
                                  ai_work,ldai,pab,force_a)
-! !$OMP critical (qs_core_force_kinetic)
                             force(ikind)%kinetic(:,atom_a) =force(ikind)%kinetic(:,atom_a) + 2.0_dp*force_a(:)
                             force(jkind)%kinetic(:,atom_b) =force(jkind)%kinetic(:,atom_b) - 2.0_dp*force_a(:)
                             IF (use_virial) THEN
                                CALL virial_pair_force ( virial%pv_virial, f0, force_a, rab, error)
                             END IF
-! !$OMP end critical (qs_core_force_kinetic)
                          ELSE
                             ! *** Calculate the primitive kinetic energy integrals ***
                             CALL kinetic(la_max(iset),la_min(iset),npgfa(iset),&
@@ -1290,7 +1259,6 @@ CONTAINS
                                      ! *** calculated using the translational invariance ***
                                      ! *** of the first derivatives                      ***
                                      atom_c = atom_of_kind(katom)
-! !$OMP critical (qs_core_force_gth_ppl)
                                      force(ikind)%gth_ppl(:,atom_a) =force(ikind)%gth_ppl(:,atom_a) + f0*force_a(:)
                                      force(kkind)%gth_ppl(:,atom_c) =force(kkind)%gth_ppl(:,atom_c) - f0*force_a(:)
                                      
@@ -1301,7 +1269,6 @@ CONTAINS
                                         CALL virial_pair_force ( virial%pv_virial, f0, force_a, rac, error)
                                         CALL virial_pair_force ( virial%pv_virial, f0, force_b, rbc, error)
                                      END IF
-! !$OMP end critical (qs_core_force_gth_ppl)
                                   ELSE
                                      CALL overlap_ppl(&
                                           la_max(iset),la_min(iset),npgfa(iset),&
@@ -1454,11 +1421,9 @@ CONTAINS
                                            f = f + pab(ico,jco)*hab(ico,j)
                                         END DO
                                      END DO
-! !$OMP critical (qs_core_force_gth_ppnl)
                                      force(ikind)%gth_ppnl(i,atom_a) =force(ikind)%gth_ppnl(i,atom_a) + f0*f
                                      force(kkind)%gth_ppnl(i,atom_c) =force(kkind)%gth_ppnl(i,atom_c) - f0*f
                                      ffa(i) = f
-! !$OMP end critical (qs_core_force_gth_ppnl)                          
                                      CALL dgemm("N","T",ncoa,ncob,nppnl,1.0_dp,&
                                           sac_ppnl_neighbor%sac(1)%block(nrow,ncol),&
                                           SIZE(sac_ppnl_neighbor%sac(1)%block,1),&
@@ -1472,11 +1437,9 @@ CONTAINS
                                            f = f + pab(ico,jco)*hab(ico,j)
                                         END DO
                                      END DO
-! !$OMP critical (qs_core_force_gth_ppnl)
                                      force(jkind)%gth_ppnl(i,atom_b) =force(jkind)%gth_ppnl(i,atom_b) + f0*f
                                      force(kkind)%gth_ppnl(i,atom_c) =force(kkind)%gth_ppnl(i,atom_c) - f0*f
                                      ffb(i) = f
-! !$OMP end critical (qs_core_force_gth_ppnl)
                                   END DO
                                   IF (use_virial) THEN
                                      CALL virial_pair_force ( virial%pv_virial, f0, ffa, rac, error)
@@ -1497,23 +1460,19 @@ CONTAINS
                                  rab,dab,jkind,nkind,sbc_3c,&
                                  reduced_3c_rho0,vall,&
                                  hab,nder,pab,force_a,force_b,virial_ab,error=error)
-! !$OMP critical (qs_core_force_all_potential)
                             force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) + f0*force_a(:)
                             force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + f0*force_b(:)
                             IF (use_virial) THEN
                                virial%pv_virial = virial%pv_virial + f0*virial_ab
                             END IF
-! !$OMP end critical (qs_core_force_all_potential)
                             DO kkind = 1,nkind
                                IF (.NOT. ASSOCIATED(vall(kkind)%force_c)) CYCLE
                                nnode_c = reduced_3c_rho0(kkind)%nnode
                                DO knode = 1,nnode_c
                                   katom = reduced_3c_rho0(kkind)%index_atom(knode)
                                   atom_c = atom_of_kind(katom)
-! !$OMP critical (qs_core_force_all_potential)
                                   force(kkind)%all_potential(1:3,atom_c) = force(kkind)%all_potential(1:3,atom_c) + &
                                                                            f0*vall(kkind)%force_c(1:3,knode)
-! !$OMP end critical (qs_core_force_all_potential)
                                END DO
                                DEALLOCATE(vall(kkind)%force_c,STAT=stat)
                                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1616,7 +1575,6 @@ CONTAINS
              DEALLOCATE (ai_work,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
-! !$OMP end parallel
        END DO
     END DO
     ! *** Put the core Hamiltonian matrix in the QS environment ***
