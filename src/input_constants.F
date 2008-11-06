@@ -669,7 +669,8 @@ MODULE input_constants
   ! BASIS SET PARAMETER
   ! This parameter identifies basis sets
   INTEGER, PARAMETER, PUBLIC               :: use_orb_basis_set=1,&
-                                              use_aux_fit_basis_set=2
+                                              use_aux_fit_basis_set=2,&
+                                              use_aux_basis_set=3
   ! WFN FITTING PARAMETER
   ! This parameter identifies the fitting method to use
   INTEGER, PARAMETER, PUBLIC               ::  do_wfn_fit_basis_set=1
@@ -707,5 +708,8 @@ MODULE input_constants
 #else
   INTEGER, PARAMETER, PUBLIC               :: do_fft_fftw=do_fft_fftw3
 #endif
+  ! SCP-DFT
+  INTEGER, PARAMETER, PUBLIC               :: copy_coeff=1,  &
+                                              copy_fcoeff=2
 
 END MODULE input_constants

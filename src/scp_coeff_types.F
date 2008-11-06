@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE scp_coeff_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+                                             get_atomic_kind, get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -20,8 +20,10 @@ MODULE scp_coeff_types
                                              distribution_1d_type
   USE f77_blas
   USE kinds,                           ONLY: dp
+  USE input_constants,                 ONLY: use_aux_basis_set, copy_coeff, copy_fcoeff
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
+  USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
@@ -336,25 +338,147 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_aux_coeff', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ncgf, stat
+    INTEGER                                  :: nsgf, stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CALL get_gto_basis_set(gto_basis_set=aux_basis_set,ncgf=ncgf)
-    coeffs%ncoef_atom=ncgf
+    CALL get_gto_basis_set(gto_basis_set=aux_basis_set,nsgf=nsgf)
+    coeffs%ncoef_atom=nsgf
     coeffs%n_els=n_els
     IF(.NOT.ASSOCIATED(coeffs%c)) THEN
-       ALLOCATE(coeffs%c(n_els,ncgf),STAT=stat)
+       ALLOCATE(coeffs%c(n_els,nsgf),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        coeffs%c(:,:)=0.0_dp
     END IF
     IF(.NOT.ASSOCIATED(coeffs%fc)) THEN
-       ALLOCATE(coeffs%fc(n_els,ncgf),STAT=stat)
+       ALLOCATE(coeffs%fc(n_els,nsgf),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        coeffs%fc(:,:)=0.0_dp
     END IF
 
   END SUBROUTINE setup_aux_coeff
+! *****************************************************************************
+  SUBROUTINE create_replicated_coeff ( rep_coeff, atomic_kind_set, particle_set, &
+                                      local_particles, aux_coeff_set, para_env, &
+                                      copy_type_id, copy_in, error )
+
+  REAL ( dp ), DIMENSION ( :, : ), POINTER       :: rep_coeff
+  TYPE ( atomic_kind_type ), POINTER             :: atomic_kind_set( : )
+  TYPE ( particle_type ), POINTER                :: particle_set( : )
+  TYPE ( distribution_1d_type ), POINTER         :: local_particles
+  TYPE ( aux_coeff_set_type ), POINTER           :: aux_coeff_set
+  TYPE ( cp_para_env_type ), POINTER             :: para_env
+  INTEGER,  INTENT ( IN )                        :: copy_type_id
+  LOGICAL, INTENT ( IN ), OPTIONAL               :: copy_in
+  TYPE(cp_error_type), INTENT(inout)             :: error
+
+  TYPE(aux_coeff_type), POINTER            :: local_coeffs
+  CHARACTER(len=*), PARAMETER :: routineN = 'create_replicated_coeff'
+  LOGICAL                                  :: failure, my_copy_in=.TRUE.
+  INTEGER                                  :: ikind, iparticle_local, iatom,  &
+                                              ub, natoms, maxgtops, stat, ii, &
+                                              nparticle_local
+
+  IF ( PRESENT ( copy_in ) ) my_copy_in = copy_in
+
+! Ensuring a blank canvas
+  IF ( ASSOCIATED ( rep_coeff ) ) THEN
+   CALL deallocate_replicated_coeff ( rep_coeff, atomic_kind_set, local_particles, &
+                                      aux_coeff_set, copy_type_id, .FALSE., error )
+ 
+  END IF
+
+! Getting dimensions of the replicated coeff array
+  CALL get_atomic_kind_set ( atomic_kind_set, maxgtops=maxgtops,  &
+                             basis_set_id=use_aux_basis_set )
+  natoms = SIZE ( particle_set )
+
+! Allocating the pointer: MAXGTOPS is the maximum number of spherical orbitals in a set * number of sets
+  ALLOCATE(rep_coeff ( natoms, maxgtops ), stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+! Zero
+  rep_coeff = 0._dp
+  IF ( my_copy_in ) THEN
+    DO ikind = 1, SIZE ( atomic_kind_set )
+      local_coeffs=>aux_coeff_set%coeffs_of_kind(ikind)%coeffs
+      IF (.NOT. ASSOCIATED ( local_coeffs ) ) CYCLE
+  ! Get the number of particles of ikind ( local )
+      nparticle_local = local_particles%n_el(ikind)
+  ! Loop over the (local) particles
+      DO iparticle_local=1,nparticle_local
+         iatom = local_particles%list(ikind)%array(iparticle_local)
+         ub = SIZE ( local_coeffs % c, 2 )
+         CPPostcondition(ub>maxgtops,cp_failure_level,routineN,error,failure)
+  ! Assigning the local coefficients:
+         SELECT CASE ( copy_type_id )
+         CASE ( copy_coeff )
+           DO ii = 1, ub
+             rep_coeff ( iatom, ii ) = local_coeffs%c(iparticle_local,ii )
+           END DO
+         CASE ( copy_fcoeff )
+           DO ii = 1, ub
+             rep_coeff ( iatom, ii ) = local_coeffs%fc(iparticle_local, ii )
+           END DO
+         END SELECT
+      END DO
+   END DO
+ END IF
+ CALL mp_sum ( rep_coeff, para_env%group )
+ 
+ END SUBROUTINE create_replicated_coeff
+! *****************************************************************************
+  SUBROUTINE deallocate_replicated_coeff ( rep_coeff, atomic_kind_set, local_particles, &
+                                           aux_coeff_set, copy_type_id, copy_out, error )
+
+  REAL ( dp ), DIMENSION ( :, : ),  POINTER            :: rep_coeff
+  TYPE ( distribution_1d_type ), POINTER              :: local_particles
+  TYPE ( cp_para_env_type ), POINTER                  :: para_env
+  TYPE ( aux_coeff_set_type ), POINTER                :: aux_coeff_set
+  TYPE ( atomic_kind_type ), POINTER                  :: atomic_kind_set( : )
+  INTEGER, INTENT ( IN )                              :: copy_type_id
+  LOGICAL, INTENT ( IN ), OPTIONAL                    :: copy_out
+  TYPE ( cp_error_type ), INTENT ( inout )            :: error
+
+  TYPE(aux_coeff_type), POINTER            :: local_coeffs
+  CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_replicated_coeff'
+  LOGICAL                                  :: failure=.FALSE.,my_copy_out=.FALSE.
+  INTEGER                                  :: ikind, iparticle_local, iatom, stat, &
+                                              ii, nparticle_local
+  
+  IF ( PRESENT ( copy_out ) ) my_copy_out = copy_out 
+
+  CPPrecondition(ASSOCIATED(rep_coeff),cp_failure_level,routineN,error,failure)
+  IF ( .NOT. failure ) THEN
+    IF ( my_copy_out ) THEN 
+      DO ikind = 1, SIZE ( atomic_kind_set )
+        local_coeffs=>aux_coeff_set%coeffs_of_kind(ikind)%coeffs
+        IF (.NOT. ASSOCIATED ( local_coeffs ) ) CYCLE
+  ! Get the number of particles of ikind ( local )
+        nparticle_local = local_particles%n_el(ikind)
+  ! Loop over the (local) particles
+        DO iparticle_local=1,nparticle_local
+           iatom = local_particles%list(ikind)%array(iparticle_local)
+  ! Assigning the local coefficients:
+           SELECT CASE ( copy_type_id )
+           CASE ( copy_coeff )
+             DO ii = 1, SIZE ( rep_coeff, 2 )
+               local_coeffs%c(iparticle_local,ii) = local_coeffs%c(iparticle_local,ii) + &
+                                                    rep_coeff ( iatom, ii )
+             END DO
+           CASE ( copy_fcoeff )
+             DO ii = 1, SIZE ( rep_coeff, 2 )
+               local_coeffs%fc(iparticle_local,ii) = local_coeffs%fc(iparticle_local,ii) + &
+                                                   rep_coeff ( iatom, ii )
+             END DO
+           END SELECT
+        END DO
+      END DO
+    END IF
+    DEALLOCATE ( rep_coeff, stat=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    NULLIFY ( rep_coeff )
+  END IF
+  END SUBROUTINE deallocate_replicated_coeff
 ! *****************************************************************************
   SUBROUTINE get_aux_coeff(coeffs, c, fc, n_els, ncoef_atom,ncoef_of_kind,id_nr,ref_count,error)
 
