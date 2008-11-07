@@ -62,7 +62,7 @@ MODULE force_field_types
      INTEGER                        :: id_type
      INTEGER                        :: nmul
      INTEGER, POINTER               :: m(:)
-     REAL(KIND = dp), POINTER       :: k(:),cosphi0(:)
+     REAL(KIND = dp), POINTER       :: k(:),phi0(:)
      INTEGER                        :: kind_number
   END TYPE torsion_kind_type
 
@@ -115,7 +115,7 @@ MODULE force_field_types
     CHARACTER (LEN=default_string_length), POINTER :: torsion_d(:)
     REAL(KIND=dp), POINTER                         :: torsion_k(:)
     INTEGER, POINTER                               :: torsion_m(:)
-    REAL(KIND=dp), POINTER                         :: torsion_cosphi0(:)
+    REAL(KIND=dp), POINTER                         :: torsion_phi0(:)
     INTEGER, POINTER                               :: impr_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_b(:)
@@ -150,7 +150,7 @@ MODULE force_field_types
     CHARACTER (LEN=default_string_length), POINTER :: torsion_d(:)
     REAL(KIND=dp), POINTER                         :: torsion_k(:)
     INTEGER, POINTER                               :: torsion_m(:)
-    REAL(KIND=dp), POINTER                         :: torsion_cosphi0(:)
+    REAL(KIND=dp), POINTER                         :: torsion_phi0(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_c(:)
@@ -182,7 +182,7 @@ MODULE force_field_types
     CHARACTER (LEN=default_string_length), POINTER :: torsion_d(:)
     REAL(KIND=dp), POINTER                         :: torsion_k(:)
     REAL(KIND=dp), POINTER                         :: torsion_m(:)
-    REAL(KIND=dp), POINTER                         :: torsion_cosphi0(:)
+    REAL(KIND=dp), POINTER                         :: torsion_phi0(:)
     CHARACTER (LEN=default_string_length), POINTER :: nonbond_a(:)
     REAL (KIND=dp), POINTER                        :: nonbond_eps(:)
     REAL (KIND=dp), POINTER                        :: nonbond_rmin2(:)
@@ -199,7 +199,7 @@ MODULE force_field_types
     REAL(KIND=dp), POINTER                         :: bend_theta0(:)
     REAL(KIND=dp), POINTER                         :: torsion_k(:)
     INTEGER, POINTER                               :: torsion_m(:)
-    REAL(KIND=dp), POINTER                         :: torsion_cosphi0(:)
+    REAL(KIND=dp), POINTER                         :: torsion_phi0(:)
     REAL(KIND=dp), POINTER                         :: impr_k(:)
     REAL(KIND=dp), POINTER                         :: impr_phi0(:)
     CHARACTER (LEN=default_string_length), POINTER :: nonbond_a(:)
@@ -361,7 +361,7 @@ CONTAINS
           torsion_kind_set(ikind)%nmul = 0
           NULLIFY(torsion_kind_set(ikind)%k)
           NULLIFY(torsion_kind_set(ikind)%m)
-          NULLIFY(torsion_kind_set(ikind)%cosphi0)
+          NULLIFY(torsion_kind_set(ikind)%phi0)
           torsion_kind_set(ikind)%kind_number = ikind
        END DO
     END IF
@@ -516,7 +516,7 @@ CONTAINS
     NULLIFY(gro_info%bend_theta0)
     NULLIFY(gro_info%torsion_k)
     NULLIFY(gro_info%torsion_m)
-    NULLIFY(gro_info%torsion_cosphi0)
+    NULLIFY(gro_info%torsion_phi0)
     NULLIFY(gro_info%impr_k)
     NULLIFY(gro_info%impr_phi0)
     NULLIFY(gro_info%nonbond_a)
@@ -557,7 +557,7 @@ CONTAINS
     NULLIFY(chm_info%torsion_d)
     NULLIFY(chm_info%torsion_k)
     NULLIFY(chm_info%torsion_m)
-    NULLIFY(chm_info%torsion_cosphi0)
+    NULLIFY(chm_info%torsion_phi0)
     NULLIFY(chm_info%impr_a)
     NULLIFY(chm_info%impr_b)
     NULLIFY(chm_info%impr_c)
@@ -597,7 +597,7 @@ CONTAINS
     NULLIFY(amb_info%torsion_d)
     NULLIFY(amb_info%torsion_k)
     NULLIFY(amb_info%torsion_m)
-    NULLIFY(amb_info%torsion_cosphi0)
+    NULLIFY(amb_info%torsion_phi0)
     NULLIFY(amb_info%nonbond_a)
     NULLIFY(amb_info%nonbond_eps)
     NULLIFY(amb_info%nonbond_rmin2)
@@ -646,7 +646,7 @@ CONTAINS
     NULLIFY(inp_info%torsion_d)
     NULLIFY(inp_info%torsion_k)
     NULLIFY(inp_info%torsion_m)
-    NULLIFY(inp_info%torsion_cosphi0)
+    NULLIFY(inp_info%torsion_phi0)
     NULLIFY(inp_info%impr_kind)
     NULLIFY(inp_info%impr_a)
     NULLIFY(inp_info%impr_b)
@@ -764,8 +764,8 @@ CONTAINS
        DEALLOCATE(gro_info%torsion_m,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF(ASSOCIATED(gro_info%torsion_cosphi0)) THEN
-       DEALLOCATE(gro_info%torsion_cosphi0,STAT=stat)
+    IF(ASSOCIATED(gro_info%torsion_phi0)) THEN
+       DEALLOCATE(gro_info%torsion_phi0,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(gro_info%impr_k)) THEN
@@ -900,8 +900,8 @@ CONTAINS
        DEALLOCATE(chm_info%torsion_m,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF(ASSOCIATED(chm_info%torsion_cosphi0)) THEN
-       DEALLOCATE(chm_info%torsion_cosphi0,STAT=stat)
+    IF(ASSOCIATED(chm_info%torsion_phi0)) THEN
+       DEALLOCATE(chm_info%torsion_phi0,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(chm_info%impr_a)) THEN
@@ -1032,8 +1032,8 @@ CONTAINS
        DEALLOCATE(amb_info%torsion_m,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF(ASSOCIATED(amb_info%torsion_cosphi0)) THEN
-       DEALLOCATE(amb_info%torsion_cosphi0,STAT=stat)
+    IF(ASSOCIATED(amb_info%torsion_phi0)) THEN
+       DEALLOCATE(amb_info%torsion_phi0,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(amb_info%nonbond_a)) THEN
@@ -1200,8 +1200,8 @@ CONTAINS
        DEALLOCATE(inp_info%torsion_m,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF(ASSOCIATED(inp_info%torsion_cosphi0)) THEN
-       DEALLOCATE(inp_info%torsion_cosphi0,STAT=stat)
+    IF(ASSOCIATED(inp_info%torsion_phi0)) THEN
+       DEALLOCATE(inp_info%torsion_phi0,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(inp_info%impr_kind)) THEN
@@ -1309,8 +1309,8 @@ CONTAINS
        DEALLOCATE(torsion_kind%m,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF(ASSOCIATED(torsion_kind%cosphi0)) THEN
-       DEALLOCATE(torsion_kind%cosphi0,STAT=stat)
+    IF(ASSOCIATED(torsion_kind%phi0)) THEN
+       DEALLOCATE(torsion_kind%phi0,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     

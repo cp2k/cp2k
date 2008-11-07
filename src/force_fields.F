@@ -244,7 +244,7 @@ CONTAINS
              DO i = 1, SIZE(ff_type%amb_info%torsion_a)
                 k    = cp_unit_from_cp2k(ff_type%amb_info%torsion_k(i),"kcalmol",error=error)
                 m    = ff_type%amb_info%torsion_m(i)
-                phi0 = cp_unit_from_cp2k(ff_type%amb_info%torsion_cosphi0(i),"deg",error=error)
+                phi0 = cp_unit_from_cp2k(ff_type%amb_info%torsion_phi0(i),"deg",error=error)
                 WRITE(iw, 2003) ff_type%amb_info%torsion_a(i),&
                                 ff_type%amb_info%torsion_b(i),&
                                 ff_type%amb_info%torsion_c(i),&

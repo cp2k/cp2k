@@ -413,3 +413,6 @@ constr_hb_mm.inp
 constr_hb_qm.inp
 # corrected build of ppnl lists 
 C4H10-qmmm-gauss-0.inp
+# numerics
+constr_hb_mm.inp
+constr_hb_qm.inp

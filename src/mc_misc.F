@@ -767,7 +767,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
                     TRIM(ADJUSTL(name_c)),TRIM(ADJUSTL(name_d))
                WRITE(unit,20003) "        M ",torsion_list(itorsion)%torsion_kind%m(imul)
                WRITE(unit,20002) "        K ",torsion_list(itorsion)%torsion_kind%k(imul)
-               WRITE(unit,20002) "        PHI0 ",torsion_list(itorsion)%torsion_kind%cosphi0(imul)
+               WRITE(unit,20002) "        PHI0 ",torsion_list(itorsion)%torsion_kind%phi0(imul)
                WRITE(unit,10000) "      &END TORSION"
             ENDDO
 

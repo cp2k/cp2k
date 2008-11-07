@@ -10,3 +10,6 @@ Solv_alch_chng_res.inp
 # eps0 
 Solv_alch_chng.inp
 Solv_alch_chng_res.inp
+# numerics
+Solv_alch_chng.inp
+Solv_alch_chng_res.inp

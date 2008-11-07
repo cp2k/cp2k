@@ -336,10 +336,10 @@ CPSourceFileRef,&
           CALL reallocate(inp_info%torsion_d,1,ntors)
           CALL reallocate(inp_info%torsion_k,1,ntors)
           CALL reallocate(inp_info%torsion_m,1,ntors)
-          CALL reallocate(inp_info%torsion_cosphi0,1,ntors)
-          CALL read_torsions_section(inp_info%torsion_kind,inp_info%torsion_a, inp_info%torsion_b, inp_info%torsion_c,&
-               inp_info%torsion_d,inp_info%torsion_k,inp_info%torsion_cosphi0, inp_info%torsion_m,&
-               tmp_section, ntot, error )
+          CALL reallocate(inp_info%torsion_phi0,1,ntors)
+          CALL read_torsions_section(inp_info%torsion_kind,inp_info%torsion_a, inp_info%torsion_b,&
+               inp_info%torsion_c,inp_info%torsion_d,inp_info%torsion_k,inp_info%torsion_phi0,&
+               inp_info%torsion_m,tmp_section, ntot, error )
        END IF
     END IF
 
@@ -1209,12 +1209,12 @@ CPSourceFileRef,&
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE read_torsions_section(torsion_kind,torsion_a, torsion_b, torsion_c, torsion_d, torsion_k,&
-       torsion_cosphi0, torsion_m, section, start, error )
+       torsion_phi0, torsion_m, section, start, error )
     INTEGER, DIMENSION(:), POINTER           :: torsion_kind
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: torsion_a, torsion_b, &
                                                 torsion_c, torsion_d
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: torsion_k, torsion_cosphi0
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: torsion_k, torsion_phi0
     INTEGER, DIMENSION(:), POINTER           :: torsion_m
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
@@ -1243,7 +1243,7 @@ CPSourceFileRef,&
        CALL uppercase(torsion_c(start+isec))
        CALL uppercase(torsion_d(start+isec))
        CALL section_vals_val_get(section,"K",i_rep_section=isec,r_val=torsion_k(start+isec),error=error)
-       CALL section_vals_val_get(section,"PHI0",i_rep_section=isec,r_val=torsion_cosphi0(start+isec),error=error)
+       CALL section_vals_val_get(section,"PHI0",i_rep_section=isec,r_val=torsion_phi0(start+isec),error=error)
        CALL section_vals_val_get(section,"M",i_rep_section=isec,i_val=torsion_m(start+isec),error=error)
     END DO
   END SUBROUTINE read_torsions_section

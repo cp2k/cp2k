@@ -191,12 +191,13 @@ CONTAINS
 !>      none
 !> \author DG
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE force_torsions (id_type, is32, dist1, dist2, u1, u2, iw1, iw2, &
-       k, cosphi0, m, gt1, gt2, gt3, gt4, energy, fscalar )
+  SUBROUTINE force_torsions (id_type, s32, is32, ism, isn,  dist1, dist2, tm,&
+       tn, t12, t32, k, phi0, m, gt1, gt2, gt3, gt4, energy, fscalar )
     INTEGER, INTENT(IN)                      :: id_type
-    REAL(KIND=dp), INTENT(IN)                :: is32, dist1, dist2
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: u1, u2
-    REAL(KIND=dp), INTENT(IN)                :: iw1, iw2, k, cosphi0
+    REAL(KIND=dp), INTENT(IN)                :: s32, is32, ism, isn, dist1, &
+                                                dist2
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: tm, tn, t12, t32
+    REAL(KIND=dp), INTENT(IN)                :: k, phi0
     INTEGER, INTENT(IN)                      :: m
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: gt1, gt2, gt3, gt4
     REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
@@ -204,66 +205,32 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_torsions', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: cosphi, lcosphi0, trig
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: cosphi, phi
 
-    cosphi = DOT_PRODUCT ( u1, u2 ) * iw1 * iw2
+    failure = .FALSE.
+    cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
+    IF(cosphi >  1.0_dp) cosphi = 1.0_dp
+    IF(cosphi < -1.0_dp) cosphi = -1.0_dp
+    phi = SIGN( ACOS ( cosphi ), DOT_PRODUCT ( t12, tn ))
 
-    ! compute energy
+    ! Select force field
     SELECT CASE (id_type)
-    CASE (do_ff_charmm,do_ff_g87,do_ff_g96)
-       SELECT CASE ( m )
-       CASE ( 0 )
-          trig = 1.0_dp
-          fscalar = 0.0_dp
-       CASE ( 1 )
-          trig = cosphi
-          fscalar = 1.0_dp
-       CASE ( 2 )
-          trig = 2.0_dp * cosphi* cosphi - 1.0_dp
-          fscalar = 4.0_dp * cosphi
-       CASE ( 3 )
-          trig = 4.0_dp * cosphi * cosphi * cosphi - &
-                 3.0_dp * cosphi
-          fscalar = 12.0_dp * cosphi * cosphi - 3.0_dp
-       CASE ( 4 )
-          trig = 8.0_dp * cosphi * cosphi * cosphi * cosphi - &
-                 8.0_dp * cosphi * cosphi + 1.0_dp
-          fscalar = 32.0_dp * cosphi * cosphi * cosphi - 16.0_dp * cosphi
-       CASE ( 5 )
-          trig = 16.0_dp * cosphi * cosphi * cosphi * cosphi * cosphi - &
-                 20.0_dp * cosphi * cosphi * cosphi + &
-                  5.0_dp * cosphi 
-          fscalar = 80.0_dp * cosphi * cosphi * cosphi * cosphi -  &
-                    60.0_dp * cosphi * cosphi + 5.0_dp
-       CASE ( 6 )
-          trig = 32.0_dp * cosphi * cosphi * cosphi * cosphi * cosphi * cosphi - &
-                 48.0_dp * cosphi * cosphi * cosphi * cosphi + &
-                 18.0_dp * cosphi * cosphi - 1.0_dp
-          fscalar = 192.0_dp * cosphi * cosphi * cosphi * cosphi  * cosphi -  &
-                    192.0_dp * cosphi * cosphi * cosphi + 36.0_dp * cosphi
-       CASE DEFAULT
-          CALL stop_program (routineP,"torsion parameter too large")
-       END SELECT
-       energy = k * ( 1.0_dp + cosphi0 * trig )
+    CASE (do_ff_charmm,do_ff_g87,do_ff_g96, do_ff_amber)
+       ! compute energy
+       energy = k * ( 1.0_dp + COS(m*phi-phi0))
 
        ! compute fscalar
-       fscalar = -fscalar * cosphi0 * k
-
-       ! compute the gradients
-       gt1 = ( u2 * iw2 - cosphi * u1 * iw1 ) * iw1
-       gt4 = ( u1 * iw1 - cosphi * u2 * iw2 ) * iw2
-       gt2 = ( dist1 * is32 ** 2 - 1.0_dp ) * gt1 + dist2 * is32 ** 2 * gt4
-       gt3 = ( - dist2 * is32 ** 2 - 1.0_dp ) * gt4 - dist1 * is32 ** 2 * gt1
-       
-    CASE (do_ff_amber)
-       ! Use the same expression of CHARMM for AMBER (to be checked!)
-       lcosphi0 = COS(cosphi0)
-       CALL force_torsions (do_ff_charmm, is32, dist1, dist2, u1, u2, iw1, iw2, &
-            k, lcosphi0, m, gt1, gt2, gt3, gt4, energy, fscalar )
+       fscalar = k * m * SIN(m*phi-phi0)
     CASE DEFAULT
        CALL stop_program (routineP,"unmatched torsion kind")
     END SELECT
 
+    ! compute the gradients
+    gt1 =  ( s32 * ism * ism ) * tm
+    gt4 = -( s32 * isn * isn ) * tn
+    gt2 =  ( dist1 * is32 ** 2 - 1.0_dp ) * gt1 - dist2 * is32 ** 2 * gt4
+    gt3 =  ( dist2 * is32 ** 2 - 1.0_dp ) * gt4 - dist1 * is32 ** 2 * gt1
   END SUBROUTINE force_torsions
 
 ! *****************************************************************************
@@ -286,14 +253,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: f12 = 1.0_dp/2.0_dp
 
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cosphi, phi
 
-! define cosphi
-
+    failure = .FALSE.
+    ! define cosphi
     cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
-    IF(cosphi > 1.0_dp) cosphi = 1.0_dp
+    IF(cosphi >  1.0_dp) cosphi = 1.0_dp
     IF(cosphi < -1.0_dp) cosphi = -1.0_dp
-    phi = SIGN ( ACOS ( cosphi ), DOT_PRODUCT ( t12, tn ) )
+    phi = SIGN( ACOS ( cosphi ), DOT_PRODUCT ( t12, tn ))
 
     SELECT CASE (id_type)
     CASE (do_ff_charmm)
@@ -315,11 +283,10 @@ CONTAINS
     END SELECT
 
     ! compute the gradients
-    gt1 = ( s32* ism * ism ) * tm
+    gt1 =  ( s32 * ism * ism ) * tm
     gt4 = -( s32 * isn * isn ) * tn
-    gt2 = ( dist1 * is32 ** 2 - 1.0_dp ) * gt1 - dist2 * is32 ** 2 * gt4
-    gt3 = ( dist2 * is32 ** 2 - 1.0_dp ) * gt4 - dist1 * is32 ** 2 * gt1
-
+    gt2 =  ( dist1 * is32 ** 2 - 1.0_dp ) * gt1 - dist2 * is32 ** 2 * gt4
+    gt3 =  ( dist2 * is32 ** 2 - 1.0_dp ) * gt4 - dist1 * is32 ** 2 * gt1
   END SUBROUTINE force_imp_torsions
 
 ! *****************************************************************************

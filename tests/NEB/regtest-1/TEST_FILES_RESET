@@ -44,3 +44,8 @@
 # numerics after new units converter
 2gly_CI-NEB.inp
 2gly_IT-NEB.inp
+# numerics
+2gly_B-NEB.inp
+2gly_CI-NEB.inp
+2gly_EB-NEB.inp
+2gly_IT-NEB.inp

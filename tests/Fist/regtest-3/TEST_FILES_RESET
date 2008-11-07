@@ -99,3 +99,7 @@ nh3_dist.inp
 nh3_dist_npt.inp
 NaCl.inp
 NaCl-H2O.inp
+# numerics
+ace_ala_nme-ambconn.inp
+ace_ala_nme-amber.inp
+ace_ala_nme.inp

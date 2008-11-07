@@ -1309,19 +1309,19 @@ CONTAINS
                 IF(itype>0) THEN
                    CALL reallocate(torsion_list(j)%torsion_kind%k,1,1)
                    CALL reallocate(torsion_list(j)%torsion_kind%m,1,1)
-                   CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,1)
+                   CALL reallocate(torsion_list(j)%torsion_kind%phi0,1,1)
                    torsion_list(j)%torsion_kind%nmul   = 1
                    torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype)
                    torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype)
-                   torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype)
+                   torsion_list(j)%torsion_kind%phi0(1) = gro_info%torsion_phi0(itype)
                 ELSE
                    CALL reallocate(torsion_list(j)%torsion_kind%k,1,1)
                    CALL reallocate(torsion_list(j)%torsion_kind%m,1,1)
-                   CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,1)
+                   CALL reallocate(torsion_list(j)%torsion_kind%phi0,1,1)
                    torsion_list(j)%torsion_kind%nmul   = 1
                    torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype/k)
                    torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype/k)
-                   torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype/k)
+                   torsion_list(j)%torsion_kind%phi0(1) = gro_info%torsion_phi0(itype/k)
                 END IF
                 torsion_list(j)%torsion_kind%id_type = gro_info%ff_gromos_type
                 torsion_list(j)%id_type              = gro_info%ff_gromos_type
@@ -1343,11 +1343,11 @@ CONTAINS
                       imul = torsion_list(j)%torsion_kind%nmul + 1
                       CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
                       CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
-                      CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
+                      CALL reallocate(torsion_list(j)%torsion_kind%phi0,1,imul)
                       torsion_list(j)%torsion_kind%id_type = do_ff_charmm
                       torsion_list(j)%torsion_kind%k(imul) = chm_info%torsion_k(k)
                       torsion_list(j)%torsion_kind%m(imul) = chm_info%torsion_m(k)
-                      torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
+                      torsion_list(j)%torsion_kind%phi0(imul) = chm_info%torsion_phi0(k)
                       torsion_list(j)%torsion_kind%nmul = imul
                       found = .TRUE.
                    END IF
@@ -1366,11 +1366,11 @@ CONTAINS
                          imul = torsion_list(j)%torsion_kind%nmul + 1
                          CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
                          CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
-                         CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
+                         CALL reallocate(torsion_list(j)%torsion_kind%phi0,1,imul)
                          torsion_list(j)%torsion_kind%id_type = do_ff_charmm
                          torsion_list(j)%torsion_kind%k(imul) = chm_info%torsion_k(k)
                          torsion_list(j)%torsion_kind%m(imul) = chm_info%torsion_m(k)
-                         torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
+                         torsion_list(j)%torsion_kind%phi0(imul) = chm_info%torsion_phi0(k)
                          torsion_list(j)%torsion_kind%nmul = imul
                          found = .TRUE.
                       END IF
@@ -1392,11 +1392,11 @@ CONTAINS
                       imul = torsion_list(j)%torsion_kind%nmul + 1
                       CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
                       CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
-                      CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
+                      CALL reallocate(torsion_list(j)%torsion_kind%phi0,1,imul)
                       torsion_list(j)%torsion_kind%id_type = do_ff_amber
                       torsion_list(j)%torsion_kind%k(imul) = amb_info%torsion_k(k)
                       torsion_list(j)%torsion_kind%m(imul) = amb_info%torsion_m(k)
-                      torsion_list(j)%torsion_kind%cosphi0(imul) = amb_info%torsion_cosphi0(k)
+                      torsion_list(j)%torsion_kind%phi0(imul) = amb_info%torsion_phi0(k)
                       torsion_list(j)%torsion_kind%nmul = imul
                       found = .TRUE.
                    END IF
@@ -1415,11 +1415,11 @@ CONTAINS
                          imul = torsion_list(j)%torsion_kind%nmul + 1
                          CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
                          CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
-                         CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
+                         CALL reallocate(torsion_list(j)%torsion_kind%phi0,1,imul)
                          torsion_list(j)%torsion_kind%id_type = do_ff_amber
                          torsion_list(j)%torsion_kind%k(imul) = amb_info%torsion_k(k)
                          torsion_list(j)%torsion_kind%m(imul) = amb_info%torsion_m(k)
-                         torsion_list(j)%torsion_kind%cosphi0(imul) = amb_info%torsion_cosphi0(k)
+                         torsion_list(j)%torsion_kind%phi0(imul) = amb_info%torsion_phi0(k)
                          torsion_list(j)%torsion_kind%nmul = imul
                          found = .TRUE.
                       END IF
@@ -1441,11 +1441,11 @@ CONTAINS
                       imul = torsion_list(j)%torsion_kind%nmul + 1
                       CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
                       CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
-                      CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
+                      CALL reallocate(torsion_list(j)%torsion_kind%phi0,1,imul)
                       torsion_list(j)%torsion_kind%id_type = inp_info%torsion_kind(k)
                       torsion_list(j)%torsion_kind%k(imul) = inp_info%torsion_k(k)
                       torsion_list(j)%torsion_kind%m(imul) = inp_info%torsion_m(k)
-                      torsion_list(j)%torsion_kind%cosphi0(imul) = COS(inp_info%torsion_cosphi0(k))
+                      torsion_list(j)%torsion_kind%phi0(imul) = inp_info%torsion_phi0(k)
                       torsion_list(j)%torsion_kind%nmul    = imul
                       found = .TRUE.
                    END IF

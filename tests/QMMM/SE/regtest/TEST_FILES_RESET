@@ -96,3 +96,9 @@ water_3_fdbg_inv.inp
 water_3_walls.inp
 water_3_walls_q.inp
 zwitt.inp
+# numerics
+mol_CSVR_gen1.inp
+mol_CSVR_gen2.inp
+mol_CSVR_gen3.inp
+mol.inp
+mol_sph_cut.inp

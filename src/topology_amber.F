@@ -854,9 +854,7 @@ CPSourceFileRef,&
 
        ! ----------------------------------------------------------
        ! Force Fields informations related to torsions
-       ! in amb_info%cosphi0 we store PHI0 and not its cosine, this
-       ! is just to avoid an additional field in the torsional kind.
-       ! Just beware of it!
+       ! in amb_info%phi0 we store PHI0 
        ! ----------------------------------------------------------
        CALL reallocate(amb_info%torsion_a, 1,buffer_size)
        CALL reallocate(amb_info%torsion_b, 1,buffer_size)
@@ -864,17 +862,17 @@ CPSourceFileRef,&
        CALL reallocate(amb_info%torsion_d, 1,buffer_size)
        CALL reallocate(amb_info%torsion_k, 1,buffer_size)
        CALL reallocate(amb_info%torsion_m, 1,buffer_size)
-       CALL reallocate(amb_info%torsion_cosphi0, 1,buffer_size)
+       CALL reallocate(amb_info%torsion_phi0, 1,buffer_size)
        nsize = 0
        ! Torsions containing hydrogens
        CALL post_process_torsions_info(amb_info%torsion_a, amb_info%torsion_b,&
             amb_info%torsion_c, amb_info%torsion_d, amb_info%torsion_k, &
-            amb_info%torsion_m, amb_info%torsion_cosphi0, particle_set, nsize,&
+            amb_info%torsion_m, amb_info%torsion_phi0, particle_set, nsize,&
             nphih, iph, jph, kph, lph, icph, pk, pn, phase, error)
        ! Torsions non-containing hydrogens
        CALL post_process_torsions_info(amb_info%torsion_a, amb_info%torsion_b,&
             amb_info%torsion_c, amb_info%torsion_d, amb_info%torsion_k, &
-            amb_info%torsion_m, amb_info%torsion_cosphi0, particle_set, nsize,&
+            amb_info%torsion_m, amb_info%torsion_phi0, particle_set, nsize,&
             nphia, ip, jp, kp, lp, icp, pk, pn, phase, error)
        ! Shrink arrays size to the minimal request
        CALL reallocate(amb_info%torsion_a, 1,nsize)
@@ -883,7 +881,7 @@ CPSourceFileRef,&
        CALL reallocate(amb_info%torsion_d, 1,nsize)
        CALL reallocate(amb_info%torsion_k, 1,nsize)
        CALL reallocate(amb_info%torsion_m, 1,nsize)
-       CALL reallocate(amb_info%torsion_cosphi0, 1,nsize)
+       CALL reallocate(amb_info%torsion_phi0, 1,nsize)
 
        ! ----------------------------------------------------------
        ! Post process of LJ parameters

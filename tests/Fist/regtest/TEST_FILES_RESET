@@ -463,3 +463,7 @@ multipole_quadrupole.dbg_f_rec.inp
 multipole_dipole.dbg_f_rec.inp
 multipole_dip_qu.dbg_f_rec.inp
 multipole_quadrupole.dbg_f_rec.inp
+# numerics
+multi_frag_check.inp
+multi_frag.inp
+multi_psf.inp

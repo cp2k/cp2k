@@ -85,12 +85,11 @@ CONTAINS
       index_a, index_b, index_c, index_d, ionef, ishell, itorsion, nbends, &
       nbonds, nimptors, nkind, nmol_per_kind, nonefs, nshell, ntorsions, nub
     REAL(KIND=dp) :: d12, d32, dist, dist1, dist2, energy, fscalar, id12, &
-      id32, is32, ism, isn, iw1, iw2, rab2, rinv, rinv2, s32, sm, sn, theta, &
-      w1, w2
+      id32, is32, ism, isn, rab2, rinv, rinv2, s32, sm, sn, theta
     REAL(KIND=dp), DIMENSION(3)              :: b12, b32, g1, g2, g3, gt1, &
                                                 gt2, gt3, gt4, k1, k2, k3, &
                                                 k4, rij, t12, t32, t34, t43, &
-                                                tm, tn, u1, u2
+                                                tm, tn
     TYPE(bend_type), POINTER                 :: bend_list( : )
     TYPE(bond_type), POINTER                 :: bond_list( : )
     TYPE(cp_logger_type), POINTER            :: logger
@@ -310,26 +309,33 @@ CONTAINS
              index_d = torsion_list ( itorsion ) % d + first_atom - 1        
              t12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
              t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
+             t34 = particle_set ( index_c ) % r - particle_set ( index_d ) % r
              t43 = particle_set ( index_d ) % r - particle_set ( index_c ) % r
              t12 = pbc(t12,cell)
              t32 = pbc(t32,cell)
+             t34 = pbc(t34,cell)
              t43 = pbc(t43,cell)
-             s32 = SQRT(DOT_PRODUCT(t32,t32))
+             ! t12 x t32
+             tm(1) =  t12(2)*t32(3)-t32(2)*t12(3)
+             tm(2) = -t12(1)*t32(3)+t32(1)*t12(3)
+             tm(3) =  t12(1)*t32(2)-t32(1)*t12(2)
+             ! t32 x t34
+             tn(1) =  t32(2)*t34(3)-t34(2)*t32(3)
+             tn(2) = -t32(1)*t34(3)+t34(1)*t32(3)
+             tn(3) =  t32(1)*t34(2)-t34(1)*t32(2)
+             sm = SQRT ( DOT_PRODUCT(tm,tm) )
+             ism = 1.0_dp/sm
+             sn = SQRT ( DOT_PRODUCT(tn,tn) )
+             isn = 1.0_dp/sn
+             s32 = SQRT ( DOT_PRODUCT(t32,t32) )
              is32 = 1.0_dp/s32
              dist1 = DOT_PRODUCT(t12,t32)
-             dist2 = DOT_PRODUCT(t43,t32)
-             u1 = t12 - dist1*t32*is32**2
-             u2 = t43 - dist2*t32*is32**2
-             w1 = SQRT(DOT_PRODUCT(u1,u1))
-             w2 = SQRT(DOT_PRODUCT(u2,u2))
-             IF ((ABS(w1)<EPSILON(0.0_dp)).OR.(ABS(w2)<EPSILON(0.0_dp))) CYCLE
-             iw1 = 1.0_dp/w1
-             iw2 = 1.0_dp/w2
+             dist2 = DOT_PRODUCT(t34,t32)
              DO imul = 1, torsion_list(itorsion)%torsion_kind%nmul
                 CALL force_torsions(torsion_list(itorsion)%torsion_kind%id_type, &
-                                    is32,dist1,dist2,u1,u2,iw1,iw2,&
+                                    s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32,&
                                     torsion_list(itorsion)%torsion_kind%k(imul), &
-                                    torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
+                                    torsion_list(itorsion)%torsion_kind%phi0(imul), &
                                     torsion_list(itorsion)%torsion_kind%m(imul), &
                                     gt1,gt2,gt3,gt4,energy,fscalar)
                 pot_torsion = pot_torsion + energy
@@ -376,13 +382,13 @@ CONTAINS
              t34 = pbc(t34,cell)
              t43 = pbc(t43,cell)
              ! t12 x t32
-             tm(1) = t12(2)*t32(3)-t32(2)*t12(3)
+             tm(1) =  t12(2)*t32(3)-t32(2)*t12(3)
              tm(2) = -t12(1)*t32(3)+t32(1)*t12(3)
-             tm(3) = t12(1)*t32(2)-t32(1)*t12(2)
+             tm(3) =  t12(1)*t32(2)-t32(1)*t12(2)
              ! t32 x t34
-             tn(1) = t32(2)*t34(3)-t34(2)*t32(3)
+             tn(1) =  t32(2)*t34(3)-t34(2)*t32(3)
              tn(2) = -t32(1)*t34(3)+t34(1)*t32(3)
-             tn(3) = t32(1)*t34(2)-t34(1)*t32(2)
+             tn(3) =  t32(1)*t34(2)-t34(1)*t32(2)
              sm = SQRT ( DOT_PRODUCT(tm,tm) )
              ism = 1.0_dp/sm
              sn = SQRT ( DOT_PRODUCT(tn,tn) )

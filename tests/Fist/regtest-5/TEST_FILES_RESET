@@ -158,3 +158,12 @@ JAC_gen.inp
 # numerics after new units converter
 N3dye_vib_bfgs2.inp
 N3dye_vib_bfgs.inp
+# numerics
+arginine0.inp
+arginine_crossC.inp
+arginine.inp
+N3dye_geoopt.inp
+N3dye_vib_bfgs2.inp
+N3dye_vib_bfgs.inp
+N3dye_vib_restart_vec.inp
+phenobenz.inp

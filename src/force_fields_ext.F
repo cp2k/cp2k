@@ -81,7 +81,7 @@ CONTAINS
                                                 itype, iw, jatom, ncon, &
                                                 ntype, offset, stat
     LOGICAL                                  :: failure, found
-    REAL(KIND=dp)                            :: cost2, csq, sdet
+    REAL(KIND=dp)                            :: cosphi0, cost2, csq, sdet
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(gromos_info_type), POINTER          :: gro_info
@@ -236,12 +236,13 @@ CONTAINS
        CALL parser_get_object(parser,ntype,error=error)
        CALL reallocate(gro_info%torsion_k,1,ntype)
        CALL reallocate(gro_info%torsion_m,1,ntype)
-       CALL reallocate(gro_info%torsion_cosphi0,1,ntype)
+       CALL reallocate(gro_info%torsion_phi0,1,ntype)
        DO itype=1,ntype
           CALL parser_get_next_line(parser,1,error=error)
           CALL parser_get_object(parser,gro_info%torsion_k(itype),error=error)
-          CALL parser_get_object(parser,gro_info%torsion_cosphi0(itype),error=error)
+          CALL parser_get_object(parser,cosphi0,error=error)
           CALL parser_get_object(parser,gro_info%torsion_m(itype),error=error)
+          gro_info%torsion_phi0(itype) = ACOS(cosphi0)
           gro_info%torsion_k(itype) = cp_unit_to_cp2k(gro_info%torsion_k(itype),"kjmol",error=error) 
           IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT DIHEDRALTYPE INFO HERE!!!!"
        END DO
@@ -523,14 +524,14 @@ CONTAINS
                 CALL reallocate(chm_info%torsion_d,1,ntorsion)
                 CALL reallocate(chm_info%torsion_k,1,ntorsion)
                 CALL reallocate(chm_info%torsion_m,1,ntorsion)
-                CALL reallocate(chm_info%torsion_cosphi0,1,ntorsion)
+                CALL reallocate(chm_info%torsion_phi0,1,ntorsion)
                 chm_info%torsion_a(ntorsion) = string
                 chm_info%torsion_b(ntorsion) = string2
                 chm_info%torsion_c(ntorsion) = string3
                 chm_info%torsion_d(ntorsion) = string4
                 CALL parser_get_object(parser,chm_info%torsion_k(ntorsion),error=error)
                 CALL parser_get_object(parser,chm_info%torsion_m(ntorsion),error=error)
-                CALL parser_get_object(parser,chm_info%torsion_cosphi0(ntorsion),error=error)
+                CALL parser_get_object(parser,chm_info%torsion_phi0(ntorsion),error=error)
                 IF(iw>0) WRITE(iw,*) "    CHM TORSION ",ntorsion,&
                      TRIM(chm_info%torsion_a(ntorsion))," ",&
                      TRIM(chm_info%torsion_b(ntorsion))," ",&
@@ -538,14 +539,12 @@ CONTAINS
                      TRIM(chm_info%torsion_d(ntorsion))," ",&
                      chm_info%torsion_k(ntorsion),&
                      chm_info%torsion_m(ntorsion),&
-                     chm_info%torsion_cosphi0(ntorsion)
+                     chm_info%torsion_phi0(ntorsion)
                 ! Do some units conversion into internal atomic units
-                chm_info%torsion_cosphi0(ntorsion) = cp_unit_to_cp2k(chm_info%torsion_cosphi0(ntorsion),&
+                chm_info%torsion_phi0(ntorsion) = cp_unit_to_cp2k(chm_info%torsion_phi0(ntorsion),&
                      "deg",error=error)
                 chm_info%torsion_k(ntorsion) = cp_unit_to_cp2k(chm_info%torsion_k(ntorsion),"kcalmol",&
                      error=error)
-                chm_info%torsion_cosphi0(ntorsion)=&
-                     COS(chm_info%torsion_cosphi0(ntorsion))
                 CALL charmm_get_next_line(parser,1,error=error)
              END DO
           ELSE
@@ -764,11 +763,10 @@ CONTAINS
             TRIM(amb_info%torsion_d(i))," ",&
             amb_info%torsion_k(i),&
             amb_info%torsion_m(i),&
-            amb_info%torsion_cosphi0(i)
+            amb_info%torsion_phi0(i)
        
        ! Do some units conversion into internal atomic units
-       ! For AMBER forcefield the cosphi0 contains the phi0 since the potential 
-       amb_info%torsion_cosphi0(i) = cp_unit_to_cp2k(amb_info%torsion_cosphi0(i),"rad",error=error)
+       amb_info%torsion_phi0(i) = cp_unit_to_cp2k(amb_info%torsion_phi0(i),"rad",error=error)
        amb_info%torsion_k(i) = cp_unit_to_cp2k(amb_info%torsion_k(i),"kcalmol",error=error)
     END DO
 

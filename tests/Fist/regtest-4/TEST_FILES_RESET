@@ -164,3 +164,8 @@ nh3-meta-walks_2.inp
 nh3-meta-walks_2r.inp
 # yet numerics
 nh3-meta-walks_2r.inp
+# numerics
+cycbut.inp
+cyhex.inp
+gly_amber.inp
+loop.inp

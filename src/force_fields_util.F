@@ -976,16 +976,16 @@ CONTAINS
                    new_torsion_kind_set(counter)= torsion_kind_set(itorsion)
                    i = SIZE(torsion_kind_set(itorsion)%m)
                    j = SIZE(torsion_kind_set(itorsion)%k)
-                   k = SIZE(torsion_kind_set(itorsion)%cosphi0)
+                   k = SIZE(torsion_kind_set(itorsion)%phi0)
                    ALLOCATE(new_torsion_kind_set(counter)%m(i),STAT=stat)
                    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                    ALLOCATE(new_torsion_kind_set(counter)%k(i),STAT=stat)
                    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   ALLOCATE(new_torsion_kind_set(counter)%cosphi0(i),STAT=stat)
+                   ALLOCATE(new_torsion_kind_set(counter)%phi0(i),STAT=stat)
                    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                    new_torsion_kind_set(counter)%m= torsion_kind_set(itorsion)%m
                    new_torsion_kind_set(counter)%k= torsion_kind_set(itorsion)%k
-                   new_torsion_kind_set(counter)%cosphi0= torsion_kind_set(itorsion)%cosphi0
+                   new_torsion_kind_set(counter)%phi0= torsion_kind_set(itorsion)%phi0
                 END IF
              END DO
              counter=0

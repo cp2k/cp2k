@@ -490,10 +490,10 @@ CONTAINS
             description="Define the kind of torsion potential",&
             usage="KIND CHARMM",&
             enum_c_vals=s2a("CHARMM","G87","G96","AMBER"),&
-            enum_desc=s2a("Functional Form (CHARMM|G87|G96): K * [ 1 +  cos[M*PHI] * cos[PHI0]]",&
-                          "Functional Form (CHARMM|G87|G96): K * [ 1 +  cos[M*PHI] * cos[PHI0]]",&
-                          "Functional Form (CHARMM|G87|G96): K * [ 1 +  cos[M*PHI] * cos[PHI0]]",&
-                          "Function Form AMBER             : K * [ 1 +  cos[M*PHI - PHI0]]"),&
+            enum_desc=s2a("Functional Form (CHARMM|G87|G96|AMBER): K * [ 1 +  cos[M*PHI - PHI0]]",&
+                          "Functional Form (CHARMM|G87|G96|AMBER): K * [ 1 +  cos[M*PHI - PHI0]]",&
+                          "Functional Form (CHARMM|G87|G96|AMBER): K * [ 1 +  cos[M*PHI - PHI0]]",&
+                          "Functional Form (CHARMM|G87|G96|AMBER): K * [ 1 +  cos[M*PHI - PHI0]]"),&
             enum_i_vals=(/ do_ff_charmm,&
                            do_ff_g87,&
                            do_ff_g96,&
