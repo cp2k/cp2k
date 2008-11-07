@@ -290,21 +290,19 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_connectivity_amber', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, iw, output_unit
-    LOGICAL                                  :: failure, ionode
+    INTEGER                                  :: handle, iatom, iw
+    LOGICAL                                  :: failure
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
     failure = .FALSE.
+    CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/AMBER_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,handle)
+
     atom_info => topology%atom_info
     conn_info => topology%conn_info
 
@@ -387,11 +385,11 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: input_format, section
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: isymbl, labres
-    INTEGER :: i, ifbox, ifcap, ifpert, info(31), istart, mbona, mbper, &
-      mdper, mgper, mphia, mtheta, natom, natyp, nbona, nbonh, nbper, ndper, &
-      ngper, nhparm, nmxrs, nnb, nparm, nphb, nphia, nphih, nptra, nres, &
-      nsize, ntheta, ntheth, ntypes, numang, numbnd, numextra, stat, &
-      unique_torsions
+    INTEGER :: handle, handle2, i, ifbox, ifcap, ifpert, info(31), istart, &
+      mbona, mbper, mdper, mgper, mphia, mtheta, natom, natyp, nbona, nbonh, &
+      nbper, ndper, ngper, nhparm, nmxrs, nnb, nparm, nphb, nphia, nphih, &
+      nptra, nres, nsize, ntheta, ntheth, ntypes, numang, numbnd, numextra, &
+      stat, unique_torsions
     INTEGER, ALLOCATABLE, DIMENSION(:) :: iac, ib, ibh, icb, icbh, ico, icp, &
       icph, ict, icth, ip, iph, ipres, it, ith, iwork, jb, jbh, jp, jph, jt, &
       jth, kp, kph, kt, kth, lp, lph
@@ -402,6 +400,7 @@ CPSourceFileRef,&
     TYPE(cp_parser_type), POINTER            :: parser
 
     failure = .FALSE.
+    CALL timeset(routineN,handle)
     NULLIFY(parser)
     IF (output_unit>0) WRITE(output_unit,'(/,A)')" AMBER_INFO| Reading Amber Topology File: "//&
          TRIM(filename)
@@ -661,6 +660,7 @@ CPSourceFileRef,&
 
     ! Extracts connectivity info from the AMBER topology file
     IF (do_connectivity) THEN
+       CALL timeset(TRIM(routineN)//"_connectivity",handle2)
        ! ----------------------------------------------------------
        ! Conform Amber Names with CHARMM convention (kind<->charge)
        ! ----------------------------------------------------------
@@ -800,10 +800,12 @@ CPSourceFileRef,&
        CALL reallocate(atom_info%label_molname,1,natom)
        atom_info%label_molname = "__UNDEF__"
        CALL topology_generate_molname(conn_info, natom, atom_info%label_molname, error)
+       CALL timestop(handle2)
     END IF
 
     ! Extracts force fields info from the AMBER topology file
     IF (do_forcefield) THEN
+       CALL timeset(TRIM(routineN)//"_forcefield",handle2)
        ! ----------------------------------------------------------
        ! Force Fields informations related to bonds
        ! ----------------------------------------------------------
@@ -927,6 +929,7 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(bsol,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL timestop(handle2)
     END IF
     ! Always Deallocate
     DEALLOCATE(ibh,stat=stat)
@@ -978,7 +981,7 @@ CPSourceFileRef,&
     DEALLOCATE(icp,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL parser_release(parser,error=error)
-
+    CALL timestop(handle)
     RETURN
     ! Output info Format
 1000 FORMAT(T2, &
@@ -1005,15 +1008,16 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'conform_atom_type_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: counter, gind, iend, ind, &
-                                                isize, j, k, kend, kstart, &
-                                                stat
+    INTEGER                                  :: counter, gind, handle, iend, &
+                                                ind, isize, j, k, kend, &
+                                                kstart, stat
     INTEGER, DIMENSION(:), POINTER           :: cindx, lindx
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ctmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cwork
 
     failure = .FALSE.
+    CALL timeset(routineP, handle)
     iend = i - 1
     isize= iend-istart+1
     ALLOCATE(cwork(isize),stat=stat)
@@ -1066,7 +1070,7 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(cindx, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
+    CALL timestop(handle)
   END SUBROUTINE conform_atom_type_low
 
 ! *****************************************************************************
@@ -1389,11 +1393,12 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: handle, i, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure
 
     failure        = .FALSE.
+    CALL timeset(routineP, handle)
     ALLOCATE(work_label(2,nbond),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(iwork(nbond),stat=stat)
@@ -1440,6 +1445,7 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(iwork, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(handle)
   END SUBROUTINE post_process_bonds_info
 
 ! *****************************************************************************
@@ -1464,11 +1470,12 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: handle, i, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure
 
     failure        = .FALSE.
+    CALL timeset(routineP,handle)
     ALLOCATE(work_label(3,ntheta),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(iwork(ntheta),stat=stat)
@@ -1521,6 +1528,7 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(iwork, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(handle)
   END SUBROUTINE post_process_bends_info
 
 ! *****************************************************************************
@@ -1547,11 +1555,12 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: handle, i, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure
 
     failure        = .FALSE.
+    CALL timeset(routineP, handle)
     ALLOCATE(work_label(6,nphi),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(iwork(nphi),stat=stat)
@@ -1623,7 +1632,7 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(iwork, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
+    CALL timestop(handle)
   END SUBROUTINE post_process_torsions_info
 
 ! *****************************************************************************
@@ -1648,13 +1657,14 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: work_label
-    INTEGER                                  :: i, natom, stat
+    INTEGER                                  :: handle, i, natom, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: F12, F6, my_eps, my_sigma, &
                                                 sigma6
 
     failure = .FALSE.
+    CALL timeset(routineP, handle)
     natom   = SIZE(particle_set)
     ALLOCATE(work_label(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1704,7 +1714,7 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(iwork,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
+    CALL timestop(handle)
   END SUBROUTINE post_process_LJ_info
 
 END MODULE topology_amber
