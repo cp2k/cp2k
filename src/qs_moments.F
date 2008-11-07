@@ -691,7 +691,11 @@ CONTAINS
        ! occupation
        DO ispin = 1, dft_control%nspins
          CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=occ,uniform_occupation=uniform)
-         CPPostcondition(uniform,cp_failure_level,routineP,error,failure)
+         IF (.NOT.uniform) THEN
+            CALL cp_unimplemented_error(fromWhere=routineP, &
+                 message="Berry phase moments for non uniform MOs' occupation numbers not implemented", &
+                 error=error, error_level=cp_failure_level)
+         END IF
        END DO
 
        ! reference point
