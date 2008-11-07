@@ -38,7 +38,8 @@ MODULE atomic_kind_types
   USE input_constants,                 ONLY: &
        do_fist, do_kg, do_method_am1, do_method_dftb, do_method_mndo, &
        do_method_mndod, do_method_pdg, do_method_pm3, do_method_pm6, &
-       do_method_rm1, do_qs, use_aux_fit_basis_set, use_orb_basis_set, use_aux_basis_set
+       do_method_rm1, do_qs, use_aux_basis_set, use_aux_fit_basis_set, &
+       use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&

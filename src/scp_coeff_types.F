@@ -11,7 +11,8 @@
 ! *****************************************************************************
 MODULE scp_coeff_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind, get_atomic_kind_set
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -19,8 +20,10 @@ MODULE scp_coeff_types
                                              distribution_1d_retain,&
                                              distribution_1d_type
   USE f77_blas
+  USE input_constants,                 ONLY: copy_coeff,&
+                                             copy_fcoeff,&
+                                             use_aux_basis_set
   USE kinds,                           ONLY: dp
-  USE input_constants,                 ONLY: use_aux_basis_set, copy_coeff, copy_fcoeff
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -362,22 +365,24 @@ CONTAINS
                                       local_particles, aux_coeff_set, para_env, &
                                       copy_type_id, copy_in, error )
 
-  REAL ( dp ), DIMENSION ( :, : ), POINTER       :: rep_coeff
-  TYPE ( atomic_kind_type ), POINTER             :: atomic_kind_set( : )
-  TYPE ( particle_type ), POINTER                :: particle_set( : )
-  TYPE ( distribution_1d_type ), POINTER         :: local_particles
-  TYPE ( aux_coeff_set_type ), POINTER           :: aux_coeff_set
-  TYPE ( cp_para_env_type ), POINTER             :: para_env
-  INTEGER,  INTENT ( IN )                        :: copy_type_id
-  LOGICAL, INTENT ( IN ), OPTIONAL               :: copy_in
-  TYPE(cp_error_type), INTENT(inout)             :: error
+    REAL(dp), DIMENSION(:, :), POINTER       :: rep_coeff
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(IN)                      :: copy_type_id
+    LOGICAL, INTENT(IN), OPTIONAL            :: copy_in
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  TYPE(aux_coeff_type), POINTER            :: local_coeffs
-  CHARACTER(len=*), PARAMETER :: routineN = 'create_replicated_coeff'
-  LOGICAL                                  :: failure, my_copy_in=.TRUE.
-  INTEGER                                  :: ikind, iparticle_local, iatom,  &
-                                              ub, natoms, maxgtops, stat, ii, &
-                                              nparticle_local
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_replicated_coeff'
+
+    INTEGER                                  :: iatom, ii, ikind, &
+                                                iparticle_local, maxgtops, &
+                                                natoms, nparticle_local, &
+                                                stat, ub
+    LOGICAL                                  :: failure, my_copy_in = .TRUE.
+    TYPE(aux_coeff_type), POINTER            :: local_coeffs
 
   IF ( PRESENT ( copy_in ) ) my_copy_in = copy_in
 
@@ -430,21 +435,23 @@ CONTAINS
   SUBROUTINE deallocate_replicated_coeff ( rep_coeff, atomic_kind_set, local_particles, &
                                            aux_coeff_set, copy_type_id, copy_out, error )
 
-  REAL ( dp ), DIMENSION ( :, : ),  POINTER            :: rep_coeff
-  TYPE ( distribution_1d_type ), POINTER              :: local_particles
-  TYPE ( cp_para_env_type ), POINTER                  :: para_env
-  TYPE ( aux_coeff_set_type ), POINTER                :: aux_coeff_set
-  TYPE ( atomic_kind_type ), POINTER                  :: atomic_kind_set( : )
-  INTEGER, INTENT ( IN )                              :: copy_type_id
-  LOGICAL, INTENT ( IN ), OPTIONAL                    :: copy_out
-  TYPE ( cp_error_type ), INTENT ( inout )            :: error
+    REAL(dp), DIMENSION(:, :), POINTER       :: rep_coeff
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
+    INTEGER, INTENT(IN)                      :: copy_type_id
+    LOGICAL, INTENT(IN), OPTIONAL            :: copy_out
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  TYPE(aux_coeff_type), POINTER            :: local_coeffs
-  CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_replicated_coeff'
-  LOGICAL                                  :: failure=.FALSE.,my_copy_out=.FALSE.
-  INTEGER                                  :: ikind, iparticle_local, iatom, stat, &
-                                              ii, nparticle_local
-  
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_replicated_coeff'
+
+    INTEGER                                  :: iatom, ii, ikind, &
+                                                iparticle_local, &
+                                                nparticle_local, stat
+    LOGICAL                                  :: failure = .FALSE., &
+                                                my_copy_out = .FALSE.
+    TYPE(aux_coeff_type), POINTER            :: local_coeffs
+
   IF ( PRESENT ( copy_out ) ) my_copy_out = copy_out 
 
   CPPrecondition(ASSOCIATED(rep_coeff),cp_failure_level,routineN,error,failure)
