@@ -1017,7 +1017,7 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cwork
 
     failure = .FALSE.
-    CALL timeset(routineP, handle)
+    CALL timeset(routineN, handle)
     iend = i - 1
     isize= iend-istart+1
     ALLOCATE(cwork(isize),stat=stat)
@@ -1398,7 +1398,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
 
     failure        = .FALSE.
-    CALL timeset(routineP, handle)
+    CALL timeset(routineN, handle)
     ALLOCATE(work_label(2,nbond),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(iwork(nbond),stat=stat)
@@ -1475,7 +1475,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
 
     failure        = .FALSE.
-    CALL timeset(routineP,handle)
+    CALL timeset(routineN,handle)
     ALLOCATE(work_label(3,ntheta),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(iwork(ntheta),stat=stat)
@@ -1560,7 +1560,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
 
     failure        = .FALSE.
-    CALL timeset(routineP, handle)
+    CALL timeset(routineN, handle)
     ALLOCATE(work_label(6,nphi),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(iwork(nphi),stat=stat)
@@ -1664,7 +1664,7 @@ CPSourceFileRef,&
                                                 sigma6
 
     failure = .FALSE.
-    CALL timeset(routineP, handle)
+    CALL timeset(routineN, handle)
     natom   = SIZE(particle_set)
     ALLOCATE(work_label(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
