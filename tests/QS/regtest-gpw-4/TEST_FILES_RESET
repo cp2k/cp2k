@@ -499,3 +499,5 @@ NO2-EFG-1.inp
 # more numerics ppnl
 h2o-otdiag.inp
 h2o-otdiag-lsd.inp
+# more numerics ppnl
+spin_restraint.inp
