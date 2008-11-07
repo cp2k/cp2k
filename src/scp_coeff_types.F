@@ -26,7 +26,6 @@ MODULE scp_coeff_types
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
-  USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
@@ -80,7 +79,8 @@ MODULE scp_coeff_types
   PUBLIC :: aux_coeff_set_create, aux_coeff_set_initialize,&
             aux_coeff_set_release, aux_coeff_set_retain,&
             get_aux_coeff_set, aux_coeff_create, setup_aux_coeff, &
-            aux_coeff_release, get_aux_coeff, aux_coeff_zero_fc
+            aux_coeff_release, get_aux_coeff, aux_coeff_zero_fc, create_replicated_coeff, &
+            deallocate_replicated_coeff
             
 CONTAINS
 
@@ -361,29 +361,28 @@ CONTAINS
 
   END SUBROUTINE setup_aux_coeff
 ! *****************************************************************************
-  SUBROUTINE create_replicated_coeff ( rep_coeff, atomic_kind_set, particle_set, &
+  SUBROUTINE create_replicated_coeff ( rep_coeff, atomic_kind_set, &
                                       local_particles, aux_coeff_set, para_env, &
                                       copy_type_id, copy_in, error )
 
-    REAL(dp), DIMENSION(:, :), POINTER       :: rep_coeff
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
-    TYPE(particle_type), POINTER             :: particle_set( : )
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(IN)                      :: copy_type_id
-    LOGICAL, INTENT(IN), OPTIONAL            :: copy_in
-    TYPE(cp_error_type), INTENT(inout)       :: error
+  REAL ( dp ), DIMENSION ( :, : ), POINTER       :: rep_coeff
+  TYPE ( atomic_kind_type ), POINTER             :: atomic_kind_set( : )
+  TYPE ( distribution_1d_type ), POINTER         :: local_particles
+  TYPE ( aux_coeff_set_type ), POINTER           :: aux_coeff_set
+  TYPE ( cp_para_env_type ), POINTER             :: para_env
+  INTEGER,  INTENT ( IN )                        :: copy_type_id
+  LOGICAL, INTENT ( IN ), OPTIONAL               :: copy_in
+  TYPE(cp_error_type), INTENT(inout)             :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_replicated_coeff'
+  TYPE(aux_coeff_type), POINTER            :: local_coeffs
+  CHARACTER(len=*), PARAMETER :: routineN = 'create_replicated_coeff'
+  LOGICAL                                  :: failure, my_copy_in=.TRUE.
+  INTEGER                                  :: ikind, iparticle_local, iatom,  &
+                                              ub, natoms, maxgtops, stat, ii, &
+                                              nparticle_local
+  REAL ( dp ), POINTER                     :: c ( :, : ), fc ( :, : )
 
-    INTEGER                                  :: iatom, ii, ikind, &
-                                                iparticle_local, maxgtops, &
-                                                natoms, nparticle_local, &
-                                                stat, ub
-    LOGICAL                                  :: failure, my_copy_in = .TRUE.
-    TYPE(aux_coeff_type), POINTER            :: local_coeffs
-
+  NULLIFY ( c, fc )
   IF ( PRESENT ( copy_in ) ) my_copy_in = copy_in
 
 ! Ensuring a blank canvas
@@ -395,8 +394,7 @@ CONTAINS
 
 ! Getting dimensions of the replicated coeff array
   CALL get_atomic_kind_set ( atomic_kind_set, maxgtops=maxgtops,  &
-                             basis_set_id=use_aux_basis_set )
-  natoms = SIZE ( particle_set )
+                             basis_set_id=use_aux_basis_set, natom=natoms )
 
 ! Allocating the pointer: MAXGTOPS is the maximum number of spherical orbitals in a set * number of sets
   ALLOCATE(rep_coeff ( natoms, maxgtops ), stat=stat)
@@ -412,17 +410,21 @@ CONTAINS
   ! Loop over the (local) particles
       DO iparticle_local=1,nparticle_local
          iatom = local_particles%list(ikind)%array(iparticle_local)
-         ub = SIZE ( local_coeffs % c, 2 )
-         CPPostcondition(ub>maxgtops,cp_failure_level,routineN,error,failure)
   ! Assigning the local coefficients:
          SELECT CASE ( copy_type_id )
          CASE ( copy_coeff )
+           CALL get_aux_coeff(coeffs=local_coeffs,c=c,error=error)
+           ub = SIZE ( c, 2 )
+           CPPostcondition(ub<=maxgtops,cp_failure_level,routineN,error,failure)
            DO ii = 1, ub
-             rep_coeff ( iatom, ii ) = local_coeffs%c(iparticle_local,ii )
+             rep_coeff ( iatom, ii ) = c(iparticle_local,ii )
            END DO
          CASE ( copy_fcoeff )
+         CALL get_aux_coeff(coeffs=local_coeffs,fc=fc,error=error)
+           CPPostcondition(ub<=maxgtops,cp_failure_level,routineN,error,failure)
+           ub = SIZE ( fc, 2 )
            DO ii = 1, ub
-             rep_coeff ( iatom, ii ) = local_coeffs%fc(iparticle_local, ii )
+             rep_coeff ( iatom, ii ) = fc(iparticle_local, ii )
            END DO
          END SELECT
       END DO
@@ -451,7 +453,9 @@ CONTAINS
     LOGICAL                                  :: failure = .FALSE., &
                                                 my_copy_out = .FALSE.
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
+    REAL ( dp ), POINTER                     :: c ( :, : ), fc ( :, : )
 
+  NULLIFY ( c, fc )
   IF ( PRESENT ( copy_out ) ) my_copy_out = copy_out 
 
   CPPrecondition(ASSOCIATED(rep_coeff),cp_failure_level,routineN,error,failure)
@@ -468,14 +472,14 @@ CONTAINS
   ! Assigning the local coefficients:
            SELECT CASE ( copy_type_id )
            CASE ( copy_coeff )
+             CALL get_aux_coeff(coeffs=local_coeffs,c=c,error=error)
              DO ii = 1, SIZE ( rep_coeff, 2 )
-               local_coeffs%c(iparticle_local,ii) = local_coeffs%c(iparticle_local,ii) + &
-                                                    rep_coeff ( iatom, ii )
+               c(iparticle_local,ii) = c(iparticle_local,ii) + rep_coeff ( iatom, ii )
              END DO
            CASE ( copy_fcoeff )
+             CALL get_aux_coeff(coeffs=local_coeffs,fc=fc,error=error)
              DO ii = 1, SIZE ( rep_coeff, 2 )
-               local_coeffs%fc(iparticle_local,ii) = local_coeffs%fc(iparticle_local,ii) + &
-                                                   rep_coeff ( iatom, ii )
+               fc(iparticle_local,ii) = fc(iparticle_local,ii) + rep_coeff ( iatom, ii )
              END DO
            END SELECT
         END DO
