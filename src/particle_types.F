@@ -455,11 +455,12 @@ CONTAINS
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=4)                         :: name
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
-    INTEGER                                  :: i, iatom, j, natom, stat
+    INTEGER                                  :: iatom, natom, stat
     LOGICAL                                  :: dummy, failure
+    REAL(KIND=dp)                            :: alpha, beta, gamma
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: arr
-    REAL(KIND=dp), DIMENSION(3)              :: f, r, v
+    REAL(KIND=dp), DIMENSION(3)              :: abc, f, r, v
     REAL(KIND=sp), DIMENSION(:), POINTER     :: x4, y4, z4
 
     failure = .FALSE.
@@ -567,7 +568,8 @@ CONTAINS
        NULLIFY(x4,y4,z4)
        ALLOCATE(x4(natom),y4(natom),z4(natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       WRITE(iunit) ((cell%hmat(i,j)*angstrom,i=1,j),j=1,3)
+       CALL get_cell(cell, alpha=alpha, beta=beta, gamma=gamma, abc=abc)
+       WRITE(iunit) abc(1), COS(gamma), abc(2), COS(beta), abc(3), COS(alpha)
        SELECT CASE (TRIM(content))
        CASE ("POS")
           IF (PRESENT(array)) THEN
