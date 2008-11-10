@@ -365,22 +365,24 @@ CONTAINS
                                       local_particles, aux_coeff_set, para_env, &
                                       copy_type_id, copy_in, error )
 
-  REAL ( dp ), DIMENSION ( :, : ), POINTER       :: rep_coeff
-  TYPE ( atomic_kind_type ), POINTER             :: atomic_kind_set( : )
-  TYPE ( distribution_1d_type ), POINTER         :: local_particles
-  TYPE ( aux_coeff_set_type ), POINTER           :: aux_coeff_set
-  TYPE ( cp_para_env_type ), POINTER             :: para_env
-  INTEGER,  INTENT ( IN )                        :: copy_type_id
-  LOGICAL, INTENT ( IN ), OPTIONAL               :: copy_in
-  TYPE(cp_error_type), INTENT(inout)             :: error
+    REAL(dp), DIMENSION(:, :), POINTER       :: rep_coeff
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(IN)                      :: copy_type_id
+    LOGICAL, INTENT(IN), OPTIONAL            :: copy_in
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  TYPE(aux_coeff_type), POINTER            :: local_coeffs
-  CHARACTER(len=*), PARAMETER :: routineN = 'create_replicated_coeff'
-  LOGICAL                                  :: failure, my_copy_in=.TRUE.
-  INTEGER                                  :: ikind, iparticle_local, iatom,  &
-                                              ub, natoms, maxgtops, stat, ii, &
-                                              nparticle_local
-  REAL ( dp ), POINTER                     :: c ( :, : ), fc ( :, : )
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_replicated_coeff'
+
+    INTEGER                                  :: iatom, ii, ikind, &
+                                                iparticle_local, maxgtops, &
+                                                natoms, nparticle_local, &
+                                                stat, ub
+    LOGICAL                                  :: failure, my_copy_in = .TRUE.
+    REAL(dp), POINTER                        :: c( :, : ), fc( :, : )
+    TYPE(aux_coeff_type), POINTER            :: local_coeffs
 
   NULLIFY ( c, fc )
   IF ( PRESENT ( copy_in ) ) my_copy_in = copy_in
@@ -452,8 +454,8 @@ CONTAINS
                                                 nparticle_local, stat
     LOGICAL                                  :: failure = .FALSE., &
                                                 my_copy_out = .FALSE.
+    REAL(dp), POINTER                        :: c( :, : ), fc( :, : )
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
-    REAL ( dp ), POINTER                     :: c ( :, : ), fc ( :, : )
 
   NULLIFY ( c, fc )
   IF ( PRESENT ( copy_out ) ) my_copy_out = copy_out 
