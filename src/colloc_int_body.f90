@@ -109,11 +109,6 @@
     DO i=0,2
         period(permut(i))=periodic(i)
     END DO
-    if ((.not.(ALL(l_bounds(2,:)<ndim.or.period(:)==1))) .or. &
-         (.not.(ALL(l_bounds(1,:)>=0 .or.period(:)==1))) .or. &
-         (.not.(ALL(l_bounds(2,:)-l_bounds(1,:)<ndim)))) then
-      print *, "l_bounds",l_bounds," period ",period," ndim ",ndim
-    end if
     CPPrecondition(ALL(l_bounds(2,:)<ndim.or.period(:)==1),cp_failure_level,routineP,error,failure)
     CPPrecondition(ALL(l_bounds(1,:)>=0 .or.period(:)==1),cp_failure_level,routineP,error,failure)
     CPPrecondition(ALL(l_bounds(2,:)-l_bounds(1,:)<ndim),cp_failure_level,routineP,error,failure)
@@ -142,13 +137,13 @@
         END DO
     END DO
         
-    !maxr2=0.0_dp
-    !DO j=0,2
-    !    DO i=0,2
-    !        maxr2=maxr2+(scaled_h(i,j))**2 ! guarantee at least the nearest points (this increases the sphere, increase just the box?)
-    !    END DO
-    !END DO
-    maxr2=max_r2 !MAX(max_r2,maxr2)
+    maxr2=0.0_dp
+    DO j=0,2
+        DO i=0,2
+            maxr2=maxr2+(scaled_h(i,j))**2 ! guarantee at least the nearest points (this increases the sphere, increase just the box?)
+        END DO
+    END DO
+    maxr2=MAX(max_r2,maxr2)
         
     ! build up quadratic form (ellipsoid)
     m=0.0_dp

@@ -124,7 +124,6 @@ MODULE qs_collocate_density
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  use message_passing, only: mp_sum,mp_abort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1511,8 +1510,8 @@ CONTAINS
        IF (rsgrid%orthorhombic ) THEN
           CALL collocate_ortho()
        ELSE
-          CALL collocate_general_wings()
-          !CALL collocate_general_opt()
+          ! CALL collocate_general_wings()
+          CALL collocate_general_opt()
        END IF
     END IF
 
@@ -1844,24 +1843,13 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: periodic
     REAL(dp), &
       DIMENSION((lp+1)*(lp+2)*(lp+3)/6)      :: poly_d3
-    real(dp), dimension(3) :: rShifted, local_shift
 
         periodic=1 ! cell%perd
         CALL poly_cp2k2d3(coef_xyz,lp,poly_d3,error)
-        local_b(1,:)=0
-        local_b(2,:)=MIN(rsgrid%npts-1,rsgrid%ub_local-rsgrid%lb_local)
-        local_shift=real(rsgrid%lb-rsgrid%lb_local,dp)/real(rsgrid%npts,dp)
-        rShifted(1)=rp(1)+cell%hmat(1,1)*local_shift(1)&
-             +cell%hmat(1,2)*local_shift(2)&
-             +cell%hmat(1,3)*local_shift(3)
-        rShifted(2)=rp(2)+cell%hmat(2,1)*local_shift(1)&
-             +cell%hmat(2,2)*local_shift(2)&
-             +cell%hmat(2,3)*local_shift(3)
-        rShifted(3)=rp(3)+cell%hmat(3,1)*local_shift(1)&
-             +cell%hmat(3,2)*local_shift(2)&
-             +cell%hmat(3,3)*local_shift(3)
+        local_b(1,:)=rsgrid%lb_local-rsgrid%lb
+        local_b(2,:)=MIN(local_b(1,:)+rsgrid%npts-1,rsgrid%ub_local-rsgrid%lb)
         CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
-            grid=grid,poly=poly_d3,alphai=zetp,posi=rShifted,max_r2=radius*radius,&
+            grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
             periodic=periodic,gdim=ng,local_bounds=local_b,&
             error=error)
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
