@@ -569,7 +569,7 @@ CONTAINS
        ALLOCATE(x4(natom),y4(natom),z4(natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL get_cell(cell, alpha=alpha, beta=beta, gamma=gamma, abc=abc)
-       WRITE(iunit) abc(1), COS(gamma), abc(2), COS(beta), abc(3), COS(alpha)
+       WRITE(iunit) abc(1)*angstrom, alpha, abc(2)*angstrom, beta, gamma, abc(3)*angstrom
        SELECT CASE (TRIM(content))
        CASE ("POS")
           IF (PRESENT(array)) THEN
