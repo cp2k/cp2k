@@ -762,7 +762,8 @@ CPSourceFileRef,&
           IF (use_motion_section) THEN
              ! Metadynamics Setup
              fe_section => section_vals_get_subs_vals(root_section,"MOTION%FREE_ENERGY",error=my_error)
-             CALL metadyn_read(meta_env, root_section, my_para_env, fe_section, error=my_error)
+             CALL metadyn_read(meta_env, my_force_env, root_section, my_para_env, fe_section,&
+                               error=my_error)
              CALL force_env_set(my_force_env,meta_env=meta_env,error=my_error)
              CALL meta_env_release(meta_env,error=my_error)
              ! Flexible Partition Setup

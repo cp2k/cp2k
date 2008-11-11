@@ -16,6 +16,7 @@ MODULE metadynamics_utils
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
+  USE force_env_types,                 ONLY: force_env_type
   USE input_constants,                 ONLY: do_fe_meta,&
                                              do_wall_gaussian,&
                                              do_wall_m,&
@@ -66,8 +67,9 @@ CONTAINS
 !>      04.2004 created
 !> \author Teodoro Laino [tlaino] - University of Zurich. 11.2007 
 ! *****************************************************************************
-  SUBROUTINE metadyn_read(meta_env,root_section,para_env,fe_section,error)
+  SUBROUTINE metadyn_read(meta_env,force_env,root_section,para_env,fe_section,error)
     TYPE(meta_env_type), POINTER             :: meta_env
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), OPTIONAL, &
@@ -79,7 +81,8 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: walkers_file_name
     INTEGER                                  :: i, id_method, n_colvar, &
-                                                n_rep, stat
+                                                n_rep, &
+                                                number_allocated_colvars, stat
     INTEGER, DIMENSION(:), POINTER           :: walkers_status
     LOGICAL                                  :: check, explicit, failure
     REAL(kind=dp)                            :: dt
@@ -90,6 +93,10 @@ CONTAINS
     failure = .FALSE.
     CALL section_vals_get(fe_section,explicit=explicit,error=error)
     IF (explicit) THEN
+       number_allocated_colvars = 0
+       IF (ASSOCIATED(force_env%subsys%colvar_p)) THEN
+          number_allocated_colvars = SIZE(force_env%subsys%colvar_p)
+       END IF
        CALL section_vals_val_get(fe_section,"METHOD",i_val=id_method,error=error)
        IF (id_method/=do_fe_meta) RETURN
        metadyn_section => section_vals_get_subs_vals(fe_section,"METADYN",error=error)
@@ -118,6 +125,15 @@ CONTAINS
        ! Parsing Metavar Section
        DO i= 1, n_colvar
           CALL metavar_read(meta_env%metavar(i), meta_env%extended_lagrange,i, metavar_section,error=error)
+          IF (meta_env%metavar(i)%icolvar > number_allocated_colvars) THEN
+          CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
+               "An error occured in the specification of COLVAR for METAVAR. "//&
+               "Specified COLVAR #("//TRIM(ADJUSTL(cp_to_string(meta_env%metavar(i)%icolvar)))//") "//&
+               "is larger than the maximum number of COLVARS defined in the SUBSYS ("//&
+               TRIM(ADJUSTL(cp_to_string(number_allocated_colvars)))//") !"//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)                       
+          END IF
        END DO
 
        ! Parsing the Multiple Walkers Info
