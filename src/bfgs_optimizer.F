@@ -7,13 +7,32 @@
 !> \brief Routines for Geometry optimization using BFGS algorithm
 ! *****************************************************************************
 MODULE bfgs_optimizer
-
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                             cp_blacs_env_release
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_gemm,&
+                                             cp_fm_transpose
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
+                                             cp_fm_get_submatrix,&
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_set_submatrix,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
   USE cp_output_handling,              ONLY: cp_iterate,&
+                                             cp_p_file,&
                                              cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: gopt_f_ii,&
@@ -26,12 +45,12 @@ MODULE bfgs_optimizer
   USE gopt_param_types,                ONLY: gopt_param_type
   USE input_constants,                 ONLY: default_cell_method_id,&
                                              default_ts_method_id
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE machine,                         ONLY: m_flush
-  USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
   USE termination,                     ONLY: external_control
@@ -70,30 +89,33 @@ CONTAINS
 
     CHARACTER(LEN=5)                         :: wildcard
     CHARACTER(LEN=default_path_length)       :: hes_filename
-    INTEGER                                  :: handle, handle2, hesunit, &
-                                                hesunit_read, i, indf, its, &
-                                                j, maxiter, ndf, nfree, &
+    INTEGER                                  :: handle, hesunit_read, indf, &
+                                                its, maxiter, ndf, nfree, &
                                                 output_unit, stat
     LOGICAL                                  :: conv, failure, hesrest, &
                                                 ionode, should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
                                                 pred, rad, rat, step
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dg, dr, dx, eigval, gold, &
-                                                hes, work, xold
+                                                work, xold
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: eigvec, hes_mat
+      DIMENSION(:, :)                        :: hessian_restart
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_hes
+    TYPE(cp_fm_type), POINTER                :: eigvec_mat, hess_mat, hess_tmp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: print_key, root_section
 
     failure = .FALSE.
-    NULLIFY(logger, g)
+    NULLIFY(logger, g,blacs_env)
     logger       => cp_error_get_logger(error)
     para_env     => force_env%para_env
     root_section => force_env%root_section
 
     CALL timeset(routineN,handle)
+    print_key    => section_vals_get_subs_vals(geo_section,"BFGS%RESTART", error=error)
     ionode      = para_env%mepos==para_env%source
     maxiter     = gopt_param%max_iter
     conv        = .FALSE.
@@ -117,17 +139,14 @@ CONTAINS
     nfree = gopt_env%nfree
     
     ! Initialize hessian (hes = unitary matrix )
-    ALLOCATE (hes(ndf*(ndf+1)/2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_blacs_env_create(blacs_env,para_env,error=error)
+    CALL cp_fm_struct_create(fm_struct_hes,para_env=para_env,context=blacs_env, &
+         nrow_global=ndf,ncol_global=ndf,error=error)
+    CALL cp_fm_create(hess_mat, fm_struct_hes,name="hess_mat",error=error)
+    CALL cp_fm_set_all(hess_mat,alpha=zero,beta=one,error=error)
 
-    DO indf=1,ndf
-       DO j=1,indf
-          i = indf*(indf - 1)/2 + j
-          hes(i) = zero
-       END DO
-       i = indf*(indf-1)/2 + indf
-       hes(i) = one
-    END DO
+    CALL cp_fm_create(hess_tmp, fm_struct_hes,name="hess_tmp",error=error)
+    CALL cp_fm_create(eigvec_mat, fm_struct_hes,name="eigvec_mat",error=error)
 
     ALLOCATE (xold(ndf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -145,10 +164,6 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     dx(:) = 0.0_dp
 
-    ALLOCATE (hes_mat(ndf,ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    hes_mat(:,:) = 0.0_dp
-
     ALLOCATE (dg(ndf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     dg(:) = 0.0_dp
@@ -156,10 +171,6 @@ CONTAINS
     ALLOCATE (eigval(ndf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     eigval(:) = 0.0_dp
-
-    ALLOCATE (eigvec(ndf,ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    eigvec(:,:) = 0.0_dp
 
     ALLOCATE (work(ndf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -187,12 +198,14 @@ CONTAINS
        ! Hessian update/restarting
        IF ((its == 1).AND.hesrest) THEN
           stat = 0
+          ALLOCATE(hessian_restart(ndf,ndf),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF(ionode)THEN
              CALL section_vals_val_get(geo_section,"BFGS%RESTART_FILE_NAME",c_val=hes_filename,&
                   error=error)
              CALL open_file(file_name=hes_filename,file_status="OLD",&
                   file_form="UNFORMATTED", file_action="READ", unit_number=hesunit_read)
-             READ(UNIT=hesunit_read,IOSTAT=stat) hes
+             READ(UNIT=hesunit_read,IOSTAT=stat) hessian_restart
              CALL close_file(unit_number=hesunit_read)
           END IF
           CALL mp_sum(stat,para_env%group)
@@ -204,25 +217,22 @@ CONTAINS
              IF (output_unit>0)  WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
                   "*** Initial Hessian has been restarted successfully ***"
           END IF
-          CALL mp_bcast(hes,para_env%source,para_env%group)
+          CALL mp_bcast(hessian_restart,para_env%source,para_env%group)
+          CALL cp_fm_set_submatrix(hess_mat,hessian_restart,error=error)
+          DEALLOCATE(hessian_restart,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ELSE IF( its > 1 ) THEN
           DO indf = 1, ndf
              dx(indf) = x0(indf) - xold(indf)
              dg(indf) =  g(indf) - gold(indf)
           END DO
 
-          CALL bfgs(ndf,dx,dg,hes,work)
+          CALL bfgs(ndf,dx,dg,hess_mat,work,para_env,error)
 
           !Possibly dump the Hessian file
-          CALL timeset(routineN//"hes2disk",handle2)
-          hesunit = cp_print_key_unit_nr(logger,geo_section,"BFGS%RESTART",&
-               extension=".Hessian",file_form="UNFORMATTED",file_action="WRITE",&
-               file_position="REWIND",error=error)
-          IF(hesunit>0)THEN
-             WRITE (UNIT=hesunit) hes
-          END IF
-          CALL cp_print_key_finished_output(hesunit,logger,geo_section,"BFGS%RESTART", error=error)
-          CALL timestop(handle2)
+           IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file))THEN
+           CALL write_bfgs_hessian(geo_section,ndf,hess_mat,logger,error)
+           ENDIF
        END IF
 
        ! Setting the present positions & gradients as old
@@ -230,25 +240,19 @@ CONTAINS
        gold = g
 
        ! Copying hessian hes to (ndf x ndf) matrix hes_mat for diagonalization
-       DO indf = 1, ndf
-          DO j = 1, indf
-             i = indf*(indf-1)/2 + j
-             eigvec(indf,j) = hes(i)
-             eigvec(j,indf) = hes(i)
-          END DO
-       END DO
+       CALL cp_fm_to_fm(hess_mat,hess_tmp,error)
 
-       CALL diamat_all(eigvec,eigval,dac=.FALSE.,error=error)
+       CALL cp_fm_syevd(hess_tmp,eigvec_mat,eigval,error)
        CALL set_hes_eig(ndf,eigval,work)
        dx = eigval 
-       CALL rat_fun_opt(ndf,dg,eigval,work,eigvec,g)
-       CALL geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
+       CALL rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env,error)
+       CALL geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,error)
        CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit)
 
        ! Update the atomic positions
        x0 = x0 + dr
 
-       CALL energy_predict(ndf,work,hes,dr,g,conv,pred)
+       CALL energy_predict(ndf,work,hess_mat,dr,g,conv,pred,para_env,error)
        eold = etot
 
        ! Energy & Gradients at new step
@@ -276,11 +280,17 @@ CONTAINS
 
     ! Write final  information, if converged
     CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
+    CALL write_bfgs_hessian(geo_section,ndf,hess_mat,logger,error)
     CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,&
          gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos,error)
 
-    DEALLOCATE (hes,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL cp_fm_struct_release(fm_struct_hes,error=error)
+    CALL cp_fm_release(hess_mat,error=error)
+    CALL cp_fm_release(eigvec_mat,error=error)
+    CALL cp_fm_release(hess_tmp,error=error)
+
+    CALL cp_blacs_env_release(blacs_env,error=error)
     DEALLOCATE (xold,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (g,STAT=stat)
@@ -289,13 +299,9 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (dx,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (hes_mat,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (dg,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (eigval,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (eigvec,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (work,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -309,23 +315,30 @@ CONTAINS
   END SUBROUTINE geoopt_bfgs
 
 ! *****************************************************************************
-  SUBROUTINE rat_fun_opt(ndf,dg,eigval,work,eigvec,g)
+  SUBROUTINE rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env,error)
 
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: dg(ndf), eigval(ndf), &
-                                                work(ndf), eigvec(ndf,ndf), &
-                                                g(ndf)
+                                                work(ndf)
+    TYPE(cp_fm_type), POINTER                :: eigvec_mat
+    REAL(KIND=dp), INTENT(INOUT)             :: g(ndf)
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rat_fun_opt', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp
 
-    INTEGER                                  :: handle, indf, iref, iter, &
-                                                maxit
+    INTEGER                                  :: handle, i, indf, iref, iter, &
+                                                j, k, l, maxit, ncol_local, &
+                                                nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: bisec, fail, set
-    REAL(KIND=dp)                            :: DDOT, fun, fun1, fun2, fun3, &
-                                                fung, lam1, lam2, ln, lp, &
-                                                ssize, step, stol
+    REAL(KIND=dp)                            :: fun, fun1, fun2, fun3, fung, &
+                                                lam1, lam2, ln, lp, ssize, &
+                                                step, stol
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
 
     CALL timeset(routineN,handle)
 
@@ -335,9 +348,19 @@ CONTAINS
     fail  = .FALSE.
     bisec = .FALSE.
 
-    DO indf = 1, ndf
-      dg(indf) =  DDOT(ndf,eigvec(1,indf),1,g,1)
+    dg=0._dp
+    
+    CALL cp_fm_get_info(eigvec_mat,row_indices=row_indices,col_indices=col_indices, &
+         local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
+
+    DO i=1,nrow_local
+       j=row_indices(i)
+       DO k=1,ncol_local
+          l=col_indices(k)
+          dg(l)=dg(l)+local_data(i,k)*g(j)
+       END DO
     END DO
+    CALL mp_sum(dg,para_env%group)
 
     set = .FALSE.
 
@@ -460,33 +483,53 @@ CONTAINS
   END SUBROUTINE  rat_fun_opt
 
 ! *****************************************************************************
-  SUBROUTINE bfgs(ndf,dx,dg,hes,work)
+  SUBROUTINE bfgs(ndf,dx,dg,hess_mat,work,para_env,error)
     INTEGER, INTENT(IN)                      :: ndf
-    REAL(KIND=dp), INTENT(INOUT)             :: dx(ndf), dg(ndf), &
-                                                hes(ndf*(ndf+1)/2), work(ndf)
+    REAL(KIND=dp), INTENT(INOUT)             :: dx(ndf), dg(ndf)
+    TYPE(cp_fm_type), POINTER                :: hess_mat
+    REAL(KIND=dp), INTENT(INOUT)             :: work(ndf)
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'bfgs', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, indf, j
+    INTEGER                                  :: handle, i, j, k, l, &
+                                                ncol_local, nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     REAL(KIND=dp)                            :: DDOT, dxw, gdx
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_hes
 
     CALL timeset(routineN,handle)
 
-    CALL DSPMV('U',ndf,one,hes,dx,1,zero,work,1)
+    CALL cp_fm_get_info(hess_mat,row_indices=row_indices,col_indices=col_indices, &
+         local_data=local_hes,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
+
+    work=0.0_dp
+    DO i=1,nrow_local
+       j=row_indices(i)
+       DO k=1,ncol_local
+          l=col_indices(k)
+          work(j)=work(j)+local_hes(i,k)*dx(l)
+       END DO
+    END DO
+    
+    CALL mp_sum(work,para_env%group)
 
     gdx = DDOT(ndf,dg,1,dx,1)
     gdx = one/gdx
     dxw = DDOT(ndf,dx,1,work,1)
     dxw = one/dxw
 
-    DO indf = 1, ndf
-      DO j = 1, indf
-         i = indf * (indf-1)/2 + j
-         hes(i) = hes(i) + gdx * dg(indf) * dg(j) - &
-                           dxw * work(indf) * work(j)
-      END DO
+    DO i=1,nrow_local
+       j=row_indices(i)
+       DO k=1,ncol_local
+          l=col_indices(k)
+          local_hes(i,k)=local_hes(i,k)+gdx*dg(j)*dg(l) -&
+                                        dxw*work(j)*work(l)
+       END DO
     END DO
 
     CALL timestop(handle)
@@ -543,42 +586,55 @@ CONTAINS
   END SUBROUTINE set_hes_eig
 
 ! *****************************************************************************
-  SUBROUTINE geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
+  SUBROUTINE geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,error)
 
     INTEGER, INTENT(IN)                      :: ndf
-    REAL(KIND=dp), INTENT(INOUT)             :: eigval(ndf), eigvec(ndf,ndf), &
-                                                hes_mat(ndf,ndf), dr(ndf), &
-                                                g(ndf)
+    REAL(KIND=dp), INTENT(INOUT)             :: eigval(ndf)
+    TYPE(cp_fm_type), POINTER                :: eigvec_mat, hess_tmp
+    REAL(KIND=dp), INTENT(INOUT)             :: dr(ndf), g(ndf)
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
-    INTEGER                                  :: i, indf, j
-    REAL(KIND=dp), ALLOCATABLE               :: tmp(:,:)
+    INTEGER                                  :: i, indf, j, k, l, ncol_local, &
+                                                nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
+    TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
+    TYPE(cp_fm_type), POINTER                :: tmp
 
-     hes_mat(:,:) = eigvec(:,:)
+    CALL cp_fm_to_fm(eigvec_mat,hess_tmp,error)
 
-     DO indf=1,ndf
+    DO indf=1,ndf
        eigval(indf) = one/eigval(indf)
-       CALL dscal(ndf,eigval(indf),hes_mat(1,indf),1)
-     END DO
+    END DO
+    
+    CALL cp_fm_column_scale(hess_tmp,eigval)
+    CALL cp_fm_get_info(eigvec_mat,matrix_struct=matrix_struct,error=error)
+    CALL cp_fm_create(tmp, matrix_struct ,name="tmp",error=error)
 
-    ALLOCATE(tmp(ndf,ndf))
+    CALL cp_fm_gemm("N","T",ndf,ndf,ndf,one,hess_tmp,eigvec_mat,zero,tmp,error=error)
 
-     CALL dgemm ("N","T",ndf,ndf,ndf,one,hes_mat,ndf,eigvec,ndf,zero,&
-                 tmp,ndf)
-
-     DO i=1,ndf
-       DO j=1,ndf
-         hes_mat(j,i) = 0.5_dp*(tmp(j,i) + tmp(i,j))
-         hes_mat(i,j) = hes_mat(j,i)
-       END DO
-     END DO
-
-     DEALLOCATE(tmp)
+    CALL cp_fm_transpose(tmp,hess_tmp,error)
+    CALL cp_fm_release(tmp,error)
 
 !    ** New step **
 
-     CALL DGEMV('N',ndf,ndf,-one,hes_mat,ndf,g,1,zero,dr,1)
+    CALL cp_fm_get_info(hess_tmp,row_indices=row_indices,col_indices=col_indices, &
+         local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
+
+    dr=0.0_dp
+    DO i=1,nrow_local
+       j=row_indices(i)
+       DO k=1,ncol_local
+          l=col_indices(k)
+          dr(j)=dr(j)-local_data(i,k)*g(l)
+       END DO
+    END DO    
+
+    CALL mp_sum(dr,para_env%group)
 
   END SUBROUTINE geoopt_get_step
 
@@ -617,27 +673,45 @@ CONTAINS
   END SUBROUTINE trust_radius
 
 ! *****************************************************************************
-  SUBROUTINE energy_predict(ndf,work,hes,dr,g,conv,pred)
+  SUBROUTINE energy_predict(ndf,work,hess_mat,dr,g,conv,pred,para_env,error)
 
     INTEGER, INTENT(IN)                      :: ndf
-    REAL(KIND=dp), INTENT(INOUT)             :: work(ndf), &
-                                                hes(ndf*(ndf+1)/2), dr(ndf), &
-                                                g(ndf)
+    REAL(KIND=dp), INTENT(INOUT)             :: work(ndf)
+    TYPE(cp_fm_type), POINTER                :: hess_mat
+    REAL(KIND=dp), INTENT(INOUT)             :: dr(ndf), g(ndf)
     LOGICAL, INTENT(INOUT)                   :: conv
     REAL(KIND=dp), INTENT(INOUT)             :: pred
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'energy_predict', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: limit = 1.0E-9_dp , &
                                                 one = 1.0_dp, zero = 0.0_dp
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, i, j, k, l, &
+                                                ncol_local, nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     REAL(KIND=dp)                            :: DDOT, ener1, ener2
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
 
     CALL timeset(routineN,handle)
 
     ener1 = DDOT(ndf,g,1,dr,1)
-    CALL DSPMV('U',ndf,one,hes,dr,1,zero,work,1)
+
+    CALL cp_fm_get_info(hess_mat,row_indices=row_indices,col_indices=col_indices, &
+         local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
+
+    work=0.0_dp
+    DO i=1,nrow_local
+       j=row_indices(i)
+       DO k=1,ncol_local
+          l=col_indices(k)
+          work(j)=work(j)+local_data(i,k)*dr(l)
+       END DO
+    END DO
+
+    CALL mp_sum(work,para_env%group)
     ener2 = DDOT(ndf,dr,1,work,1)
     pred  = ener1 + 0.5_dp * ener2
     conv = .FALSE.
@@ -718,5 +792,45 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE update_trust_rad
+
+! *****************************************************************************
+
+   SUBROUTINE write_bfgs_hessian(geo_section,ndf,hess_mat,logger,error)
+
+    TYPE(section_vals_type), POINTER         :: geo_section
+    INTEGER                                  :: ndf
+    TYPE(cp_fm_type), POINTER                :: hess_mat
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_bfgs_hessian', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, hesunit, istat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    hesunit = cp_print_key_unit_nr(logger,geo_section,"BFGS%RESTART",&
+           extension=".Hessian",file_form="UNFORMATTED",file_action="WRITE",&
+           file_position="REWIND",error=error)
+
+    ALLOCATE(vecbuffer(ndf,ndf),stat=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL cp_fm_get_submatrix(hess_mat,vecbuffer,error=error)
+
+    IF(hesunit>0)THEN
+      WRITE (UNIT=hesunit) vecbuffer
+    END IF
+    CALL cp_print_key_finished_output(hesunit,logger,geo_section,"BFGS%RESTART", error=error)
+
+    DEALLOCATE(vecbuffer,stat=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(handle)
+  
+  END SUBROUTINE write_bfgs_hessian
 
 END MODULE bfgs_optimizer

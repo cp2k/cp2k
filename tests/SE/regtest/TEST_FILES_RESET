@@ -270,3 +270,6 @@ h2po4.inp
 st.inp
 # numerics
 h2op_2.inp
+# numerics parallel bfgs
+st.inp
+b2h6_pm6.inp

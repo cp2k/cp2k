@@ -456,7 +456,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_val, norm
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: hes, tmp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp
 
     natoms=SIZE(particles)
     ncoord=3*natoms
@@ -472,14 +472,12 @@ CONTAINS
        IF(hes_filename=="") hes_filename="HESSIAN"
        CALL open_file(file_name=hes_filename,file_status="OLD",&
             file_form="UNFORMATTED", file_action="READ", unit_number=hesunit)
-       ALLOCATE (hes(ncoord*(ncoord+1)/2),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(tmp(ncoord),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(tmplist(ncoord),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       READ(UNIT=hesunit,IOSTAT=stat) hes
+       READ(UNIT=hesunit,IOSTAT=stat) ms_vib%hes_bfgs
        CALL close_file(hesunit)
        IF (stat /= 0) THEN
           WRITE(6,FMT="(/,T2,A)")"**  Error while reading HESSIAN **"
@@ -487,13 +485,6 @@ CONTAINS
           WRITE(6,FMT="(/,T2,A)")&
                "*** Initial Hessian has been read successfully ***"
        END IF
-       DO i = 1, ncoord
-          DO j = 1, i
-             jj = i*(i-1)/2 + j
-             ms_vib%hes_bfgs(i,j) = hes(jj)
-             ms_vib%hes_bfgs(j,i) = hes(jj)
-          END DO
-       END DO
        DO i = 1, ncoord
           DO j = 1, ncoord
              ms_vib%hes_bfgs(i,j) = ms_vib%hes_bfgs(i,j)/(mass(i)*mass(j))
@@ -530,8 +521,6 @@ CONTAINS
        DO i=1,SIZE(ms_vib%b_vec,1)
           ms_vib%delta_vec(i,:)=ms_vib%b_vec(i,:)/mass(i)
        END DO
-       DEALLOCATE(hes,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(tmp,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(tmplist,STAT=stat)
