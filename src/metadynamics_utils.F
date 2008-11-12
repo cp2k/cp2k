@@ -125,15 +125,14 @@ CONTAINS
        ! Parsing Metavar Section
        DO i= 1, n_colvar
           CALL metavar_read(meta_env%metavar(i), meta_env%extended_lagrange,i, metavar_section,error=error)
-          IF (meta_env%metavar(i)%icolvar > number_allocated_colvars) THEN
-          CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
+          check=(meta_env%metavar(i)%icolvar<=number_allocated_colvars)
+          CALL cp_assert(check,cp_fatal_level,cp_assertion_failed,routineP,&
                "An error occured in the specification of COLVAR for METAVAR. "//&
                "Specified COLVAR #("//TRIM(ADJUSTL(cp_to_string(meta_env%metavar(i)%icolvar)))//") "//&
                "is larger than the maximum number of COLVARS defined in the SUBSYS ("//&
                TRIM(ADJUSTL(cp_to_string(number_allocated_colvars)))//") !"//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)                       
-          END IF
        END DO
 
        ! Parsing the Multiple Walkers Info
