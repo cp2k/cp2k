@@ -381,3 +381,5 @@ He2_ddapc_constraint.inp
 sic_energy.inp
 #  
 sic_ddapc_rt.inp
+# numerics
+H2O-geo-ot-pdos.inp
