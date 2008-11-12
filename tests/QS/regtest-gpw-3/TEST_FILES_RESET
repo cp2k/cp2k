@@ -574,3 +574,5 @@ rsgrid-dist-1.inp
 # more numerics ppnl
 H2O-ata.inp
 H2O-solv.inp
+# gaussColloc radius change
+3H2O_bsse.inp

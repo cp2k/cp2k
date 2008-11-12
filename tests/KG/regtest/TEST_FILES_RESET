@@ -135,3 +135,5 @@ nai-4.inp
 nai-5.inp
 # bug fix in restart
 nai-4.inp
+# gauss colloc radius change
+kg_gpw_1H2O_TF.inp
