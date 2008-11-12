@@ -124,7 +124,6 @@ MODULE qs_collocate_density
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  use message_passing, only: mp_sum,mp_abort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1844,13 +1843,13 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: periodic
     REAL(dp), &
       DIMENSION((lp+1)*(lp+2)*(lp+3)/6)      :: poly_d3
-    real(dp), dimension(3) :: rShifted, local_shift
+    REAL(dp), DIMENSION(3)                   :: local_shift, rShifted
 
         periodic=1 ! cell%perd
         CALL poly_cp2k2d3(coef_xyz,lp,poly_d3,error)
         local_b(1,:)=0
         local_b(2,:)=MIN(rsgrid%npts-1,rsgrid%ub_local-rsgrid%lb_local)
-        local_shift=real(rsgrid%lb-rsgrid%lb_local,dp)/real(rsgrid%npts,dp)
+        local_shift=REAL(rsgrid%lb-rsgrid%lb_local,dp)/REAL(rsgrid%npts,dp)
         rShifted(1)=rp(1)+cell%hmat(1,1)*local_shift(1)&
              +cell%hmat(1,2)*local_shift(2)&
              +cell%hmat(1,3)*local_shift(3)
