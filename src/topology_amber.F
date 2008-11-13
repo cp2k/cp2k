@@ -999,7 +999,8 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:)                           :: isymbl
     INTEGER, DIMENSION(:)                    :: iwork
-    INTEGER, INTENT(INOUT)                   :: i, istart
+    INTEGER, INTENT(IN)                      :: i
+    INTEGER, INTENT(INOUT)                   :: istart
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
