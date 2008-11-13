@@ -67,7 +67,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Pack in all the information needed for the constraints
 ! *****************************************************************************
-  SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
+  SUBROUTINE topology_constraint_pack ( molecule_kind_set, molecule_set,&
        topology,qmmm_env,particle_set,input_file,para_env,subsys_section,gci,&
        error)
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -624,7 +624,7 @@ CONTAINS
                    END SELECT
                 END IF
                 IF  (ANY(cons_info%fixed_atoms == k) .OR. fix_atom_qmmm .OR. fix_atom_molname) THEN
-                        nfixed_atoms = nfixed_atoms + 1
+                   nfixed_atoms = nfixed_atoms + 1
                 END IF
              END DO
           END DO

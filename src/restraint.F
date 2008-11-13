@@ -4,14 +4,18 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \par History
-!>      none
+!> \brief  Handles all possible kinds of restraints in CP2K
+!> \author Teodoro Laino 08.2006 [tlaino] - University of Zurich
+!> \par    History
+!>         Teodoro Laino [tlaino] - 11.2008 : Improved the fixd_list restraints
 ! *****************************************************************************
 MODULE restraint
   USE cell_types,                      ONLY: cell_type
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
   USE colvar_types,                    ONLY: colvar_counters,&
                                              diff_colvar
+  USE constraint_fxd,                  ONLY: create_local_fixd_list,&
+                                             release_local_fixd_list
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -35,6 +39,7 @@ MODULE restraint
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
                                              get_molecule_kind,&
+                                             local_fixd_constraint_type,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              global_constraint_type,&
@@ -67,9 +72,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, ii, ikind, imol, iparticle, iparticle_local, &
+    INTEGER :: handle, i, ifixd, ii, ikind, imol, iparticle, &
       n3x3con_restraint, n4x6con_restraint, n_restraint, nkind, &
-      nmol_per_kind, nparticle_local, stat
+      nmol_per_kind, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: energy_3x3, energy_4x6, energy_colv, energy_fixd, &
       extended_energies, k0, rab(3), rab2, targ(3)
@@ -83,18 +88,20 @@ CONTAINS
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(local_fixd_constraint_type), &
+      POINTER                                :: lfixd_list(:)
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), POINTER        :: molecule_kind, &
                                                 molecule_kind_set(:)
-    TYPE(molecule_type), POINTER             :: molecule, molecule_set( : )
+    TYPE(molecule_type), POINTER             :: molecule, molecule_set(:)
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(particle_type), POINTER             :: particle_set(:)
 
     failure = .FALSE.
     NULLIFY(cell, subsys, local_molecules, local_particles, fixd_list, molecule_kinds,&
          molecules, molecule_kind, molecule_kind_set, molecule, molecule_set, particles,&
-         particle_set, gci)
+         particle_set, gci, lfixd_list)
     CALL timeset(routineN,handle)
     IF (.NOT. failure) THEN
        CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
@@ -103,67 +110,66 @@ CONTAINS
        energy_colv = 0.0_dp
        energy_fixd = 0.0_dp
        n_restraint=0
-       CALL cp_subsys_get(subsys=subsys,particles=particles, molecules_new=molecules, &
+       CALL cp_subsys_get(subsys=subsys,particles=particles, molecules_new=molecules,&
             local_particles=local_particles, local_molecules_new=local_molecules,&
             gci=gci, molecule_kinds_new=molecule_kinds ,error=error)
 
-       nkind             =  molecule_kinds % n_els
+       nkind             =  molecule_kinds%n_els
        particle_set      => particles%els
-       molecule_set      => molecules % els
-       molecule_kind_set => molecule_kinds % els
+       molecule_set      => molecules%els
+       molecule_kind_set => molecule_kinds%els
+
        ! Intramolecular Restraints
        ALLOCATE(force(3,SIZE(particle_set)),stat=stat)
        CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
        force = 0.0_dp
-       MOL:  DO ikind = 1, nkind
-          ! Fixed Atoms restraint
-
+       
+       ! Create the list of locally fixed atoms
+       CALL create_local_fixd_list(lfixd_list, nkind, molecule_kind_set, local_particles,&
+            error)
+       
+       DO ifixd = 1, SIZE(lfixd_list)
+          ikind = lfixd_list(ifixd)%ikind
+          ii    = lfixd_list(ifixd)%ifixd_index
           molecule_kind => molecule_kind_set(ikind)
-          CALL get_molecule_kind ( molecule_kind, fixd_list=fixd_list )
-          IF (ASSOCIATED(fixd_list)) THEN
-             DO i = 1, SIZE(local_particles%n_el)
-                nparticle_local   = local_particles%n_el(i)
-                DO iparticle_local=1,nparticle_local
-                   iparticle = local_particles%list(i)%array(iparticle_local)
-                   DO ii = 1, SIZE(fixd_list)
-                      IF (fixd_list(ii)%fixd == iparticle) THEN
-                         IF (fixd_list(ii)%restraint%active) THEN
-                            n_restraint=n_restraint+1
-                            k0   = fixd_list(ii)%restraint%k0
-                            targ = fixd_list(ii)%coord
-                            rab = 0.0_dp
-                            SELECT CASE(fixd_list(ii)%itype)
-                            CASE(use_perd_x)
-                               rab(1)  = particle_set(iparticle)%r(1)-targ(1)
-                            CASE(use_perd_y)
-                               rab(2)  = particle_set(iparticle)%r(2)-targ(2)
-                            CASE(use_perd_z)
-                               rab(3)  = particle_set(iparticle)%r(3)-targ(3)
-                            CASE(use_perd_xy)
-                               rab(1)  = particle_set(iparticle)%r(1)-targ(1)
-                               rab(2)  = particle_set(iparticle)%r(2)-targ(2)
-                            CASE(use_perd_xz)
-                               rab(1)  = particle_set(iparticle)%r(1)-targ(1)
-                               rab(3)  = particle_set(iparticle)%r(3)-targ(3)
-                            CASE(use_perd_yz)
-                               rab(2)  = particle_set(iparticle)%r(2)-targ(2)
-                               rab(3)  = particle_set(iparticle)%r(3)-targ(3)
-                            CASE(use_perd_xyz)
-                               rab  = particle_set(iparticle)%r-targ
-                            END SELECT
-                            rab2 = DOT_PRODUCT(rab,rab)
-                            ! Energy
-                            energy_fixd = energy_fixd + k0 * rab2
-                            ! Forces
-                            force(:,iparticle) = force(:,iparticle) - 2.0_dp * k0 * rab
-                         END IF
-                         EXIT
-                      END IF
-                   END DO
-                END DO
-             END DO
+          CALL get_molecule_kind(molecule_kind, fixd_list=fixd_list)
+          IF (fixd_list(ii)%restraint%active) THEN
+             n_restraint = n_restraint+1
+             iparticle   = fixd_list(ii)%fixd
+             k0          = fixd_list(ii)%restraint%k0
+             targ        = fixd_list(ii)%coord
+             rab         = 0.0_dp
+             SELECT CASE(fixd_list(ii)%itype)
+             CASE(use_perd_x)
+                rab(1)  = particle_set(iparticle)%r(1)-targ(1)
+             CASE(use_perd_y)
+                rab(2)  = particle_set(iparticle)%r(2)-targ(2)
+             CASE(use_perd_z)
+                rab(3)  = particle_set(iparticle)%r(3)-targ(3)
+             CASE(use_perd_xy)
+                rab(1)  = particle_set(iparticle)%r(1)-targ(1)
+                rab(2)  = particle_set(iparticle)%r(2)-targ(2)
+             CASE(use_perd_xz)
+                rab(1)  = particle_set(iparticle)%r(1)-targ(1)
+                rab(3)  = particle_set(iparticle)%r(3)-targ(3)
+             CASE(use_perd_yz)
+                rab(2)  = particle_set(iparticle)%r(2)-targ(2)
+                rab(3)  = particle_set(iparticle)%r(3)-targ(3)
+             CASE(use_perd_xyz)
+                rab  = particle_set(iparticle)%r-targ
+             END SELECT
+             rab2 = DOT_PRODUCT(rab,rab)
+             ! Energy
+             energy_fixd = energy_fixd + k0 * rab2
+             ! Forces
+             force(:,iparticle) = force(:,iparticle) - 2.0_dp * k0 * rab
           END IF
-          ! Other Restraints
+       END DO
+       CALL release_local_fixd_list(lfixd_list, error)
+
+       ! Loop over other kind of Restraints
+       MOL:  DO ikind = 1, nkind
+          molecule_kind => molecule_kind_set(ikind)
           nmol_per_kind = local_molecules % n_el ( ikind )
           DO imol = 1, nmol_per_kind
              i = local_molecules % list ( ikind ) % array ( imol )

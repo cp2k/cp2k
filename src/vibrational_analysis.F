@@ -23,7 +23,6 @@ MODULE vibrational_analysis
   USE cp_result_methods,               ONLY: get_results
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
@@ -40,7 +39,6 @@ MODULE vibrational_analysis
                                              dp
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: diamat_all
-  USE message_passing,                 ONLY: mp_sum
   USE mode_selective,                  ONLY: molden_out,&
                                              ms_vb_anal
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
@@ -60,6 +58,7 @@ MODULE vibrational_analysis
                                              replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -469,12 +468,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_moving_atoms', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, ii, ikind, iparticle, iparticle_local, ndim, &
-      nfixed_atoms, nkind, nparticle_local, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: fixme
+    INTEGER                                  :: handle, i, ii, ikind, j, &
+                                                ndim, nfixed_atoms, &
+                                                nfixed_atoms_total, nkind, &
+                                                stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ifixd_list, work
     LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -490,51 +490,69 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
 
-       CALL cp_subsys_get(subsys=subsys,particles=particles,local_particles=local_particles,&
-            molecule_kinds_new=molecule_kinds, error=error)
+       CALL cp_subsys_get(subsys=subsys,particles=particles, &
+                          molecule_kinds_new=molecule_kinds, error=error)
 
        nkind             =  molecule_kinds % n_els
        molecule_kind_set => molecule_kinds % els
        particle_set      => particles%els
-       ALLOCATE(fixme(SIZE(particle_set)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
-       fixme=0
 
-       Mol_kind:  DO ikind = 1, nkind
+       ! Count the number of fixed atoms
+       nfixed_atoms_total = 0
+       DO ikind = 1, nkind
           molecule_kind => molecule_kind_set(ikind)
-          CALL get_molecule_kind ( molecule_kind, nfixd=nfixed_atoms, fixd_list=fixd_list )
+          CALL get_molecule_kind(molecule_kind, nfixd=nfixed_atoms)
+          nfixed_atoms_total = nfixed_atoms_total + nfixed_atoms
+       END DO
+       ndim = SIZE(particle_set)-nfixed_atoms_total
+       CPPostcondition(ndim>=0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(Ilist(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-          IF (nfixed_atoms ==0) CYCLE Mol_Kind
-          DO i = 1, SIZE(local_particles%n_el)
-             nparticle_local   = local_particles%n_el(i)
-             DO iparticle_local=1,nparticle_local
-                iparticle = local_particles%list(i)%array(iparticle_local)
+       IF (nfixed_atoms_total/=0) THEN
+          ALLOCATE(ifixd_list(nfixed_atoms_total),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(work(nfixed_atoms_total),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          nfixed_atoms_total = 0
+          DO ikind = 1, nkind
+             molecule_kind => molecule_kind_set(ikind)
+             CALL get_molecule_kind(molecule_kind, fixd_list=fixd_list)
+             IF (ASSOCIATED(fixd_list)) THEN
                 DO ii = 1, SIZE(fixd_list)
-                   IF (fixd_list(ii)%fixd == iparticle) THEN
-                      IF (.NOT.fixd_list(ii)%restraint%active) THEN
-                         ! Identify fixed atoms..
-                         fixme(iparticle)=1
-                      END IF
-                      EXIT
+                   IF (.NOT.fixd_list(ii)%restraint%active) THEN
+                      nfixed_atoms_total = nfixed_atoms_total + 1
+                      ifixd_list(nfixed_atoms_total) = fixd_list(ii)%fixd
                    END IF
                 END DO
-             END DO
+             END IF
           END DO
-       END DO Mol_kind
-
-       CALL mp_sum(fixme,force_env%para_env%group)
-       ndim = COUNT(fixme==0)
-       ALLOCATE(Ilist(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
-       i = 0
-       DO iparticle=1,SIZE(particle_set)
-          IF (fixme(iparticle)==0) THEN
-             i = i + 1
-             Ilist(i) = iparticle
-          END IF
-       ENDDO
-       DEALLOCATE(fixme,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL sort(ifixd_list,  nfixed_atoms_total, work)
+          
+          ndim = 0
+          j    = 1
+          Loop_count: DO i = 1, SIZE(particle_set)
+             DO WHILE (i>ifixd_list(j))
+                j = j + 1
+                IF (j>nfixed_atoms_total) EXIT Loop_count
+             END DO
+             IF (i/=ifixd_list(j)) THEN
+                ndim = ndim + 1
+                Ilist(ndim) = i
+             END IF
+          END DO Loop_count
+          DEALLOCATE(ifixd_list,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(work,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE
+          i    = 1
+          ndim = 0
+       END IF
+       DO j = i, SIZE(particle_set)
+          ndim = ndim + 1
+          Ilist(ndim) = j
+       END DO
     END IF
     CALL timestop(handle)
 

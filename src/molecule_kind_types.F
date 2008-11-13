@@ -145,6 +145,11 @@ MODULE molecule_kind_types
   END TYPE fixd_constraint_type
 
 ! *****************************************************************************
+  TYPE local_fixd_constraint_type
+     INTEGER                        :: ifixd_index, ikind
+  END TYPE local_fixd_constraint_type
+
+! *****************************************************************************
   TYPE molecule_kind_type
     TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list
     TYPE(bond_kind_type), DIMENSION(:), POINTER       :: bond_kind_set
@@ -185,8 +190,7 @@ MODULE molecule_kind_types
     LOGICAL                                           :: molname_generated
   END TYPE molecule_kind_type
 
-! *** Public subroutines ***
-
+  ! *** Public subroutines ***
   PUBLIC :: allocate_molecule_kind_set,&
             deallocate_molecule_kind_set,&
             get_molecule_kind,&
@@ -197,8 +201,7 @@ MODULE molecule_kind_types
             write_molecule_kind_set,&
             setup_colvar_counters
 
-! *** Public data types ***
-
+  ! *** Public data types ***
   PUBLIC :: atom_type,&
             bend_type,&
             bond_type,&
@@ -211,6 +214,7 @@ MODULE molecule_kind_types
             g3x3_constraint_type,&
             g4x6_constraint_type,&
             fixd_constraint_type,&
+            local_fixd_constraint_type,&
             molecule_kind_type,&
             shell_type
 
