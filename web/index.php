@@ -61,7 +61,10 @@ knowledge about the active development.
 <LI> <A HREF="quickstep.html">Quickstep</A>: Density functional calculations
 </UL>
 
-<H3> upcoming tutorials and workshops related to CP2K </H3>
+<H3> Upcoming tutorials and workshops related to CP2K </H3>
+<UL>
+<LI> <A HREF="http://www.cecam.org/workshop-273.html">1st CP2K Tutorial: enabling the power of imagination in MD simulations.</A>
+</UL>
 
 <H3> Who is behind this project? </H3>
 
