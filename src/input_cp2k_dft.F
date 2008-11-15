@@ -3315,7 +3315,10 @@ CONTAINS
        CALL keyword_create(keyword,name="TYPE",&
             description="Type of potential.",&
             citations=(/grimme2006/),&
-            usage="TYPE GRIMME", default_c_val="GRIMME",error=error)
+            usage="TYPE GRIMME", &
+            enum_c_vals=s2a("GRIMME"),&
+            enum_i_vals=(/ vdw_pairpot_grimme /),&
+            default_i_val=vdw_pairpot_grimme, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="PARAMETER_FILE_NAME",&

@@ -434,6 +434,7 @@ MODULE input_constants
                                               tddfpt_excitations=1
   INTEGER, PARAMETER, PUBLIC               :: xc_vdw_fun_none=100,&
                                               xc_vdw_fun_pairpot=101
+  INTEGER, PARAMETER, PUBLIC               :: vdw_pairpot_grimme=1
   
   ! Input constants for relativistic calculations
   INTEGER, PARAMETER, PUBLIC               :: rel_none=0,&

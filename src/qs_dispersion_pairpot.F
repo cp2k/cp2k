@@ -26,7 +26,8 @@ MODULE qs_dispersion_pairpot
                                              parser_release
   USE f77_blas
   USE input_constants,                 ONLY: xc_vdw_fun_none,&
-                                             xc_vdw_fun_pairpot
+                                             xc_vdw_fun_pairpot,&
+                                             vdw_pairpot_grimme
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
@@ -82,7 +83,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER                                  :: elem, i, ikind, n_rep, nkind, &
-                                                stat, vdw_type
+                                                stat, vdw_type, vdw_pp_type
     LOGICAL                                  :: at_end, failure, found, &
                                                 is_available
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -107,11 +108,11 @@ CONTAINS
         CASE (xc_vdw_fun_pairpot)
            ! setup information on pair potentials
            pp_section => section_vals_get_subs_vals(vdw_section,"PAIR_POTENTIAL",error=error)
-           CALL section_vals_val_get(pp_section,"TYPE",c_val=pptype,error=error)
-           SELECT CASE (TRIM(pptype))
+           CALL section_vals_val_get(pp_section,"TYPE",i_val=vdw_pp_type,error=error)
+           SELECT CASE (vdw_pp_type)
              CASE DEFAULT
                 CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             CASE ("GRIMME")
+             CASE (vdw_pairpot_grimme)
                 CALL cite_reference(Grimme2006)
                 disp%type = grimme_pp
                 ! get filename of parameter file
