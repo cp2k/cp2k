@@ -66,7 +66,7 @@ MODULE qs_all_potential
                             lb_max,lb_min,npgfb,rpgfb,zetb,&
                             rab,dab,jkind,nkind,sbc_3c,&
                             reduced_3c_rho0,vall,hab,nder,&
-                            pab,f_a,f_b,virial_ab,error)
+                            pab,f_a,f_b,virial_ab,nab,pVpab,error)
 
     INTEGER, INTENT(IN)                      :: la_max, la_min, npgfa
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rpgfa, zeta
@@ -88,6 +88,8 @@ MODULE qs_all_potential
       OPTIONAL                               :: f_a, f_b
     REAL(dp), DIMENSION(3, 3), INTENT(OUT), &
       OPTIONAL                               :: virial_ab
+    REAL(dp), DIMENSION(:, :), &
+      INTENT(INOUT), OPTIONAL                :: nab, pVpab
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'all_integrals', &
@@ -98,12 +100,13 @@ MODULE qs_all_potential
       icoam_plus, icoap_plus, icob, icobm, ipgfa, ipgfb, istat, katom, kkind, &
       knode, na, na_plus, nap, nb, nb_plus, ncoa, ncob, nnode_c
     INTEGER, DIMENSION(3)                    :: la, lam, lap, lb, lbm
-    LOGICAL                                  :: calculate_forces, failure, &
-                                                use_virial
+    LOGICAL                                  :: calculate_forces, do_dkh, &
+                                                failure, use_virial
     REAL(dp) :: cerf, der_intab_a, der_intab_b, force_a(3), force_b(3), rab2, &
       rac(3), rac2, rbc(3), rbc2, rpgfc, zax2, zbx2, zc, zetc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: Int_ab_plus, Int_ab_sum
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: Int_ab_nuc_sum, Int_ab_plus, &
+                                                Int_ab_sum, Int_pVp_sum, vpVp
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: vverf, vvnuc
 
@@ -119,6 +122,13 @@ MODULE qs_all_potential
       calculate_forces = .FALSE.
     END IF
 
+! relativistic controls
+    do_dkh = .FALSE.
+ 
+    IF(PRESENT(pVpab))THEN
+      do_dkh = .TRUE.
+    END IF
+
     ncoa = npgfa*ncoset(la_max)
     ncob = npgfb*ncoset(lb_max)
     rab2 = dab*dab
@@ -126,6 +136,15 @@ MODULE qs_all_potential
     ALLOCATE(Int_ab_sum(ncoa,ncob),STAT = istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     Int_ab_sum = 0.0_dp
+    IF(do_dkh)THEN
+      ALLOCATE(Int_ab_nuc_sum(ncoa,ncob),STAT = istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      Int_ab_nuc_sum = 0.0_dp
+      ALLOCATE(Int_pVp_sum(ncoa,ncob),STAT = istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      Int_pVp_sum = 0.0_dp
+    END IF
+    
 
     IF(calculate_forces) THEN
       IF(nder==0) THEN
@@ -143,12 +162,34 @@ MODULE qs_all_potential
       
     END IF
 
-    ALLOCATE(vverf(ncoset(la_max+nder),ncoset(lb_max),la_max+nder+lb_max+1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(vvnuc(ncoset(la_max+nder),ncoset(lb_max),la_max+nder+lb_max+1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(ff(0:la_max+nder+lb_max),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    IF(do_dkh)THEN
+      IF(nder.gt.1)THEN
+        ALLOCATE(vverf(ncoset(la_max+nder),ncoset(lb_max+1),la_max+nder+lb_max+1),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(vvnuc(ncoset(la_max+nder),ncoset(lb_max+1),la_max+nder+lb_max+1),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(vpVp(ncoa,ncob),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(ff(0:la_max+nder+lb_max),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ELSE
+        ALLOCATE(vverf(ncoset(la_max+1),ncoset(lb_max+1),la_max+2+lb_max+1),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(vvnuc(ncoset(la_max+1),ncoset(lb_max+1),la_max+2+lb_max+1),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(vpVp(ncoa,ncob),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(ff(0:la_max+2+lb_max),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      END IF
+    ELSE
+      ALLOCATE(vverf(ncoset(la_max+nder),ncoset(lb_max),la_max+nder+lb_max+1),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(vvnuc(ncoset(la_max+nder),ncoset(lb_max),la_max+nder+lb_max+1),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(ff(0:la_max+nder+lb_max),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     DO kkind = 1,nkind
 
@@ -183,13 +224,23 @@ MODULE qs_all_potential
         IF(calculate_forces) THEN
 
           Int_ab_plus = 0.0_dp
-          CALL verfc(la_max+nder,npgfa,zeta,rpgfa,la_min,&
-                     lb_max,npgfb,zetb,rpgfb,lb_min,&
-                     zetc,rpgfc,zc,cerf,&
-                     rab,rab2,rac,rac2,rbc,rbc2,Int_ab_sum,&
-                     vverf,vvnuc,ff(0:),&
-                     maxder=nder,vabc_plus=Int_ab_plus)
-
+          IF(do_dkh)THEN
+            CALL verfc(la_max+nder,npgfa,zeta,rpgfa,la_min,&
+                   lb_max,npgfb,zetb,rpgfb,lb_min,&
+                   zetc,rpgfc,zc,cerf,&
+                   rab,rab2,rac,rac2,rbc,rbc2,Int_ab_sum,&
+                   vverf,vvnuc,ff(0:),&
+                   maxder=nder,vabc_plus=Int_ab_plus,&
+                   pVp_sum=int_pVp_sum,vnabc=int_ab_nuc_sum,&
+                   pVp=vpVp)
+          ELSE
+            CALL verfc(la_max+nder,npgfa,zeta,rpgfa,la_min,&
+                       lb_max,npgfb,zetb,rpgfb,lb_min,&
+                       zetc,rpgfc,zc,cerf,&
+                       rab,rab2,rac,rac2,rbc,rbc2,Int_ab_sum,&
+                       vverf,vvnuc,ff(0:),&
+                       maxder=nder,vabc_plus=Int_ab_plus)
+          END IF
           force_a = 0.0_dp
           force_b = 0.0_dp
 
@@ -262,23 +313,47 @@ MODULE qs_all_potential
             CALL virial_pair_force ( virial_ab, 1._dp, force_b, rbc, error)
           END IF
         ELSE
-
-          CALL verfc(la_max,npgfa,zeta,rpgfa,la_min,&
-                     lb_max,npgfb,zetb,rpgfb,lb_min,&
-                     zetc,rpgfc,zc,cerf,&
-                     rab,rab2,rac,rac2,rbc,rbc2,Int_ab_sum,&
-                     vverf,vvnuc,ff(0:))
-
+          IF(do_dkh)THEN
+            CALL verfc(la_max,npgfa,zeta,rpgfa,la_min,&
+                       lb_max,npgfb,zetb,rpgfb,lb_min,&
+                       zetc,rpgfc,zc,cerf,&
+                       rab,rab2,rac,rac2,rbc,rbc2,Int_ab_sum,&
+                       vverf,vvnuc,ff(0:),&
+                       pVp_sum=int_pVp_sum,vnabc=int_ab_nuc_sum,&
+                       pVp=vpVp)
+          ELSE
+            CALL verfc(la_max,npgfa,zeta,rpgfa,la_min,&
+                       lb_max,npgfb,zetb,rpgfb,lb_min,&
+                       zetc,rpgfc,zc,cerf,&
+                       rab,rab2,rac,rac2,rbc,rbc2,Int_ab_sum,&
+                       vverf,vvnuc,ff(0:))
+          END IF
         END IF
 
       END DO  ! knode
 
     END DO  ! kkind
 
-    hab(1:ncoa,1:ncob) = hab(1:ncoa,1:ncob) + Int_ab_sum(1:ncoa,1:ncob) 
+    IF(do_dkh)THEN 
+      nab(1:ncoa,1:ncob) = Int_ab_nuc_sum(1:ncoa,1:ncob) 
+      pVpab(1:ncoa,1:ncob) = Int_pVp_sum(1:ncoa,1:ncob) 
+      hab(1:ncoa,1:ncob) = Int_ab_sum(1:ncoa,1:ncob)
+
+      !hier ist alles ok, sofern 'CC' Matrix alles letztes ausgegeben wird
+    ELSE
+      hab(1:ncoa,1:ncob) = hab(1:ncoa,1:ncob)+Int_ab_sum(1:ncoa,1:ncob)
+    END IF
 
     IF (calculate_forces) THEN
       DEALLOCATE(Int_ab_plus,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(do_dkh)THEN
+      DEALLOCATE(vpVp,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(Int_pVp_sum,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(Int_ab_nuc_sum,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
     DEALLOCATE(vverf,vvnuc,ff,STAT=istat)

@@ -47,7 +47,9 @@ MODULE atomic_kind_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE orbital_pointers,                ONLY: init_orbital_pointers,&
+                                             nco,&
                                              ncoset
+!JT
   USE paw_proj_set_types,              ONLY: allocate_paw_proj_set,&
                                              deallocate_paw_proj_set,&
                                              get_paw_proj_set,&
@@ -348,7 +350,7 @@ CONTAINS
        soft_basis_set, elec_conf,hard_basis_set,paw_proj_set,softb,paw_atom,qm_atom,&
        hard_radius,hard0_radius,max_rad_local, gpw_type_forced,harmonics, max_iso_not0,&
        max_s_harm, grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active,&
-       dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, basis_set_id)
+       dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, basis_set_id,npgf)                        !JT
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, &
@@ -403,12 +405,17 @@ CONTAINS
     TYPE(qs_atom_dispersion_type), &
       OPTIONAL, POINTER                      :: dispersion
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    INTEGER, INTENT(OUT), OPTIONAL           :: npgf
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atomic_kind', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: l, my_basis_set_id
+    INTEGER                                  :: i, l, my_basis_set_id, n_set
+    INTEGER, DIMENSION(:), POINTER           :: lmax, npgf_set
     LOGICAL                                  :: softb_local
+
+!JTs
+!JTe
 
     IF( PRESENT(basis_set_id) ) THEN
       my_basis_set_id = basis_set_id
@@ -546,6 +553,22 @@ CONTAINS
             END IF
           END SELECT
        END IF
+!JTs
+       IF (PRESENT(npgf)) THEN
+         IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
+           CALL get_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
+                                  npgf=npgf_set, &
+                                  nset=n_set, &
+                                  lmax=lmax)
+           npgf = 0
+           DO i=1,n_set
+             npgf = npgf+npgf_set(i)*nco(lmax(i))
+           END DO
+         ELSE
+           npgf = 0
+         END IF
+       END IF
+!JTe
        IF (PRESENT(z)) THEN
           IF (ASSOCIATED(atomic_kind%all_potential)) THEN
              CALL get_potential(potential=atomic_kind%all_potential,z=z)

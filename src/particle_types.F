@@ -225,8 +225,8 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE get_particle_set(particle_set,first_cgf,first_nco,first_nso,&
-       first_sgf,last_cgf,last_nco,last_nso,last_sgf,ncgf,ncotot,nsotot,nsgf,&
-       r,basis_set_id,error)
+                              first_sgf,last_cgf,last_nco,last_nso,&
+                              last_sgf,ncgf,ncotot,nsotot,nsgf,r,basis_set_id,first_pgf,last_pgf,npgf,error)    !JT
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -241,16 +241,22 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: r
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: first_pgf, last_pgf, npgf
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_particle_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: icgf, ico, iparticle, isgf, &
-                                                iso, maxco, maxso, &
-                                                my_basis_set_id, nc, &
+    INTEGER                                  :: icgf, ico, iparticle, ipgf, &
+                                                isgf, iso, maxco, maxso, &
+                                                my_basis_set_id, nc, np, &
                                                 nparticle, ns, nset
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
+
+!JTs
+!JTe
+!   ---------------------------------------------------------------------------
 
     IF( PRESENT(basis_set_id) ) THEN
       my_basis_set_id = basis_set_id
@@ -338,14 +344,19 @@ CONTAINS
           PRESENT(last_cgf).OR.&
           PRESENT(first_sgf).OR.&
           PRESENT(last_sgf).OR.&
+          PRESENT(first_pgf).OR.&  !JT
+          PRESENT(last_pgf).OR.&   !JT
           PRESENT(ncgf).OR.&
-          PRESENT(nsgf)) THEN
+          PRESENT(nsgf).OR.&
+          PRESENT(npgf)) THEN          !JT
+        ipgf = 0                       !JT
         icgf = 0
         isgf = 0
         DO iparticle=1,nparticle
           CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
                                ncgf=nc,&
                                nsgf=ns,&
+                               npgf=np,&                      !JT
                                basis_set_id=my_basis_set_id)
           IF (PRESENT(ncgf)) ncgf(iparticle) = nc
           IF (PRESENT(first_cgf)) first_cgf(iparticle) = icgf + 1
@@ -355,6 +366,12 @@ CONTAINS
           IF (PRESENT(first_sgf)) first_sgf(iparticle) = isgf + 1
           isgf = isgf + ns
           IF (PRESENT(last_sgf)) last_sgf(iparticle) = isgf
+!JTs
+          IF (PRESENT(npgf)) npgf(iparticle) = np
+          IF (PRESENT(first_pgf)) first_pgf(iparticle) = ipgf + 1
+          ipgf = ipgf + np
+          IF (PRESENT(last_pgf)) last_pgf(iparticle) = ipgf
+!JTe
         END DO
         IF (PRESENT(first_cgf)) THEN
           IF (SIZE(first_cgf) > nparticle) first_cgf(nparticle+1) = icgf + 1
@@ -362,6 +379,11 @@ CONTAINS
         IF (PRESENT(first_sgf)) THEN
           IF (SIZE(first_sgf) > nparticle) first_sgf(nparticle+1) = isgf + 1
         END IF
+!JTs
+        IF (PRESENT(first_pgf)) THEN
+          IF (SIZE(first_pgf) > nparticle) first_pgf(nparticle+1) = ipgf + 1
+        END IF
+!JTe
       END IF
 
       IF (PRESENT(first_nco).OR.&
@@ -455,12 +477,11 @@ CONTAINS
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=4)                         :: name
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
-    INTEGER                                  :: iatom, natom, stat
+    INTEGER                                  :: i, iatom, j, natom, stat
     LOGICAL                                  :: dummy, failure
-    REAL(KIND=dp)                            :: alpha, beta, gamma
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: arr
-    REAL(KIND=dp), DIMENSION(3)              :: abc, f, r, v
+    REAL(KIND=dp), DIMENSION(3)              :: f, r, v
     REAL(KIND=sp), DIMENSION(:), POINTER     :: x4, y4, z4
 
     failure = .FALSE.
@@ -568,8 +589,7 @@ CONTAINS
        NULLIFY(x4,y4,z4)
        ALLOCATE(x4(natom),y4(natom),z4(natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL get_cell(cell, alpha=alpha, beta=beta, gamma=gamma, abc=abc)
-       WRITE(iunit) abc(1)*angstrom, gamma, abc(2)*angstrom, beta, alpha, abc(3)*angstrom
+       WRITE(iunit) ((cell%hmat(i,j)*angstrom,i=1,j),j=1,3)
        SELECT CASE (TRIM(content))
        CASE ("POS")
           IF (PRESENT(array)) THEN

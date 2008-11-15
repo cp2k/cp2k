@@ -57,9 +57,27 @@
 !>      -  zet{a,b}  : Exponents of the Gaussian-type functions a or b.
 !>      -  zetp      : Reciprocal of the sum of the exponents of orbital a and b.
 !>      -  zetw        : Reciprocal of the sum of the exponents of orbital a, b and c.
+!> Indices for pVp matrices
+!>      -  ax,ay,az                : Angular momentum index numbers of orbital a.
+!>      -  n{x1,y1,z1}{x2,y2,z2}   : indices for the pVp matrix elements 
+!>                                   <p_{x1,y1,z1}a|V|p_{x2,y2,z2}>
+!>      -  co{a,b}{m,p}{x,y,z}     : coefficients of the pVp matrix elements: co == coset(lx,ly,lz)
+!>                                   m == li - 1; p == li +1; li= x,y,z (which l quantum number is modified); l = a,b
+!>                                   coset ( ... -1 ...) = 1  , should be zero, lmi = 1.0 for li >=1 and lmi = 0.0 for li = 0
+!>                                  guarantees this as a prefactor
+!>      -  f{a,b}{x,y,z},ft{a,b},z : f(t)li: prefactors as a result of derivations of l with respect to i 
+!>      -  pVpout                  : pVp matrix elements, allocated in qs_all_potential.F 
+!>      -  pVp                     : local pVp matrix elements
+!>      -  lamin,lbmin             : minimal angular quantum number used in pVp matrices
+!>      _  vnucp                   : potential of the nuclei 
+!>      -  vnuc                    : potential of the electrons
+!>      _  pVpa, pVpb              : pVpl=coset(lx,ly,lz)
+!>      -  na_pgf,nb_pgf           : indice for primitive gaussian functions    
 !> \par History
-!>      none
+!>      10.2008 added pVp matrix elements (jens)
 !> \author Matthias Krack (04.10.2000)
+
+
 ! *****************************************************************************
 MODULE ai_verfc
   USE f77_blas
@@ -88,14 +106,14 @@ CONTAINS
 !> \date    04.10.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE verfc(la_max,npgfa,zeta,rpgfa,la_min,lb_max,npgfb,zetb,rpgfb,lb_min,&
+  SUBROUTINE verfc(la_max1,npgfa,zeta,rpgfa,la_min1,lb_max1,npgfb,zetb,rpgfb,lb_min1,&
        zetc,rpgfc,zc,cerf,rab,rab2,rac,rac2,rbc,rbc2,vabc,verf,vnuc,f,&
-       maxder,vabc_plus)
-    INTEGER, INTENT(IN)                      :: la_max, npgfa
+       maxder,vabc_plus,vnabc,pVp_sum,pVp)                                             !JT
+    INTEGER, INTENT(IN)                      :: la_max1, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
+    INTEGER, INTENT(IN)                      :: la_min1, lb_max1, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
-    INTEGER, INTENT(IN)                      :: lb_min
+    INTEGER, INTENT(IN)                      :: lb_min1
     REAL(KIND=dp), INTENT(IN)                :: zetc, rpgfc, zc, cerf
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), INTENT(IN)                :: rab2
@@ -108,24 +126,52 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :)        :: verf, vnuc
     REAL(KIND=dp), DIMENSION(0:)             :: f
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
-    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: vabc_plus
+    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: vabc_plus, vnabc, pVp_sum, pVp
 
     CHARACTER(len=*), PARAMETER :: routineN = 'verfc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ax, ay, az, bx, by, bz, i, &
-                                                ipgf, j, jpgf, la, la_start, &
-                                                lb, maxder_local, n, na, nap, &
-                                                nb, nmax
+    INTEGER :: ax, ay, az, bx, by, bz, coamx, coamy, coamz, coapx, coapy, &
+      coapz, cobmx, cobmy, cobmz, cobpx, cobpy, cobpz, i, ipgf, j, jpgf, la, &
+      la_max, la_min, la_start, lb, lb_max, lb_min, maxder_local, n, na, nap, &
+      nb, nmax, nxx, nxy, nxz, nyx, nyy, nyz, nzx, nzy, nzz, pVpa, pVpb
+    LOGICAL                                  :: do_dkh
+    REAL                                     :: fax, fay, faz, fbx, fby, fbz, &
+                                                ftaz, ftbz
     REAL(KIND=dp)                            :: dab, dac, dbc, f0, f1, f2, &
                                                 f3, f4, ferf, fnuc, fx, fy, &
                                                 fz, rcp2, t, zetp, zetq, zetw
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp, rcp, rpw
 
-    nmax = la_max + lb_max + 1
+!   ---------------------------------------------------------------------------
 
     verf = 0.0_dp
     vnuc = 0.0_dp
+
+    IF(PRESENT(pVp)) THEN
+      do_dkh=.TRUE.
+      pVp = 0.0_dp
+      ! pVp matrices requires angular momentum quantum numbers l+1 and l-1
+       
+      la_max = la_max1+1
+      IF(PRESENT(maxder))THEN
+        IF(maxder > 0) THEN
+          la_max = la_max1
+        END IF
+      END IF
+      lb_max = lb_max1+1  
+
+      la_min = MAX(0,la_min1-1)
+      lb_min = MAX(0,lb_min1-1)
+    ELSE
+      do_dkh = .FALSE.
+      la_max = la_max1
+      lb_max = lb_max1
+      la_min = la_min1
+      lb_min = lb_min1
+    END IF  
+
+    nmax = la_max + lb_max + 1
 
     maxder_local = 0
     IF(PRESENT(maxder)) maxder_local = maxder
@@ -145,9 +191,10 @@ CONTAINS
 
 !     *** Screening ***
 
+! JT must be cut out when running benchmark calculations
       IF (rpgfa(ipgf) + rpgfc < dac) THEN
-        na = na + ncoset(la_max-maxder_local)
-        nap = nap + ncoset(la_max)
+        na = na + ncoset(la_max1-maxder_local)             !JT
+        nap = nap + ncoset(la_max1)                        !JT 
         CYCLE
       END IF
 
@@ -157,9 +204,10 @@ CONTAINS
 
 !       *** Screening ***
 
+! JT dito
         IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
             (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
-          nb = nb + ncoset(lb_max)
+          nb = nb + ncoset(lb_max1)                        !JT
           CYCLE
         END IF
 
@@ -802,27 +850,116 @@ CONTAINS
 !       *** Add the contribution of the current pair ***
 !       *** of primitive Gaussian-type functions     ***
 
-        DO j=1,ncoset(lb_max)
-          DO i=ncoset(la_min-1)+1,ncoset(la_max-maxder_local)
-            vabc(na+i,nb+j) = vabc(na+i,nb+j) -&
-                              zc*vnuc(i,j,1) + cerf*verf(i,j,1)
+!JT
+        IF(do_dkh)THEN
+          DO j=1,ncoset(lb_max1)                                       
+            DO i=ncoset(la_min1-1)+1,ncoset(la_max1-maxder_local)      
+              vnabc(na+i,nb+j) = vnabc(na+i,nb+j) + cerf*verf(i,j,1)     
+            END DO
           END DO
-        END DO
+          DO j=1,ncoset(lb_max1)
+            DO i=ncoset(la_min1-1)+1,ncoset(la_max1-maxder_local)
+              vabc(na+i,nb+j) = vabc(na+i,nb+j) - zc*vnuc(i,j,1)
+            END DO
+          END DO
+        ELSE
+          DO j=1,ncoset(lb_max1)                                        !JT
+            DO i=ncoset(la_min1-1)+1,ncoset(la_max1-maxder_local)       !JT
+              vabc(na+i,nb+j) = vabc(na+i,nb+j) -&
+                                zc*vnuc(i,j,1) + cerf*verf(i,j,1)
+            END DO
+          END DO
+        END IF
+!JT
 
         IF(PRESENT(maxder)) THEN
-          DO j=1,ncoset(lb_max)
-            DO i=1,ncoset(la_max)
+          DO j=1,ncoset(lb_max1)                                      !JT
+            DO i=1,ncoset(la_max1)                                    !JT
               vabc_plus(nap+i,nb+j) = vabc_plus(nap+i,nb+j) -&
                               zc*vnuc(i,j,1) + cerf*verf(i,j,1)
             END DO
           END DO
         END IF
-        nb = nb + ncoset(lb_max)
+!JTs
+        IF(do_dkh)THEN
+          ! *********** Calculate pVp matrix **************
+          ! [pa|V|pb]=4*zeta*zetb*[a+i|V|b+i]-2*zetb*Ni(a)*[a-i|V|b+i]-2*zeta*Ni(b)*[a+i|V|b-i]+Ni(a)*Ni(b)*[a-i|V|b-i]
+          ! Every integral has been calculated before (except [-1|V|-1],[a|V|-1] and [-1|V|b], 
+          ! which do not contribute, because their prefactor Ni(a) or Ni(b) is zero) 
+          ! and is given by verf/vnuc(coset(ax,ay,az),coset(bx,by,bz),1)
+          ! ***********************************************
+
+          ftaz = 2.0_dp*zeta(ipgf)
+          ftbz = 2.0_dp*zetb(jpgf)
+          nxx=1
+          nyy=2
+          nzz=3
+          nxy=4
+          nxz=5
+          nyx=6
+          nyz=7
+          nzx=8
+          nzy=9
+          DO la=0,la_max1
+            DO ax=0,la
+              fax = REAL(ax,dp)
+              DO ay=0,la-ax
+                fay = REAL(ay,dp)
+                az = la - ax - ay
+                faz = REAL(az,dp)
+                pVpa  = coset(ax,ay,az)
+                coamx = coset(ax-1,ay,az)
+                coamy = coset(ax,ay-1,az)
+                coamz = coset(ax,ay,az-1)
+                coapx = coset(ax+1,ay,az)
+                coapy = coset(ax,ay+1,az)
+                coapz = coset(ax,ay,az+1)
+                DO lb=0,lb_max1
+                  DO bx=0,lb
+                    fbx=REAL(bx,dp)
+                    DO by=0,lb-bx
+                      fby=REAL(by,dp)
+                      bz = lb - bx - by
+                      fbz=REAL(bz,dp)
+                      pVpb = coset(bx,by,bz)
+                      cobmx = coset(bx-1,by,bz)
+                      cobmy = coset(bx,by-1,bz)
+                      cobmz = coset(bx,by,bz-1)
+                      cobpx = coset(bx+1,by,bz)
+                      cobpy = coset(bx,by+1,bz)
+                      cobpz = coset(bx,by,bz+1)
+                      pVp(pVpa,pVpb)=ftaz*ftbz*(-zc*vnuc(coapx,cobpx,1))-&
+                                         ftaz* fbx*(-zc*vnuc(coapx,cobmx,1))-&
+                                         ftbz* fax*(-zc*vnuc(coamx,cobpx,1))+&
+                                         fax*  fbx*(-zc*vnuc(coamx,cobmx,1))+&
+                                        ftaz*ftbz*(-zc*vnuc(coapy,cobpy,1))-&
+                                         ftaz* fby*(-zc*vnuc(coapy,cobmy,1))-&
+                                         ftbz* fay*(-zc*vnuc(coamy,cobpy,1))+&
+                                         fay*  fby*(-zc*vnuc(coamy,cobmy,1))+&
+                                        ftaz*ftbz*(-zc*vnuc(coapz,cobpz,1))-&
+                                         ftaz* fbz*(-zc*vnuc(coapz,cobmz,1))-&
+                                         ftbz* faz*(-zc*vnuc(coamz,cobpz,1))+&
+                                         faz*  fbz*(-zc*vnuc(coamz,cobmz,1))
+                    END DO
+                  END DO
+                END DO
+              END DO
+            END DO
+          END DO
+
+          DO j=1,ncoset(lb_max1)                                       
+            DO i=ncoset(la_min1-1)+1,ncoset(la_max1-maxder_local)      
+              pVp_sum(na+i,nb+j) = pVp_sum(na+i,nb+j) +pVp(i,j)     
+            END DO
+          END DO
+        END IF
+!JTe
+        nb = nb + ncoset(lb_max1)                                      !JT
 
       END DO
 
-      na = na + ncoset(la_max - maxder_local)
-      nap = nap + ncoset(la_max)
+      na = na + ncoset(la_max1 - maxder_local)                         !JT
+      nap = nap + ncoset(la_max1)                                      !JT
 
     END DO
 
