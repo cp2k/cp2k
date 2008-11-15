@@ -273,3 +273,5 @@ h2op_2.inp
 # numerics parallel bfgs
 st.inp
 b2h6_pm6.inp
+# numerics 
+h2o_lsd-ot.inp
