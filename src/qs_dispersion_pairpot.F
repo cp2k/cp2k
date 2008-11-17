@@ -25,9 +25,9 @@ MODULE qs_dispersion_pairpot
                                              parser_create,&
                                              parser_release
   USE f77_blas
-  USE input_constants,                 ONLY: xc_vdw_fun_none,&
-                                             xc_vdw_fun_pairpot,&
-                                             vdw_pairpot_grimme
+  USE input_constants,                 ONLY: vdw_pairpot_grimme,&
+                                             xc_vdw_fun_none,&
+                                             xc_vdw_fun_pairpot
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
@@ -79,11 +79,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: symbol
-    CHARACTER(LEN=default_string_length)     :: aname, filename, pptype
+    CHARACTER(LEN=default_string_length)     :: aname, filename
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER                                  :: elem, i, ikind, n_rep, nkind, &
-                                                stat, vdw_type, vdw_pp_type
+                                                stat, vdw_pp_type, vdw_type
     LOGICAL                                  :: at_end, failure, found, &
                                                 is_available
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
