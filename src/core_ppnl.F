@@ -83,13 +83,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, atom_c, first_col, handle, i, iab, iac, iatom, &
-      ibc, icell, ico, icol, idx, ikind, ilist, inode, irow, iset, ithread, &
-      j, jatom, jcell, jco, jkind, jset, katom, kcell, kkind, kneighbor, &
-      knode, l, last_jatom, lc_max, lc_min, ldai, ldsab, lppnl, maxco, &
-      maxdco, maxder, maxl, maxlgto, maxlppl, maxlppnl, maxppnl, maxsgf, n, &
-      natom, ncoa, ncoa_sum, ncob, ncoc, ncol, nkind, nlist, nneighbor, &
-      nnode, nnode_c, nppnl, nprjc, nrow, nseta, nsetb, nsgf, nthread, prjc, &
-      sgfa, sgfb, stat
+      ibc, icell, ico, icol, idx, ikind, ilist, inode, irow, iset, j, jatom, &
+      jcell, jco, jkind, jset, katom, kcell, kkind, kneighbor, knode, l, &
+      last_jatom, lc_max, lc_min, ldai, ldsab, lppnl, maxco, maxder, maxl, &
+      maxlgto, maxlppnl, maxppnl, maxsgf, n, natom, ncoa, ncoa_sum, ncob, &
+      ncoc, ncol, nkind, nlist, nneighbor, nnode, nnode_c, nppnl, nprjc, &
+      nrow, nseta, nsetb, nsgf, prjc, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell_c, cell_c_max, cell_c_min
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
@@ -101,15 +100,15 @@ CONTAINS
     REAL(KIND=dp)                            :: dab, dac, dbc, f, f0, rab2, &
                                                 rac2, rbc2
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: ai_work
+      DIMENSION(:, :)                        :: hab, pab, sab, work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: ai_work
     REAL(KIND=dp), DIMENSION(1)              :: rprjc, zetc
     REAL(KIND=dp), DIMENSION(3)              :: ffa, ffb, rab, rac, rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, hab, p_block, pab, &
-                                                rpgfa, rpgfb, sab, sphi_a, &
-                                                sphi_b, work, zeta, zetb
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: habt, pabt, sabt, workt
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block, rpgfa, &
+                                                rpgfb, sphi_a, sphi_b, zeta, &
+                                                zetb
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -119,12 +118,9 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node, &
                                                 sac_ppnl_neighbor_node, &
                                                 sbc_ppnl_neighbor_node
-    TYPE(qlist_type), DIMENSION(:, :, :), &
-      POINTER                                :: neighbor_att
     TYPE(qlist_type), POINTER                :: sac_ppnl_neighbor
-    TYPE(vppnl_type), DIMENSION(:), POINTER  :: vppnl
-    TYPE(vppnl_type), DIMENSION(:, :), &
-      POINTER                                :: vppnlt
+    TYPE(vppnl_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: vppnl
 
     failure = .FALSE.
     IF (calculate_forces) THEN
@@ -133,11 +129,6 @@ CONTAINS
       CALL timeset(routineN,handle)
     ENDIF
 
-
-    NULLIFY (habt)
-    NULLIFY (pabt)
-    NULLIFY (sabt)
-    NULLIFY (workt)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -161,55 +152,54 @@ CONTAINS
    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                             maxco=maxco,&
                             maxlgto=maxlgto,&
-                            maxlppl=maxlppl,&
                             maxlppnl=maxlppnl,&
                             maxppnl=maxppnl,&
                             maxsgf=maxsgf)
 
-    maxl = MAX(maxlgto,maxlppl,maxlppnl)
+    maxl = MAX(maxlgto,maxlppnl)
     CALL init_orbital_pointers(maxl+nder+1)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxco=maxdco,&
-                             maxder=MAX(1,nder))
 
     ldsab = MAX(maxco,ncoset(maxlppnl),maxsgf,maxppnl)
-    nthread = 1
     ldai = ncoset(maxl+nder+1)
     
-    CALL reallocate(habt,1,ldsab,1,ldsab*maxder,0,nthread-1)
-    CALL reallocate(workt,1,ldsab,1,ldsab*maxder,0,nthread-1)
-    CALL reallocate(sabt,1,ldsab,1,ldsab*maxder,0,nthread-1)
+    ALLOCATE(hab(ldsab,ldsab*maxder),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(work(ldsab,ldsab*maxder),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(sab(ldsab,ldsab*maxder),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    hab=0.0_dp ; work=0.0_dp ; sab=0.0_dp
     IF (calculate_forces) THEN
-       CALL reallocate(pabt,1,maxco,1,maxco,0,nthread-1)
+       ALLOCATE(pab(maxco,maxco),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       pab=0.0_dp
     END IF
     
     ! *** Load GTH pseudo potential data (non-local part -> PPNL) ***
     ppnl_present = ASSOCIATED(sac_ppnl)
     IF (ppnl_present) THEN
-       ALLOCATE (vppnlt(nkind,0:nthread-1),STAT=stat)
+       ALLOCATE (vppnl(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO kkind=1,nkind
           atomic_kind => atomic_kind_set(kkind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                gth_potential=gth_potential)
 
-          DO j=0,nthread-1
-             NULLIFY (vppnlt(kkind,j)%alpha_ppnl)
-             NULLIFY (vppnlt(kkind,j)%cprj)
-             NULLIFY (vppnlt(kkind,j)%neighbor)
-             NULLIFY (vppnlt(kkind,j)%nprj_ppnl)
-             NULLIFY (vppnlt(kkind,j)%vprj_ppnl)
+             NULLIFY (vppnl(kkind)%alpha_ppnl)
+             NULLIFY (vppnl(kkind)%cprj)
+             NULLIFY (vppnl(kkind)%neighbor)
+             NULLIFY (vppnl(kkind)%nprj_ppnl)
+             NULLIFY (vppnl(kkind)%vprj_ppnl)
              IF (ASSOCIATED(gth_potential)) THEN
                 CALL get_potential(potential=gth_potential,&
-                                   alpha_ppnl=vppnlt(kkind,j)%alpha_ppnl,&
-                                   cprj=vppnlt(kkind,j)%cprj,&
-                                   lppnl=vppnlt(kkind,j)%lppnl,&
-                                   nppnl=vppnlt(kkind,j)%nppnl,&
-                                   nprj_ppnl=vppnlt(kkind,j)%nprj_ppnl,&
-                                   ppnl_radius=vppnlt(kkind,j)%ppnl_radius,&
-                                   vprj_ppnl=vppnlt(kkind,j)%vprj_ppnl)
+                                   alpha_ppnl=vppnl(kkind)%alpha_ppnl,&
+                                   cprj=vppnl(kkind)%cprj,&
+                                   lppnl=vppnl(kkind)%lppnl,&
+                                   nppnl=vppnl(kkind)%nppnl,&
+                                   nprj_ppnl=vppnl(kkind)%nprj_ppnl,&
+                                   ppnl_radius=vppnl(kkind)%ppnl_radius,&
+                                   vprj_ppnl=vppnl(kkind)%vprj_ppnl)
              END IF
-          END DO
        END DO
     END IF
    
@@ -254,15 +244,7 @@ CONTAINS
           CALL get_neighbor_list_set(neighbor_list_set=sab_orb(iab)%neighbor_list_set,nlist=nlist)
           
           NULLIFY ( sab_orb_neighbor_list )
-          ithread = 0
-          hab => habt(:,:,ithread)
-          sab => sabt(:,:,ithread)
-          work => workt(:,:,ithread)
-          IF (calculate_forces) pab => pabt(:,:,ithread)
-          IF (ppnl_present) THEN
-             vppnl => vppnlt(:,ithread)
-          END IF
-          ALLOCATE (ai_work(ldai,ldai,MAX(1,ncoset(maxlppl)),ncoset(nder+1)),STAT=stat)
+          ALLOCATE (ai_work(ldai,ldai,ncoset(nder+1)),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DO ilist=1,nlist
              IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
@@ -525,10 +507,9 @@ CONTAINS
                                
                                ! The < and > operators don't work correctly on arrays in
                                ! the openmp version
-                               neighbor_att => vppnl(kkind)%neighbor
                                DO i=1, 3
-                                  IF ( (cell_c(i) < LBOUND(neighbor_att,i)) .OR. &
-                                       (cell_c(i) > UBOUND(neighbor_att,i))) THEN
+                                  IF ( (cell_c(i) < LBOUND(vppnl(kkind)%neighbor,i)) .OR. &
+                                       (cell_c(i) > UBOUND(vppnl(kkind)%neighbor,i))) THEN
                                      sbc_ppnl_neighbor_node => next(sbc_ppnl_neighbor_node)
                                      CYCLE knodeloop
                                   END IF
@@ -710,20 +691,20 @@ CONTAINS
     END DO
 
     IF (ppnl_present) THEN
-       DEALLOCATE (vppnlt,STAT=stat)
+       DEALLOCATE (vppnl,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     
-    DEALLOCATE (habt,STAT=stat)
+    DEALLOCATE (hab,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (sabt,STAT=stat)
+    DEALLOCATE (sab,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (workt,STAT=stat)
+    DEALLOCATE (work,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (calculate_forces) THEN
        DEALLOCATE (atom_of_kind,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (pabt,STAT=stat)
+       DEALLOCATE (pab,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! *** If LSD, then recover alpha density and beta density     ***
        ! *** from the total density (1) and the spin density (2)     ***
