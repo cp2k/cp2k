@@ -83,8 +83,7 @@ MODULE kg_density
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE calculate_density(rho,rho_gspace,&
-                               total_rho, kg_env,error)
+  SUBROUTINE calculate_density(rho,rho_gspace,total_rho, kg_env,error)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
@@ -249,7 +248,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineP,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
-       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw)
+       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw,error=error)
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
        CALL pw_transfer(rho%pw,rho_gspace%pw)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
@@ -258,7 +257,7 @@ CONTAINS
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-               mgrid_rspace(igrid_level)%pw,rs2pw)
+               mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
        ENDDO
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
@@ -374,7 +373,7 @@ CONTAINS
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
          use_data=REALDATA3D,in_space=REALSPACE,error=error)
 
-    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
+    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
     CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_rho,error=error)
 
     total_rho = pw_integrate_function(rhoc_r%pw)
@@ -567,7 +566,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineP,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
-       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw)
+       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw,error=error)
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
        CALL pw_transfer(rho%pw,rho_gspace%pw)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
@@ -576,7 +575,7 @@ CONTAINS
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-               mgrid_rspace(igrid_level)%pw,rs2pw)
+               mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
        ENDDO
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
@@ -654,7 +653,7 @@ CONTAINS
     CALL kg_rspw_get(kg_rspw=rspw,auxbas_rs_pool=auxbas_rs_pool,error=error)
 
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_v,error=error)
-    CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
+    CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs,error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -827,7 +826,7 @@ CONTAINS
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,mgrid_rspace(igrid_level)%pw,&
-                           pw2rs)
+                           pw2rs,error=error)
     ENDDO
 
     ! *** give back the pw multi-grids
@@ -1092,7 +1091,7 @@ CONTAINS
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,mgrid_rspace(igrid_level)%pw,&
-                           pw2rs)
+                           pw2rs,error=error)
     ENDDO
 
     ! *** give back the pw multi-grids

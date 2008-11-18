@@ -310,7 +310,7 @@ CONTAINS
     IF (ierr /= 0) CALL stop_memory(routineN, "work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
-      CALL rs_pw_transfer(rs=rs_rho(1)%rs_grid, pw=qs_env%rho%rho_r(1)%pw, dir=rs2pw)
+      CALL rs_pw_transfer(rs=rs_rho(1)%rs_grid, pw=qs_env%rho%rho_r(1)%pw, dir=rs2pw,error=error)
       CALL rs_pools_give_back_rs_vect(pools=rs_pools, elements=rs_rho, error=error)
       CALL pw_transfer(qs_env%rho%rho_r(1)%pw, qs_env%rho%rho_g(1)%pw)
       IF (qs_env%rho%rho_r(1)%pw%pw_grid%spherical) THEN
@@ -319,7 +319,7 @@ CONTAINS
     ELSE
       DO igrid_level = 1,gridlevel_info%ngrid_levels
          CALL rs_pw_transfer(rs=rs_rho(igrid_level)%rs_grid, &
-                            pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw)
+                            pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw, error=error)
       END DO
       CALL rs_pools_give_back_rs_vect(pools=rs_pools, elements=rs_rho, error=error)
 
@@ -476,7 +476,7 @@ CONTAINS
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
          use_data=REALDATA3D,in_space=REALSPACE, error=error)
 
-    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
+    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
     CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_rho,error=error)
 
     total_rho = pw_integrate_function(rhoc_r%pw,isign=-1)
@@ -1116,7 +1116,7 @@ CONTAINS
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-            mgrid_rspace(igrid_level)%pw,rs2pw)
+            mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
     ENDDO
 
     CALL rs_pools_give_back_rs_vect(rs_pools,rs_rho,error=error)
@@ -2203,7 +2203,7 @@ CONTAINS
                               in_space = RECIPROCALSPACE, error=error)
 
    IF (gridlevel_info%ngrid_levels==1) THEN
-       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw)
+       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw,error=error)
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
        CALL pw_transfer(rho%pw,rho_gspace%pw)
        IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
@@ -2212,7 +2212,7 @@ CONTAINS
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-               mgrid_rspace(igrid_level)%pw,rs2pw)
+               mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
        ENDDO
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 

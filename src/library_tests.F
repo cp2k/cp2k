@@ -780,7 +780,7 @@ CONTAINS
     DO i_loop=1,N_loop
        CALL mp_sync(para_env%group)
        tstart=m_walltime()
-       CALL rs_pw_transfer ( rs_grid, ca%pw, dir )
+       CALL rs_pw_transfer ( rs_grid, ca%pw, dir,error=error)
        CALL mp_sync(para_env%group)
        tend=m_walltime()
        IF (para_env%ionode) THEN

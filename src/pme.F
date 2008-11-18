@@ -234,7 +234,7 @@ CONTAINS
     END IF
 
     CALL pw_pool_create_pw ( pw_big_pool, rhob_r, use_data = REALDATA3D, in_space = REALSPACE ,error=error)
-    CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
+    CALL rs_pw_transfer ( rden, rhob_r, rs2pw, error=error)
 
     !-------------- ELECTROSTATIC CALCULATION -----------
 
@@ -279,7 +279,7 @@ CONTAINS
        CALL rs_grid_set_box ( grid_b, rs=drpot(i)%rs_grid, error=error )
        CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
        CALL pw_pool_give_back_pw ( pw_big_pool, dphi_g ( i )%pw ,error=error)
-       CALL rs_pw_transfer ( drpot ( i )%rs_grid, rhob_r, pw2rs )
+       CALL rs_pw_transfer ( drpot ( i )%rs_grid, rhob_r, pw2rs,error=error)
     END DO
 
     CALL pw_pool_give_back_pw ( pw_big_pool, rhob_r ,error=error)

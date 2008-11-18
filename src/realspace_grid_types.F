@@ -129,8 +129,6 @@ MODULE realspace_grid_types
      TYPE(realspace_grid_type), POINTER :: rs_grid
   END TYPE realspace_grid_p_type
 
-!-----------------------------------------------------------------------------!
-
 CONTAINS
 
 ! *****************************************************************************
@@ -142,7 +140,7 @@ CONTAINS
 !> \par History
 !>      01.2008 created [Joost VandeVondele]
 ! *****************************************************************************
-SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,higher_grid_layout,error)
+  SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,higher_grid_layout,error)
     TYPE(realspace_grid_input_type), &
       INTENT(OUT)                            :: input_settings
     INTEGER, INTENT(IN)                      :: nsmax
@@ -157,54 +155,54 @@ SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,higher_gr
                                                 nsection
     INTEGER, DIMENSION(:), POINTER           :: tmp
 
-   IF (PRESENT(rs_grid_section)) THEN
+    IF (PRESENT(rs_grid_section)) THEN
        input_settings%nsmax=nsmax
        ! we use the section corresponding to the level, or the largest available one
        ! i.e. the last section defines all following ones
        CALL section_vals_get(rs_grid_section,n_repetition=nsection,error=error)
        isection=MAX(1,MIN(ilevel,nsection))
        CALL section_vals_val_get(rs_grid_section,"DISTRIBUTION_TYPE",&
-                i_rep_section=isection,&
-                i_val=input_settings%distribution_type,error=error)
+            i_rep_section=isection,&
+            i_val=input_settings%distribution_type,error=error)
        CALL section_vals_val_get(rs_grid_section,"DISTRIBUTION_LAYOUT",&
-                i_rep_section=isection,&
-                i_vals=tmp,error=error)
+            i_rep_section=isection,&
+            i_vals=tmp,error=error)
        input_settings%distribution_layout=tmp
        CALL section_vals_val_get(rs_grid_section,"MEMORY_FACTOR",&
-                i_rep_section=isection,&
-                r_val=input_settings%memory_factor,error=error)
+            i_rep_section=isection,&
+            r_val=input_settings%memory_factor,error=error)
        CALL section_vals_val_get(rs_grid_section,"HALO_REDUCTION_FACTOR",&
-                i_rep_section=isection,&
-                r_val=input_settings%halo_reduction_factor,error=error)
+            i_rep_section=isection,&
+            r_val=input_settings%halo_reduction_factor,error=error)
        CALL section_vals_val_get(rs_grid_section,"LOCK_DISTRIBUTION",&
-                i_rep_section=isection,&
-                l_val=input_settings%lock_distribution,error=error)
+            i_rep_section=isection,&
+            l_val=input_settings%lock_distribution,error=error)
        CALL section_vals_val_get(rs_grid_section,"MAX_DISTRIBUTED_LEVEL",&
-                i_rep_section=isection,&
-                i_val=max_distributed_level,error=error)
+            i_rep_section=isection,&
+            i_val=max_distributed_level,error=error)
 
        ! multigrids that are to coarse are not distributed in the automatic scheme
        IF (input_settings%distribution_type == rsgrid_automatic) THEN
           IF (ilevel>max_distributed_level) THEN
-              input_settings%distribution_type=rsgrid_replicated
+             input_settings%distribution_type=rsgrid_replicated
           ENDIF
        ENDIF
-   ELSE
+    ELSE
        input_settings%nsmax=-1
        input_settings%distribution_type=rsgrid_replicated
        input_settings%lock_distribution=.FALSE.
        input_settings%halo_reduction_factor=1.0_dp
-   ENDIF
-   IF (input_settings%lock_distribution) THEN
-     IF (ALL(higher_grid_layout>0)) input_settings%distribution_layout=higher_grid_layout
-   ENDIF
-END SUBROUTINE init_input_type
+    ENDIF
+    IF (input_settings%lock_distribution) THEN
+       IF (ALL(higher_grid_layout>0)) input_settings%distribution_layout=higher_grid_layout
+    ENDIF
+  END SUBROUTINE init_input_type
 
 ! *****************************************************************************
 !> \brief returns the 1D rank of the task which is a cartesian shift away from 1D rank rank_in
 !>        only possible if rs_grid is a distributed grid
 ! *****************************************************************************
-FUNCTION rs_grid_locate_rank(rs_grid,rank_in,shift) RESULT(rank_out)
+  FUNCTION rs_grid_locate_rank(rs_grid,rank_in,shift) RESULT(rank_out)
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     INTEGER, INTENT(IN)                      :: rank_in
     INTEGER, DIMENSION(3), INTENT(IN)        :: shift
@@ -212,9 +210,9 @@ FUNCTION rs_grid_locate_rank(rs_grid,rank_in,shift) RESULT(rank_out)
 
     INTEGER                                  :: coord(3)
 
-  coord=MODULO(rs_grid%rank2coord(:,rank_in)+shift,rs_grid%group_dim)
-  rank_out=rs_grid%coord2rank(coord(1),coord(2),coord(3))
-END FUNCTION rs_grid_locate_rank
+    coord=MODULO(rs_grid%rank2coord(:,rank_in)+shift,rs_grid%group_dim)
+    rank_out=rs_grid%coord2rank(coord(1),coord(2),coord(3))
+  END FUNCTION rs_grid_locate_rank
 
 ! *****************************************************************************
 !> \brief Determine the setup of real space grids
@@ -245,7 +243,6 @@ END FUNCTION rs_grid_locate_rank
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-
     CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
 
     ALLOCATE(rs,stat=stat)
@@ -410,19 +407,19 @@ END FUNCTION rs_grid_locate_rank
 
           ! set up global info about the distribution
           ALLOCATE( rs % rank2coord(3,0:rs % group_size-1),STAT=stat)
-          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % rank2coord" )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE( rs % coord2rank(0:rs % group_dim(1),0:rs % group_dim(2),0:rs % group_dim(3)),STAT=stat)
-          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % coord2rank" )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE( rs % lb_global(3,0:rs % group_size-1),STAT=stat)
-          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % lb_global" )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE( rs % ub_global(3,0:rs % group_size-1),STAT=stat)
-          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % ub_global" )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE( rs % x2coord(rs % lb(1):rs % ub(1)),STAT=stat)
-          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % x2coord" )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE( rs % y2coord(rs % lb(2):rs % ub(2)),STAT=stat)
-          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % y2coord" )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE( rs % z2coord(rs % lb(3):rs % ub(3)),STAT=stat)
-          IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % z2coord" )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
           DO i=0, rs% group_size - 1
              CALL mp_cart_coords(rs % group, i, rs % rank2coord(:,i) )
@@ -490,13 +487,13 @@ END FUNCTION rs_grid_locate_rank
     ALLOCATE ( rs % r (rs % lb_local(1):rs % ub_local(1), &
                        rs % lb_local(2):rs % ub_local(2), &
                        rs % lb_local(3):rs % ub_local(3)), STAT = stat )
-    IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % r", rs % ngpts_local )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE ( rs % px ( rs % npts ( 1 ) ), STAT = stat )
-    IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % px", rs % npts ( 1 ) )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE ( rs % py ( rs % npts ( 2 ) ), STAT = stat )
-    IF ( stat /= 0 ) CALL stop_memory ( routineN, "rs % py", rs % npts ( 2 ) )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE ( rs % pz ( rs % npts ( 3 ) ), STAT = stat )
-    IF ( stat /= 0 ) CALL stop_memory ( routineN,"rs % pz", rs % npts ( 3 ) )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 
@@ -590,20 +587,21 @@ END FUNCTION rs_grid_locate_rank
 !>      Joost VandeVondele (Sep-2003) moved from sum/bcast to shift
 !> \author JGH (18-Mar-2001)
 ! *****************************************************************************
-  SUBROUTINE rs_pw_transfer ( rs, pw, dir )
+  SUBROUTINE rs_pw_transfer ( rs, pw, dir, error)
 
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: dir
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=5)                         :: dirname
     INTEGER                                  :: handle, handle2, nn
+    LOGICAL                                  :: failure
 
-!-----------------------------------------------------------------------------!
-
+    failure = .FALSE.
     CALL timeset(routineN,handle2)
     IF (dir.EQ.rs2pw) dirname="RS2PW"
     IF (dir.EQ.pw2rs) dirname="PW2RS"
@@ -619,9 +617,9 @@ END FUNCTION rs_grid_locate_rank
 
     IF (  rs % parallel ) THEN
        IF ( .NOT. rs % distributed ) THEN
-          CALL rs_pw_transfer_replicated(rs,pw,dir)
+          CALL rs_pw_transfer_replicated(rs,pw,dir,error)
        ELSE
-          CALL rs_pw_transfer_distributed(rs,pw,dir)
+          CALL rs_pw_transfer_distributed(rs,pw,dir,error)
        END IF
     ELSE ! treat simple serial case locally
        nn = SIZE ( rs % r )
@@ -654,35 +652,41 @@ END FUNCTION rs_grid_locate_rank
 !>      rs2pw sums all data on the rs grid into the respective pw grid
 !>      pw2rs will scatter all pw data to the rs grids
 ! *****************************************************************************
-  SUBROUTINE rs_pw_transfer_replicated(rs,pw,dir)
+  SUBROUTINE rs_pw_transfer_replicated(rs,pw,dir,error)
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: dir
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: dest, group, ierr, ii, ip, &
-                                                ix, iy, iz, mepos, nma, nn, &
-                                                np, req(2), s(3), source
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer_replicated', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: dest, group, ii, ip, ix, iy, &
+                                                iz, mepos, nma, nn, np, &
+                                                req(2), s(3), source, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount
     INTEGER, DIMENSION(3)                    :: lb, ub
     INTEGER, DIMENSION(:, :), POINTER        :: pbo
     INTEGER, DIMENSION(:, :, :), POINTER     :: bo
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: recvbuf, sendbuf, swapptr
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
 
+    failure = .FALSE.
     np = pw % pw_grid % para % group_size
     bo => pw % pw_grid % para % bo (1:2,1:3,0:np-1,1)
     pbo => pw % pw_grid % bounds
     group = pw % pw_grid % para % rs_group
     mepos = pw % pw_grid % para % rs_mpo
-    ALLOCATE ( rcount ( 0 : np - 1 ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rcount", 2*np )
+    ALLOCATE ( rcount ( 0 : np - 1 ), STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ip = 1, np
        rcount ( ip-1 ) = PRODUCT ( bo(2,:,ip) - bo(1,:,ip) + 1 )
     END DO
     nma = MAXVAL ( rcount ( 0 : np - 1 ) )
-    ALLOCATE(sendbuf(nma),recvbuf(nma), STAT=ierr)
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "sendbuf/recvbuf", 2*nma )
+    ALLOCATE(sendbuf(nma),recvbuf(nma), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     grid=>rs%r
 
     IF ( dir == rs2pw ) THEN
@@ -701,17 +705,17 @@ END FUNCTION rs_grid_locate_rank
           ! tested on itanium, pentium4, opteron, ultrasparc...
           s=ub-lb+1
           DO iz = lb(3), ub(3)
-           DO ix = lb(1), ub(1)
-             ii= (iz-lb(3))*s(1)*s(2)+(ix-lb(1))+1
-             DO iy = lb(2), ub(2)
-                sendbuf(ii) = sendbuf(ii) + grid(ix,iy,iz)
-                ii=ii+s(1)
-            END DO
-           END DO
+             DO ix = lb(1), ub(1)
+                ii= (iz-lb(3))*s(1)*s(2)+(ix-lb(1))+1
+                DO iy = lb(2), ub(2)
+                   sendbuf(ii) = sendbuf(ii) + grid(ix,iy,iz)
+                   ii=ii+s(1)
+                END DO
+             END DO
           END DO
           IF ( ip .EQ. np ) EXIT
           CALL mp_isendrecv(sendbuf,dest,recvbuf,source, &
-                                   group,req(1),req(2),13)
+               group,req(1),req(2),13)
           CALL mp_waitall(req)
           swapptr=>sendbuf
           sendbuf=>recvbuf
@@ -741,8 +745,8 @@ END FUNCTION rs_grid_locate_rank
        DO ip = 0, np-1
           ! we must shift the buffer only np-1 times around
           IF (ip .NE. np-1) THEN
-              CALL mp_isendrecv(sendbuf,dest,recvbuf,source, &
-                                group,req(1),req(2),13)
+             CALL mp_isendrecv(sendbuf,dest,recvbuf,source, &
+                  group,req(1),req(2),13)
           ENDIF
           lb = pbo(1,:)+bo(1,:,MODULO(mepos-ip,np)+1)-1
           ub = pbo(1,:)+bo(2,:,MODULO(mepos-ip,np)+1)-1
@@ -757,7 +761,7 @@ END FUNCTION rs_grid_locate_rank
              END DO
           END DO
           IF (ip .NE. np-1) THEN
-              CALL mp_waitall(req)
+             CALL mp_waitall(req)
           ENDIF
           swapptr=>sendbuf
           sendbuf=>recvbuf
@@ -766,12 +770,12 @@ END FUNCTION rs_grid_locate_rank
 
     END IF
 
-    DEALLOCATE ( rcount, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rcount" )
-    DEALLOCATE ( sendbuf, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "sendbuf" )
-    DEALLOCATE ( recvbuf, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "recvbuf" )
+    DEALLOCATE ( rcount, STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( sendbuf, STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( recvbuf, STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE rs_pw_transfer_replicated
 
 ! *****************************************************************************
@@ -788,21 +792,24 @@ END FUNCTION rs_grid_locate_rank
 !>       with the central domain of several CPUs (i.e. next nearest neighbors)
 !> \par History
 !>      12.2007 created [Matt Watkins]
-!>      9.2008 reduced amount of halo data sent [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
-!>      10.2008 added non-blocking communication [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
+!>      9.2008 reduced amount of halo data sent [Iain Bethune] 
+!>              (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
+!>      10.2008 added non-blocking communication [Iain Bethune] 
+!>              (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 ! *****************************************************************************
-  SUBROUTINE rs_pw_transfer_distributed(rs,pw,dir)
+  SUBROUTINE rs_pw_transfer_distributed(rs,pw,dir,error)
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: dir
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer_distributed', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=200)                       :: error_string
-    INTEGER :: completed, dest_down, dest_up, group, i, idir, ierr, j, k, &
+    INTEGER :: completed, dest_down, dest_up, group, i, idir, j, k, &
       my_pw_rank, my_rs_rank, n_shifts, nn, position, source_down, source_up, &
-      x, y, z
+      stat, x, y, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: dshifts, recv_disps, &
                                                 recv_sizes, send_disps, &
                                                 send_sizes, ushifts
@@ -821,21 +828,15 @@ END FUNCTION rs_grid_locate_rank
                                                 recv_buf_3d_up, &
                                                 send_buf_3d_down, &
                                                 send_buf_3d_up
-    TYPE(cp_error_type)                      :: error
 
     IF ( dir == rs2pw ) THEN
-
-
        ! safety check, to be removed once we're absolute sure the routine is correct
        IF (debug_this_module) THEN
-         rs_sum=accurate_sum(rs%r)*ABS(det_3x3(rs%dh))
-         CALL mp_sum(rs_sum,rs%group)
+          rs_sum=accurate_sum(rs%r)*ABS(det_3x3(rs%dh))
+          CALL mp_sum(rs_sum,rs%group)
        ENDIF
 
-
-
        halo_swapped = .FALSE.
-
        ! We don't need to send the 'edges' of the halos that have already been sent
        ! Halos are contiguous in memory in z-direction only, so swap these first,
        ! and send less data in the y and x directions which are more expensive
@@ -844,9 +845,11 @@ END FUNCTION rs_grid_locate_rank
 
           IF ( rs % perd (idir) .NE. 1) THEN
 
-             ALLOCATE ( dshifts ( 0:rs % neighbours (idir ) ), STAT=ierr )
-             ALLOCATE ( ushifts ( 0:rs % neighbours (idir ) ), STAT=ierr )
-             
+             ALLOCATE ( dshifts ( 0:rs % neighbours (idir ) ), STAT=stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE ( ushifts ( 0:rs % neighbours (idir ) ), STAT=stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
              ushifts = 0
              dshifts = 0
 
@@ -891,30 +894,29 @@ END FUNCTION rs_grid_locate_rank
                 ENDIF
 
                 DO i=1,3
-                  IF ( halo_swapped(i) ) THEN
-                    lb_send_down(i) = rs % lb_real(i)
-                    ub_send_down(i) = rs % ub_real(i)
-                    lb_recv_down(i) = rs % lb_real(i)
-                    ub_recv_down(i) = rs % ub_real(i)
-                  ENDIF
+                   IF ( halo_swapped(i) ) THEN
+                      lb_send_down(i) = rs % lb_real(i)
+                      ub_send_down(i) = rs % ub_real(i)
+                      lb_recv_down(i) = rs % lb_real(i)
+                      ub_recv_down(i) = rs % ub_real(i)
+                   ENDIF
                 ENDDO
 
                 ! post the recieve
                 ALLOCATE ( recv_buf_3d_down (lb_recv_down(1):ub_recv_down(1), &
-                           lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ) )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_down")
+                     lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3)),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 CALL mp_irecv (recv_buf_3d_down, source_down, rs % group, req(1))
 
 
                 ! now allocate, pack and send the send buffer
                 nn = PRODUCT ( ub_send_down - lb_send_down + 1 )
                 ALLOCATE ( send_buf_3d_down ( lb_send_down(1):ub_send_down(1), &
-                           lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_down",nn)
-
+                     lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ), STAT=stat )
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
                 send_buf_3d_down = rs % r ( lb_send_down(1):ub_send_down(1), &
-                lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) )
+                     lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) )
 
 
                 CALL mp_isend (send_buf_3d_down, dest_down, rs % group, req(3))
@@ -944,28 +946,29 @@ END FUNCTION rs_grid_locate_rank
                 ENDIF
 
                 DO i=1,3
-                  IF ( halo_swapped(i) ) THEN
-                    lb_send_up(i) = rs % lb_real(i)
-                    ub_send_up(i) = rs % ub_real(i)
-                    lb_recv_up(i) = rs % lb_real(i)
-                    ub_recv_up(i) = rs % ub_real(i)
-                  ENDIF
+                   IF ( halo_swapped(i) ) THEN
+                      lb_send_up(i) = rs % lb_real(i)
+                      ub_send_up(i) = rs % ub_real(i)
+                      lb_recv_up(i) = rs % lb_real(i)
+                      ub_recv_up(i) = rs % ub_real(i)
+                   ENDIF
                 ENDDO
 
                 ! post the recieve
                 ALLOCATE ( recv_buf_3d_up (lb_recv_up(1):ub_recv_up(1), &
-                           lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ) )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_up")
+                     lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3)),STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 CALL mp_irecv(recv_buf_3d_up, source_up, rs % group, req(2))
 
                 ! now allocate,pack and send the send buffer
                 nn = PRODUCT ( ub_send_up - lb_send_up + 1 )
                 ALLOCATE ( send_buf_3d_up ( lb_send_up(1):ub_send_up(1), &
-                           lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_up",nn)
+                     lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ), STAT=stat )
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
 
-                send_buf_3d_up = rs % r ( lb_send_up(1):ub_send_up(1), lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) )
+                send_buf_3d_up = rs % r ( lb_send_up(1):ub_send_up(1), lb_send_up(2):ub_send_up(2),&
+                                          lb_send_up(3):ub_send_up(3) )
 
 
                 CALL mp_isend (send_buf_3d_up, dest_up, rs % group, req(4))
@@ -975,42 +978,38 @@ END FUNCTION rs_grid_locate_rank
                 DO i=1,2
 
 
-                  CALL mp_waitany (req(1:2),completed)
+                   CALL mp_waitany (req(1:2),completed)
 
-                  IF ( completed .EQ. 1 ) THEN
-
-
-                    ! only some procs may need later shifts
-                    IF(ub_recv_down(idir).GE.lb_recv_down(idir))THEN
-
-                       ! Sum the data in the RS Grid
-                       rs % r ( lb_recv_down(1):ub_recv_down(1), &
-                                lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ) = &
-                            rs % r ( lb_recv_down(1):ub_recv_down(1), &
-                                     lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ) + &
-                             recv_buf_3d_down (:, :, :)
-                    END IF
-                    DEALLOCATE( recv_buf_3d_down, STAT=ierr)
-                    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_down")
+                   IF ( completed .EQ. 1 ) THEN
 
 
-                  ELSE
+                      ! only some procs may need later shifts
+                      IF(ub_recv_down(idir).GE.lb_recv_down(idir))THEN
+
+                         ! Sum the data in the RS Grid
+                         rs % r ( lb_recv_down(1):ub_recv_down(1), &
+                              lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ) = &
+                              rs % r ( lb_recv_down(1):ub_recv_down(1), &
+                              lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ) + &
+                              recv_buf_3d_down (:, :, :)
+                      END IF
+                      DEALLOCATE( recv_buf_3d_down, STAT=stat)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   ELSE
 
 
-                    ! only some procs may need later shifts
-                    IF(ub_recv_up(idir).GE.lb_recv_up(idir))THEN
- 
-                       ! Sum the data in the RS Grid
-                       rs % r ( lb_recv_up(1):ub_recv_up(1), lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ) = &
-                            rs % r ( lb_recv_up(1):ub_recv_up(1), &
-                                     lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ) + &
-                             recv_buf_3d_up (:, :, :)
-                    END IF
-                    DEALLOCATE( recv_buf_3d_up, STAT=ierr)
-                    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_up")
+                      ! only some procs may need later shifts
+                      IF(ub_recv_up(idir).GE.lb_recv_up(idir))THEN
 
-
-                  END IF
+                         ! Sum the data in the RS Grid
+                         rs % r ( lb_recv_up(1):ub_recv_up(1), lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ) = &
+                              rs % r ( lb_recv_up(1):ub_recv_up(1), &
+                              lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ) + &
+                              recv_buf_3d_up (:, :, :)
+                      END IF
+                      DEALLOCATE( recv_buf_3d_up, STAT=stat)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   END IF
 
                 END DO
 
@@ -1018,17 +1017,16 @@ END FUNCTION rs_grid_locate_rank
 
                 CALL mp_waitall (req(3:4))
 
-                DEALLOCATE( send_buf_3d_down, STAT=ierr)
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_down")
-                DEALLOCATE( send_buf_3d_up, STAT=ierr)
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_up")
-
+                DEALLOCATE( send_buf_3d_down, STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                DEALLOCATE( send_buf_3d_up, STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END DO
 
-             DEALLOCATE ( dshifts, STAT=ierr )
-             IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","dshifts")
-             DEALLOCATE ( ushifts, STAT=ierr )
-             IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","ushifts")
+             DEALLOCATE ( dshifts, STAT=stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE ( ushifts, STAT=stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
           END IF
 
@@ -1036,13 +1034,9 @@ END FUNCTION rs_grid_locate_rank
 
        END DO
 
-
-
-
        ! This is the real redistribution
-
-       ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:4 ), STAT=ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","bounds",nn)
+       ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:4 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! work out the pw grid points each proc holds
        DO i = 0, pw % pw_grid % para % group_size - 1
@@ -1052,14 +1046,18 @@ END FUNCTION rs_grid_locate_rank
           bounds ( i , 3:4 ) = bounds ( i , 3:4 ) - pw % pw_grid % npts (2) / 2 - 1
        ENDDO
 
-       ALLOCATE ( send_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=ierr )
-       ALLOCATE ( send_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=ierr )
-       ALLOCATE ( send_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=ierr )
-
-       ALLOCATE ( recv_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=ierr )
-       ALLOCATE ( recv_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=ierr )
-       ALLOCATE ( recv_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=ierr )
-
+       ALLOCATE ( send_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( send_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( send_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( recv_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( recv_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( recv_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        send_tasks = 0
        send_tasks(:,1)=1
        send_tasks(:,2)=0
@@ -1102,7 +1100,7 @@ END FUNCTION rs_grid_locate_rank
           ENDIF
 
           DO j = 0, pw % pw_grid % para % group_size - 1
-          
+
              IF (lb_send(1) .GT.bounds(j,2)) CYCLE
              IF (ub_send(1) .LT.bounds(j,1)) CYCLE 
 
@@ -1142,11 +1140,11 @@ END FUNCTION rs_grid_locate_rank
 
        CPPrecondition(SUM(send_sizes)==PRODUCT(ub_recv - lb_recv + 1),cp_failure_level,routineP,error,failure)
 
-       ALLOCATE ( send_buf ( SUM(send_sizes) ), STAT=ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf",nn)
-       ALLOCATE ( recv_buf ( SUM(recv_sizes) ), STAT=ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf",nn)
-       
+       ALLOCATE ( send_buf ( SUM(send_sizes) ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( recv_buf ( SUM(recv_sizes) ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
        send_buf = 0
        recv_buf = 0
 
@@ -1164,7 +1162,7 @@ END FUNCTION rs_grid_locate_rank
              ENDDO
           ENDDO
           CPPrecondition(send_sizes(i)==k,cp_failure_level,routineP,error,failure)
-       ENDDO       
+       ENDDO
 
        ! do the communication
 
@@ -1186,33 +1184,32 @@ END FUNCTION rs_grid_locate_rank
           CPPrecondition(recv_sizes(i)==k,cp_failure_level,routineP,error,failure)
        ENDDO
 
-       DEALLOCATE ( send_buf, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf")
-       DEALLOCATE ( recv_buf, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf")
-
-       DEALLOCATE ( send_tasks, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_tasks")
-       DEALLOCATE ( send_sizes, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_sizes")
-       DEALLOCATE ( send_disps, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_disps")
-       DEALLOCATE ( recv_tasks, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_tasks")
-       DEALLOCATE ( recv_sizes, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_sizes")
-       DEALLOCATE ( recv_disps, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_disps")
+       DEALLOCATE ( send_buf, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( recv_buf, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( send_tasks, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( send_sizes, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( send_disps, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( recv_tasks, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( recv_sizes, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( recv_disps, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        IF (debug_this_module) THEN
-         ! safety check, to be removed once we're absolute sure the routine is correct
-         pw_sum=pw_integrate_function(pw)
-         IF (ABS(pw_sum-rs_sum)/MAX(1.0_dp,ABS(pw_sum),ABS(rs_sum))>EPSILON(rs_sum)*1000) THEN
-             WRITE(error_string,'(A,6(1X,I4.4),3F25.16)') "rs_pw_transfer_distributed", rs %  npts, rs % group_dim,&
-              pw_sum,rs_sum,ABS(pw_sum-rs_sum)
+          ! safety check, to be removed once we're absolute sure the routine is correct
+          pw_sum=pw_integrate_function(pw)
+          IF (ABS(pw_sum-rs_sum)/MAX(1.0_dp,ABS(pw_sum),ABS(rs_sum))>EPSILON(rs_sum)*1000) THEN
+             WRITE(error_string,'(A,6(1X,I4.4),3F25.16)') "rs_pw_transfer_distributed", &
+                  rs %  npts, rs % group_dim, pw_sum,rs_sum,ABS(pw_sum-rs_sum)
              CALL stop_program(error_string, &
                   "Please report this bug... quick workaround: use DISTRIBUTION_TYPE REPLICATED")
-         ENDIF
+          ENDIF
        ENDIF
 
     ELSE
@@ -1223,8 +1220,8 @@ END FUNCTION rs_grid_locate_rank
 
        ! This is the real redistribution
 
-       ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:4 ), STAT=ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","bounds",nn)
+       ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:4 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        DO i = 0, pw % pw_grid % para % group_size - 1
           bounds ( i , 1:2 ) = pw % pw_grid % para % bo (1:2,1,i,1)
@@ -1233,13 +1230,18 @@ END FUNCTION rs_grid_locate_rank
           bounds ( i , 3:4 ) = bounds ( i , 3:4 ) - pw % pw_grid % npts (2) / 2 - 1
        ENDDO
 
-       ALLOCATE ( send_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=ierr )
-       ALLOCATE ( send_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=ierr )
-       ALLOCATE ( send_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=ierr )
-
-       ALLOCATE ( recv_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=ierr )
-       ALLOCATE ( recv_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=ierr )
-       ALLOCATE ( recv_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=ierr )
+       ALLOCATE ( send_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( send_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( send_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( recv_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( recv_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( recv_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        send_tasks = 0
        send_tasks(:,1)=1
@@ -1282,7 +1284,7 @@ END FUNCTION rs_grid_locate_rank
           ENDIF
 
           DO j = 0, pw % pw_grid % para % group_size - 1
-          
+
              IF (ub_send(1) .LT.bounds(j,1)) CYCLE 
              IF (lb_send(1) .GT.bounds(j,2)) CYCLE
              IF (ub_send(2) .LT.bounds(j,3)) CYCLE
@@ -1290,25 +1292,25 @@ END FUNCTION rs_grid_locate_rank
 
              ! this is the reverse of rs2pw: what were the sends are now the recvs
              IF(i==my_rs_rank) THEN
-                   recv_tasks(j,1)= MAX(lb_send(1),bounds(j,1))
-                   recv_tasks(j,2)= MIN(ub_send(1),bounds(j,2))
-                   recv_tasks(j,3)= MAX(lb_send(2),bounds(j,3))
-                   recv_tasks(j,4)= MIN(ub_send(2),bounds(j,4))
-                   recv_tasks(j,5)= lb_send(3)
-                   recv_tasks(j,6)= ub_send(3)
-                   recv_sizes(j)  = (recv_tasks( j ,2)-recv_tasks( j ,1)+1)* &
-                        (recv_tasks( j ,4)-recv_tasks( j ,3)+1)*(recv_tasks( j ,6)-recv_tasks( j ,5)+1)
+                recv_tasks(j,1)= MAX(lb_send(1),bounds(j,1))
+                recv_tasks(j,2)= MIN(ub_send(1),bounds(j,2))
+                recv_tasks(j,3)= MAX(lb_send(2),bounds(j,3))
+                recv_tasks(j,4)= MIN(ub_send(2),bounds(j,4))
+                recv_tasks(j,5)= lb_send(3)
+                recv_tasks(j,6)= ub_send(3)
+                recv_sizes(j)  = (recv_tasks( j ,2)-recv_tasks( j ,1)+1)* &
+                     (recv_tasks( j ,4)-recv_tasks( j ,3)+1)*(recv_tasks( j ,6)-recv_tasks( j ,5)+1)
              ENDIF
 
              IF(j==my_rs_rank) THEN
-                   send_tasks(i,1)= MAX(lb_send(1),bounds(j,1))
-                   send_tasks(i,2)= MIN(ub_send(1),bounds(j,2))
-                   send_tasks(i,3)= MAX(lb_send(2),bounds(j,3))
-                   send_tasks(i,4)= MIN(ub_send(2),bounds(j,4))
-                   send_tasks(i,5)= lb_send(3)
-                   send_tasks(i,6)= ub_send(3)
-                   send_sizes(i)  = (send_tasks(i,2)-send_tasks( i ,1)+1)* &
-                        (send_tasks( i ,4)-send_tasks( i ,3)+1)*(send_tasks( i ,6)-send_tasks( i ,5)+1)
+                send_tasks(i,1)= MAX(lb_send(1),bounds(j,1))
+                send_tasks(i,2)= MIN(ub_send(1),bounds(j,2))
+                send_tasks(i,3)= MAX(lb_send(2),bounds(j,3))
+                send_tasks(i,4)= MIN(ub_send(2),bounds(j,4))
+                send_tasks(i,5)= lb_send(3)
+                send_tasks(i,6)= ub_send(3)
+                send_sizes(i)  = (send_tasks(i,2)-send_tasks( i ,1)+1)* &
+                     (send_tasks( i ,4)-send_tasks( i ,3)+1)*(send_tasks( i ,6)-send_tasks( i ,5)+1)
              ENDIF
           ENDDO
        ENDDO
@@ -1322,11 +1324,11 @@ END FUNCTION rs_grid_locate_rank
 
        CPPrecondition(SUM(recv_sizes)==PRODUCT(ub_recv - lb_recv + 1),cp_failure_level,routineP,error,failure)
 
-       ALLOCATE ( send_buf ( SUM(send_sizes) ), STAT=ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf",nn)
-       ALLOCATE ( recv_buf ( SUM(recv_sizes) ), STAT=ierr )
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf",nn)
-       
+       ALLOCATE ( send_buf ( SUM(send_sizes) ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( recv_buf ( SUM(recv_sizes) ), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
        send_buf = 0
        recv_buf = 0
 
@@ -1344,7 +1346,7 @@ END FUNCTION rs_grid_locate_rank
              ENDDO
           ENDDO
           CPPrecondition(send_sizes(i)==k,cp_failure_level,routineP,error,failure)
-       ENDDO       
+       ENDDO
 
        ! do the communication
 
@@ -1367,35 +1369,34 @@ END FUNCTION rs_grid_locate_rank
           CPPrecondition(recv_sizes(i)==k,cp_failure_level,routineP,error,failure)
        ENDDO
 
-       DEALLOCATE ( send_buf, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf")
-       DEALLOCATE ( recv_buf, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf")
-
-       DEALLOCATE ( send_tasks, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_tasks")
-       DEALLOCATE ( send_sizes, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_sizes")
-       DEALLOCATE ( send_disps, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_disps")
-       DEALLOCATE ( recv_tasks, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_tasks")
-       DEALLOCATE ( recv_sizes, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_sizes")
-       DEALLOCATE ( recv_disps, STAT=ierr)
-       IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_disps")
+       DEALLOCATE ( send_buf, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( recv_buf, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( send_tasks, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( send_sizes, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( send_disps, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( recv_tasks, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( recv_sizes, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( recv_disps, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! now pass wings around
-
        halo_swapped = .FALSE.
 
        DO idir = 1,3
 
           IF ( rs % perd (idir) /= 1) THEN
 
-             ALLOCATE ( dshifts ( 0:rs % neighbours (idir ) ), STAT=ierr )
-             ALLOCATE ( ushifts ( 0:rs % neighbours (idir ) ), STAT=ierr )
-
+             ALLOCATE ( dshifts ( 0:rs % neighbours (idir ) ), STAT=stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE ( ushifts ( 0:rs % neighbours (idir ) ), STAT=stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ushifts = 0
              dshifts = 0
 
@@ -1439,19 +1440,19 @@ END FUNCTION rs_grid_locate_rank
                 ENDIF
 
                 DO i=1,3
-                  IF ( .NOT. ( halo_swapped(i) .OR. i .EQ. idir ) ) THEN
-                    lb_send_down(i) = rs % lb_real(i)
-                    ub_send_down(i) = rs % ub_real(i)
-                    lb_recv_down(i) = rs % lb_real(i)
-                    ub_recv_down(i) = rs % ub_real(i)
-                  ENDIF
+                   IF ( .NOT. ( halo_swapped(i) .OR. i .EQ. idir ) ) THEN
+                      lb_send_down(i) = rs % lb_real(i)
+                      ub_send_down(i) = rs % ub_real(i)
+                      lb_recv_down(i) = rs % lb_real(i)
+                      ub_recv_down(i) = rs % ub_real(i)
+                   ENDIF
                 ENDDO
 
                 ! allocate the recv buffer
                 nn = PRODUCT ( ub_recv_down - lb_recv_down + 1 )
                 ALLOCATE ( recv_buf_3d_down ( lb_recv_down(1):ub_recv_down(1), &
-                           lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_down",nn)
+                     lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ), STAT=stat )
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
                 ! recv buffer is now ready, so post the recieve
                 CALL mp_irecv (recv_buf_3d_down, source_down, rs % group, req(1))
@@ -1459,11 +1460,11 @@ END FUNCTION rs_grid_locate_rank
                 ! now allocate,pack and send the send buffer
                 nn = PRODUCT ( ub_send_down - lb_send_down + 1 )
                 ALLOCATE ( send_buf_3d_down ( lb_send_down(1):ub_send_down(1), &
-                           lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_down",nn)
+                     lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ), STAT=stat )
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
                 send_buf_3d_down = rs % r ( lb_send_down(1):ub_send_down(1), &
-                                       lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) )
+                     lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) )
 
                 CALL mp_isend ( send_buf_3d_down, dest_down, rs % group, req(3))
 
@@ -1492,19 +1493,19 @@ END FUNCTION rs_grid_locate_rank
                 ENDIF
 
                 DO i=1,3
-                  IF ( .NOT. ( halo_swapped(i) .OR. i .EQ. idir ) ) THEN
-                    lb_send_up(i) = rs % lb_real(i)
-                    ub_send_up(i) = rs % ub_real(i)
-                    lb_recv_up(i) = rs % lb_real(i)
-                    ub_recv_up(i) = rs % ub_real(i)
-                  ENDIF
+                   IF ( .NOT. ( halo_swapped(i) .OR. i .EQ. idir ) ) THEN
+                      lb_send_up(i) = rs % lb_real(i)
+                      ub_send_up(i) = rs % ub_real(i)
+                      lb_recv_up(i) = rs % lb_real(i)
+                      ub_recv_up(i) = rs % ub_real(i)
+                   ENDIF
                 ENDDO
 
                 ! allocate the recv buffer
                 nn = PRODUCT ( ub_recv_up - lb_recv_up + 1 )
                 ALLOCATE ( recv_buf_3d_up ( lb_recv_up(1):ub_recv_up(1), &
-                                            lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_up",nn)
+                     lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ), STAT=stat )
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
                 ! recv buffer is now ready, so post the recieve
                 CALL mp_irecv (recv_buf_3d_up, source_up, rs % group, req(2))
@@ -1512,11 +1513,11 @@ END FUNCTION rs_grid_locate_rank
                 ! now allocate,pack and send the send buffer
                 nn = PRODUCT ( ub_send_up - lb_send_up + 1 )
                 ALLOCATE ( send_buf_3d_up ( lb_send_up(1):ub_send_up(1), &
-                                            lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ), STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_up",nn)
+                     lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ), STAT=stat )
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
                 send_buf_3d_up = rs % r ( lb_send_up(1):ub_send_up(1), &
-                                          lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) )
+                     lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) )
 
                 CALL mp_isend ( send_buf_3d_up, dest_up, rs % group, req(4) )
 
@@ -1524,50 +1525,48 @@ END FUNCTION rs_grid_locate_rank
 
                 DO i=1,2
 
-                  CALL mp_waitany (req(1:2),completed)
+                   CALL mp_waitany (req(1:2),completed)
 
-                  IF ( completed .EQ. 1 ) THEN
+                   IF ( completed .EQ. 1 ) THEN
 
-                    ! only some procs may need later shifts
-                    IF(ub_recv_down(idir).GE.lb_recv_down(idir))THEN
+                      ! only some procs may need later shifts
+                      IF(ub_recv_down(idir).GE.lb_recv_down(idir))THEN
 
-                       ! Sum the data in the RS Grid
-                       rs % r ( lb_recv_down(1):ub_recv_down(1), lb_recv_down(2):ub_recv_down(2), &
-                                lb_recv_down(3):ub_recv_down(3) ) =  recv_buf_3d_down ( :, :, : )
+                         ! Sum the data in the RS Grid
+                         rs % r ( lb_recv_down(1):ub_recv_down(1), lb_recv_down(2):ub_recv_down(2), &
+                              lb_recv_down(3):ub_recv_down(3) ) =  recv_buf_3d_down ( :, :, : )
 
-                    END IF
+                      END IF
 
-                    DEALLOCATE ( recv_buf_3d_down, STAT=ierr )
-                    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_down")
+                      DEALLOCATE ( recv_buf_3d_down, STAT=stat )
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   ELSE
 
-                  ELSE
+                      ! only some procs may need later shifts
+                      IF(ub_recv_up(idir).GE.lb_recv_up(idir))THEN
 
-                    ! only some procs may need later shifts
-                    IF(ub_recv_up(idir).GE.lb_recv_up(idir))THEN
+                         ! Add the data to the RS Grid
+                         rs % r ( lb_recv_up(1):ub_recv_up(1), lb_recv_up(2):ub_recv_up(2), &
+                              lb_recv_up(3):ub_recv_up(3) ) =  recv_buf_3d_up ( :, :, : )
+                      END IF
 
-                       ! Add the data to the RS Grid
-                       rs % r ( lb_recv_up(1):ub_recv_up(1), lb_recv_up(2):ub_recv_up(2), &
-                                lb_recv_up(3):ub_recv_up(3) ) =  recv_buf_3d_up ( :, :, : )
-                    END IF
-
-                    DEALLOCATE ( recv_buf_3d_up, STAT=ierr )
-                    IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d_up")
-
-                  END IF
+                      DEALLOCATE ( recv_buf_3d_up, STAT=stat )
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   END IF
                 END DO
 
                 CALL mp_waitall (req(3:4))
 
-                DEALLOCATE ( send_buf_3d_down, STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_down")
-                DEALLOCATE ( send_buf_3d_up, STAT=ierr )
-                IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d_up")
-
+                DEALLOCATE ( send_buf_3d_down, STAT=stat )
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                DEALLOCATE ( send_buf_3d_up, STAT=stat )
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END DO
 
-             DEALLOCATE ( ushifts, STAT=ierr)
-             DEALLOCATE ( dshifts, STAT=ierr)
-
+             DEALLOCATE ( ushifts, STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE ( dshifts, STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
 
           halo_swapped (idir) = .TRUE.
@@ -1583,7 +1582,7 @@ END FUNCTION rs_grid_locate_rank
 !>      none
 !> \author JGH (23-Mar-2002)
 ! *****************************************************************************
-SUBROUTINE rs_grid_zero ( rs )
+  SUBROUTINE rs_grid_zero ( rs )
 
     TYPE(realspace_grid_type), POINTER       :: rs
 
@@ -1592,14 +1591,12 @@ SUBROUTINE rs_grid_zero ( rs )
 
     INTEGER                                  :: handle, n
 
-!-----------------------------------------------------------------------------!
+    CALL timeset(routineN,handle)
+    n = SIZE ( rs % r )
+    CALL dcopy ( n, 0.0_dp, 0, rs % r, 1 )
+    CALL timestop(handle)
 
-   CALL timeset(routineN,handle)
-   n = SIZE ( rs % r )
-   CALL dcopy ( n, 0.0_dp, 0, rs % r, 1 )
-   CALL timestop(handle)
-
-END SUBROUTINE rs_grid_zero
+  END SUBROUTINE rs_grid_zero
 
 ! *****************************************************************************
 !> \brief Set box matrix info for real space grid
@@ -1608,7 +1605,7 @@ END SUBROUTINE rs_grid_zero
 !>      none
 !> \author JGH (15-May-2007)
 ! *****************************************************************************
-SUBROUTINE rs_grid_set_box ( pw_grid, rs, error )
+  SUBROUTINE rs_grid_set_box ( pw_grid, rs, error )
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -1619,15 +1616,13 @@ SUBROUTINE rs_grid_set_box ( pw_grid, rs, error )
 
     LOGICAL                                  :: failure
 
-!-----------------------------------------------------------------------------!
-
     CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rs),cp_failure_level,routineP,error,failure)
     CPPrecondition(rs%grid_id==pw_grid%id_nr,cp_failure_level,routineP,error,failure)
     rs % dh = pw_grid%dh
     rs % dh_inv = pw_grid%dh_inv
 
-END SUBROUTINE rs_grid_set_box
+  END SUBROUTINE rs_grid_set_box
 
 ! *****************************************************************************
 !> \brief retains the given rs grid (see doc/ReferenceCounting.html)
@@ -1638,7 +1633,7 @@ END SUBROUTINE rs_grid_set_box
 !>      03.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE rs_grid_retain(rs_grid, error)
+  SUBROUTINE rs_grid_retain(rs_grid, error)
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1647,14 +1642,14 @@ SUBROUTINE rs_grid_retain(rs_grid, error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(rs_grid),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(rs_grid%ref_count>0,cp_failure_level,routineP,error)
-     rs_grid%ref_count=rs_grid%ref_count+1
-  END IF
-END SUBROUTINE rs_grid_retain
+    CPPrecondition(ASSOCIATED(rs_grid),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPreconditionNoFail(rs_grid%ref_count>0,cp_failure_level,routineP,error)
+       rs_grid%ref_count=rs_grid%ref_count+1
+    END IF
+  END SUBROUTINE rs_grid_retain
 
 ! *****************************************************************************
 !> \brief releases the given rs grid (see doc/ReferenceCounting.html)
@@ -1665,7 +1660,7 @@ END SUBROUTINE rs_grid_retain
 !>      03.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE rs_grid_release(rs_grid,error)
+  SUBROUTINE rs_grid_release(rs_grid,error)
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1682,43 +1677,43 @@ SUBROUTINE rs_grid_release(rs_grid,error)
        rs_grid%ref_count=rs_grid%ref_count-1
        IF (rs_grid%ref_count==0) THEN
 
-         allocated_rs_grid_count=allocated_rs_grid_count-1
-         DEALLOCATE ( rs_grid % r, STAT = stat )
-         IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % r" )
-         DEALLOCATE ( rs_grid % px , STAT = stat )
-         IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % px" )
-         DEALLOCATE ( rs_grid % py , STAT = stat )
-         IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % py" )
-         DEALLOCATE ( rs_grid % pz , STAT = stat )
-         IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % pz" )
-         IF ( rs_grid % parallel ) THEN
-            ! release the group communicator
-            CALL mp_comm_free ( rs_grid % group )
-         END IF
+          allocated_rs_grid_count=allocated_rs_grid_count-1
+          DEALLOCATE ( rs_grid % r, STAT=stat )
+          IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % r" )
+          DEALLOCATE ( rs_grid % px , STAT=stat )
+          IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % px" )
+          DEALLOCATE ( rs_grid % py , STAT=stat )
+          IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % py" )
+          DEALLOCATE ( rs_grid % pz , STAT=stat )
+          IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % pz" )
+          IF ( rs_grid % parallel ) THEN
+             ! release the group communicator
+             CALL mp_comm_free ( rs_grid % group )
+          END IF
 
-         IF (rs_grid % distributed) THEN
-            DEALLOCATE ( rs_grid % rank2coord , STAT = stat )
-            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % rank2coord" )
-            DEALLOCATE ( rs_grid % coord2rank , STAT = stat )
-            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % coord2rank" )
-            DEALLOCATE ( rs_grid % lb_global , STAT = stat )
-            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % lb_global" )
-            DEALLOCATE ( rs_grid % ub_global , STAT = stat )
-            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % ub_global" )
-            DEALLOCATE ( rs_grid % x2coord , STAT = stat )
-            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % x2coord" )
-            DEALLOCATE ( rs_grid % y2coord , STAT = stat )
-            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % y2coord" )
-            DEALLOCATE ( rs_grid % z2coord , STAT = stat )
-            IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % z2coord" )
-         ENDIF
+          IF (rs_grid % distributed) THEN
+             DEALLOCATE ( rs_grid % rank2coord , STAT=stat )
+             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % rank2coord" )
+             DEALLOCATE ( rs_grid % coord2rank , STAT=stat )
+             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % coord2rank" )
+             DEALLOCATE ( rs_grid % lb_global , STAT=stat )
+             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % lb_global" )
+             DEALLOCATE ( rs_grid % ub_global , STAT=stat )
+             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % ub_global" )
+             DEALLOCATE ( rs_grid % x2coord , STAT=stat )
+             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % x2coord" )
+             DEALLOCATE ( rs_grid % y2coord , STAT=stat )
+             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % y2coord" )
+             DEALLOCATE ( rs_grid % z2coord , STAT=stat )
+             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % z2coord" )
+          ENDIF
 
-         DEALLOCATE(rs_grid, stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(rs_grid, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
     NULLIFY(rs_grid)
-END SUBROUTINE rs_grid_release
+  END SUBROUTINE rs_grid_release
 
 END MODULE realspace_grid_types
 

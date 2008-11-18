@@ -156,8 +156,6 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(virial_type), POINTER               :: virial
 
-!   --------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
 
     NULLIFY(pw_env,auxbas_rs_pool,hab,pab,cores)
@@ -168,7 +166,7 @@ CONTAINS
     CALL pw_env_get(pw_env=pw_env,auxbas_rs_pool=auxbas_rs_pool,error=error)
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_v, error=error)
 
-    CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
+    CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
@@ -1097,7 +1095,7 @@ CONTAINS
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,&
-                           mgrid_rspace(igrid_level)%pw,pw2rs)
+                           mgrid_rspace(igrid_level)%pw,pw2rs,error=error)
     ENDDO
     ! *** give back the pw multi-grids
     CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace,error=error)

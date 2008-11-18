@@ -323,7 +323,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineP,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
-       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rhop_r%pw,rs2pw)
+       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rhop_r%pw,rs2pw,error=error)
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
        CALL pw_fft_wrap(rhop_r%pw,rhop_g%pw)
        IF (rhop_r%pw%pw_grid%spherical) THEN ! rhop_g = rhop_r
@@ -332,7 +332,7 @@ CONTAINS
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-               mgrid_rspace(igrid_level)%pw,rs2pw)
+               mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
        ENDDO
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 

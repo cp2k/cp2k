@@ -245,7 +245,7 @@ MODULE qs_rho0_ggrid
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF(igrid /= auxbas_grid) THEN
-      CALL rs_pw_transfer(rs_grid,coeff_rspace%pw,rs2pw)
+      CALL rs_pw_transfer(rs_grid,coeff_rspace%pw,rs2pw,error=error)
       CALL rs_pool_give_back_rs(pool,rs_grid,error=error)
 
       CALL pw_zero(rho0_s_gs%pw)
@@ -261,7 +261,7 @@ MODULE qs_rho0_ggrid
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ELSE
-      CALL rs_pw_transfer(rs_grid,rho0_s_rs%pw,rs2pw)
+      CALL rs_pw_transfer(rs_grid,rho0_s_rs%pw,rs2pw,error=error)
       CALL rs_pool_give_back_rs(pool,rs_grid,error=error)
 
       tot_rs_int = pw_integrate_function(rho0_s_rs%pw,isign=-1)
@@ -508,7 +508,7 @@ MODULE qs_rho0_ggrid
     ! *** set up the rs grid at level igrid
     CALL rs_pool_create_rs(rs_pool,rs_v,error=error)
     CALL rs_grid_zero(rs_v)
-    CALL rs_pw_transfer(rs_v,coeff_rspace%pw,pw2rs)
+    CALL rs_pw_transfer(rs_v,coeff_rspace%pw,pw2rs,error=error)
 
     CALL pw_pool_give_back_pw(pw_pool,coeff_rspace%pw,error=error)
     DEALLOCATE(coeff_rspace, STAT=istat)

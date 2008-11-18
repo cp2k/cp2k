@@ -213,7 +213,7 @@ CONTAINS
 
     CALL pw_pool_create_pw ( pw_pool, rhob_r, use_data = REALDATA3D, &
                              in_space = REALSPACE ,error=error)
-    CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
+    CALL rs_pw_transfer ( rden, rhob_r, rs2pw, error=error)
     ! transform density to G space and add charge function
     CALL pw_pool_create_pw ( pw_pool, rhob_g,  &
                              use_data = COMPLEXDATA1D, &
@@ -266,7 +266,7 @@ CONTAINS
        dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * green % p3m_charge % cr
        CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
        CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
-       CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs )
+       CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs,error=error)
     END DO
 
     CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
