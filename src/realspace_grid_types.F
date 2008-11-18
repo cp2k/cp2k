@@ -32,8 +32,7 @@ MODULE realspace_grid_types
   USE pw_types,                        ONLY: COMPLEXDATA3D,&
                                              REALDATA3D,&
                                              pw_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
@@ -1679,13 +1678,13 @@ CONTAINS
 
           allocated_rs_grid_count=allocated_rs_grid_count-1
           DEALLOCATE ( rs_grid % r, STAT=stat )
-          IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % r" )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE ( rs_grid % px , STAT=stat )
-          IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % px" )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE ( rs_grid % py , STAT=stat )
-          IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % py" )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE ( rs_grid % pz , STAT=stat )
-          IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % pz" )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF ( rs_grid % parallel ) THEN
              ! release the group communicator
              CALL mp_comm_free ( rs_grid % group )
@@ -1693,19 +1692,19 @@ CONTAINS
 
           IF (rs_grid % distributed) THEN
              DEALLOCATE ( rs_grid % rank2coord , STAT=stat )
-             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % rank2coord" )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE ( rs_grid % coord2rank , STAT=stat )
-             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % coord2rank" )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE ( rs_grid % lb_global , STAT=stat )
-             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % lb_global" )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE ( rs_grid % ub_global , STAT=stat )
-             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % ub_global" )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE ( rs_grid % x2coord , STAT=stat )
-             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % x2coord" )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE ( rs_grid % y2coord , STAT=stat )
-             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % y2coord" )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE ( rs_grid % z2coord , STAT=stat )
-             IF ( stat /= 0 ) CALL stop_memory ( "rs_grid_release","rs % z2coord" )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
 
           DEALLOCATE(rs_grid, stat=stat)
