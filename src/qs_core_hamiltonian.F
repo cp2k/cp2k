@@ -182,7 +182,7 @@ CONTAINS
       iatom, ico, icol, ikind, ilist, inode, irow, iset, ithread, j, jatom, &
       jco, jkind, jset, katom, kkind, kneighbor, knode, last_jatom, ldai, &
       ldsab, lr_precond, maxblock, maxco, maxdco, maxder, maxl, maxlgto, &
-      maxlppl, maxsgf, n, nat, natom, ncoa, ncoa_sum, ncob, ncol, nder, &
+      maxlppl, maxsgf, n, nat, natom, ncoa, ncob, ncol, nder, &
       neighbor_list_id, nkind, nlist, nneighbor, nnode, nnode_c, nrow, nseta, &
       nsetb, nsgf, nthread, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf, &
@@ -665,7 +665,6 @@ CONTAINS
                               first_sgf=first_sgfa,&
                               lmax=la_max,&
                               lmin=la_min,&
-                              nco_sum=ncoa_sum,&
                               npgf=npgfa,&
                               nset=nseta,&
                               nsgf_set=nsgfa,&

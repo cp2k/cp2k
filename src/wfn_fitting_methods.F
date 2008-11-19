@@ -559,8 +559,8 @@ MODULE wfn_fitting_methods
       irow, iset, jatom, jkind, jset, last_jatom, ldai, ldsab, maxblock, &
       maxco, maxcoa, maxcob, maxdco, maxdcoa, maxdcob, maxder, maxl, maxlgto, &
       maxlgtoa, maxlgtob, maxlppl, maxlppla, maxlpplb, maxsgf, maxsgfa, &
-      maxsgfb, n, natom, ncoa, ncoa_sum, ncob, nder, neighbor_list_id, nkind, &
-      nlist, nnode, nrow, nseta, nsetb, sgfa, sgfb, stat
+      maxsgfb, n, natom, ncoa, ncob, nder, neighbor_list_id, nkind, nlist, &
+      nnode, nrow, nseta, nsetb, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -681,7 +681,6 @@ MODULE wfn_fitting_methods
                              first_sgf=first_sgfa,&
                              lmax=la_max,&
                              lmin=la_min,&
-                             nco_sum=ncoa_sum,&
                              npgf=npgfa,&
                              nset=nseta,&
                              nsgf_set=nsgfa,&
