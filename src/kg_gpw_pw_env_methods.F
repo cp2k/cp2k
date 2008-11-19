@@ -580,6 +580,9 @@ CONTAINS
       pw_grid_mol%dh(1,1) = dr_g(1)
       pw_grid_mol%dh(2,2) = dr_g(2)
       pw_grid_mol%dh(3,3) = dr_g(3)
+  pw_grid_mol % dh_inv ( 1,: ) = cell_mol % h_inv ( 1,: ) * REAL ( pw_grid_mol % npts ( 1 ),KIND=dp)
+  pw_grid_mol % dh_inv ( 2,: ) = cell_mol % h_inv ( 2,: ) * REAL ( pw_grid_mol % npts ( 2 ),KIND=dp)
+  pw_grid_mol % dh_inv ( 3,: ) = cell_mol % h_inv ( 3,: ) * REAL ( pw_grid_mol % npts ( 3 ),KIND=dp)
 
       npts_out( : ) = pw_grid_mol%npts( : )
 
