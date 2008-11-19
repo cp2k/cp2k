@@ -50,7 +50,8 @@ MODULE qs_collocate_density
                                              rs_pool_give_back_rs,&
                                              rs_pools_create_rs_vect,&
                                              rs_pools_give_back_rs_vect
-  USE cube_utils,                      ONLY: cube_info_type,&
+  USE cube_utils,                      ONLY: compute_cube_center,&
+                                             cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_cp2k2d3
@@ -1551,8 +1552,10 @@ CONTAINS
 !   hence (0.0,0.0,0.0) in real space is rsgrid%lb on the rsgrid ((1,1,1) on grid)
 !
 
+
+
     ALLOCATE(map(-cmax:cmax,3))
-    cubecenter(:) = FLOOR(rp(:)/dr(:))
+    CALL compute_cube_center(cubecenter,rsgrid,zeta,zetb,ra,rab)
     roffset(:)    = rp(:) - REAL(cubecenter(:),dp)*dr(:)
 !   *** a mapping so that the ig corresponds to the right grid point 
     DO i=1,3
@@ -1570,6 +1573,10 @@ CONTAINS
       ELSE
         ! this takes partial grid + border regions into account
         offset=MODULO(cubecenter(i)+lb_cube(i)+rsgrid%lb(i)-rsgrid%lb_local(i),ng(i))+1-lb_cube(i)
+        ! check for out of bounds
+        IF (ub_cube(i)+offset>UBOUND(grid,i).OR.lb_cube(i)+offset<LBOUND(grid,i)) THEN
+           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        ENDIF
         DO ig=lb_cube(i),ub_cube(i)
            map(ig,i) = ig+offset
         END DO

@@ -501,3 +501,15 @@ h2o-otdiag.inp
 h2o-otdiag-lsd.inp
 # more numerics ppnl
 spin_restraint.inp
+# unified cube_center 
+H2-geo-1.inp
+# unified cube_center 
+test-pdb.inp
+# unified cube_center 
+spin_restraint.inp
+# unified cube_center 
+H2O-meta_hydro.inp
+# unified cube_center 
+NO2-EFG-1.inp
+# unified cube_center 
+He3_multi_ddapc.inp

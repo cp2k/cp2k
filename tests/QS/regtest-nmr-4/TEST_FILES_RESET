@@ -103,3 +103,9 @@ c2h2_list-1.inp
 no_list-1.inp
 #
 ch4-gapw-1.inp
+# unified cube_center 
+h2o-gapw-1.inp
+# unified cube_center 
+ch4-gapw-1.inp
+# unified cube_center 
+no_list-1.inp

@@ -96,3 +96,15 @@ H2O-rks-otcg-mulliken.inp
 H2O-uks-otcg-mulliken.inp
 # 
 H2O-uks-diag.inp
+# unified cube_center 
+H2O-rks-diag.inp
+# unified cube_center 
+H2O-rks-otcg.inp
+# unified cube_center 
+H2O-uks-diag.inp
+# unified cube_center 
+H2O-uks-otcg.inp
+# unified cube_center 
+H2O-rks-otcg-mulliken.inp
+# unified cube_center 
+H2O-uks-otcg-mulliken.inp

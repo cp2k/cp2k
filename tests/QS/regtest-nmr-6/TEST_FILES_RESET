@@ -116,3 +116,27 @@ ch4-gapw-1-distributed.inp
 no-gapw-gpw-1.inp
 # more numerics ppnl
 ch4-gapw-gpw-1.inp
+# unified cube_center 
+ch4-gapw-1.inp
+# unified cube_center 
+ch4-gapw-2.inp
+# unified cube_center 
+ch4-gapw-3.inp
+# unified cube_center 
+ch4-gapw-4.inp
+# unified cube_center 
+no-gapw-1.inp
+# unified cube_center 
+no-gapw-2.inp
+# unified cube_center 
+no-gapw-3.inp
+# unified cube_center 
+no-gapw-4.inp
+# unified cube_center 
+ch4-gapw-1-distributed.inp
+# unified cube_center 
+ch4-gapw-1-replicated.inp
+# unified cube_center 
+no-gapw-1-distributed.inp
+# unified cube_center 
+no-gapw-1-replicated.inp

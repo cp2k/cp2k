@@ -20,7 +20,8 @@ MODULE task_list_methods
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pools_create_rs_vect,&
                                              rs_pools_give_back_rs_vect
-  USE cube_utils,                      ONLY: cube_info_type,&
+  USE cube_utils,                      ONLY: compute_cube_center,&
+                                             cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
   USE f77_blas
@@ -439,8 +440,8 @@ CONTAINS
     radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
                zetp=zetp,eps=eps, prefactor=prefactor,cutoff=cutoff)
 
+    CALL compute_cube_center(cube_center,rs_grid,zeta,zetb,ra,rab)
     ! compute cube_center, the center of the gaussian product to map (folded to within the unit cell)
-    cube_center(:) = FLOOR(MATMUL(cell%h_inv,pbc(rp,cell))*rs_grid%npts(:))
     cube_center(:) = MODULO ( cube_center(:), rs_grid%npts(:) )
     cube_center(:) = cube_center(:) + rs_grid%lb(:)
 

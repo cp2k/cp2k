@@ -130,3 +130,7 @@ no_ot_precond_10.inp
 no_ot_precond_11.inp
 #  
 no_ot_precond_12.inp
+# unified cube_center 
+o2_ot_chol_1.inp
+# unified cube_center 
+o2_ot_lwdn_1.inp

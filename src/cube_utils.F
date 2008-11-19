@@ -18,6 +18,7 @@ MODULE cube_utils
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matvec_3x3
+  USE realspace_grid_types,            ONLY: realspace_grid_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -31,7 +32,8 @@ MODULE cube_utils
   PUBLIC :: cube_info_type,cube_ptr
 
   PUBLIC :: init_cube_info, destroy_cube_info, &
-            return_cube,return_cube_max_iradius, return_cube_nonortho
+            return_cube,return_cube_max_iradius, return_cube_nonortho,&
+            compute_cube_center
 
   TYPE :: cube_ptr
        INTEGER, POINTER, DIMENSION(:) :: p
@@ -53,7 +55,28 @@ MODULE cube_utils
 !------------------------------------------------------------------------------
 
 CONTAINS
- 
+! *****************************************************************************
+!> \brief unifies the computation of the cube center, so that differences in
+!>        implementation, and thus roundoff and numerics can not lead to
+!>        off-by-one errors (which can lead to out-of-bounds access with distributed grids).
+!>        in principle, something similar would be needed for the computation of the cube bounds
+!>
+!> \par History
+!>      11.2008 created [Joost VandeVondele]
+! *****************************************************************************
+  SUBROUTINE compute_cube_center(cube_center,rs_grid,zeta,zetb,ra,rab)
+    INTEGER, DIMENSION(3), INTENT(OUT)       :: cube_center
+    TYPE(realspace_grid_type), POINTER       :: rs_grid
+    REAL(KIND=dp), INTENT(IN)                :: zeta, zetb, ra(3), rab(3)
+
+    REAL(KIND=dp)                            :: zetp
+    REAL(KIND=dp), DIMENSION(3)              :: rp
+
+    zetp = zeta + zetb
+    rp(:) = ra(:) + zetb/zetp*rab(:)
+    cube_center(:) = FLOOR(MATMUL(rs_grid%dh_inv,rp))
+
+  END SUBROUTINE compute_cube_center
 ! *****************************************************************************
   SUBROUTINE return_cube_nonortho(info,radius,lb,ub,rp)
 

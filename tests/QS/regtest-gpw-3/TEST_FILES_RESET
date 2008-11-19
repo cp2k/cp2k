@@ -578,3 +578,13 @@ H2O-solv.inp
 3H2O_bsse.inp
 # gaussColloc radius change
 3H2O_bsse.inp
+# unified cube_center 
+H2O-bloechl.inp
+# unified cube_center 
+H2O-bloechl-Spl.inp
+# unified cube_center 
+H2O-bloechl-restraint.inp
+# unified cube_center 
+rsgrid-dist-1.inp
+# unified cube_center 
+H2O-solv.inp
