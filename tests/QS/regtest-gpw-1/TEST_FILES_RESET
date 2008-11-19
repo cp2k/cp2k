@@ -370,3 +370,5 @@ Ar-4.inp
 Ar-5.inp
 # unified cube_center 
 K2.inp
+# numerics
+pyridine.inp

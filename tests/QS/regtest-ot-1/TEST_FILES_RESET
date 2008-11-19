@@ -483,3 +483,6 @@ H2O-9.inp
 H2O-OT-ASPC-5.inp
 # unified cube_center 
 H2O-OT-ASPC-6.inp
+# numerics
+H2-2.inp
+H2-3.inp

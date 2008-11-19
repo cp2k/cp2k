@@ -140,3 +140,7 @@ ch4-gapw-1-replicated.inp
 no-gapw-1-distributed.inp
 # unified cube_center 
 no-gapw-1-replicated.inp
+# numerics
+w2_qmmm-1.inp
+w2_qmmm-2.inp
+w2_qmmm-3.inp
