@@ -3309,7 +3309,8 @@ CONTAINS
             error=error)
        CALL keyword_create(keyword,name="R_CUTOFF",&
             description="Range of potential. The cutoff will be 2 times this value",&
-            usage="R_CUTOFF 12.0", default_r_val=12.0_dp,required=.FALSE.,error=error)
+            usage="R_CUTOFF 12.0", default_r_val=12.0_dp,required=.FALSE.,&
+            unit_str="angstrom",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="TYPE",&
@@ -3341,8 +3342,8 @@ CONTAINS
        ! parameter specification atom by atom
        CALL keyword_create(keyword, name="ATOMPARM",&
             description="Specifies parameters for atom types (in atomic units)",&
-            usage="ATOMPARM Ne par1 par2 ... ", required=.TRUE., repeats=.TRUE.,&
-            n_var=-1,type_of_var=char_t, error=error)
+            usage="ATOMPARM <ELEMENT> <C6_parameter> <vdw_radii>", required=.TRUE., &
+            repeats=.TRUE., n_var=-1,type_of_var=char_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
