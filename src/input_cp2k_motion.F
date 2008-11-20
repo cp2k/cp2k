@@ -626,6 +626,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="ETA",&
+            description="The free energy bias (in Kelvin) for swapping a molecule of each type into this box.",&
+            usage="ETA {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_mc_section

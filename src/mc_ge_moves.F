@@ -490,6 +490,7 @@ CONTAINS
     LOGICAL                                  :: ionode, lbias, loverlap, &
                                                 loverlap_ins, loverlap_rem
     REAL(dp), DIMENSION(:), POINTER          :: pmswap_mol
+    REAL(dp), DIMENSION(:), POINTER          :: eta_insert,eta_remove
     REAL(dp), DIMENSION(:, :), POINTER       :: insert_coords, remove_coords
     REAL(KIND=dp) :: BETA, del_quickstep_energy, exp_max_val, exp_min_val, &
       max_val, min_val, prefactor, rand, rdum, w, weight_new, weight_old
@@ -525,6 +526,7 @@ CONTAINS
 ! nullify some pointers
       NULLIFY(particles_old,mol_type,mol_type_test,mc_input_file,mc_bias_file)
       NULLIFY(oldsys,atom_names,pmswap_mol,insert_coords,remove_coords)
+      NULLIFY(eta_insert,eta_remove)
 
 ! grab some stuff from mc_par
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,BETA=BETA,&
@@ -569,6 +571,10 @@ CONTAINS
          insert_box=1
       ENDIF
 
+! now assign the eta values for the insert and remove boxes
+      CALL get_mc_par(mc_par(remove_box)%mc_par,eta=eta_remove)
+      CALL get_mc_par(mc_par(insert_box)%mc_par,eta=eta_insert)
+      
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! testing
 !      remove_box=2
 !      insert_box=1
@@ -1083,11 +1089,12 @@ CONTAINS
          ELSE
             del_quickstep_energy=EXP(del_quickstep_energy)
          ENDIF
-         w=prefactor*del_quickstep_energy*weight_new/weight_old
+         w=prefactor*del_quickstep_energy*weight_new/weight_old &
+                *EXP(BETA*(eta_remove(molecule_type)-eta_insert(molecule_type)))
 
       ELSE
-
-         w=prefactor*weight_new/weight_old
+         w=prefactor*weight_new/weight_old &
+                *EXP(BETA*(eta_remove(molecule_type)-eta_insert(molecule_type)))
 
       ENDIF
 

@@ -123,6 +123,7 @@ MODULE mc_types
       REAL ( dp ) :: discrete_step
       REAL ( dp ) :: rmvolume
       REAL ( dp ),DIMENSION(:),POINTER :: rmbond,rmangle,rmdihedral,rmrot,rmtrans
+      REAL ( dp ),DIMENSION(:),POINTER :: eta
       REAL ( dp ) :: temperature
       REAL ( dp ) :: pressure
       REAL ( dp ) :: pmavbmc
@@ -281,7 +282,7 @@ CONTAINS
        pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral,&
        input_file,mc_molecule_info,pmswap_mol,pmavbmc_mol,pmtrans_mol,pmrot_mol,&
        pmtraion_mol,mc_input_file,mc_bias_file,pmvol_box,virial_temps,&
-       exp_min_val, exp_max_val, min_val, max_val)
+       exp_min_val, exp_max_val, min_val, max_val, eta)
 
 ! *****************************************************************************
 !> \brief accesses the private elements of the mc_parameters_type
@@ -298,7 +299,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rmvolume
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: rmbond, rmangle, rmrot, &
-                                                rmtrans
+                                                rmtrans, eta
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: temperature, pressure, BETA, &
                                                 pmswap, pmvolume, pmtraion, &
                                                 pmtrans
@@ -388,6 +389,8 @@ CONTAINS
     IF ( PRESENT ( rmrot ) ) rmrot => mc_par % rmrot
     IF ( PRESENT ( rmtrans ) ) rmtrans => mc_par % rmtrans
 
+    IF ( PRESENT ( eta ) ) eta => mc_par % eta
+ 
     IF ( PRESENT ( ensemble ) ) ensemble = mc_par % ensemble
     IF ( PRESENT ( PROGRAM ) ) PROGRAM = mc_par % program
     IF ( PRESENT ( restart_file_name ) ) restart_file_name = &
@@ -468,7 +471,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       pmswap,pmvolume,pmtraion,pmtrans,BETA,rcut,iprint,lbias,nstep,&
       lrestart,ldiscrete,discrete_step,pmavbmc,mc_molecule_info,&
       pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
-      avbmc_rmin,avbmc_rmax,avbmc_atom,pbias,ensemble,pmvol_box,&
+      avbmc_rmin,avbmc_rmax,avbmc_atom,pbias,ensemble,pmvol_box,eta,&
       mc_input_file,mc_bias_file,exp_max_val,exp_min_val,min_val,max_val)
 
 ! *****************************************************************************
@@ -482,7 +485,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: rmvolume
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: rmbond, rmangle, rmdihedral, &
-                                                rmrot, rmtrans
+                                                rmrot, rmtrans, eta
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: PROGRAM
     INTEGER, INTENT(IN), OPTIONAL            :: nmoves, nswapmoves
     LOGICAL, INTENT(IN), OPTIONAL            :: lstop
@@ -559,6 +562,11 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
 ! cannot just change the pointers, because then we have memory leaks
 ! and the program crashes if we try to release it (in certain cases)
+    IF ( PRESENT ( eta ) ) THEN
+       DO iparm=1,SIZE(eta)
+          mc_par % eta(iparm) = eta(iparm)
+       ENDDO
+    ENDIF
     IF ( PRESENT ( rmbond ) ) THEN
        DO iparm=1,SIZE(rmbond)
           mc_par % rmbond(iparm) = rmbond(iparm)
@@ -670,6 +678,10 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_par%pmswap_mol",nmol_types*dp_size)
 
+    ALLOCATE (mc_par%eta(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%eta",nmol_types*dp_size)
+
     ALLOCATE (mc_par%rmbond(1:nmol_types),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_par%rmbond",nmol_types*dp_size)
@@ -744,6 +756,10 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     DEALLOCATE (mc_par%pmswap_mol,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_par%pmswap_mol")
+
+    DEALLOCATE (mc_par%eta,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%eta")
 
     DEALLOCATE (mc_par%rmbond,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1240,6 +1256,10 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       DO imol=1,SIZE(temp_r_array)
          mc_par%pmavbmc_mol(imol)=temp_r_array(imol)
       ENDDO
+      CALL section_vals_val_get(mc_section,"ETA",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%eta(imol)=temp_r_array(imol)
+      ENDDO
       CALL section_vals_val_get(mc_section,"RMBOND",r_vals=temp_r_array,error=error)
       DO imol=1,SIZE(temp_r_array)
          mc_par%rmbond(imol)=temp_r_array(imol)
@@ -1365,6 +1385,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
             '[cubic angstroms]', &
             mc_par % rmvolume
          ENDIF
+         WRITE ( iw, format_string ) ' MC| eta [K]', &
+            mc_par % eta
          WRITE ( iw, format_string ) ' MC| rmbond [angstroms]', &
             mc_par % rmbond
          WRITE ( iw, format_string ) ' MC| rmangle [degrees]', &
@@ -1423,12 +1445,15 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       mc_par%pressure = cp_unit_to_cp2k(mc_par%pressure,"bar",error=error)
 ! convert from angstrom to a.u.
       DO itype=1,mc_par%mc_molecule_info%nmol_types
+! convert from Kelvin to a.u.
+!         mc_par % eta = mc_par%eta(itype) * boltzmann / joule
 ! convert from degrees to radians
          mc_par%rmrot(itype) = mc_par%rmrot(itype)/180.0e0_dp*pi
          mc_par%rmangle(itype) = mc_par%rmangle(itype)/180.0e0_dp*pi
          mc_par%rmdihedral(itype) = mc_par%rmdihedral(itype)/180.0e0_dp*pi
          mc_par%rmtrans(itype) = cp_unit_to_cp2k(mc_par%rmtrans(itype),"angstrom",error=error)
          mc_par%rmbond(itype) = cp_unit_to_cp2k(mc_par%rmbond(itype),"angstrom",error=error)
+         mc_par%eta(itype) = cp_unit_to_cp2k(mc_par%eta(itype),"K_e",error=error)
          mc_par%avbmc_rmin(itype) = cp_unit_to_cp2k(mc_par%avbmc_rmin(itype),"angstrom",error=error)
          mc_par%avbmc_rmax(itype) = cp_unit_to_cp2k(mc_par%avbmc_rmax(itype),"angstrom",error=error)
       ENDDO

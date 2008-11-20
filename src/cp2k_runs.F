@@ -177,7 +177,6 @@ CONTAINS
 
     ! put failure to true if this is what happened on parsing the input
     CALL cp_error_check(error,failure)
-
     IF (failure) THEN
        logger => cp_error_get_logger(error)
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
