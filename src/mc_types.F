@@ -299,7 +299,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rmvolume
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: rmbond, rmangle, rmrot, &
-                                                rmtrans, eta
+                                                rmtrans
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: temperature, pressure, BETA, &
                                                 pmswap, pmvolume, pmtraion, &
                                                 pmtrans
@@ -333,6 +333,8 @@ CONTAINS
       POINTER                                :: virial_temps
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: exp_min_val, exp_max_val, &
                                                 min_val, max_val
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: eta
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
       routineP = moduleN//':'//routineN
@@ -485,7 +487,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: rmvolume
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: rmbond, rmangle, rmdihedral, &
-                                                rmrot, rmtrans, eta
+                                                rmrot, rmtrans
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: PROGRAM
     INTEGER, INTENT(IN), OPTIONAL            :: nmoves, nswapmoves
     LOGICAL, INTENT(IN), OPTIONAL            :: lstop
@@ -510,6 +512,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       POINTER                                :: pbias
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: ensemble
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pmvol_box
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: eta
     TYPE(mc_input_file_type), OPTIONAL, &
       POINTER                                :: mc_input_file, mc_bias_file
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: exp_max_val, exp_min_val, &

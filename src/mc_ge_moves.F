@@ -489,8 +489,8 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: nchains, nchains_test
     LOGICAL                                  :: ionode, lbias, loverlap, &
                                                 loverlap_ins, loverlap_rem
-    REAL(dp), DIMENSION(:), POINTER          :: pmswap_mol
-    REAL(dp), DIMENSION(:), POINTER          :: eta_insert,eta_remove
+    REAL(dp), DIMENSION(:), POINTER          :: eta_insert, eta_remove, &
+                                                pmswap_mol
     REAL(dp), DIMENSION(:, :), POINTER       :: insert_coords, remove_coords
     REAL(KIND=dp) :: BETA, del_quickstep_energy, exp_max_val, exp_min_val, &
       max_val, min_val, prefactor, rand, rdum, w, weight_new, weight_old
