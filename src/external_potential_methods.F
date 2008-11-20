@@ -28,6 +28,7 @@ MODULE external_potential_methods
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE memory_utilities,                ONLY: reallocate
   USE particle_list_types,             ONLY: particle_list_type
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
@@ -58,9 +59,11 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: def_error, this_error
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: my_par
-    INTEGER                                  :: handle, iatom, j, &
-                                                output_unit, stat
-    LOGICAL                                  :: explicit, failure, ionode
+    INTEGER                                  :: a_var, handle, i, iatom, j, &
+                                                k, n_var, natom, output_unit, &
+                                                rep, stat
+    INTEGER, DIMENSION(:), POINTER           :: iatms, nparticle
+    LOGICAL                                  :: failure, ionode, useall
     REAL(KIND=dp)                            :: dedf, dx, energy, err, lerr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
     TYPE(cp_logger_type), POINTER            :: logger
@@ -69,20 +72,22 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: ext_pot_section
 
     failure = .FALSE.
+    useall  = .FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(my_par, my_val, logger, subsys, particles, ext_pot_section)
+    NULLIFY(my_par, my_val, logger, subsys, particles, ext_pot_section, nparticle)
     ext_pot_section => section_vals_get_subs_vals(force_env%force_env_section,&
-                       "EXTERNAL_POTENTIAL",error=error)
-    CALL section_vals_get(ext_pot_section,explicit=explicit,error=error)
-    IF (explicit) THEN
+         "EXTERNAL_POTENTIAL",error=error)
+    CALL section_vals_get(ext_pot_section,n_repetition=n_var,error=error)
+    DO rep=1, n_var
+       natom       =  0
        output_unit = -1
        logger => cp_error_get_logger(error)
        ionode = logger%para_env%mepos==logger%para_env%source
        IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
-       CALL section_vals_val_get(ext_pot_section,"DX",r_val=dx,error=error)
-       CALL section_vals_val_get(ext_pot_section,"ERROR_LIMIT",r_val=lerr,error=error)
+       CALL section_vals_val_get(ext_pot_section,"DX",r_val=dx,i_rep_section=rep,error=error)
+       CALL section_vals_val_get(ext_pot_section,"ERROR_LIMIT",r_val=lerr,i_rep_section=rep,error=error)
        CALL get_generic_info(ext_pot_section, "FUNCTION", coupling_function, my_par, my_val,&
-            input_variables=(/"X","Y","Z"/), error=error)
+            input_variables=(/"X","Y","Z"/), i_rep_sec=rep,error=error)
        CALL initf(1)
        CALL parsef(1,TRIM(coupling_function),my_par)
 
@@ -91,11 +96,28 @@ CONTAINS
        CALL force_env_get(force_env, subsys=subsys, error=error)
        CALL cp_subsys_get(subsys, particles=particles, error=error)
        CALL force_env_get(force_env, additional_potential=energy, error=error)
-       DO iatom = 1, particles%n_els
+       CALL section_vals_val_get(ext_pot_section,"ATOMS_LIST",n_rep_val=a_var,i_rep_section=rep,error=error)
+       DO k = 1, a_var
+          CALL section_vals_val_get(ext_pot_section,"ATOMS_LIST",i_rep_val=k,i_vals=iatms,i_rep_section=rep,&
+               error=error)
+          CALL reallocate(nparticle,1, natom+SIZE(iatms))
+          nparticle(natom+1:natom+SIZE(iatms)) = iatms
+          natom = natom + SIZE(iatms)
+       END DO
+       IF (a_var==0) THEN
+          natom  = particles%n_els
+          useall = .TRUE.
+       END IF
+       DO i = 1, natom
+          IF (useall) THEN
+             iatom = i
+          ELSE
+             iatom = nparticle(i)
+          END IF
           my_val(1)=particles%els(iatom)%r(1)
           my_val(2)=particles%els(iatom)%r(2)
           my_val(3)=particles%els(iatom)%r(3)
-          
+
           energy = energy + evalf(1,my_val)
           DO j = 1, 3
              dedf = evalfd(1,j,my_val,dx,err)
@@ -117,8 +139,12 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(my_val,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (a_var/=0) THEN
+          DEALLOCATE (nparticle,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
        CALL finalizef()
-    END IF
+    END DO
     CALL timestop(handle)
   END SUBROUTINE add_external_potential
 

@@ -1,0 +1,53 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &EXTERNAL_POTENTIAL
+    FUNCTION sin(0.5*X)+cos(2.0*Y)-0.03*Z
+  &END
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &LENNARD-JONES
+          atoms Ar Ar
+          EPSILON 119.8
+          SIGMA 3.405
+          RCUT 8.4
+        &END LENNARD-JONES
+      &END NONBONDED
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+   Ar 2.5 2.5 2.0 
+   Ar 5.0 5.0 5.0 
+   Ar 4.0 2.0 8.0 
+    &END COORD
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT ar108
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 1.
+    TEMPERATURE 85.0
+  &END MD
+&END MOTION

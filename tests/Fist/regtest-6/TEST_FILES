@@ -32,3 +32,7 @@ uo2_buckmorse_nve.inp     2
 # colvar dist xyz component test
 water_3_dist_xyz.inp      2
 argon_ext.inp             2
+#external potential on a selected list of atoms
+extern_pot-test-01.inp    2
+extern_pot-test-02.inp    2
+extern_pot-test-03.inp    2

@@ -32,6 +32,7 @@ MODULE input_cp2k_force_eval
                                              section_release,&
                                              section_type
   USE input_val_types,                 ONLY: char_t,&
+                                             integer_t,&
                                              lchar_t,&
                                              real_t
   USE kinds,                           ONLY: dp
@@ -192,9 +193,16 @@ CONTAINS
        CALL section_create(section,name="EXTERNAL_POTENTIAL",&
             description="Section controlling the presence of an external potential dependent "//&
             " on the atomic positions (X,Y,Z)",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=7, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
+      
+       CALL keyword_create(keyword, name="ATOMS_LIST",&
+            description="Specifies the atoms on which the external potential will act",&
+            usage="ATOMS_LIST {INT} {INT} ..",required=.FALSE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        
        CALL keyword_create(keyword, name="FUNCTION",&
             description="Specifies the functional form in mathematical notation. Variables must be the atomic "//&
@@ -229,6 +237,7 @@ CONTAINS
             usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        
     END IF
   END SUBROUTINE create_ext_pot_section
