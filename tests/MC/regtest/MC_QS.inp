@@ -93,6 +93,7 @@
     AVBMC_RMAX 5.0
     AVBMC_ATOM 1
     PBIAS 0.5
+    ETA 0.0
     PMAVBMC_MOL 1.0
     PMSWAP_MOL 1.0
     PMROT_MOL 1.0
