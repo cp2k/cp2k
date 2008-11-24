@@ -253,21 +253,22 @@ CONTAINS
          error=error)
 
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-         description="The mm kind",usage="O",n_var=1,type_of_var=char_t,error=error)
+         description="The MM  kind",usage="O",n_var=1,type_of_var=char_t,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     
     CALL keyword_create(keyword, name="RADIUS",&
-         description="Specifies the radius of the atomic kinds [angstrom]",&
-         usage="RADIUS real",n_var=1,type_of_var=real_t,&
-         default_r_val=RADIUS_QMMM_DEFAULT,error=error)
+         description="Specifies the radius of the atomic kinds",&
+         usage="RADIUS real",n_var=1,type_of_var=real_t,unit_str="angstrom",&
+         default_r_val=cp_unit_to_cp2k(RADIUS_QMMM_DEFAULT,"angstrom",error=error),&
+         error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="CORR_RADIUS",&
-         description="Specifies the correction radius of the atomic kinds [angstrom]."//&
+         description="Specifies the correction radius of the atomic kinds"//&
          " The correction radius is connected to the use of the compatibility keyword.",&
-         usage="RADIUS real",n_var=1,type_of_var=real_t,error=error)
+         usage="RADIUS real",n_var=1,type_of_var=real_t,unit_str="angstrom",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -585,14 +586,14 @@ CONTAINS
        CALL keyword_create(keyword, name="RADIUS",&
             description="Overwrite the specification of the radius only for the MM atom involved in the link."//&
             "Default is to use the same radius as for the specified type.",&
-            usage="RADIUS real",n_var=1,type_of_var=real_t,error=error)
+            usage="RADIUS real",n_var=1,type_of_var=real_t,unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CORR_RADIUS",&
             description="Overwrite the specification of the correction radius only for the MM atom involved in the link."//&
             "Default is to use the same correction radius as for the specified type.",&
-            usage="RADIUS real",n_var=1,type_of_var=real_t,error=error)
+            usage="RADIUS real",n_var=1,type_of_var=real_t,unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -674,13 +675,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RADIUS",&
             description="Specifies the radius used for the QM/MM electrostatic coupling after movement",&
-            usage="RADIUS real",n_var=1,type_of_var=real_t, default_r_val=0.0_dp, error=error)
+            usage="RADIUS real",n_var=1,type_of_var=real_t,unit_str="angstrom", default_r_val=0.0_dp, &
+            error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CORR_RADIUS",&
             description="Specifies the correction radius used for the QM/MM electrostatic coupling after movement",&
-            usage="RADIUS real",n_var=1,type_of_var=real_t, default_r_val=0.0_dp, error=error)
+            usage="RADIUS real",n_var=1,type_of_var=real_t,unit_str="angstrom", default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -719,13 +721,15 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RADIUS",&
             description="Specifies the radius used for the QM/MM electrostatic coupling for the added source",&
-            usage="RADIUS real",default_r_val=RADIUS_QMMM_DEFAULT,n_var=1,type_of_var=real_t,error=error)
+            usage="RADIUS real",n_var=1,unit_str="angstrom",&
+            default_r_val=cp_unit_to_cp2k(RADIUS_QMMM_DEFAULT,"angstrom",error=error),error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CORR_RADIUS",&
             description="Specifies the correction radius used for the QM/MM electrostatic coupling for the added source",&
-            usage="RADIUS real",default_r_val=RADIUS_QMMM_DEFAULT,n_var=1,type_of_var=real_t,error=error)
+            usage="RADIUS real",n_var=1,unit_str="angstrom",&
+            default_r_val=cp_unit_to_cp2k(RADIUS_QMMM_DEFAULT,"angstrom",error=error),error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

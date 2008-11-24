@@ -21,6 +21,7 @@ MODULE qmmm_init
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential,&
                                              set_potential
@@ -548,7 +549,7 @@ CPSourceFileRef,&
        !
        ! Default
        !
-       tmp_radius = RADIUS_QMMM_DEFAULT * qm_cell_small%unit_of_length
+       tmp_radius = cp_unit_to_cp2k(RADIUS_QMMM_DEFAULT,"angstrom",error=error)
        Set_Radius_Pot_0: DO IkindR = 1, SIZE(atomic_kinds%els)
           atomic_kind => atomic_kinds%els(IkindR)
           CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
@@ -569,11 +570,10 @@ CPSourceFileRef,&
                   c_val=mm_atom_kind,error=error)
              CALL section_vals_val_get(mm_kinds,"RADIUS",i_rep_section=ikind,r_val=tmp_radius,error=error)
              tmp_radius_c = tmp_radius
-             CALL section_vals_val_get(mm_kinds,"CORR_RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val,error=error)
-             IF (n_rep_val == 1) &
-                  CALL section_vals_val_get(mm_kinds,"CORR_RADIUS",i_rep_section=ikind,r_val=tmp_radius_c,error=error)
-             tmp_radius   = tmp_radius * qm_cell_small%unit_of_length
-             tmp_radius_c = tmp_radius_c * qm_cell_small%unit_of_length
+             CALL section_vals_val_get(mm_kinds,"CORR_RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val,&
+                  error=error)
+             IF (n_rep_val == 1) CALL section_vals_val_get(mm_kinds,"CORR_RADIUS",i_rep_section=ikind,&
+                  r_val=tmp_radius_c,error=error)
              Set_Radius_Pot_1: DO IkindR = 1, SIZE(atomic_kinds%els)
                 atomic_kind => atomic_kinds%els(IkindR)
                 CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
@@ -981,13 +981,13 @@ CPSourceFileRef,&
              wrk_tmp(n_imomm) = mm_index
              IF (n_rep_val == 1) THEN
                 CALL section_vals_val_get(qmmm_link_section,"RADIUS",i_rep_section=ikind,r_val=my_radius,error=error)
-                WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius = my_radius * qm_cell_small%unit_of_length
-                WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius_corr = my_radius * qm_cell_small%unit_of_length
+                WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius = my_radius
+                WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius_corr = my_radius
              END IF
              CALL section_vals_val_get(qmmm_link_section,"CORR_RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val,error=error)
              IF (n_rep_val == 1) THEN
                 CALL section_vals_val_get(qmmm_link_section,"CORR_RADIUS",i_rep_section=ikind,r_val=my_radius,error=error)
-                WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius_corr = my_radius * qm_cell_small%unit_of_length
+                WHERE ( mm_atom_index == mm_index ) mm_el_pot_radius_corr = my_radius
              END IF
           END IF
        END DO
@@ -1118,8 +1118,6 @@ CPSourceFileRef,&
                 IF (n_rep_val == 1) &
                      CALL section_vals_val_get(move_section,"CORR_RADIUS",r_val=c_radius,i_rep_section=i_add,error=error)
 
-                radius   = radius * qm_cell_small%unit_of_length
-                c_radius = c_radius * qm_cell_small%unit_of_length
                 CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius,&
                                       mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius,&
                                       mm_el_pot_radius_corr=mm_el_pot_radius_corr,&
@@ -1143,13 +1141,11 @@ CPSourceFileRef,&
                 CALL section_vals_val_get(add_section,"ALPHA",r_val=alpha,i_rep_section=i_add,error=error)
                 CALL section_vals_val_get(add_section,"RADIUS",r_val=radius,i_rep_section=i_add,error=error)
                 CALL section_vals_val_get(add_section,"CHARGE",r_val=charge,i_rep_section=i_add,error=error)
-                CALL section_vals_val_get(move_section,"CORR_RADIUS",n_rep_val=n_rep_val,i_rep_section=i_add,error=error)
+                CALL section_vals_val_get(add_section,"CORR_RADIUS",n_rep_val=n_rep_val,i_rep_section=i_add,error=error)
                 c_radius = radius
                 IF (n_rep_val == 1) &
-                     CALL section_vals_val_get(move_section,"CORR_RADIUS",r_val=c_radius,i_rep_section=i_add,error=error)
+                     CALL section_vals_val_get(add_section,"CORR_RADIUS",r_val=c_radius,i_rep_section=i_add,error=error)
 
-                radius   = radius * qm_cell_small%unit_of_length
-                c_radius = c_radius * qm_cell_small%unit_of_length
                 CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius, charge,&
                                       mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius,&
                                       mm_el_pot_radius_corr=mm_el_pot_radius_corr,&

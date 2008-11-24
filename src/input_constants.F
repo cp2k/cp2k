@@ -45,7 +45,7 @@ MODULE input_constants
                                               do_mixed=7
 
   ! QMMM 
-  REAL(KIND=dp), PARAMETER, PUBLIC         :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
+  REAL(KIND=dp), PARAMETER, PUBLIC         :: RADIUS_QMMM_DEFAULT = 0.80_dp,& ! Angstrom
                                               ALPHA_IMOMM_DEFAULT = 1.38_dp,&
                                               CHARGE_SCALE_FACTOR = 1.00_dp
   ! BAND
