@@ -604,7 +604,7 @@ CONTAINS
                       CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
                             do_method_rm1, do_method_mndod)
  
-                         ! One-centre One-electron terms
+                         ! Two-centers One-electron terms
                          IF      ( nspins == 1 ) THEN
                             CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
                                  pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&

@@ -187,18 +187,18 @@ CONTAINS
     CALL nddo_mpole_create(nddo_mpole, error=error)
     ! Allocate Global Arrays
     ALLOCATE(nddo_mpole%charge(natom),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(nddo_mpole%dipole(3,natom),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(nddo_mpole%quadrupole(3,3,natom),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE(nddo_mpole%efield0(  natom),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(nddo_mpole%efield1(3,natom),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(nddo_mpole%efield2(9,natom),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE nddo_mpole_setup
   
 END MODULE semi_empirical_mpole_methods

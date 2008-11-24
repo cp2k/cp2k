@@ -86,7 +86,8 @@ MODULE semi_empirical_types
   END TYPE semi_empirical_type
 
 ! *****************************************************************************
-!> \brief Rotation Matrix Type
+!> \brief  Rotation Matrix Type
+!> \author 05.2008 Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   TYPE rotmat_type
      ! Value of Rotation Matrices
@@ -163,14 +164,22 @@ CONTAINS
     IF (ASSOCIATED(sep)) THEN
        CALL deallocate_sto_basis_set(sep%basis, error)
        CALL semi_empirical_mpole_p_release(sep%w_mpole, error)
-       DEALLOCATE (sep%beta,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (sep%sto_exponents,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (sep%zn,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (sep%w,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (ASSOCIATED(sep%beta)) THEN
+          DEALLOCATE (sep%beta,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(sep%sto_exponents)) THEN
+          DEALLOCATE (sep%sto_exponents,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(sep%zn)) THEN
+          DEALLOCATE (sep%zn,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(sep%w)) THEN
+          DEALLOCATE (sep%w,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
        DEALLOCATE (sep,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
