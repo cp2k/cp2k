@@ -271,7 +271,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: a_i, a_j, a_k, atom_a, atom_b, b_i, b_j, b_k, b_pi, b_pj, &
       b_pk, bg_i, bg_j, bg_k, handle, i, i1, iatom_local, icell, icellmap, &
       id_kind, ii, ii_start, ij, ij_start, ik, ik_start, ikind, imap, &
@@ -286,7 +285,7 @@ CONTAINS
                                                 failure, is_full, subcell000
     LOGICAL, ALLOCATABLE, DIMENSION(:, :, :) :: sphcub
     REAL(dp)                                 :: rab2, rab2_max, rab2_min, &
-                                                rab_max, unit_of_length
+                                                rab_max
     REAL(dp), DIMENSION(3)                   :: abc, cell_v, cv_b, r, rab, &
                                                 rb, sab_max
     REAL(KIND=dp)                            :: ic(3), icx(3), radius, vv
@@ -306,9 +305,7 @@ CONTAINS
     any_full = ANY(full_nl)
     CALL get_cell(cell=cell,&
                   abc=abc,&
-                  periodic=periodic,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
+                  periodic=periodic)
     ! Determines the number of subcells
     DO ikind=1,nkind
        DO jkind=ikind,nkind
