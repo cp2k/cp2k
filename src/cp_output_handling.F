@@ -48,10 +48,8 @@ MODULE cp_output_handling
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE input_val_types,                 ONLY: char_t
   USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
-                                             dp
+                                             default_string_length
   USE machine,                         ONLY: m_mov
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: compress,&
@@ -152,7 +150,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_print_key_section_create(print_key_section, name, description, &
        print_level,each_iter_names,each_iter_values,add_last,filename,&
-       common_iter_levels,store,citations,supported_feature,error)
+       common_iter_levels,citations,supported_feature,error)
     TYPE(section_type), POINTER              :: print_key_section
     CHARACTER(len=*), INTENT(IN)             :: name, description
     INTEGER, INTENT(IN), OPTIONAL            :: print_level
@@ -163,7 +161,6 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: add_last
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: filename
     INTEGER, INTENT(IN), OPTIONAL            :: common_iter_levels
-    LOGICAL, INTENT(IN), OPTIONAL            :: store
     INTEGER, DIMENSION(:), OPTIONAL          :: citations
     LOGICAL, INTENT(IN), OPTIONAL            :: supported_feature
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -175,8 +172,7 @@ CONTAINS
     INTEGER                                  :: i_each, i_iter, my_add_last, &
                                                 my_comm_iter_levels, &
                                                 my_print_level, my_value
-    LOGICAL                                  :: check, ext_each, failure, &
-                                                mystore
+    LOGICAL                                  :: check, ext_each, failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
@@ -302,35 +298,6 @@ CONTAINS
             default_i_val=cp_out_default, supported_feature=supported_feature,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
-       ! this section allows the print key to store additional info as part of the input (now input/output)
-       ! this appears useful right now as a way to communicate information upwards.
-       ! I.e. this means that one can call CP2K to execute an input, and store somewhere whatever
-       ! result to be used at a higher level. Very flexible, very 'dangerous'...
-       mystore=.FALSE.
-       IF (PRESENT(store)) mystore=store
-       IF (mystore) THEN
-          CALL section_create(subsection,name="STORE",&
-               description="A section where print results can be stored",&
-               n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-               supported_feature=supported_feature, error=error)
-
-          CALL keyword_create(keyword, name="NAME",&
-               description="Specifies what can be stored in this section, if implemented",&
-               type_of_var=char_t,supported_feature=supported_feature, error=error)
-          CALL section_add_keyword(subsection,keyword,error=error)
-          CALL keyword_release(keyword,error=error)
-
-          CALL keyword_create(keyword,name="VALUE",&
-               description="Whatever real value that needs to be stored (output)",&
-               default_r_val=0.0_dp,repeats=.FALSE.,supported_feature=supported_feature, error=error)
-          CALL section_add_keyword(subsection,keyword,error=error)
-          CALL keyword_release(keyword,error=error)
-
-          CALL section_add_subsection(print_key_section,subsection,error=error)
-          CALL section_release(subsection,error=error)
-       ENDIF
-
     END IF
   END SUBROUTINE cp_print_key_section_create
 
