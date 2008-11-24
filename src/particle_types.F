@@ -254,10 +254,6 @@ CONTAINS
                                                 nparticle, ns, nset
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
 
-!JTs
-!JTe
-!   ---------------------------------------------------------------------------
-
     IF( PRESENT(basis_set_id) ) THEN
       my_basis_set_id = basis_set_id
     ELSE
