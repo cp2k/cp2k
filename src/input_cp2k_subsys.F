@@ -54,8 +54,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the cell section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   RECURSIVE SUBROUTINE create_cell_section(section,periodic,label,error)
@@ -82,36 +82,42 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,TRIM(my_label),&
-            description="parameters needed to set up the "//TRIM(my_label)//".",&
+            description="Input parameters needed to set up the "//TRIM(my_label)//".",&
             n_keywords=6, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword, subsection)
        CALL keyword_create(keyword, name="A",&
-            description="Read the hmat(1,1); hmat(2,1); hmat(3,1)",&
-            usage="A real real real",&
-            n_var=-1,type_of_var=real_t,error=error)
+            description="Specify the Cartesian components for the cell vector a in the unit of length "//&
+                        "given by the keyword UNITS. This defines the first column of the h matrix.",&
+            usage="A  10.000  0.000  0.000",&
+            n_var=3,type_of_var=real_t,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="B",&
-            description="Read the hmat(1,2); hmat(2,2); hmat(3,2)",&
-            usage="B real real real",&
-            n_var=-1,type_of_var=real_t,error=error)
+            description="Specify the Cartesian components for the cell vector b in the unit of length "//&
+                        "given by the keyword UNITS. This defines the second column of the h matrix.",&
+            usage="B   0.000 10.000  0.000",&
+            n_var=3,type_of_var=real_t,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="C",&
-            description="Read the hmat(1,3); hmat(2,3); hmat(3,3)",&
-            usage="C real real real",&
-            n_var=-1,type_of_var=real_t,error=error)
+            description="Specify the Cartesian components for the cell vector c in the unit of length "//&
+                        "given by the keyword UNITS. This defines the third column of the h matrix.",&
+            usage="C   0.000  0.000 10.000",&
+            n_var=3,type_of_var=real_t,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ABC",&
-            description="Read the hmat(1,1); hmat(2,2); hmat(3,3)",&
-            usage="ABC real real real",&
-            n_var=-1,type_of_var=real_t,error=error)
+            description="Specify the lengths of the cell vectors a, b, and c in the unit of length "//&
+                        "given by the keyword UNITS. This defines the diagonal elements of h matrix "//&
+                        "for an orthorhombic cell. For non-orthorhombic cells use the keywords "//&
+                        "A, B, and C.",&
+            usage="ABC 10.000 10.000 10.000",&
+            n_var=3,type_of_var=real_t,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -135,28 +141,28 @@ CONTAINS
 
        CALL keyword_create(keyword, name="SUBCELLS",&
             description="Read the subcells numbers.",&
-            usage="SUBCELLS <real>",&
+            usage="SUBCELLS 1.5",&
             n_var=1,default_r_val=2.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="UNITS",&
-            variants=(/"UNIT"/),& 
-            description="Specify the global units used in the input.",&
+            variants=(/"UNIT"/),&
+            description="Specify the global length units used in the input.",&
             usage="UNITS ANGSTROM",&
             enum_c_vals=s2a( "ANGSTROM","BOHR","SCALED_ANGSTROM","SCALED_BOHR"),&
             enum_i_vals=(/ use_unit_angstrom, use_unit_bohr,&
             use_unit_scaled_angstrom, use_unit_scaled_bohr/),&
             default_i_val=use_unit_bohr, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)     
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PERIODIC",&
-            description="Specify the directions on wich apply PBC. Important notice, "//&
-                        " this applies to the generation of the pair lists as well as to the application"//&
-                        " of the periodic boundary conditions to positions."//&
-                        " See the POISSON section to specify the periodicity used for the electrostatics."//&
-                        " Typically the settings should be the same.",&
+            description="Specify the directions for which periodic boundary conditions (PBC) will be applied. "//&
+                        "Important notice: This applies to the generation of the pair lists as well as to the "//&
+                        "application of the PBCs to positions. "//&
+                        "See the POISSON section to specify the periodicity used for the electrostatics. "//&
+                        "Typically the settings should be the same.",&
             usage="PERIODIC (x|y|z|xy|xz|yz|xyz|none)",&
             enum_c_vals=s2a( "x","y","z","xy","xz","yz","xyz","none"),&
             enum_i_vals=(/ use_perd_x,  use_perd_y,   use_perd_z,&
@@ -164,7 +170,7 @@ CONTAINS
                            use_perd_xyz, use_perd_none /),&
             default_i_val=my_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)     
+       CALL keyword_release(keyword,error=error)
 
        IF (TRIM(my_label)=="CELL") THEN
           CALL create_cell_section(subsection,periodic,"CELL_REF",error=error)
@@ -177,8 +183,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the random number restart section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_rng_section(section,error)
@@ -211,11 +217,11 @@ CONTAINS
   END SUBROUTINE create_rng_section
 
 ! *****************************************************************************
-!> \brief creates the structure of a subsys, i.e. a full set of 
+!> \brief creates the structure of a subsys, i.e. a full set of
 !>      atoms+mol+bounds+cell
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_subsys_section(section,error)
@@ -253,7 +259,7 @@ CONTAINS
 
        CALL create_velocity_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
        CALL create_kind_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -286,7 +292,7 @@ CONTAINS
        CALL create_core_vel_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
-    
+
        CALL create_subsys_print_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -297,8 +303,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the subsys print section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_subsys_print_section(section,error)
@@ -332,7 +338,7 @@ CONTAINS
 
        CALL create_structure_data_section(print_key, error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)           
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"interatomic_distances",&
             description="controls the output of the interatomic distances when setting up the"//&
@@ -340,7 +346,7 @@ CONTAINS
             print_level=debug_print_level, filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-       
+
        CALL cp_print_key_section_create(print_key, "topology_info", description=&
             "controls the printing of information in the topology settings", &
             print_level=high_print_level,filename="__STD_OUT__",&
@@ -384,14 +390,14 @@ CONTAINS
             description="if the printkey is active prints information regarding topology utilities",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"generate_info",&
             description="if the printkey is active prints information regarding topology generation",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)  
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"cell",&
             description="controls the output of the cell parameters",&
@@ -407,17 +413,17 @@ CONTAINS
             " elp_potential, gth_potential or all electron potential information",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="basis_set",&
             description="If the printkey is activated controls the printing of basis set information",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="se_parameters",&
             description="If the printkey is activated controls the printing of the semi-empirical parameters.",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -481,48 +487,48 @@ CONTAINS
             description="If the printkey is activated controls the printing of the radii of the core charges",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="pgf_radii",&
             description="If the printkey is activated controls the printing of the core gaussian radii",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
-       
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="set_radii",&
             description="If the printkey is activated controls the printing of the set_radii",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
-       
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="kind_radii",&
             description="If the printkey is activated controls the printing of the kind_radii",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
-       
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="core_charge_radii",&
             description="If the printkey is activated controls the printing of the core_charge_radii",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="gth_ppl_radii",&
             description="If the printkey is activated controls the printing of the "//&
             "gth pseudo potential local radii",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="gth_ppnl_radii",&
             description="If the printkey is activated controls the printing of the "//&
             "gth pseudo potential non local radii",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="gapw_prj_radii",&
             description="If the printkey is activated controls the printing of the gapw projector radii",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -532,8 +538,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the multipole section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_multipole_section(section,error)
@@ -588,8 +594,8 @@ CONTAINS
 !> \brief creates structure data section for output.. both subsys  (for initialization)
 !>      and motion section..
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE create_structure_data_section(print_key,error)
     TYPE(section_type), POINTER              :: print_key
@@ -649,8 +655,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the velocity section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_velocity_section(section,error)
@@ -686,8 +692,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the shell velocity section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_shell_vel_section(section,error)
@@ -724,8 +730,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the shell velocity section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_core_vel_section(section,error)
@@ -762,8 +768,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the &POTENTIAL section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_potential_section(section,error)
@@ -795,8 +801,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the &BASIS section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_basis_section(section,error)
@@ -828,8 +834,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the &COORD section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_coord_section(section,error)
@@ -865,8 +871,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the &SHELL_COORD section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_shell_coord_section(section,error)
@@ -901,8 +907,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the &core_COORD section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_core_coord_section(section,error)
@@ -937,8 +943,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the QM/MM section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_kind_section(section,error)
@@ -959,7 +965,7 @@ CONTAINS
 
        CALL section_create(section,name="kind",&
             description="The description of the kind of the atoms (mostly for QM)",&
-            n_keywords=18, n_subsections=1, repeats=.TRUE., required=.TRUE.,& 
+            n_keywords=18, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -1141,7 +1147,7 @@ CONTAINS
                            name="GHOST",&
                            description="This keyword makes all atoms of this kind "//&
                                         "ghost atoms, i.e. without pseudo or nuclear charge."//&
-                                       "Useful to just have the basis set at that position (BSSE calculations),"//& 
+                                       "Useful to just have the basis set at that position (BSSE calculations),"//&
                                        "or to have a non-interacting particle with BASIS_SET NONE",&
                            usage="GHOST",&
                            default_l_val=.FALSE.,&
@@ -1171,8 +1177,8 @@ CONTAINS
 !> \brief Create the topology section for FIST.. and the base is running running...
 !>      Contains all information regarding topology to be read in input file..
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_topology_section(section,error)
@@ -1286,7 +1292,7 @@ CONTAINS
             default_i_val=do_skip_13,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
- 
+
        CALL keyword_create(keyword, name="CENTER_COORDINATES",&
             description="Center the molecules in the computational box.",&
             usage="CENTER_COORDINATES logical",&
@@ -1321,8 +1327,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specify keywords used to setup several molecules with few connectivity files
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - University of Zurich - 08.2008
 ! *****************************************************************************
   SUBROUTINE create_molset_section(section,error)
@@ -1371,50 +1377,50 @@ CONTAINS
 
        CALL section_create(subsubsection,name="bonds",&
             description="Defines new bonds",n_keywords=2, n_subsections=0, repeats=.FALSE.,&
-            required=.TRUE.,error=error)      
+            required=.TRUE.,error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Two integer indexes per line defining the new bond."//&
             " Indexes must be relative to the full system and not to the single molecules",&
             repeats=.TRUE.,required=.TRUE.,&
             usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection, subsubsection, error=error)
        CALL section_release(subsubsection,error=error)
 
        CALL section_create(subsubsection,name="angles",&
             description="Defines new angles",n_keywords=2, n_subsections=0,&
-            repeats=.FALSE., required=.TRUE.,error=error)      
+            repeats=.FALSE., required=.TRUE.,error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Three integer indexes per line defining the new angle"//&
             " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
             usage="<INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=3, error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection, subsubsection, error=error)
        CALL section_release(subsubsection,error=error)
 
        CALL section_create(subsubsection,name="torsions",&
             description="Defines new torsions",n_keywords=2, n_subsections=0,&
-            repeats=.FALSE., required=.TRUE.,error=error)      
+            repeats=.FALSE., required=.TRUE.,error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Four integer indexes per line defining the new torsion"//&
             " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
             usage="<INTEGER> <INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=4, error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection, subsubsection, error=error)
        CALL section_release(subsubsection,error=error)
 
        CALL section_create(subsubsection,name="impropers",&
             description="Defines new impropers",n_keywords=2, n_subsections=0,&
-            repeats=.FALSE., required=.TRUE.,error=error)      
+            repeats=.FALSE., required=.TRUE.,error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Four integer indexes per line defining the new improper"//&
             " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
             usage="<INTEGER> <INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=4, error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection, subsubsection, error=error)
        CALL section_release(subsubsection,error=error)
 
@@ -1427,8 +1433,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specify keywords used to generate connectivity
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - University of Zurich - 08.2008
 ! *****************************************************************************
   SUBROUTINE create_generate_section(section,error)
@@ -1516,15 +1522,15 @@ CONTAINS
             default_i_val=do_add,&
             error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-       
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies two atomic index united by a covalent bond",&
             usage="ATOMS {integer} {integer}", type_of_var=integer_t, n_var=2,&
             required=.TRUE., repeats=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
-       
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -1543,15 +1549,15 @@ CONTAINS
             default_i_val=do_add,&
             error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-       
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies two atomic index united by a covalent bond",&
             usage="ATOMS {integer} {integer} {integer} ", type_of_var=integer_t, n_var=3,&
             required=.TRUE., repeats=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
-       
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -1570,15 +1576,15 @@ CONTAINS
             default_i_val=do_add,&
             error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-       
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies two atomic index united by a covalent bond",&
             usage="ATOMS {integer} {integer} {integer} {integer} ", type_of_var=integer_t, n_var=4,&
             required=.TRUE., repeats=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
-       
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -1597,15 +1603,15 @@ CONTAINS
             default_i_val=do_add,&
             error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-       
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies two atomic index united by a covalent bond",&
             usage="ATOMS {integer} {integer} {integer} {integer} ", type_of_var=integer_t, n_var=4,&
             required=.TRUE., repeats=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
-       
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -1639,8 +1645,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the print gen section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_gen_print_section(section,error)
@@ -1682,10 +1688,10 @@ CONTAINS
   END SUBROUTINE create_gen_print_section
 
 ! *****************************************************************************
-!> \brief Specify keywords used to define connectivity 
+!> \brief Specify keywords used to define connectivity
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE connectivity_framework(section,default,error)
@@ -1709,7 +1715,7 @@ CONTAINS
             usage="CONN_FILE_NAME <FILENAME>",required=.TRUE.,type_of_var=lchar_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="CONN_FILE_FORMAT",&
             variants=(/"CONNECTIVITY"/),&
             description="Ways to determine and generate a molecules. "// &
