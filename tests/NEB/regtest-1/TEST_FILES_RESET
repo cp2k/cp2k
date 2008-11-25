@@ -52,3 +52,5 @@
 # numerics
 2gly_B-NEB.inp
 2gly_CI-NEB.inp
+# more numerics: NAG
+2gly_IT-NEB.inp

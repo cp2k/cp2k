@@ -68,3 +68,5 @@
 # numerics
 2gly_DIIS-SD-2.inp
 2gly_DIIS-SD-NEB.inp
+# more numerics: NAG
+2gly_DIIS-DNEB.inp

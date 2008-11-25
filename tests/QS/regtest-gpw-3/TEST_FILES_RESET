@@ -588,3 +588,5 @@ H2O-bloechl-restraint.inp
 rsgrid-dist-1.inp
 # unified cube_center 
 H2O-solv.inp
+# numerics
+H2O-ata.inp
