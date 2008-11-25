@@ -1999,7 +1999,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"SCP",&
-            description="Parameters needed to set up the SCP method",&
+            description="Parameters needed to set up the SCP-DFT method",&
             n_keywords=4, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
@@ -2201,7 +2201,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"SE",&
             description="Parameters needed to set up the Semi-empirical methods",&
-            n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=8, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        CALL keyword_create(keyword, name="orthogonal_basis",&
@@ -2222,6 +2222,7 @@ CONTAINS
             usage="ANALYTICAL_GRADIENTS",default_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
 
        CALL keyword_create(keyword, name="DELTA",&
             description="Step size in finite difference force calculation",&
@@ -2252,6 +2253,12 @@ CONTAINS
             description="Use an Ewald type method for the calculation of the "//&
             "Coulomb energy", usage="DO_EWALD",default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SCP",&
+            description="Perform a SCP-NDDO calculation",&
+            usage="SCP",default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4084,7 +4091,7 @@ CONTAINS
             enum_desc=s2a("Enforce a constraint on the DDAPC, requires the corresponding section", &
             "Enforce a constraint on the S2, requires the corresponding section", &
             "Enforce a constraint on the Becke weight population,requires the corresponding section", &
-            "Enforce outer loop optimization for SCP, requires the corresponding section in &DFT", &
+            "Enforce outer loop optimization for SCP, requires the corresponding metod (-DFT or -NDDO)", &
             "Do nothing in the outer loop, useful for resetting the inner loop,"),&
             enum_i_vals=(/outer_scf_ddapc_constraint,outer_scf_s2_constraint,&
             outer_scf_becke_constraint,outer_scf_scp,outer_scf_none/),&
@@ -4978,7 +4985,7 @@ CONTAINS
             "Most systems benefit from using the FULL_ALL preconditioner "//&
             "combined with a small value (0.001) of ENERGY_GAP."//&
             "Well-behaved systems might benefit from using a DIIS minimizer.",&
-            n_keywords=21, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=27, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             citations=(/VandeVondele2003,Weber2008/), error=error)
 
        NULLIFY(keyword)
@@ -5203,10 +5210,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="SCP",&
+       CALL keyword_create(keyword, name="SCP_DFT",&
             description="Introduce additional self-consistent polarization through"//&
             " additional response basis functions (read in through AUX_BASIS.)",&
-            usage="SCP",lone_keyword_l_val=.TRUE.,&
+            usage="SCP_DFT",lone_keyword_l_val=.TRUE.,&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SCP_NDDO",&
+            description="Introduce additional self-consistent polarization through"//&
+            " response basis set = orbital basis set for NDDO.)",&
+            usage="SCP_NDDO",lone_keyword_l_val=.TRUE.,&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

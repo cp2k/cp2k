@@ -720,7 +720,6 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Deallocate the old matrix ***
 
     IF (ASSOCIATED(matrix)) CALL deallocate_matrix(matrix,error=error)
-
 !   *** Allocate a set of block lists ***
 
     ALLOCATE (matrix,STAT=istat)
@@ -2483,7 +2482,8 @@ SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
 SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
     TYPE(real_matrix_type), POINTER          :: matrix1, matrix2
     REAL(KIND=dp), INTENT(out)               :: trace
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_sm_trace_scalar', &
@@ -2503,8 +2503,10 @@ SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
     CPPrecondition(ASSOCIATED(matrix2),cp_failure_level,routineP,error,failure)
     CPPrecondition(matrix1%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(matrix2%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF ( PRESENT ( para_env ) ) THEN
+      CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
+      CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    END IF
 
     trace=0.0_dp
     ks = 0.0_dp ;  t = 0.0_dp ; y = 0.0_dp ; c = 0.0_dp
@@ -2549,6 +2551,8 @@ SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
 
     trace = ks
 
+! If not present, assumes that you have a replicated matrix structure
+    IF ( PRESENT ( para_env ) ) &
     CALL mp_sum(trace,para_env%group)
 
 END SUBROUTINE cp_sm_sm_trace_scalar
@@ -2673,7 +2677,6 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env,error)
                            block_row=iblock_row,&
                            block_col=iblock_row,error=error)
     END DO
-
     IF ( copy_in ) THEN
 
       DO iblock_row=1,sm%nblock_row

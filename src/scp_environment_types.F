@@ -37,6 +37,8 @@ MODULE scp_environment_types
   USE scp_rspw_types,                  ONLY: scp_rspw_release,&
                                              scp_rspw_retain,&
                                              scp_rspw_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             real_matrix_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -51,6 +53,10 @@ MODULE scp_environment_types
     LOGICAL :: use_ref_cell
     REAL ( dp )                                           :: eps_gvg_rspace, &
                                                              eps_rho_rspace
+! FOR NDDO
+    TYPE ( real_matrix_type ), POINTER                    :: pscp, ks_scp
+    REAL ( dp ), POINTER                                  :: ascp_diag ( : )
+! FOR DFT
     TYPE ( aux_coeff_set_type ), POINTER                  :: aux_coeff_set
     TYPE ( scp_energy_type ), POINTER                     :: energy
     TYPE ( scp_force_type ), POINTER                      :: force ( : )
@@ -81,7 +87,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_scp_env( scp_env, aux_coeff_set, energy, force, input,&
                           rho_scp, rspw, para_env, blacs_env, ks_scp_env, & 
-                          distribution_2d, eps_gvg_rspace, eps_rho_rspace, error)
+                          distribution_2d, eps_gvg_rspace, eps_rho_rspace, &
+                          pscp, ks_scp, ascp_diag, error)
 
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(aux_coeff_set_type), OPTIONAL, &
@@ -101,6 +108,9 @@ CONTAINS
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
     REAL(dp), OPTIONAL                       :: eps_gvg_rspace, eps_rho_rspace
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: pscp, ks_scp
+    REAL(dp), OPTIONAL, POINTER              :: ascp_diag( : )
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_scp_env', &
@@ -123,6 +133,9 @@ CONTAINS
     IF (PRESENT(distribution_2d)) distribution_2d => scp_env%distribution_2d
     IF (PRESENT(eps_gvg_rspace )) eps_gvg_rspace = scp_env%eps_gvg_rspace
     IF (PRESENT(eps_rho_rspace )) eps_rho_rspace = scp_env%eps_rho_rspace
+    IF (PRESENT( pscp )) pscp => scp_env%pscp
+    IF (PRESENT( ks_scp )) ks_scp => scp_env%ks_scp
+    IF (PRESENT( ascp_diag )) ascp_diag => scp_env%ascp_diag
 
   END SUBROUTINE get_scp_env
 
@@ -146,6 +159,9 @@ CONTAINS
     NULLIFY (scp_env%blacs_env)
     NULLIFY (scp_env%distribution_2d)
     NULLIFY (scp_env%aux_coeff_set)
+    NULLIFY (scp_env%pscp)
+    NULLIFY (scp_env%ks_scp)
+    NULLIFY (scp_env%ascp_diag)
 
     scp_env%ref_count=1
     last_scp_env_id_nr=last_scp_env_id_nr+1
@@ -160,7 +176,7 @@ CONTAINS
   SUBROUTINE set_scp_env( scp_env, aux_coeff_set, energy, force, ks_scp_env,&
                           input, rho_scp, rspw, para_env, blacs_env, &
                           distribution_2d, eps_gvg_rspace, eps_rho_rspace, &
-                          error)
+                          ascp_diag, pscp, ks_scp, error)
 
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(aux_coeff_set_type), OPTIONAL, &
@@ -180,6 +196,9 @@ CONTAINS
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
     REAL(dp), OPTIONAL                       :: eps_gvg_rspace, eps_rho_rspace
+    REAL(dp), OPTIONAL, POINTER              :: ascp_diag( : )
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: pscp, ks_scp
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_scp_env', &
@@ -237,6 +256,15 @@ CONTAINS
     ENDIF
     IF (PRESENT(eps_rho_rspace)) THEN
        scp_env%eps_rho_rspace = eps_rho_rspace
+    ENDIF
+    IF (PRESENT(pscp)) THEN
+       scp_env%pscp => pscp
+    ENDIF
+    IF (PRESENT(ks_scp)) THEN
+       scp_env%ks_scp => ks_scp
+    ENDIF
+    IF (PRESENT(ascp_diag)) THEN
+       scp_env%ascp_diag => ascp_diag
     ENDIF
 
   END SUBROUTINE set_scp_env
@@ -318,6 +346,16 @@ SUBROUTINE scp_env_release(scp_env,error)
              CALL deallocate_scp_force(scp_env%force)
         IF (ASSOCIATED(scp_env%distribution_2d)) THEN
            CALL distribution_2d_release(scp_env%distribution_2d,error=error)
+        ENDIF
+        IF (ASSOCIATED(scp_env%pscp)) THEN
+           CALL deallocate_matrix ( scp_env%pscp, error )
+        ENDIF
+        IF (ASSOCIATED(scp_env%ks_scp)) THEN
+           CALL deallocate_matrix ( scp_env%ks_scp, error )
+        ENDIF
+        IF (ASSOCIATED(scp_env%ascp_diag)) THEN
+           DEALLOCATE ( scp_env%ascp_diag, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         ENDIF
         CALL scp_rho_release(scp_env%rho_scp, error=error)
         CALL scp_rspw_release(scp_env%rspw, error=error)

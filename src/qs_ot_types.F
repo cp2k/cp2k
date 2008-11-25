@@ -48,6 +48,14 @@ MODULE qs_ot_types
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
                                              aux_coeff_type,&
                                              get_aux_coeff
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             create_dbm_from_sm,&
+                                             deallocate_matrix,&
+                                             deallocate_matrix_set,&
+                                             get_matrix_info,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             set_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -68,7 +76,7 @@ MODULE qs_ot_types
   TYPE qs_ot_settings_type
      LOGICAL           :: do_rotation, do_ener
      ! **** SCP
-     LOGICAL           :: scp, ks
+     LOGICAL           :: scp_dft, scp_nddo, ks
      ! **** SCP
      CHARACTER(LEN=4)  :: ot_method
      CHARACTER(LEN=3)  :: ot_algorithm
@@ -182,6 +190,7 @@ MODULE qs_ot_types
      ! *** SCP
      ! third part of the variables, if we are simultaneously
      ! minimizing SCP variables 
+     ! DFT
      TYPE ( cp_para_env_type ), POINTER :: scp_para_env
      REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: x 
      REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: dx 
@@ -189,6 +198,14 @@ MODULE qs_ot_types
      REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: gx_old 
      REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: h_e 
      REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: h_x 
+     ! NDDO
+     TYPE ( real_matrix_type ), POINTER :: xmat
+     TYPE ( real_matrix_type ), POINTER :: dxmat
+     TYPE ( real_matrix_type ), POINTER :: gxmat
+     TYPE ( real_matrix_type ), POINTER :: gx_oldmat
+     TYPE ( real_matrix_p_type ), POINTER :: he_mat ( : )
+     TYPE ( real_matrix_p_type ), POINTER :: hx_mat ( : )
+     INTEGER :: n_el_scp
      ! *** SCP
 
      ! fourth part of the variables, if we need to optimize orbital energies
@@ -235,7 +252,8 @@ CONTAINS
     settings%eps_irac_switch=1.0E-2
     settings%on_the_fly_loc=.FALSE.
     settings%ortho_irac="CHOL"
-    settings%scp=.FALSE.
+    settings%scp_nddo=.FALSE.
+    settings%scp_dft=.FALSE.
     settings%ks=.TRUE.
     settings%occupation_preconditioner=.FALSE.
     settings%add_nondiag_energy=.FALSE.
@@ -273,12 +291,19 @@ CONTAINS
             CALL cp_fm_set_all(qs_ot_env%rot_mat_gx_old,0.0_dp,error=error)
     ENDIF
     ! **** SCP
-    IF (qs_ot_env%settings%scp) THEN
+    IF (qs_ot_env%settings%scp_dft) THEN
        qs_ot_env % gx ( : ) = 0.0_dp
        IF (qs_ot_env%use_dx) &
             qs_ot_env % dx ( : ) = 0.0_dp
        IF (qs_ot_env%use_gx_old) &
             qs_ot_env % gx_old ( : ) = 0.0_dp
+    ENDIF
+    IF (qs_ot_env%settings%scp_nddo) THEN
+       CALL set_matrix ( qs_ot_env % gxmat, 0.0_dp )
+       IF (qs_ot_env%use_dx) &
+            CALL set_matrix ( qs_ot_env % dxmat, 0.0_dp )
+       IF (qs_ot_env%use_gx_old) &
+            CALL set_matrix ( qs_ot_env % gx_oldmat, 0.0_dp )
     ENDIF
     ! **** SCP
     IF (qs_ot_env%settings%do_ener) THEN
@@ -295,19 +320,21 @@ CONTAINS
   ! ortho_k allows for specifying an additional orthogonal subspace (i.e. c will
   ! be kept orthogonal provided c0 was, used in qs_ot_eigensolver)
 ! *****************************************************************************
-  SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref, aux_coeff_set, ortho_k,error)
+  SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref, aux_coeff_set, scp_sm, ortho_k,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_ref
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: scp_sm
     INTEGER, OPTIONAL                        :: ortho_k
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_allocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ikind, istat, k, m_diis, &
-                                                my_ortho_k, n, ncoef, &
+    INTEGER                                  :: i, ii, ikind, istat, k, &
+                                                m_diis, my_ortho_k, n, ncoef, &
                                                 ncoef_of_kind, nkind
     LOGICAL                                  :: failure
     TYPE(aux_coeff_type), POINTER            :: local_coeff
@@ -468,11 +495,51 @@ CONTAINS
           qs_ot_env%ener_dx = 0.0_dp
        ENDIF
     ENDIF
+
     ! **** SCP
     ! The aux_coeffs in SCP are distributed. The arrays will be 
     ! allocated to the number of local coeffs.  There may be need
     ! for communication in the minimization
-    IF ( qs_ot_env % settings % scp ) THEN
+    IF ( qs_ot_env % settings % scp_nddo ) THEN
+      NULLIFY ( qs_ot_env % xmat )
+      NULLIFY ( qs_ot_env % he_mat )
+      NULLIFY ( qs_ot_env % hx_mat )
+      NULLIFY ( qs_ot_env % gxmat )
+      NULLIFY ( qs_ot_env % dxmat )
+      NULLIFY ( qs_ot_env % gx_oldmat )
+
+      CALL create_dbm_from_sm ( qs_ot_env % xmat, scp_sm, "SCP_XMAT", .FALSE., error=error )     
+      
+      IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
+        CALL allocate_matrix_set ( qs_ot_env % he_mat, m_diis, error ) 
+        CALL allocate_matrix_set ( qs_ot_env % hx_mat, m_diis, error ) 
+
+        DO ii = 1, m_diis
+          CALL create_dbm_from_sm ( qs_ot_env % he_mat ( ii )%matrix, scp_sm, "SCP_HE_MAT", .FALSE., error=error )
+          CALL create_dbm_from_sm ( qs_ot_env % hx_mat ( ii )%matrix, scp_sm, "SCP_HX_MAT", .FALSE., error=error )
+        END DO
+      ENDIF
+
+      CALL create_dbm_from_sm ( qs_ot_env % gxmat, scp_sm, "SCP_GXMAT",.FALSE., error=error )        
+
+      IF (qs_ot_env%use_gx_old) THEN
+        CALL create_dbm_from_sm ( qs_ot_env % gx_oldmat, scp_sm, "SCP_GX_OLDMAT", .FALSE., error=error )        
+      ENDIF
+
+      IF (qs_ot_env%use_dx) THEN
+        CALL create_dbm_from_sm ( qs_ot_env % dxmat, scp_sm, "SCP_DXMAT", .FALSE., error=error )         
+        CALL set_matrix ( qs_ot_env % dxmat, 0.0_dp )
+      END IF
+
+! Finding the actuall number of allocated elements in scp_sm.  This will coresspond
+! to the number of variational degrees of freedom (e.g. coefficients).
+     
+      CALL get_matrix_info ( scp_sm, nelement_allocated = ncoef )
+     
+      qs_ot_env % n_el_scp = ncoef
+   
+    END IF
+    IF ( qs_ot_env % settings % scp_dft ) THEN
        CALL cp_para_env_retain (  aux_coeff_set % distribution % para_env, error ) 
        qs_ot_env % scp_para_env => aux_coeff_set % distribution % para_env
        ncoef = 0
@@ -602,7 +669,7 @@ CONTAINS
             CALL cp_fm_release(qs_ot_env%rot_mat_dx,error=error)
     ENDIF
     ! **** SCP
-    IF (qs_ot_env%settings%scp) THEN
+    IF (qs_ot_env%settings%scp_dft) THEN
        DEALLOCATE ( qs_ot_env % x, STAT=istat )
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE ( qs_ot_env % gx, STAT=istat )
@@ -623,6 +690,22 @@ CONTAINS
        ENDIF
        CALL cp_para_env_release ( qs_ot_env % scp_para_env, error ) 
     END IF
+
+    IF (qs_ot_env%settings%scp_nddo) THEN
+       CALL deallocate_matrix ( qs_ot_env % xmat, error=error )
+       CALL deallocate_matrix ( qs_ot_env % gxmat, error=error )
+       IF (qs_ot_env%use_gx_old) THEN
+         CALL deallocate_matrix ( qs_ot_env % gx_oldmat, error=error )
+       END IF
+       IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
+         CALL deallocate_matrix_set ( qs_ot_env % he_mat, error=error )
+         CALL deallocate_matrix_set ( qs_ot_env % hx_mat, error=error )
+       END IF
+       IF (qs_ot_env%use_dx) THEN
+          CALL deallocate_matrix ( qs_ot_env % dxmat, error=error )
+       ENDIF
+    END IF
+    ! **** SCP
 
     IF (qs_ot_env%settings%do_ener) THEN
        DEALLOCATE ( qs_ot_env % ener_x, STAT=istat )
@@ -783,7 +866,8 @@ CONTAINS
     CALL section_vals_val_get(ot_section,"EPS_TAYLOR",r_val=settings%eps_taylor,error=error)
     CALL section_vals_val_get(ot_section,"MAX_TAYLOR",i_val=settings%max_taylor,error=error)
     CALL section_vals_val_get(ot_section,"ROTATION",l_val=settings%do_rotation,error=error)
-    CALL section_vals_val_get(ot_section,"SCP",l_val=settings%scp,error=error)
+    CALL section_vals_val_get(ot_section,"SCP_DFT",l_val=settings%scp_dft,error=error)
+    CALL section_vals_val_get(ot_section,"SCP_NDDO",l_val=settings%scp_nddo,error=error)
     CALL section_vals_val_get(ot_section,"ENERGIES",l_val=settings%do_ener,error=error)
     CALL section_vals_val_get(ot_section,"OCCUPATION_PRECONDITIONER", &
            l_val=settings%occupation_preconditioner,error=error)

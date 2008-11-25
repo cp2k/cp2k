@@ -9,12 +9,17 @@
 ! *****************************************************************************
 MODULE scp_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
+  USE kinds,                           ONLY: dp
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_create,&
@@ -28,6 +33,12 @@ MODULE scp_environment
                                              set_scp_env
   USE scp_force_types,                 ONLY: allocate_scp_force,&
                                              scp_force_type
+  USE semi_empirical_types,            ONLY: get_se_param,&
+                                             semi_empirical_type
+  USE sparse_matrix_types,             ONLY: &
+       allocate_matrix, create_dbm_from_sm, deallocate_matrix, &
+       get_block_node, get_matrix_diagonal, get_matrix_info, &
+       real_matrix_type, replicate_matrix, set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -36,7 +47,7 @@ MODULE scp_environment
 
   PRIVATE
 
-  PUBLIC :: scp_init
+  PUBLIC :: scp_dft_init, scp_nddo_init
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_environment'
 
@@ -46,14 +57,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initializes the SCP environment using the QS environment
 ! *****************************************************************************
-  SUBROUTINE scp_init ( scp_env, qs_env, error )
+  SUBROUTINE scp_dft_init ( scp_env, qs_env, error )
 
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(qs_environment_type), OPTIONAL, &
       POINTER                                :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'scp_init', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'scp_dft_init', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nkind, stat
@@ -79,44 +90,209 @@ CONTAINS
     NULLIFY ( atomic_kind_set )
     NULLIFY ( local_particles )
 
-    CALL get_qs_env (qs_env, para_env = para_env, input = input, &
-                     atomic_kind_set = atomic_kind_set, &
-                     local_particles = local_particles, error = error )
+    IF ( PRESENT ( qs_env ) ) THEN
+      CALL get_qs_env (qs_env, para_env = para_env, input = input, &
+                       atomic_kind_set = atomic_kind_set, &
+                       local_particles = local_particles, error = error )
 
-    dft_section =>  section_vals_get_subs_vals( input, "DFT", error = error )
-    ! Set the input section of the SCP
-    CALL set_scp_env(scp_env,input=dft_section,&
-         error=error)
+      dft_section =>  section_vals_get_subs_vals( input, "DFT", error = error )
+      ! Set the input section of the SCP
+      CALL set_scp_env(scp_env,input=dft_section,&
+           error=error)
 
-    ! Allocate and initialize coefs pointer
-    CALL aux_coeff_set_create(aux_coeff_set=aux_coeff_set,atomic_kind_set=atomic_kind_set,&
-         distribution=local_particles, error=error)
-    CALL aux_coeff_set_initialize(aux_coeff_set,para_env,error)
-    CALL set_scp_env (scp_env=scp_env,aux_coeff_set = aux_coeff_set, error=error)
-    CALL aux_coeff_set_release(aux_coeff_set, error=error)
+      ! Allocate and initialize coefs pointer
+      CALL aux_coeff_set_create(aux_coeff_set=aux_coeff_set,atomic_kind_set=atomic_kind_set,&
+           distribution=local_particles, error=error)
+      CALL aux_coeff_set_initialize(aux_coeff_set,para_env,error)
+      CALL set_scp_env (scp_env=scp_env,aux_coeff_set = aux_coeff_set, error=error)
+      CALL aux_coeff_set_release(aux_coeff_set, error=error)
 
-   ! Allocate the data structure for energies ***
-    CALL allocate_scp_energy (energy)
+      ! Allocate the data structure for energies ***
+      CALL allocate_scp_energy (energy)
 
-   ! Allocate the data structure for energies ***
-    nkind = SIZE(atomic_kind_set)
-    ALLOCATE (natom_of_kind(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ! Allocate the data structure for energies ***
+      nkind = SIZE(atomic_kind_set)
+      ALLOCATE (natom_of_kind(nkind),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                           natom_of_kind=natom_of_kind)
-    CALL allocate_scp_force(force,natom_of_kind)
-    DEALLOCATE (natom_of_kind,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             natom_of_kind=natom_of_kind)
+      CALL allocate_scp_force(force,natom_of_kind)
+      DEALLOCATE (natom_of_kind,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ! set the scp_env
-    CALL set_scp_env (scp_env=scp_env,energy=energy,force=force,error=error)
+      ! set the scp_env
+      CALL set_scp_env (scp_env=scp_env,energy=energy,force=force,error=error)
 
-   !Sets up pw, grids, densities
-    IF ( PRESENT ( qs_env ) )  CALL scp_qs_env_setup(scp_env,qs_env,error)
+      !Sets up pw, grids, densities
+      CALL scp_qs_env_setup(scp_env,qs_env,error)
+    END IF
     CALL timestop(handle)
 
-  END SUBROUTINE scp_init
+  END SUBROUTINE scp_dft_init
+! *****************************************************************************
+!> \brief Initializes the SCP environment using the QS environment
+! *****************************************************************************
+  SUBROUTINE scp_nddo_init ( scp_env, qs_env, error )
+
+    TYPE(scp_environment_type), POINTER      :: scp_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'scp_nddo_init', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iatom, ii, ikind, &
+                                                ilist, jj, natom, &
+                                                neighbor_list_id, nkind, &
+                                                nrow, nsgf_a, nsgf_b, stat
+    INTEGER, ALLOCATABLE                     :: first_sgf_a( : ), &
+                                                first_sgf_b( : ), &
+                                                last_sgf_a( : ), &
+                                                last_sgf_b( : )
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: app, asp, ass
+    REAL(KIND=dp), ALLOCATABLE               :: a_scp(:,:)
+    REAL(KIND=dp), POINTER                   :: ascp_diag( : ), block( :, : )
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(real_matrix_type), POINTER          :: ascp, ks_scp, pscp, sm
+    TYPE(scp_energy_type), POINTER           :: energy
+    TYPE(semi_empirical_type), POINTER       :: se_kind
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    ! Nullifying  pointers
+    NULLIFY ( energy, ascp)
+    NULLIFY ( particle_set )
+    NULLIFY ( para_env )
+    NULLIFY ( atomic_kind_set, atomic_kind )
+    NULLIFY ( distribution_2d )
+    NULLIFY ( sm, pscp, ks_scp, block, ascp_diag, se_kind, ascp_diag, atom_list )
+
+    CALL get_qs_env (qs_env, para_env = para_env, &
+                     atomic_kind_set = atomic_kind_set, &
+                     particle_set = particle_set, &
+                     distribution_2d = distribution_2d, &
+                     neighbor_list_id=neighbor_list_id, &
+                     error = error )
+
+    ! Allocate the data structure for energies ***
+    CALL allocate_scp_energy (energy)
+    ! set the scp_env
+    CALL set_scp_env (scp_env=scp_env,energy=energy,error=error)
+    nkind = SIZE(atomic_kind_set)
+    natom = SIZE(particle_set)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf_a)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf_b)
+
+    ALLOCATE (first_sgf_a(natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (last_sgf_a(natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (first_sgf_b(natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (last_sgf_b(natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL get_particle_set(particle_set=particle_set,&
+                          first_sgf=first_sgf_a,&
+                          last_sgf=last_sgf_a,&
+                          error=error)
+    CALL get_particle_set(particle_set=particle_set,&
+                          first_sgf=first_sgf_b,&
+                          last_sgf=last_sgf_b,&
+                          error=error)
+
+   ! XXXXXXX, sparsity_id, does this result in the same overlap matrix
+   ! XXXXXXX, as qs_build_core_hamiltonian, if so it is a pitty to have
+   ! XXXXXXX, the code duplication,if not, this sparsity_id is wrong.
+    CALL allocate_matrix(matrix=sm,&
+                         nblock_row=natom,&
+                         nblock_col=natom,&
+                         nrow=nsgf_a,&
+                         ncol=nsgf_b,&
+                         first_row=first_sgf_a,&
+                         last_row=last_sgf_a,&
+                         first_col=first_sgf_b,&
+                         last_col=last_sgf_b,&
+                         matrix_name="DUMMY",&
+                         matrix_symmetry="SYMMETRIC",&
+                         sparsity_id=neighbor_list_id, &
+                         distribution_2d=distribution_2d,error=error)
+
+    CALL create_dbm_from_sm ( pscp, sm, "PSCP", .FALSE., para_env, error )
+    CALL set_matrix ( pscp, 0.0_dp )
+    CALL replicate_matrix ( pscp, ks_scp, "KS_SCP", error=error )
+
+
+    CALL set_scp_env ( scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
+    ! Now create the vector of diagonal elements of the polarization coefficients
+    CALL create_dbm_from_sm ( ascp, sm, "ASCP", .FALSE., para_env, error )
+
+    ALLOCATE( a_scp ( 4, 4 ), stat=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            se_parameter=se_kind, &
+                            atom_list=atom_list)
+       CALL get_se_param(se_kind, ass=ass,app=app,asp=asp)
+
+       a_scp( 1,1 ) = ass
+       a_scp( 1,2:4) = asp
+       a_scp( 2:4,1) = asp
+       a_scp( 2:4,2:4) = app
+
+
+       ! Loop over the replicated list of particles, filling the sparse matrix structure to exploit
+       DO ilist=1,SIZE ( atom_list )
+          iatom = atom_list ( ilist )
+
+
+          CALL get_block_node(matrix=ascp,&
+                              block_row=iatom,&
+                              block_col=iatom,&
+                              BLOCK=block)
+          DO ii=1,SIZE(block,1)
+            DO jj=1,SIZE(block,2)
+              block(ii,jj) = a_scp ( ii, jj ) 
+            END DO
+          END DO
+       END DO ! ilist
+    END DO ! ikind 
+
+    CALL get_matrix_info ( ascp, nrow=nrow )
+    ALLOCATE (ascp_diag(nrow),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL get_matrix_diagonal ( ascp, ascp_diag )
+
+    CALL set_scp_env ( scp_env=scp_env, ascp_diag=ascp_diag, error = error )
+
+    DEALLOCATE (a_scp,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (first_sgf_a,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (last_sgf_a,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (first_sgf_b,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (last_sgf_b,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL deallocate_matrix ( ascp, error )
+    CALL deallocate_matrix ( sm, error )
+    CALL timestop(handle)
+
+  END SUBROUTINE scp_nddo_init
 
 END MODULE scp_environment
 

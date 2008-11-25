@@ -306,7 +306,7 @@ CONTAINS
       irep, ispin, k, k2, n, n_rep_hf, nspins, output_unit, stat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
       do_ep, do_hfx, explicit_potential, failure, gapw, gapw_xc, ionode, &
-      my_diis_step, my_kg_gpw, uniform_occupation, use_virial
+      my_diis_step, my_kg_gpw, scp_dft, uniform_occupation, use_virial
     REAL(dp) :: a, adiabatic_lambda, adiabatic_omega, &
       adiabatic_rescale_factor, scale_dDFA, scale_ddW0, scale_dEx1, &
       scale_dEx2, total_energy_xc
@@ -397,6 +397,8 @@ CONTAINS
          matrix_dv=matrix_dv,&
          ep_qs_env=ep_qs_env,&
          error=error)
+! Define logicals for SCP
+    scp_dft =  dft_control % scp 
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     do_ep=ASSOCIATED(ep_qs_env)
@@ -537,7 +539,7 @@ CONTAINS
          CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
                              v_hartree_gspace%pw,error=error)
        END IF
-       IF ( dft_control % scp ) THEN
+       IF ( scp_dft ) THEN
           ! Compute the contribution rho_scp * v_hartree_gspace.  v_hartree_gpace is
           ! potential due to the ions + electrons.  
           ! Get the SCP environment
@@ -593,7 +595,7 @@ CONTAINS
            END IF
        END IF
 ! ****SCP        *** Add the polarization potential ***
-       IF (dft_control % scp) THEN
+       IF ( scp_dft ) THEN
 ! Get the KS_SCP environment
           CALL get_scp_env ( scp_env = scp_env, ks_scp_env = ks_scp_env, error = error )
           IF (output_unit>0) &
@@ -1074,7 +1076,7 @@ CONTAINS
 ! **** SCP
 !    Single atom contributions to KS matrix due to self-correction of the SCP with 
 !    the orbitals. 
-       IF (dft_control % scp) THEN
+       IF (scp_dft) THEN
           CALL integrate_a_vhscp_b ( qs_env, ks_matrix, rho%rho_ao, &
                                      just_energy, error=error )
           CALL scp_qs_energies ( qs_env, calculate_forces, just_energy, error=error )
@@ -1187,7 +1189,7 @@ CONTAINS
          energy%total = energy%total + energy%exc_aux_fit
        END IF 
 ! **** SCP
-       IF (dft_control % scp) THEN
+       IF (scp_dft) THEN
          CALL get_scp_env ( scp_env, energy = scp_energy, error = error )
          energy % total = energy % total + scp_energy % e_scp_total
        ENDIF 

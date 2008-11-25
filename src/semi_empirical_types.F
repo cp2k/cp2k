@@ -62,6 +62,7 @@ MODULE semi_empirical_types
     REAL(KIND = dp)                        :: uss,upp,udd,uff
     REAL(KIND = dp)                        :: alp
     REAL(KIND = dp)                        :: eisol
+    REAL(KIND = dp)                        :: ass,asp,app
     REAL(KIND = dp)                        :: gss,gsp,gpp,gp2
     REAL(KIND = dp)                        :: gsd,gpd,gdd
     REAL(KIND = dp)                        :: hsp
@@ -223,6 +224,9 @@ CONTAINS
     sep%uff    = 0.0_dp
     sep%alp    = 0.0_dp
     sep%eisol  = 0.0_dp
+    sep%ass    = 0.0_dp
+    sep%asp    = 0.0_dp
+    sep%app    = 0.0_dp
     sep%gss    = 0.0_dp
     sep%gsp    = 0.0_dp
     sep%gpp    = 0.0_dp
@@ -274,7 +278,7 @@ CONTAINS
 ! ***************************************************************************** 
   SUBROUTINE get_se_param(sep,name,typ,defined,z,zeff,natorb,eheat,&
        beta,sto_exponents,uss,upp,udd,uff,alp,eisol,gss,gsp,gpp,gp2,&
-       hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
+       ass,asp,app,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
 
     TYPE(semi_empirical_type), POINTER       :: sep
     CHARACTER(LEN=default_string_length), &
@@ -289,7 +293,8 @@ CONTAINS
       POINTER                                :: beta, sto_exponents
     REAL(KIND=dp), OPTIONAL                  :: uss, upp, udd, uff, alp, &
                                                 eisol, gss, gsp, gpp, gp2, &
-                                                hsp, gsd, gpd, gdd
+                                                ass, asp, app, hsp, gsd, gpd, &
+                                                gdd
     REAL(KIND=dp), DIMENSION(2), OPTIONAL    :: ppddg, dpddg
     INTEGER, INTENT(OUT), OPTIONAL           :: ngauss
 
@@ -313,6 +318,9 @@ CONTAINS
        IF (PRESENT(uff)) uff = sep%uff
        IF (PRESENT(alp)) alp = sep%alp
        IF (PRESENT(eisol)) eisol = sep%eisol
+       IF (PRESENT(ass)) ass = sep%ass
+       IF (PRESENT(asp)) asp = sep%asp
+       IF (PRESENT(app)) app = sep%app
        IF (PRESENT(gss)) gss = sep%gss
        IF (PRESENT(gsp)) gsp = sep%gsp
        IF (PRESENT(gpp)) gpp = sep%gpp
@@ -335,7 +343,7 @@ CONTAINS
 ! ***************************************************************************** 
   SUBROUTINE set_se_param(sep,name,typ,defined,z,zeff,natorb,eheat,&
        beta,sto_exponents,uss,upp,udd,uff,alp,eisol,gss,gsp,gpp,gp2,&
-       hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
+       ass,asp,app,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
 
     TYPE(semi_empirical_type), POINTER       :: sep
     CHARACTER(LEN=default_string_length), &
@@ -350,7 +358,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: sto_exponents
     REAL(KIND=dp), OPTIONAL                  :: uss, upp, udd, uff, alp, &
                                                 eisol, gss, gsp, gpp, gp2, &
-                                                hsp, gsd, gpd, gdd
+                                                ass, asp, app, hsp, gsd, gpd, &
+                                                gdd
     REAL(dp), DIMENSION(2), OPTIONAL         :: ppddg, dpddg
     INTEGER, INTENT(IN), OPTIONAL            :: ngauss
 
@@ -374,6 +383,9 @@ CONTAINS
        IF (PRESENT(uff)) sep%uff = uff
        IF (PRESENT(alp)) sep%alp = alp
        IF (PRESENT(eisol)) sep%eisol = eisol
+       IF (PRESENT(ass)) sep%ass = ass
+       IF (PRESENT(asp)) sep%asp = asp
+       IF (PRESENT(app)) sep%app = app
        IF (PRESENT(gss)) sep%gss = gss
        IF (PRESENT(gsp)) sep%gsp = gsp
        IF (PRESENT(gpp)) sep%gpp = gpp
@@ -458,9 +470,9 @@ CONTAINS
     INTEGER                                  :: i, l, natorb, ngauss, &
                                                 output_unit, typ, z
     LOGICAL                                  :: defined
-    REAL(KIND=dp)                            :: alp, eheat, eisol, gp2, gpp, &
-                                                gsp, gss, hsp, udd, uff, upp, &
-                                                uss, zeff
+    REAL(KIND=dp)                            :: alp, app, asp, ass, eheat, &
+                                                eisol, gp2, gpp, gsp, gss, &
+                                                hsp, udd, uff, upp, uss, zeff
     CHARACTER(LEN=3), DIMENSION(0:3), PARAMETER :: &
       u_lab = (/"USS","UPP","UDD","UFF"/)
 
@@ -482,7 +494,7 @@ CONTAINS
                z=z,zeff=zeff,natorb=natorb,eheat=eheat,beta=beta,&
                sto_exponents=sexp,uss=uss,upp=upp,udd=udd,uff=uff,&
                alp=alp,eisol=eisol,gss=gss,gsp=gsp,gpp=gpp,gp2=gp2,&
-               hsp=hsp,ppddg=ppddg,dpddg=dpddg,ngauss=ngauss)
+               ass=ass,asp=asp,app=app,hsp=hsp,ppddg=ppddg,dpddg=dpddg,ngauss=ngauss)
 
           u(0) = uss
           u(1) = upp

@@ -5,6 +5,7 @@
 
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: sep%...
+!>      ass, asp, app, a.u.      parameters for the SCP-NDDO calculations
 !>      ad, am, aq,    a.u.      parameters for the multipole approximation to
 !>      dd, qq         a.u.      the two-centre, two-electron integrals.
 !>      alp            A**(-1)   the exponents used to calculate the core-core
@@ -125,6 +126,9 @@ CONTAINS
        sep%sto_exponents(0) =   1.3319670_dp
        sep%uss              = -11.9062760_dp
        sep%gss              =  12.8480000_dp
+       sep%ass              =  1.0e-16_dp
+       sep%asp              =  1.0e-16_dp
+       sep%app              =  1.0e-16_dp
     CASE (2)
     CASE (3)
        !Lithium
@@ -216,6 +220,9 @@ CONTAINS
        sep%gpp              =  14.5200000_dp
        sep%gp2              =  12.9800000_dp
        sep%hsp              =   3.9400000_dp
+       sep%ass              =  1.0e-16_dp
+       sep%asp              =  6.0_dp
+       sep%app              =  1.0e-16_dp
     CASE (9)
        !Fluorine
        sep%defined          = .TRUE.
@@ -1657,6 +1664,9 @@ CONTAINS
        sep%gss   =   14.7942080_dp
        sep%fn1(1) =  1.1287500_dp; sep%fn2(1) = 5.0962820_dp; sep%fn3(1) = 1.5374650_dp
        sep%fn1(2) = -1.0603290_dp; sep%fn2(2) = 6.0037880_dp; sep%fn3(2) = 1.5701890_dp
+       sep%ass=1.0e-10_dp
+       sep%asp=3.13469_dp
+       sep%app=0.604262_dp
     CASE (2)
     CASE (3)
        !Lithium
@@ -1760,6 +1770,9 @@ CONTAINS
        sep%hsp   =    0.5938830_dp
        sep%fn1(1) = -1.1311280_dp; sep%fn2(1) = 6.0024770_dp; sep%fn3(1) = 1.6073110_dp
        sep%fn1(2) =  1.1378910_dp; sep%fn2(2) = 5.9505120_dp; sep%fn3(2) = 1.5983950_dp
+       sep%ass=1.0e-10_dp
+       sep%asp=6.906169_dp
+       sep%app=0.911779_dp
     CASE (9)
        !Fluorine
        sep%defined = .TRUE.

@@ -48,7 +48,10 @@ MODULE qs_ot
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
                                              aux_coeff_type,&
                                              get_aux_coeff
-  USE sparse_matrix_types,             ONLY: real_matrix_type
+  USE sparse_matrix_types,             ONLY: create_dbm_from_sm,&
+                                             real_matrix_type,&
+                                             set_matrix,&
+                                             transfer_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -61,8 +64,10 @@ MODULE qs_ot
   PUBLIC  :: qs_ot_get_orbitals_ref
   PUBLIC  :: qs_ot_get_derivative_ref
   PUBLIC  :: qs_ot_new_preconditioner
-  PUBLIC  :: qs_ot_get_scp_derivative
-  PUBLIC  :: qs_ot_get_scp_coeffs
+  PUBLIC  :: qs_ot_get_scp_dft_derivative
+  PUBLIC  :: qs_ot_get_scp_dft_coeffs
+  PUBLIC  :: qs_ot_get_scp_nddo_derivative
+  PUBLIC  :: qs_ot_get_scp_nddo_coeffs
   PRIVATE :: qs_ot_p2m_diag
   PRIVATE :: qs_ot_sinc
   PRIVATE :: qs_ot_ref_poly
@@ -115,11 +120,15 @@ CONTAINS
           qs_ot_env%ener_dx = 0.0_dp
        ENDIF
        ! ***SCP
-       IF ( qs_ot_env % settings % scp ) THEN
+       IF ( qs_ot_env % settings % scp_dft ) THEN
           ncoef = SIZE ( qs_ot_env % gx )
           ALLOCATE ( qs_ot_env%dx ( ncoef ), STAT = istat )
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           qs_ot_env%dx = 0.0_dp
+       ENDIF
+       IF ( qs_ot_env % settings % scp_nddo ) THEN
+          CALL create_dbm_from_sm ( qs_ot_env % dxmat, qs_ot_env % gxmat, "SCP_DXMAT", .FALSE., error = error )
+          CALL set_matrix ( qs_ot_env % dxmat, 0.0_dp )
        ENDIF
        ! ***SCP
     ENDIF
@@ -917,7 +926,27 @@ CONTAINS
   END SUBROUTINE qs_ot_get_orbitals
 
 ! *****************************************************************************
-  SUBROUTINE qs_ot_get_scp_coeffs ( qs_ot_env, aux_coeff_set, error )
+  SUBROUTINE qs_ot_get_scp_nddo_coeffs ( qs_ot_env, pscp, error )
+    TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(real_matrix_type), POINTER          :: pscp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CALL transfer_matrix ( qs_ot_env%xmat, pscp, error )
+
+  END SUBROUTINE qs_ot_get_scp_nddo_coeffs
+! *****************************************************************************
+  SUBROUTINE qs_ot_get_scp_nddo_derivative ( qs_ot_env, pscp, fscp, error )
+    TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(real_matrix_type), POINTER          :: pscp, fscp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CALL transfer_matrix ( pscp, qs_ot_env%xmat, error )
+    CALL transfer_matrix ( fscp, qs_ot_env%gxmat, error )
+!    CALL scale_matrix ( qs_ot_env%gxmat, -1.0_dp )
+     
+  END SUBROUTINE qs_ot_get_scp_nddo_derivative 
+! *****************************************************************************
+  SUBROUTINE qs_ot_get_scp_dft_coeffs ( qs_ot_env, aux_coeff_set, error )
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -947,11 +976,11 @@ CONTAINS
           END DO
        END IF
     END DO
-  END SUBROUTINE qs_ot_get_scp_coeffs
+  END SUBROUTINE qs_ot_get_scp_dft_coeffs
   ! this routines sets the SCP derivative to the appropriate 
   ! qs_ot_env subtype
 ! *****************************************************************************
-  SUBROUTINE qs_ot_get_scp_derivative ( qs_ot_env, aux_coeff_set, error )
+  SUBROUTINE qs_ot_get_scp_dft_derivative ( qs_ot_env, aux_coeff_set, error )
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -978,7 +1007,7 @@ CONTAINS
           END DO
        END IF
     END DO
-  END SUBROUTINE qs_ot_get_scp_derivative
+  END SUBROUTINE qs_ot_get_scp_dft_derivative
 
   ! this routines computes dE/dx=dx, with dx ortho to sc0
   ! needs dE/dC=hc,C0,X,SX,p

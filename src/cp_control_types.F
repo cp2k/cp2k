@@ -67,6 +67,7 @@ MODULE cp_control_types
      LOGICAL               :: orthogonal_basis
      LOGICAL               :: analytical_gradients
      LOGICAL               :: do_ewald
+     LOGICAL               :: scp
      REAL(KIND = dp)       :: delta
      REAL(KIND = dp)       :: rc_interaction
      REAL(KIND = dp)       :: rc_coulomb
@@ -1039,6 +1040,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(se_control),cp_failure_level,routineP,error,failure)
     ALLOCATE(se_control,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    se_control%scp = .FALSE. ! Flag is needed even in non-semiempirical methods
   END SUBROUTINE se_control_create
 
 ! *****************************************************************************

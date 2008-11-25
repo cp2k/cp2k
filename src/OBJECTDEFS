@@ -539,6 +539,7 @@ OBJECTS_GENERIC =\
  scp_environment_types.o\
  scp_force_types.o\
  scp_hartree_1center.o\
+ scp_nddo_utils.o\
  scp_restarts.o\
  scp_rho_methods.o\
  scp_rho_types.o\

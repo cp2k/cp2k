@@ -33,7 +33,8 @@ MODULE qs_ot_scf
   USE qs_ot,                           ONLY: qs_ot_get_orbitals,&
                                              qs_ot_get_orbitals_ref,&
                                              qs_ot_get_p,&
-                                             qs_ot_get_scp_coeffs
+                                             qs_ot_get_scp_dft_coeffs,&
+                                             qs_ot_get_scp_nddo_coeffs
   USE qs_ot_minimizer,                 ONLY: ot_mini
   USE qs_ot_types,                     ONLY: ot_readwrite_input,&
                                              qs_ot_allocate,&
@@ -45,7 +46,9 @@ MODULE qs_ot_scf
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
                                              aux_coeff_type,&
                                              get_aux_coeff
-  USE sparse_matrix_types,             ONLY: real_matrix_type
+  USE sparse_matrix_types,             ONLY: real_matrix_type,&
+                                             set_matrix,&
+                                             transfer_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -118,7 +121,7 @@ CONTAINS
   !
 ! *****************************************************************************
   SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,smear,matrix_s,energy, &
-       aux_coeff_set, energy_only, delta, qs_ot_env,error)
+       aux_coeff_set, pscp, fscp, energy_only, delta, qs_ot_env,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -129,6 +132,8 @@ CONTAINS
     REAL(KIND=dp)                            :: energy
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: pscp, fscp
     LOGICAL, INTENT(INOUT)                   :: energy_only
     REAL(KIND=dp)                            :: delta
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
@@ -282,7 +287,9 @@ CONTAINS
 
     ! notice we use qs_ot_env(1) for driving all output and the minimization in case of LSD
     qs_ot_env(1)%etotal=energy+ener_nondiag
-    CALL ot_mini(qs_ot_env,matrix_dedc_scaled,aux_coeff_set, error=error)
+
+    CALL ot_mini(qs_ot_env,matrix_dedc_scaled,aux_coeff_set,pscp,fscp,error=error)
+
     delta           =qs_ot_env(1)%delta
     energy_only     =qs_ot_env(1)%energy_only
 
@@ -314,7 +321,8 @@ CONTAINS
     ENDIF
     ! **** SCP
     ! generate the SCP aux coeffs using the new x
-    IF (qs_ot_env(1)%settings%scp) CALL qs_ot_get_scp_coeffs ( qs_ot_env ( 1 ), aux_coeff_set, error )
+    IF (qs_ot_env(1)%settings%scp_dft) CALL qs_ot_get_scp_dft_coeffs ( qs_ot_env ( 1 ), aux_coeff_set, error )
+    IF (qs_ot_env(1)%settings%scp_nddo) CALL qs_ot_get_scp_nddo_coeffs ( qs_ot_env ( 1 ), pscp, error )
     ! **** SCP
 
     !
@@ -360,13 +368,15 @@ CONTAINS
   ! and that the mimizization can be started.
   !
 ! *****************************************************************************
-  SUBROUTINE ot_scf_init ( mo_array, matrix_s, aux_coeff_set, qs_ot_env, error )
+  SUBROUTINE ot_scf_init ( mo_array, matrix_s, aux_coeff_set, pscp, fscp, qs_ot_env, error )
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(real_matrix_type), POINTER          :: matrix_s
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: pscp, fscp
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -397,7 +407,7 @@ CONTAINS
        ! **** SCP
        ! allocate
        CALL qs_ot_allocate(qs_ot_env(ispin),mo_coeff%matrix_struct,  &
-            aux_coeff_set = aux_coeff_set,    &
+            aux_coeff_set = aux_coeff_set, scp_sm=pscp,   &
             error=error)
        ! **** SCP
 
@@ -421,8 +431,12 @@ CONTAINS
        IF (qs_ot_env(ispin)%settings%do_rotation) THEN
           CALL cp_fm_set_all(qs_ot_env(ispin)%rot_mat_x,0.0_dp,error=error)
        ENDIF
-       IF (qs_ot_env(ispin)%settings%scp) THEN
+!********** PERHAPS ONLY ALLOCATE spin=1 for SCP ???????
+       IF (qs_ot_env(ispin)%settings%scp_dft) THEN
           qs_ot_env ( ispin ) % x ( : ) = 0.0_dp
+       ENDIF
+       IF (qs_ot_env(ispin)%settings%scp_nddo) THEN
+          CALL set_matrix ( qs_ot_env ( ispin ) % xmat, 0.0_dp )
        ENDIF
 
        IF (qs_ot_env(ispin)%settings%do_ener) THEN
@@ -443,9 +457,10 @@ CONTAINS
        CASE DEFAULT
           CALL stop_program("ot_scf_init","ALGORITHM NYI")
        END SELECT
+!!!  CAN WE REPLACE WITH THE CALL TO QS_OT_GET_SCP_*_DERIVATIVE???????
        ! **** SCP
        ! set c = qs_ot_env % x and -fc = qs_ot_env % gx  for SCP
-       IF (qs_ot_env(1)%settings%scp .AND. ispin == 1) THEN
+       IF (qs_ot_env(1)%settings%scp_dft .AND. ispin == 1) THEN
           icoef = 0
           nkind = SIZE ( aux_coeff_set % coeffs_of_kind )
           DO ikind = 1, nkind
@@ -463,6 +478,10 @@ CONTAINS
                 END DO
              END IF
           END DO
+       END IF
+       IF (qs_ot_env(1)%settings%scp_nddo .AND. ispin == 1) THEN
+         CALL transfer_matrix ( pscp, qs_ot_env(1)%xmat, error )
+         CALL transfer_matrix ( fscp, qs_ot_env(1)%gxmat, error )
        END IF
        ! **** SCP
 
