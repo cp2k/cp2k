@@ -1904,6 +1904,9 @@ SUBROUTINE pint_write_centroids(pint_env,error)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      IF (pint_env%replicas%para_env%ionode) THEN
+        ! FIXME!!!!
+        ! This call should be splitted in one for position and in one for velocities
+        ! at the moment it will print only positions. Please, fix it if really used..
         print_key => section_vals_get_subs_vals(pint_env%input,&
              "MOTION%PINT%PRINT%CENTROIDS", error=error)
         CALL section_vals_val_get(print_key,"format",c_val=ext,i_val=i_form,&
@@ -1948,7 +1951,7 @@ SUBROUTINE pint_write_centroids(pint_env,error)
                    " i =",logger%iter_info%iteration(2),&
                    ", E =",SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp)
               CALL write_particle_coordinates(particles%els,&
-                   iunit=unit_nr,output_format=i_form,content="POS_VEL",title=title,&
+                   iunit=unit_nr,output_format=i_form,content="POS",title=title,&
                    cell=cell,error=error)
               logger%iter_info%iteration(1)=iter
               CALL cp_print_key_finished_output(unit_nr,logger,&

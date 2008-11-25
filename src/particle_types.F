@@ -42,7 +42,6 @@ MODULE particle_types
                                              dihedral_angle
   USE message_passing,                 ONLY: mp_sum
   USE physcon,                         ONLY: angstrom,&
-                                             femtoseconds,&
                                              massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE string_utilities,                ONLY: compress
@@ -457,7 +456,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_particle_coordinates(particle_set,iunit,output_format,&
-       content,title,cell,array,error)
+       content,title,cell,array,unit_conv,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -466,6 +465,7 @@ CONTAINS
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: array
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: unit_conv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_particle_coordinates', &
@@ -476,6 +476,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
     INTEGER                                  :: i, iatom, j, natom, stat
     LOGICAL                                  :: dummy, failure
+    REAL(KIND=dp)                            :: factor
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: arr
     REAL(KIND=dp), DIMENSION(3)              :: f, r, v
@@ -488,6 +489,10 @@ CONTAINS
        CASE ("POS_VEL","POS_VEL_FORCE")
           CALL stop_program ("particle_types","illegal usage of write_particle_coordinates")
        END SELECT
+    END IF
+    factor = 1.0_dp
+    IF (PRESENT(unit_conv)) THEN
+       factor = unit_conv
     END IF
     SELECT CASE (output_format)
     CASE (dump_xmol)
@@ -509,34 +514,25 @@ CONTAINS
           SELECT CASE (TRIM(content))
           CASE ("POS")
              IF (PRESENT(array)) THEN
-                r(:) = array((iatom-1)*3+1:(iatom-1)*3+3)*angstrom
+                r(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
              ELSE
-                r(:) = particle_set(iatom)%r(:)*angstrom
+                r(:) = particle_set(iatom)%r(:)
              END IF
-             WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),r(1:3)
+             WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),r(1:3)*factor
           CASE ("VEL")
              IF (PRESENT(array)) THEN
                 v(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
              ELSE
                 v(:) = particle_set(iatom)%v(:)
              END IF
-             WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),v(1:3)
+             WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),v(1:3)*factor
           CASE ("FORCE")
              IF (PRESENT(array)) THEN
                 f(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
              ELSE
                 f(:) = particle_set(iatom)%f(:)
              END IF
-             WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),f(1:3)
-          CASE ("POS_VEL")
-             r(:) = particle_set(iatom)%r(:)*angstrom
-             WRITE (iunit,TRIM(my_format)//"1X,6F20.10)") TRIM(name),r(1:3),&
-                  particle_set(iatom)%v(1:3)
-          CASE ("POS_VEL_FORCE")
-             r(:) = particle_set(iatom)%r(:)*angstrom
-             WRITE (iunit,TRIM(my_format)//"1X,9F20.10)") TRIM(name),r(1:3),&
-                  particle_set(iatom)%v(1:3),&
-                  particle_set(iatom)%f(1:3)
+             WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),f(1:3)*factor
           END SELECT
        END DO
     CASE (dump_atomic)
@@ -544,33 +540,25 @@ CONTAINS
           SELECT CASE (TRIM(content))
           CASE ("POS")
              IF (PRESENT(array)) THEN
-                r(:) = array((iatom-1)*3+1:(iatom-1)*3+3)*angstrom
+                r(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
              ELSE
-                r(:) = particle_set(iatom)%r(:)*angstrom
+                r(:) = particle_set(iatom)%r(:)
              END IF
-             WRITE (iunit,"(3F20.10)") r(1:3)
+             WRITE (iunit,"(3F20.10)")r(1:3)*factor
           CASE ("VEL")
              IF (PRESENT(array)) THEN
                 v(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
              ELSE
                 v(:) = particle_set(iatom)%v(:)
              END IF
-             WRITE (iunit,"(3F20.10)")v(1:3)
+             WRITE (iunit,"(3F20.10)")v(1:3)*factor
           CASE ("FORCE")
              IF (PRESENT(array)) THEN
                 f(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
              ELSE
                 f(:) = particle_set(iatom)%f(:)
              END IF
-             WRITE (iunit,"(3F20.10)") f(1:3)
-          CASE ("POS_VEL")
-             WRITE (iunit,"(6F20.10)")particle_set(iatom)%r(1:3),&
-                  particle_set(iatom)%v(1:3)
-          CASE ("POS_VEL_FORCE")
-             r(:) = particle_set(iatom)%r(:)
-             WRITE (iunit,"(9F20.10)")r(1:3),&
-                  particle_set(iatom)%v(1:3),&
-                  particle_set(iatom)%f(1:3)
+             WRITE (iunit,"(3F20.10)")f(1:3)*factor
           END SELECT
        END DO
     CASE (dump_dcd)
@@ -590,30 +578,30 @@ CONTAINS
        SELECT CASE (TRIM(content))
        CASE ("POS")
           IF (PRESENT(array)) THEN
-             x4(:) = arr(1,:)*angstrom
-             y4(:) = arr(2,:)*angstrom
-             z4(:) = arr(3,:)*angstrom
+             x4(:) = arr(1,:)
+             y4(:) = arr(2,:)
+             z4(:) = arr(3,:)
           ELSE
-             x4(:) = particle_set(:)%r(1)*angstrom
-             y4(:) = particle_set(:)%r(2)*angstrom
-             z4(:) = particle_set(:)%r(3)*angstrom
+             x4(:) = particle_set(:)%r(1)
+             y4(:) = particle_set(:)%r(2)
+             z4(:) = particle_set(:)%r(3)
           END IF
-          WRITE(iunit) x4
-          WRITE(iunit) y4
-          WRITE(iunit) z4
+          WRITE(iunit) x4*factor
+          WRITE(iunit) y4*factor
+          WRITE(iunit) z4*factor
        CASE ("VEL")
           IF (PRESENT(array)) THEN
-             x4(:) = arr(1,:)*angstrom/femtoseconds
-             y4(:) = arr(2,:)*angstrom/femtoseconds
-             z4(:) = arr(3,:)*angstrom/femtoseconds
+             x4(:) = arr(1,:)
+             y4(:) = arr(2,:)
+             z4(:) = arr(3,:)
           ELSE
-             x4(:) = particle_set(:)%v(1)*angstrom/femtoseconds
-             y4(:) = particle_set(:)%v(2)*angstrom/femtoseconds
-             z4(:) = particle_set(:)%v(3)*angstrom/femtoseconds
+             x4(:) = particle_set(:)%v(1)
+             y4(:) = particle_set(:)%v(2)
+             z4(:) = particle_set(:)%v(3)
           END IF
-          WRITE(iunit) x4
-          WRITE(iunit) y4
-          WRITE(iunit) z4
+          WRITE(iunit) x4*factor
+          WRITE(iunit) y4*factor
+          WRITE(iunit) z4*factor
        CASE ("FORCE")
           IF (PRESENT(array)) THEN
              x4(:) = arr(1,:)
@@ -624,9 +612,9 @@ CONTAINS
              y4(:) = particle_set(:)%f(2)
              z4(:) = particle_set(:)%f(3)
           END IF
-          WRITE(iunit) x4
-          WRITE(iunit) y4
-          WRITE(iunit) z4
+          WRITE(iunit) x4*factor
+          WRITE(iunit) y4*factor
+          WRITE(iunit) z4*factor
        CASE DEFAULT
           CALL stop_program ("particle_types","illegal dcd dump type")
        END SELECT

@@ -163,12 +163,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=20)                        :: mytype
-    CHARACTER(LEN=default_string_length)     :: line, title
+    CHARACTER(LEN=default_string_length)     :: line, title, unit_str
     INTEGER                                  :: crd, ener, frc, handle, i, &
                                                 irep, ndig, ndigl, stat, &
                                                 ttst, vel
     LOGICAL                                  :: explicit, failure, lval
-    REAL(KIND=dp)                            :: f_ann, tmp_r1
+    REAL(KIND=dp)                            :: f_ann, tmp_r1, unit_conv
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ekin, temperatures
     TYPE(cell_type), POINTER                 :: cell
     TYPE(enumeration_type), POINTER          :: enum
@@ -196,26 +196,38 @@ CONTAINS
           END IF
           ! Dump Trajectory
           IF (crd>0) THEN
+             ! Gather units of measure for output
+             CALL section_vals_val_get(neb_env%motion_print_section,"TRAJECTORY%UNIT",&
+                  c_val=unit_str,error=error)
+             unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
-             CALL write_particle_coordinates(particle_set,crd,&
-                  dump_xmol,"POS",title,cell=cell,array=coords%xyz(:,irep),error=error)
+             CALL write_particle_coordinates(particle_set,crd,dump_xmol,"POS",title,&
+                  cell=cell,array=coords%xyz(:,irep),unit_conv=unit_conv,error=error)
              CALL m_flush(crd)             
           END IF
           ! Dump Velocities
           IF (vel>0.AND.PRESENT(vels)) THEN
+             ! Gather units of measure for output
+             CALL section_vals_val_get(neb_env%motion_print_section,"VELOCITIES%UNIT",&
+                  c_val=unit_str,error=error)
+             unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
-             CALL write_particle_coordinates(particle_set,vel,&
-                  dump_xmol,"VEL",title,cell=cell,array=vels%xyz(:,irep),error=error)
+             CALL write_particle_coordinates(particle_set,vel,dump_xmol,"VEL",title,&
+                  cell=cell,array=vels%xyz(:,irep),unit_conv=unit_conv,error=error)
              CALL m_flush(vel)
           END IF
           ! Dump Forces
           IF (frc>0.AND.PRESENT(forces)) THEN
+             ! Gather units of measure for output
+             CALL section_vals_val_get(neb_env%motion_print_section,"FORCES%UNIT",&
+                  c_val=unit_str,error=error)
+             unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
-             CALL write_particle_coordinates(particle_set,frc,&
-                  dump_xmol,"FRC",title,cell=cell,array=forces%xyz(:,irep),error=error)
+             CALL write_particle_coordinates(particle_set,frc,dump_xmol,"FRC",title,&
+                  cell=cell,array=forces%xyz(:,irep),unit_conv=unit_conv,error=error)
              CALL m_flush(frc)
           END IF
           CALL cp_print_key_finished_output(crd,logger,neb_env%motion_print_section,&

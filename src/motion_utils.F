@@ -251,12 +251,13 @@ CONTAINS
     CHARACTER(LEN=4)                         :: id_dcd
     CHARACTER(LEN=default_string_length) :: id_label, id_wpc, my_act, my_ext, &
       my_form, my_middle, my_pk_name, my_pos, remark1, remark2, section_ref, &
-      title
+      title, unit_str
     INTEGER                                  :: iskip, nat, outformat, &
                                                 traj_unit
     LOGICAL                                  :: failure, &
                                                 my_extended_xmol_title, &
                                                 new_file
+    REAL(KIND=dp)                            :: unit_conv
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -301,6 +302,12 @@ CONTAINS
     particle_set => my_particles%els
     nat=my_particles%n_els
 
+    ! Gather units of measure for output (if available)
+    CALL section_vals_val_get(root_section,"MOTION%PRINT%"//TRIM(my_pk_name)//"%UNIT",&
+         c_val=unit_str,error=error)
+    unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+
+    ! Get the otuput format
     CALL get_output_format(root_section,"MOTION%PRINT%"//TRIM(my_pk_name),my_form,my_ext,error)
     traj_unit = cp_print_key_unit_nr(logger,root_section,"MOTION%PRINT%"//TRIM(my_pk_name),&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
@@ -338,7 +345,7 @@ CONTAINS
           CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
        END IF
        CALL write_particle_coordinates(particle_set,traj_unit,outformat,TRIM(id_wpc),TRIM(title),cell,&
-            error=error)
+            unit_conv=unit_conv,error=error)
     END IF
     CALL cp_print_key_finished_output(traj_unit,logger,root_section,"MOTION%PRINT%"//TRIM(my_pk_name),error=error)
 

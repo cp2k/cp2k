@@ -126,7 +126,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"trajectory",&
             description="controls the output of the trajectory",&
             print_level=low_print_level, common_iter_levels=1,&
-            filename="",error=error)
+            filename="",unit_str="angstrom",error=error)
        CALL add_format_keyword(keyword, print_key, &
             description="Specifies the format of the output file for the trajectory.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -135,7 +135,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"shell_trajectory",&
             description="controls the output of the trajectory of shells when the shell-model is used ",&
             print_level=high_print_level, common_iter_levels=1,&
-            filename="",error=error)
+            filename="",unit_str="angstrom",error=error)
        CALL add_format_keyword(keyword, print_key, &
             description="Specifies the format of the output file for the trajectory of shells.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -144,7 +144,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"core_trajectory",&
             description="controls the output of the trajectory of cores when the shell-model is used ",&
             print_level=high_print_level, common_iter_levels=1,&
-            filename="",error=error)
+            filename="",unit_str="angstrom",error=error)
        CALL add_format_keyword(keyword, print_key, &
             description="Specifies the format of the output file for the trajectory of cores.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -162,7 +162,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"velocities",&
             description="controls the output of the velocities",&
             print_level=high_print_level, common_iter_levels=1,&
-            filename="",error=error)
+            filename="",unit_str="bohr*au_t^-1",error=error)
        CALL add_format_keyword(keyword, print_key, &
             description="Specifies the format of the output file for the velocities.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -171,7 +171,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"shell_velocities",&
             description="controls the output of the velocities of shells when the shell model is used",&
             print_level=high_print_level, common_iter_levels=1,&
-            filename="",error=error)
+            filename="",unit_str="bohr*au_t^-1",error=error)
        CALL add_format_keyword(keyword, print_key, &
             description="Specifies the format of the output file for the velocities of shells.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -180,7 +180,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"core_velocities",&
             description="controls the output of the velocities of cores when the shell model is used",&
             print_level=high_print_level, common_iter_levels=1,&
-            filename="",error=error)
+            filename="",unit_str="bohr*au_t^-1",error=error)
        CALL add_format_keyword(keyword, print_key, &
             description="Specifies the format of the output file for the velocities of cores.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -193,7 +193,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"forces",&
             description="controls the output of the forces",&
             print_level=high_print_level, common_iter_levels=1,&
-            filename="",error=error)
+            filename="",unit_str="hartree*bohr^-1",error=error)
        CALL add_format_keyword(keyword, print_key, &
             description="Specifies the format of the output file for the forces.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -202,7 +202,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"shell_forces",&
             description="controls the output of the forces on shells when shell-model is used",&
             print_level=high_print_level, common_iter_levels=1,&
-            filename="",error=error)
+            filename="",unit_str="hartree*bohr^-1",error=error)
        CALL add_format_keyword(keyword, print_key, &
             description="Specifies the format of the output file for the forces on shells.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -211,7 +211,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"core_forces",&
             description="controls the output of the forces on cores when shell-model is used",&
             print_level=high_print_level, common_iter_levels=1,&
-            filename="",error=error)
+            filename="",unit_str="hartree*bohr^-1",error=error)
        CALL add_format_keyword(keyword, print_key, &
             description="Specifies the format of the output file for the forces on cores.", error=error)
        CALL section_add_subsection(subsection,print_key,error=error)

@@ -44,4 +44,15 @@
     TIMESTEP 2.5
     TEMPERATURE 298
   &END MD
+  &PRINT
+    &TRAJECTORY
+      UNIT bohr
+    &END
+    &VELOCITIES
+      UNIT angstrom*fs^-1
+    &END
+    &FORCES
+      UNIT kcalmol*angstrom^-1
+    &END
+  &END
 &END MOTION
