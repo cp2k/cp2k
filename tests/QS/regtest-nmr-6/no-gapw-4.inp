@@ -45,7 +45,6 @@
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
-      UNIT ANGSTROM
     &END CELL
     &KIND N
       BASIS_SET 3-21G*

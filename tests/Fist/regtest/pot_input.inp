@@ -258,7 +258,6 @@
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       CHARGE_B

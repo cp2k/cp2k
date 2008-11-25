@@ -68,7 +68,6 @@
     &END
     &CELL
       ABC  15.74 15.74 15.74
-      UNIT ANGSTROM
     &END CELL
     &COORD
  YC         -8.7493523756        7.5049012562       13.5451065302 ACN

@@ -58,7 +58,6 @@
   &SUBSYS
     &CELL
       ABC 60.00 55.00 84.00
-      UNIT ANGSTROM
       #SUBCELL_PARAMETER 2.0
     &END CELL
     &COORD

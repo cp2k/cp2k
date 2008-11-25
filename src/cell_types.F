@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \par History
-!>      none
+!>      11.2008 Teodoro Laino [tlaino] - deeply cleaning cell_type from units
 !> \author MK (16.01.2002, based on a earlier version of CJM and JGH)
 ! *****************************************************************************
 MODULE cell_types
@@ -16,14 +16,13 @@ MODULE cell_types
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE cp_units,                        ONLY: cp_unit_to_cp2k,&
+  USE cp_units,                        ONLY: cp_unit_from_cp2k,&
+                                             cp_unit_to_cp2k,&
                                              cp_units_rad
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_cell_cp2k, do_cell_xsc, use_perd_none, use_perd_x, use_perd_xy, &
-       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z, &
-       use_unit_angstrom, use_unit_bohr, use_unit_scaled_angstrom, &
-       use_unit_scaled_bohr
+       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -31,12 +30,12 @@ MODULE cell_types
                                              section_vals_val_set,&
                                              section_vals_val_unset
   USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle,&
                                              det_3x3,&
                                              inv_3x3
-  USE physcon,                         ONLY: bohr
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
@@ -53,11 +52,6 @@ MODULE cell_types
 !> \version 1.0
 ! *****************************************************************************
   TYPE cell_type
-     !FM to rm
-     CHARACTER(LEN=8)           :: unit_of_length_name
-     REAL(KIND = dp)            :: unit_of_length
-     LOGICAL                    :: scaled_coordinates
-
      !FM probably to rm
      REAL(KIND = dp)            :: subcells
 
@@ -107,17 +101,13 @@ CONTAINS
     CPPrecondition(ASSOCIATED(cell_2),cp_failure_level,routineP,error,failure)
 
     compare = (&
-         (cell_2%unit_of_length_name == cell_1%unit_of_length_name).AND.&
          (cell_2%deth == cell_1%deth).AND.&
          (cell_2%subcells == cell_1%subcells).AND.&
-         (cell_2%unit_of_length == cell_1%unit_of_length).AND.&
          (ALL(cell_2%perd == cell_1%perd)).AND.&
          (ALL(cell_2%hmat == cell_1%hmat)).AND.&
          (ALL(cell_2%h_inv == cell_1%h_inv)).AND.&
          (((.NOT.cell_2%orthorhombic) .OR.       cell_1%orthorhombic).AND.&
-                (cell_2%orthorhombic  .OR. (.NOT.cell_1%orthorhombic))).AND.&
-         (((.NOT.cell_2%scaled_coordinates) .OR.       cell_1%scaled_coordinates).AND.&
-          (cell_2%scaled_coordinates  .OR. (.NOT.cell_1%scaled_coordinates))))
+                (cell_2%orthorhombic  .OR. (.NOT.cell_1%orthorhombic))))
 
   END FUNCTION compare_cells
 
@@ -135,15 +125,12 @@ CONTAINS
     CPPrecondition(ASSOCIATED(cell_in),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(cell_out),cp_failure_level,routineP,error,failure)
 
-    cell_out%unit_of_length_name = cell_in%unit_of_length_name
     cell_out%deth =                cell_in%deth
     cell_out%subcells =            cell_in%subcells
-    cell_out%unit_of_length =      cell_in%unit_of_length
     cell_out%perd =                cell_in%perd
     cell_out%hmat =                cell_in%hmat
     cell_out%h_inv =               cell_in%h_inv
     cell_out%orthorhombic =        cell_in%orthorhombic
-    cell_out%scaled_coordinates=   cell_in%scaled_coordinates
     cell_out%ref_count = 1
     last_cell_id = last_cell_id + 1
     cell_out%id_nr = last_cell_id
@@ -186,14 +173,12 @@ CONTAINS
 !> \date    16.01.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_cell(cell,unit_of_length_name,alpha,beta,gamma,deth,subcells,&
-       unit_of_length,orthorhombic,scaled_coordinates,abc,periodic,h,h_inv,id_nr)
+  SUBROUTINE get_cell(cell,alpha,beta,gamma,deth,subcells,orthorhombic,abc,&
+                      periodic,h,h_inv,id_nr)
     TYPE(cell_type), POINTER                 :: cell
-    CHARACTER(LEN=8), INTENT(OUT), OPTIONAL  :: unit_of_length_name
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha, beta, gamma, deth, &
-                                                subcells, unit_of_length
-    LOGICAL, INTENT(OUT), OPTIONAL           :: orthorhombic, &
-                                                scaled_coordinates
+                                                subcells
+    LOGICAL, INTENT(OUT), OPTIONAL           :: orthorhombic
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(OUT), OPTIONAL                  :: abc
     INTEGER, DIMENSION(3), INTENT(OUT), &
@@ -202,13 +187,8 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: h, h_inv
     INTEGER, INTENT(out), OPTIONAL           :: id_nr
 
-    IF (PRESENT(unit_of_length_name))&
-      unit_of_length_name = cell%unit_of_length_name
-    IF (PRESENT(unit_of_length)) unit_of_length = cell%unit_of_length
     IF (PRESENT(deth)) deth = cell%deth
     IF (PRESENT(orthorhombic)) orthorhombic = cell%orthorhombic
-    IF (PRESENT(scaled_coordinates))&
-      scaled_coordinates = cell%scaled_coordinates
     IF (PRESENT(periodic)) periodic(:) = cell%perd(:)
     IF (PRESENT(subcells)) subcells = cell%subcells
     IF (PRESENT(h)) h(:,:) = cell%hmat(:,:)
@@ -533,7 +513,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_cell', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: my_per, my_val, n_rep
+    INTEGER                                  :: my_per, n_rep
     LOGICAL                                  :: failure, my_check
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_par
     TYPE(section_vals_type), POINTER         :: cell_ref_section
@@ -546,11 +526,8 @@ CONTAINS
        IF (.NOT.ASSOCIATED(cell_ref)) CALL cell_create(cell_ref,error=error)
        IF (PRESENT(check_for_ref)) my_check     =  check_for_ref
 
-       cell%unit_of_length_name = "BOHR"
        cell%deth = 0.0_dp
-       cell%unit_of_length = 1.0_dp
        cell%orthorhombic = .TRUE.
-       cell%scaled_coordinates = .FALSE.
        cell%perd(:)    = 1
        cell%hmat(:,:)  = 0.0_dp
        cell%h_inv(:,:) = 0.0_dp
@@ -603,28 +580,6 @@ CONTAINS
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
 
-       CALL section_vals_val_get(cell_section,"UNITS",i_val=my_val,error=error)
-       SELECT CASE (my_val)
-       CASE (use_unit_angstrom)
-          cell%unit_of_length = bohr
-          cell%unit_of_length_name = "ANGSTROM"
-          cell%scaled_coordinates = .FALSE.
-       CASE (use_unit_bohr)
-          cell%unit_of_length = 1.0_dp
-          cell%unit_of_length_name = "BOHR"
-          cell%scaled_coordinates = .FALSE.
-       CASE (use_unit_scaled_angstrom)
-          cell%unit_of_length = bohr
-          cell%unit_of_length_name = "ANGSTROM"
-          cell%scaled_coordinates = .TRUE.
-       CASE (use_unit_scaled_bohr)
-          cell%unit_of_length = 1.0_dp
-          cell%unit_of_length_name = "BOHR"
-          cell%scaled_coordinates = .TRUE.
-       CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
-       cell%hmat(:,:) = cell%hmat(:,:)*cell%unit_of_length
        CALL init_cell(cell)
 
        IF (.NOT.my_check) RETURN
@@ -657,7 +612,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: cell_file_name
-    INTEGER                                  :: idum, my_format, n_rep, stat
+    INTEGER                                  :: i, idum, j, my_format, n_rep, &
+                                                stat
     LOGICAL                                  :: explicit, failure, my_end
     REAL(KIND=dp)                            :: xdum
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat
@@ -684,6 +640,12 @@ CONTAINS
     CALL parser_release(parser,error=error)
     CALL section_vals_val_unset(cell_section,"CELL_FILE_NAME",error=error)
     CALL section_vals_val_unset(cell_section,"CELL_FILE_FORMAT",error=error)
+    ! Conver to CP2K units
+    DO i = 1, 3
+       DO j = 1, 3
+          hmat(j,i) = cp_unit_to_cp2k(hmat(j,i), "angstrom", error=error)
+       END DO
+    END DO
     ! Check if the cell was already defined
     explicit = .FALSE.
     CALL section_vals_val_get(cell_section,"A",n_rep_val=n_rep,error=error)
@@ -769,76 +731,60 @@ CPSourceFileRef,&
 !> \author  MK
 !> \date    02.06.2000
 !> \version 1.0
+!> \par     History 
+!>    - 11.2008 Teodoro Laino [tlaino] - rewrite and enabling user driven units
 ! *****************************************************************************
-  SUBROUTINE write_cell(cell,subsys_section,cell_ref,error)
+  RECURSIVE SUBROUTINE write_cell(cell,subsys_section,cell_ref,label,error)
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: label
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_cell', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: my_label, unit_str
     INTEGER                                  :: output_unit
-    REAL(KIND=dp)                            :: alpha, beta, gamma
+    REAL(KIND=dp)                            :: alpha, beta, gamma, val
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-
+    my_label = "CELL|"
+    IF (PRESENT(label)) my_label = TRIM(label)
     output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%CELL",&
          extension=".Log",error=error)
+    CALL section_vals_val_get(subsys_section,"PRINT%CELL%UNIT",c_val=unit_str,error=error)
     IF (output_unit>0) THEN
-
        CALL get_cell(cell=cell,abc=abc,alpha=alpha,beta=beta,gamma=gamma)
-
        WRITE (UNIT=output_unit, FMT='( )')
+       val = cp_unit_from_cp2k(cell%deth,TRIM(unit_str)//"^3",error=error)
        WRITE (UNIT=output_unit,FMT="(T2,A,T61,F20.3)")&
-            "CELL| Volume ["//TRIM(cell%unit_of_length_name)//"**3]:",&
-            cell%deth/cell%unit_of_length**3
+            TRIM(my_label)//" Volume ["//TRIM(unit_str)//"^3]:",val
+       val = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
        WRITE (UNIT=output_unit,FMT="(T2,A,T30,3F10.3,4X,A6,F11.3)")&
-            "CELL| Vector a ["//TRIM(cell%unit_of_length_name)//"]:",&
-            cell%hmat(:,1)/cell%unit_of_length,&
-            "|a| = ",abc(1)/cell%unit_of_length,&
-            "CELL| Vector b ["//TRIM(cell%unit_of_length_name)//"]:",&
-            cell%hmat(:,2)/cell%unit_of_length,&
-            "|b| = ",abc(2)/cell%unit_of_length,&
-            "CELL| Vector c ["//TRIM(cell%unit_of_length_name)//"]:",&
-            cell%hmat(:,3)/cell%unit_of_length,&
-            "|c| = ",abc(3)/cell%unit_of_length
+            TRIM(my_label)//" Vector a ["//TRIM(unit_str)//"]:", cell%hmat(:,1)*val,&
+            "|a| = ",abc(1)*val,&
+            TRIM(my_label)//" Vector b ["//TRIM(unit_str)//"]:",cell%hmat(:,2)*val,&
+            "|b| = ",abc(2)*val,&
+            TRIM(my_label)//" Vector c ["//TRIM(unit_str)//"]:",cell%hmat(:,3)*val,&
+            "|c| = ",abc(3)*val
        WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-            "CELL| Angle (b,c), alpha [degree]: ",alpha,&
-            "CELL| Angle (a,c), beta  [degree]: ",beta,&
-            "CELL| Angle (a,b), gamma [degree]: ",gamma
+            TRIM(my_label)//" Angle (b,c), alpha [degree]: ",alpha,&
+            TRIM(my_label)//" Angle (a,c), beta  [degree]: ",beta,&
+            TRIM(my_label)//" Angle (a,b), gamma [degree]: ",gamma
        WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-            "CELL| Grid size for subcell generation",cell%subcells
-
-       IF ( PRESENT ( cell_ref ) ) THEN
-          WRITE (UNIT=output_unit, FMT='( )' )
-          CALL get_cell(cell=cell_ref,abc=abc,alpha=alpha,beta=beta,gamma=gamma)
-
-          WRITE (UNIT=output_unit,FMT="(T2,A,T61,F20.3)")&
-               "CELL_REF| Volume ["//TRIM(cell_ref%unit_of_length_name)//"**3]:",&
-               cell_ref%deth/cell%unit_of_length**3
-          WRITE (UNIT=output_unit,FMT="(T2,A,T30,3F10.3,4X,A6,F11.3)")&
-               "CELL_REF| Vector a ["//TRIM(cell_ref%unit_of_length_name)//"]:",&
-               cell_ref%hmat(:,1)/cell_ref%unit_of_length,&
-               "|a| = ",abc(1)/cell_ref%unit_of_length,&
-               "CELL_REF| Vector b ["//TRIM(cell_ref%unit_of_length_name)//"]:",&
-               cell_ref%hmat(:,2)/cell_ref%unit_of_length,&
-               "|b| = ",abc(2)/cell_ref%unit_of_length,&
-               "CELL_REF| Vector c ["//TRIM(cell_ref%unit_of_length_name)//"]:",&
-               cell_ref%hmat(:,3)/cell_ref%unit_of_length,&
-               "|c| = ",abc(3)/cell_ref%unit_of_length
-       WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-            "CELL_REF| Angle (b,c), alpha [degree]: ",alpha,&
-            "CELL_REF| Angle (a,c), beta  [degree]: ",beta,&
-            "CELL_REF| Angle (a,b), gamma [degree]: ",gamma
-          WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-               "CELL_REF| Grid size for subcell generation",cell_ref%subcells
-       ENDIF
-
+            TRIM(my_label)//" Grid size for subcell generation",cell%subcells
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
          "PRINT%CELL",error=error)
+
+    IF (PRESENT(cell_ref)) THEN
+       CALL write_cell(cell_ref, subsys_section, label="CELL_REF|", error=error)
+    ENDIF
+
   END SUBROUTINE write_cell
 
 ! *****************************************************************************

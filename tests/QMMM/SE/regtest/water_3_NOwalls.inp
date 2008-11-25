@@ -35,7 +35,6 @@
   &QMMM
     &CELL
       ABC 6.0 6.0 6.0
-      UNIT ANGSTROM
       PERIODIC NONE
     &END CELL
     NOCENTER
@@ -50,7 +49,6 @@
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
-      UNIT ANGSTROM
     &END CELL
     &COORD
  OT     2.5823489343        3.3608067323        2.0248141522   MOL1

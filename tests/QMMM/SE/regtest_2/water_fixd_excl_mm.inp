@@ -36,7 +36,6 @@
     NOCENTER
     &CELL
       ABC 6.0 6.0 6.0
-      UNIT ANGSTROM
     &END CELL
     ECOUPL NONE
     &QM_KIND H
@@ -49,7 +48,6 @@
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       COORD_FILE_NAME ../../../Fist/sample_pdb/water_2.pdb

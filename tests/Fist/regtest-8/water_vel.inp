@@ -31,7 +31,6 @@
   &SUBSYS
     &CELL
       ABC 20.0 20.0 20.0
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       USE_G96_VELOCITY

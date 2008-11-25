@@ -35,7 +35,6 @@
   &SUBSYS
     &CELL
       ABC 10.5375 10.5375 30.000
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       CONN_FILE_NAME ../sample_psf/NaCl-H2O.psf

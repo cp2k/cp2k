@@ -50,7 +50,6 @@
     &CELL
       ABC 8.0 8.0 8.0
       PERIODIC NONE
-      UNIT ANGSTROM
     &END CELL
     &COORD
       N     0.000000     0.000000     0.000000

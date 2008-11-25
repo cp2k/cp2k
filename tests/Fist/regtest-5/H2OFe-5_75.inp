@@ -21,7 +21,6 @@
     &END
     &CELL
       ABC  19.7299995  19.7299995  19.7299995
-      UNIT ANGSTROM
     &END CELL
   &COORD
  O        0.5452667     -0.3260423     -0.1309573    

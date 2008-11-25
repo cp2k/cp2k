@@ -53,7 +53,6 @@
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       CONN_FILE_NAME ../sample_psf/ipbv_flex.psf

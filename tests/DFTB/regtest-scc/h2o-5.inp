@@ -28,7 +28,6 @@
   &SUBSYS
     &CELL
       ABC 9.865 9.865 9.865
-      UNIT ANGSTROM
       SUBCELLS 10.0
     &END CELL
     &COORD

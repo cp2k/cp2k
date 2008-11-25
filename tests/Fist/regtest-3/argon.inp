@@ -40,7 +40,6 @@
   &SUBSYS
     &CELL
       ABC 10.0 10.0 10.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
  Ar         0.0000000000        0.0000000000        0.0000000000

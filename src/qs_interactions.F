@@ -20,19 +20,20 @@ MODULE qs_interactions
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type,&
                                              set_gto_basis_set
-  USE cell_types,                      ONLY: cell_type,&
-                                             get_cell
+  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: qs_control_type,&
                                              semi_empirical_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE external_potential_types,        ONLY: all_potential_type,&
                                              elp_potential_type,&
                                              get_potential,&
                                              gth_potential_type,&
                                              set_potential
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE orbital_pointers,                ONLY: coset
@@ -553,10 +554,9 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=10)                        :: bas
-    CHARACTER(LEN=8)                         :: unit_of_length_name
-    CHARACTER(LEN=default_string_length)     :: name
+    CHARACTER(LEN=default_string_length)     :: name, unit_str
     INTEGER                                  :: ikind, nkind, output_unit
-    REAL(KIND=dp)                            :: kind_radius, unit_of_length
+    REAL(KIND=dp)                            :: conv, kind_radius
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -566,18 +566,15 @@ CONTAINS
     NULLIFY(orb_basis_set)
     bas="ORBITAL   "
 
-    CALL get_cell(cell=cell,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
-
     nkind = SIZE(atomic_kind_set)
-
 !   *** Print the kind radii ***
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%RADII/KIND_RADII",extension=".Log",error=error)
+    CALL section_vals_val_get(subsys_section,"PRINT%RADII%UNIT",c_val=unit_str,error=error)
+    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
-        "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_of_length_name),&
+        "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_str),&
         "Kind","Label","Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -588,7 +585,7 @@ CONTAINS
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                  kind_radius=kind_radius)
           WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-            ikind,name,kind_radius/unit_of_length
+            ikind,name,kind_radius*conv
         ELSE
            WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T72,A9)")&
               ikind,name,"no basis"
@@ -614,11 +611,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
-    CHARACTER(LEN=default_string_length)     :: name
+    CHARACTER(LEN=default_string_length)     :: name, unit_str
     INTEGER                                  :: ikind, nkind, output_unit
-    REAL(KIND=dp)                            :: core_charge_radius, &
-                                                unit_of_length
+    REAL(KIND=dp)                            :: conv, core_charge_radius
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
@@ -629,14 +624,13 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%RADII/CORE_CHARGE_RADII",extension=".Log",error=error)
+    CALL section_vals_val_get(subsys_section,"PRINT%RADII%UNIT",c_val=unit_str,error=error)
+    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (output_unit>0) THEN
-       CALL get_cell(cell=cell,&
-                     unit_of_length=unit_of_length,&
-                     unit_of_length_name=unit_of_length_name)       
        nkind = SIZE(atomic_kind_set)
        WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
             "RADII: CORE CHARGE DISTRIBUTIONS in "//&
-            TRIM(unit_of_length_name),"Kind","Label","Radius"
+            TRIM(unit_str),"Kind","Label","Radius"
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -648,17 +642,17 @@ CONTAINS
              CALL get_potential(potential=all_potential,&
                   core_charge_radius=core_charge_radius)
              WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-                  ikind,name,core_charge_radius/unit_of_length
+                  ikind,name,core_charge_radius*conv
           ELSE IF (ASSOCIATED(elp_potential)) THEN
              CALL get_potential(potential=elp_potential,&
                   core_charge_radius=core_charge_radius)
              WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-                  ikind,name,core_charge_radius/unit_of_length
+                  ikind,name,core_charge_radius*conv
           ELSE IF (ASSOCIATED(gth_potential)) THEN
              CALL get_potential(potential=gth_potential,&
                   core_charge_radius=core_charge_radius)
              WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-                  ikind,name,core_charge_radius/unit_of_length
+                  ikind,name,core_charge_radius*conv
           END IF
        END DO
     END IF
@@ -682,14 +676,12 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=10)                        :: bas
-    CHARACTER(LEN=8)                         :: unit_of_length_name
-    CHARACTER(LEN=default_string_length)     :: name
+    CHARACTER(LEN=default_string_length)     :: name, unit_str
     INTEGER                                  :: ikind, ipgf, iset, nkind, &
                                                 nset, output_unit
     INTEGER, DIMENSION(:), POINTER           :: npgf
-    REAL(KIND=dp)                            :: kg_radius, kind_radius, &
-                                                short_kind_radius, &
-                                                unit_of_length
+    REAL(KIND=dp)                            :: conv, kg_radius, kind_radius, &
+                                                short_kind_radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pgf_radius
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -710,18 +702,16 @@ CONTAINS
       CALL stop_program("write_pgf_orb_radii","undefined basis type")
     END IF
 
-    CALL get_cell(cell=cell,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
-
     nkind = SIZE(atomic_kind_set)
 
 !   *** Print the kind radii ***
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%RADII/KIND_RADII",extension=".Log",error=error)
+    CALL section_vals_val_get(subsys_section,"PRINT%RADII%UNIT",c_val=unit_str,error=error)
+    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T46,A,T53,A,T63,A,T72,A)")&
-        "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_of_length_name),&
+        "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_str),&
         "Kind","Label","Radius","OCE/KG Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -748,8 +738,8 @@ CONTAINS
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
           WRITE (UNIT=output_unit,FMT="(T45,I5,T53,A5,T59,F12.6,T73,F12.6,/,T73,F12.6)")&
-            ikind,name,kind_radius/unit_of_length,short_kind_radius/unit_of_length,&
-            kg_radius/unit_of_length
+            ikind,name,kind_radius*conv,short_kind_radius*conv,&
+            kg_radius*conv
         ELSE
            WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T72,A9)")&
               ikind,name,"no basis"
@@ -765,7 +755,7 @@ CONTAINS
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T51,A,T57,A,T65,A,T75,A)")&
         "RADII: SHELL SETS OF "//TRIM(bas)//" BASIS in "//&
-        TRIM(unit_of_length_name),"Kind","Label","Set","Radius"
+        TRIM(unit_str),"Kind","Label","Set","Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
         IF ( bas(1:3) == "ORB" ) THEN
@@ -791,7 +781,7 @@ CONTAINS
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
           WRITE (UNIT=output_unit,FMT="(T50,I5,T57,A5,(T63,I5,T69,F12.6))")&
-            ikind,name,(iset,set_radius(iset)/unit_of_length,iset=1,nset)
+            ikind,name,(iset,set_radius(iset)*conv,iset=1,nset)
         ELSE
            WRITE (UNIT=output_unit,FMT="(T50,I5,T58,A5,T73,A8)")&
               ikind,name,"no basis"
@@ -806,7 +796,7 @@ CONTAINS
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T51,A,T57,A,T65,A,T75,A)")&
         "RADII: PRIMITIVE GAUSSIANS OF "//TRIM(bas)//" BASIS in "//&
-        TRIM(unit_of_length_name),"Kind","Label","Set","Radius"
+        TRIM(unit_str),"Kind","Label","Set","Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
         IF ( bas(1:3) == "ORB" ) THEN
@@ -836,7 +826,7 @@ CONTAINS
           DO iset=1,nset
             WRITE (UNIT=output_unit,FMT="(T50,I5,T57,A5,T63,I5,(T69,F12.6))")&
               ikind,name,iset,&
-              (pgf_radius(ipgf,iset)/unit_of_length,ipgf=1,npgf(iset))
+              (pgf_radius(ipgf,iset)*conv,ipgf=1,npgf(iset))
           END DO
         ELSE
            WRITE (UNIT=output_unit,FMT="(T50,I5,T58,A5,T73,A8)")&
@@ -864,10 +854,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
-    CHARACTER(LEN=default_string_length)     :: name
+    CHARACTER(LEN=default_string_length)     :: name, unit_str
     INTEGER                                  :: ikind, nkind, output_unit
-    REAL(KIND=dp)                            :: ppl_radius, unit_of_length
+    REAL(KIND=dp)                            :: conv, ppl_radius
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(elp_potential_type), POINTER        :: elp_potential
@@ -877,14 +866,13 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%RADII/GTH_PPL_RADII",extension=".Log",error=error)
+    CALL section_vals_val_get(subsys_section,"PRINT%RADII%UNIT",c_val=unit_str,error=error)
+    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (output_unit>0) THEN
-      CALL get_cell(cell=cell,&
-                    unit_of_length=unit_of_length,&
-                    unit_of_length_name=unit_of_length_name)
       nkind = SIZE(atomic_kind_set)
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
         "RADII: LOCAL PART OF GTH/ELP PP in "//&
-        TRIM(unit_of_length_name),"Kind","Label","Radius"
+        TRIM(unit_str),"Kind","Label","Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -895,12 +883,12 @@ CONTAINS
           CALL get_potential(potential=gth_potential,&
                              ppl_radius=ppl_radius)
           WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-            ikind,name,ppl_radius/unit_of_length
+            ikind,name,ppl_radius*conv
         ELSE IF (ASSOCIATED(elp_potential)) THEN
           CALL get_potential(potential=elp_potential,&
                              ppl_radius=ppl_radius)
           WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-            ikind,name,ppl_radius/unit_of_length
+            ikind,name,ppl_radius*conv
         END IF
       END DO
     END IF
@@ -924,10 +912,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
-    CHARACTER(LEN=default_string_length)     :: name
+    CHARACTER(LEN=default_string_length)     :: name, unit_str
     INTEGER                                  :: ikind, nkind, output_unit
-    REAL(KIND=dp)                            :: ppnl_radius, unit_of_length
+    REAL(KIND=dp)                            :: conv, ppnl_radius
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gth_potential_type), POINTER        :: gth_potential
@@ -936,14 +923,13 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%RADII/GTH_PPNL_RADII",extension=".Log",error=error)
+    CALL section_vals_val_get(subsys_section,"PRINT%RADII%UNIT",c_val=unit_str,error=error)
+    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (output_unit>0) THEN
-      CALL get_cell(cell=cell,&
-                    unit_of_length=unit_of_length,&
-                    unit_of_length_name=unit_of_length_name)
       nkind = SIZE(atomic_kind_set)
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
         "RADII: NON-LOCAL PART OF GTH PP in "//&
-        TRIM(unit_of_length_name),"Kind","Label","Radius"
+        TRIM(unit_str),"Kind","Label","Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -953,7 +939,7 @@ CONTAINS
           CALL get_potential(potential=gth_potential,&
                              ppnl_radius=ppnl_radius)
           WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-            ikind,name,ppnl_radius/unit_of_length
+            ikind,name,ppnl_radius*conv
         END IF
       END DO
     END IF
@@ -973,11 +959,10 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
-    CHARACTER(LEN=default_string_length)     :: name
+    CHARACTER(LEN=default_string_length)     :: name, unit_str
     INTEGER                                  :: ikind, nkind, output_unit
     LOGICAL                                  :: paw_atom
-    REAL(KIND=dp)                            :: rcprj, unit_of_length
+    REAL(KIND=dp)                            :: conv, rcprj
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
@@ -986,14 +971,13 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%RADII/GAPW_PRJ_RADII",extension=".Log",error=error)
+    CALL section_vals_val_get(subsys_section,"PRINT%RADII%UNIT",c_val=unit_str,error=error)
+    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (output_unit>0) THEN
-       CALL get_cell(cell=cell,&
-            unit_of_length=unit_of_length,&
-            unit_of_length_name=unit_of_length_name)
        nkind = SIZE(atomic_kind_set)
        WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
             "RADII: ONE CENTER PROJECTORS in "//&
-            TRIM(unit_of_length_name),"Kind","Label","Radius"
+            TRIM(unit_str),"Kind","Label","Radius"
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -1004,7 +988,7 @@ CONTAINS
              CALL get_paw_proj_set(paw_proj_set=paw_proj_set,&
                   rcprj=rcprj)
              WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-                  ikind,name,rcprj/unit_of_length
+                  ikind,name,rcprj*conv
           END IF
        END DO
     END IF

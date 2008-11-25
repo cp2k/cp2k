@@ -97,8 +97,7 @@
   &END MM
   &SUBSYS
     &CELL
-      ABC 10.0 10.0 10.0
-      UNIT ANGSTROM
+      ABC [angstrom] 10.0 10.0 10.0
       PERIODIC NONE
     &END
     &PRINT

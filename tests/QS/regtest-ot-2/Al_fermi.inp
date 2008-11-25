@@ -43,7 +43,6 @@
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
  Al        -0.4201082476       -0.4201082770       -0.4201082658

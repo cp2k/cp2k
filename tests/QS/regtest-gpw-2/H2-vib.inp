@@ -20,7 +20,6 @@
   &SUBSYS
     &CELL
       ABC 4.0 4.0 4.0
-      UNIT ANGSTROM
     &END CELL
 # Optimized geometry
     &COORD

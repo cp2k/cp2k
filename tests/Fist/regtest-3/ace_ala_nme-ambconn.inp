@@ -20,7 +20,6 @@
   &SUBSYS
     &CELL
       ABC 50.0 50.0 50.0
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       CHARGE_BETA

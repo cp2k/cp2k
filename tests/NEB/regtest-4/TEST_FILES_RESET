@@ -11,3 +11,6 @@
 #numerics parallel bfgs
 2gly_IT-NEB-CV.inp
 2gly_IT-NEB-CV-res.inp
+# numerics
+2gly_IT-NEB-CV.inp
+2gly_IT-NEB-CV-res.inp

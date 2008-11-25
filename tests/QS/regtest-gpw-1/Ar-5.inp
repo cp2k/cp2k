@@ -31,7 +31,6 @@
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
     Ar     0.000000  0.000000  0.000000

@@ -18,7 +18,6 @@
   &SUBSYS
     &CELL
       ABC 38.2908000  37.8868000  38.0118000
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       COORD_FILE_NAME ../sample_pdb/multi_frag.pdb

@@ -26,7 +26,6 @@
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       COORD_FILE_NAME ../Fist/sample_pdb/water_1.pdb

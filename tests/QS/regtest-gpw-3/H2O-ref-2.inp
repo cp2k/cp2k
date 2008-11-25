@@ -23,10 +23,8 @@
   &SUBSYS
     &CELL
       ABC 4.0 4.0 4.0
-      UNIT ANGSTROM
       &CELL_REF
         ABC 4.0 4.0 4.0
-        UNIT ANGSTROM
       &END CELL_REF
     &END CELL
     &COORD

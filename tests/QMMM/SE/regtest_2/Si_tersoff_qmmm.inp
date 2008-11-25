@@ -38,7 +38,6 @@
        A 16.0     0.0     0.0
        B  0.0    16.0     0.0
        C  0.0     0.0    16.0
-       UNIT ANGSTROM
      &END CELL
     ECOUPL NONE
     USE_GEEP_LIB 9
@@ -284,7 +283,6 @@
       A  21.7236  0.       0.
       B   0.     21.7236   0.
       C   0.      0.      21.7236
-      UNIT ANGSTROM
     &END CELL
     &COORD
 Si     0.000000    0.000000    0.000000

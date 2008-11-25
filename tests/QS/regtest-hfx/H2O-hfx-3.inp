@@ -40,7 +40,6 @@
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
-      UNIT ANGSTROM
       PERIODIC NONE
     &END CELL
     &COORD

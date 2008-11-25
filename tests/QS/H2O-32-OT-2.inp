@@ -34,7 +34,6 @@
   &SUBSYS
     &CELL
       ABC 9.865 9.865 9.865
-      UNIT ANGSTROM
     &END CELL
     &COORD
     O   -4.583297689         5.333952476         1.560053386

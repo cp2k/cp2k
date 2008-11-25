@@ -21,8 +21,10 @@ MODULE qs_rho0_methods
   USE external_potential_types,        ONLY: all_potential_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
-  USE kinds,                           ONLY: dp
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathconstants,                   ONLY: dfac,&
                                              fourpi
   USE memory_utilities,                ONLY: reallocate
@@ -329,6 +331,7 @@ MODULE qs_rho0_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'init_rho0', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: unit_str
     INTEGER :: handle, iat, iatom, ikind, istat, l, l_rho1_max, laddg, lmaxg, &
       max_nr, maxl, maxnset, maxso, nat, natom, nchan_c, nchan_s, nkind, nr, &
       nset, nsotot, output_unit
@@ -563,13 +566,15 @@ MODULE qs_rho0_methods
     END IF
 
     dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
-    output_unit = cp_print_key_unit_nr(logger,dft_section,"PRINT%GAPW/RHO0_INFORMATION",&
+    output_unit = cp_print_key_unit_nr(logger,dft_section,"PRINT%GAPW%RHO0_INFORMATION",&
          extension=".Log",error=error)
+    CALL section_vals_val_get(dft_section,"PRINT%GAPW%RHO0_INFORMATION%UNIT",c_val=unit_str,&
+         error=error)
     IF (output_unit>0) THEN
-       CALL write_rho0_info(rho0_mpole,cell,output_unit,error)
+       CALL write_rho0_info(rho0_mpole,unit_str,output_unit,error)
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
-         "PRINT%GAPW/RHO0_INFORMATION",error=error)
+         "PRINT%GAPW%RHO0_INFORMATION",error=error)
 
     CALL timestop(handle)
 

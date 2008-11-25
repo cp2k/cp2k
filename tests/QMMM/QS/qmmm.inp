@@ -76,7 +76,6 @@ WARNING duplicate non firstlevel section MM_KIND
   &QMMM
     &CELL
       ABC 8.0 8.0 8.0
-      UNIT ANGSTROM
     &END CELL
     ECOUPL GAUSS
     &MM_KIND H
@@ -102,7 +101,6 @@ WARNING duplicate non firstlevel section MM_KIND
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
-      UNIT ANGSTROM
     &END CELL
     &COORD
    O     0.000000     0.000000     0.000000    H2O

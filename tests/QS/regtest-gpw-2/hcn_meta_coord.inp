@@ -48,7 +48,6 @@
   &SUBSYS
     &CELL
       ABC 8.00 8.00 8.00
-      UNIT ANGSTROM
       PERIODIC NONE
     &END CELL
 

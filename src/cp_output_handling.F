@@ -146,11 +146,14 @@ CONTAINS
 !>        (defaults to debug_print_level)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param unit_str specifies an unit of measure for output quantity. If not
+!>        provided the control is totally left to how the output was coded
+!>        (i.e. USERS have no possibility to change it)
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_print_key_section_create(print_key_section, name, description, &
        print_level,each_iter_names,each_iter_values,add_last,filename,&
-       common_iter_levels,citations,supported_feature,error)
+       common_iter_levels,citations,supported_feature,unit_str,error)
     TYPE(section_type), POINTER              :: print_key_section
     CHARACTER(len=*), INTENT(IN)             :: name, description
     INTEGER, INTENT(IN), OPTIONAL            :: print_level
@@ -163,6 +166,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: common_iter_levels
     INTEGER, DIMENSION(:), OPTIONAL          :: citations
     LOGICAL, INTENT(IN), OPTIONAL            :: supported_feature
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: unit_str
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_section_create', &
@@ -298,6 +302,16 @@ CONTAINS
             default_i_val=cp_out_default, supported_feature=supported_feature,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       IF (PRESENT(unit_str)) THEN
+          CALL keyword_create(keyword, name="UNIT",&
+               description='Specify the unit of measurement for the quantity in output. '//&
+               "All available CP2K units can be used.",&
+               usage="UNIT angstrom",default_c_val=TRIM(unit_str),supported_feature=supported_feature,&
+               error=error)
+          CALL section_add_keyword(print_key_section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+       END IF
     END IF
   END SUBROUTINE cp_print_key_section_create
 

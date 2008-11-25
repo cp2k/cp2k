@@ -20,7 +20,6 @@ METHOD EP
   &SUBSYS
     &CELL
  ABC          9.8528  9.8528  9.8528
-      UNIT ANGSTROM
     &END CELL
     &COORD
 O       2.280398       9.146539       5.088696

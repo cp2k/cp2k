@@ -178,7 +178,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
   CALL get_cell (cell, abc=abc)
 
   ! Print the cell parameters
-  CALL write_cell ( cell, subsys_section, cell_ref, error)
+  CALL write_cell ( cell, subsys_section, cell_ref, error=error)
 
   ! Create the ewald environment
   CALL ewald_env_create ( ewald_env, para_env, error )

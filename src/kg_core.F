@@ -19,16 +19,17 @@ MODULE kg_core
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE erf_fn,                          ONLY: erfc
   USE f77_blas
+  USE input_section_types,             ONLY: section_vals_val_get
   USE kg_energy_types,                 ONLY: kg_energy_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_force_types,                  ONLY: kg_force_type
-  USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             int_size
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathconstants,                   ONLY: oorootpi,&
                                              pi,&
                                              twopi
@@ -38,7 +39,6 @@ MODULE kg_core
                                              deallocate_subcell,&
                                              local_atoms_type,&
                                              subcell_type
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -70,16 +70,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_rspace', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=default_string_length)     :: unit_str
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iatom_local, &
-      iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
-      jkind, k, kcell, maxatom_local, natom, natom_local_a, natom_local_b, &
-      nkind, output_unit
+      iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
+      kcell, maxatom_local, natom, natom_local_a, natom_local_b, nkind, &
+      output_unit, stat
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, nsubcell, &
                                                 periodic
-    LOGICAL                                  :: cell000, include_ab
-    REAL(KIND=dp) :: aab, dab, eab, ecore_overlap, f, fab, r_skin, rab2, &
-      rab2_max, rab_max, rootaab, subcells, unit_of_length, zab
+    LOGICAL                                  :: cell000, failure, include_ab
+    REAL(KIND=dp)                            :: aab, conv, dab, eab, &
+                                                ecore_overlap, f, fab, &
+                                                r_skin, rab2, rab2_max, &
+                                                rab_max, rootaab, subcells, &
+                                                zab
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius, zeff
     REAL(KIND=dp), DIMENSION(3)              :: deab, r, r_pbc, rab, rb, s, &
                                                 sab_max, sb, sb_max, sb_min, &
@@ -100,6 +103,7 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
+    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
@@ -130,31 +134,25 @@ CONTAINS
 
     CALL get_cell(cell=cell,&
                   periodic=periodic,&
-                  subcells=subcells,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
+                  subcells=subcells)
 
     ! Allocate work storage
 
     nkind = SIZE(atomic_kind_set)
 
-    ALLOCATE (atom(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "atom",nkind*int_size)
+    ALLOCATE (atom(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE (alpha(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "alpha",nkind*dp_size)
+    ALLOCATE (alpha(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     alpha(:) = 0.0_dp
 
-    ALLOCATE (radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "radius",nkind*dp_size)
+    ALLOCATE (radius(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     radius(:) = 0.0_dp
 
-    ALLOCATE (zeff(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "zeff",nkind*dp_size)
+    ALLOCATE (zeff(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     zeff(:) = 0.0_dp
 
     ! Initialize the local data structures
@@ -187,15 +185,10 @@ CONTAINS
 
         IF (natom_local_a > 0) THEN
 
-          ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routineN,moduleN,__LINE__,&
-                             "atom(ikind)%list_local_a_index",&
-                             natom_local_a*int_size)
-          END IF
+          ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
           ! Build index vector for mapping
-
           DO iatom_local=1,natom_local_a
             atom_a = distribution_2d%local_rows(ikind)%array(iatom_local)
             DO iatom=1,natom
@@ -210,12 +203,8 @@ CONTAINS
 
         IF (natom_local_b > 0) THEN
 
-          ALLOCATE (atom(ikind)%list_local_b_index(natom_local_b),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routineN,moduleN,__LINE__,&
-                             "atom(ikind)%list_local_b_index",&
-                             natom_local_b*int_size)
-          END IF
+          ALLOCATE (atom(ikind)%list_local_b_index(natom_local_b),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
           ! Build index vector for mapping
 
@@ -230,17 +219,11 @@ CONTAINS
           END DO
         END IF
 
-        ALLOCATE (atom(ikind)%r_pbc(3,natom),STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,&
-                           "atom(ikind)%r_pbc",3*natom*dp_size)
-        END IF
+        ALLOCATE (atom(ikind)%r_pbc(3,natom),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-        ALLOCATE (atom(ikind)%s_pbc(3,natom),STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,&
-                           "atom(ikind)%s_pbc",3*natom*dp_size)
-        END IF
+        ALLOCATE (atom(ikind)%s_pbc(3,natom),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
         ! Calculate PBC coordinates
 
@@ -257,11 +240,13 @@ CONTAINS
 
     output_unit = cp_print_key_unit_nr(logger,kg_env%input,"DFT%PRINT%SUBCELL",&
          extension=".Log",error=error)
+    CALL section_vals_val_get(kg_env%input,"DFT%PRINT%SUBCELL%UNIT",c_val=unit_str,error=error)
+    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
         "SUBCELL GRID FOR THE CALCULATION OF THE CORE CHARGE OVERLAP",&
         "Atomic kind pair","Grid size",&
-        "Subcell size in "//unit_of_length_name
+        "Subcell size in "//unit_str
     END IF
 
     ecore_overlap = 0.0_dp
@@ -307,7 +292,7 @@ CONTAINS
           s(:) = 1.0_dp/REAL(nsubcell(:),dp)
           CALL scaled_to_real(r,s,cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
-            ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
+            ikind,jkind,nsubcell(1:3),r(1:3)*conv
         END IF
 
         ! Check, if we have to consider a subcell grid
@@ -563,42 +548,34 @@ CONTAINS
     DO ikind=1,nkind
       NULLIFY (atom(ikind)%list)
       IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
-        DEALLOCATE (atom(ikind)%list_local_a_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%list_local_a_index")
+        DEALLOCATE (atom(ikind)%list_local_a_index,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
       IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
-        DEALLOCATE (atom(ikind)%list_local_b_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%list_local_b_index")
+        DEALLOCATE (atom(ikind)%list_local_b_index,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
       IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
-        DEALLOCATE (atom(ikind)%r_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%r_pbc")
+        DEALLOCATE (atom(ikind)%r_pbc,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
       IF (ASSOCIATED(atom(ikind)%s_pbc)) THEN
-        DEALLOCATE (atom(ikind)%s_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%s_pbc")
+        DEALLOCATE (atom(ikind)%s_pbc,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
     END DO
 
-    DEALLOCATE (atom,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "atom")
+    DEALLOCATE (atom,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    DEALLOCATE (alpha,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "alpha")
+    DEALLOCATE (alpha,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    DEALLOCATE (radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "radius")
+    DEALLOCATE (radius,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    DEALLOCATE (zeff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "zeff")
+    DEALLOCATE (zeff,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL mp_sum(ecore_overlap,group)
 

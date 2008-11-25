@@ -24,6 +24,7 @@ MODULE particle_types
                                              pbc
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
@@ -658,10 +659,9 @@ CONTAINS
       routineN = 'write_fist_particle_coordinates', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
-    CHARACTER(LEN=default_string_length)     :: name
+    CHARACTER(LEN=default_string_length)     :: name, unit_str
     INTEGER                                  :: iatom, ikind, iw, natom
-    REAL(KIND=dp)                            :: mass, qeff, unit_of_length
+    REAL(KIND=dp)                            :: conv, mass, qeff
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
@@ -669,14 +669,11 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%ATOMIC_COORDINATES",extension=".coordLog",error=error)
 
+    CALL section_vals_val_get(subsys_section,"PRINT%ATOMIC_COORDINATES%UNIT",c_val=unit_str,error=error)
+    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (iw>0) THEN
-
-      CALL get_cell(cell=cell,&
-                    unit_of_length=unit_of_length,&
-                    unit_of_length_name=unit_of_length_name)
-
       WRITE (UNIT=iw,FMT="(/,/,T2,A)")&
-        "MODULE FIST:  ATOMIC COORDINATES IN "//TRIM(unit_of_length_name)
+        "MODULE FIST:  ATOMIC COORDINATES IN "//TRIM(unit_str)
       WRITE (UNIT=iw,&
            FMT="(/,T3,A,7X,2(A1,11X),A1,8X,A8,5X,A6,/)")&
         "Atom  Kind  ATM_TYP","X","Y","Z","  q(eff)","  Mass"
@@ -691,7 +688,7 @@ CONTAINS
         WRITE (UNIT=iw,&
                FMT="(T2,I5,1X,I4,3X,A4,3X,3F12.6,4X,F6.2,2X,F11.4)")&
           iatom,ikind,name,&
-          particle_set(iatom)%r(1:3)/unit_of_length,qeff,mass/massunit
+          particle_set(iatom)%r(1:3)*conv,qeff,mass/massunit
       END DO
       WRITE (iw,'(/)')
     END IF
@@ -717,9 +714,9 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=2)                         :: element_symbol
-    CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=default_string_length)     :: unit_str
     INTEGER                                  :: iatom, ikind, iw, natom, z
-    REAL(KIND=dp)                            :: mass, unit_of_length, zeff
+    REAL(KIND=dp)                            :: conv, mass, zeff
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
@@ -727,14 +724,11 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%ATOMIC_COORDINATES",extension=".coordLog",error=error)
 
+    CALL section_vals_val_get(subsys_section,"PRINT%ATOMIC_COORDINATES%UNIT",c_val=unit_str,error=error)
+    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (iw>0) THEN
-
-      CALL get_cell(cell=cell,&
-                    unit_of_length=unit_of_length,&
-                    unit_of_length_name=unit_of_length_name)
-
       WRITE (UNIT=iw,FMT="(/,/,T2,A)")&
-        "MODULE "//TRIM(label)//":  ATOMIC COORDINATES IN "//TRIM(unit_of_length_name)
+        "MODULE "//TRIM(label)//":  ATOMIC COORDINATES IN "//TRIM(unit_str)
       WRITE (UNIT=iw,&
            FMT="(/,T3,A,7X,2(A1,11X),A1,8X,A8,5X,A6,/)")&
         "Atom  Kind  Element","X","Y","Z","  Z(eff)","  Mass"
@@ -750,7 +744,7 @@ CONTAINS
         WRITE (UNIT=iw,&
                FMT="(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,F6.2,2X,F11.4)")&
           iatom,ikind,element_symbol,z,&
-          particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
+          particle_set(iatom)%r(1:3)*conv,zeff,mass/massunit
       END DO
       WRITE (iw,'(/)')
     END IF
@@ -777,11 +771,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_particle_distances', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=default_string_length)     :: unit_str
     INTEGER                                  :: iatom, iw, jatom, natom, stat
     INTEGER, DIMENSION(3)                    :: periodic
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dab, unit_of_length
+    REAL(KIND=dp)                            :: conv, dab
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: distance_matrix
     REAL(KIND=dp), DIMENSION(3)              :: rab
@@ -793,32 +787,27 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%INTERATOMIC_DISTANCES",extension=".distLog",error=error)
 
+    CALL section_vals_val_get(subsys_section,"PRINT%INTERATOMIC_DISTANCES%UNIT",c_val=unit_str,error=error)
+    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (iw>0) THEN
-
-       CALL get_cell(cell=cell,&
-            periodic=periodic,&
-            unit_of_length=unit_of_length,&
-            unit_of_length_name=unit_of_length_name)
-
+       CALL get_cell(cell=cell, periodic=periodic)
        natom = SIZE(particle_set)
-
        ALLOCATE (distance_matrix(natom,natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
        distance_matrix(:,:) = 0.0_dp
        DO iatom=1,natom
           DO jatom=iatom+1,natom
              rab(:) = pbc(particle_set(iatom)%r(:),&
                   particle_set(jatom)%r(:),cell)
              dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
-             distance_matrix(iatom,jatom) = dab/unit_of_length
+             distance_matrix(iatom,jatom) = dab*conv
              distance_matrix(jatom,iatom) = distance_matrix(iatom,jatom)
           END DO
        END DO
 
        !     *** Print the distance matrix ***
        WRITE (UNIT=iw,FMT="(/,/,T2,A)")&
-            "INTERATOMIC DISTANCES IN "//TRIM(unit_of_length_name)
+            "INTERATOMIC DISTANCES IN "//TRIM(unit_str)
 
        CALL write_particle_matrix(distance_matrix,particle_set,iw,error=error)
     END IF
@@ -900,14 +889,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_structure_data', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
-    CHARACTER(LEN=default_string_length)     :: string
+    CHARACTER(LEN=default_string_length)     :: string, unit_str
     INTEGER                                  :: handle, i, iw, n, natom, &
                                                 wrk1(1), wrk2(2), wrk3(3), &
                                                 wrk4(4)
     INTEGER, DIMENSION(:), POINTER           :: atomic_indices
     LOGICAL                                  :: failure, unique
-    REAL(KIND=dp)                            :: dab, unit_of_length
+    REAL(KIND=dp)                            :: conv, dab
     REAL(KIND=dp), DIMENSION(3)              :: rab, rbc, rcd
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: section
@@ -925,11 +913,9 @@ CONTAINS
                               extension=".coordLog",&
                               error=error)
 
+    CALL section_vals_val_get(input_section,"PRINT%STRUCTURE_DATA%UNIT",c_val=unit_str,error=error)
+    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (iw > 0) THEN
-      CALL get_cell(cell=cell,&
-                    unit_of_length=unit_of_length,&
-                    unit_of_length_name=unit_of_length_name)
-
       natom = SIZE(particle_set)
       section => section_vals_get_subs_vals(section_vals=input_section,&
                                             subsection_name="PRINT%STRUCTURE_DATA",&
@@ -943,7 +929,7 @@ CONTAINS
                                 error=error)
       IF (n > 0) THEN
         WRITE (UNIT=iw,FMT="(/,T3,A,/)")&
-          "Position vector r(i) of atom i in "//TRIM(unit_of_length_name)
+          "Position vector r(i) of atom i in "//TRIM(unit_str)
         DO i=1,n
           CALL section_vals_val_get(section_vals=section,&
                                     keyword_name="POSITION",&
@@ -959,7 +945,7 @@ CONTAINS
           IF (((wrk1(1)>=1).AND.(wrk1(SIZE(wrk1))<=natom)).AND.unique) THEN
             WRITE (UNIT=iw,FMT="(T3,A,T20,A,3F13.6)")&
               "r"//TRIM(string),"=",&
-              pbc(particle_set(atomic_indices(1))%r(1:3),cell)/unit_of_length
+              pbc(particle_set(atomic_indices(1))%r(1:3),cell)*conv
           ELSE
             WRITE (UNIT=iw,FMT="(T3,A)")&
               "Invalid atomic index "//TRIM(string)//" specified. Print request is ignored."
@@ -975,7 +961,7 @@ CONTAINS
       IF (n > 0) THEN
         WRITE (UNIT=iw,FMT="(/,T3,A,/)")&
           "Distance vector r(i,j) between the atom i and j in "//&
-          TRIM(unit_of_length_name)
+          TRIM(unit_str)
         DO i=1,n
           CALL section_vals_val_get(section_vals=section,&
                                     keyword_name="DISTANCE",&
@@ -993,8 +979,8 @@ CONTAINS
                          particle_set(atomic_indices(2))%r(:),cell)
             dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
             WRITE (UNIT=iw,FMT="(T3,A,T20,A,3F13.6,3X,A,F13.6)")&
-              "r"//TRIM(string),"=",rab(:)/unit_of_length,&
-              "|r| =",dab/unit_of_length
+              "r"//TRIM(string),"=",rab(:)*conv,&
+              "|r| =",dab*conv
           ELSE
             WRITE (UNIT=iw,FMT="(T3,A)")&
               "Invalid atomic indices "//TRIM(string)//" specified. Print request is ignored."

@@ -33,7 +33,6 @@
   &SUBSYS
     &CELL
       ABC 24.8630 24.8630 24.8630
-      UNIT ANGSTROM
     &END CELL
   # 512 H2O (TIP5P,1bar,300K) a = 24.8630
     &COORD

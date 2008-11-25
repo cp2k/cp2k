@@ -46,7 +46,6 @@
    @ENDIF
     &CELL
       ABC ${2VAL} ${VAL} 
-      UNIT ANGSTROM
     &END CELL
     &COORD
     H     0.000000  0.000000  0.000000

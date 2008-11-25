@@ -250,11 +250,8 @@ CONTAINS
 
 ! create the cell structure for the molecule
     CALL cell_create(cell_mol,error=error)
-    cell_mol%unit_of_length_name = "BOHR"
     cell_mol%deth = 0.0_dp
-    cell_mol%unit_of_length = 1.0_dp
     cell_mol%orthorhombic = .TRUE.
-    cell_mol%scaled_coordinates = .FALSE.
     cell_mol%subcells = 2.0_dp
     cell_mol%perd(:) = 0
     cell_mol%hmat(:,:) = 0.0_dp

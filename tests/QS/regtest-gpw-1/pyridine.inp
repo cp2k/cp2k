@@ -21,7 +21,6 @@
   &SUBSYS
     &CELL
       ABC 10.0 13.0 9.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
      N  0.000000  0.000000  1.412741 PYRI

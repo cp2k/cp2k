@@ -33,7 +33,6 @@ HT    -10.511  -2.355  -9.252    WAT2
     &END
     &CELL
       ABC 24.955 24.955 24.955
-      UNIT ANGSTROM
     &END CELL
     &COLVAR
       &DISTANCE

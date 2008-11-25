@@ -28,7 +28,6 @@
     &CELL
       ABC 8.0 8.0 8.0
       PERIODIC NONE
-      UNIT ANGSTROM
     &END CELL
     &COORD
     O   3.000000    4.000000    2.934413

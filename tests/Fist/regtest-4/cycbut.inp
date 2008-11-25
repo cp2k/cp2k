@@ -17,7 +17,6 @@
   &SUBSYS
     &CELL
       ABC 50.0 50.0 50.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
   C3         3.4814498716        1.3964053248        0.0145450746

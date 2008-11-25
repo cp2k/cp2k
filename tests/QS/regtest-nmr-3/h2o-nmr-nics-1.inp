@@ -38,7 +38,6 @@
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
   H       .000689482500      -.765854689700      1.551514984100

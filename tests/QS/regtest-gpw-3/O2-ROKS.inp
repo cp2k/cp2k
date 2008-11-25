@@ -43,7 +43,6 @@
   &SUBSYS
     &CELL
       ABC 4.0 4.0 6.0
-      UNIT ANGSTROM
       PERIODIC NONE
     &END CELL
     &KIND O

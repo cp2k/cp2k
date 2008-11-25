@@ -31,6 +31,7 @@ MODULE qs_neighbor_lists
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -40,7 +41,8 @@ MODULE qs_neighbor_lists
                                              gth_potential_type
   USE f77_blas
   USE input_constants,                 ONLY: xc_vdw_fun_pairpot
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -101,20 +103,16 @@ MODULE qs_neighbor_lists
   END TYPE subcell_type
 
   ! Global parameters
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_neighbor_lists'
 
   ! private counter, used to version qs neighbor lists
-
   INTEGER, SAVE, PRIVATE :: last_qs_neighbor_list_id_nr=0
 
   ! Public data types
-
   PUBLIC :: local_atoms_type,&
             subcell_type
 
   ! Public subroutines
-
   PUBLIC :: allocate_subcell,&
             build_gth_ppl_neighbor_lists,&
             build_qs_neighbor_lists,&
@@ -141,19 +139,20 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_qs_neighbor_lists', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: print_key_path
+    CHARACTER(LEN=default_string_length)     :: print_key_path, unit_str
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, imol, istat, iw, &
       jkind, maxatom, maxatom_local, natom_a, natom_local_a, natom_local_b, &
       nkind, output_unit
     INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
                                                 local_rows_array
-    LOGICAL :: all_pairs_list, all_potential_present, cls, epr, &
+    LOGICAL :: all_pairs_list, all_potential_present, cls, epr, failure, &
       gth_potential_present, mic, molecule_only, nmr, paw_atom, &
-      paw_atom_present, print_subcell_grid, rho0_present
+      paw_atom_present, rho0_present
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
       aux_present, oce_present, orb_present, ppl_present, ppnl_present, &
       Qlm_present, semi_present
-    REAL(dp)                                 :: alpha, r_skin, rcprj
+    REAL(dp)                                 :: alpha, r_skin, rcprj, &
+                                                unit_conv
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, &
       c_radius, oce_radius, orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, &
       short_aux_fit_radius, short_orb_radius, V0hmv0s_radius
@@ -188,12 +187,14 @@ CONTAINS
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
+    TYPE(section_vals_type), POINTER         :: neighbor_list_section
 
     CALL timeset(routineN,handle)
+    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY (atomic_kind)
+    NULLIFY (atomic_kind, neighbor_list_section)
     NULLIFY (atomic_kind_set)
     NULLIFY (cell)
     NULLIFY (distribution_2d)
@@ -217,17 +218,16 @@ CONTAINS
     NULLIFY (sab_vdw)
     NULLIFY (sab_aux_fit)
     NULLIFY (sab_aux_fit_vs_orb)
-! *** SCP
     NULLIFY (sab_scp)
-! *** SCP
 
-    print_subcell_grid = .FALSE.
     output_unit = cp_print_key_unit_nr(logger=logger,&
                                        basis_section=force_env_section,&
                                        print_key_path="DFT%PRINT%SUBCELL",&
                                        extension=".Log",&
                                        error=error)
-    IF (output_unit > 0) print_subcell_grid = .TRUE.
+    CALL section_vals_val_get(force_env_section,"DFT%PRINT%SUBCELL%UNIT",c_val=unit_str,error=error)
+    unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+    neighbor_list_section => section_vals_get_subs_vals(force_env_section,"DFT%PRINT%NEIGHBOR_LISTS",error=error)
 
     molecule_only = .FALSE.
     IF (PRESENT(molecular)) molecule_only = molecular
@@ -654,13 +654,13 @@ CONTAINS
 
     IF (molecule_only) THEN
       CALL build_restricted_neighbor_lists(sab_orb,atom,cell,r_skin,&
-                                           maxatom_local,print_subcell_grid,&
+                                           maxatom_local,unit_conv,unit_str,&
                                            output_unit,orb_present,orb_present,&
                                            orb_radius,orb_radius,&
                                            name="ORBITAL ORBITAL")
     ELSE
       CALL build_neighbor_lists(sab_orb,atom,cell,r_skin,maxatom_local,&
-                                print_subcell_grid,output_unit,&
+                                unit_conv,unit_str,output_unit,&
                                 orb_present,orb_present,orb_radius,orb_radius,&
                                 name="ORBITAL ORBITAL",&
                                 l3c_oce=paw_atom_present,&
@@ -670,23 +670,27 @@ CONTAINS
     ! Put the generated neighbor lists into the QS environment
     CALL set_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
 
+    ! Dump neighbor list if requested
+    CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,neighbor_list_section,&
+         "/SAB_ORB","sab_orb","ORBITAL ORBITAL",error)
+
     IF( qs_env%dft_control%do_wfn_fitting ) THEN
       IF (molecule_only) THEN
         ! *** this needs to be checked
         CALL build_restricted_neighbor_lists(sab_aux_fit,atom,cell,r_skin,&
-                                             maxatom_local,print_subcell_grid,&
+                                             maxatom_local,unit_conv,unit_str,&
                                              output_unit,aux_fit_present,aux_fit_present,&
                                              aux_fit_radius,aux_fit_radius,&
                                              name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL")
       ELSE
         CALL build_neighbor_lists(sab_aux_fit,atom,cell,r_skin,maxatom_local,&
-                                  print_subcell_grid,output_unit,&
+                                  unit_conv,unit_str,output_unit,&
                                   aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,&
                                   name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL",&
                                   l3c_oce=paw_atom_present,&
                                   l3c_rho0=rho0_present,mic=mic)
         CALL build_neighbor_lists(sab_aux_fit_asymm,atom,cell,r_skin,maxatom_local,&
-                                  print_subcell_grid,output_unit,&
+                                  unit_conv,unit_str,output_unit,&
                                   aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,&
                                   name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL_ASYMM",&
                                   l3c_oce=paw_atom_present,&
@@ -698,13 +702,13 @@ CONTAINS
       IF (molecule_only) THEN
         ! *** This needs to be checked
         CALL build_restricted_neighbor_lists(sab_aux_fit_vs_orb,atom,cell,r_skin,&
-                                             maxatom_local,print_subcell_grid,&
+                                             maxatom_local,unit_conv,unit_str,&
                                              output_unit,aux_fit_present,orb_present,&
                                              aux_fit_radius,orb_radius,&
                                              name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL")
       ELSE
         CALL build_neighbor_lists(sab_aux_fit_vs_orb,atom,cell,r_skin,maxatom_local,&
-                                  print_subcell_grid,output_unit,&
+                                  unit_conv,unit_str,output_unit,&
                                   aux_fit_present,orb_present,aux_fit_radius,orb_radius,&
                                   name="ORBITAL AUX_FIT_ORBITAL",&
                                   l3c_oce=paw_atom_present,&
@@ -714,92 +718,23 @@ CONTAINS
       END IF
 
       ! Put the generated neighbor lists into the QS environment
-
       CALL set_qs_env(qs_env=qs_env,sab_aux_fit=sab_aux_fit,error=error)
       CALL set_qs_env(qs_env=qs_env,sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,error=error)
       CALL set_qs_env(qs_env=qs_env,sab_aux_fit_asymm=sab_aux_fit_asymm,error=error)
+ 
+      ! Dump neighbor list if requested
+      CALL write_neighbor_lists(sab_aux_fit,particle_set,cell,para_env,neighbor_list_section,&
+           "/SAB_AUX_FIT","sab_aux_fit","AUX_FIT_ORBITAL AUX_FIT_ORBITAL",error)
+      CALL write_neighbor_lists(sab_aux_fit_vs_orb,particle_set,cell,para_env,neighbor_list_section,&
+          "/SAB_AUX_FIT_VS_ORB","sab_aux_fit_vs_orb","ORBITAL AUX_FIT_ORBITAL",error)
     END IF
-
-
-    print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_ORB"
-
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                         print_key_path,error=error),&
-              cp_p_file)) THEN
-      iw = cp_print_key_unit_nr(logger=logger,&
-                                basis_section=force_env_section,&
-                                print_key_path=print_key_path,&
-                                extension=".out",&
-                                middle_name="sab_orb",&
-                                local=.TRUE.,&
-                                log_filename=.FALSE.,&
-                                file_position="REWIND",&
-                                error=error)
-      CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,iw,&
-                                "ORBITAL ORBITAL",error)
-      CALL cp_print_key_finished_output(unit_nr=iw,&
-                                        logger=logger,&
-                                        basis_section=force_env_section,&
-                                        print_key_path=print_key_path,&
-                                        local=.TRUE.,&
-                                        error=error)
-    END IF
-
-    print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_AUX_FIT"
-
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                         print_key_path,error=error),&
-              cp_p_file)) THEN
-      iw = cp_print_key_unit_nr(logger=logger,&
-                                basis_section=force_env_section,&
-                                print_key_path=print_key_path,&
-                                extension=".out",&
-                                middle_name="sab_aux_fit",&
-                                local=.TRUE.,&
-                                log_filename=.FALSE.,&
-                                file_position="REWIND",&
-                                error=error)
-      CALL write_neighbor_lists(sab_aux_fit,particle_set,cell,para_env,iw,&
-                                "AUX_FIT_ORBITAL AUX_FIT_ORBITAL",error)
-      CALL cp_print_key_finished_output(unit_nr=iw,&
-                                        logger=logger,&
-                                        basis_section=force_env_section,&
-                                        print_key_path=print_key_path,&
-                                        local=.TRUE.,&
-                                        error=error)
-    END IF
-
-    print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_AUX_FIT_VS_ORB"
-
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                         print_key_path,error=error),&
-              cp_p_file)) THEN
-      iw = cp_print_key_unit_nr(logger=logger,&
-                                basis_section=force_env_section,&
-                                print_key_path=print_key_path,&
-                                extension=".out",&
-                                middle_name="sab_aux_fit_vs_orb",&
-                                local=.TRUE.,&
-                                log_filename=.FALSE.,&
-                                file_position="REWIND",&
-                                error=error)
-      CALL write_neighbor_lists(sab_aux_fit_vs_orb,particle_set,cell,para_env,iw,&
-                                "ORBITAL AUX_FIT_ORBITAL",error)
-      CALL cp_print_key_finished_output(unit_nr=iw,&
-                                        logger=logger,&
-                                        basis_section=force_env_section,&
-                                        print_key_path=print_key_path,&
-                                        local=.TRUE.,&
-                                        error=error)
-    END IF
-
 
     ! Build orbital-orbital list containing all the pairs, to be used with
     ! non-symmetric operators. Beware: the cutoff of the orbital-orbital overlap
     ! might be not optimal. It should be verified for each operator.
     IF(all_pairs_list) THEN
       CALL build_neighbor_lists(sab_all,atom,cell,r_skin,maxatom_local,&
-                                print_subcell_grid,output_unit,&
+                                unit_conv,unit_str,output_unit,&
                                 orb_present,orb_present,orb_radius,orb_radius,&
                                 name="ALL_ORBITAL ORBITAL",&
                                 l3c_oce=paw_atom_present,&
@@ -812,174 +747,59 @@ CONTAINS
     ! Build orbital GTH-PPL operator overlap list
 
     IF (gth_potential_present) THEN
-
       IF (ANY(ppl_present)) THEN
-
         CALL build_gth_ppl_neighbor_lists(sac_ppl,atom,cell,r_skin,&
-                                          maxatom_local,print_subcell_grid,&
+                                          maxatom_local,unit_conv,unit_str,&
                                           output_unit,orb_present,ppl_present,&
                                           orb_radius,ppl_radius,&
                                           name="ORBITAL GTH-PPL")
 
         ! Put the generated neighbor lists into the QS environment
-
         CALL set_qs_env(qs_env=qs_env,sac_ppl=sac_ppl,error=error)
 
-        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL"
-
-        IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                             print_key_path,error=error),&
-                  cp_p_file)) THEN
-          iw = cp_print_key_unit_nr(logger=logger,&
-                                    basis_section=force_env_section,&
-                                    print_key_path=print_key_path,&
-                                    extension=".out",&
-                                    middle_name="sac_ppl",&
-                                    local=.TRUE.,&
-                                    log_filename=.FALSE.,&
-                                    file_position="REWIND",&
-                                    error=error)
-          CALL write_neighbor_lists(sac_ppl,particle_set,cell,para_env,iw,&
-                                    "ORBITAL GTH-PPL",error)
-          CALL cp_print_key_finished_output(unit_nr=iw,&
-                                            logger=logger,&
-                                            basis_section=force_env_section,&
-                                            print_key_path=print_key_path,&
-                                            local=.TRUE.,&
-                                            error=error)
-        END IF
-
+        ! Dump neighbor list if requested
+        CALL write_neighbor_lists(sac_ppl,particle_set,cell,para_env,neighbor_list_section,&
+             "/SAC_PPL","sac_ppl","ORBITAL GTH-PPL",error)
       END IF
 
       IF (ANY(ppnl_present)) THEN
-
         CALL build_gth_ppnl_neighbor_lists(sac_ppnl,sbc_ppnl,atom,cell,r_skin,&
-                                           maxatom,maxatom_local,print_subcell_grid,&
+                                           maxatom,maxatom_local,unit_conv,unit_str,&
                                            output_unit,orb_present,ppnl_present,&
                                            orb_radius,ppnl_radius,&
                                            name="ORBITAL GTH-PPNL")
 
         ! Put the generated neighbor lists into the QS environment
-
         CALL set_qs_env(qs_env=qs_env,sac_ppnl=sac_ppnl,sbc_ppnl=sbc_ppnl,error=error)
 
-        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPNL"
+        ! Dump neighbor list if requested
+        CALL write_neighbor_lists(sac_ppnl,particle_set,cell,para_env,neighbor_list_section,&
+             "/SAC_PPNL","sac_ppnl","ORBITAL(A) GTH-PPNL",error)
 
-        IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                             print_key_path,error=error),&
-                  cp_p_file)) THEN
-          iw = cp_print_key_unit_nr(logger=logger,&
-                                    basis_section=force_env_section,&
-                                    print_key_path=print_key_path,&
-                                    extension=".out",&
-                                    middle_name="sac_ppnl",&
-                                    local=.TRUE.,&
-                                    log_filename=.FALSE.,&
-                                    file_position="REWIND",&
-                                    error=error)
-          CALL write_neighbor_lists(sac_ppnl,particle_set,cell,para_env,iw,&
-                                    "ORBITAL(A) GTH-PPNL",error)
-          CALL cp_print_key_finished_output(unit_nr=iw,&
-                                            logger=logger,&
-                                            basis_section=force_env_section,&
-                                            print_key_path=print_key_path,&
-                                            local=.TRUE.,&
-                                            error=error)
-        END IF
-
-        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SBC_PPNL"
-
-        IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                             print_key_path,error=error),&
-                  cp_p_file)) THEN
-          iw = cp_print_key_unit_nr(logger=logger,&
-                                    basis_section=force_env_section,&
-                                    print_key_path=print_key_path,&
-                                    extension=".out",&
-                                    middle_name="sbc_ppnl",&
-                                    local=.TRUE.,&
-                                    log_filename=.FALSE.,&
-                                    file_position="REWIND",&
-                                    error=error)
-          CALL write_neighbor_lists(sbc_ppnl,particle_set,cell,para_env,iw,&
-                                    "ORBITAL(B) GTH-PPNL",error)
-          CALL cp_print_key_finished_output(unit_nr=iw,&
-                                            logger=logger,&
-                                            basis_section=force_env_section,&
-                                            print_key_path=print_key_path,&
-                                            local=.TRUE.,&
-                                            error=error)
-        END IF
-
+        CALL write_neighbor_lists(sbc_ppnl,particle_set,cell,para_env,neighbor_list_section,&
+             "/SBC_PPNL","sbc_ppnl","ORBITAL(B) GTH-PPNL",error)
       END IF
-
     END IF
 
     ! Build orbital-orbital GAPW projector overlap list
 
     IF (paw_atom_present) THEN
-
       IF (ANY(oce_present)) THEN
-
         CALL build_gth_ppnl_neighbor_lists(sac_oce,sbc_oce,atom,cell,r_skin,&
-                                           maxatom,maxatom_local,print_subcell_grid,&
+                                           maxatom,maxatom_local,unit_conv,unit_str,&
                                            output_unit,orb_present,oce_present,&
-!                                           orb_radius,oce_radius,&
                                            short_orb_radius,oce_radius,&
                                            name="ORBITAL PAW-PRJ")
 
         ! Put the generated neighbor lists into the QS environment
-
         CALL set_qs_env(qs_env=qs_env,sac_oce=sac_oce,sbc_oce=sbc_oce,error=error)
 
-        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_OCE"
+        ! Dump neighbor list if requested
+        CALL write_neighbor_lists(sac_oce,particle_set,cell,para_env,neighbor_list_section,&
+             "/SAC_OCE","sac_oce","ORBITAL(A) PAW-PRJ",error)
 
-        IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                             print_key_path,error=error),&
-                  cp_p_file)) THEN
-          iw = cp_print_key_unit_nr(logger=logger,&
-                                    basis_section=force_env_section,&
-                                    print_key_path=print_key_path,&
-                                    extension=".out",&
-                                    middle_name="sac_oce",&
-                                    local=.TRUE.,&
-                                    log_filename=.FALSE.,&
-                                    file_position="REWIND",&
-                                    error=error)
-          CALL write_neighbor_lists(sac_oce,particle_set,cell,para_env,iw,&
-                                    "ORBITAL(A) PAW-PRJ",error)
-          CALL cp_print_key_finished_output(unit_nr=iw,&
-                                            logger=logger,&
-                                            basis_section=force_env_section,&
-                                            print_key_path=print_key_path,&
-                                            local=.TRUE.,&
-                                            error=error)
-        END IF
-
-        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SBC_OCE"
-
-        IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                             print_key_path,error=error),&
-                  cp_p_file)) THEN
-          iw = cp_print_key_unit_nr(logger=logger,&
-                                    basis_section=force_env_section,&
-                                    print_key_path=print_key_path,&
-                                    extension=".out",&
-                                    middle_name="sbc_oce",&
-                                    local=.TRUE.,&
-                                    log_filename=.FALSE.,&
-                                    file_position="REWIND",&
-                                    error=error)
-          CALL write_neighbor_lists(sbc_oce,particle_set,cell,para_env,iw,&
-                                    "ORBITAL(B) PAW-PRJ",error)
-          CALL cp_print_key_finished_output(unit_nr=iw,&
-                                            logger=logger,&
-                                            basis_section=force_env_section,&
-                                            print_key_path=print_key_path,&
-                                            local=.TRUE.,&
-                                            error=error)
-        END IF
-
+        CALL write_neighbor_lists(sbc_oce,particle_set,cell,para_env,neighbor_list_section,&
+             "/SBC_OCE","sbc_oce","ORBITAL(B) PAW-PRJ",error)
       END IF
     END IF
 
@@ -995,39 +815,21 @@ CONTAINS
 
       ! Build the neighbor lists for the Hartree terms
       CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
-                                .FALSE.,output_unit,semi_present,semi_present,&
+                                unit_conv,unit_str,output_unit,semi_present,semi_present,&
                                 c_radius,c_radius,&
                                 name="HARTREE INTERACTIONS")
       CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
-      print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_2C"
-      IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                           print_key_path,error=error),&
-                cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger=logger,&
-                                  basis_section=force_env_section,&
-                                  print_key_path=print_key_path,&
-                                  extension=".out",&
-                                  middle_name="sab_2c",&
-                                  local=.TRUE.,&
-                                  log_filename=.FALSE.,&
-                                  file_position="REWIND",&
-                                  error=error)
-        CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,iw,&
-                                  "HARTREE INTERACTIONS",error)
-        CALL cp_print_key_finished_output(unit_nr=iw,&
-                                          logger=logger,&
-                                          basis_section=force_env_section,&
-                                          print_key_path=print_key_path,&
-                                          local=.TRUE.,&
-                                          error=error)
-      END IF
+
+      ! Dump neighbor list if requested
+      CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,neighbor_list_section,&
+           "/SAB_2C","sab_2c","HARTREE INTERACTIONS",error)
+
       DEALLOCATE (semi_present,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "semi_present")
       DEALLOCATE (c_radius,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "c_radius")
-! *** SCP
     ELSEIF (qs_env%dft_control%scp) THEN
       IF ( qs_env%dft_control%scp_control%dispersion ) THEN
         ALLOCATE (c_radius(nkind),STAT=istat)
@@ -1038,37 +840,20 @@ CONTAINS
         END DO
 
         CALL build_neighbor_lists(sab_scp,atom,cell,r_skin,maxatom_local,&
-                                  .FALSE.,output_unit,aux_present,aux_present,&
+                                  unit_conv,unit_str,output_unit,aux_present,aux_present,&
                                   c_radius,c_radius,name="SCP_DISPERSION")
 
         ! Put the generated neighbor lists into the QS environment
         CALL set_qs_env(qs_env=qs_env,sab_scp=sab_scp,error=error)
-        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_SCP"
-        IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                   print_key_path,error=error),cp_p_file)) THEN
-          iw = cp_print_key_unit_nr(logger=logger,&
-                                    basis_section=force_env_section,&
-                                    print_key_path=print_key_path,&
-                                    extension=".out",&
-                                    middle_name="sab_scp",&
-                                    local=.TRUE.,&
-                                    log_filename=.FALSE.,&
-                                    file_position="REWIND",&
-                                    error=error)
-          CALL write_neighbor_lists(sab_scp,particle_set,cell,para_env,iw,&
-                                  "SCP DISPERSION PAIR POTENTIAL",error)
-          CALL cp_print_key_finished_output(unit_nr=iw,&
-                                            logger=logger,&
-                                            basis_section=force_env_section,&
-                                            print_key_path=print_key_path,&
-                                            local=.TRUE.,&
-                                            error=error)
-        END IF
+
+        ! Dump neighbor list if requested
+        CALL write_neighbor_lists(sab_scp,particle_set,cell,para_env,neighbor_list_section,&
+             "/SAB_SCP","sab_scp","SCP DISPERSION PAIR POTENTIAL",error)
+
         DEALLOCATE (c_radius,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius")
       END IF
 
-! *** SCP
     ELSEIF (qs_env%dft_control%qs_control%dftb) THEN
 
       ! Build the neighbor lists for the DFTB repulsive pair-potential
@@ -1090,33 +875,17 @@ CONTAINS
       END DO
       mic=.TRUE.
       CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
-                                .FALSE.,output_unit,orb_present,orb_present,&
+                                unit_conv,unit_str,output_unit,orb_present,orb_present,&
                                 orb_radius,orb_radius,pair_radius=ab_radius,&
                                 mic=mic,&
                                 name="DFTB REPULSIVE PAIR POTENTIAL")
       ! Put the generated neighbor lists into the QS environment
       CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
-      print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_2C"
-      IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                 print_key_path,error=error),cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger=logger,&
-                                  basis_section=force_env_section,&
-                                  print_key_path=print_key_path,&
-                                  extension=".out",&
-                                  middle_name="sab_2c",&
-                                  local=.TRUE.,&
-                                  log_filename=.FALSE.,&
-                                  file_position="REWIND",&
-                                  error=error)
-        CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,iw,&
-                                  "DFTB REPULSIVE PAIR POTENTIAL",error)
-        CALL cp_print_key_finished_output(unit_nr=iw,&
-                                          logger=logger,&
-                                          basis_section=force_env_section,&
-                                          print_key_path=print_key_path,&
-                                          local=.TRUE.,&
-                                          error=error)
-      END IF
+
+      ! Dump neighbor list if requested
+      CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,neighbor_list_section,&
+           "/SAB_2C","sab_2c","DFTB REPULSIVE PAIR POTENTIAL",error)
+
       DEALLOCATE(ab_radius,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab_radius")
 
@@ -1129,7 +898,7 @@ CONTAINS
         CALL ewald_env_get ( ewald_env, alpha=alpha )
         c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
         CALL build_neighbor_lists(sac_3c,atom,cell,r_skin,maxatom_local,&
-                                  .FALSE.,output_unit,orb_present,orb_present,&
+                                  unit_conv,unit_str,output_unit,orb_present,orb_present,&
                                   c_radius,c_radius,mic=mic,name="EWALD OVERLAP")
         ! Put the generated neighbor lists into the QS environment
         CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,error=error)
@@ -1150,7 +919,7 @@ CONTAINS
         END DO
 
         CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&
-                                  .FALSE.,output_unit,orb_present,orb_present,&
+                                  unit_conv,unit_str,output_unit,orb_present,orb_present,&
                                   c_radius,c_radius,name="DISPERSION")
         ! Put the generated neighbor lists into the QS environment
         CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
@@ -1169,7 +938,7 @@ CONTAINS
         c_radius(:) = dispersion_env%rc_disp
 
         CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&
-                                  .FALSE.,output_unit,orb_present,orb_present,&
+                                  unit_conv,unit_str,output_unit,orb_present,orb_present,&
                                   c_radius,c_radius,name="DISPERSION")
         ! Put the generated neighbor lists into the QS environment
         CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
@@ -1186,7 +955,7 @@ CONTAINS
       ! Vh(rho0_h)rho0_h - Vh(rho0_s)rho0_s
 
       CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
-                                .FALSE.,output_unit,Qlm_present,Qlm_present,&
+                                unit_conv,unit_str,output_unit,Qlm_present,Qlm_present,&
                                 V0hmV0s_radius,V0hmV0s_radius,&
                                 name="TWO-CENTER ORBITAL V_HARTREE_LOCAL")
 
@@ -1194,29 +963,9 @@ CONTAINS
 
       CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
 
-      print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_2C"
-
-      IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                           print_key_path,error=error),&
-                cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger=logger,&
-                                  basis_section=force_env_section,&
-                                  print_key_path=print_key_path,&
-                                  extension=".out",&
-                                  middle_name="sab_2c",&
-                                  local=.TRUE.,&
-                                  log_filename=.FALSE.,&
-                                  file_position="REWIND",&
-                                  error=error)
-        CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,iw,&
-                                  "TWO-CENTER ORBITAL V_HARTREE_LOCAL",error)
-        CALL cp_print_key_finished_output(unit_nr=iw,&
-                                          logger=logger,&
-                                          basis_section=force_env_section,&
-                                          print_key_path=print_key_path,&
-                                          local=.TRUE.,&
-                                          error=error)
-      END IF
+      ! Dump neighbor list if requested
+      CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,neighbor_list_section,&
+           "/SAB_2C","sab_2c","TWO-CENTER ORBITAL V_HARTREE_LOCAL",error)
 
       ! Build the neighbor lists for the 3-centers Hartree_local terms
       ! Vh(rho0_h-rho0_s) rho_soft
@@ -1241,63 +990,20 @@ CONTAINS
       ! These two potentials should be very short ranged
 
       CALL build_gth_ppnl_neighbor_lists(sac_3c,sbc_3c,atom,cell,r_skin,&
-                                         maxatom,maxatom_local,print_subcell_grid,&
+                                         maxatom,maxatom_local,unit_conv,unit_str,&
                                          output_unit,orb_present,Qlm_present,&
                                          orb_rad_3c,V0hmV0s_radius,&
                                          name="THREE-CENTER ORBITAL V_HARTREE_LOCAL")
 
       ! Put the generated neighbor lists into the QS environment
-
       CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,sbc_3c=sbc_3c,error=error)
 
-      print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_3C"
+      ! Dump neighbor list if requested
+      CALL write_neighbor_lists(sac_3c,particle_set,cell,para_env,neighbor_list_section,&
+           "/SAC_3C","sac_3c","THREE-CENTER ORBITAL(A) V_HARTREE_LOCAL",error)
 
-      IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                           print_key_path,error=error),&
-                cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger=logger,&
-                                  basis_section=force_env_section,&
-                                  print_key_path=print_key_path,&
-                                  extension=".out",&
-                                  middle_name="sac_3c",&
-                                  local=.TRUE.,&
-                                  log_filename=.FALSE.,&
-                                  file_position="REWIND",&
-                                  error=error)
-        CALL write_neighbor_lists(sac_3c,particle_set,cell,para_env,iw,&
-                                  "THREE-CENTER ORBITAL(A) V_HARTREE_LOCAL",error)
-        CALL cp_print_key_finished_output(unit_nr=iw,&
-                                          logger=logger,&
-                                          basis_section=force_env_section,&
-                                          print_key_path=print_key_path,&
-                                          local=.TRUE.,&
-                                          error=error)
-      END IF
-
-      print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SBC_3C"
-
-      IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                           print_key_path,error=error),&
-                cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger=logger,&
-                                  basis_section=force_env_section,&
-                                  print_key_path=print_key_path,&
-                                  extension=".out",&
-                                  middle_name="sbc_3c",&
-                                  local=.TRUE.,&
-                                  log_filename=.FALSE.,&
-                                  file_position="REWIND",&
-                                  error=error)
-        CALL write_neighbor_lists(sac_3c,particle_set,cell,para_env,iw,&
-                                  "THREE-CENTER ORBITAL(B) V_HARTREE_LOCAL",error)
-        CALL cp_print_key_finished_output(unit_nr=iw,&
-                                          logger=logger,&
-                                          basis_section=force_env_section,&
-                                          print_key_path=print_key_path,&
-                                          local=.TRUE.,&
-                                          error=error)
-      END IF
-
+      CALL write_neighbor_lists(sac_3c,particle_set,cell,para_env,neighbor_list_section,&
+           "/SBC_3C","sbc_3c","THREE-CENTER ORBITAL(B) V_HARTREE_LOCAL",error)
     END IF
 
     ! Print particle distribution
@@ -1443,10 +1149,8 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE build_neighbor_lists(ab,atom,cell,r_skin,maxatom_local,&
-                                  print_subcell_grid,output_unit,&
-                                  present_a,present_b,radius_a,radius_b,&
-                                  pair_radius,&
-                                  name,l3c_oce,l3c_rho0,mic,symmetric)
+    unit_conv, unit_str, output_unit, present_a,present_b,radius_a,radius_b,&
+    pair_radius, name,l3c_oce,l3c_rho0,mic,symmetric)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
@@ -1455,7 +1159,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), INTENT(IN)                     :: r_skin
     INTEGER, INTENT(IN)                      :: maxatom_local
-    LOGICAL, INTENT(IN)                      :: print_subcell_grid
+    REAL(dp), INTENT(IN)                     :: unit_conv
+    CHARACTER(LEN=*), INTENT(IN)             :: unit_str
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_b
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
@@ -1468,7 +1173,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_neighbor_lists', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
       iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
       jkind, k, kcell, natom_local_a, natom_local_b, nkind
@@ -1478,7 +1182,7 @@ CONTAINS
                                                 my_l3c_rho0, my_mic, &
                                                 my_symmetric
     REAL(dp)                                 :: rab2, rab2_max, rab_max, &
-                                                subcells, unit_of_length
+                                                subcells
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab_max, sb, &
                                                 sb_max, sb_min, sb_pbc
     TYPE(neighbor_list_p_type), &
@@ -1487,12 +1191,8 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
-! -------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
-
     ! Deallocate the old neighbor list structure
-
     IF (ASSOCIATED(ab)) THEN
       DO iab=1,SIZE(ab)
         CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
@@ -1525,17 +1225,14 @@ CONTAINS
 
     CALL get_cell(cell=cell,&
                   periodic=periodic,&
-                  subcells=subcells,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
+                  subcells=subcells)
 
     ! Print headline
-
-    IF (print_subcell_grid) THEN
+    IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
         "SUBCELL GRID FOR THE "//TRIM(name)//" NEIGHBOR LISTS",&
         "Atomic kind pair","Grid size",&
-        "Subcell size in "//unit_of_length_name
+        "Subcell size in "//TRIM(unit_str)
     END IF
 
     ! Loop over all atomic kind pairs
@@ -1585,11 +1282,11 @@ CONTAINS
 
         ! Print subcell information for the current atomic kind pair
 
-        IF (print_subcell_grid) THEN
+        IF (output_unit>0) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
           CALL scaled_to_real(r,s,cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
-            ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
+            ikind,jkind,nsubcell(1:3),r(1:3)*unit_conv
         END IF
 
         CALL allocate_neighbor_list_set(neighbor_list_set=ab(iab)%neighbor_list_set,&
@@ -1831,9 +1528,9 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE build_restricted_neighbor_lists(ab,atom,cell,r_skin,&
-                                             maxatom_local,print_subcell_grid,&
-                                             output_unit,present_a,present_b,&
-                                             radius_a,radius_b,name)
+    maxatom_local,unit_conv,unit_str, output_unit,present_a,present_b,&
+    radius_a,radius_b,name)
+
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
     TYPE(local_atoms_type), DIMENSION(:), &
@@ -1841,7 +1538,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), INTENT(IN)                     :: r_skin
     INTEGER, INTENT(IN)                      :: maxatom_local
-    LOGICAL, INTENT(IN)                      :: print_subcell_grid
+    REAL(dp), INTENT(IN)                     :: unit_conv
+    CHARACTER(LEN=*), INTENT(IN)             :: unit_str
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_b
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
@@ -1851,7 +1549,6 @@ CONTAINS
       routineN = 'build_restricted_neighbor_lists', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
       iatom_subcell, ikind, istat, j, jatom, jatom_local, jkind, k, mol_a, &
       mol_b, natom_local_a, natom_local_b, nkind
@@ -1859,7 +1556,7 @@ CONTAINS
                                                 nsubcell, periodic
     LOGICAL                                  :: include_ab
     REAL(dp)                                 :: rab2, rab2_max, rab_max, &
-                                                subcells, unit_of_length
+                                                subcells
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab_max, sb, &
                                                 sb_max, sb_min
     TYPE(neighbor_list_p_type), &
@@ -1868,12 +1565,8 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
-! -------------------------------------------------------------------------
-
     CALL timeset(routineN,handle)
-
     ! Deallocate the old neighbor list structure
-
     IF (ASSOCIATED(ab)) THEN
       DO iab=1,SIZE(ab)
         CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
@@ -1898,17 +1591,15 @@ CONTAINS
 
     CALL get_cell(cell=cell,&
                   periodic=periodic,&
-                  subcells=subcells,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
+                  subcells=subcells)
 
     ! Print headline
 
-    IF (print_subcell_grid) THEN
+    IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
         "SUBCELL GRID FOR THE "//TRIM(name)//" NEIGHBOR LISTS",&
         "Atomic kind pair","Grid size",&
-        "Subcell size in "//unit_of_length_name
+        "Subcell size in "//TRIM(unit_str)
     END IF
 
     ! Loop over all atomic kind pairs
@@ -1945,11 +1636,11 @@ CONTAINS
 
         ! Print subcell information for the current atomic kind pair
 
-        IF (print_subcell_grid) THEN
+        IF (output_unit>0) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
           CALL scaled_to_real(r,s,cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
-            ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
+            ikind,jkind,nsubcell(1:3),r(1:3)*unit_conv
         END IF
 
         CALL allocate_neighbor_list_set(neighbor_list_set=ab(iab)%neighbor_list_set,&
@@ -2115,10 +1806,8 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE build_gth_ppl_neighbor_lists(ac,atom,cell,r_skin,maxatom_local,&
-                                          print_subcell_grid,output_unit,&
-                                          present_a,present_c,&
-                                          radius_a,radius_c,name,&
-                                          particle_set)
+    unit_conv,unit_str,output_unit, present_a,present_c, radius_a,radius_c,name,&
+    particle_set)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ac
@@ -2127,7 +1816,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), INTENT(IN)                     :: r_skin
     INTEGER, INTENT(IN)                      :: maxatom_local
-    LOGICAL, INTENT(IN)                      :: print_subcell_grid
+    REAL(dp), INTENT(IN)                     :: unit_conv
+    CHARACTER(LEN=*), INTENT(IN)             :: unit_str
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_c
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_c
@@ -2138,7 +1828,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_gth_ppl_neighbor_lists', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
       iatom_subcell, icell, ikind, istat, j, jcell, k, katom, kcell, kkind, &
       natom_c, natom_local_a, nkind
@@ -2146,7 +1835,7 @@ CONTAINS
                                                 nsubcell, periodic
     LOGICAL                                  :: cell000, exclude
     REAL(dp)                                 :: rac2, rac2_max, rac_max, &
-                                                subcells, unit_of_length
+                                                subcells
     REAL(dp), DIMENSION(3)                   :: r, rac, rc, s, sac_max, sc, &
                                                 sc_max, sc_min, sc_pbc
     TYPE(neighbor_list_p_type), &
@@ -2185,17 +1874,15 @@ CONTAINS
 
     CALL get_cell(cell=cell,&
                   periodic=periodic,&
-                  subcells=subcells,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
+                  subcells=subcells)
 
     ! Print headline
 
-    IF (print_subcell_grid) THEN
+    IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
         "SUBCELL GRID FOR THE "//TRIM(name)//" NEIGHBOR LISTS",&
         "Atomic kind pair","Grid size",&
-        "Subcell size in "//unit_of_length_name
+        "Subcell size in "//TRIM(unit_str)
     END IF
 
     ! Loop over all atomic kind pairs
@@ -2230,11 +1917,11 @@ CONTAINS
 
         ! Print subcell information for the current atomic kind pair
 
-        IF (print_subcell_grid) THEN
+        IF (output_unit>0) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
           CALL scaled_to_real(r,s,cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
-            ikind,kkind,nsubcell(1:3),r(1:3)/unit_of_length
+            ikind,kkind,nsubcell(1:3),r(1:3)*unit_conv
         END IF
 
         CALL allocate_neighbor_list_set(neighbor_list_set=ac(iac)%neighbor_list_set,&
@@ -2486,10 +2173,8 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE build_gth_ppnl_neighbor_lists(ac,bc,atom,cell,r_skin,&
-                                           maxatom,maxatom_local,&
-                                           print_subcell_grid,output_unit,&
-                                           present_a,present_c,&
-                                           radius_a,radius_c,name)
+    maxatom,maxatom_local, unit_conv, unit_str, output_unit, present_a,present_c,&
+    radius_a,radius_c,name)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ac, bc
@@ -2498,7 +2183,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), INTENT(IN)                     :: r_skin
     INTEGER, INTENT(IN)                      :: maxatom, maxatom_local
-    LOGICAL, INTENT(IN)                      :: print_subcell_grid
+    REAL(dp), INTENT(IN)                     :: unit_conv
+    CHARACTER(LEN=*), INTENT(IN)             :: unit_str
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_c
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_c
@@ -2508,7 +2194,6 @@ CONTAINS
       routineN = 'build_gth_ppnl_neighbor_lists', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
       iatom_subcell, icell, icell_b, ikind, istat, j, jcell, jcell_b, k, &
       katom, kcell, kcell_b, kkind, natom_c, natom_local_a, natom_local_b, &
@@ -2516,7 +2201,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
     REAL(dp)                                 :: rac2, rac2_max, rac_max, &
-                                                subcells, unit_of_length
+                                                subcells
     REAL(dp), DIMENSION(3)                   :: r, rac, rc, s, s2r, s_max, &
                                                 s_min, sac_max, sc, sc_max, &
                                                 sc_min, sc_pbc
@@ -2526,8 +2211,6 @@ CONTAINS
                                                 bc_neighbor_list_set
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell_a, subcell_b
-
-! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -2570,17 +2253,15 @@ CONTAINS
 
     CALL get_cell(cell=cell,&
                   periodic=periodic,&
-                  subcells=subcells,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
+                  subcells=subcells)
 
     ! Print headline
 
-    IF (print_subcell_grid) THEN
+    IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
         "SUBCELL GRID FOR THE"//TRIM(name)//" NEIGHBOR LISTS",&
         "Atomic kind pair","Grid size",&
-        "Subcell size in "//unit_of_length_name
+        "Subcell size in "//TRIM(unit_str)
     END IF
 
    ! Loop over all atomic kind pairs
@@ -2625,11 +2306,11 @@ CONTAINS
 
         ! Print subcell information for the current atomic kind pair
 
-        IF (print_subcell_grid) THEN
+        IF (output_unit>0) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
           CALL scaled_to_real(r,s,cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
-            ikind,kkind,nsubcell(1:3),r(1:3)/unit_of_length
+            ikind,kkind,nsubcell(1:3),r(1:3)*unit_conv
         END IF
 
         CALL allocate_neighbor_list_set(neighbor_list_set=ac(iac)%neighbor_list_set,&
@@ -2995,8 +2676,6 @@ CONTAINS
                                                 c_max, c_min, delta_a, &
                                                 delta_b, delta_c
 
-! -------------------------------------------------------------------------
-
     na = nsubcell(1)
     nb = nsubcell(2)
     nc = nsubcell(3)
@@ -3067,8 +2746,6 @@ CONTAINS
 
     INTEGER                                  :: i, istat, j, k
 
-! -------------------------------------------------------------------------
-
     IF (ASSOCIATED(subcell)) THEN
 
       DO k=1,SIZE(subcell,3)
@@ -3124,8 +2801,6 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
-
-! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -3249,8 +2924,8 @@ CONTAINS
 !>         (26.06.2003,MK) 
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_neighbor_lists(ab,particle_set,cell,para_env,output_unit,&
-                                  name,error)
+  SUBROUTINE write_neighbor_lists(ab,particle_set,cell,para_env,neighbor_list_section,&
+    nl_type,middle_name,name,error)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), INTENT(IN)               :: ab
@@ -3258,119 +2933,134 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(IN)                      :: output_unit
-    CHARACTER(LEN=*), INTENT(IN)             :: name
+    TYPE(section_vals_type), POINTER         :: neighbor_list_section
+    CHARACTER(LEN=*), INTENT(IN)             :: nl_type, middle_name, name
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
-    CHARACTER(LEN=default_string_length)     :: string
+    CHARACTER(LEN=default_string_length)     :: string, unit_str
     INTEGER                                  :: atom_a, atom_b, iab, ilist, &
-                                                inode, mype, nlist, &
+                                                inode, iw, mype, nlist, &
                                                 nneighbor, nnode
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b
-    LOGICAL                                  :: print_headline
-    REAL(dp)                                 :: dab, unit_of_length
+    LOGICAL                                  :: failure, print_headline
+    REAL(dp)                                 :: dab, unit_conv
     REAL(dp), DIMENSION(3)                   :: ra, rab, rb
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
 
-! -------------------------------------------------------------------------
+    failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,neighbor_list_section,&
+                                         TRIM(nl_type),error=error),&
+              cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger=logger,&
+                                 basis_section=neighbor_list_section,&
+                                 print_key_path=TRIM(nl_type),&
+                                 extension=".out",&
+                                 middle_name=TRIM(middle_name),&
+                                 local=.TRUE.,&
+                                 log_filename=.FALSE.,&
+                                 file_position="REWIND",&
+                                 error=error)
+       mype = para_env%mepos
+       CALL section_vals_val_get(neighbor_list_section,"UNIT",c_val=unit_str,error=error)
+       unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
 
-    mype = para_env%mepos
+       ! Print headline
+       string = ""
+       WRITE (UNIT=string,FMT="(A,I5,A)")&
+         TRIM(name)//" IN "//TRIM(unit_str)//" (PROCESS",mype,")"
+       CALL compress(string)
+       IF (iw > 0) WRITE (UNIT=iw,FMT="(/,/,T2,A)") TRIM(string)
 
-    CALL get_cell(cell=cell,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
+       print_headline = .TRUE.
 
-    ! Print headline
+       nneighbor = 0
 
-    string = ""
-    WRITE (UNIT=string,FMT="(A,I5,A)")&
-      TRIM(name)//" IN "//TRIM(unit_of_length_name)//" (PROCESS",mype,")"
-    CALL compress(string)
-    IF (output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(string)
+       DO iab=1,SIZE(ab)
 
-    print_headline = .TRUE.
+         neighbor_list_set => ab(iab)%neighbor_list_set
 
-    nneighbor = 0
+         IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
 
-    DO iab=1,SIZE(ab)
+         ! Loop over all atoms and their corresponding neighbor lists
+         CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
+                                    nlist=nlist)
 
-      neighbor_list_set => ab(iab)%neighbor_list_set
+         neighbor_list => first_list(neighbor_list_set)
 
-      IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
+         DO ilist=1,nlist
 
-      ! Loop over all atoms and their corresponding neighbor lists
+           CALL get_neighbor_list(neighbor_list=neighbor_list,&
+                                  atom=atom_a,&
+                                  cell=cell_a,&
+                                  nnode=nnode)
 
-      CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
-                                 nlist=nlist)
+           nneighbor = nneighbor + nnode
 
-      neighbor_list => first_list(neighbor_list_set)
+           IF (iw > 0) THEN
 
-      DO ilist=1,nlist
+             ! Print second part of the headline
+             IF (print_headline) THEN
+               WRITE (UNIT=iw,FMT="(/,T3,A,7X,A,2(11X,A),10X,A)")&
+                 "Atom  Neighbors  Cell(i,j,k)","X","Y","Z","Distance"
+               print_headline = .FALSE.
+             END IF
 
-        CALL get_neighbor_list(neighbor_list=neighbor_list,&
-                               atom=atom_a,&
-                               cell=cell_a,&
-                               nnode=nnode)
+             ra(:) = pbc(particle_set(atom_a)%r,cell,cell_a)
 
-        nneighbor = nneighbor + nnode
+             WRITE (UNIT=iw,FMT="(/,T2,I5,3X,I6,3X,3I4,3F12.6)")&
+               atom_a,nnode,cell_a(1:3),ra(1:3)*unit_conv
 
-        IF (output_unit > 0) THEN
+             ! Direct the work pointer to the start point of the current list
 
-          ! Print second part of the headline
+             neighbor_node => first_node(neighbor_list)
 
-          IF (print_headline) THEN
-            WRITE (UNIT=output_unit,FMT="(/,T3,A,7X,A,2(11X,A),10X,A)")&
-              "Atom  Neighbors  Cell(i,j,k)","X","Y","Z","Distance"
-            print_headline = .FALSE.
-          END IF
+             ! Traverse the neighbor list of the current
+             ! atom and print the stored information
 
-          ra(:) = pbc(particle_set(atom_a)%r,cell,cell_a)
+             DO inode=1,nnode
 
-          WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,I6,3X,3I4,3F12.6)")&
-            atom_a,nnode,cell_a(1:3),ra(1:3)/unit_of_length
+               CALL get_neighbor_node(neighbor_node=neighbor_node,&
+                                      neighbor=atom_b,&
+                                      cell=cell_b,&
+                                      r=rab)
 
-          ! Direct the work pointer to the start point of the current list
+               rb(:) = ra(:) + rab(:)
+               dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
 
-          neighbor_node => first_node(neighbor_list)
+               WRITE (UNIT=iw,&
+                      FMT="(T10,I6,3X,3I4,3F12.6,2X,F12.6)")&
+                 atom_b,cell_b(1:3),rb(1:3)*unit_conv,dab*unit_conv
 
-          ! Traverse the neighbor list of the current
-          ! atom and print the stored information
+               neighbor_node => next(neighbor_node)
 
-          DO inode=1,nnode
+             END DO ! inode
 
-            CALL get_neighbor_node(neighbor_node=neighbor_node,&
-                                   neighbor=atom_b,&
-                                   cell=cell_b,&
-                                   r=rab)
+           END IF
 
-            rb(:) = ra(:) + rab(:)
-            dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
+           neighbor_list => next(neighbor_list)
 
-            WRITE (UNIT=output_unit,&
-                   FMT="(T10,I6,3X,3I4,3F12.6,2X,F12.6)")&
-              atom_b,cell_b(1:3),rb(1:3)/unit_of_length,dab/unit_of_length
+         END DO ! ilist
 
-            neighbor_node => next(neighbor_node)
+       END DO ! iab
 
-          END DO ! inode
-
-        END IF
-
-        neighbor_list => next(neighbor_list)
-
-      END DO ! ilist
-
-    END DO ! iab
-
-    string = ""
-    WRITE (UNIT=string,FMT="(A,I12,A,I12)")&
-      "Total number of neighbor interactions for process",mype,":",&
-      nneighbor
-    CALL compress(string)
-    IF (output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,T2,A)") TRIM(string)
+       string = ""
+       WRITE (UNIT=string,FMT="(A,I12,A,I12)")&
+         "Total number of neighbor interactions for process",mype,":",&
+         nneighbor
+       CALL compress(string)
+       IF (iw > 0) WRITE (UNIT=iw,FMT="(/,T2,A)") TRIM(string)
+       CALL cp_print_key_finished_output(unit_nr=iw,&
+                                         logger=logger,&
+                                         basis_section=neighbor_list_section,&
+                                         print_key_path=TRIM(nl_type),&
+                                         local=.TRUE.,&
+                                         error=error)
+    END IF
 
   END SUBROUTINE write_neighbor_lists
 

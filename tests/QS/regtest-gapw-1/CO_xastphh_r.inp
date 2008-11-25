@@ -100,7 +100,6 @@
   &END SECTION DFT
   &SUBSYS
     &CELL
-       UNIT   ANGSTROM
        ABC    6.0    6.0     6.0 
        PERIODIC NONE
     &END CELL

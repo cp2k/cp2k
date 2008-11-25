@@ -14,12 +14,12 @@
   &SUBSYS
     &CELL
 #Au (standing in for Cu) & Fm(-3)m & #225 & cF4 & A1 & Ashcroft and Mermin, 70
-      UNIT SCALED_ANGSTROM
      A    .00000000  2.04000000  2.04000000
      B   2.04000000   .00000000  2.04000000
      C   2.04000000  2.04000000   .00000000
     &END CELL
     &COORD
+ SCALED
 Au   .00000000   .00000000   .00000000      .00000000   .00000000   .00000000
     &END COORD
     &PRINT

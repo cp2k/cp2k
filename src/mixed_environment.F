@@ -122,7 +122,7 @@ CONTAINS
     CALL get_cell (cell, abc=abc)
 
     ! Print the cell parameters ***
-    CALL write_cell ( cell, subsys_section, cell_ref, error)
+    CALL write_cell ( cell, subsys_section, cell_ref, error=error)
 
     ! Topology
     CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&

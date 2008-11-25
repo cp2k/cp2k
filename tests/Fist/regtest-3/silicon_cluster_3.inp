@@ -59,7 +59,6 @@
   &SUBSYS
     &CELL
       ABC 11.24 10.80 8.40
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       CONN_FILE_NAME ../sample_psf/silicon_cluster.psf

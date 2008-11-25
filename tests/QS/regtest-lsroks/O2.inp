@@ -50,7 +50,6 @@
   &SUBSYS
     &CELL
       ABC 4.0 4.0 6.0
-      UNIT ANGSTROM
     &END CELL
     &KIND O
       BASIS_SET DZVP-GTH

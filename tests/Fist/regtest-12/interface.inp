@@ -148,7 +148,6 @@ CHARGE -1.04121
     &END 
     &CELL
     ABC 22.692   20.4539964  40.16
-     UNIT ANGSTROM
     &END CELL
      &COORD
 Ti 0. 0. -7.583 1

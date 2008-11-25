@@ -20,7 +20,6 @@
   &SUBSYS
     &CELL
       ABC 9.865 9.865 9.865
-      UNIT ANGSTROM
     &END CELL
     &KIND H
       BASIS_SET DZV-GTH-PADE

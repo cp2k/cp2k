@@ -88,35 +88,35 @@ CONTAINS
 
        NULLIFY(keyword, subsection)
        CALL keyword_create(keyword, name="A",&
-            description="Specify the Cartesian components for the cell vector a in the unit of length "//&
-                        "given by the keyword UNITS. This defines the first column of the h matrix.",&
-            usage="A  10.000  0.000  0.000",&
+            description="Specify the Cartesian components for the cell vector A. "//&
+                        "This defines the first column of the h matrix.",&
+            usage="A  10.000  0.000  0.000",unit_str="angstrom",&
             n_var=3,type_of_var=real_t,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="B",&
-            description="Specify the Cartesian components for the cell vector b in the unit of length "//&
-                        "given by the keyword UNITS. This defines the second column of the h matrix.",&
-            usage="B   0.000 10.000  0.000",&
+            description="Specify the Cartesian components for the cell vector B. "//&
+                        "This defines the second column of the h matrix.",&
+            usage="B   0.000 10.000  0.000", unit_str="angstrom",&
             n_var=3,type_of_var=real_t,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="C",&
-            description="Specify the Cartesian components for the cell vector c in the unit of length "//&
-                        "given by the keyword UNITS. This defines the third column of the h matrix.",&
-            usage="C   0.000  0.000 10.000",&
+            description="Specify the Cartesian components for the cell vector C. "//&
+                        "This defines the third column of the h matrix.",&
+            usage="C   0.000  0.000 10.000", unit_str="angstrom",&
             n_var=3,type_of_var=real_t,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ABC",&
-            description="Specify the lengths of the cell vectors a, b, and c in the unit of length "//&
-                        "given by the keyword UNITS. This defines the diagonal elements of h matrix "//&
+            description="Specify the lengths of the cell vectors A, B, and C. "//&
+                        "This defines the diagonal elements of h matrix "//&
                         "for an orthorhombic cell. For non-orthorhombic cells use the keywords "//&
                         "A, B, and C.",&
-            usage="ABC 10.000 10.000 10.000",&
+            usage="ABC 10.000 10.000 10.000", unit_str="angstrom",&
             n_var=3,type_of_var=real_t,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -143,17 +143,6 @@ CONTAINS
             description="Read the subcells numbers.",&
             usage="SUBCELLS 1.5",&
             n_var=1,default_r_val=2.0_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="UNITS",&
-            variants=(/"UNIT"/),&
-            description="Specify the global length units used in the input.",&
-            usage="UNITS ANGSTROM",&
-            enum_c_vals=s2a( "ANGSTROM","BOHR","SCALED_ANGSTROM","SCALED_BOHR"),&
-            enum_i_vals=(/ use_unit_angstrom, use_unit_bohr,&
-            use_unit_scaled_angstrom, use_unit_scaled_bohr/),&
-            default_i_val=use_unit_bohr, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -331,7 +320,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"atomic_coordinates",&
             description="controls the output of the atomic coordinates when setting up the"//&
             "force environment. For printing coordinates during MD or GEO refer to the keyword"//&
-            " trajectory.",&
+            " trajectory.",unit_str="angstrom",&
             print_level=medium_print_level, filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -342,7 +331,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"interatomic_distances",&
             description="controls the output of the interatomic distances when setting up the"//&
-            "force environment",&
+            "force environment",unit_str="angstrom",&
             print_level=debug_print_level, filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -401,7 +390,8 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"cell",&
             description="controls the output of the cell parameters",&
-            print_level=medium_print_level, filename="__STD_OUT__",error=error)
+            print_level=medium_print_level, filename="__STD_OUT__",&
+            unit_str="angstrom",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -481,13 +471,15 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"radii",&
-            description="controls the output of radii information",&
+            description="controls the output of radii information",unit_str="angstrom",&
             print_level=high_print_level, filename="__STD_OUT__",error=error)
+
        CALL keyword_create(keyword, name="core_charges_radii",&
             description="If the printkey is activated controls the printing of the radii of the core charges",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="pgf_radii",&
             description="If the printkey is activated controls the printing of the core gaussian radii",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
@@ -518,17 +510,20 @@ CONTAINS
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="gth_ppnl_radii",&
             description="If the printkey is activated controls the printing of the "//&
             "gth pseudo potential non local radii",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="gapw_prj_radii",&
             description="If the printkey is activated controls the printing of the gapw projector radii",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -618,7 +613,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,name="STRUCTURE_DATA",&
             description="Request the printing of special structure data during a structure "//&
             "optimization (in MOTION%PRINT) or when setting up a subsys (in SUBSYS%PRINT).",&
-            print_level=high_print_level,filename="__STD_OUT__",error=error)
+            print_level=high_print_level,filename="__STD_OUT__",unit_str="angstrom",error=error)
 
        CALL keyword_create(keyword, name="POSITION", variants=(/"POS"/),&
             description="Print the position vector of atom a specified by its index",&
@@ -859,6 +854,21 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
+       CALL keyword_create(keyword, name="UNIT",&
+             description='Specify the unit of measurement for the coordinates in input'//&
+             "All available CP2K units can be used.",&
+             usage="UNIT angstrom",default_c_val="angstrom",supported_feature=.TRUE.,&
+             error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="SCALED",&
+             description='Specify if the coordinateds in input are scaled.',&
+             usage="SCALED F",default_l_val=.FALSE.,supported_feature=.TRUE.,&
+             lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="The atoms coordinates in xyz format.",repeats=.TRUE.,&
             usage="H 0.7 0.3 0.3", type_of_var=lchar_t, error=error)
@@ -895,6 +905,21 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
+       CALL keyword_create(keyword, name="UNIT",&
+             description='Specify the unit of measurement for the coordinates in input'//&
+             "All available CP2K units can be used.",&
+             usage="UNIT angstrom",default_c_val="angstrom",supported_feature=.TRUE.,&
+             error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="SCALED",&
+             description='Specify if the coordinateds in input are scaled.',&
+             usage="SCALED F",default_l_val=.FALSE.,supported_feature=.TRUE.,&
+             lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="The shell coordinates in xyz format.",repeats=.TRUE.,&
             usage="at_name rx ry rz at_index", type_of_var=lchar_t, error=error)
@@ -931,6 +956,21 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
+       CALL keyword_create(keyword, name="UNIT",&
+             description='Specify the unit of measurement for the coordinates in input'//&
+             "All available CP2K units can be used.",&
+             usage="UNIT angstrom",default_c_val="angstrom",supported_feature=.TRUE.,&
+             error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="SCALED",&
+             description='Specify if the coordinateds in input are scaled.',&
+             usage="SCALED F",default_l_val=.FALSE.,supported_feature=.TRUE.,&
+             lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="The core coordinates in xyz format.",repeats=.TRUE.,&
             usage="at_name rx ry rz at_index", type_of_var=lchar_t, error=error)
@@ -1138,8 +1178,7 @@ CONTAINS
        CALL keyword_create(keyword, name="GPW_TYPE",&
           description="Force one type to be treated by the GPW scheme,"//&
           " whatever are its primitives, even if the GAPW method is used",&
-          usage="GPW_TYPE",&
-          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+          usage="GPW_TYPE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1670,9 +1709,8 @@ CONTAINS
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"NEIGHBOR_LISTS",&
             description="Activates the printing of the neighbor lists used"//&
-            " for generating the connectivity.", &
-            print_level=high_print_level,filename="",&
-            error=error)
+            " for generating the connectivity.", print_level=high_print_level,&
+            filename="", unit_str="angstrom", error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 

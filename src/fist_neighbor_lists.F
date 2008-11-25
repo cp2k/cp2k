@@ -30,6 +30,7 @@ MODULE fist_neighbor_lists
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_add,&
@@ -37,7 +38,8 @@ MODULE fist_neighbor_lists
                                              fist_neighbor_init,&
                                              fist_neighbor_type,&
                                              neighbor_kind_pairs_type
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathlib,                         ONLY: matvec_3x3
@@ -64,8 +66,7 @@ MODULE fist_neighbor_lists
 
   ! Public subroutines
   PUBLIC :: build_fist_neighbor_lists,&
-            build_neighbor_lists,&
-            write_neighbor_lists
+            build_neighbor_lists
 
 CONTAINS
 
@@ -99,7 +100,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_fist_neighbor_lists', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: kind_name, print_key_path
+    CHARACTER(LEN=default_string_length)     :: kind_name, print_key_path, &
+                                                unit_str
     INTEGER :: atom_a, handle, iatom_local, ikind, iw, maxatom, &
       maxatom_local, natom_local_a, nkind, output_unit, stat
     LOGICAL                                  :: failure, &
@@ -202,8 +204,9 @@ CONTAINS
             log_filename=.FALSE.,&
             file_position="REWIND",&
             error=error)
+       CALL section_vals_val_get(mm_section,TRIM(print_key_path)//"%UNIT",c_val=unit_str,error=error)
        CALL write_neighbor_lists(nonbonded,particle_set,cell,para_env,iw,&
-            "NONBONDED NEIGHBOR LISTS",error)
+            "NONBONDED NEIGHBOR LISTS",unit_str,error)
        CALL cp_print_key_finished_output(unit_nr=iw,&
             logger=logger,&
             basis_section=mm_section,&
@@ -682,7 +685,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE write_neighbor_lists(nonbonded,particle_set,cell,para_env,output_unit,&
-                                  name,error)
+    name,unit_str,error)
 
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(particle_type), DIMENSION(:), &
@@ -690,32 +693,28 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
-    CHARACTER(LEN=*), INTENT(IN)             :: name
+    CHARACTER(LEN=*), INTENT(IN)             :: name, unit_str
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string
     INTEGER                                  :: atom_a, atom_b, iab, ilist, &
                                                 mype, nneighbor
     LOGICAL                                  :: print_headline
-    REAL(dp)                                 :: dab, unit_of_length
+    REAL(dp)                                 :: conv, dab
     REAL(dp), DIMENSION(3)                   :: cell_v, ra, rab, rb
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
 
     mype = para_env%mepos
-    CALL get_cell(cell=cell,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
-
     ! Print headline
     string = ""
     WRITE (UNIT=string,FMT="(A,I5,A)")&
-      TRIM(name)//" IN "//TRIM(unit_of_length_name)//" (PROCESS",mype,")"
+      TRIM(name)//" IN "//TRIM(unit_str)//" (PROCESS",mype,")"
     CALL compress(string)
     IF (output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(string)
 
     print_headline = .TRUE.
     nneighbor = 0
+    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     DO iab=1,SIZE(nonbonded%neighbor_kind_pairs)
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
        CALL matvec_3x3(cell_v, cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
@@ -736,10 +735,10 @@ CONTAINS
              rab   = rb(:)-ra(:)+cell_v
              dab   = SQRT(DOT_PRODUCT(rab,rab))
              WRITE (UNIT=output_unit,FMT="(/,T3,2(I6,3(1X,F10.6)),3(1X,I3),10X,F8.4)")&
-                  atom_a,ra(1:3)/unit_of_length,&
-                  atom_b,rb(1:3)/unit_of_length,&
+                  atom_a,ra(1:3)*conv,&
+                  atom_b,rb(1:3)*conv,&
                   neighbor_kind_pair%cell_vector,&
-                  dab                              
+                  dab*conv
           END IF
        END DO ! ilist      
     END DO ! iab

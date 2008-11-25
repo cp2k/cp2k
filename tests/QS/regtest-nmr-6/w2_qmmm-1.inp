@@ -94,7 +94,6 @@
   &QMMM
     &CELL
       ABC 5 5 5
-      UNIT ANGSTROM
     &END CELL
     ECOUPL GAUSS
     NOCENTER F
@@ -125,7 +124,6 @@
   &SUBSYS
     &CELL
       ABC 7 7 7
-      UNIT ANGSTROM
     &END CELL
 
     &KIND H

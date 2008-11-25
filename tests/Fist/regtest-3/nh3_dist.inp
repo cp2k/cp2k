@@ -28,7 +28,6 @@
   &SUBSYS
     &CELL
       ABC 13.858 13.858 13.858
-      UNIT ANGSTROM
     &END CELL
     &COLVAR
       &DISTANCE

@@ -43,7 +43,6 @@
   &SUBSYS
     &CELL
       ABC 8.0 4.0 4.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
     He   6.0  2.0 2.0

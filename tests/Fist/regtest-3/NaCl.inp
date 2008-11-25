@@ -41,7 +41,6 @@
   &SUBSYS
     &CELL
       ABC 22.480 22.480 22.480
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       &GENERATE

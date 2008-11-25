@@ -31,7 +31,6 @@
   &SUBSYS
     &CELL
       ABC 9.8528 9.8528 9.8528
-      UNIT ANGSTROM
     &END CELL
     # 32 H2O (TIP5P,1bar,300K) a = 9.8528
     &COORD

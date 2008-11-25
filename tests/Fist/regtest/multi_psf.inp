@@ -18,7 +18,6 @@
   &SUBSYS
     &CELL
       ABC 34.2920000  34.0500000  34.4732000
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       COORD_FILE_NAME ../sample_pdb/full_system.pdb

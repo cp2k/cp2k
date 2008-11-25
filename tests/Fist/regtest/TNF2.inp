@@ -228,7 +228,6 @@
   &SUBSYS
     &CELL
       ABC 10.0 10.0 10.0
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       COORDINATE XYZ

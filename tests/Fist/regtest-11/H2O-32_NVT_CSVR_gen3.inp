@@ -54,7 +54,6 @@
   &SUBSYS
     &CELL
       ABC 9.865 9.865 9.865
-      UNIT ANGSTROM
     &END CELL
     &COORD
     O                  -4.583   5.333   1.560   MOL1 

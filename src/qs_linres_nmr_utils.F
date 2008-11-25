@@ -18,6 +18,7 @@
 !> \author MI
 ! *****************************************************************************
 MODULE qs_linres_nmr_utils
+
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
@@ -31,7 +32,8 @@ MODULE qs_linres_nmr_utils
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE cp_units,                        ONLY: cp_unit_from_cp2k,&
+                                             cp_unit_to_cp2k
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -204,7 +206,7 @@ CONTAINS
     nmr_env%chi_SI2ppmcgs = 6.022045_dp/1.0E+2_dp
     ! Chi to Shift: 10^-30  *  2/3  mu_0 / Omega  * 1/ppm
     nmr_env%chi_SI2shiftppm = 1.0E-30_dp * 8.37758041E-7_dp/ &
-         &                   (cell%deth /cell%unit_of_length**3*1.0E-30_dp) * 1.0E+6_dp
+       (cp_unit_from_cp2k(cell%deth,"angstrom^3",error=error)*1.0E-30_dp) * 1.0E+6_dp
 
     IF(output_unit>0) THEN
        IF(nmr_env%do_nics) THEN

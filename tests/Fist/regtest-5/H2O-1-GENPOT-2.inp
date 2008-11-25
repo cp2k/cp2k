@@ -59,7 +59,6 @@
   &SUBSYS
     &CELL
       ABC 10.0 10.0 10.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
   O        -3.8785691310        5.2764260121        1.0006790295 H2O

@@ -32,7 +32,6 @@
     &CELL
       ABC 10 10 10
       PERIODIC NONE
-      UNIT ANGSTROM
     &END CELL
     &COORD
       H  0.0  0.0  0.3

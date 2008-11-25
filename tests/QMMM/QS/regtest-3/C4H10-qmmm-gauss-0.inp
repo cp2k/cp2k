@@ -21,7 +21,6 @@
   &SUBSYS
     &CELL
       ABC 7.0 7.0 7.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
    C   2.613500    1.706000    3.004500  

@@ -41,7 +41,6 @@
   &SUBSYS
     &CELL
       ABC 8.0 8.0 8.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
     H   3.5000  5.1000  4.2000

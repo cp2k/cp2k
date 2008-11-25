@@ -26,7 +26,6 @@
   &SUBSYS
     &CELL
       ABC 8.0 8.0 8.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
   OT         3.0024173006        3.0061145185        2.9033933250 WAT

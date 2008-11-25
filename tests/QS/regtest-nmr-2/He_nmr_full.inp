@@ -41,7 +41,6 @@
   &SUBSYS
     &CELL
       ABC 4.5 4.5 10.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
  He  0.0 0.0 0.0 

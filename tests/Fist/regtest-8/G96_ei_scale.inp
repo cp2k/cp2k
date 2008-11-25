@@ -31,7 +31,6 @@
   &SUBSYS
     &CELL
       ABC 15.0 15.0 15.0
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       CONN_FILE ala-wat.gtop

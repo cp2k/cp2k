@@ -83,7 +83,6 @@
   &SUBSYS
     &CELL
       ABC 8.965 8.965 8.965
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
         COORDINATE XYZ

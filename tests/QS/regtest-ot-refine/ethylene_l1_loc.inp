@@ -28,7 +28,6 @@
   &SUBSYS
     &CELL
       ABC 8.00 8.00 8.00
-      UNIT ANGSTROM
     &END CELL
     &COORD
  C     0.000000    0.000000    0.665040

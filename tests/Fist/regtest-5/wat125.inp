@@ -29,7 +29,6 @@
   &SUBSYS
     &CELL
       ABC 15.0 15.0 15.0 
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       COORD_FILE_NAME ../sample_xyz/wat125.xyz

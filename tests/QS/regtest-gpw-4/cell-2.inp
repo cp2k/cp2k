@@ -20,10 +20,8 @@
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
-      UNIT ANGSTROM
       &CELL_REF
         ABC 6.0 6.0 6.0
-        UNIT ANGSTROM
       &END CELL_REF
     &END CELL
     &COORD

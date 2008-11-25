@@ -831,8 +831,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key_section=print_key,&
             name="neighbor_lists",&
             description="Controls the printing of the neighbor lists",&
-            print_level=debug_print_level,&
-            filename="",&
+            print_level=debug_print_level, filename="", unit_str="angstrom",&
             error=error)
        CALL keyword_create(keyword=keyword,&
             name="sab_orb",&
@@ -980,7 +979,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"SUBCELL",&
             description="Activates the printing of the subcells used for the"//&
-            "generation of neighbor lists.", &
+            "generation of neighbor lists.", unit_str="angstrom",&
             print_level=high_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
@@ -1142,23 +1141,25 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"gapw",&
-            description="Controls the printing of some gapw related information (debug).", &
-            print_level=debug_print_level,filename="__STD_OUT__",&
+       CALL section_create(subsection,name="GAPW",&
+            description="Controls the printing of some gapw related information (debug).",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
-       CALL keyword_create(keyword, name="projectors",&
+       CALL cp_print_key_section_create(print_key,"projectors",&
             description="If the printkey is activated controls if information on"//&
             " the projectors is printed.",&
-            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="rho0_information",&
-            description="If the printkey is activated controls if information on rho0 is printed.",&
-            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(section,print_key,error=error)
+            print_level=debug_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
+       CALL cp_print_key_section_create(print_key,"rho0_information",&
+            description="If the printkey is activated controls if information on rho0 is printed.",&
+            print_level=debug_print_level,filename="__STD_OUT__",unit_str="angstrom",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
        CALL cp_print_key_section_create(print_key,"dft_control_parameters",&
             description="Controls the printing of dft control parameters.", &
@@ -2292,7 +2293,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"NEIGHBOR_LISTS",&
             description="Activates the printing of the neighbor lists used"//&
             " for the periodic SE calculations.", &
-            print_level=high_print_level,filename="",&
+            print_level=high_print_level,filename="",unit_str="angstrom",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

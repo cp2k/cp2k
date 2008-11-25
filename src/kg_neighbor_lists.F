@@ -18,17 +18,18 @@ MODULE kg_neighbor_lists
                                              real_to_scaled
   USE cp_control_types,                ONLY: dft_control_type,&
                                              qs_control_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential,&
                                              gth_potential_type
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type,&
                                              set_kg_env
@@ -108,15 +109,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_kg_neighbor_lists1', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: print_key_path
-    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, iw, maxatom, &
+    CHARACTER(LEN=default_string_length)     :: unit_str
+    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
       maxatom_local, natom_a, natom_local_a, nkind, output_unit
     LOGICAL                                  :: elp_potential_present, &
-                                                gth_potential_present, &
-                                                print_subcell_grid
+                                                gth_potential_present
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: aux_present, orb_present, &
                                                 ppl_present
-    REAL(dp)                                 :: r_skin
+    REAL(dp)                                 :: r_skin, unit_conv
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: aux_radius, orb_radius, &
                                                 ppl_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
@@ -135,13 +135,14 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sac_ppl, sac_ppl_aux
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: neighbor_list_section
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
     CALL timeset(routineN,handle)
 
-    NULLIFY (atomic_kind)
+    NULLIFY (atomic_kind, neighbor_list_section)
     NULLIFY (atomic_kind_set)
     NULLIFY (cell)
     NULLIFY (distribution_1d)
@@ -152,10 +153,10 @@ CONTAINS
     NULLIFY (particle_set)
     NULLIFY (sac_ppl)
     NULLIFY (sac_ppl_aux)
-    print_subcell_grid = .FALSE.
     output_unit = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%SUBCELL",&
          extension=".Log",error=error)
-    IF (output_unit>0)  print_subcell_grid = .TRUE.
+    CALL section_vals_val_get(force_env_section,"DFT%PRINT%SUBCELL%UNIT",c_val=unit_str,error=error)
+    unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
 
 !   *** Set Verlet skin ***
 
@@ -323,10 +324,10 @@ CONTAINS
 
     IF (gth_potential_present.OR.elp_potential_present) THEN
 
+      neighbor_list_section => section_vals_get_subs_vals(force_env_section,"DFT%PRINT%NEIGHBOR_LISTS",error=error)
       IF (ANY(ppl_present).AND.ANY(orb_present)) THEN
-
         CALL build_gth_ppl_neighbor_lists(sac_ppl,atom,cell,r_skin,maxatom_local,&
-                                          print_subcell_grid,output_unit,&
+                                          unit_conv,unit_str,output_unit,&
                                           orb_present,ppl_present,&
                                           orb_radius,ppl_radius,&
                                           name="ORBITAL GTH-PPL",&
@@ -334,66 +335,21 @@ CONTAINS
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl=sac_ppl,error=error)
 
-        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL"
-
-        IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                             print_key_path,error=error),&
-                  cp_p_file)) THEN
-          iw = cp_print_key_unit_nr(logger=logger,&
-                                    basis_section=force_env_section,&
-                                    print_key_path=print_key_path,&
-                                    extension=".out",&
-                                    middle_name="orb_sac_ppl",&
-                                    local=.TRUE.,&
-                                    log_filename=.FALSE.,&
-                                    file_position="REWIND",&
-                                    error=error)
-          CALL write_neighbor_lists(sac_ppl,particle_set,cell,para_env,iw,&
-                                    "ORBITAL GTH-PPL",error)
-          CALL cp_print_key_finished_output(unit_nr=iw,&
-                                            logger=logger,&
-                                            basis_section=force_env_section,&
-                                            print_key_path=print_key_path,&
-                                            local=.TRUE.,&
-                                            error=error)
-        END IF
-
+        CALL write_neighbor_lists(sac_ppl,particle_set,cell,para_env,neighbor_list_section,&
+             "/SAC_PPL","orb_sac_ppl","ORBITAL GTH-PPL",error)
       END IF
 
       IF (ANY(ppl_present).AND.ANY(aux_present)) THEN
-
         CALL build_gth_ppl_neighbor_lists(sac_ppl_aux,atom,cell,r_skin,maxatom_local,&
-                                          print_subcell_grid,output_unit,&
+                                          unit_conv,unit_str,output_unit,&
                                           aux_present,ppl_present,&
                                           aux_radius,ppl_radius,&
                                           name="AUXILIARY ORBITAL GTH-PPL")
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl_aux=sac_ppl_aux,error=error)
 
-        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL"
-
-        IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                             print_key_path,error=error),&
-                  cp_p_file)) THEN
-          iw = cp_print_key_unit_nr(logger=logger,&
-                                    basis_section=force_env_section,&
-                                    print_key_path=print_key_path,&
-                                    extension=".out",&
-                                    middle_name="aux_sac_ppl",&
-                                    local=.TRUE.,&
-                                    log_filename=.FALSE.,&
-                                    file_position="REWIND",&
-                                    error=error)
-          CALL write_neighbor_lists(sac_ppl,particle_set,cell,para_env,iw,&
-                                    "AUXILIARY ORBITAL GTH-PPL",error)
-          CALL cp_print_key_finished_output(unit_nr=iw,&
-                                            logger=logger,&
-                                            basis_section=force_env_section,&
-                                            print_key_path=print_key_path,&
-                                            local=.TRUE.,&
-                                            error=error)
-        END IF
-
+        CALL write_neighbor_lists(sac_ppl,particle_set,cell,para_env,neighbor_list_section,&
+             "/SAC_PPL","aux_sac_ppl","AUXILIARY ORBITAL GTH-PPL",error)
       END IF
 
     END IF

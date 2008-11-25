@@ -26,7 +26,6 @@
   &SUBSYS
     &CELL
       ABC 28.912 29.461 29.496
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       COORD_FILE_NAME ../sample_pdb/NaCl_wat.pdb

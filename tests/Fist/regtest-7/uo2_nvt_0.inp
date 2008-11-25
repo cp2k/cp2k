@@ -70,7 +70,6 @@
   &SUBSYS
     &CELL
       ABC  30.0 30.0 30.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
      U   0.0 0.0 0.0 

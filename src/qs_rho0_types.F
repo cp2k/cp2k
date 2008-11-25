@@ -5,8 +5,7 @@
 ! *****************************************************************************
 MODULE qs_rho0_types
 
-  USE cell_types,                      ONLY: cell_type,&
-                                             get_cell
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE erf_fn,                          ONLY: erf
   USE f77_blas
   USE kinds,                           ONLY: dp,&
@@ -637,25 +636,21 @@ CONTAINS
   END SUBROUTINE initialize_mpole_rho
 
 ! *****************************************************************************
-  SUBROUTINE write_rho0_info(rho0_mpole,cell,output_unit,error)
+  SUBROUTINE write_rho0_info(rho0_mpole,unit_str,output_unit,error)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
-    TYPE(cell_type), POINTER                 :: cell
+    CHARACTER(LEN=*), INTENT(IN)             :: unit_str
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_rho0_info', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER                                  :: ikind, l, nkind
-    REAL(dp)                                 :: unit_of_length
-
-    CALL get_cell(cell=cell,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
+    REAL(dp)                                 :: conv
 
     IF (ASSOCIATED(rho0_mpole)) THEN
+      conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
 
       WRITE (UNIT=output_unit,FMT="(/,T5,A,/)") &
                "*** Compensation density charges data set ***"
@@ -677,7 +672,7 @@ CONTAINS
       nkind = SIZE(rho0_mpole%lmax0_kind,1)
       DO ikind = 1, nkind
         WRITE (UNIT=output_unit,FMT="(/,T2,A,T55,I2)")&
-            "- rho0 max L and radii in "//TRIM(unit_of_length_name)//&
+            "- rho0 max L and radii in "//TRIM(unit_str)//&
             " for the atom kind :", ikind
 
         WRITE (UNIT=output_unit,FMT="(T2,T20,A,T55,I5)")&
@@ -685,19 +680,19 @@ CONTAINS
 
         WRITE (UNIT=output_unit,FMT="(T2,T20,A,T55,f20.10)")&
             "=> radius of Vh(rho0_h-rho0_s): ",&
-            rho0_mpole%mp_gau(ikind)%r_V0hmV0s/unit_of_length
+            rho0_mpole%mp_gau(ikind)%r_V0hmV0s*conv
 
         WRITE (UNIT=output_unit,FMT="(T2,T20,A,T55,f20.10)")&
             "=> max radius of g0 hard: ",&
-            rho0_mpole%mp_gau(ikind)%rpgf0_h/unit_of_length
+            rho0_mpole%mp_gau(ikind)%rpgf0_h*conv
 
         WRITE (UNIT=output_unit,FMT="(T2,T20,A,T55,f20.10)")&
             "=> max radius of g0 soft: ",&
-            rho0_mpole%mp_gau(ikind)%rpgf0_s/unit_of_length
+            rho0_mpole%mp_gau(ikind)%rpgf0_s*conv
 
         WRITE (UNIT=output_unit,FMT="(T2,T20,A,T55,f20.10)")&
             "=> orb_radius for the 3c lists: ",&
-            rho0_mpole%orb_radius_3c(ikind)/unit_of_length
+            rho0_mpole%orb_radius_3c(ikind)*conv
 
       END DO  ! ikind
 

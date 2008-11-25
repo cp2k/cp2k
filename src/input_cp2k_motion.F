@@ -849,7 +849,7 @@ CONTAINS
     CALL cp_print_key_section_create(print_key,"cell",&
          description="Controls the printing of the cell eveytime a calculation using a new cell is started.", &
          print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
-         error=error)
+         unit_str="angstrom",error=error)
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
     CALL section_add_subsection(section,subsection,error=error)

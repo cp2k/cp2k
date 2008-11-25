@@ -33,14 +33,14 @@
     &END XC
     &PRINT
        &GAPW
-          RHO0_INFORMATION
+          &RHO0_INFORMATION
+          &END
        &END
     &END
   &END DFT
   &SUBSYS
     &CELL
       ABC 10.0 10.0 10.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
      H   0.000000    0.000000    0.0000

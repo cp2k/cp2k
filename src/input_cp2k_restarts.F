@@ -27,6 +27,7 @@ MODULE input_cp2k_restarts
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE csvr_system_types,               ONLY: csvr_system_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
@@ -43,10 +44,13 @@ MODULE input_cp2k_restarts
                                              force_env_type,&
                                              multiple_fe_list,&
                                              use_qmmm
-  USE input_constants,                 ONLY: &
-       do_band_collective, do_thermo_csvr, do_thermo_no_communication, &
-       do_thermo_nose, mol_dyn_run, mon_car_run, pint_run, use_unit_angstrom, &
-       use_unit_bohr, use_unit_scaled_angstrom, use_unit_scaled_bohr
+  USE input_constants,                 ONLY: do_band_collective,&
+                                             do_thermo_csvr,&
+                                             do_thermo_no_communication,&
+                                             do_thermo_nose,&
+                                             mol_dyn_run,&
+                                             mon_car_run,&
+                                             pint_run
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &
@@ -79,7 +83,6 @@ MODULE input_cp2k_restarts
                                              rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: bohr
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE string_utilities,                ONLY: ascii_to_string,&
                                              string_to_ascii
@@ -247,10 +250,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys_release', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: unit_str
     INTEGER                                  :: handle, iforce_eval, myid, &
                                                 nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
-    LOGICAL                                  :: explicit, failure, &
+    LOGICAL                                  :: explicit, failure, scale, &
                                                 skip_vel_section
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: my_force_b, my_force_env
@@ -296,7 +300,16 @@ CONTAINS
                core_particles=core_particles, error=error)       
 
           work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
+          CALL section_vals_get(work_section,explicit=explicit,error=error)
+          IF (explicit) THEN
+             CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,error=error)
+             CALL section_vals_val_get(work_section,"SCALED",l_val=scale,error=error)
+          END IF
           CALL section_vals_remove_values(work_section, error)
+          IF (explicit) THEN
+             CALL section_vals_val_set(work_section,"UNIT",c_val=unit_str,error=error)
+             CALL section_vals_val_set(work_section,"SCALED",l_val=scale,error=error)
+          END IF
 
           work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
           IF (.NOT.skip_vel_section) THEN
@@ -305,7 +318,17 @@ CONTAINS
 
           IF(ASSOCIATED(shell_particles)) THEN
              work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
-             CALL Section_vals_remove_values(work_section, error=error)
+             CALL section_vals_get(work_section,explicit=explicit,error=error)
+             IF (explicit) THEN
+                CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,error=error)
+                CALL section_vals_val_get(work_section,"SCALED",l_val=scale,error=error)
+             END IF
+             CALL section_vals_remove_values(work_section, error=error)
+             IF (explicit) THEN
+                CALL section_vals_val_set(work_section,"UNIT",c_val=unit_str,error=error)
+                CALL section_vals_val_set(work_section,"SCALED",l_val=scale,error=error)
+             END IF
+
              work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
              IF (.NOT.skip_vel_section) THEN
                 CALL section_vals_remove_values(work_section, error=error)
@@ -314,7 +337,17 @@ CONTAINS
 
           IF(ASSOCIATED(core_particles)) THEN
              work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
-             CALL Section_vals_remove_values(work_section, error=error)
+             CALL section_vals_get(work_section,explicit=explicit,error=error)
+             IF (explicit) THEN
+                CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,error=error)
+                CALL section_vals_val_get(work_section,"SCALED",l_val=scale,error=error)
+             END IF
+             CALL section_vals_remove_values(work_section, error=error)
+             IF (explicit) THEN
+                CALL section_vals_val_set(work_section,"UNIT",c_val=unit_str,error=error)
+                CALL section_vals_val_set(work_section,"SCALED",l_val=scale,error=error)
+             END IF
+
              work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
              IF (.NOT.skip_vel_section) THEN
                 CALL section_vals_remove_values(work_section, error=error)
@@ -1577,7 +1610,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, my_unit
+    CHARACTER(LEN=default_string_length)     :: unit_str
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure, scale, use_ref_cell
     REAL(KIND=dp)                            :: conv_factor
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -1598,19 +1632,11 @@ CONTAINS
     CALL cp_subsys_get(subsys, particles=particles, molecules_new=molecules,&
          shell_particles=shell_particles, core_particles=core_particles,&
          multipoles=multipoles, error=error)       
+
     work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-    CALL section_vals_val_get(subsys_section,"CELL%UNITS",i_val=my_unit,error=error)
-    scale = .FALSE.
-    SELECT CASE(my_unit)
-    CASE (use_unit_angstrom,use_unit_scaled_angstrom)
-       conv_factor = bohr
-       IF (my_unit==use_unit_scaled_angstrom) scale = .TRUE.
-    CASE (use_unit_bohr,use_unit_scaled_bohr)
-       conv_factor = 1.0_dp
-       IF (my_unit==use_unit_scaled_bohr) scale = .TRUE.
-    CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    END SELECT
+    CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
+    CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
+    conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     !    Coordinates and Velocities
     work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
     CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
@@ -1625,6 +1651,9 @@ CONTAINS
     ! write restart input for shell-model
     IF(ASSOCIATED(shell_particles)) THEN
        work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
+       CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
+       CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
+       conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
        CALL section_coord_val_set(work_section, shell_particles, molecules, &
             conv_factor, scale, cell, shell=.TRUE., error=error)
        IF (.NOT.skip_vel_section) THEN
@@ -1634,6 +1663,9 @@ CONTAINS
     ENDIF
     IF(ASSOCIATED(core_particles)) THEN
        work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
+       CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
+       CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
+       conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
        CALL section_coord_val_set(work_section, core_particles, molecules, &
             conv_factor, scale, cell, shell=.TRUE., error=error)
        IF (.NOT.skip_vel_section) THEN
@@ -1678,9 +1710,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_cell_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, my_unit, stat
-    LOGICAL                                  :: failure, scale, use_ref_cell
-    REAL(KIND=dp)                            :: conv_factor
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure, use_ref_cell
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(section_vals_type), POINTER         :: work_section
@@ -1695,59 +1726,45 @@ CONTAINS
                           cell_ref=cell_ref,&
                           use_ref_cell=use_ref_cell,&
                           error=error)
-    ELSE
-
     END IF
 
-    CALL section_vals_val_get(subsys_section,"CELL%UNITS",i_val=my_unit,error=error)
-    scale = .FALSE.
-    SELECT CASE(my_unit)
-    CASE (use_unit_angstrom,use_unit_scaled_angstrom)
-       conv_factor = bohr
-       IF (my_unit==use_unit_scaled_angstrom) scale = .TRUE.
-    CASE (use_unit_bohr,use_unit_scaled_bohr)
-       conv_factor = 1.0_dp
-       IF (my_unit==use_unit_scaled_bohr) scale = .TRUE.
-    CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    END SELECT
     ! CELL
     work_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
     ALLOCATE(work(3),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! CELL VECTORS - A
-    work(1:3) = cell%hmat(1:3,1)/conv_factor
+    work(1:3) = cell%hmat(1:3,1)
     CALL section_vals_val_set(work_section,"A",r_vals_ptr=work,error=error)
     ALLOCATE(work(3),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! CELL VECTORS - B
-    work(1:3) = cell%hmat(1:3,2)/conv_factor
+    work(1:3) = cell%hmat(1:3,2)
     CALL section_vals_val_set(work_section,"B",r_vals_ptr=work,error=error)
     ALLOCATE(work(3),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! CELL VECTORS - C
-    work(1:3) = cell%hmat(1:3,3)/conv_factor
+    work(1:3) = cell%hmat(1:3,3)
     CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
     CALL section_vals_val_unset(work_section,"ABC",error=error)
     ! CELL_REF
     IF (use_ref_cell.AND.ASSOCIATED(cell_ref)) THEN
        work_section => section_vals_get_subs_vals(subsys_section,"CELL%CELL_REF",error=error)
-       CALL section_vals_val_set(work_section,"UNITS",i_val=my_unit,error=error)
        ALLOCATE(work(3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! CELL VECTORS - A
-       work(1:3) = cell_ref%hmat(1:3,1)/conv_factor
+       work(1:3) = cell_ref%hmat(1:3,1)
        CALL section_vals_val_set(work_section,"A",r_vals_ptr=work,error=error)
        ALLOCATE(work(3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! CELL VECTORS - B
-       work(1:3) = cell_ref%hmat(1:3,2)/conv_factor
+       work(1:3) = cell_ref%hmat(1:3,2)
        CALL section_vals_val_set(work_section,"B",r_vals_ptr=work,error=error)
        ALLOCATE(work(3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! CELL VECTORS - C
-       work(1:3) = cell_ref%hmat(1:3,3)/conv_factor
+       work(1:3) = cell_ref%hmat(1:3,3)
        CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
+       CALL section_vals_val_unset(work_section,"ABC",error=error)
     END IF
     CALL timestop(handle)
   END SUBROUTINE update_cell_section
@@ -1820,7 +1837,7 @@ CONTAINS
             r = s   
             CALL real_to_scaled(s,r,cell)
          ELSE
-            s = s/conv_factor
+            s = s*conv_factor
          END IF
          DO k = 1, 3
             WRITE(rcval,"(ES25.16)") s(k)
@@ -1867,7 +1884,7 @@ CONTAINS
             r = s   
             CALL real_to_scaled(s,r,cell)
          ELSE
-            s = s/conv_factor
+            s = s*conv_factor
          END IF
          DO k = 1, 3
             WRITE(rcval,"(ES25.16)") s(k)
@@ -1964,8 +1981,8 @@ CONTAINS
        ALLOCATE(vel(3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Always stored in A.U.
-       IF(PRESENT(particles)) vel = particles%els(irk)%v(1:3)/conv_factor
-       IF(PRESENT(velocity))  vel = velocity(1:3,irk)/conv_factor
+       IF(PRESENT(particles)) vel = particles%els(irk)%v(1:3)*conv_factor
+       IF(PRESENT(velocity))  vel = velocity(1:3,irk)*conv_factor
 
        CALL val_create(my_val,r_vals_ptr=vel,error=error)
 

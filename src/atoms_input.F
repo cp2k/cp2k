@@ -20,11 +20,11 @@ MODULE atoms_input
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
-                                             get_cell,&
                                              pbc,&
                                              scaled_to_real
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -70,7 +70,7 @@ CONTAINS
     INTEGER, PARAMETER                       :: nblock_atom = 10000
 
     CHARACTER(len=2*default_string_length)   :: line_att
-    CHARACTER(len=default_string_length)     :: my_default_index
+    CHARACTER(len=default_string_length)     :: my_default_index, unit_str
     INTEGER                                  :: end_c, handle, iatom, ILEN, &
                                                 j, natom, output_unit, &
                                                 start_c, wrd
@@ -78,7 +78,7 @@ CONTAINS
                                                 is_ok, my_overwrite, &
                                                 my_save_mem, &
                                                 scaled_coordinates
-    REAL(KIND=dp)                            :: r0(3), unit_of_length
+    REAL(KIND=dp)                            :: r0(3), unit_conv
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -111,9 +111,10 @@ CONTAINS
     !-----------------------------------------------------------------------------
     atom_info => topology%atom_info
     cell => topology%cell
-    CALL get_cell(cell=cell,&
-         scaled_coordinates=scaled_coordinates,&
-         unit_of_length=unit_of_length)
+    CALL section_vals_val_get(coord_section,"UNIT",c_val=unit_str,error=error)
+    CALL section_vals_val_get(coord_section,"SCALED",l_val=scaled_coordinates,error=error)
+    unit_conv = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str),error=error)
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Read in the coordinates from &COORD section in the input file
@@ -233,7 +234,7 @@ CPSourceFileRef,&
           r0 = atom_info%r(:,iatom)
           CALL scaled_to_real(atom_info%r(:,iatom),r0,cell)
        ELSE
-          atom_info%r(:,iatom) = atom_info%r(:,iatom)*unit_of_length
+          atom_info%r(:,iatom) = atom_info%r(:,iatom)*unit_conv
        END IF
     END DO
     IF(my_save_mem) CALL section_vals_remove_values(coord_section, error)
@@ -262,18 +263,18 @@ CPSourceFileRef,&
     INTEGER, PARAMETER                       :: nblock_atom = 10000
 
     CHARACTER(len=2*default_string_length)   :: line_att
-    CHARACTER(len=default_string_length)     :: name_kind
+    CHARACTER(len=default_string_length)     :: name_kind, unit_str
     CHARACTER(len=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: at_name, at_name_c
     INTEGER                                  :: end_c, handle, ishell, istat, &
                                                 j, nshell, output_unit, &
                                                 sh_index, start_c, wrd
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_index, at_index_c
-    LOGICAL                                  :: explicit, failure, ionode, &
-                                                is_ok, is_shell, my_save_mem, &
-                                                scaled_coordinates
+    LOGICAL :: core_scaled_coordinates, explicit, failure, ionode, is_ok, &
+      is_shell, my_save_mem, shell_scaled_coordinates
     REAL(KIND=dp)                            :: dab, mass_com, rab(3), &
-                                                unit_of_length
+                                                unit_conv_core, &
+                                                unit_conv_shell
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r, rc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -301,14 +302,13 @@ CPSourceFileRef,&
     IF (.NOT.explicit) RETURN
 
     CALL timeset(routineN,handle)
-    CALL get_cell(cell=cell,&
-       scaled_coordinates=scaled_coordinates,&
-       unit_of_length=unit_of_length)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Read in the coordinates from &SHELL_COORD  section in the input file
     !-----------------------------------------------------------------------------
-
+    CALL section_vals_val_get(shell_coord_section,"UNIT",c_val=unit_str,error=error)
+    CALL section_vals_val_get(shell_coord_section,"SCALED",l_val=shell_scaled_coordinates,error=error)
+    unit_conv_shell = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str),error=error)
     CALL section_vals_val_get(shell_coord_section,"_DEFAULT_KEYWORD_",&
          n_rep_val=nshell,error=error)
 
@@ -361,6 +361,9 @@ CPSourceFileRef,&
         core_coord_section => section_vals_get_subs_vals(subsys_section,"core_COORD",error=error)
         CALL section_vals_get(core_coord_section, explicit=explicit, error=error)
         IF(explicit) THEN
+          CALL section_vals_val_get(core_coord_section,"UNIT",c_val=unit_str,error=error)
+          CALL section_vals_val_get(core_coord_section,"SCALED",l_val=core_scaled_coordinates,error=error)
+          unit_conv_core = cp_unit_to_cp2k(1.0_dp,TRIM(unit_str),error=error)
           CALL section_vals_val_get(core_coord_section,"_DEFAULT_KEYWORD_",&
                n_rep_val=nshell,error=error)
 
@@ -421,10 +424,10 @@ CPSourceFileRef,&
          CALL uppercase(name_kind)
          IF((TRIM(at_name(ishell))==TRIM(name_kind)).AND. is_shell) THEN
            sh_index = particle_set(at_index(ishell))%shell_index
-           IF (scaled_coordinates) THEN
+           IF (shell_scaled_coordinates) THEN
              CALL scaled_to_real(r(:,ishell),shell_particle_set(sh_index)%r(:),cell)
            ELSE
-             shell_particle_set(sh_index)%r(:) = r(:,ishell)*unit_of_length
+             shell_particle_set(sh_index)%r(:) = r(:,ishell)*unit_conv_shell
            END IF
            shell_particle_set(sh_index)%atom_index=at_index(ishell)
 
@@ -438,10 +441,10 @@ CPSourceFileRef,&
              core_particle_set(sh_index)%atom_index=at_index(ishell)
              rab = pbc(shell_particle_set(sh_index)%r,core_particle_set(sh_index)%r,cell)
            ELSE IF(explicit) THEN
-             IF (scaled_coordinates) THEN
+             IF (core_scaled_coordinates) THEN
                CALL scaled_to_real(rc(:,ishell),core_particle_set(sh_index)%r(:),cell)
              ELSE
-               core_particle_set(sh_index)%r(:) = rc(:,ishell)*unit_of_length
+               core_particle_set(sh_index)%r(:) = rc(:,ishell)*unit_conv_core
              END IF
              core_particle_set(sh_index)%atom_index=at_index_c(ishell)
              rab = pbc(shell_particle_set(sh_index)%r,core_particle_set(sh_index)%r,cell)

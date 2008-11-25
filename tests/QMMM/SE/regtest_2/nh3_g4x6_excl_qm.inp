@@ -14,7 +14,6 @@
     NOCENTER
     &CELL
       ABC 6.0 6.0 6.0
-      UNIT ANGSTROM
     &END CELL
     ECOUPL NONE
     &QM_KIND H
@@ -41,7 +40,6 @@
   &SUBSYS
     &CELL
       ABC 10.0 10.0 10.0
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       COORD_FILE_NAME ../sample_pdb/NH3.pdb

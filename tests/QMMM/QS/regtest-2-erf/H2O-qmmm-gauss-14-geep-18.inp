@@ -76,7 +76,6 @@
   &QMMM
     &CELL
       ABC 13.0 13.0 13.0
-      UNIT ANGSTROM
     &END CELL
     ECOUPL GAUSS
     NOCOMPATIBILITY
@@ -109,7 +108,6 @@
   &SUBSYS
     &CELL
       ABC 24.955 24.955 24.955
-      UNIT ANGSTROM
     &END CELL
     &COORD
    O     0.000000     0.000000     0.000000    H2O1

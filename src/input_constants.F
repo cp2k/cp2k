@@ -204,11 +204,6 @@ MODULE input_constants
                                               do_method_dftb=14,&
                                               do_method_pchg=15
 
-  INTEGER, PARAMETER, PUBLIC               :: use_unit_angstrom=0,&
-                                              use_unit_bohr=1,&
-                                              use_unit_scaled_angstrom=2,&
-                                              use_unit_scaled_bohr=3
-  
   INTEGER, PARAMETER, PUBLIC               :: rsgrid_distributed=0,&
                                               rsgrid_replicated=1,&
                                               rsgrid_automatic=2

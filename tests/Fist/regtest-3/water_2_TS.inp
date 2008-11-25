@@ -26,7 +26,6 @@
   &SUBSYS
     &CELL
       ABC 25.0 25.0 25.0
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       COORD_FILE_NAME ../sample_xyz/water_2_TS.xyz

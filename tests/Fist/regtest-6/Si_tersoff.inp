@@ -46,7 +46,6 @@
   &SUBSYS
     &CELL
       ABC 7.73 7.73 7.73
-      UNIT ANGSTROM
     &END CELL
     &COORD
 Si 0 0 0

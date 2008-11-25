@@ -18,7 +18,6 @@
   &SUBSYS
     &CELL
       ABC 24.1317 24.1317 24.1317
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       CONN_FILE_NAME ../sample_psf/h2po4.psf

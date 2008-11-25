@@ -39,11 +39,11 @@
 
  &SUBSYS
   &CELL
-   ABC		6.0 6.0 6.0
-   UNITS 	ANGSTROM
+   ABC [angstrom] 6.0 6.0 6.0
   &END CELL
 
   &COORD
+    UNIT angstrom
     O   0.000000    0.000000   -0.065587
     H   0.000000   -0.757136    0.520545
     H   0.000000    0.757136    0.520545

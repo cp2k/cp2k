@@ -63,7 +63,6 @@
   &SUBSYS
     &CELL
       ABC  5.468  5.468  5.468
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       CONN_FILE ../sample_psf/uo2_1x1x1.psf

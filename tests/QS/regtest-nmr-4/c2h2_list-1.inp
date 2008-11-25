@@ -47,7 +47,6 @@
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
-      UNIT ANGSTROM
     &END CELL
     &KIND H
       BASIS_SET 6-31G*

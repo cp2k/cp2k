@@ -177,7 +177,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"NEIGHBOR_LISTS",&
             description="Activates the printing of the neighbor lists.", &
-            print_level=high_print_level,filename="",&
+            print_level=high_print_level,filename="",unit_str="angstrom",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

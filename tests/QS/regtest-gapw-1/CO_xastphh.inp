@@ -99,7 +99,6 @@
   &END SECTION DFT
   &SUBSYS
     &CELL
-       UNIT   ANGSTROM
        ABC    3.0    3.0     3.0 
        PERIODIC NONE
     &END CELL

@@ -85,7 +85,6 @@
   &SUBSYS
     &CELL
       ABC 8.965 8.965 8.965
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
         COORDINATE XYZ
@@ -98,6 +97,9 @@
     &END TOPOLOGY
 
     &PRINT
+        &CELL
+           UNIT nm
+        &END
         #&INTERATOMIC_DISTANCES
         #&END INTERATOMIC_DISTANCES
         #&TOPOLOGY_INFO

@@ -31,9 +31,8 @@
   &SUBSYS
     &CELL
       # parse the exponential format without dot
-      ABC 10 10 1E1
+      ABC 10 10 1.E1
       PERIODIC NONE
-      UNIT ANGSTROM
     &END CELL
     &COORD
       H  0.0  0.0  0.3

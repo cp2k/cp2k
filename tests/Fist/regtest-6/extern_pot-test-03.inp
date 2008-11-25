@@ -28,7 +28,6 @@
   &SUBSYS
     &CELL
       ABC 10.0 10.0 10.0
-      UNIT ANGSTROM
     &END CELL
     &COORD
    Ar 2.5 2.5 2.0 

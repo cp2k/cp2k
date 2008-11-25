@@ -66,7 +66,6 @@
     &CELL
       ABC 24.955 24.955 24.955
       PERIODIC NONE
-      UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
       COORD_FILE_NAME ../sample_xyz/H2O2.xyz
