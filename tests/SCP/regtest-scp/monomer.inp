@@ -19,7 +19,7 @@
       MAX_SCF 50
       EPS_SCF 1.000E-3
       &OT T
-        SCP T
+        SCP_DFT T
         MINIMIZER DIIS
       &END OT
     &END SCF
