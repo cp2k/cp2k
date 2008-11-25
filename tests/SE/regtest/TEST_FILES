@@ -40,3 +40,5 @@ tio.inp          3
 # integrals in-core
 H2O-MNDO-si.inp    3
 H2O-MNDO-si-nc.inp 3
+# SCP NDDO
+dimer.inp 1
