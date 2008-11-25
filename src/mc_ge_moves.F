@@ -1426,7 +1426,6 @@ CONTAINS
          NULLIFY(cell_test(ibox)%cell)
          CALL cell_create(cell_test(ibox)%cell,hmat_test(:,:,ibox),&
               cell(ibox)%cell%perd,cell(ibox)%cell%orthorhombic,error=error)
-         cell_test(ibox)%cell%subcells=cell_old(ibox)%cell%subcells
          CALL force_env_set_cell(force_env(ibox)%force_env,&
               cell_test(ibox)%cell,error=error)
       ENDDO

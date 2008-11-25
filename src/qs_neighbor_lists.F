@@ -152,7 +152,7 @@ CONTAINS
       aux_present, oce_present, orb_present, ppl_present, ppnl_present, &
       Qlm_present, semi_present
     REAL(dp)                                 :: alpha, r_skin, rcprj, &
-                                                unit_conv
+                                                subcells, unit_conv
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, &
       c_radius, oce_radius, orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, &
       short_aux_fit_radius, short_orb_radius, V0hmv0s_radius
@@ -237,6 +237,7 @@ CONTAINS
             "PROPERTIES%LINRES%NMR%_SECTION_PARAMETERS_",l_val=nmr,error=error)
     CALL section_vals_val_get(qs_env%input,&
             "PROPERTIES%LINRES%EPR%_SECTION_PARAMETERS_",l_val=epr,error=error)
+    CALL section_vals_val_get(qs_env%input,"DFT%SUBCELLS",r_val=subcells,error=error)
     IF(cls .OR. nmr .OR. epr) THEN
        all_pairs_list = .TRUE.
     ELSE
@@ -657,14 +658,14 @@ CONTAINS
                                            maxatom_local,unit_conv,unit_str,&
                                            output_unit,orb_present,orb_present,&
                                            orb_radius,orb_radius,&
-                                           name="ORBITAL ORBITAL")
+                                           name="ORBITAL ORBITAL",subcells=subcells)
     ELSE
       CALL build_neighbor_lists(sab_orb,atom,cell,r_skin,maxatom_local,&
                                 unit_conv,unit_str,output_unit,&
                                 orb_present,orb_present,orb_radius,orb_radius,&
                                 name="ORBITAL ORBITAL",&
                                 l3c_oce=paw_atom_present,&
-                                l3c_rho0=rho0_present,mic=mic)
+                                l3c_rho0=rho0_present,mic=mic,subcells=subcells)
     END IF
 
     ! Put the generated neighbor lists into the QS environment
@@ -681,21 +682,22 @@ CONTAINS
                                              maxatom_local,unit_conv,unit_str,&
                                              output_unit,aux_fit_present,aux_fit_present,&
                                              aux_fit_radius,aux_fit_radius,&
-                                             name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL")
+                                             name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL",&
+                                             subcells=subcells)
       ELSE
         CALL build_neighbor_lists(sab_aux_fit,atom,cell,r_skin,maxatom_local,&
                                   unit_conv,unit_str,output_unit,&
                                   aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,&
                                   name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL",&
                                   l3c_oce=paw_atom_present,&
-                                  l3c_rho0=rho0_present,mic=mic)
+                                  l3c_rho0=rho0_present,mic=mic,subcells=subcells)
         CALL build_neighbor_lists(sab_aux_fit_asymm,atom,cell,r_skin,maxatom_local,&
                                   unit_conv,unit_str,output_unit,&
                                   aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,&
                                   name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL_ASYMM",&
                                   l3c_oce=paw_atom_present,&
                                   l3c_rho0=rho0_present,mic=mic,&
-                                  symmetric=.FALSE.)
+                                  symmetric=.FALSE.,subcells=subcells)
 
       END IF
 
@@ -705,7 +707,8 @@ CONTAINS
                                              maxatom_local,unit_conv,unit_str,&
                                              output_unit,aux_fit_present,orb_present,&
                                              aux_fit_radius,orb_radius,&
-                                             name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL")
+                                             name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL",&
+                                             subcells=subcells)
       ELSE
         CALL build_neighbor_lists(sab_aux_fit_vs_orb,atom,cell,r_skin,maxatom_local,&
                                   unit_conv,unit_str,output_unit,&
@@ -713,7 +716,7 @@ CONTAINS
                                   name="ORBITAL AUX_FIT_ORBITAL",&
                                   l3c_oce=paw_atom_present,&
                                   l3c_rho0=rho0_present,mic=mic,&
-                                  symmetric=.FALSE.)
+                                  symmetric=.FALSE.,subcells=subcells)
         
       END IF
 
@@ -739,7 +742,7 @@ CONTAINS
                                 name="ALL_ORBITAL ORBITAL",&
                                 l3c_oce=paw_atom_present,&
                                 l3c_rho0=rho0_present,&
-                                symmetric=.FALSE.)
+                                symmetric=.FALSE.,subcells=subcells)
       ! Put the generated neighbor lists into the QS environment
       CALL set_qs_env(qs_env=qs_env,sab_all=sab_all,error=error)
     END IF
@@ -752,7 +755,8 @@ CONTAINS
                                           maxatom_local,unit_conv,unit_str,&
                                           output_unit,orb_present,ppl_present,&
                                           orb_radius,ppl_radius,&
-                                          name="ORBITAL GTH-PPL")
+                                          name="ORBITAL GTH-PPL",&
+                                          subcells=subcells)
 
         ! Put the generated neighbor lists into the QS environment
         CALL set_qs_env(qs_env=qs_env,sac_ppl=sac_ppl,error=error)
@@ -767,7 +771,8 @@ CONTAINS
                                            maxatom,maxatom_local,unit_conv,unit_str,&
                                            output_unit,orb_present,ppnl_present,&
                                            orb_radius,ppnl_radius,&
-                                           name="ORBITAL GTH-PPNL")
+                                           name="ORBITAL GTH-PPNL",&
+                                           subcells=subcells)
 
         ! Put the generated neighbor lists into the QS environment
         CALL set_qs_env(qs_env=qs_env,sac_ppnl=sac_ppnl,sbc_ppnl=sbc_ppnl,error=error)
@@ -789,7 +794,8 @@ CONTAINS
                                            maxatom,maxatom_local,unit_conv,unit_str,&
                                            output_unit,orb_present,oce_present,&
                                            short_orb_radius,oce_radius,&
-                                           name="ORBITAL PAW-PRJ")
+                                           name="ORBITAL PAW-PRJ",&
+                                           subcells=subcells)
 
         ! Put the generated neighbor lists into the QS environment
         CALL set_qs_env(qs_env=qs_env,sac_oce=sac_oce,sbc_oce=sbc_oce,error=error)
@@ -817,7 +823,8 @@ CONTAINS
       CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
                                 unit_conv,unit_str,output_unit,semi_present,semi_present,&
                                 c_radius,c_radius,&
-                                name="HARTREE INTERACTIONS")
+                                name="HARTREE INTERACTIONS",&
+                                subcells=subcells)
       CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
 
       ! Dump neighbor list if requested
@@ -841,7 +848,7 @@ CONTAINS
 
         CALL build_neighbor_lists(sab_scp,atom,cell,r_skin,maxatom_local,&
                                   unit_conv,unit_str,output_unit,aux_present,aux_present,&
-                                  c_radius,c_radius,name="SCP_DISPERSION")
+                                  c_radius,c_radius,name="SCP_DISPERSION",subcells=subcells)
 
         ! Put the generated neighbor lists into the QS environment
         CALL set_qs_env(qs_env=qs_env,sab_scp=sab_scp,error=error)
@@ -878,7 +885,8 @@ CONTAINS
                                 unit_conv,unit_str,output_unit,orb_present,orb_present,&
                                 orb_radius,orb_radius,pair_radius=ab_radius,&
                                 mic=mic,&
-                                name="DFTB REPULSIVE PAIR POTENTIAL")
+                                name="DFTB REPULSIVE PAIR POTENTIAL",&
+                                subcells=subcells)
       ! Put the generated neighbor lists into the QS environment
       CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
 
@@ -899,7 +907,8 @@ CONTAINS
         c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
         CALL build_neighbor_lists(sac_3c,atom,cell,r_skin,maxatom_local,&
                                   unit_conv,unit_str,output_unit,orb_present,orb_present,&
-                                  c_radius,c_radius,mic=mic,name="EWALD OVERLAP")
+                                  c_radius,c_radius,mic=mic,name="EWALD OVERLAP",&
+                                  subcells=subcells)
         ! Put the generated neighbor lists into the QS environment
         CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,error=error)
         DEALLOCATE (c_radius,STAT=istat)
@@ -920,7 +929,7 @@ CONTAINS
 
         CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&
                                   unit_conv,unit_str,output_unit,orb_present,orb_present,&
-                                  c_radius,c_radius,name="DISPERSION")
+                                  c_radius,c_radius,name="DISPERSION",subcells=subcells)
         ! Put the generated neighbor lists into the QS environment
         CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
 
@@ -939,7 +948,7 @@ CONTAINS
 
         CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&
                                   unit_conv,unit_str,output_unit,orb_present,orb_present,&
-                                  c_radius,c_radius,name="DISPERSION")
+                                  c_radius,c_radius,name="DISPERSION",subcells=subcells)
         ! Put the generated neighbor lists into the QS environment
         CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
 
@@ -957,7 +966,8 @@ CONTAINS
       CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
                                 unit_conv,unit_str,output_unit,Qlm_present,Qlm_present,&
                                 V0hmV0s_radius,V0hmV0s_radius,&
-                                name="TWO-CENTER ORBITAL V_HARTREE_LOCAL")
+                                name="TWO-CENTER ORBITAL V_HARTREE_LOCAL",&
+                                subcells=subcells)
 
       ! Put the generated neighbor lists into the QS environment
 
@@ -993,7 +1003,8 @@ CONTAINS
                                          maxatom,maxatom_local,unit_conv,unit_str,&
                                          output_unit,orb_present,Qlm_present,&
                                          orb_rad_3c,V0hmV0s_radius,&
-                                         name="THREE-CENTER ORBITAL V_HARTREE_LOCAL")
+                                         name="THREE-CENTER ORBITAL V_HARTREE_LOCAL",&
+                                         subcells=subcells)
 
       ! Put the generated neighbor lists into the QS environment
       CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,sbc_3c=sbc_3c,error=error)
@@ -1143,14 +1154,14 @@ CONTAINS
   END SUBROUTINE build_qs_neighbor_lists
 
 ! *****************************************************************************
-!> \brief  Build simple pair neighbor lists. 
+!> \brief   Build simple pair neighbor lists. 
 !> \author  MK
 !> \date    20.03.2002
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE build_neighbor_lists(ab,atom,cell,r_skin,maxatom_local,&
     unit_conv, unit_str, output_unit, present_a,present_b,radius_a,radius_b,&
-    pair_radius, name,l3c_oce,l3c_rho0,mic,symmetric)
+    pair_radius, name,l3c_oce,l3c_rho0,mic,symmetric,subcells)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
@@ -1169,6 +1180,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: name
     LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0, mic, &
                                                 symmetric
+    REAL(dp), INTENT(IN)                     :: subcells
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_neighbor_lists', &
       routineP = moduleN//':'//routineN
@@ -1181,8 +1193,7 @@ CONTAINS
     LOGICAL                                  :: include_ab, my_l3c_oce, &
                                                 my_l3c_rho0, my_mic, &
                                                 my_symmetric
-    REAL(dp)                                 :: rab2, rab2_max, rab_max, &
-                                                subcells
+    REAL(dp)                                 :: rab2, rab2_max, rab_max
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab_max, sb, &
                                                 sb_max, sb_min, sb_pbc
     TYPE(neighbor_list_p_type), &
@@ -1222,10 +1233,8 @@ CONTAINS
     END DO
 
     ! Load informations about the simulation cell
-
     CALL get_cell(cell=cell,&
-                  periodic=periodic,&
-                  subcells=subcells)
+                  periodic=periodic)
 
     ! Print headline
     IF (output_unit>0) THEN
@@ -1236,7 +1245,6 @@ CONTAINS
     END IF
 
     ! Loop over all atomic kind pairs
-
     DO ikind=1,nkind
 
       IF (.NOT.present_a(ikind)) CYCLE
@@ -1256,7 +1264,6 @@ CONTAINS
         natom_local_b = SIZE(atom(jkind)%list_local_b_index)
 
         ! Calculate the square of the maximum interaction distance
-
         IF ( PRESENT(pair_radius) ) THEN
           IF ( pair_radius(ikind,jkind) <= 0._dp ) CYCLE
           rab_max = pair_radius(ikind,jkind) + r_skin
@@ -1281,7 +1288,6 @@ CONTAINS
         nsubcell(:) = MIN(MAX(1,NINT(0.5_dp*subcells/sab_max(:))),20)
 
         ! Print subcell information for the current atomic kind pair
-
         IF (output_unit>0) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
           CALL scaled_to_real(r,s,cell)
@@ -1296,11 +1302,9 @@ CONTAINS
         cell_a = (/0,0,0/)
 
         ! Check, if we have to consider a subcell grid
-
         IF (SUM(nsubcell) == 3) THEN
 
           ! Case 1: No subcell grid is needed
-
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
@@ -1389,7 +1393,6 @@ CONTAINS
         ELSE
 
           ! Case 2: A subcell grid is needed
-
           CALL allocate_subcell(subcell,nsubcell,maxatom_local)
 
           DO iatom_local=1,natom_local_a
@@ -1529,7 +1532,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_restricted_neighbor_lists(ab,atom,cell,r_skin,&
     maxatom_local,unit_conv,unit_str, output_unit,present_a,present_b,&
-    radius_a,radius_b,name)
+    radius_a,radius_b,name,subcells)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
@@ -1544,6 +1547,7 @@ CONTAINS
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_b
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
     CHARACTER(LEN=*), INTENT(IN)             :: name
+    REAL(dp), INTENT(IN)                     :: subcells
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'build_restricted_neighbor_lists', &
@@ -1555,8 +1559,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: include_ab
-    REAL(dp)                                 :: rab2, rab2_max, rab_max, &
-                                                subcells
+    REAL(dp)                                 :: rab2, rab2_max, rab_max
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab_max, sb, &
                                                 sb_max, sb_min
     TYPE(neighbor_list_p_type), &
@@ -1576,7 +1579,6 @@ CONTAINS
     END IF
 
    ! Allocate and initialize the new neighbor list structure
-
     nkind = SIZE(atom)
 
     ALLOCATE (ab(nkind*nkind),STAT=istat)
@@ -1588,13 +1590,9 @@ CONTAINS
     END DO
 
     ! Load informations about the simulation cell
-
-    CALL get_cell(cell=cell,&
-                  periodic=periodic,&
-                  subcells=subcells)
+    CALL get_cell(cell=cell,periodic=periodic)
 
     ! Print headline
-
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
         "SUBCELL GRID FOR THE "//TRIM(name)//" NEIGHBOR LISTS",&
@@ -1603,7 +1601,6 @@ CONTAINS
     END IF
 
     ! Loop over all atomic kind pairs
-
     DO ikind=1,nkind
 
       IF (.NOT.present_a(ikind)) CYCLE
@@ -1807,7 +1804,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_gth_ppl_neighbor_lists(ac,atom,cell,r_skin,maxatom_local,&
     unit_conv,unit_str,output_unit, present_a,present_c, radius_a,radius_c,name,&
-    particle_set)
+    particle_set,subcells)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ac
@@ -1824,6 +1821,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: name
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
+    REAL(dp), INTENT(IN)                     :: subcells
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_gth_ppl_neighbor_lists', &
       routineP = moduleN//':'//routineN
@@ -1834,8 +1832,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: cell000, exclude
-    REAL(dp)                                 :: rac2, rac2_max, rac_max, &
-                                                subcells
+    REAL(dp)                                 :: rac2, rac2_max, rac_max
     REAL(dp), DIMENSION(3)                   :: r, rac, rc, s, sac_max, sc, &
                                                 sc_max, sc_min, sc_pbc
     TYPE(neighbor_list_p_type), &
@@ -1872,9 +1869,7 @@ CONTAINS
 
     ! Load informations about the simulation cell
 
-    CALL get_cell(cell=cell,&
-                  periodic=periodic,&
-                  subcells=subcells)
+    CALL get_cell(cell=cell,periodic=periodic)
 
     ! Print headline
 
@@ -2174,7 +2169,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_gth_ppnl_neighbor_lists(ac,bc,atom,cell,r_skin,&
     maxatom,maxatom_local, unit_conv, unit_str, output_unit, present_a,present_c,&
-    radius_a,radius_c,name)
+    radius_a,radius_c,name,subcells)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ac, bc
@@ -2189,6 +2184,7 @@ CONTAINS
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_c
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_c
     CHARACTER(LEN=*), INTENT(IN)             :: name
+    REAL(dp), INTENT(IN)                     :: subcells
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'build_gth_ppnl_neighbor_lists', &
@@ -2200,8 +2196,7 @@ CONTAINS
       nkind
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
-    REAL(dp)                                 :: rac2, rac2_max, rac_max, &
-                                                subcells
+    REAL(dp)                                 :: rac2, rac2_max, rac_max
     REAL(dp), DIMENSION(3)                   :: r, rac, rc, s, s2r, s_max, &
                                                 s_min, sac_max, sc, sc_max, &
                                                 sc_min, sc_pbc
@@ -2251,9 +2246,7 @@ CONTAINS
 
     ! Load informations about the simulation cell
 
-    CALL get_cell(cell=cell,&
-                  periodic=periodic,&
-                  subcells=subcells)
+    CALL get_cell(cell=cell,periodic=periodic)
 
     ! Print headline
 

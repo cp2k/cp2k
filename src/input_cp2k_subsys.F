@@ -139,13 +139,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="SUBCELLS",&
-            description="Read the subcells numbers.",&
-            usage="SUBCELLS 1.5",&
-            n_var=1,default_r_val=2.0_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="PERIODIC",&
             description="Specify the directions for which periodic boundary conditions (PBC) will be applied. "//&
                         "Important notice: This applies to the generation of the pair lists as well as to the "//&

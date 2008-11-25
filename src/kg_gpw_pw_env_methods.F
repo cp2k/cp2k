@@ -252,7 +252,6 @@ CONTAINS
     CALL cell_create(cell_mol,error=error)
     cell_mol%deth = 0.0_dp
     cell_mol%orthorhombic = .TRUE.
-    cell_mol%subcells = 2.0_dp
     cell_mol%perd(:) = 0
     cell_mol%hmat(:,:) = 0.0_dp
     cell_mol%h_inv(:,:) = 0.0_dp

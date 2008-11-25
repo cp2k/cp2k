@@ -132,12 +132,9 @@ CONTAINS
                     energy=energy,&
                     force=force,error=error)
 
-    CALL get_cell(cell=cell,&
-                  periodic=periodic,&
-                  subcells=subcells)
+    CALL get_cell(cell=cell,periodic=periodic)
 
     ! Allocate work storage
-
     nkind = SIZE(atomic_kind_set)
 
     ALLOCATE (atom(nkind),STAT=stat)
@@ -249,10 +246,9 @@ CONTAINS
         "Subcell size in "//unit_str
     END IF
 
+    CALL section_vals_val_get(kg_env%input,"DFT%SUBCELLS",r_val=subcells,error=error)
     ecore_overlap = 0.0_dp
-
     DO ikind=1,nkind
-
       IF (alpha(ikind) == 0.0_dp) CYCLE
       IF (zeff(ikind) == 0.0_dp) CYCLE
 

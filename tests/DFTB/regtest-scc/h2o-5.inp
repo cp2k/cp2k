@@ -1,5 +1,6 @@
 &FORCE_EVAL
   &DFT
+    SUBCELLS 10.0
     &QS
       METHOD DFTB
       &DFTB
@@ -28,7 +29,6 @@
   &SUBSYS
     &CELL
       ABC 9.865 9.865 9.865
-      SUBCELLS 10.0
     &END CELL
     &COORD
     O                  -4.583   5.333   1.560   H2O

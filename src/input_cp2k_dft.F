@@ -352,6 +352,13 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="SUBCELLS",&
+         description="Read the grid size for subcell generation in the construction of "//&
+         "neighbor lists.", usage="SUBCELLS 1.5",&
+         n_var=1,default_r_val=2.0_dp, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     NULLIFY(subsection)
     CALL create_scf_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)

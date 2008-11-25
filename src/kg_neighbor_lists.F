@@ -116,7 +116,7 @@ CONTAINS
                                                 gth_potential_present
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: aux_present, orb_present, &
                                                 ppl_present
-    REAL(dp)                                 :: r_skin, unit_conv
+    REAL(dp)                                 :: r_skin, subcells, unit_conv
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: aux_radius, orb_radius, &
                                                 ppl_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
@@ -156,6 +156,7 @@ CONTAINS
     output_unit = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%SUBCELL",&
          extension=".Log",error=error)
     CALL section_vals_val_get(force_env_section,"DFT%PRINT%SUBCELL%UNIT",c_val=unit_str,error=error)
+    CALL section_vals_val_get(force_env_section,"DFT%SUBCELLS",r_val=subcells,error=error)
     unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
 
 !   *** Set Verlet skin ***
@@ -331,7 +332,8 @@ CONTAINS
                                           orb_present,ppl_present,&
                                           orb_radius,ppl_radius,&
                                           name="ORBITAL GTH-PPL",&
-                                          particle_set=particle_set)
+                                          particle_set=particle_set,&
+                                          subcells=subcells)
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl=sac_ppl,error=error)
 
@@ -344,7 +346,8 @@ CONTAINS
                                           unit_conv,unit_str,output_unit,&
                                           aux_present,ppl_present,&
                                           aux_radius,ppl_radius,&
-                                          name="AUXILIARY ORBITAL GTH-PPL")
+                                          name="AUXILIARY ORBITAL GTH-PPL",&
+                                          subcells=subcells)
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl_aux=sac_ppl_aux,error=error)
 

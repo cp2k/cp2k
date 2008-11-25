@@ -52,15 +52,11 @@ MODULE cell_types
 !> \version 1.0
 ! *****************************************************************************
   TYPE cell_type
-     !FM probably to rm
-     REAL(KIND = dp)            :: subcells
-
-     !FM should stay
-     REAL(KIND = dp)            :: deth
-     LOGICAL                    :: orthorhombic
-     INTEGER, DIMENSION(3)      :: perd
+     INTEGER                           :: ref_count, id_nr
+     LOGICAL                           :: orthorhombic
+     REAL(KIND = dp)                   :: deth
+     INTEGER, DIMENSION(3)             :: perd
      REAL(KIND = dp), DIMENSION(3,3)   :: hmat,h_inv
-     INTEGER                    :: ref_count, id_nr
    END TYPE cell_type
 
 ! *****************************************************************************
@@ -102,7 +98,6 @@ CONTAINS
 
     compare = (&
          (cell_2%deth == cell_1%deth).AND.&
-         (cell_2%subcells == cell_1%subcells).AND.&
          (ALL(cell_2%perd == cell_1%perd)).AND.&
          (ALL(cell_2%hmat == cell_1%hmat)).AND.&
          (ALL(cell_2%h_inv == cell_1%h_inv)).AND.&
@@ -126,7 +121,6 @@ CONTAINS
     CPPrecondition(ASSOCIATED(cell_out),cp_failure_level,routineP,error,failure)
 
     cell_out%deth =                cell_in%deth
-    cell_out%subcells =            cell_in%subcells
     cell_out%perd =                cell_in%perd
     cell_out%hmat =                cell_in%hmat
     cell_out%h_inv =               cell_in%h_inv
@@ -173,11 +167,9 @@ CONTAINS
 !> \date    16.01.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_cell(cell,alpha,beta,gamma,deth,subcells,orthorhombic,abc,&
-                      periodic,h,h_inv,id_nr)
+  SUBROUTINE get_cell(cell,alpha,beta,gamma,deth,orthorhombic,abc,periodic,h,h_inv,id_nr)
     TYPE(cell_type), POINTER                 :: cell
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha, beta, gamma, deth, &
-                                                subcells
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha, beta, gamma, deth
     LOGICAL, INTENT(OUT), OPTIONAL           :: orthorhombic
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(OUT), OPTIONAL                  :: abc
@@ -190,7 +182,6 @@ CONTAINS
     IF (PRESENT(deth)) deth = cell%deth
     IF (PRESENT(orthorhombic)) orthorhombic = cell%orthorhombic
     IF (PRESENT(periodic)) periodic(:) = cell%perd(:)
-    IF (PRESENT(subcells)) subcells = cell%subcells
     IF (PRESENT(h)) h(:,:) = cell%hmat(:,:)
     IF (PRESENT(h_inv)) h_inv(:,:) = cell%h_inv(:,:)
 
@@ -557,7 +548,6 @@ CONTAINS
           cell%hmat(3,3) = cell_par(3)
        END IF
 
-       CALL section_vals_val_get(cell_section,"SUBCELLS",r_val=cell%subcells,error=error)
        CALL section_vals_val_get(cell_section,"PERIODIC",i_val=my_per,error=error)
        SELECT CASE(my_per)
        CASE(use_perd_x)
@@ -775,8 +765,6 @@ CPSourceFileRef,&
             TRIM(my_label)//" Angle (b,c), alpha [degree]: ",alpha,&
             TRIM(my_label)//" Angle (a,c), beta  [degree]: ",beta,&
             TRIM(my_label)//" Angle (a,b), gamma [degree]: ",gamma
-       WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-            TRIM(my_label)//" Grid size for subcell generation",cell%subcells
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
          "PRINT%CELL",error=error)
