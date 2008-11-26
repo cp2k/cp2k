@@ -467,8 +467,7 @@ CONTAINS
                                                 do_ewald, failure, scp_nddo, &
                                                 switch
     REAL(KIND=dp)                            :: delta, dr1, ecore2
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pa_a, pa_b, pb_a, pb_b
+    REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot_a, p_block_tot_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
@@ -497,13 +496,11 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
     TYPE(taper_type), POINTER                :: taper
 
-! Additional types needed for seamless coupling to SCP-NDDO
-
     failure=.FALSE.
     CALL timeset(routineN,handle)
     IF ( .NOT. failure ) THEN
-       NULLIFY(dft_control,cell,force,particle_set)
-       NULLIFY(diagmat_ks,diagmat_p, se_control,taper,pscp,ks_scp,scp_env)
+       NULLIFY(dft_control,cell,force,particle_set,diagmat_ks,diagmat_p,&
+               se_control,taper,pscp,ks_scp,scp_env)
        
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, taper=taper,&
             para_env=para_env, sab_2c=sab_2c, atomic_kind_set=atomic_kind_set, &
@@ -516,7 +513,7 @@ CONTAINS
        anag       =  se_control%analytical_gradients
        scp_nddo   =  se_control%scp
 
-       IF ( scp_nddo ) CALL get_qs_env ( qs_env=qs_env, scp_env=scp_env, error=error )
+       IF (scp_nddo) CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
        
        nspins=dft_control%nspins
        CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
@@ -527,7 +524,6 @@ CONTAINS
        CALL allocate_matrix_set(diagmat_p,nspins,error=error)
        
        nkind = SIZE(atomic_kind_set)
-
        IF(calculate_forces) THEN
           CALL get_qs_env(qs_env=qs_env, force=force, error=error)
           natom = SIZE (particle_set)
@@ -546,7 +542,7 @@ CONTAINS
                                   "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
        END DO
 
-       IF ( scp_nddo )  CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
+       IF (scp_nddo)  CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
        
        ecore2   = 0.0_dp
        itype    = get_se_type(dft_control%qs_control%method_id)
@@ -557,22 +553,12 @@ CONTAINS
  
           IF (.NOT.defined .OR. natorb_a < 1) CYCLE
 
-          ALLOCATE (pa_a(natorb_a,natorb_a),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE (pa_b(natorb_a,natorb_a),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
           DO jkind=1,nkind
              atomic_kind => atomic_kind_set(jkind)
              CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_b)
              CALL get_se_param(se_kind_b,defined=defined,natorb=natorb_b)
 
              IF (.NOT.defined .OR. natorb_b < 1) CYCLE
-
-             ALLOCATE (pb_a(natorb_b,natorb_b),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE (pb_b(natorb_b,natorb_b),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
              iab = ikind + nkind*(jkind - 1)
              IF (.NOT.ASSOCIATED(sab_2c(iab)%neighbor_list_set)) CYCLE
@@ -588,19 +574,18 @@ CONTAINS
                 CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list,atom=iatom, nnode=nnode)
                 sab_2c_neighbor_node => first_node(sab_2c_neighbor_list)
  
-                IF ( nspins >= 1 ) THEN
-                   CALL get_block_node(matrix=diagmat_p(1)%matrix,&
-                                       block_row=iatom,&
-                                       block_col=iatom,&
-                                       BLOCK=pa_block_a)
-                   CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
-                   CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
-                                       block_row=iatom,&
-                                       block_col=iatom,&
-                                       BLOCK=ksa_block_a)
-                   CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
-                   p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = 2.0_dp * pa_block_a
-                END IF
+                CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                                    block_row=iatom,&
+                                    block_col=iatom,&
+                                    BLOCK=pa_block_a)
+                CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
+                CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                                    block_row=iatom,&
+                                    block_col=iatom,&
+                                    BLOCK=ksa_block_a)
+                CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
+                p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
+                pa_a(1:natorb_a*natorb_a)            = RESHAPE(pa_block_a,(/natorb_a*natorb_a/)) 
                 IF ( nspins >= 2 ) THEN
                    CALL get_block_node(matrix=diagmat_p(2)%matrix,&
                                        block_row=iatom,&
@@ -614,19 +599,25 @@ CONTAINS
                    CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,error,failure)
                    check = (SIZE(pa_block_a,1)==SIZE(pa_block_b,1)).AND.(SIZE(pa_block_a,2)==SIZE(pa_block_b,2))
                    CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                   p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) = pa_block_a + pa_block_b
+                   p_block_tot_a(1:natorb_a,1:natorb_a) = pa_block_a + pa_block_b
+                   pa_b(1:natorb_a*natorb_a)            = RESHAPE(pa_block_b,(/natorb_a*natorb_a/))
                 END IF
-! SCP-NDDO
-                IF ( scp_nddo ) THEN
-                  CALL get_block_node(matrix=pscp,&
-                                      block_row=iatom,&
-                                      block_col=iatom,&
-                                      BLOCK=pscpa_block)
-                  CPPostcondition(ASSOCIATED(pscpa_block),cp_failure_level,routineP,error,failure)
-! Add P_scp + P_block_tot_a to get P_tot
-                  p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) =  &
-                  p_block_tot_a(1:SIZE(pa_block_a,1),1:SIZE(pa_block_a,2)) + 2.0_dp * pscpa_block
-                ENDIF 
+
+                IF (scp_nddo) THEN
+                   CALL get_block_node(matrix=pscp,&
+                                       block_row=iatom,&
+                                       block_col=iatom,&
+                                       BLOCK=pscpa_block)
+                   CPPostcondition(ASSOCIATED(pscpa_block),cp_failure_level,routineP,error,failure)
+                   check = (SIZE(pa_block_a,1)==SIZE(pscpa_block,1)).AND.(SIZE(pa_block_a,2)==SIZE(pscpa_block,2))
+                   CPPostcondition(check,cp_failure_level,routineP,error,failure)
+                   ! Add P_scp + P_block_tot_a to get P_tot
+                   p_block_tot_a(1:natorb_a,1:natorb_a) = p_block_tot_a(1:natorb_a,1:natorb_a) + 2.0_dp * pscpa_block
+                   ! Modify accordingly the density matrix for SCP
+                        pa_a(1:natorb_a*natorb_a)       = RESHAPE(pa_block_a+pscpa_block,(/natorb_a*natorb_a/))
+                   IF ( nspins >= 2 ) &
+                        pa_b(1:natorb_a*natorb_a)       = RESHAPE(pa_block_b+pscpa_block,(/natorb_a*natorb_a/))
+                ENDIF
  
                 DO inode=1,nnode
                    CALL get_neighbor_node(neighbor_node=sab_2c_neighbor_node,neighbor=jatom,r=rij)
@@ -650,8 +641,8 @@ CONTAINS
                                           block_col=jatom,&
                                           BLOCK=ksb_block_a)
                       CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
-                      p_block_tot_b(1:SIZE(pb_block_a,1),1:SIZE(pb_block_a,2))=2.0_dp * pb_block_a
-
+                      p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * pb_block_a
+                      pb_a(1:natorb_b*natorb_b)            = RESHAPE(pb_block_a,(/natorb_b*natorb_b/)) 
                       ! Handle more than one configuration
                       IF ( nspins >= 2 ) THEN
                          CALL get_block_node(matrix=diagmat_p(2)%matrix,&
@@ -666,33 +657,32 @@ CONTAINS
                          CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,error,failure)
                          check = (SIZE(pb_block_a,1)==SIZE(pb_block_b,1)).AND.(SIZE(pb_block_a,2)==SIZE(pb_block_b,2))
                          CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                         p_block_tot_b(1:SIZE(pb_block_a,1),1:SIZE(pb_block_a,2)) =  pb_block_a + pb_block_b
+                         p_block_tot_b(1:natorb_b,1:natorb_b) = pb_block_a + pb_block_b
+                         pb_b(1:natorb_b*natorb_b)            = RESHAPE(pb_block_b,(/natorb_b*natorb_b/))
                       END IF
-! SCP-NDDO
+
                       IF ( scp_nddo ) THEN
-                        CALL get_block_node(matrix=pscp,&
-                                            block_row=jatom,&
-                                            block_col=jatom,&
-                                            BLOCK=pscpb_block)
-                        CPPostcondition(ASSOCIATED(pscpb_block),cp_failure_level,routineP,error,failure)
-! Add P_scp + P_block_tot_b to get P_tot
-                         p_block_tot_b(1:SIZE(pb_block_a,1),1:SIZE(pb_block_a,2)) =  &
-                         p_block_tot_b(1:SIZE(pb_block_a,1),1:SIZE(pb_block_a,2)) + 2.0_dp * pscpb_block
+                         CALL get_block_node(matrix=pscp,&
+                                             block_row=jatom,&
+                                             block_col=jatom,&
+                                             BLOCK=pscpb_block)
+                         CPPostcondition(ASSOCIATED(pscpb_block),cp_failure_level,routineP,error,failure)
+                         check = (SIZE(pb_block_a,1)==SIZE(pscpb_block,1)).AND.(SIZE(pb_block_a,2)==SIZE(pscpb_block,2))
+                         CPPostcondition(check,cp_failure_level,routineP,error,failure)
+                         ! Add P_scp + P_block_tot_b to get P_tot
+                         p_block_tot_b(1:natorb_b,1:natorb_b) = p_block_tot_b(1:natorb_b,1:natorb_b) + 2.0_dp * pscpb_block
+                         ! Modify accordingly the density matrix for SCP
+                              pb_a(1:natorb_b*natorb_b) = RESHAPE(pb_block_a+pscpb_block,(/natorb_b*natorb_b/))
+                         IF ( nspins >= 2 ) &
+                              pb_b(1:natorb_b*natorb_b) = RESHAPE(pb_block_b+pscpb_block,(/natorb_b*natorb_b/))
                       ENDIF 
  
                       SELECT CASE (dft_control%qs_control%method_id)
                       CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
                             do_method_rm1, do_method_mndod)
- 
+
                          ! Two-centers One-electron terms
                          IF      ( nspins == 1 ) THEN
-                            IF ( scp_nddo ) THEN
-                               pa_a = pa_block_a + pscpa_block
-                               pb_a = pb_block_a + pscpb_block
-                            ELSE
-                               pa_a = pa_block_a 
-                               pb_a = pb_block_a 
-                            END IF
                             CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
                                  pa_a, pb_a, ecore=ecore2, itype=itype, anag=anag,&
                                  shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
@@ -702,13 +692,6 @@ CONTAINS
                                  pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&
                                  shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
                                  error=error)
-                            IF ( scp_nddo ) THEN
-                               pa_b = pa_block_b + pscpa_block
-                               pb_b = pb_block_b + pscpb_block
-                            ELSE
-                               pa_b = pa_block_b 
-                               pb_b = pb_block_b 
-                            END IF
                             CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_b, ksb_block_b,&
                                  pa_b, pb_b, ecore=ecore2, itype=itype, anag=anag,&
                                  shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
@@ -736,26 +719,11 @@ CONTAINS
                             ! Derivatives of the One-centre One-electron terms
                             force_ab = 0.0_dp
                             IF      ( nspins == 1 ) THEN
-                               IF ( scp_nddo ) THEN
-                                  pa_a = pa_block_a + pscpa_block
-                                  pb_a = pb_block_a + pscpb_block
-                               ELSE
-                                  pa_a = pa_block_a 
-                                  pb_a = pb_block_a 
-                               END IF
                                CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_a, pb_a, itype=itype, anag=anag,&
                                     shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
                             ELSE IF ( nspins == 2 ) THEN
                                CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_block_a, pb_block_a, itype=itype, anag=anag,&
                                     shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
- 
-                               IF ( scp_nddo ) THEN
-                                  pa_b = pa_block_b + pscpa_block
-                                  pb_b = pb_block_b + pscpb_block
-                               ELSE
-                                  pa_b = pa_block_b 
-                                  pb_b = pb_block_b 
-                               END IF
                                CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_b, pb_b, itype=itype, anag=anag,&
                                     shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
                             END IF
@@ -807,19 +775,12 @@ CONTAINS
                    sab_2c_neighbor_node => next(sab_2c_neighbor_node)
                 END DO ! inode => jatom(atom B)
              END DO ! ilist => iatom(atom A)
-             DEALLOCATE (pb_a,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DEALLOCATE (pb_b,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END DO ! jkind
-          DEALLOCATE (pa_a,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE (pa_b,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO ! ikind
-! Update the SCP coulomb fock matrix.  Should be K = (P + p )C + CZ
+
        IF ( scp_nddo ) THEN
-         CALL transfer_matrix ( diagmat_ks ( 1 ) % matrix, ks_scp, error )
+          ! Update the SCP coulomb fock matrix.  Should be K = (P + p )C + CZ
+          CALL transfer_matrix ( diagmat_ks ( 1 ) % matrix, ks_scp, error )
        ENDIF 
        
        DO ispin = 1, nspins
@@ -836,8 +797,7 @@ CONTAINS
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        
-       CALL mp_sum(ecore2,para_env%group)
-       
+       CALL mp_sum(ecore2,para_env%group)       
        energy%hartree = ecore2 - energy%core
     END IF
     
