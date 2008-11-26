@@ -45,9 +45,7 @@ MODULE qs_neighbor_lists
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             dp_size,&
-                                             int_size
+                                             dp
   USE message_passing,                 ONLY: mp_sum
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
@@ -70,8 +68,7 @@ MODULE qs_neighbor_lists
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
   USE string_utilities,                ONLY: compress
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -140,9 +137,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: print_key_path, unit_str
-    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, imol, istat, iw, &
-      jkind, maxatom, maxatom_local, natom_a, natom_local_a, natom_local_b, &
-      nkind, output_unit
+    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, imol, iw, jkind, &
+      maxatom, maxatom_local, natom_a, natom_local_a, natom_local_b, nkind, &
+      output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
                                                 local_rows_array
     LOGICAL :: all_pairs_list, all_potential_present, cls, epr, failure, &
@@ -234,9 +231,9 @@ CONTAINS
 
     cls = qs_env%dft_control%do_xas_calculation
     CALL section_vals_val_get(qs_env%input,&
-            "PROPERTIES%LINRES%NMR%_SECTION_PARAMETERS_",l_val=nmr,error=error)
+         "PROPERTIES%LINRES%NMR%_SECTION_PARAMETERS_",l_val=nmr,error=error)
     CALL section_vals_val_get(qs_env%input,&
-            "PROPERTIES%LINRES%EPR%_SECTION_PARAMETERS_",l_val=epr,error=error)
+         "PROPERTIES%LINRES%EPR%_SECTION_PARAMETERS_",l_val=epr,error=error)
     CALL section_vals_val_get(qs_env%input,"DFT%SUBCELLS",r_val=subcells,error=error)
     IF(cls .OR. nmr .OR. epr) THEN
        all_pairs_list = .TRUE.
@@ -292,380 +289,323 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
 
-    ALLOCATE (atom(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "atom",nkind*int_size)
+    ALLOCATE (atom(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (orb_present(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (aux_fit_present(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (aux_present(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE (orb_present(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "orb_present",nkind*int_size)
-
-    ALLOCATE (aux_fit_present(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "aux_fit_present",nkind*int_size)
-
-! ***SCP
-    ALLOCATE (aux_present(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "aux_present",nkind*int_size)
-! ***SCP
-
-    ALLOCATE (orb_radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "orb_radius",nkind*dp_size)
+    ALLOCATE (orb_radius(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     orb_radius(:) = 0.0_dp
-    ALLOCATE (short_orb_radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "short_orb_radius",nkind*dp_size)
+
+    ALLOCATE (short_orb_radius(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     short_orb_radius(:) = 0.0_dp
 
-    ALLOCATE (aux_fit_radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "aux_fit_radius",nkind*dp_size)
+    ALLOCATE (aux_fit_radius(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     aux_fit_radius(:) = 0.0_dp
-    ALLOCATE (short_aux_fit_radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "short_aux_fit_radius",nkind*dp_size)
+
+    ALLOCATE (short_aux_fit_radius(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     short_aux_fit_radius(:) = 0.0_dp
 
-   
-
     IF (gth_potential_present) THEN
+       ALLOCATE (ppl_present(nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      ALLOCATE (ppl_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "ppl_present",nkind*int_size)
+       ALLOCATE (ppl_radius(nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ppl_radius = 0.0_dp
 
-      ALLOCATE (ppl_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "ppl_radius",nkind*dp_size)
-      ppl_radius = 0.0_dp
+       ALLOCATE (ppnl_present(nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      ALLOCATE (ppnl_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "ppnl_present",nkind*int_size)
-
-      ALLOCATE (ppnl_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "ppnl_radius",nkind*dp_size)
-      ppnl_radius = 0.0_dp
-
+       ALLOCATE (ppnl_radius(nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ppnl_radius = 0.0_dp
     END IF
 
     IF (paw_atom_present) THEN
-      ALLOCATE (oce_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "oce_present",nkind*int_size)
+       ALLOCATE (oce_present(nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      ALLOCATE (oce_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "oce_radius",nkind*dp_size)
-      oce_radius = 0.0_dp
+       ALLOCATE (oce_radius(nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       oce_radius = 0.0_dp
     END IF
 
     IF (rho0_present) THEN
+       CPPrecondition(ASSOCIATED(rhoz_set),cp_failure_level,routineP,error,failure)
 
-      IF(.NOT. ASSOCIATED(rhoz_set)) &
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer rhoz is not associated")
+       ALLOCATE (Qlm_present(nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      ALLOCATE (Qlm_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "Qlm_present",nkind*int_size)
+       ALLOCATE (V0hmV0s_radius(nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       V0hmV0s_radius = 0.0_dp
 
-      ALLOCATE (V0hmV0s_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "V0hmV0s_radius",nkind*dp_size)
-      V0hmV0s_radius = 0.0_dp
-
-      ALLOCATE (orb_rad_3c(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "orb_rad_3c",nkind*dp_size)
-      orb_rad_3c = 0.0_dp
-
+       ALLOCATE (orb_rad_3c(nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       orb_rad_3c = 0.0_dp
     END IF
 
     IF (all_potential_present) THEN
+       ALLOCATE (all_present(nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      ALLOCATE (all_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       " all_present",nkind*int_size)
-
-      ALLOCATE (all_pot_rad(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "all_pot_rad",nkind*dp_size)
-      all_pot_rad = 0.0_dp
-
+       ALLOCATE (all_pot_rad(nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       all_pot_rad = 0.0_dp
     END IF
 
     ! Initialize the local data structures
 
     maxatom_local = 0
-
     DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       NULLIFY (atom(ikind)%list)
+       NULLIFY (atom(ikind)%list_local_a_index)
+       NULLIFY (atom(ikind)%list_local_b_index)
+       NULLIFY (atom(ikind)%list_a_mol)
+       NULLIFY (atom(ikind)%list_b_mol)
+       NULLIFY (atom(ikind)%r_pbc)
+       NULLIFY (atom(ikind)%s_pbc)
 
-      atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            atom_list=atom(ikind)%list,&
+                            all_potential=all_potential,&
+                            gth_potential=gth_potential,&
+                            orb_basis_set=orb_basis_set,&
+                            aux_basis_set=aux_basis_set,&
+                            aux_fit_basis_set=aux_fit_basis_set,&
+                            paw_proj_set=paw_proj,&
+                            paw_atom=paw_atom)
+       
+       natom_a = SIZE(atom(ikind)%list)
 
-      NULLIFY (atom(ikind)%list)
-      NULLIFY (atom(ikind)%list_local_a_index)
-      NULLIFY (atom(ikind)%list_local_b_index)
-      NULLIFY (atom(ikind)%list_a_mol)
-      NULLIFY (atom(ikind)%list_b_mol)
-      NULLIFY (atom(ikind)%r_pbc)
-      NULLIFY (atom(ikind)%s_pbc)
+       IF ( molecule_only ) THEN
+          natom_local_a = distribution_1d%n_el(ikind)
+          natom_local_b = distribution_1d%n_el(ikind)
+          local_rows_array => distribution_1d%list(ikind)%array
+          local_cols_array => distribution_1d%list(ikind)%array
+       ELSE
+          natom_local_a = distribution_2d%n_local_rows(ikind)
+          natom_local_b = distribution_2d%n_local_cols(ikind)
+          local_rows_array => distribution_2d%local_rows(ikind)%array
+          local_cols_array => distribution_2d%local_cols(ikind)%array
+       END IF
 
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           atom_list=atom(ikind)%list,&
-                           all_potential=all_potential,&
-                           gth_potential=gth_potential,&
-                           orb_basis_set=orb_basis_set,&
-                           aux_basis_set=aux_basis_set,&
-                           aux_fit_basis_set=aux_fit_basis_set,&
-                           paw_proj_set=paw_proj,&
-                           paw_atom=paw_atom)
+       maxatom_local = MAX(maxatom_local,natom_local_a,natom_local_b)
+       ! SCP
+       IF (ASSOCIATED(aux_basis_set)) THEN
+          aux_present(ikind) = .TRUE.
+       ELSE
+          aux_present(ikind) = .FALSE.
+       ENDIF
+       ! SCP
 
-      natom_a = SIZE(atom(ikind)%list)
+       IF (ASSOCIATED(orb_basis_set)) THEN
+          orb_present(ikind) = .TRUE.
 
-      IF ( molecule_only ) THEN
-        natom_local_a = distribution_1d%n_el(ikind)
-        natom_local_b = distribution_1d%n_el(ikind)
-        local_rows_array => distribution_1d%list(ikind)%array
-        local_cols_array => distribution_1d%list(ikind)%array
-      ELSE
-        natom_local_a = distribution_2d%n_local_rows(ikind)
-        natom_local_b = distribution_2d%n_local_cols(ikind)
-        local_rows_array => distribution_2d%local_rows(ikind)%array
-        local_cols_array => distribution_2d%local_cols(ikind)%array
-      END IF
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                 kind_radius=orb_radius(ikind),&
+                                 short_kind_radius=short_orb_radius(ikind))
 
-      maxatom_local = MAX(maxatom_local,natom_local_a,natom_local_b)
-! SCP
-      IF (ASSOCIATED(aux_basis_set)) THEN
-        aux_present(ikind) = .TRUE.
-      ELSE
-        aux_present(ikind) = .FALSE.
-      ENDIF
-! SCP
+       ELSE IF (qs_env%dft_control%qs_control%dftb) THEN
+          ! Set the interaction radius for the neighbor lists (DFTB case)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_atom)
+          CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
+                                   cutoff=orb_radius(ikind),&
+                                   defined=orb_present(ikind),error=error)
+       ELSE
+          orb_present(ikind) = .FALSE.
+       END IF
 
-      IF (ASSOCIATED(orb_basis_set)) THEN
+       IF (ASSOCIATED(aux_fit_basis_set)) THEN
+          aux_fit_present(ikind) = .TRUE.
 
-        orb_present(ikind) = .TRUE.
+          CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,&
+                                 kind_radius=aux_fit_radius(ikind),&
+                                 short_kind_radius=short_aux_fit_radius(ikind))
+       ELSE IF (qs_env%dft_control%qs_control%dftb) THEN
+          ! Set the interaction radius for the neighbor lists (DFTB case)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_atom)
+          CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
+                                   cutoff=orb_radius(ikind),&
+                                   defined=orb_present(ikind),error=error)
+       ELSE
+          aux_fit_present(ikind) = .FALSE.
+       END IF
 
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               kind_radius=orb_radius(ikind),&
-                               short_kind_radius=short_orb_radius(ikind))
+       IF ( orb_present(ikind) ) THEN
+          ! Block rows
+          IF (natom_local_a > 0) THEN
+             ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE (atom(ikind)%list_a_mol(natom_local_a),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             atom(ikind)%list_a_mol(:) = 0
 
-      ELSE IF (qs_env%dft_control%qs_control%dftb) THEN
-        ! Set the interaction radius for the neighbor lists (DFTB case)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_atom)
-        CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
-                                 cutoff=orb_radius(ikind),&
-                                 defined=orb_present(ikind),error=error)
-      ELSE
-
-        orb_present(ikind) = .FALSE.
-
-      END IF
-
-      IF (ASSOCIATED(aux_fit_basis_set)) THEN
-
-        aux_fit_present(ikind) = .TRUE.
-
-        CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set,&
-                               kind_radius=aux_fit_radius(ikind),&
-                               short_kind_radius=short_aux_fit_radius(ikind))
-
-      ELSE IF (qs_env%dft_control%qs_control%dftb) THEN
-        ! Set the interaction radius for the neighbor lists (DFTB case)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_atom)
-        CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
-                                 cutoff=orb_radius(ikind),&
-                                 defined=orb_present(ikind),error=error)
-      ELSE
-
-        aux_fit_present(ikind) = .FALSE.
-
-      END IF
-
-      IF ( orb_present(ikind) ) THEN
-        ! Block rows
-
-        IF (natom_local_a > 0) THEN
-
-          ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "atom(ikind)%list_local_a_index",&
-                                           natom_local_a*int_size)
-          ALLOCATE (atom(ikind)%list_a_mol(natom_local_a),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "atom(ikind)%list_a_mol",&
-                                           natom_local_a*int_size)
-          atom(ikind)%list_a_mol(:) = 0
-
-          ! Build index vector for mapping
-
-          DO iatom_local=1,natom_local_a
-            atom_a = local_rows_array(iatom_local)
-            DO iatom=1,natom_a
-              IF (atom_a == atom(ikind)%list(iatom)) THEN
-                atom(ikind)%list_local_a_index(iatom_local) = iatom
-                EXIT
-              END IF
-            END DO
-            IF ( molecule_only ) THEN
-              DO imol=1,SIZE(molecule_set)
-                IF ( atom_a >= molecule_set(imol)%first_atom .AND. &
-                     atom_a <= molecule_set(imol)%last_atom ) THEN
-                  atom(ikind)%list_a_mol(iatom_local) = imol
-                  EXIT
+             ! Build index vector for mapping
+             DO iatom_local=1,natom_local_a
+                atom_a = local_rows_array(iatom_local)
+                DO iatom=1,natom_a
+                   IF (atom_a == atom(ikind)%list(iatom)) THEN
+                      atom(ikind)%list_local_a_index(iatom_local) = iatom
+                      EXIT
+                   END IF
+                END DO
+                IF ( molecule_only ) THEN
+                   DO imol=1,SIZE(molecule_set)
+                      IF ( atom_a >= molecule_set(imol)%first_atom .AND. &
+                           atom_a <= molecule_set(imol)%last_atom ) THEN
+                         atom(ikind)%list_a_mol(iatom_local) = imol
+                         EXIT
+                      END IF
+                   END DO
                 END IF
-              END DO
-            END IF
+             END DO
+
+          END IF
+
+          ! Block columns
+          IF (natom_local_b > 0) THEN
+
+             ALLOCATE (atom(ikind)%list_local_b_index(natom_local_b),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE (atom(ikind)%list_b_mol(natom_local_b),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             atom(ikind)%list_b_mol(:) = 0
+
+             ! Build index vector for mapping
+             DO iatom_local=1,natom_local_b
+                atom_a = local_cols_array(iatom_local)
+                DO iatom=1,natom_a
+                   IF (atom_a == atom(ikind)%list(iatom)) THEN
+                      atom(ikind)%list_local_b_index(iatom_local) = iatom
+                      EXIT
+                   END IF
+                END DO
+                IF (molecule_only) THEN
+                   DO imol=1,SIZE(molecule_set)
+                      IF ((atom_a >= molecule_set(imol)%first_atom).AND.&
+                           (atom_a <= molecule_set(imol)%last_atom)) THEN
+                         atom(ikind)%list_b_mol(iatom_local) = imol
+                         EXIT
+                      END IF
+                   END DO
+                END IF
+             END DO
+
+          END IF
+
+          ALLOCATE (atom(ikind)%r_pbc(3,natom_a),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE (atom(ikind)%s_pbc(3,natom_a),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+          ! Calculate PBC coordinates
+          DO iatom=1,natom_a
+             atom_a = atom(ikind)%list(iatom)
+             r_pbc(:) = pbc(particle_set(atom_a)%r(:),cell)
+             atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
+             CALL real_to_scaled(atom(ikind)%s_pbc(:,iatom),r_pbc(:),cell)
           END DO
 
-        END IF
+       ELSE
 
-        ! Block columns
+          orb_present(ikind) = .FALSE.
 
-        IF (natom_local_b > 0) THEN
+       END IF
 
-          ALLOCATE (atom(ikind)%list_local_b_index(natom_local_b),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "atom(ikind)%list_local_b_index",&
-                                           natom_local_b*int_size)
-          ALLOCATE (atom(ikind)%list_b_mol(natom_local_b),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "atom(ikind)%list_b_mol",&
-                                           natom_local_b*int_size)
-          atom(ikind)%list_b_mol(:) = 0
+       IF (gth_potential_present) THEN
+          IF (ASSOCIATED(gth_potential)) THEN
+             CALL get_potential(potential=gth_potential,&
+                                ppl_present=ppl_present(ikind),&
+                                ppl_radius=ppl_radius(ikind),&
+                                ppnl_present=ppnl_present(ikind),&
+                                ppnl_radius=ppnl_radius(ikind))
+          ELSE
+             ppl_present(ikind) = .FALSE.
+             ppnl_present(ikind) = .FALSE.
+          END IF
+       END IF
 
-          ! Build index vector for mapping
+       ! Check the presence of rho1_hard and rho1_soft
 
-          DO iatom_local=1,natom_local_b
-            atom_a = local_cols_array(iatom_local)
-            DO iatom=1,natom_a
-              IF (atom_a == atom(ikind)%list(iatom)) THEN
-                atom(ikind)%list_local_b_index(iatom_local) = iatom
-                EXIT
-              END IF
-            END DO
-            IF (molecule_only) THEN
-              DO imol=1,SIZE(molecule_set)
-                IF ((atom_a >= molecule_set(imol)%first_atom).AND.&
-                    (atom_a <= molecule_set(imol)%last_atom)) THEN
-                  atom(ikind)%list_b_mol(iatom_local) = imol
-                  EXIT
-                END IF
-              END DO
-            END IF
-          END DO
+       IF (paw_atom_present) THEN
+          IF (paw_atom) THEN
+             oce_present(ikind) = .TRUE.
+             CALL get_paw_proj_set(paw_proj_set=paw_proj,&
+                                   rcprj=oce_radius(ikind))
+          ELSE
+             oce_present(ikind) = .FALSE.
+          END IF
+       END IF
 
-        END IF
+       ! Check the presence of rho0_hard and rho0_soft
 
-        ALLOCATE (atom(ikind)%r_pbc(3,natom_a),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%r_pbc",3*natom_a*dp_size)
+       IF(rho0_present) THEN
+          IF(ABS(rhoz_set(ikind)%one_atom) > 1.0E-8_dp) THEN
+             Qlm_present(ikind) = .TRUE.
+             CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind,&
+                                 rpgf0_s=V0hmV0s_radius(ikind))
 
-        ALLOCATE (atom(ikind)%s_pbc(3,natom_a),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%s_pbc",3*natom_a*dp_size)
+          END IF
+          ! These radii determine the extension of the 3c lists used for both
+          ! the all electron core term and the term related to the compensation
+          ! charges
+          orb_rad_3c(ikind) = rho0_mpole%orb_radius_3c(ikind)
 
-        ! Calculate PBC coordinates
+       END IF
 
-        DO iatom=1,natom_a
-          atom_a = atom(ikind)%list(iatom)
-          r_pbc(:) = pbc(particle_set(atom_a)%r(:),cell)
-          atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
-          CALL real_to_scaled(atom(ikind)%s_pbc(:,iatom),r_pbc(:),cell)
-        END DO
+       ! Check the presence of an all electron potential
 
-      ELSE
+       IF (all_potential_present) THEN
+          IF (ASSOCIATED(all_potential)) THEN
+             all_present(ikind) = .TRUE.
+             CALL get_potential(potential=all_potential,&
+                                core_charge_radius=all_pot_rad(ikind))
+          ELSE
+             all_present(ikind) = .FALSE.
+             all_pot_rad(ikind) = 0.0_dp
+          END IF
 
-        orb_present(ikind) = .FALSE.
-
-      END IF
-
-      IF (gth_potential_present) THEN
-        IF (ASSOCIATED(gth_potential)) THEN
-          CALL get_potential(potential=gth_potential,&
-                             ppl_present=ppl_present(ikind),&
-                             ppl_radius=ppl_radius(ikind),&
-                             ppnl_present=ppnl_present(ikind),&
-                             ppnl_radius=ppnl_radius(ikind))
-        ELSE
-          ppl_present(ikind) = .FALSE.
-          ppnl_present(ikind) = .FALSE.
-        END IF
-      END IF
-
-      ! Check the presence of rho1_hard and rho1_soft
-
-      IF (paw_atom_present) THEN
-        IF (paw_atom) THEN
-          oce_present(ikind) = .TRUE.
-          CALL get_paw_proj_set(paw_proj_set=paw_proj,&
-                                rcprj=oce_radius(ikind))
-        ELSE
-          oce_present(ikind) = .FALSE.
-        END IF
-      END IF
-
-      ! Check the presence of rho0_hard and rho0_soft
-
-      IF(rho0_present) THEN
-        IF(ABS(rhoz_set(ikind)%one_atom) > 1.0E-8_dp) THEN
-          Qlm_present(ikind) = .TRUE.
-          CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind,&
-                              rpgf0_s=V0hmV0s_radius(ikind))
-
-        END IF
-        ! These radii determine the extension of the 3c lists used for both
-        ! the all electron core term and the term related to the compensation
-        ! charges
-        orb_rad_3c(ikind) = rho0_mpole%orb_radius_3c(ikind)
-
-      END IF
-
-      ! Check the presence of an all electron potential
-
-      IF (all_potential_present) THEN
-        IF (ASSOCIATED(all_potential)) THEN
-          all_present(ikind) = .TRUE.
-          CALL get_potential(potential=all_potential,&
-                             core_charge_radius=all_pot_rad(ikind))
-        ELSE
-          all_present(ikind) = .FALSE.
-          all_pot_rad(ikind) = 0.0_dp
-        END IF
-
-      END IF
+       END IF
 
     END DO
 
     ! Build the orbital-orbital overlap neighbor lists
     IF (qs_env%dft_control%qs_control%semi_empirical) THEN
-      ! we need strict minimum image convention for the interaction lists
-      mic = .TRUE.
+       ! we need strict minimum image convention for the interaction lists
+       mic = .TRUE.
     ELSE IF (qs_env%dft_control%qs_control%dftb) THEN
-      ! we need strict minimum image convention for the interaction lists
-      mic = .TRUE.
+       ! we need strict minimum image convention for the interaction lists
+       mic = .TRUE.
     ELSE
-      mic = .FALSE.
+       mic = .FALSE.
     END IF
 
     IF (molecule_only) THEN
-      CALL build_restricted_neighbor_lists(sab_orb,atom,cell,r_skin,&
-                                           maxatom_local,unit_conv,unit_str,&
-                                           output_unit,orb_present,orb_present,&
-                                           orb_radius,orb_radius,&
-                                           name="ORBITAL ORBITAL",subcells=subcells)
+       CALL build_restricted_neighbor_lists(sab_orb,atom,cell,r_skin,&
+                                            maxatom_local,unit_conv,unit_str,&
+                                            output_unit,orb_present,orb_present,&
+                                            orb_radius,orb_radius,&
+                                            name="ORBITAL ORBITAL",subcells=subcells,&
+                                            error=error)
     ELSE
-      CALL build_neighbor_lists(sab_orb,atom,cell,r_skin,maxatom_local,&
-                                unit_conv,unit_str,output_unit,&
-                                orb_present,orb_present,orb_radius,orb_radius,&
-                                name="ORBITAL ORBITAL",&
-                                l3c_oce=paw_atom_present,&
-                                l3c_rho0=rho0_present,mic=mic,subcells=subcells)
+       CALL build_neighbor_lists(sab_orb,atom,cell,r_skin,maxatom_local,&
+                                 unit_conv,unit_str,output_unit,&
+                                 orb_present,orb_present,orb_radius,orb_radius,&
+                                 name="ORBITAL ORBITAL",&
+                                 l3c_oce=paw_atom_present,&
+                                 l3c_rho0=rho0_present,mic=mic,subcells=subcells,&
+                                 error=error)
     END IF
 
     ! Put the generated neighbor lists into the QS environment
@@ -676,471 +616,437 @@ CONTAINS
          "/SAB_ORB","sab_orb","ORBITAL ORBITAL",error)
 
     IF( qs_env%dft_control%do_wfn_fitting ) THEN
-      IF (molecule_only) THEN
-        ! *** this needs to be checked
-        CALL build_restricted_neighbor_lists(sab_aux_fit,atom,cell,r_skin,&
-                                             maxatom_local,unit_conv,unit_str,&
-                                             output_unit,aux_fit_present,aux_fit_present,&
-                                             aux_fit_radius,aux_fit_radius,&
-                                             name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL",&
-                                             subcells=subcells)
-      ELSE
-        CALL build_neighbor_lists(sab_aux_fit,atom,cell,r_skin,maxatom_local,&
-                                  unit_conv,unit_str,output_unit,&
-                                  aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,&
-                                  name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL",&
-                                  l3c_oce=paw_atom_present,&
-                                  l3c_rho0=rho0_present,mic=mic,subcells=subcells)
-        CALL build_neighbor_lists(sab_aux_fit_asymm,atom,cell,r_skin,maxatom_local,&
-                                  unit_conv,unit_str,output_unit,&
-                                  aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,&
-                                  name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL_ASYMM",&
-                                  l3c_oce=paw_atom_present,&
-                                  l3c_rho0=rho0_present,mic=mic,&
-                                  symmetric=.FALSE.,subcells=subcells)
+       IF (molecule_only) THEN
+          ! *** this needs to be checked
+          CALL build_restricted_neighbor_lists(sab_aux_fit,atom,cell,r_skin,&
+                                               maxatom_local,unit_conv,unit_str,&
+                                               output_unit,aux_fit_present,aux_fit_present,&
+                                               aux_fit_radius,aux_fit_radius,&
+                                               name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL",&
+                                               subcells=subcells,&
+                                               error=error)
+       ELSE
+          CALL build_neighbor_lists(sab_aux_fit,atom,cell,r_skin,maxatom_local,&
+                                    unit_conv,unit_str,output_unit,&
+                                    aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,&
+                                    name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL",&
+                                    l3c_oce=paw_atom_present,&
+                                    l3c_rho0=rho0_present,mic=mic,subcells=subcells,&
+                                    error=error)
+          CALL build_neighbor_lists(sab_aux_fit_asymm,atom,cell,r_skin,maxatom_local,&
+                                    unit_conv,unit_str,output_unit,&
+                                    aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,&
+                                    name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL_ASYMM",&
+                                    l3c_oce=paw_atom_present,&
+                                    l3c_rho0=rho0_present,mic=mic,&
+                                    symmetric=.FALSE.,subcells=subcells,&
+                                    error=error)
+       END IF
 
-      END IF
+       IF (molecule_only) THEN
+          ! *** This needs to be checked
+          CALL build_restricted_neighbor_lists(sab_aux_fit_vs_orb,atom,cell,r_skin,&
+                                               maxatom_local,unit_conv,unit_str,&
+                                               output_unit,aux_fit_present,orb_present,&
+                                               aux_fit_radius,orb_radius,&
+                                               name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL",&
+                                               subcells=subcells,&
+                                               error=error)
+       ELSE
+          CALL build_neighbor_lists(sab_aux_fit_vs_orb,atom,cell,r_skin,maxatom_local,&
+                                    unit_conv,unit_str,output_unit,&
+                                    aux_fit_present,orb_present,aux_fit_radius,orb_radius,&
+                                    name="ORBITAL AUX_FIT_ORBITAL",&
+                                    l3c_oce=paw_atom_present,&
+                                    l3c_rho0=rho0_present,mic=mic,&
+                                    symmetric=.FALSE.,subcells=subcells,&
+                                    error=error)
 
-      IF (molecule_only) THEN
-        ! *** This needs to be checked
-        CALL build_restricted_neighbor_lists(sab_aux_fit_vs_orb,atom,cell,r_skin,&
-                                             maxatom_local,unit_conv,unit_str,&
-                                             output_unit,aux_fit_present,orb_present,&
-                                             aux_fit_radius,orb_radius,&
-                                             name="AUX_FIT_ORBITAL AUX_FIT_ORBITAL",&
-                                             subcells=subcells)
-      ELSE
-        CALL build_neighbor_lists(sab_aux_fit_vs_orb,atom,cell,r_skin,maxatom_local,&
-                                  unit_conv,unit_str,output_unit,&
-                                  aux_fit_present,orb_present,aux_fit_radius,orb_radius,&
-                                  name="ORBITAL AUX_FIT_ORBITAL",&
-                                  l3c_oce=paw_atom_present,&
-                                  l3c_rho0=rho0_present,mic=mic,&
-                                  symmetric=.FALSE.,subcells=subcells)
-        
-      END IF
+       END IF
 
-      ! Put the generated neighbor lists into the QS environment
-      CALL set_qs_env(qs_env=qs_env,sab_aux_fit=sab_aux_fit,error=error)
-      CALL set_qs_env(qs_env=qs_env,sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,error=error)
-      CALL set_qs_env(qs_env=qs_env,sab_aux_fit_asymm=sab_aux_fit_asymm,error=error)
- 
-      ! Dump neighbor list if requested
-      CALL write_neighbor_lists(sab_aux_fit,particle_set,cell,para_env,neighbor_list_section,&
-           "/SAB_AUX_FIT","sab_aux_fit","AUX_FIT_ORBITAL AUX_FIT_ORBITAL",error)
-      CALL write_neighbor_lists(sab_aux_fit_vs_orb,particle_set,cell,para_env,neighbor_list_section,&
-          "/SAB_AUX_FIT_VS_ORB","sab_aux_fit_vs_orb","ORBITAL AUX_FIT_ORBITAL",error)
+       ! Put the generated neighbor lists into the QS environment
+       CALL set_qs_env(qs_env=qs_env,sab_aux_fit=sab_aux_fit,error=error)
+       CALL set_qs_env(qs_env=qs_env,sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,error=error)
+       CALL set_qs_env(qs_env=qs_env,sab_aux_fit_asymm=sab_aux_fit_asymm,error=error)
+
+       ! Dump neighbor list if requested
+       CALL write_neighbor_lists(sab_aux_fit,particle_set,cell,para_env,neighbor_list_section,&
+            "/SAB_AUX_FIT","sab_aux_fit","AUX_FIT_ORBITAL AUX_FIT_ORBITAL",error)
+       CALL write_neighbor_lists(sab_aux_fit_vs_orb,particle_set,cell,para_env,neighbor_list_section,&
+            "/SAB_AUX_FIT_VS_ORB","sab_aux_fit_vs_orb","ORBITAL AUX_FIT_ORBITAL",error)
     END IF
 
     ! Build orbital-orbital list containing all the pairs, to be used with
     ! non-symmetric operators. Beware: the cutoff of the orbital-orbital overlap
     ! might be not optimal. It should be verified for each operator.
     IF(all_pairs_list) THEN
-      CALL build_neighbor_lists(sab_all,atom,cell,r_skin,maxatom_local,&
-                                unit_conv,unit_str,output_unit,&
-                                orb_present,orb_present,orb_radius,orb_radius,&
-                                name="ALL_ORBITAL ORBITAL",&
-                                l3c_oce=paw_atom_present,&
-                                l3c_rho0=rho0_present,&
-                                symmetric=.FALSE.,subcells=subcells)
-      ! Put the generated neighbor lists into the QS environment
-      CALL set_qs_env(qs_env=qs_env,sab_all=sab_all,error=error)
+       CALL build_neighbor_lists(sab_all,atom,cell,r_skin,maxatom_local,&
+                                 unit_conv,unit_str,output_unit,&
+                                 orb_present,orb_present,orb_radius,orb_radius,&
+                                 name="ALL_ORBITAL ORBITAL",&
+                                 l3c_oce=paw_atom_present,&
+                                 l3c_rho0=rho0_present,&
+                                 symmetric=.FALSE.,subcells=subcells,&
+                                 error=error)
+       ! Put the generated neighbor lists into the QS environment
+       CALL set_qs_env(qs_env=qs_env,sab_all=sab_all,error=error)
     END IF
 
     ! Build orbital GTH-PPL operator overlap list
 
     IF (gth_potential_present) THEN
-      IF (ANY(ppl_present)) THEN
-        CALL build_gth_ppl_neighbor_lists(sac_ppl,atom,cell,r_skin,&
-                                          maxatom_local,unit_conv,unit_str,&
-                                          output_unit,orb_present,ppl_present,&
-                                          orb_radius,ppl_radius,&
-                                          name="ORBITAL GTH-PPL",&
-                                          subcells=subcells)
+       IF (ANY(ppl_present)) THEN
+          CALL build_gth_ppl_neighbor_lists(sac_ppl,atom,cell,r_skin,&
+                                            maxatom_local,unit_conv,unit_str,&
+                                            output_unit,orb_present,ppl_present,&
+                                            orb_radius,ppl_radius,&
+                                            name="ORBITAL GTH-PPL",&
+                                            subcells=subcells,&
+                                            error=error)
 
-        ! Put the generated neighbor lists into the QS environment
-        CALL set_qs_env(qs_env=qs_env,sac_ppl=sac_ppl,error=error)
+          ! Put the generated neighbor lists into the QS environment
+          CALL set_qs_env(qs_env=qs_env,sac_ppl=sac_ppl,error=error)
 
-        ! Dump neighbor list if requested
-        CALL write_neighbor_lists(sac_ppl,particle_set,cell,para_env,neighbor_list_section,&
-             "/SAC_PPL","sac_ppl","ORBITAL GTH-PPL",error)
-      END IF
+          ! Dump neighbor list if requested
+          CALL write_neighbor_lists(sac_ppl,particle_set,cell,para_env,neighbor_list_section,&
+               "/SAC_PPL","sac_ppl","ORBITAL GTH-PPL",error)
+       END IF
 
-      IF (ANY(ppnl_present)) THEN
-        CALL build_gth_ppnl_neighbor_lists(sac_ppnl,sbc_ppnl,atom,cell,r_skin,&
-                                           maxatom,maxatom_local,unit_conv,unit_str,&
-                                           output_unit,orb_present,ppnl_present,&
-                                           orb_radius,ppnl_radius,&
-                                           name="ORBITAL GTH-PPNL",&
-                                           subcells=subcells)
+       IF (ANY(ppnl_present)) THEN
+          CALL build_gth_ppnl_neighbor_lists(sac_ppnl,sbc_ppnl,atom,cell,r_skin,&
+                                             maxatom,maxatom_local,unit_conv,unit_str,&
+                                             output_unit,orb_present,ppnl_present,&
+                                             orb_radius,ppnl_radius,&
+                                             name="ORBITAL GTH-PPNL",&
+                                             subcells=subcells,&
+                                             error=error)
 
-        ! Put the generated neighbor lists into the QS environment
-        CALL set_qs_env(qs_env=qs_env,sac_ppnl=sac_ppnl,sbc_ppnl=sbc_ppnl,error=error)
+          ! Put the generated neighbor lists into the QS environment
+          CALL set_qs_env(qs_env=qs_env,sac_ppnl=sac_ppnl,sbc_ppnl=sbc_ppnl,error=error)
 
-        ! Dump neighbor list if requested
-        CALL write_neighbor_lists(sac_ppnl,particle_set,cell,para_env,neighbor_list_section,&
-             "/SAC_PPNL","sac_ppnl","ORBITAL(A) GTH-PPNL",error)
+          ! Dump neighbor list if requested
+          CALL write_neighbor_lists(sac_ppnl,particle_set,cell,para_env,neighbor_list_section,&
+               "/SAC_PPNL","sac_ppnl","ORBITAL(A) GTH-PPNL",error)
 
-        CALL write_neighbor_lists(sbc_ppnl,particle_set,cell,para_env,neighbor_list_section,&
-             "/SBC_PPNL","sbc_ppnl","ORBITAL(B) GTH-PPNL",error)
-      END IF
+          CALL write_neighbor_lists(sbc_ppnl,particle_set,cell,para_env,neighbor_list_section,&
+               "/SBC_PPNL","sbc_ppnl","ORBITAL(B) GTH-PPNL",error)
+       END IF
     END IF
 
     ! Build orbital-orbital GAPW projector overlap list
 
     IF (paw_atom_present) THEN
-      IF (ANY(oce_present)) THEN
-        CALL build_gth_ppnl_neighbor_lists(sac_oce,sbc_oce,atom,cell,r_skin,&
-                                           maxatom,maxatom_local,unit_conv,unit_str,&
-                                           output_unit,orb_present,oce_present,&
-                                           short_orb_radius,oce_radius,&
-                                           name="ORBITAL PAW-PRJ",&
-                                           subcells=subcells)
+       IF (ANY(oce_present)) THEN
+          CALL build_gth_ppnl_neighbor_lists(sac_oce,sbc_oce,atom,cell,r_skin,&
+                                             maxatom,maxatom_local,unit_conv,unit_str,&
+                                             output_unit,orb_present,oce_present,&
+                                             short_orb_radius,oce_radius,&
+                                             name="ORBITAL PAW-PRJ",&
+                                             subcells=subcells,&
+                                             error=error)
+          
+          ! Put the generated neighbor lists into the QS environment
+          CALL set_qs_env(qs_env=qs_env,sac_oce=sac_oce,sbc_oce=sbc_oce,error=error)
 
-        ! Put the generated neighbor lists into the QS environment
-        CALL set_qs_env(qs_env=qs_env,sac_oce=sac_oce,sbc_oce=sbc_oce,error=error)
+          ! Dump neighbor list if requested
+          CALL write_neighbor_lists(sac_oce,particle_set,cell,para_env,neighbor_list_section,&
+               "/SAC_OCE","sac_oce","ORBITAL(A) PAW-PRJ",error)
 
-        ! Dump neighbor list if requested
-        CALL write_neighbor_lists(sac_oce,particle_set,cell,para_env,neighbor_list_section,&
-             "/SAC_OCE","sac_oce","ORBITAL(A) PAW-PRJ",error)
-
-        CALL write_neighbor_lists(sbc_oce,particle_set,cell,para_env,neighbor_list_section,&
-             "/SBC_OCE","sbc_oce","ORBITAL(B) PAW-PRJ",error)
-      END IF
+          CALL write_neighbor_lists(sbc_oce,particle_set,cell,para_env,neighbor_list_section,&
+               "/SBC_OCE","sbc_oce","ORBITAL(B) PAW-PRJ",error)
+       END IF
     END IF
 
     IF (qs_env%dft_control%qs_control%semi_empirical) THEN
-      ALLOCATE (semi_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "semi_present",nkind*int_size)
-      ALLOCATE (c_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "c_radius",nkind*dp_size)
-      semi_present = .TRUE.
-      c_radius = qs_env%dft_control%qs_control%se_control%rc_coulomb
+       ALLOCATE (semi_present(nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (c_radius(nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       semi_present = .TRUE.
+       c_radius = qs_env%dft_control%qs_control%se_control%rc_coulomb
 
-      ! Build the neighbor lists for the Hartree terms
-      CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
-                                unit_conv,unit_str,output_unit,semi_present,semi_present,&
-                                c_radius,c_radius,&
-                                name="HARTREE INTERACTIONS",&
-                                subcells=subcells)
-      CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
+       ! Build the neighbor lists for the Hartree terms
+       CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
+                                 unit_conv,unit_str,output_unit,semi_present,&
+                                 semi_present,c_radius,c_radius,&
+                                 name="HARTREE INTERACTIONS",&
+                                 subcells=subcells,&
+                                 error=error)
+       CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
 
-      ! Dump neighbor list if requested
-      CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,neighbor_list_section,&
-           "/SAB_2C","sab_2c","HARTREE INTERACTIONS",error)
+       ! Dump neighbor list if requested
+       CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,neighbor_list_section,&
+            "/SAB_2C","sab_2c","HARTREE INTERACTIONS",error)
 
-      DEALLOCATE (semi_present,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "semi_present")
-      DEALLOCATE (c_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "c_radius")
+       DEALLOCATE (semi_present,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (c_radius,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSEIF (qs_env%dft_control%scp) THEN
-      IF ( qs_env%dft_control%scp_control%dispersion ) THEN
-        ALLOCATE (c_radius(nkind),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "c_radius",nkind*dp_size)
-        DO ikind = 1, nkind
-         c_radius(ikind) = 10.45_dp ! hard wired for now
-        END DO
+       IF ( qs_env%dft_control%scp_control%dispersion ) THEN
+          ALLOCATE (c_radius(nkind),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO ikind = 1, nkind
+             c_radius(ikind) = 10.45_dp ! hard wired for now
+          END DO
 
-        CALL build_neighbor_lists(sab_scp,atom,cell,r_skin,maxatom_local,&
-                                  unit_conv,unit_str,output_unit,aux_present,aux_present,&
-                                  c_radius,c_radius,name="SCP_DISPERSION",subcells=subcells)
+          CALL build_neighbor_lists(sab_scp,atom,cell,r_skin,maxatom_local,&
+               unit_conv,unit_str,output_unit,aux_present,aux_present,&
+               c_radius,c_radius,name="SCP_DISPERSION",subcells=subcells,&
+               error=error)
 
-        ! Put the generated neighbor lists into the QS environment
-        CALL set_qs_env(qs_env=qs_env,sab_scp=sab_scp,error=error)
+          ! Put the generated neighbor lists into the QS environment
+          CALL set_qs_env(qs_env=qs_env,sab_scp=sab_scp,error=error)
 
-        ! Dump neighbor list if requested
-        CALL write_neighbor_lists(sab_scp,particle_set,cell,para_env,neighbor_list_section,&
-             "/SAB_SCP","sab_scp","SCP DISPERSION PAIR POTENTIAL",error)
+          ! Dump neighbor list if requested
+          CALL write_neighbor_lists(sab_scp,particle_set,cell,para_env,neighbor_list_section,&
+               "/SAB_SCP","sab_scp","SCP DISPERSION PAIR POTENTIAL",error)
 
-        DEALLOCATE (c_radius,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius")
-      END IF
+          DEALLOCATE (c_radius,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
     ELSEIF (qs_env%dft_control%qs_control%dftb) THEN
 
-      ! Build the neighbor lists for the DFTB repulsive pair-potential
-      CALL get_qs_env(qs_env=qs_env,&
-                    dftb_potential=dftb_potential,error=error)
-      ALLOCATE(ab_radius(nkind,nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab_radius")
-      DO ikind=1,nkind
-        DO jkind=1,ikind
-          IF ( dftb_potential(ikind,jkind)%n_urpoly > 0 .OR. &
-               dftb_potential(ikind,jkind)%spdim > 0 ) THEN
-            ab_radius(ikind,jkind) = dftb_potential(ikind,jkind)%urep_cut
-            ab_radius(jkind,ikind) = dftb_potential(ikind,jkind)%urep_cut
-          ELSE
-            ab_radius(ikind,jkind) = 0._dp
-            ab_radius(jkind,ikind) = 0._dp
-          END IF
-        END DO
-      END DO
-      mic=.TRUE.
-      CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
-                                unit_conv,unit_str,output_unit,orb_present,orb_present,&
-                                orb_radius,orb_radius,pair_radius=ab_radius,&
-                                mic=mic,&
-                                name="DFTB REPULSIVE PAIR POTENTIAL",&
-                                subcells=subcells)
-      ! Put the generated neighbor lists into the QS environment
-      CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
+       ! Build the neighbor lists for the DFTB repulsive pair-potential
+       CALL get_qs_env(qs_env=qs_env,&
+            dftb_potential=dftb_potential,error=error)
+       ALLOCATE(ab_radius(nkind,nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO ikind=1,nkind
+          DO jkind=1,ikind
+             IF ( dftb_potential(ikind,jkind)%n_urpoly > 0 .OR. &
+                  dftb_potential(ikind,jkind)%spdim > 0 ) THEN
+                ab_radius(ikind,jkind) = dftb_potential(ikind,jkind)%urep_cut
+                ab_radius(jkind,ikind) = dftb_potential(ikind,jkind)%urep_cut
+             ELSE
+                ab_radius(ikind,jkind) = 0._dp
+                ab_radius(jkind,ikind) = 0._dp
+             END IF
+          END DO
+       END DO
+       mic=.TRUE.
+       CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
+                                 unit_conv,unit_str,output_unit,orb_present,orb_present,&
+                                 orb_radius,orb_radius,pair_radius=ab_radius,&
+                                 mic=mic,name="DFTB REPULSIVE PAIR POTENTIAL",&
+                                 subcells=subcells,error=error)
+       ! Put the generated neighbor lists into the QS environment
+       CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
 
-      ! Dump neighbor list if requested
-      CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,neighbor_list_section,&
-           "/SAB_2C","sab_2c","DFTB REPULSIVE PAIR POTENTIAL",error)
+       ! Dump neighbor list if requested
+       CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,neighbor_list_section,&
+            "/SAB_2C","sab_2c","DFTB REPULSIVE PAIR POTENTIAL",error)
 
-      DEALLOCATE(ab_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab_radius")
+       DEALLOCATE(ab_radius,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      ! Build the neighbor lists for the DFTB Ewald methods
-      IF ( qs_env%dft_control%qs_control%dftb_control%do_ewald ) THEN
-        ALLOCATE (c_radius(nkind),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "c_radius",nkind*dp_size)
-        CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,error=error)
-        CALL ewald_env_get ( ewald_env, alpha=alpha )
-        c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
-        CALL build_neighbor_lists(sac_3c,atom,cell,r_skin,maxatom_local,&
-                                  unit_conv,unit_str,output_unit,orb_present,orb_present,&
-                                  c_radius,c_radius,mic=mic,name="EWALD OVERLAP",&
-                                  subcells=subcells)
-        ! Put the generated neighbor lists into the QS environment
-        CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,error=error)
-        DEALLOCATE (c_radius,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius")
-      END IF
+       ! Build the neighbor lists for the DFTB Ewald methods
+       IF ( qs_env%dft_control%qs_control%dftb_control%do_ewald ) THEN
+          ALLOCATE (c_radius(nkind),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      ! Build the neighbor lists for the DFTB vdW pair potential
-      IF ( qs_env%dft_control%qs_control%dftb_control%dispersion ) THEN
-        ALLOCATE (c_radius(nkind),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "c_radius",nkind*dp_size)
-        DO ikind = 1, nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_atom)
-          CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
-            rcdisp=c_radius(ikind),error=error)
-        END DO
+          CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,error=error)
+          CALL ewald_env_get ( ewald_env, alpha=alpha )
+          c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
+          CALL build_neighbor_lists(sac_3c,atom,cell,r_skin,maxatom_local,&
+               unit_conv,unit_str,output_unit,orb_present,orb_present,&
+               c_radius,c_radius,mic=mic,name="EWALD OVERLAP",&
+               subcells=subcells,error=error)
+          ! Put the generated neighbor lists into the QS environment
+          CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,error=error)
+          DEALLOCATE (c_radius,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-        CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&
-                                  unit_conv,unit_str,output_unit,orb_present,orb_present,&
-                                  c_radius,c_radius,name="DISPERSION",subcells=subcells)
-        ! Put the generated neighbor lists into the QS environment
-        CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
+       ! Build the neighbor lists for the DFTB vdW pair potential
+       IF ( qs_env%dft_control%qs_control%dftb_control%dispersion ) THEN
+          ALLOCATE (c_radius(nkind),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO ikind = 1, nkind
+             atomic_kind => atomic_kind_set(ikind)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_atom)
+             CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
+                                      rcdisp=c_radius(ikind),error=error)
+          END DO
 
-        DEALLOCATE (c_radius,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius")
-      END IF
+          CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&
+               unit_conv,unit_str,output_unit,orb_present,orb_present,&
+               c_radius,c_radius,name="DISPERSION",subcells=subcells,&
+               error=error)
+          ! Put the generated neighbor lists into the QS environment
+          CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
+
+          DEALLOCATE (c_radius,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
     ELSE
-     
-      ! Build the neighbor lists for the vdW pair potential
-      CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,error=error)
-      IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
-        ALLOCATE (c_radius(nkind),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius",nkind*dp_size)
-        c_radius(:) = dispersion_env%rc_disp
 
-        CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&
-                                  unit_conv,unit_str,output_unit,orb_present,orb_present,&
-                                  c_radius,c_radius,name="DISPERSION",subcells=subcells)
-        ! Put the generated neighbor lists into the QS environment
-        CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
+       ! Build the neighbor lists for the vdW pair potential
+       CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,error=error)
+       IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
+          ALLOCATE (c_radius(nkind),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          c_radius(:) = dispersion_env%rc_disp
 
-        DEALLOCATE (c_radius,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius")
-      END IF
+          CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&
+               unit_conv,unit_str,output_unit,orb_present,orb_present,&
+               c_radius,c_radius,name="DISPERSION",subcells=subcells,&
+               error=error)
+          ! Put the generated neighbor lists into the QS environment
+          CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
+
+          DEALLOCATE (c_radius,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
     END IF
 
     IF (rho0_present) THEN
 
-      ! Build the neighbor lists for the 2-centers Hartree_local terms
-      ! Vh(rho0_h)rho0_h - Vh(rho0_s)rho0_s
+       ! Build the neighbor lists for the 2-centers Hartree_local terms
+       ! Vh(rho0_h)rho0_h - Vh(rho0_s)rho0_s
 
-      CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
-                                unit_conv,unit_str,output_unit,Qlm_present,Qlm_present,&
-                                V0hmV0s_radius,V0hmV0s_radius,&
-                                name="TWO-CENTER ORBITAL V_HARTREE_LOCAL",&
-                                subcells=subcells)
+       CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
+                                 unit_conv,unit_str,output_unit,Qlm_present,Qlm_present,&
+                                 V0hmV0s_radius,V0hmV0s_radius,&
+                                 name="TWO-CENTER ORBITAL V_HARTREE_LOCAL",&
+                                 subcells=subcells,error=error)
 
-      ! Put the generated neighbor lists into the QS environment
+       ! Put the generated neighbor lists into the QS environment
 
-      CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
+       CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
 
-      ! Dump neighbor list if requested
-      CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,neighbor_list_section,&
-           "/SAB_2C","sab_2c","TWO-CENTER ORBITAL V_HARTREE_LOCAL",error)
+       ! Dump neighbor list if requested
+       CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,neighbor_list_section,&
+            "/SAB_2C","sab_2c","TWO-CENTER ORBITAL V_HARTREE_LOCAL",error)
 
-      ! Build the neighbor lists for the 3-centers Hartree_local terms
-      ! Vh(rho0_h-rho0_s) rho_soft
-      ! and for the nuclear potential term in all-electron calculations
-      ! -Zc*erfc(zetc|r-Rc|)/|r-Rc|
+       ! Build the neighbor lists for the 3-centers Hartree_local terms
+       ! Vh(rho0_h-rho0_s) rho_soft
+       ! and for the nuclear potential term in all-electron calculations
+       ! -Zc*erfc(zetc|r-Rc|)/|r-Rc|
 
-      ! The lists are groups of 3 atoms A B C, where A and B are a pair in
-      ! the orb_lists, and C is close to both A and B, within the given radius
+       ! The lists are groups of 3 atoms A B C, where A and B are a pair in
+       ! the orb_lists, and C is close to both A and B, within the given radius
 
-      ! V0hmV0s_radius is the max distance from  the C center to interact
-      ! with the compensation charge n0_s or the nuclear charge
+       ! V0hmV0s_radius is the max distance from  the C center to interact
+       ! with the compensation charge n0_s or the nuclear charge
 
-      IF (all_potential_present) THEN
-        DO ikind=1,nkind
-          V0hmV0s_radius(ikind) = MAX(V0hmV0s_radius(ikind),all_pot_rad(ikind))
-        END DO
-      END IF
+       IF (all_potential_present) THEN
+          DO ikind=1,nkind
+             V0hmV0s_radius(ikind) = MAX(V0hmV0s_radius(ikind),all_pot_rad(ikind))
+          END DO
+       END IF
 
-      ! orb_rad_3c is the max distance from the A and B centers to have
-      ! a not negligible interaction of the density with the potential
-      ! Vh(rho0_h-rho0_s) or the potential Zc erfc(zetc|r-Rc|)/|r-Rc|
-      ! These two potentials should be very short ranged
+       ! orb_rad_3c is the max distance from the A and B centers to have
+       ! a not negligible interaction of the density with the potential
+       ! Vh(rho0_h-rho0_s) or the potential Zc erfc(zetc|r-Rc|)/|r-Rc|
+       ! These two potentials should be very short ranged
 
-      CALL build_gth_ppnl_neighbor_lists(sac_3c,sbc_3c,atom,cell,r_skin,&
-                                         maxatom,maxatom_local,unit_conv,unit_str,&
-                                         output_unit,orb_present,Qlm_present,&
-                                         orb_rad_3c,V0hmV0s_radius,&
-                                         name="THREE-CENTER ORBITAL V_HARTREE_LOCAL",&
-                                         subcells=subcells)
+       CALL build_gth_ppnl_neighbor_lists(sac_3c,sbc_3c,atom,cell,r_skin,&
+                                          maxatom,maxatom_local,unit_conv,unit_str,&
+                                          output_unit,orb_present,Qlm_present,&
+                                          orb_rad_3c,V0hmV0s_radius,&
+                                          name="THREE-CENTER ORBITAL V_HARTREE_LOCAL",&
+                                          subcells=subcells,error=error)
 
-      ! Put the generated neighbor lists into the QS environment
-      CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,sbc_3c=sbc_3c,error=error)
+       ! Put the generated neighbor lists into the QS environment
+       CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,sbc_3c=sbc_3c,error=error)
 
-      ! Dump neighbor list if requested
-      CALL write_neighbor_lists(sac_3c,particle_set,cell,para_env,neighbor_list_section,&
-           "/SAC_3C","sac_3c","THREE-CENTER ORBITAL(A) V_HARTREE_LOCAL",error)
+       ! Dump neighbor list if requested
+       CALL write_neighbor_lists(sac_3c,particle_set,cell,para_env,neighbor_list_section,&
+            "/SAC_3C","sac_3c","THREE-CENTER ORBITAL(A) V_HARTREE_LOCAL",error)
 
-      CALL write_neighbor_lists(sac_3c,particle_set,cell,para_env,neighbor_list_section,&
-           "/SBC_3C","sbc_3c","THREE-CENTER ORBITAL(B) V_HARTREE_LOCAL",error)
+       CALL write_neighbor_lists(sac_3c,particle_set,cell,para_env,neighbor_list_section,&
+            "/SBC_3C","sbc_3c","THREE-CENTER ORBITAL(B) V_HARTREE_LOCAL",error)
     END IF
 
     ! Print particle distribution
-
     print_key_path = "PRINT%DISTRIBUTION"
-
     IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-                                         print_key_path,error=error),&
-                cp_p_file)) THEN
-      iw = cp_print_key_unit_nr(logger=logger,&
-                                basis_section=force_env_section,&
-                                print_key_path=print_key_path,&
-                                extension=".out",&
-                                error=error)
-      CALL write_neighbor_distribution(sab_orb,atomic_kind_set,iw,para_env,error)
-      CALL cp_print_key_finished_output(unit_nr=iw,&
-                                        logger=logger,&
-                                        basis_section=force_env_section,&
-                                        print_key_path=print_key_path,&
-                                        error=error)
+         print_key_path,error=error),&
+         cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger=logger,&
+                                 basis_section=force_env_section,&
+                                 print_key_path=print_key_path,&
+                                 extension=".out",&
+                                 error=error)
+       CALL write_neighbor_distribution(sab_orb,atomic_kind_set,iw,para_env,error)
+       CALL cp_print_key_finished_output(unit_nr=iw,&
+                                         logger=logger,&
+                                         basis_section=force_env_section,&
+                                         print_key_path=print_key_path,&
+                                         error=error)
     END IF
 
     ! Release work storage
     DO ikind=1,nkind
-      NULLIFY (atom(ikind)%list)
-      IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
-        DEALLOCATE (atom(ikind)%list_local_a_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%list_local_a_index")
-      END IF
-      IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
-        DEALLOCATE (atom(ikind)%list_local_b_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%list_local_b_index")
-      END IF
-      IF (ASSOCIATED(atom(ikind)%list_a_mol)) THEN
-        DEALLOCATE (atom(ikind)%list_a_mol,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%list_a_mol")
-      END IF
-      IF (ASSOCIATED(atom(ikind)%list_b_mol)) THEN
-        DEALLOCATE (atom(ikind)%list_b_mol,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%list_b_mol")
-      END IF
-      IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
-        DEALLOCATE (atom(ikind)%r_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%r_pbc")
-      END IF
-      IF (ASSOCIATED(atom(ikind)%s_pbc)) THEN
-        DEALLOCATE (atom(ikind)%s_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%s_pbc")
-      END IF
+       NULLIFY (atom(ikind)%list)
+       IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
+          DEALLOCATE (atom(ikind)%list_local_a_index,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
+          DEALLOCATE (atom(ikind)%list_local_b_index,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(atom(ikind)%list_a_mol)) THEN
+          DEALLOCATE (atom(ikind)%list_a_mol,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(atom(ikind)%list_b_mol)) THEN
+          DEALLOCATE (atom(ikind)%list_b_mol,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
+          DEALLOCATE (atom(ikind)%r_pbc,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(atom(ikind)%s_pbc)) THEN
+          DEALLOCATE (atom(ikind)%s_pbc,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
     END DO
 
-    DEALLOCATE (atom,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "atom")
-
-    DEALLOCATE (orb_present,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "orb_present")
-
-    DEALLOCATE (orb_radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "orb_radius")
-    DEALLOCATE (short_orb_radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "short_orb_radius")
-
+    DEALLOCATE (atom,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (orb_present,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (orb_radius,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (short_orb_radius,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (gth_potential_present) THEN
-
-      DEALLOCATE (ppl_present,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "ppl_present")
-
-      DEALLOCATE (ppl_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "ppl_radius")
-
-      DEALLOCATE (ppnl_present,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "ppnl_present")
-
-      DEALLOCATE (ppnl_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "ppnl_radius")
-
+       DEALLOCATE (ppl_present,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (ppl_radius,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (ppnl_present,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (ppnl_radius,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     IF (paw_atom_present) THEN
-
-      DEALLOCATE (oce_present,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "oce_present")
-
-      DEALLOCATE (oce_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "oce_radius")
-
+       DEALLOCATE (oce_present,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (oce_radius,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 
     IF (rho0_present) THEN
-
-      DEALLOCATE (V0hmV0s_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "V0hmV0s_radius")
-
-      DEALLOCATE(orb_rad_3c,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "hard_radius")
-
+       DEALLOCATE (V0hmV0s_radius,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(orb_rad_3c,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     IF (all_potential_present) THEN
-
-      DEALLOCATE (all_present,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "all_present")
-
-      DEALLOCATE (all_pot_rad,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "all_pot_rad")
-
+       DEALLOCATE (all_present,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (all_pot_rad,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL cp_print_key_finished_output(unit_nr=output_unit,&
@@ -1148,7 +1054,6 @@ CONTAINS
                                       basis_section=force_env_section,&
                                       print_key_path="DFT%PRINT%SUBCELL",&
                                       error=error)
-
     CALL timestop(handle)
 
   END SUBROUTINE build_qs_neighbor_lists
@@ -1159,9 +1064,9 @@ CONTAINS
 !> \date    20.03.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE build_neighbor_lists(ab,atom,cell,r_skin,maxatom_local,&
-    unit_conv, unit_str, output_unit, present_a,present_b,radius_a,radius_b,&
-    pair_radius, name,l3c_oce,l3c_rho0,mic,symmetric,subcells)
+  SUBROUTINE build_neighbor_lists(ab,atom,cell,r_skin,maxatom_local, unit_conv,&
+       unit_str, output_unit, present_a,present_b,radius_a,radius_b, pair_radius,&
+       name,l3c_oce,l3c_rho0,mic,symmetric,subcells,error)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
@@ -1181,18 +1086,19 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0, mic, &
                                                 symmetric
     REAL(dp), INTENT(IN)                     :: subcells
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_neighbor_lists', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
-      iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
-      jkind, k, kcell, natom_local_a, natom_local_b, nkind
+      iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
+      kcell, natom_local_a, natom_local_b, nkind, stat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
-    LOGICAL                                  :: include_ab, my_l3c_oce, &
-                                                my_l3c_rho0, my_mic, &
-                                                my_symmetric
+    LOGICAL                                  :: failure, include_ab, &
+                                                my_l3c_oce, my_l3c_rho0, &
+                                                my_mic, my_symmetric
     REAL(dp)                                 :: rab2, rab2_max, rab_max
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab_max, sb, &
                                                 sb_max, sb_min, sb_pbc
@@ -1203,13 +1109,14 @@ CONTAINS
       POINTER                                :: subcell
 
     CALL timeset(routineN,handle)
+    failure = .FALSE.
     ! Deallocate the old neighbor list structure
     IF (ASSOCIATED(ab)) THEN
-      DO iab=1,SIZE(ab)
-        CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
-      END DO
-      DEALLOCATE (ab,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab")
+       DO iab=1,SIZE(ab)
+          CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
+       END DO
+       DEALLOCATE (ab,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     ! Allocate and initialize the new neighbor list structure
@@ -1224,9 +1131,8 @@ CONTAINS
     my_symmetric = .TRUE.
     IF (PRESENT(symmetric)) my_symmetric = symmetric
 
-    ALLOCATE (ab(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ab",nkind*nkind*int_size)
+    ALLOCATE (ab(nkind*nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO iab=1,SIZE(ab)
       NULLIFY (ab(iab)%neighbor_list_set)
@@ -1393,7 +1299,7 @@ CONTAINS
         ELSE
 
           ! Case 2: A subcell grid is needed
-          CALL allocate_subcell(subcell,nsubcell,maxatom_local)
+          CALL allocate_subcell(subcell,nsubcell,maxatom_local,error=error)
 
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -1515,7 +1421,7 @@ CONTAINS
 
           END DO
 
-          CALL deallocate_subcell(subcell)
+          CALL deallocate_subcell(subcell,error=error)
 
         END IF
 
@@ -1532,8 +1438,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_restricted_neighbor_lists(ab,atom,cell,r_skin,&
     maxatom_local,unit_conv,unit_str, output_unit,present_a,present_b,&
-    radius_a,radius_b,name,subcells)
-
+    radius_a,radius_b,name,subcells,error)
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
     TYPE(local_atoms_type), DIMENSION(:), &
@@ -1548,17 +1453,18 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
     CHARACTER(LEN=*), INTENT(IN)             :: name
     REAL(dp), INTENT(IN)                     :: subcells
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'build_restricted_neighbor_lists', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
-      iatom_subcell, ikind, istat, j, jatom, jatom_local, jkind, k, mol_a, &
-      mol_b, natom_local_a, natom_local_b, nkind
+      iatom_subcell, ikind, j, jatom, jatom_local, jkind, k, mol_a, mol_b, &
+      natom_local_a, natom_local_b, nkind, stat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
-    LOGICAL                                  :: include_ab
+    LOGICAL                                  :: failure, include_ab
     REAL(dp)                                 :: rab2, rab2_max, rab_max
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab_max, sb, &
                                                 sb_max, sb_min
@@ -1569,21 +1475,21 @@ CONTAINS
       POINTER                                :: subcell
 
     CALL timeset(routineN,handle)
+    failure = .FALSE.
     ! Deallocate the old neighbor list structure
     IF (ASSOCIATED(ab)) THEN
       DO iab=1,SIZE(ab)
         CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
       END DO
-      DEALLOCATE (ab,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab")
+      DEALLOCATE (ab,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
    ! Allocate and initialize the new neighbor list structure
     nkind = SIZE(atom)
 
-    ALLOCATE (ab(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ab",nkind*nkind*int_size)
+    ALLOCATE (ab(nkind*nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO iab=1,SIZE(ab)
       NULLIFY (ab(iab)%neighbor_list_set)
@@ -1699,7 +1605,7 @@ CONTAINS
 
           ! Case 2: A subcell grid is needed
 
-          CALL allocate_subcell(subcell,nsubcell,maxatom_local)
+          CALL allocate_subcell(subcell,nsubcell,maxatom_local,error=error)
 
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -1783,7 +1689,7 @@ CONTAINS
 
           END DO
 
-          CALL deallocate_subcell(subcell)
+          CALL deallocate_subcell(subcell,error=error)
 
         END IF
 
@@ -1804,8 +1710,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_gth_ppl_neighbor_lists(ac,atom,cell,r_skin,maxatom_local,&
     unit_conv,unit_str,output_unit, present_a,present_c, radius_a,radius_c,name,&
-    particle_set,subcells)
-
+    particle_set,subcells,error)
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ac
     TYPE(local_atoms_type), DIMENSION(:), &
@@ -1822,16 +1727,17 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     REAL(dp), INTENT(IN)                     :: subcells
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_gth_ppl_neighbor_lists', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
-      iatom_subcell, icell, ikind, istat, j, jcell, k, katom, kcell, kkind, &
-      natom_c, natom_local_a, nkind
+      iatom_subcell, icell, ikind, j, jcell, k, katom, kcell, kkind, natom_c, &
+      natom_local_a, nkind, stat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
-    LOGICAL                                  :: cell000, exclude
+    LOGICAL                                  :: cell000, exclude, failure
     REAL(dp)                                 :: rac2, rac2_max, rac_max
     REAL(dp), DIMENSION(3)                   :: r, rac, rc, s, sac_max, sc, &
                                                 sc_max, sc_min, sc_pbc
@@ -1842,24 +1748,23 @@ CONTAINS
       POINTER                                :: subcell
 
     CALL timeset(routineN,handle)
-
+    failure = .FALSE.
     ! Deallocate the old neighbor list structure
 
     IF (ASSOCIATED(ac)) THEN
       DO iac=1,SIZE(ac)
         CALL deallocate_neighbor_list_set(ac(iac)%neighbor_list_set)
       END DO
-      DEALLOCATE (ac,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ac")
+      DEALLOCATE (ac,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     ! Allocate and initialize the new neighbor list structure
 
     nkind = SIZE(atom)
 
-    ALLOCATE (ac(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ac",nkind*nkind*int_size)
+    ALLOCATE (ac(nkind*nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO iac=1,SIZE(ac)
       NULLIFY (ac(iac)%neighbor_list_set)
@@ -2023,7 +1928,7 @@ CONTAINS
 
           ! Case 2: A subcell grid is needed
 
-          CALL allocate_subcell(subcell,nsubcell,maxatom_local)
+          CALL allocate_subcell(subcell,nsubcell,maxatom_local,error=error)
 
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -2147,7 +2052,7 @@ CONTAINS
 
           END DO
 
-          CALL deallocate_subcell(subcell)
+          CALL deallocate_subcell(subcell,error=error)
 
         END IF
 
@@ -2169,8 +2074,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_gth_ppnl_neighbor_lists(ac,bc,atom,cell,r_skin,&
     maxatom,maxatom_local, unit_conv, unit_str, output_unit, present_a,present_c,&
-    radius_a,radius_c,name,subcells)
-
+    radius_a,radius_c,name,subcells,error)
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ac, bc
     TYPE(local_atoms_type), DIMENSION(:), &
@@ -2185,17 +2089,19 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_c
     CHARACTER(LEN=*), INTENT(IN)             :: name
     REAL(dp), INTENT(IN)                     :: subcells
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'build_gth_ppnl_neighbor_lists', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
-      iatom_subcell, icell, icell_b, ikind, istat, j, jcell, jcell_b, k, &
-      katom, kcell, kcell_b, kkind, natom_c, natom_local_a, natom_local_b, &
-      nkind
+      iatom_subcell, icell, icell_b, ikind, j, jcell, jcell_b, k, katom, &
+      kcell, kcell_b, kkind, natom_c, natom_local_a, natom_local_b, nkind, &
+      stat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: rac2, rac2_max, rac_max
     REAL(dp), DIMENSION(3)                   :: r, rac, rc, s, s2r, s_max, &
                                                 s_min, sac_max, sc, sc_max, &
@@ -2208,37 +2114,33 @@ CONTAINS
       POINTER                                :: subcell_a, subcell_b
 
     CALL timeset(routineN,handle)
-
+    failure = .FALSE.
     ! Deallocate the old neighbor list structures
 
     IF (ASSOCIATED(ac)) THEN
       DO iac=1,SIZE(ac)
         CALL deallocate_neighbor_list_set(ac(iac)%neighbor_list_set)
       END DO
-      DEALLOCATE (ac,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ac")
+      DEALLOCATE (ac,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     IF (ASSOCIATED(bc)) THEN
       DO iac=1,SIZE(bc)
         CALL deallocate_neighbor_list_set(bc(iac)%neighbor_list_set)
       END DO
-      DEALLOCATE (bc,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"bc")
+      DEALLOCATE (bc,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     ! Allocate and initialize the new neighbor list structures
 
     nkind = SIZE(atom)
 
-    ALLOCATE (ac(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ac",nkind*nkind*int_size)
-
-    ALLOCATE (bc(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "bc",nkind*nkind*int_size)
-
+    ALLOCATE (ac(nkind*nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (bc(nkind*nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO iac=1,SIZE(ac)
       NULLIFY (ac(iac)%neighbor_list_set)
       NULLIFY (bc(iac)%neighbor_list_set)
@@ -2433,7 +2335,7 @@ CONTAINS
 
         ELSE
 
-          CALL allocate_subcell(subcell_a,nsubcell,maxatom_local)
+          CALL allocate_subcell(subcell_a,nsubcell,maxatom_local,error=error)
 
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -2453,7 +2355,7 @@ CONTAINS
                                    neighbor_list=kind_a(iatom_local)%neighbor_list)
           END DO
 
-          CALL allocate_subcell(subcell_b,nsubcell,maxatom_local)
+          CALL allocate_subcell(subcell_b,nsubcell,maxatom_local,error=error)
 
           DO iatom_local=1,natom_local_b
             iatom = atom(ikind)%list_local_b_index(iatom_local)
@@ -2634,8 +2536,8 @@ CONTAINS
 
           END DO
 
-          CALL deallocate_subcell(subcell_a)
-          CALL deallocate_subcell(subcell_b)
+          CALL deallocate_subcell(subcell_a,error=error)
+          CALL deallocate_subcell(subcell_b,error=error)
 
         END IF
 
@@ -2649,33 +2551,35 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate and initialize a subcell grid structure for the atomic neighbor search.  
-!> \author MK 
+!> \author MK  
 !> \date    12.06.2003
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE allocate_subcell(subcell,nsubcell,maxatom,cell)
+  SUBROUTINE allocate_subcell(subcell,nsubcell,maxatom,cell,error)
 
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
     INTEGER, DIMENSION(3), INTENT(IN)        :: nsubcell
     INTEGER, INTENT(IN), OPTIONAL            :: maxatom
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_subcell', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat, j, k, na, nb, nc
+    INTEGER                                  :: i, j, k, na, nb, nc, stat
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: a_max, a_min, b_max, b_min, &
                                                 c_max, c_min, delta_a, &
                                                 delta_b, delta_c
 
+    failure = .FALSE.
     na = nsubcell(1)
     nb = nsubcell(2)
     nc = nsubcell(3)
 
-    ALLOCATE (subcell(na,nb,nc),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "subcell",na*nb*nc*int_size)
+    ALLOCATE (subcell(na,nb,nc),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     delta_a = 1.0_dp/REAL(na,dp)
     delta_b = 1.0_dp/REAL(nb,dp)
@@ -2709,10 +2613,8 @@ CONTAINS
              CALL scaled_to_real(subcell(i,j,k)%corners(:,8),(/a_max,b_max,c_max/),cell)
           END IF
           IF (PRESENT(maxatom)) THEN
-             ALLOCATE (subcell(i,j,k)%atom_list(maxatom),STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                              "subcell(i,j,k)%atom_list",&
-                                              maxatom*int_size)
+             ALLOCATE (subcell(i,j,k)%atom_list(maxatom),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           a_min = a_max
         END DO
@@ -2729,39 +2631,35 @@ CONTAINS
 !> \date    16.06.2003
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE deallocate_subcell(subcell)
+  SUBROUTINE deallocate_subcell(subcell,error)
 
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_subcell', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat, j, k
+    INTEGER                                  :: i, j, k, stat
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     IF (ASSOCIATED(subcell)) THEN
 
-      DO k=1,SIZE(subcell,3)
-        DO j=1,SIZE(subcell,2)
-          DO i=1,SIZE(subcell,1)
-            DEALLOCATE (subcell(i,j,k)%atom_list,STAT=istat)
-            IF (istat /= 0) THEN
-              CALL stop_memory(routineN,moduleN,__LINE__,&
-                               "subcell(i,j,k)%atom_list")
-            END IF
+       DO k=1,SIZE(subcell,3)
+          DO j=1,SIZE(subcell,2)
+             DO i=1,SIZE(subcell,1)
+                DEALLOCATE (subcell(i,j,k)%atom_list,STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END DO
           END DO
-        END DO
-      END DO
+       END DO
 
-      DEALLOCATE (subcell,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "subcell")
-
+       DEALLOCATE (subcell,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
-
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer subcell is not associated")
-
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer subcell is not associated")
     END IF
 
   END SUBROUTINE deallocate_subcell
@@ -2786,31 +2684,30 @@ CONTAINS
     LOGICAL, PARAMETER                       :: full_output = .FALSE.
 
     INTEGER                                  :: group, handle, iab, ikind, &
-                                                ilist, ipe, istat, jkind, &
-                                                mype, n, nkind, nlist, nnode, &
-                                                npe, nsgf_a, nsgf_b
+                                                ilist, ipe, jkind, mype, n, &
+                                                nkind, nlist, nnode, npe, &
+                                                nsgf_a, nsgf_b, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
+    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
     CALL timeset(routineN,handle)
-
+    failure = .FALSE.
     group = para_env%group
     mype = para_env%mepos + 1
     npe = para_env%num_pe
 
     ! Allocate work storage
 
-    ALLOCATE (nblock(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "nblock",npe*int_size)
+    ALLOCATE (nblock(npe),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     nblock(:) = 0
 
-    ALLOCATE (nelement(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "nelement",npe*int_size)
+    ALLOCATE (nelement(npe),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     nelement(:) = 0
 
     nkind = SIZE(atomic_kind_set)
@@ -2896,14 +2793,10 @@ CONTAINS
 
     ! Release work storage
 
-    DEALLOCATE (nblock,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "nblock")
-
-    DEALLOCATE (nelement,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "nelement")
-
+    DEALLOCATE (nblock,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (nelement,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
 
   END SUBROUTINE write_neighbor_distribution

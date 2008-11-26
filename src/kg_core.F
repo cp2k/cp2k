@@ -395,7 +395,7 @@ CONTAINS
 
           ! Case 2: A subcell grid is needed
 
-          CALL allocate_subcell(subcell,nsubcell,maxatom_local)
+          CALL allocate_subcell(subcell,nsubcell,maxatom_local,error=error)
 
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -532,7 +532,7 @@ CONTAINS
 
           END DO
 
-          CALL deallocate_subcell(subcell)
+          CALL deallocate_subcell(subcell,error=error)
 
         END IF
 

@@ -343,8 +343,8 @@ CONTAINS
        WRITE (UNIT=output_unit,FMT="(T4,A,10X,3I10)")" NUMBER OF INTERACTING SUBCELLS ::",isubcell
     END IF
     ! Allocate subcells
-    CALL allocate_subcell(subcell_a,nsubcell,cell=cell)
-    CALL allocate_subcell(subcell_b,nsubcell,cell=cell)
+    CALL allocate_subcell(subcell_a,nsubcell,cell=cell,error=error)
+    CALL allocate_subcell(subcell_b,nsubcell,cell=cell,error=error)
     ! Let's map the sequence of the periodic images
     ncellmax = MAXVAL(ncell)
     ALLOCATE(cellmap(-ncellmax:ncellmax,-ncellmax:ncellmax,-ncellmax:ncellmax),stat=stat)
@@ -610,8 +610,8 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(sphcub,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL deallocate_subcell(subcell_a)
-    CALL deallocate_subcell(subcell_b)
+    CALL deallocate_subcell(subcell_a,error=error)
+    CALL deallocate_subcell(subcell_b,error=error)
 
     CALL timestop(handle)
   END SUBROUTINE build_neighbor_lists

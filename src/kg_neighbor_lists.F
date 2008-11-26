@@ -333,7 +333,7 @@ CONTAINS
                                           orb_radius,ppl_radius,&
                                           name="ORBITAL GTH-PPL",&
                                           particle_set=particle_set,&
-                                          subcells=subcells)
+                                          subcells=subcells,error=error)
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl=sac_ppl,error=error)
 
@@ -347,7 +347,7 @@ CONTAINS
                                           aux_present,ppl_present,&
                                           aux_radius,ppl_radius,&
                                           name="AUXILIARY ORBITAL GTH-PPL",&
-                                          subcells=subcells)
+                                          subcells=subcells,error=error)
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl_aux=sac_ppl_aux,error=error)
 
