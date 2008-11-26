@@ -142,10 +142,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scp_nddo_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, ii, ikind, &
-                                                ilist, jj, natom, &
-                                                neighbor_list_id, nkind, &
-                                                nrow, nsgf_a, nsgf_b, stat
+    INTEGER :: handle, iatom, ii, ikind, ilist, jj, natom, natorb, &
+      neighbor_list_id, nkind, nrow, nsgf_a, nsgf_b, stat
     INTEGER, ALLOCATABLE                     :: first_sgf_a( : ), &
                                                 first_sgf_b( : ), &
                                                 last_sgf_a( : ), &
@@ -153,7 +151,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: app, asp, ass
-    REAL(KIND=dp), ALLOCATABLE               :: a_scp(:,:)
+    REAL(KIND=dp), DIMENSION(9, 9)           :: a_scp
     REAL(KIND=dp), POINTER                   :: ascp_diag( : ), block( :, : )
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -237,19 +235,21 @@ CONTAINS
     CALL set_scp_env ( scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
     ! Now create the vector of diagonal elements of the polarization coefficients
     CALL create_dbm_from_sm ( ascp, sm, "ASCP", .FALSE., para_env, error )
-
-    ALLOCATE( a_scp ( 4, 4 ), stat=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
                             se_parameter=se_kind, &
                             atom_list=atom_list)
-       CALL get_se_param(se_kind, ass=ass,app=app,asp=asp)
-
-       a_scp( 1,1 ) = ass
-       a_scp( 1,2:4) = asp
-       a_scp( 2:4,1) = asp
+       CALL get_se_param(se_kind, ass=ass,app=app,asp=asp,natorb=natorb)
+       IF (natorb>4) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="SCP-NDDO not implemened for d-orbitals!", &
+               error=error, error_level=cp_failure_level)
+       END IF
+       a_scp( 1  ,  1) = ass
+       a_scp( 1  ,2:4) = asp
+       a_scp( 2:4,  1) = asp
        a_scp( 2:4,2:4) = app
 
 
@@ -257,15 +257,14 @@ CONTAINS
        DO ilist=1,SIZE ( atom_list )
           iatom = atom_list ( ilist )
 
-
           CALL get_block_node(matrix=ascp,&
                               block_row=iatom,&
                               block_col=iatom,&
-                              BLOCK=block)
+                              BLOCK=BLOCK)
           DO ii=1,SIZE(block,1)
-            DO jj=1,SIZE(block,2)
-              block(ii,jj) = a_scp ( ii, jj ) 
-            END DO
+             DO jj=1,SIZE(block,2)
+                block(ii,jj) = a_scp (ii,jj) 
+             END DO
           END DO
        END DO ! ilist
     END DO ! ikind 
@@ -274,11 +273,8 @@ CONTAINS
     ALLOCATE (ascp_diag(nrow),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL get_matrix_diagonal ( ascp, ascp_diag )
-
     CALL set_scp_env ( scp_env=scp_env, ascp_diag=ascp_diag, error = error )
 
-    DEALLOCATE (a_scp,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (first_sgf_a,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (last_sgf_a,STAT=stat)
