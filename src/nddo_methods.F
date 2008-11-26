@@ -222,7 +222,7 @@ CONTAINS
           CALL get_scp_env ( scp_env, pscp=pscp, ks_scp=ks_scp, energy=energy_scp, error = error )
           CALL cp_sm_sm_trace(ks_scp,pscp,trace=ecoul_scp,error=error)
           energy_scp%e_scp_hartree = ecoul_scp*0.5_dp
-          CALL evaluate_scp_kernel ( atomic_kind_set, local_particles, pscp, ks_scp, para_env,  &
+          CALL evaluate_scp_kernel ( atomic_kind_set, local_particles, pscp, ks_scp, para_env,&
                                      just_energy, energy_scp%e_scp_kernel, error )
          !NOTE: If needed, at this point, forces on P_SCP are up-to-date and stored in KS_SCP as a*ks_scp
        END IF
@@ -266,6 +266,12 @@ CONTAINS
           IF (qs_env%qmmm) THEN
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                   "QM/MM Electrostatic energy:                    ",energy%qmmm_el
+          END IF
+          IF (scp_nddo) THEN
+             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+                  "SCP electrostatic energy:                    ",energy_scp%e_scp_hartree
+             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+                  "SCP kernel energy:                    ",energy_scp%e_scp_kernel
           END IF
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
