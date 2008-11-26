@@ -721,7 +721,8 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
 
     INTEGER                                  :: ispin, itmp, k, n, nener, &
                                                 nscp, nspin
-    LOGICAL                                  :: do_ener, do_ks, do_scp_dft, do_scp_nddo
+    LOGICAL                                  :: do_ener, do_ks, do_scp_dft, &
+                                                do_scp_nddo
     REAL(KIND=dp)                            :: beta_pr, gnorm_cross, &
                                                 test_down, tmp
     TYPE(cp_logger_type), POINTER            :: logger
