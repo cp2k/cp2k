@@ -212,6 +212,7 @@ MODULE colvar_types
      INTEGER :: ndfunct
      INTEGER :: nqparm
      INTEGER :: nhydronium
+     INTEGER :: nreactionpath
      INTEGER :: nrestraint
      !
      INTEGER :: ntot

@@ -18,7 +18,8 @@ MODULE molecule_kind_types
   USE colvar_types,                    ONLY: &
        angle_colvar_id, colvar_counters, coord_colvar_id, dfunct_colvar_id, &
        dist_colvar_id, hydronium_colvar_id, plane_distance_colvar_id, &
-       qparm_colvar_id, rotation_colvar_id, torsion_colvar_id
+       qparm_colvar_id, reaction_path_colvar_id, rotation_colvar_id, &
+       torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE external_potential_types,        ONLY: all_potential_type,&
@@ -231,16 +232,17 @@ CONTAINS
 
     INTEGER                                  :: k
 
-    ncolv%ndist       = 0
-    ncolv%nangle      = 0
-    ncolv%ndfunct      = 0
-    ncolv%ntorsion    = 0
-    ncolv%ncoord      = 0
-    ncolv%nplane_dist = 0
-    ncolv%nrot        = 0
-    ncolv%nqparm      = 0
-    ncolv%nhydronium  = 0
-    ncolv%nrestraint  = 0
+    ncolv%ndist          = 0
+    ncolv%nangle         = 0
+    ncolv%ndfunct        = 0
+    ncolv%ntorsion       = 0
+    ncolv%ncoord         = 0
+    ncolv%nplane_dist    = 0
+    ncolv%nrot           = 0
+    ncolv%nqparm         = 0
+    ncolv%nhydronium     = 0
+    ncolv%nreactionpath  = 0
+    ncolv%nrestraint     = 0
     IF (ASSOCIATED(colv_list)) THEN
        DO k = 1, SIZE(colv_list)
           IF (colv_list(k)%restraint%active) ncolv%nrestraint  = ncolv%nrestraint + 1
@@ -263,6 +265,8 @@ CONTAINS
              ncolv%nqparm = ncolv%nqparm + 1
           CASE(hydronium_colvar_id)
              ncolv%nhydronium = ncolv%nhydronium + 1
+          CASE(reaction_path_colvar_id)
+             ncolv%nreactionpath = ncolv%nreactionpath + 1
           END SELECT
        END DO
     END IF
@@ -274,7 +278,8 @@ CONTAINS
                  ncolv%ndfunct      +&
                  ncolv%nrot         +&
                  ncolv%nqparm       +&
-                 ncolv%nhydronium
+                 ncolv%nhydronium   +&
+                 ncolv%nreactionpath
 
   END SUBROUTINE setup_colvar_counters
 
