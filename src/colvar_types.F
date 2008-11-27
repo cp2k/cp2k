@@ -49,6 +49,7 @@ MODULE colvar_types
             qparm_colvar_type,&
             hydronium_colvar_type,&
             point_type,&
+            reaction_path_colvar_type,&
             colvar_check_points,&
             eval_point_der,&
             eval_point_pos,&
@@ -64,7 +65,8 @@ MODULE colvar_types
                                 rotation_colvar_id        = 6,&
                                 dfunct_colvar_id           = 7,&
                                 qparm_colvar_id           = 8,&
-                                hydronium_colvar_id       = 9
+                                hydronium_colvar_id       = 9,&
+                                reaction_path_colvar_id   = 10
 
 ! *****************************************************************************
 !> \brief parameters for the distance collective variable
@@ -148,6 +150,7 @@ MODULE colvar_types
      REAL(KIND=dp)                   :: r_OO, r_OH, lambda,nh
   END TYPE hydronium_colvar_type
 
+
 ! *****************************************************************************
 !> \brief parameters for a collective variable
 !> \author alessandro laio and fawzi mohamed
@@ -169,6 +172,7 @@ MODULE colvar_types
      TYPE(qparm_colvar_type), POINTER         :: qparm_param
      TYPE(hydronium_colvar_type), POINTER     :: hydronium_param
      TYPE(point_type), DIMENSION(:), POINTER  :: points
+     TYPE(reaction_path_colvar_type),POINTER  :: reaction_path_param
   END TYPE colvar_type
 
 ! *****************************************************************************
@@ -178,6 +182,19 @@ MODULE colvar_types
      REAL(KIND=dp), DIMENSION (:), POINTER          :: weights
      REAL(KIND=dp), DIMENSION(3)              :: r
   END TYPE point_type
+
+! *****************************************************************************
+  TYPE reaction_path_colvar_type
+     INTEGER :: type_id
+     TYPE(colvar_p_type),POINTER,DIMENSION(:) :: colvar_p
+     INTEGER                                  :: n_components
+     INTEGER,DIMENSION(2)                     :: function_bounds
+     REAL(KIND=dp), DIMENSION (:,:), POINTER    :: f_vals
+     REAL(KIND=dp)                            :: lambda
+     REAL(KIND=dp)                            :: step_size
+     
+  END TYPE reaction_path_colvar_type
+
 
 ! *****************************************************************************
   TYPE colvar_p_type
@@ -237,6 +254,7 @@ CONTAINS
     NULLIFY(colvar%i_atom)
     NULLIFY(colvar%dsdr)
     NULLIFY(colvar%points)
+    NULLIFY(colvar%reaction_path_param)
     IF (.NOT.failure) THEN
        colvar%type_id    = colvar_id
        colvar%use_points = .FALSE.
@@ -268,6 +286,9 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(hydronium_colvar_id)
           ALLOCATE(colvar%hydronium_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(reaction_path_colvar_id)
+          ALLOCATE(colvar%reaction_path_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(no_colvar_id)
           ! Do nothing
@@ -588,6 +609,19 @@ CONTAINS
              list(idum) = i
           ENDDO
           CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CASE(reaction_path_colvar_id)
+          colvar%n_atom_s=0
+          DO ii=1,SIZE(colvar%reaction_path_param%colvar_p)
+             colvar%n_atom_s=colvar%n_atom_s+colvar%reaction_path_param%colvar_p(ii)%colvar%n_atom_s
+          END DO
+          ALLOCATE(list(colvar%n_atom_s))
+          idum=0
+          DO ii=1,SIZE(colvar%reaction_path_param%colvar_p)
+             DO j=1,colvar%reaction_path_param%colvar_p(ii)%colvar%n_atom_s
+                idum=idum+1
+                list(idum)=colvar%reaction_path_param%colvar_p(ii)%colvar%i_atom(j)
+             END DO
+          END DO
        END SELECT
        
        IF (ASSOCIATED(colvar%dsdr)) THEN
@@ -650,7 +684,7 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
-  SUBROUTINE colvar_release(colvar,error)
+  RECURSIVE SUBROUTINE colvar_release(colvar,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -744,6 +778,16 @@ CONTAINS
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        DEALLOCATE(colvar%hydronium_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE (reaction_path_colvar_id)
+       DO i=1,SIZE(colvar%reaction_path_param%colvar_p)
+          CALL colvar_release(colvar%reaction_path_param%colvar_p(i)%colvar,error)
+       END DO
+       DEALLOCATE(colvar%reaction_path_param%colvar_p, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)       
+       DEALLOCATE(colvar%reaction_path_param%f_vals, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DEALLOCATE(colvar%reaction_path_param,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(no_colvar_id)
        ! Do nothing
     CASE default
@@ -761,7 +805,7 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author Teodoro Laino [tlaino] 04.2006
 ! *****************************************************************************
-  SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset, error)
+  RECURSIVE SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset, error)
     TYPE(colvar_type), POINTER               :: colvar_out, colvar_in
     INTEGER, INTENT(IN), OPTIONAL            :: i_atom_offset
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -769,7 +813,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_clone', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: my_offset, ndim, stat
+    INTEGER                                  :: i, my_offset, ndim, ndim2, &
+                                                stat
     LOGICAL                                  :: failure
 
     my_offset = 0   
@@ -890,6 +935,25 @@ CONTAINS
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        colvar_out%hydronium_param%i_oxygens    = colvar_in%hydronium_param%i_oxygens + my_offset
        colvar_out%hydronium_param%i_hydrogens      = colvar_in%hydronium_param%i_oxygens + my_offset
+    CASE(reaction_path_colvar_id)
+       ndim=SIZE(colvar_in%reaction_path_param%colvar_p)
+       ALLOCATE(colvar_out%reaction_path_param%colvar_p(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)       
+       DO i=1,ndim
+          NULLIFY(colvar_out%reaction_path_param%colvar_p(i)%colvar)
+          CALL colvar_clone(colvar_out%reaction_path_param%colvar_p(i)%colvar,&
+                            colvar_in%reaction_path_param%colvar_p(i)%colvar,&
+                            my_offset,error)
+       END DO
+       colvar_out%reaction_path_param%n_components     = colvar_in%reaction_path_param%n_components
+       colvar_out%reaction_path_param% function_bounds = colvar_in%reaction_path_param%  function_bounds
+       ndim=SIZE(colvar_in%reaction_path_param%f_vals,1)
+       ndim2=SIZE(colvar_in%reaction_path_param%f_vals,2)
+       ALLOCATE(colvar_out%reaction_path_param%f_vals(ndim,ndim2),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       colvar_out%reaction_path_param%f_vals           = colvar_in%reaction_path_param%f_vals 
+       colvar_out%reaction_path_param%lambda           = colvar_in%reaction_path_param%lambda  
+       colvar_out%reaction_path_param%step_size        = colvar_in%reaction_path_param%step_size
     END SELECT
     CALL colvar_setup(colvar_out, error) 
   END SUBROUTINE colvar_clone

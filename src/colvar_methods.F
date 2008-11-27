@@ -17,8 +17,8 @@ MODULE colvar_methods
        angle_colvar_id, colvar_check_points, colvar_create, colvar_setup, &
        colvar_type, coord_colvar_id, dfunct_colvar_id, dist_colvar_id, &
        eval_point_der, eval_point_pos, hydronium_colvar_id, &
-       plane_distance_colvar_id, qparm_colvar_id, rotation_colvar_id, &
-       torsion_colvar_id
+       plane_distance_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
+       rotation_colvar_id, torsion_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -27,6 +27,10 @@ MODULE colvar_methods
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
+  USE fparser,                         ONLY: evalf,&
+                                             finalizef,&
+                                             initf,&
+                                             parsef
   USE input_constants,                 ONLY: do_clv_x,&
                                              do_clv_xy,&
                                              do_clv_xz,&
@@ -37,7 +41,9 @@ MODULE colvar_methods
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
+  USE kahan_sum,                       ONLY: accurate_sum
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: fac,&
                                              maxfac,&
@@ -48,7 +54,8 @@ MODULE colvar_methods
   USE particle_types,                  ONLY: particle_type
   USE spherical_harmonics,             ONLY: dlegendre,&
                                              legendre
-  USE string_utilities,                ONLY: uppercase
+  USE string_utilities,                ONLY: compress,&
+                                             uppercase
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -60,52 +67,66 @@ MODULE colvar_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_methods'
 
   PUBLIC :: colvar_read,&
-            colvar_eval_glob_f,&
-            colvar_eval_mol_f
+       colvar_eval_glob_f,&
+       colvar_eval_mol_f
 
   !***
 CONTAINS
 
-! *****************************************************************************
-!> \brief reads a colvar from the input
-!> \param colvar the place where to store what will be read
-!> \param extended_lagrange if the extended lagrangian formalismus should 
-!>        be used
-!> \param icol number of the current colvar (repetition in colvar_section)
-!> \param colvar_section the colvar section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
-!> \par History
-!>      04.2004 created [alessandro laio and fawzi mohamed]
-!> \author teo
-! *****************************************************************************
-  SUBROUTINE colvar_read(colvar, icol, colvar_section, error)
+  ! *****************************************************************************
+  !> \brief reads a colvar from the input
+  !> \param colvar the place where to store what will be read
+  !> \param extended_lagrange if the extended lagrangian formalismus should 
+  !>        be used
+  !> \param icol number of the current colvar (repetition in colvar_section)
+  !> \param colvar_section the colvar section
+  !> \param error variable to control error logging, stopping,... 
+  !>        see module cp_error_handling 
+  !> \par History
+  !>      04.2004 created [alessandro laio and fawzi mohamed]
+  !> \author teo
+  ! *****************************************************************************
+  RECURSIVE SUBROUTINE colvar_read(colvar, icol, colvar_section,rp_call, error)
     TYPE(colvar_type), POINTER               :: colvar
     INTEGER, INTENT(IN)                      :: icol
     TYPE(section_vals_type), POINTER         :: colvar_section
+    LOGICAL, OPTIONAL                        :: rp_call
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_read', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=7)                         :: tag
+    CHARACTER(LEN=default_path_length)       :: path_function
     CHARACTER(LEN=default_string_length)     :: tmpStr, tmpStr2
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: c_kinds
-    INTEGER                                  :: handle, iatm, iw, k, kk, &
-                                                n_var, n_var_k, ndim, stat
+      DIMENSION(:), POINTER                  :: c_kinds, my_par
+    INTEGER                                  :: handle, i, iatm, iend, &
+                                                istart, iw, iw1, j, k, kk, &
+                                                n_var, n_var_k, ncol, ndim, &
+                                                stat, v_count
     INTEGER, DIMENSION(:), POINTER           :: iatms
-    LOGICAL                                  :: failure
-    LOGICAL, DIMENSION(9)                    :: my_subsection
+    INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
+    LOGICAL                                  :: failure, IS_RECURSIVE
+    LOGICAL, DIMENSION(10)                   :: my_subsection
+    REAL(dp), DIMENSION(:), POINTER          :: s1
+    REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
     REAL(KIND=dp)                            :: coeff
+    REAL(KIND=dp), DIMENSION(1)              :: my_val
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: g_range, grid_point, grid_sp, &
+                                                range
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER :: angle_section, coordination_section, &
-      dfunct_section, distance_section, hydronium_section, &
-      plane_dist_section, point_section, qparm_section, rotation_section, &
-      torsion_section, wrk_section
+    TYPE(section_vals_type), POINTER :: angle_section, colvar_subsection, &
+      coordination_section, dfunct_section, distance_section, &
+      hydronium_section, plane_dist_section, point_section, qparm_section, &
+      reaction_path_section, rotation_section, torsion_section, wrk_section
 
     NULLIFY(logger, c_kinds, iatms)
+
+    IS_RECURSIVE=.FALSE.
+    IF(PRESENT(rp_call))IS_RECURSIVE=rp_call
     logger => cp_error_get_logger(error)
+
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
@@ -116,10 +137,12 @@ CONTAINS
     torsion_section      => section_vals_get_subs_vals(colvar_section,"TORSION",i_rep_section=icol,error=error)
     coordination_section => section_vals_get_subs_vals(colvar_section,"COORDINATION",i_rep_section=icol,error=error)
     plane_dist_section   => section_vals_get_subs_vals(colvar_section,"DISTANCE_POINT_PLANE",i_rep_section=icol,&
-                            error=error)
+         error=error)
     rotation_section     => section_vals_get_subs_vals(colvar_section,"BOND_ROTATION",i_rep_section=icol,error=error)
     qparm_section        => section_vals_get_subs_vals(colvar_section,"QPARM",i_rep_section=icol,error=error)
     hydronium_section    => section_vals_get_subs_vals(colvar_section,"HYDRONIUM",i_rep_section=icol,error=error)
+    IF(.NOT.IS_RECURSIVE)&
+         reaction_path_section=> section_vals_get_subs_vals(colvar_section,"REACTION_PATH",i_rep_section=icol,error=error)
 
     CALL section_vals_get(distance_section,     explicit=my_subsection(1), error=error)
     CALL section_vals_get(angle_section,        explicit=my_subsection(2), error=error)
@@ -130,6 +153,11 @@ CONTAINS
     CALL section_vals_get(dfunct_section,        explicit=my_subsection(7), error=error)
     CALL section_vals_get(qparm_section,        explicit=my_subsection(8), error=error)
     CALL section_vals_get(hydronium_section,    explicit=my_subsection(9),error=error)
+    IF(.NOT.IS_RECURSIVE)THEN
+       CALL section_vals_get(reaction_path_section,explicit=my_subsection(10),error=error)
+    ELSE
+       my_subsection(10)=.FALSE.
+    ENDIF
     ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(colvar),cp_failure_level,routinep,error,failure)
@@ -356,8 +384,95 @@ CONTAINS
        CALL section_vals_val_get(hydronium_section,"q",i_val=colvar%hydronium_param%q,error=error)
        CALL section_vals_val_get(hydronium_section,"NH",r_val=colvar%hydronium_param%nh,error=error)
        CALL section_vals_val_get(hydronium_section,"LAMBDA",r_val=colvar%hydronium_param%lambda,error=error)
-    END IF
+    ELSE IF(my_subsection(10))THEN
+       !reaction path
+       CALL colvar_create(colvar,reaction_path_colvar_id, error)
+       colvar%use_points=.FALSE.
+       colvar_subsection => section_vals_get_subs_vals(reaction_path_section,"COLVAR",error=error)
+       CALL section_vals_get(colvar_subsection,n_repetition=ncol,error=error)
+       ALLOCATE(colvar%reaction_path_param%colvar_p(ncol),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (.NOT. failure) THEN
+          DO i= 1, ncol
+             NULLIFY(colvar%reaction_path_param%colvar_p(i)%colvar)
+             CALL colvar_read(colvar%reaction_path_param%colvar_p(i)%colvar,i,colvar_subsection,rp_call=.TRUE., error=error)
+          ENDDO
+       ENDIF
+       colvar%reaction_path_param%n_components=ncol
+       NULLIFY(range)
+       CALL section_vals_val_get(reaction_path_section,"RANGE",r_vals=range,error=error)
+       CALL section_vals_val_get(reaction_path_section,"STEP_SIZE",r_val=colvar%reaction_path_param%step_size,error=error)     
+       CALL section_vals_val_get(reaction_path_section,"LAMBDA",r_val=colvar%reaction_path_param%lambda,error=error)
+       iend=CEILING( MAX(RANGE(1),RANGE(2))/colvar%reaction_path_param%step_size)
+       istart=FLOOR(MIN(RANGE(1) , RANGE(2))/colvar%reaction_path_param%step_size)
+       colvar%reaction_path_param%function_bounds(1)=istart
+       colvar%reaction_path_param%function_bounds(2)=iend
+       ALLOCATE(colvar%reaction_path_param%f_vals(ncol,istart:iend),stat=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+       CALL section_vals_val_get(reaction_path_section,"VARIABLE",c_vals=my_par,i_rep_val=1,error=error)
+       CALL section_vals_val_get(reaction_path_section,"FUNCTION",n_rep_val=ncol,error=error)
+       CPPostcondition(ncol==SIZE(colvar%reaction_path_param%colvar_p) ,cp_failure_level,routinep,error,failure)     
+       CALL initf(ncol)
+       DO i=1,ncol
+          CALL section_vals_val_get(reaction_path_section,"FUNCTION",c_val=path_function,i_rep_val=i,error=error)
+          CALL compress(path_function, full=.TRUE.)
+          CALL parsef(i,TRIM(path_function),my_par)
+          DO j=istart,iend
+             my_val=REAL(j,kind=dp)*colvar%reaction_path_param%step_size
+             colvar%reaction_path_param%f_vals(i,j)=evalf(i,my_val)
+          END DO
+       END DO
+       CALL finalizef()
 
+       iw1= cp_print_key_unit_nr(logger,reaction_path_section,&
+            "MAP",extension=".dat",file_status="REPLACE",error=error)
+       IF(iw1>0)THEN
+          CALL section_vals_val_get(reaction_path_section,"MAP%GRID_SPACING",n_rep_val=ncol,error=error)
+          ALLOCATE(grid_sp(ncol),stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+          DO i=1,ncol
+             CALL section_vals_val_get(reaction_path_section,"MAP%GRID_SPACING",r_val=grid_sp(i),error=error)
+          END DO
+          CALL section_vals_val_get(reaction_path_section,"MAP%RANGE",n_rep_val=ncol,error=error)
+          CPPostcondition(ncol ==SIZE(grid_sp) ,cp_failure_level,routinep,error,failure)
+          ALLOCATE(p_range(2,ncol),stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+          ALLOCATE(p_bounds(2,ncol),stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+          DO i=1,ncol
+             CALL section_vals_val_get(reaction_path_section,"MAP%RANGE",r_vals=g_range,error=error)
+             p_range(:,i)=g_range(:)
+             p_bounds(2,i)=CEILING( MAX(p_range(1,i),p_range(2,i))/grid_sp(i))
+             p_bounds(1,i)=FLOOR(MIN(p_range(1,i) , p_range(2,i))/grid_sp(i))
+          END DO
+          ALLOCATE(s1v(2,istart:iend),stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+          ALLOCATE(s1(2),stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+          ALLOCATE(grid_point(ncol),stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+          v_count=0
+          kk=rec_eval_grid(iw1,ncol,colvar%reaction_path_param%f_vals,v_count,&
+               grid_point,grid_sp,colvar%reaction_path_param%step_size,istart,&
+               iend,s1v,s1,p_bounds,colvar%reaction_path_param%lambda)
+          DEALLOCATE(grid_sp,stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+          DEALLOCATE(p_range,stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+          DEALLOCATE(p_bounds,stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+          DEALLOCATE(s1v,stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+          DEALLOCATE(s1,stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+          DEALLOCATE(grid_point,stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+
+       END IF
+       CALL cp_print_key_finished_output(iw1,logger,reaction_path_section,&
+            "MAP", error=error)   
+    END IF
     CALL colvar_setup(colvar, error)
 
     iw = cp_print_key_unit_nr(logger,colvar_section,&
@@ -387,7 +502,7 @@ CONTAINS
                colvar%dist_param%i_at,colvar%dist_param%j_at
        CASE(coord_colvar_id)
           IF(colvar%coord_param%do_chain) THEN
-                  WRITE ( iw, '( A)' ) ' COLVARS| COORDINATION CHAIN FC(from->to)*FC(to->to_B)>> '
+             WRITE ( iw, '( A)' ) ' COLVARS| COORDINATION CHAIN FC(from->to)*FC(to->to_B)>> '
           END IF
           IF (colvar%coord_param%use_kinds_from) THEN
              WRITE ( iw, '( A,T71,A10)' )  (' COLVARS| COORDINATION  >>> FROM KINDS',&
@@ -411,27 +526,27 @@ CONTAINS
           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN',colvar%coord_param%nncrd
           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND',colvar%coord_param%ndcrd
           IF(colvar%coord_param%do_chain) THEN
-            IF (colvar%coord_param%use_kinds_to_b) THEN
-               WRITE ( iw, '( A,T71,A10)' )  (' COLVARS| COORDINATION  >>>   TO KINDS B',&
-                  ADJUSTR(colvar%coord_param%c_kinds_to_b(kk)(1:10)),&
-                    kk=1,SIZE(colvar%coord_param%c_kinds_to_b))
-            ELSE
-               WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>>   TO '//tag//' B',&
-                  colvar%coord_param%i_at_to_b(kk),&
-                  kk=1,SIZE(colvar%coord_param%i_at_to_b))
-            END IF
-            WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| R0 B',colvar%coord_param%r_0_b
-            WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN B',colvar%coord_param%nncrd_b
-            WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND B',colvar%coord_param%ndcrd_b
+             IF (colvar%coord_param%use_kinds_to_b) THEN
+                WRITE ( iw, '( A,T71,A10)' )  (' COLVARS| COORDINATION  >>>   TO KINDS B',&
+                     ADJUSTR(colvar%coord_param%c_kinds_to_b(kk)(1:10)),&
+                     kk=1,SIZE(colvar%coord_param%c_kinds_to_b))
+             ELSE
+                WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>>   TO '//tag//' B',&
+                     colvar%coord_param%i_at_to_b(kk),&
+                     kk=1,SIZE(colvar%coord_param%i_at_to_b))
+             END IF
+             WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| R0 B',colvar%coord_param%r_0_b
+             WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN B',colvar%coord_param%nncrd_b
+             WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND B',colvar%coord_param%ndcrd_b
           END IF
        CASE(rotation_colvar_id)
-           WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 1 LINE 1  >>> '//tag,&
+          WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 1 LINE 1  >>> '//tag,&
                colvar%rotation_param%i_at1_bond1
-           WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 2 LINE 1  >>> '//tag,&
+          WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 2 LINE 1  >>> '//tag,&
                colvar%rotation_param%i_at2_bond1         
-           WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 1 LINE 2  >>> '//tag,&
+          WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 1 LINE 2  >>> '//tag,&
                colvar%rotation_param%i_at1_bond2
-           WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 2 LINE 2  >>> '//tag,&
+          WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 2 LINE 2  >>> '//tag,&
                colvar%rotation_param%i_at2_bond2
        CASE(qparm_colvar_id)
           WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| Q-PARM  >>> FROM '//tag,&
@@ -455,7 +570,7 @@ CONTAINS
                 WRITE ( iw, '( A)') ' COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT'
                 WRITE ( iw, '( A, I10)')(' COLVARS|   ATOM:',colvar%points(kk)%atoms(k),k=1,SIZE(colvar%points(kk)%atoms))
              ELSE
-              WRITE ( iw, '( A,4X,3F12.6)') ' COLVARS|   XYZ POSITION OF FIXED POINT:', colvar%points(kk)%r
+                WRITE ( iw, '( A,4X,3F12.6)') ' COLVARS|   XYZ POSITION OF FIXED POINT:', colvar%points(kk)%r
              END IF
           END DO
        END IF
@@ -467,14 +582,14 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE colvar_read
 
-! *****************************************************************************
-!> \brief evaluates the derivatives (dsdr) given and due to the given colvar
-!>      variables in a molecular environment
-!> \param colvar the collective variable to evaluate
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
-!> \author Teodoro Laino
-! *****************************************************************************
+  ! *****************************************************************************
+  !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
+  !>      variables in a molecular environment
+  !> \param colvar the collective variable to evaluate
+  !> \param error variable to control error logging, stopping,... 
+  !>        see module cp_error_handling 
+  !> \author Teodoro Laino
+  ! *****************************************************************************
   SUBROUTINE colvar_eval_mol_f(colvar, cell, particles, pos, fixd_list, error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -509,7 +624,7 @@ CONTAINS
        CASE (dist_colvar_id)
           CALL dist_colvar(colvar,cell,particles=particles,error=error)
        CASE (coord_colvar_id)
-            CALL coord_colvar(colvar,cell,particles=particles, error=error)
+          CALL coord_colvar(colvar,cell,particles=particles, error=error)
        CASE (torsion_colvar_id)
           CALL torsion_colvar(colvar, cell, particles=particles, error=error)
        CASE (angle_colvar_id)
@@ -524,6 +639,8 @@ CONTAINS
           CALL qparm_colvar(colvar,cell, particles=particles, error=error)
        CASE (hydronium_colvar_id)
           CALL hydronium_colvar(colvar,cell,particles=particles, error=error)
+       CASE (reaction_path_colvar_id)
+          CALL reaction_path_colvar(colvar,cell,particles=particles, error=error)
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -533,16 +650,16 @@ CONTAINS
 
   END SUBROUTINE colvar_eval_mol_f
 
-! *****************************************************************************
-!> \brief evaluates the derivatives (dsdr) given and due to the given colvar
-!> \param colvar the collective variable to evaluate
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
-!> \note
-!>      The torsion that generally is defined without the continuity problem 
-!>      here (for free energy calculations) is defined only for (-pi,pi]
-!> \author Alessandro Laio and fawzi
-! *****************************************************************************
+  ! *****************************************************************************
+  !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
+  !> \param colvar the collective variable to evaluate
+  !> \param error variable to control error logging, stopping,... 
+  !>        see module cp_error_handling 
+  !> \note
+  !>      The torsion that generally is defined without the continuity problem 
+  !>      here (for free energy calculations) is defined only for (-pi,pi]
+  !> \author Alessandro Laio and fawzi
+  ! *****************************************************************************
   SUBROUTINE colvar_eval_glob_f(icolvar,force_env,error)
     INTEGER                                  :: icolvar
     TYPE(force_env_type), POINTER            :: force_env
@@ -570,7 +687,7 @@ CONTAINS
        CASE (dist_colvar_id)
           CALL dist_colvar(colvar,cell,subsys=subsys,error=error)
        CASE (coord_colvar_id)
-            CALL coord_colvar(colvar,cell,subsys=subsys, error=error)
+          CALL coord_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (torsion_colvar_id)
           CALL torsion_colvar(colvar,cell,subsys=subsys, no_riemann_sheet_op=.TRUE.,error=error)
        CASE (angle_colvar_id)
@@ -585,6 +702,8 @@ CONTAINS
           CALL qparm_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (hydronium_colvar_id)
           CALL hydronium_colvar(colvar,cell,subsys=subsys, error=error)
+       CASE (reaction_path_colvar_id)
+          CALL reaction_path_colvar(colvar,cell,subsys=subsys, error=error)
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -593,10 +712,63 @@ CONTAINS
     END IF
   END SUBROUTINE colvar_eval_glob_f
 
-! *****************************************************************************
-!> \brief Get coordinates of atoms or of geoemtrical points
-!> \author Teodoro Laino 03.2007 [created]
-! *****************************************************************************
+  ! *****************************************************************************
+  !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
+  !>        for the specification of a reaction path
+  !> \param colvar the collective variable to evaluate
+  !> \param error variable to control error logging, stopping,... 
+  !>        see module cp_error_handling 
+  !> \author sfchiff
+  ! *****************************************************************************
+  SUBROUTINE colvar_eval_r_path(colvar,cell,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_r_path', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    IF (.NOT. failure) THEN
+       ! Initialize the content of the derivative
+       colvar%dsdr=0.0_dp
+       SELECT CASE(colvar%type_id)
+       CASE (dist_colvar_id)
+          CALL dist_colvar(colvar,cell,particles=particles,error=error)
+       CASE (coord_colvar_id)
+          CALL coord_colvar(colvar,cell,particles=particles, error=error)
+       CASE (torsion_colvar_id)
+          CALL torsion_colvar(colvar, cell, particles=particles, error=error)
+       CASE (angle_colvar_id)
+          CALL angle_colvar(colvar, cell, particles=particles, error=error)
+       CASE (dfunct_colvar_id)
+          CALL dfunct_colvar(colvar, cell, particles=particles, error=error)
+       CASE (plane_distance_colvar_id)
+          CALL plane_distance_colvar(colvar,cell, particles=particles, error=error)
+       CASE (rotation_colvar_id)
+          CALL rotation_colvar(colvar,cell, particles=particles, error=error)
+       CASE (qparm_colvar_id)
+          CALL qparm_colvar(colvar,cell, particles=particles, error=error)
+       CASE (hydronium_colvar_id)
+          CALL hydronium_colvar(colvar,cell,particles=particles, error=error)
+       CASE (reaction_path_colvar_id)
+          CALL reaction_path_colvar(colvar,cell,particles=particles, error=error)
+       CASE default
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+
+    END IF
+  END SUBROUTINE colvar_eval_r_path
+
+  ! *****************************************************************************
+  !> \brief Get coordinates of atoms or of geoemtrical points
+  !> \author Teodoro Laino 03.2007 [created]
+  ! *****************************************************************************
   SUBROUTINE get_coordinates(colvar, i, ri, my_particles)
     TYPE(colvar_type), POINTER               :: colvar
     INTEGER, INTENT(IN)                      :: i
@@ -606,18 +778,18 @@ CONTAINS
 
     IF (colvar%use_points) THEN
        CALL eval_point_pos(colvar%points(i),&
-                           my_particles,&
-                           ri)
+            my_particles,&
+            ri)
     ELSE
        ri(:) = my_particles(i)%r(:)
     END IF
-    
+
   END SUBROUTINE get_coordinates
 
-! *****************************************************************************
-!> \brief Transfer derivatives to ds/dr
-!> \author Teodoro Laino 03.2007 [created]
-! *****************************************************************************
+  ! *****************************************************************************
+  !> \brief Transfer derivatives to ds/dr
+  !> \author Teodoro Laino 03.2007 [created]
+  ! *****************************************************************************
   SUBROUTINE put_derivative(colvar, i, fi)
     TYPE(colvar_type), POINTER               :: colvar
     INTEGER, INTENT(IN)                      :: i
@@ -625,19 +797,19 @@ CONTAINS
 
     IF (colvar%use_points) THEN
        CALL eval_point_der(colvar%points,&
-                           i,&
-                           colvar%dsdr,&
-                           fi)
+            i,&
+            colvar%dsdr,&
+            fi)
     ELSE
        colvar%dsdr(:,i) = colvar%dsdr(:,i) + fi
     END IF
-    
+
   END SUBROUTINE put_derivative
 
-! *****************************************************************************
-!> \brief evaluates the force due (and on) the distance from the plane collective variable
-!> \author Teodoro Laino 02.2006 [created]
-! *****************************************************************************
+  ! *****************************************************************************
+  !> \brief evaluates the force due (and on) the distance from the plane collective variable
+  !> \author Teodoro Laino 02.2006 [created]
+  ! *****************************************************************************
   SUBROUTINE plane_distance_colvar(colvar,cell,subsys,particles,error)
 
     TYPE(colvar_type), POINTER               :: colvar
@@ -745,10 +917,10 @@ CONTAINS
 
   END SUBROUTINE plane_distance_colvar
 
-! *****************************************************************************
-!> \brief Evaluates the value of the rotation angle between two bonds 
-!> \author Teodoro Laino 02.2006 [created]
-! *****************************************************************************
+  ! *****************************************************************************
+  !> \brief Evaluates the value of the rotation angle between two bonds 
+  !> \author Teodoro Laino 02.2006 [created]
+  ! *****************************************************************************
   SUBROUTINE rotation_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -831,11 +1003,11 @@ CONTAINS
 
   END SUBROUTINE rotation_colvar
 
-! *****************************************************************************
-!> \brief evaluates the force due to the function of two distances
-!> \author Teodoro Laino 02.2006 [created]
-!        modified Florian Schiffmann 08.2008
-! *****************************************************************************
+  ! *****************************************************************************
+  !> \brief evaluates the force due to the function of two distances
+  !> \author Teodoro Laino 02.2006 [created]
+  !        modified Florian Schiffmann 08.2008
+  ! *****************************************************************************
   SUBROUTINE dfunct_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -896,13 +1068,13 @@ CONTAINS
     CALL put_derivative(colvar, 2, fj)
     CALL put_derivative(colvar, 3, fk)
     CALL put_derivative(colvar, 4, fl)
-    
+
   END SUBROUTINE dfunct_colvar
 
-! *****************************************************************************
-!> \brief evaluates the force due (and on) the distance from the plane collective variable
-!> \author Teodoro Laino 02.2006 [created]
-! *****************************************************************************
+  ! *****************************************************************************
+  !> \brief evaluates the force due (and on) the distance from the plane collective variable
+  !> \author Teodoro Laino 02.2006 [created]
+  ! *****************************************************************************
   SUBROUTINE angle_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -974,10 +1146,10 @@ CONTAINS
 
   END SUBROUTINE angle_colvar
 
-! *****************************************************************************
-!> \brief evaluates the force due (and on) the distance collective variable
-!> \author Alessandro Laio, Fawzi Mohamed
-! *****************************************************************************
+  ! *****************************************************************************
+  !> \brief evaluates the force due (and on) the distance collective variable
+  !> \author Alessandro Laio, Fawzi Mohamed
+  ! *****************************************************************************
   SUBROUTINE dist_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -1045,10 +1217,10 @@ CONTAINS
 
   END SUBROUTINE dist_colvar
 
-! *****************************************************************************
-!> \brief evaluates the force due to the torsion collective variable
-!> \author Alessandro Laio, Fawzi Mohamed
-! *****************************************************************************
+  ! *****************************************************************************
+  !> \brief evaluates the force due to the torsion collective variable
+  !> \author Alessandro Laio, Fawzi Mohamed
+  ! *****************************************************************************
   SUBROUTINE torsion_colvar(colvar,cell,subsys,particles,no_riemann_sheet_op,error)
 
     TYPE(colvar_type), POINTER               :: colvar
@@ -1206,9 +1378,9 @@ CONTAINS
     CALL put_derivative(colvar, 4, ftmp)
   END SUBROUTINE torsion_colvar
 
-! *****************************************************************************
-!> \brief evaluates the force due (and on) the Q PARM collective variable
-! *****************************************************************************
+  ! *****************************************************************************
+  !> \brief evaluates the force due (and on) the Q PARM collective variable
+  ! *****************************************************************************
   SUBROUTINE qparm_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -1233,122 +1405,122 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-   failure=.FALSE.
-   n_atoms_to=colvar%qparm_param%n_atoms_to
-   n_atoms_from=colvar%qparm_param%n_atoms_from
-   rcut=colvar%qparm_param%rcut
-   l=colvar%qparm_param%l
-   alpha=colvar%qparm_param%alpha
-   NULLIFY(particles_i)
-   CPPrecondition(colvar%type_id==qparm_colvar_id,cp_failure_level,routineP,error,failure)
-   IF (PRESENT(particles)) THEN
-      my_particles => particles
-   ELSE
-      CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
-      CALL cp_subsys_get(subsys,particles=particles_i,error=error)
-      my_particles => particles_i%els
-   END IF
+    failure=.FALSE.
+    n_atoms_to=colvar%qparm_param%n_atoms_to
+    n_atoms_from=colvar%qparm_param%n_atoms_from
+    rcut=colvar%qparm_param%rcut
+    l=colvar%qparm_param%l
+    alpha=colvar%qparm_param%alpha
+    NULLIFY(particles_i)
+    CPPrecondition(colvar%type_id==qparm_colvar_id,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
 
-   qparm=0.0_dp
-   inv_n_atoms_from=1.0_dp/REAL(n_atoms_from)
-   DO ii=1,n_atoms_from
-      i=colvar%qparm_param%i_at_from(ii)
-      CALL get_coordinates(colvar, i, xpi, my_particles)
-      qlm = 0.0_dp
-      qlm2 = 0.0_dp
-      grad_tot(:) = 0.0_dp
-      grad_nb_tot(:) = 0.0_dp
-      DO m = 0, l 
-        ylm = 0.0_dp
-        grad(:) = 0.0_dp
-        grad_nb(:) = 0.0_dp
-        nbond = 0
-        DO jj=1,n_atoms_to
-           j=colvar%qparm_param%i_at_to(jj)
-           IF (i==j) CYCLE
-           CALL get_coordinates(colvar, j, xpj, my_particles)       
-           ss=MATMUL(cell%h_inv,xpj(:)-xpi(:))
-           ss=ss-NINT(ss)
-           xij=MATMUL(cell%hmat,ss)
-           r12=SQRT(DOT_PRODUCT(xij,xij))
-           IF(r12 < rcut) nbond = nbond + 1.0_dp
-           x_tmp = xij(1)
-           y_tmp = xij(2)
-           z_tmp = xij(3)
-           r_tmp = r12 
-           IF (ABS(x_tmp) .GT. 1.0E-8_dp) THEN
-             fi = ATAN(y_tmp/x_tmp)
-           ELSE
-             fi = 0.5_dp*pi
-           ENDIF
-           costheta = z_tmp/r_tmp
-           IF(costheta > 1.0_dp) costheta = 1.0_dp
-           IF(costheta < -1.0_dp) costheta = -1.0_dp
-           theta = ACOS(costheta)
-           plm = legendre (costheta, l, m)
-           dplm = dlegendre (costheta, l, m)
-           IF((l+m) .GT. maxfac) THEN
-             CALL stop_program("qparm_colvar","l-m GT maxfac")
-           ENDIF
-           lmm = fac(l-m)
-           lpm = fac(l+m)
-           bond  = 1.0_dp/(1.0_dp + EXP(alpha*(r_tmp - rcut)))
-           IF (bond > 1.0_dp) THEN 
-             CALL stop_program("qparm_colvar","bond GT 1.0_dp")
-           ENDIF
-           pre_fac = bond*SQRT(((2*l+1)*lmm)/(4*pi*lpm))
-           IF (plm < 0.0_dp) THEN
-             dylm = -pre_fac*dplm !*plm/dabs(plm)
-           ELSE
-             dylm = pre_fac*dplm
-           ENDIF  
-           ylm_calc = pre_fac*plm*(CMPLX(COS(m*fi),SIN(m*fi)))
-           ylm = ylm + ylm_calc
-           ylm_calc2 = pre_fac/bond*plm*(CMPLX(COS(m*fi),SIN(m*fi)))
-           ymag = (SQRT(ylm_calc2*CONJG(ylm_calc2)))
-           ! Fi = -dUi/dr, but r_tmp = rj - ri, so have double negative
-           grad(1) = grad(1) - dylm*(z_tmp*x_tmp)/(r_tmp*r_tmp*r_tmp)
-           grad(2) = grad(2) - dylm*(z_tmp*y_tmp)/(r_tmp*r_tmp*r_tmp)
-           grad(3) = grad(3) + dylm*((1.0_dp/r_tmp) - (z_tmp**2/r_tmp**3))
-           exp_fac = alpha*EXP(alpha*(r_tmp-rcut))/((1.0_dp+EXP(alpha*(r_tmp-rcut)))**2)
-           grad_nb(1) = grad_nb(1) - ymag*exp_fac*(x_tmp/r_tmp)
-           grad_nb(2) = grad_nb(2) - ymag*exp_fac*(y_tmp/r_tmp)
-           grad_nb(3) = grad_nb(3) - ymag*exp_fac*(z_tmp/r_tmp)
-        ENDDO
-        IF (m .GT. 0) THEN
-          fact = 2.0_dp
-        ELSE
-          fact = 1.0_dp
-        ENDIF
-        IF (nbond < 0.0001_dp) THEN
-          CALL stop_program("qparm_colvar","NBOND = 0.0")
-        ENDIF
-        ylm = ylm/nbond
-        grad(:) = grad(:)/nbond
-        grad_nb(:) = grad_nb(:)/nbond
-        ymag1 = ylm*CONJG(ylm)
-        qlm = qlm + fact*ymag1
-        grad_tot(:) = grad_tot(:) + fact*grad(:)
-        grad_nb_tot(:) = grad_nb_tot(:) + fact*grad_nb(:)
-      ENDDO
-      pre_fac = (4.0_dp*pi)/(2.0_dp*l + 1) 
-      qlm = SQRT(pre_fac*qlm)
-      qlm2 = SQRT(pre_fac*qlm2)
-      qparm=qparm+qlm
-      ftmp(:) = SQRT(pre_fac)*(grad_tot(:) + grad_nb_tot(:))
-      CALL put_derivative(colvar, ii, ftmp)
-   ENDDO
-   colvar%ss=qparm*inv_n_atoms_from
-   colvar%dsdr(:,:) = colvar%dsdr(:,:)*inv_n_atoms_from
+    qparm=0.0_dp
+    inv_n_atoms_from=1.0_dp/REAL(n_atoms_from)
+    DO ii=1,n_atoms_from
+       i=colvar%qparm_param%i_at_from(ii)
+       CALL get_coordinates(colvar, i, xpi, my_particles)
+       qlm = 0.0_dp
+       qlm2 = 0.0_dp
+       grad_tot(:) = 0.0_dp
+       grad_nb_tot(:) = 0.0_dp
+       DO m = 0, l 
+          ylm = 0.0_dp
+          grad(:) = 0.0_dp
+          grad_nb(:) = 0.0_dp
+          nbond = 0
+          DO jj=1,n_atoms_to
+             j=colvar%qparm_param%i_at_to(jj)
+             IF (i==j) CYCLE
+             CALL get_coordinates(colvar, j, xpj, my_particles)       
+             ss=MATMUL(cell%h_inv,xpj(:)-xpi(:))
+             ss=ss-NINT(ss)
+             xij=MATMUL(cell%hmat,ss)
+             r12=SQRT(DOT_PRODUCT(xij,xij))
+             IF(r12 < rcut) nbond = nbond + 1.0_dp
+             x_tmp = xij(1)
+             y_tmp = xij(2)
+             z_tmp = xij(3)
+             r_tmp = r12 
+             IF (ABS(x_tmp) .GT. 1.0E-8_dp) THEN
+                fi = ATAN(y_tmp/x_tmp)
+             ELSE
+                fi = 0.5_dp*pi
+             ENDIF
+             costheta = z_tmp/r_tmp
+             IF(costheta > 1.0_dp) costheta = 1.0_dp
+             IF(costheta < -1.0_dp) costheta = -1.0_dp
+             theta = ACOS(costheta)
+             plm = legendre (costheta, l, m)
+             dplm = dlegendre (costheta, l, m)
+             IF((l+m) .GT. maxfac) THEN
+                CALL stop_program("qparm_colvar","l-m GT maxfac")
+             ENDIF
+             lmm = fac(l-m)
+             lpm = fac(l+m)
+             bond  = 1.0_dp/(1.0_dp + EXP(alpha*(r_tmp - rcut)))
+             IF (bond > 1.0_dp) THEN 
+                CALL stop_program("qparm_colvar","bond GT 1.0_dp")
+             ENDIF
+             pre_fac = bond*SQRT(((2*l+1)*lmm)/(4*pi*lpm))
+             IF (plm < 0.0_dp) THEN
+                dylm = -pre_fac*dplm !*plm/dabs(plm)
+             ELSE
+                dylm = pre_fac*dplm
+             ENDIF
+             ylm_calc = pre_fac*plm*(CMPLX(COS(m*fi),SIN(m*fi)))
+             ylm = ylm + ylm_calc
+             ylm_calc2 = pre_fac/bond*plm*(CMPLX(COS(m*fi),SIN(m*fi)))
+             ymag = (SQRT(ylm_calc2*CONJG(ylm_calc2)))
+             ! Fi = -dUi/dr, but r_tmp = rj - ri, so have double negative
+             grad(1) = grad(1) - dylm*(z_tmp*x_tmp)/(r_tmp*r_tmp*r_tmp)
+             grad(2) = grad(2) - dylm*(z_tmp*y_tmp)/(r_tmp*r_tmp*r_tmp)
+             grad(3) = grad(3) + dylm*((1.0_dp/r_tmp) - (z_tmp**2/r_tmp**3))
+             exp_fac = alpha*EXP(alpha*(r_tmp-rcut))/((1.0_dp+EXP(alpha*(r_tmp-rcut)))**2)
+             grad_nb(1) = grad_nb(1) - ymag*exp_fac*(x_tmp/r_tmp)
+             grad_nb(2) = grad_nb(2) - ymag*exp_fac*(y_tmp/r_tmp)
+             grad_nb(3) = grad_nb(3) - ymag*exp_fac*(z_tmp/r_tmp)
+          ENDDO
+          IF (m .GT. 0) THEN
+             fact = 2.0_dp
+          ELSE
+             fact = 1.0_dp
+          ENDIF
+          IF (nbond < 0.0001_dp) THEN
+             CALL stop_program("qparm_colvar","NBOND = 0.0")
+          ENDIF
+          ylm = ylm/nbond
+          grad(:) = grad(:)/nbond
+          grad_nb(:) = grad_nb(:)/nbond
+          ymag1 = ylm*CONJG(ylm)
+          qlm = qlm + fact*ymag1
+          grad_tot(:) = grad_tot(:) + fact*grad(:)
+          grad_nb_tot(:) = grad_nb_tot(:) + fact*grad_nb(:)
+       ENDDO
+       pre_fac = (4.0_dp*pi)/(2.0_dp*l + 1) 
+       qlm = SQRT(pre_fac*qlm)
+       qlm2 = SQRT(pre_fac*qlm2)
+       qparm=qparm+qlm
+       ftmp(:) = SQRT(pre_fac)*(grad_tot(:) + grad_nb_tot(:))
+       CALL put_derivative(colvar, ii, ftmp)
+    ENDDO
+    colvar%ss=qparm*inv_n_atoms_from
+    colvar%dsdr(:,:) = colvar%dsdr(:,:)*inv_n_atoms_from
 
   END SUBROUTINE qparm_colvar
 
-! *****************************************************************************
-!> \brief evaluates the force due (and on) the hydronium collective variable
-!> \author Marcel Baer
-!> \note This function needs to be extended to the POINT structure!! 
-!>       non-standard conform.. it's a breach in the colvar module.
-! *****************************************************************************
+  ! *****************************************************************************
+  !> \brief evaluates the force due (and on) the hydronium collective variable
+  !> \author Marcel Baer
+  !> \note This function needs to be extended to the POINT structure!! 
+  !>       non-standard conform.. it's a breach in the colvar module.
+  ! *****************************************************************************
   SUBROUTINE hydronium_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -1372,12 +1544,12 @@ CONTAINS
     REAL(dp), DIMENSION(:)                   :: M, nhcoord, no, qloc
 
     ALLOCATABLE                              :: nhcoord,M,&
-                                                qloc,no
+         qloc,no
     REAL(dp), DIMENSION(:,:,:)               :: dfunc_nh,dfunc_no,dM
     ALLOCATABLE                              :: dfunc_nh,dfunc_no,dM
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: my_particles
+         POINTER                                :: my_particles
 
     failure=.FALSE.
     n_oxygens=colvar%hydronium_param%n_oxygens
@@ -1416,7 +1588,7 @@ CONTAINS
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     ALLOCATE ( no       (  n_oxygens), stat=stat )
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-    
+
     ALLOCATE ( qloc (  n_oxygens), stat=stat )
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
@@ -1444,16 +1616,16 @@ CONTAINS
           invden=1.0_dp/(1.0_dp-rdist**qnh)
           IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
           fscalar = ((-pnh*(rdist**(pnh-1))*invden) &
-                     + num*(invden)**2*qnh*(rdist**(qnh-1)))/(r12*r_OH) 
+               + num*(invden)**2*qnh*(rdist**(qnh-1)))/(r12*r_OH) 
 
           dfunc_nh(1,ii,jj)= xij (1) * fscalar
           dfunc_nh(2,ii,jj)= xij (2) * fscalar
           dfunc_nh(3,ii,jj)= xij (3) * fscalar
 
           nhcoord(ii)=nhcoord(ii) + num*invden 
-       END DO 
+       END DO
        M(ii)  = 1.0_dp-(1.0_dp - (nhcoord(ii)/nh)**p)/&
-                       (1.0_dp - (nhcoord(ii)/nh)**q) 
+            (1.0_dp - (nhcoord(ii)/nh)**q) 
 
        ! Computing no ( ii )
        DO jj=1,n_oxygens
@@ -1469,66 +1641,66 @@ CONTAINS
           invden=1.0_dp/(1.0_dp-rdist**qno)
           IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
           fscalar = ((-pno*(rdist**(pno-1))*invden) &
-                     + num*(invden)**2*qno*(rdist**(qno-1)))/(r12*r_OO) 
-          
+               + num*(invden)**2*qno*(rdist**(qno-1)))/(r12*r_OO) 
+
           dfunc_no(1,ii,jj)= xij(1)*fscalar
           dfunc_no(2,ii,jj)= xij(2)*fscalar
           dfunc_no(3,ii,jj)= xij(3)*fscalar
 
           no(ii)=no(ii)+ num*invden 
-       END DO 
-    END DO 
+       END DO
+    END DO
 
     ! computing qloc and Q
     qtot = 0._dp
     DO ii = 1, n_oxygens
-     qloc ( ii ) = EXP ( lambda * M (ii) * no ( ii ) )
-     qtot = qtot + qloc ( ii ) 
-    END DO 
+       qloc ( ii ) = EXP ( lambda * M (ii) * no ( ii ) )
+       qtot = qtot + qloc ( ii ) 
+    END DO
     ! compute forces
     DO ii = 1, n_oxygens
-    ! Computing f_OH
+       ! Computing f_OH
        DO jj=1,n_hydrogens
           dM(1,ii,jj)=(p*((nhcoord(ii)/nh)**(p-1))*dfunc_nh(1,ii,jj))/nh/ &
-                      (1.0_dp - (nhcoord(ii)/nh)**q) - &
-                      (1.0_dp - (nhcoord(ii)/nh)**p)/ &
-                      ((1.0_dp - (nhcoord(ii)/nh)**q)**2) *&
-                      q*dfunc_nh(1,ii,jj)*(nhcoord(ii)/nh)**(q-1)/nh
+               (1.0_dp - (nhcoord(ii)/nh)**q) - &
+               (1.0_dp - (nhcoord(ii)/nh)**p)/ &
+               ((1.0_dp - (nhcoord(ii)/nh)**q)**2) *&
+               q*dfunc_nh(1,ii,jj)*(nhcoord(ii)/nh)**(q-1)/nh
           dM(2,ii,jj)=(p*((nhcoord(ii)/nh)**(p-1))*dfunc_nh(2,ii,jj))/nh/ &
-                      (1.0_dp - (nhcoord(ii)/nh)**q) - &
-                      (1.0_dp - (nhcoord(ii)/nh)**p)/ &
-                      ((1.0_dp - (nhcoord(ii)/nh)**q)**2) *&
-                      q*dfunc_nh(2,ii,jj)*(nhcoord(ii)/nh)**(q-1)/nh
+               (1.0_dp - (nhcoord(ii)/nh)**q) - &
+               (1.0_dp - (nhcoord(ii)/nh)**p)/ &
+               ((1.0_dp - (nhcoord(ii)/nh)**q)**2) *&
+               q*dfunc_nh(2,ii,jj)*(nhcoord(ii)/nh)**(q-1)/nh
           dM(3,ii,jj)=(p*((nhcoord(ii)/nh)**(p-1))*dfunc_nh(3,ii,jj))/nh/ &
-                      (1.0_dp - (nhcoord(ii)/nh)**q) - &
-                      (1.0_dp - (nhcoord(ii)/nh)**p)/ &
-                      ((1.0_dp - (nhcoord(ii)/nh)**q)**2) *&
-                      q*dfunc_nh(3,ii,jj)*(nhcoord(ii)/nh)**(q-1)/nh
+               (1.0_dp - (nhcoord(ii)/nh)**q) - &
+               (1.0_dp - (nhcoord(ii)/nh)**p)/ &
+               ((1.0_dp - (nhcoord(ii)/nh)**q)**2) *&
+               q*dfunc_nh(3,ii,jj)*(nhcoord(ii)/nh)**(q-1)/nh
 
           colvar%dsdr(1,ii)=colvar%dsdr(1,ii)+qloc(ii)*dM(1,ii,jj)*no(ii)/qtot
           colvar%dsdr(1,n_oxygens+jj)=colvar%dsdr(1,n_oxygens+jj) &
-                                              -qloc(ii)*dM(1,ii,jj)*no(ii)/qtot
+               -qloc(ii)*dM(1,ii,jj)*no(ii)/qtot
           colvar%dsdr(2,ii)=colvar%dsdr(2,ii)+qloc(ii)*dM(2,ii,jj)*no(ii)/qtot
           colvar%dsdr(2,n_oxygens+jj)=colvar%dsdr(2,n_oxygens+jj) &
-                                              -qloc(ii)*dM(2,ii,jj)*no(ii)/qtot
+               -qloc(ii)*dM(2,ii,jj)*no(ii)/qtot
           colvar%dsdr(3,ii)=colvar%dsdr(3,ii)+qloc(ii)*dM(3,ii,jj)*no(ii)/qtot
           colvar%dsdr(3,n_oxygens+jj)=colvar%dsdr(3,n_oxygens+jj) &
-                                              -qloc(ii)*dM(3,ii,jj)*no(ii)/qtot
-       END DO 
+               -qloc(ii)*dM(3,ii,jj)*no(ii)/qtot
+       END DO
        ! Computing f_OO
        DO jj=1,n_oxygens
           colvar%dsdr(1,ii)=colvar%dsdr(1,ii)+qloc(ii)*M(ii)*dfunc_no(1,ii,jj)/qtot
           colvar%dsdr(1,jj)=colvar%dsdr(1,jj) &
-                                              -qloc(ii)*M(ii)*dfunc_no(1,ii,jj)/qtot
+               -qloc(ii)*M(ii)*dfunc_no(1,ii,jj)/qtot
           colvar%dsdr(2,ii)=colvar%dsdr(2,ii)+qloc(ii)*M(ii)*dfunc_no(2,ii,jj)/qtot
           colvar%dsdr(2,jj)=colvar%dsdr(2,jj) &
-                                              -qloc(ii)*M(ii)*dfunc_no(2,ii,jj)/qtot
+               -qloc(ii)*M(ii)*dfunc_no(2,ii,jj)/qtot
           colvar%dsdr(3,ii)=colvar%dsdr(3,ii)+qloc(ii)*M(ii)*dfunc_no(3,ii,jj)/qtot
           colvar%dsdr(3,jj)=colvar%dsdr(3,jj) &
-                                              -qloc(ii)*M(ii)*dfunc_no(3,ii,jj)/qtot
-       END DO 
-    END DO 
-    
+               -qloc(ii)*M(ii)*dfunc_no(3,ii,jj)/qtot
+       END DO
+    END DO
+
     colvar%ss=LOG(qtot)/lambda
     DEALLOCATE ( dfunc_nh, stat=stat )
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
@@ -1546,12 +1718,12 @@ CONTAINS
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
   END SUBROUTINE hydronium_colvar
 
-! *****************************************************************************
-!> \brief evaluates the force due (and on) the coordination-chain collective variable
-!> \author MI
-!> \note When the third set of atoms is not defined, this variable is equivalent
-!>       to the simple coordination number. 
-! *****************************************************************************
+  ! *****************************************************************************
+  !> \brief evaluates the force due (and on) the coordination-chain collective variable
+  !> \author MI
+  !> \note When the third set of atoms is not defined, this variable is equivalent
+  !>       to the simple coordination number. 
+  ! *****************************************************************************
   SUBROUTINE coord_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -1621,32 +1793,32 @@ CONTAINS
           IF(n_atoms_to_b /=0) THEN
              func_k = 0.0_dp
              DO kk = 1,n_atoms_to_b
-               k=colvar%coord_param%i_at_to_b(kk)
-               CALL get_coordinates(colvar, k, xpk, my_particles)       
-               ss=MATMUL(cell%h_inv,xpj(:)-xpk(:))
-               ss=ss-NINT(ss)
-               xjk=MATMUL(cell%hmat,ss)
-               rjk=SQRT(xjk(1)**2+xjk(2)**2+xjk(3)**2)
-               IF(rjk < 1.0e-8_dp)CYCLE
-               rdist_jk = rjk/r_0_b
-               num_jk=(1.0_dp-rdist_jk**p_b)
-               invden_jk=1.0_dp/(1.0_dp-rdist_jk**q_b)
-               func_jk=num_jk*invden_jk
-               dfunc_jk= (- p_b*rdist_jk **(p_b-1) *invden_jk  &
-                  + num_jk*(invden_jk)**2 * q_b *rdist_jk **(q_b-1))/(rjk*r_0_b)
-               func_k = func_k + func_jk
-               ftmp_k = - func_ij * dfunc_jk * xjk
-               CALL put_derivative(colvar, n_atoms_from+n_atoms_to_a+kk, ftmp_k)
+                k=colvar%coord_param%i_at_to_b(kk)
+                CALL get_coordinates(colvar, k, xpk, my_particles)       
+                ss=MATMUL(cell%h_inv,xpj(:)-xpk(:))
+                ss=ss-NINT(ss)
+                xjk=MATMUL(cell%hmat,ss)
+                rjk=SQRT(xjk(1)**2+xjk(2)**2+xjk(3)**2)
+                IF(rjk < 1.0e-8_dp)CYCLE
+                rdist_jk = rjk/r_0_b
+                num_jk=(1.0_dp-rdist_jk**p_b)
+                invden_jk=1.0_dp/(1.0_dp-rdist_jk**q_b)
+                func_jk=num_jk*invden_jk
+                dfunc_jk= (- p_b*rdist_jk **(p_b-1) *invden_jk  &
+                     + num_jk*(invden_jk)**2 * q_b *rdist_jk **(q_b-1))/(rjk*r_0_b)
+                func_k = func_k + func_jk
+                ftmp_k = - func_ij * dfunc_jk * xjk
+                CALL put_derivative(colvar, n_atoms_from+n_atoms_to_a+kk, ftmp_k)
 
-               ftmp_j = - dfunc_ij * xij * func_jk + func_ij * dfunc_jk * xjk
-               CALL put_derivative(colvar, n_atoms_from+jj, ftmp_j)
+                ftmp_j = - dfunc_ij * xij * func_jk + func_ij * dfunc_jk * xjk
+                CALL put_derivative(colvar, n_atoms_from+jj, ftmp_j)
              END DO
           ELSE
-            func_k = 1.0_dp
-            dfunc_jk = 0.0_dp
-            ftmp_j = -dfunc_ij*xij
-            CALL put_derivative(colvar, n_atoms_from+jj, ftmp_j)
-          END IF        
+             func_k = 1.0_dp
+             dfunc_jk = 0.0_dp
+             ftmp_j = -dfunc_ij*xij
+             CALL put_derivative(colvar, n_atoms_from+jj, ftmp_j)
+          END IF
           ncoord=ncoord+func_ij*func_k
           ftmp_i = dfunc_ij*xij*func_k
           CALL put_derivative(colvar, ii, ftmp_i)
@@ -1655,5 +1827,167 @@ CONTAINS
     colvar%ss=ncoord*inv_n_atoms_from
     colvar%dsdr(:,:) = colvar%dsdr(:,:)*inv_n_atoms_from
   END SUBROUTINE coord_colvar
+
+  ! *****************************************************************************
+  !> \brief evaluates the force due (and on) reaction path collective variable
+  !> \author fschiff
+  !> \note the system is still able to move in the space spanned by the CV
+  !>       perpendicular to the path 
+  ! *****************************************************************************
+  SUBROUTINE reaction_path_colvar(colvar,cell,subsys,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'reaction_path_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iend, ii, istart, j, k, &
+                                                ncolv, stat
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: lambda, step_size
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: s1, ss_vals
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1, f_vals, fi, s1v
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: ds1v
+    REAL(dp), DIMENSION(3)                   :: ss
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+
+    failure=.FALSE.
+
+    CPPrecondition(colvar%type_id==reaction_path_colvar_id,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+
+    istart=colvar%reaction_path_param%function_bounds(1)
+    iend=colvar%reaction_path_param%function_bounds(2)
+
+    step_size=colvar%reaction_path_param%step_size
+    ncolv=colvar%reaction_path_param%n_components 
+    lambda=colvar%reaction_path_param%lambda
+    ALLOCATE(f_vals(ncolv,istart:iend),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)    
+    f_vals=colvar%reaction_path_param%f_vals
+    ALLOCATE(ss_vals(ncolv),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)    
+
+
+    DO i=1,ncolv
+       CALL colvar_eval_r_path(colvar%reaction_path_param%colvar_p(i)%colvar,cell,my_particles,error)
+       ss_vals(i)=colvar%reaction_path_param%colvar_p(i)%colvar%ss
+    ENDDO
+
+    ALLOCATE(s1v(2,istart:iend),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(ds1v(ncolv,2,istart:iend),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(s1(2),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(ds1(ncolv,2),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+    DO k=-istart,iend
+       s1v(1,k)=REAL(k,kind=dp)*step_size*EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
+       s1v(2,k)=EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
+       DO j=1,ncolv
+          ds1v(j,1,k) =REAL(k,kind=dp)*step_size*f_vals(j,k)*&
+               EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
+          ds1v(j,2,k) =f_vals(j,k)*EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
+       END DO
+    END DO
+    DO i=1,2
+       s1(i)=accurate_sum(s1v(i,:))
+       DO j=1,ncolv
+          ds1(j,i)=accurate_sum(ds1v(j,i,:))
+       END DO
+    END DO
+
+    colvar%ss=s1(1)/s1(2)
+    ALLOCATE(fi(3,colvar%n_atom_s),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+    ii=0
+    DO i=1,ncolv
+       DO j=1,colvar%reaction_path_param%colvar_p(i)%colvar%n_atom_s
+          ii=ii+1
+          fi(:,ii)=colvar%reaction_path_param%colvar_p(i)%colvar%dsdr(:,j)*lambda*(ds1(i,1) &
+               /s1(2)-colvar%ss*ds1(i,2)/s1(2))*2.0_dp
+       END DO
+    END DO
+
+    DO i=1,colvar%n_atom_s
+       CALL put_derivative(colvar,i,fi(:,i))
+    END DO
+
+    DEALLOCATE(fi,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(f_vals,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(ss_vals,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)  
+    DEALLOCATE(s1v,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(ds1v,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)       
+    DEALLOCATE(s1,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(ds1,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+  END SUBROUTINE reaction_path_colvar
+
+  ! *****************************************************************************
+  !> \brief used to print reaction_path function values on an arbitrary dimensional grid
+  !> \author fschiff
+  ! *****************************************************************************
+
+  RECURSIVE FUNCTION rec_eval_grid(iw1,ncol,f_vals,v_count,&
+       gp,grid_sp,step_size,&
+       istart,iend,s1v,s1,p_bounds,lambda) RESULT(k)
+    INTEGER                                  :: iw1, ncol
+    REAL(dp), DIMENSION(:, :), POINTER       :: f_vals
+    INTEGER                                  :: v_count
+    REAL(dp), DIMENSION(:), POINTER          :: gp, grid_sp
+    REAL(dp)                                 :: step_size
+    INTEGER                                  :: istart, iend
+    REAL(dp), DIMENSION(:, :), POINTER       :: s1v
+    REAL(dp), DIMENSION(:), POINTER          :: s1
+    INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
+    REAL(dp)                                 :: lambda
+    INTEGER                                  :: k
+
+    INTEGER                                  :: count1, i
+
+    k=1
+    IF(v_count.LT.ncol)THEN
+       count1=v_count+1
+       DO i=p_bounds(1,count1),p_bounds(2,count1)
+          gp(count1)=REAL(i,KIND=dp)*grid_sp(count1)
+          k=rec_eval_grid(iw1,ncol,f_vals,count1,gp,grid_sp,step_size,istart,iend,s1v,s1,p_bounds,lambda)
+       END DO
+    ELSE IF(v_count==ncol)THEN
+       DO i=istart,iend
+          s1v(1,i)=REAL(i,kind=dp)*step_size*EXP(-lambda*DOT_PRODUCT(gp(:)-f_vals(:,i),&
+               gp(:)-f_vals(:,i)))
+          s1v(2,i)=EXP(-lambda*DOT_PRODUCT(gp(:)-f_vals(:,i),gp(:)-f_vals(:,i)))
+       END DO
+       DO i=1,2
+          s1(i)=accurate_sum(s1v(i,:))
+
+       END DO
+       WRITE(iw1, '(5F10.5)')gp(:),s1(1)/s1(2)
+
+    END IF
+  END FUNCTION rec_eval_grid
 
 END MODULE colvar_methods
