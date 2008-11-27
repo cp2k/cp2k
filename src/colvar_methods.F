@@ -403,8 +403,8 @@ CONTAINS
        CALL section_vals_val_get(reaction_path_section,"RANGE",r_vals=range,error=error)
        CALL section_vals_val_get(reaction_path_section,"STEP_SIZE",r_val=colvar%reaction_path_param%step_size,error=error)     
        CALL section_vals_val_get(reaction_path_section,"LAMBDA",r_val=colvar%reaction_path_param%lambda,error=error)
-       iend=CEILING( MAX(RANGE(1),RANGE(2))/colvar%reaction_path_param%step_size)
-       istart=FLOOR(MIN(RANGE(1) , RANGE(2))/colvar%reaction_path_param%step_size)
+       iend=CEILING(MAX(RANGE(1),RANGE(2))/colvar%reaction_path_param%step_size)
+       istart=FLOOR(MIN(RANGE(1),RANGE(2))/colvar%reaction_path_param%step_size)
        colvar%reaction_path_param%function_bounds(1)=istart
        colvar%reaction_path_param%function_bounds(2)=iend
        ALLOCATE(colvar%reaction_path_param%f_vals(ncol,istart:iend),stat=stat)
@@ -1881,7 +1881,6 @@ CONTAINS
     ALLOCATE(ss_vals(ncolv),stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)    
 
-
     DO i=1,ncolv
        CALL colvar_eval_r_path(colvar%reaction_path_param%colvar_p(i)%colvar,cell,my_particles,error)
        ss_vals(i)=colvar%reaction_path_param%colvar_p(i)%colvar%ss
@@ -1896,7 +1895,7 @@ CONTAINS
     ALLOCATE(ds1(ncolv,2),stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
-    DO k=-istart,iend
+    DO k=istart,iend
        s1v(1,k)=REAL(k,kind=dp)*step_size*EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
        s1v(2,k)=EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
        DO j=1,ncolv

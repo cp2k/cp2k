@@ -154,7 +154,6 @@ CONTAINS
           CALL section_add_subsection(section, subsection, error=error)
           CALL section_release(subsection,error=error)
        ENDIF
-       
 
     END IF
   END SUBROUTINE create_colvar_var_section
@@ -984,7 +983,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-
        CALL cp_print_key_section_create(print_key,name="MAP",&
             description="Activating this print key will print once a file with the values of the FUNCTION on a grid "//&
             "of COLVAR values in a specified range. "//&
@@ -1009,11 +1007,7 @@ CONTAINS
 
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-
-       
-
     END IF
-
   END SUBROUTINE create_colvar_reaction_path_section
 
 END MODULE input_cp2k_colvar
