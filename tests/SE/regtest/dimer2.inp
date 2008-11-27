@@ -9,16 +9,16 @@
       &END
     &END QS
     &SCF
-#      &OUTER_SCF
-#        TYPE SCP
-#        EPS_SCF 1.0E-6
-#        MAX_SCF 30
-#      &END OUTER_SCF
+      &OUTER_SCF
+        TYPE SCP
+        EPS_SCF 1.0E-8
+        MAX_SCF 30
+      &END OUTER_SCF
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-8
       MAX_SCF 200
       &OT T
-        MINIMIZER DIIS
+        MINIMIZER CG
         SCP_NDDO T    
         PRECONDITIONER FULL_ALL
         LINESEARCH 3PNT

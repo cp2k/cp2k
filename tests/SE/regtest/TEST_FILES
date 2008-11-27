@@ -42,3 +42,6 @@ H2O-MNDO-si.inp    3
 H2O-MNDO-si-nc.inp 3
 # SCP NDDO
 dimer.inp          3
+dimer2.inp          3
+dimer3.inp          3
+dimer4.inp          3
