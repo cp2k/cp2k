@@ -930,7 +930,6 @@ CONTAINS
           IF ( ispin == 1 .AND. scp_nddo ) THEN
             CALL create_dbm_from_sm(dbm,ks_matrix(ispin)%matrix,&
                                     "DUMMY BLOCK KS MATRIX",.FALSE.,error=error)
-            CALL set_matrix ( dbm, 0.0_dp )
           END IF
        END DO
 
