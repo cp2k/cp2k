@@ -12,3 +12,6 @@ monomer-r3.inp 1
 w2.inp 1
 w2-r1.inp 1
 w2-r2.inp 1
+# SCP test argon
+argon1.inp 1
+argon2.inp 1
