@@ -82,9 +82,9 @@ MODULE nddo_methods
   USE semi_empirical_utils,            ONLY: get_se_type
   USE sparse_matrix_types,             ONLY: &
        allocate_matrix_set, cp_sm_scale_and_add, cp_sm_sm_trace, &
-       create_dbm_from_sm, deallocate_dbm_from_sm, get_block_node, &
-       real_matrix_p_type, real_matrix_type, set_matrix, transfer_matrix, &
-       mpsum_dbm, deallocate_matrix
+       create_dbm_from_sm, deallocate_dbm_from_sm, deallocate_matrix, &
+       get_block_node, mpsum_dbm, real_matrix_p_type, real_matrix_type, &
+       set_matrix, transfer_matrix
   USE taper_types,                     ONLY: taper_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -851,8 +851,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: force_a
     REAL(KIND=dp), DIMENSION(3, 3)           :: qcart
     REAL(KIND=dp), DIMENSION(5)              :: qsph
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksa_block_a, &
-                                                pa_block_a, pscpa_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksa_block_a, pa_block_a, &
+                                                pscpa_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -871,7 +871,7 @@ CONTAINS
       POINTER                                :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: diagmat_ks, diagmat_p
-    TYPE(real_matrix_type), POINTER          :: ks_scp, pscp, dbm
+    TYPE(real_matrix_type), POINTER          :: dbm, ks_scp, pscp
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: se_section
     TYPE(semi_empirical_control_type), &

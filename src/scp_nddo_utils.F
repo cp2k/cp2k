@@ -11,17 +11,14 @@ MODULE scp_nddo_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              get_matrix_diagonal,&
                                              get_matrix_info,&
                                              real_matrix_type,&
-                                             set_matrix_diagonal, &
-                                             mpsum_dbm
+                                             set_matrix_diagonal
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -87,9 +84,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_scp_kernel', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iatom, ikind, &
-                                                j, natorb, &
-                                                nkind, iparticle
+    INTEGER                                  :: i, iatom, ikind, iparticle, &
+                                                j, natorb, nkind
+    INTEGER, POINTER                         :: atom_list( : )
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: app, asp, ass
     REAL(KIND=dp), DIMENSION(9, 9)           :: a_scp
@@ -98,7 +95,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(semi_empirical_type), POINTER       :: se_kind
-    INTEGER, POINTER                         :: atom_list ( : )
 
     failure = .FALSE.
     NULLIFY(logger)

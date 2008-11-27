@@ -2716,10 +2716,11 @@ SUBROUTINE mpsum_dbm(dbm,para_env,error)
     TYPE(real_matrix_type), POINTER          :: dbm
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mpsum_dbm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iblock_row, ii,jj
+    INTEGER                                  :: handle, iblock_row
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
 
     CALL timeset(routineN,handle)
