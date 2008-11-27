@@ -53,7 +53,7 @@ MODULE bibliography
              Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003,Guidon2008,&
              Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
-             Grimme2006
+             Grimme2006,Branduardi2007
 
 CONTAINS
 
@@ -1524,6 +1524,27 @@ CONTAINS
           "UT ISI:000241477200003",&
           "ER"),&
           DOI="10.1002/jcc.20495")
+
+      CALL add_reference(key=Branduardi2007,ISI_record=s2a(&
+          "PT J",& 
+          "AU Branduardi, D",&
+          "   Gervasio, FL",&
+          "   Parrinello, M",&
+          "AF Branduardi, Davide",&
+          "   Gervasio, Francesco Luigi",&
+          "   Parrinello, Michele",&
+          "TI From A to B in free energy space",&
+          "SO JOURNAL OF CHEMICAL PHYSICS",&
+          "SN 0021-9606",&
+          "PD FEB 7",&
+          "PY 2007",&
+          "VL 126",&
+          "IS 5",&
+          "AR 054103",&
+          "DI 10.1063/1.2432340",&
+          "UT ISI:000244044600009",&
+          "ER"),&
+          DOI="10.1063/1.2432340")
 
    END SUBROUTINE add_all_references
 

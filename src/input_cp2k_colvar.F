@@ -9,6 +9,7 @@
 !> \author teo & fawzi
 ! *****************************************************************************
 MODULE input_cp2k_colvar
+  USE bibliography,                    ONLY: Branduardi2007
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -932,6 +933,7 @@ CONTAINS
             "both in the Q-dimensional colvar and 3N-Q remaining coordinates. "//&
             "For the details of the function see cited literature.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Branduardi2007/), &
             error=error)
         
        NULLIFY(keyword, subsection,print_key)
@@ -989,7 +991,7 @@ CONTAINS
             "GRID_SPACING and RANGE for every COLVAR has to be specified again in the same order as they are in the input.", &
             print_level=high_print_level,filename="FUNCTION_MAP",&
             error=error)
-!!!
+
        CALL keyword_create(keyword,name="RANGE",&
             description="The range of of the grid of the COLVAR.",&
             usage="RANGE <REAL> <REAL>",&
@@ -997,7 +999,7 @@ CONTAINS
             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-!!!
+
        CALL keyword_create(keyword, name="GRID_SPACING",&
             description="Distance between two gridpoints for the grid on the COLVAR",&
             usage="STEP_SIZE {real}",required=.TRUE.,repeats=.TRUE.,&
