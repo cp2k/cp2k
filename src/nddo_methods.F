@@ -927,15 +927,15 @@ CONTAINS
                                   "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env,error=error)
           CALL create_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,&
                                   "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
-          IF ( ispin == 1 .AND. scp_nddo ) THEN
-            CALL create_dbm_from_sm(dbm,ks_matrix(ispin)%matrix,&
-                                    "DUMMY BLOCK KS MATRIX",.FALSE.,error=error)
-          END IF
        END DO
 
-       IF ( scp_nddo )  CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
+       ! Handle the case of SCP-NDDO
+       IF (scp_nddo) THEN
+          CALL create_dbm_from_sm(dbm,ks_matrix(1)%matrix,&
+                                  "DUMMY BLOCK KS MATRIX",.FALSE.,error=error)
+          CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
+       END IF
 
-       
        ! Check for implemented SE methods
        SELECT CASE (dft_control%qs_control%method_id)
        CASE(do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
@@ -984,7 +984,6 @@ CONTAINS
                    CPPostcondition(ASSOCIATED(pscpa_block),cp_failure_level,routineP,error,failure)
                    pa_block_a=pa_block_a + pscpa_block 
                 END IF
-
 
                 ! Nuclei
                 se_nddo_mpole%charge(iatom)                = se_kind_a%zeff
