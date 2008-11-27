@@ -96,20 +96,17 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author teo
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE create_colvar_var_section(subsection, section,skip_reaction_path, error)
+  RECURSIVE SUBROUTINE create_colvar_var_section(subsection, section, skip_reaction_path, error)
     TYPE(section_type), POINTER              :: subsection, section
-    LOGICAL, OPTIONAL                        :: skip_reaction_path
+    LOGICAL, INTENT(IN)                      :: skip_reaction_path
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_var_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, skip
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
-    skip=.FALSE.
-    IF(PRESENT(skip_reaction_path))skip=skip_reaction_path
-
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(subsection),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -919,7 +916,7 @@ CONTAINS
       routineN = 'create_colvar_reaction_path_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, skip_reaction_path
+    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
@@ -937,8 +934,7 @@ CONTAINS
             error=error)
         
        NULLIFY(keyword, subsection,print_key)
-       skip_reaction_path=.TRUE.
-       CALL create_colvar_section(subsection,skip_reaction_path=skip_reaction_path,error=error)
+       CALL create_colvar_section(subsection,skip_reaction_path=.TRUE.,error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

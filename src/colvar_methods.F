@@ -67,30 +67,28 @@ MODULE colvar_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_methods'
 
   PUBLIC :: colvar_read,&
-       colvar_eval_glob_f,&
-       colvar_eval_mol_f
+            colvar_eval_glob_f,&
+            colvar_eval_mol_f
 
-  !***
 CONTAINS
 
-  ! *****************************************************************************
-  !> \brief reads a colvar from the input
-  !> \param colvar the place where to store what will be read
-  !> \param extended_lagrange if the extended lagrangian formalismus should 
-  !>        be used
-  !> \param icol number of the current colvar (repetition in colvar_section)
-  !> \param colvar_section the colvar section
-  !> \param error variable to control error logging, stopping,... 
-  !>        see module cp_error_handling 
-  !> \par History
-  !>      04.2004 created [alessandro laio and fawzi mohamed]
-  !> \author teo
-  ! *****************************************************************************
-  RECURSIVE SUBROUTINE colvar_read(colvar, icol, colvar_section,rp_call, error)
+! *****************************************************************************
+!> \brief reads a colvar from the input
+!> \param colvar the place where to store what will be read
+!> \param extended_lagrange if the extended lagrangian formalismus should 
+!>        be used
+!> \param icol number of the current colvar (repetition in colvar_section)
+!> \param colvar_section the colvar section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      04.2004 created [alessandro laio and fawzi mohamed]
+!> \author teo
+! *****************************************************************************
+  RECURSIVE SUBROUTINE colvar_read(colvar, icol, colvar_section, error)
     TYPE(colvar_type), POINTER               :: colvar
     INTEGER, INTENT(IN)                      :: icol
     TYPE(section_vals_type), POINTER         :: colvar_section
-    LOGICAL, OPTIONAL                        :: rp_call
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_read', &
@@ -107,7 +105,7 @@ CONTAINS
                                                 stat, v_count
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
-    LOGICAL                                  :: failure, IS_RECURSIVE
+    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(10)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
@@ -121,43 +119,39 @@ CONTAINS
       hydronium_section, plane_dist_section, point_section, qparm_section, &
       reaction_path_section, rotation_section, torsion_section, wrk_section
 
-    NULLIFY(logger, c_kinds, iatms)
-
-    IS_RECURSIVE=.FALSE.
-    IF(PRESENT(rp_call))IS_RECURSIVE=rp_call
-    logger => cp_error_get_logger(error)
-
-    CALL timeset(routineN,handle)
     failure=.FALSE.
-
+    CALL timeset(routineN,handle)
+    NULLIFY(logger, c_kinds, iatms)
+    logger => cp_error_get_logger(error)
+    my_subsection        = .FALSE.
     distance_section     => section_vals_get_subs_vals(colvar_section,"DISTANCE",i_rep_section=icol,error=error)
-    dfunct_section        => section_vals_get_subs_vals(colvar_section,"DISTANCE_FUNCTION",&
-         i_rep_section=icol,error=error)
+    dfunct_section       => section_vals_get_subs_vals(colvar_section,"DISTANCE_FUNCTION",&
+                            i_rep_section=icol,error=error)
     angle_section        => section_vals_get_subs_vals(colvar_section,"ANGLE",i_rep_section=icol,error=error)
     torsion_section      => section_vals_get_subs_vals(colvar_section,"TORSION",i_rep_section=icol,error=error)
     coordination_section => section_vals_get_subs_vals(colvar_section,"COORDINATION",i_rep_section=icol,error=error)
     plane_dist_section   => section_vals_get_subs_vals(colvar_section,"DISTANCE_POINT_PLANE",i_rep_section=icol,&
-         error=error)
+                            error=error)
     rotation_section     => section_vals_get_subs_vals(colvar_section,"BOND_ROTATION",i_rep_section=icol,error=error)
     qparm_section        => section_vals_get_subs_vals(colvar_section,"QPARM",i_rep_section=icol,error=error)
     hydronium_section    => section_vals_get_subs_vals(colvar_section,"HYDRONIUM",i_rep_section=icol,error=error)
-    IF(.NOT.IS_RECURSIVE)&
-         reaction_path_section=> section_vals_get_subs_vals(colvar_section,"REACTION_PATH",i_rep_section=icol,error=error)
+    reaction_path_section=> section_vals_get_subs_vals(colvar_section,"REACTION_PATH",i_rep_section=icol,&
+                            can_return_null=.TRUE.,error=error)
 
-    CALL section_vals_get(distance_section,     explicit=my_subsection(1), error=error)
-    CALL section_vals_get(angle_section,        explicit=my_subsection(2), error=error)
-    CALL section_vals_get(torsion_section,      explicit=my_subsection(3), error=error)
-    CALL section_vals_get(coordination_section, explicit=my_subsection(4), error=error)
-    CALL section_vals_get(plane_dist_section,   explicit=my_subsection(5), error=error)
-    CALL section_vals_get(rotation_section,     explicit=my_subsection(6), error=error)
-    CALL section_vals_get(dfunct_section,        explicit=my_subsection(7), error=error)
-    CALL section_vals_get(qparm_section,        explicit=my_subsection(8), error=error)
-    CALL section_vals_get(hydronium_section,    explicit=my_subsection(9),error=error)
-    IF(.NOT.IS_RECURSIVE)THEN
-       CALL section_vals_get(reaction_path_section,explicit=my_subsection(10),error=error)
-    ELSE
-       my_subsection(10)=.FALSE.
-    ENDIF
+    CALL section_vals_get(distance_section,     explicit=my_subsection( 1), error=error)
+    CALL section_vals_get(angle_section,        explicit=my_subsection( 2), error=error)
+    CALL section_vals_get(torsion_section,      explicit=my_subsection( 3), error=error)
+    CALL section_vals_get(coordination_section, explicit=my_subsection( 4), error=error)
+    CALL section_vals_get(plane_dist_section,   explicit=my_subsection( 5), error=error)
+    CALL section_vals_get(rotation_section,     explicit=my_subsection( 6), error=error)
+    CALL section_vals_get(dfunct_section,       explicit=my_subsection( 7), error=error)
+    CALL section_vals_get(qparm_section,        explicit=my_subsection( 8), error=error)
+    CALL section_vals_get(hydronium_section,    explicit=my_subsection( 9), error=error)
+    ! This is just a special case since it is not present in its own defition of COLVARS
+    IF (ASSOCIATED(reaction_path_section)) THEN
+       CALL section_vals_get(reaction_path_section,explicit=my_subsection(10), error=error)
+    END IF
+
     ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(colvar),cp_failure_level,routinep,error,failure)
@@ -395,7 +389,7 @@ CONTAINS
        IF (.NOT. failure) THEN
           DO i= 1, ncol
              NULLIFY(colvar%reaction_path_param%colvar_p(i)%colvar)
-             CALL colvar_read(colvar%reaction_path_param%colvar_p(i)%colvar,i,colvar_subsection,rp_call=.TRUE., error=error)
+             CALL colvar_read(colvar%reaction_path_param%colvar_p(i)%colvar,i,colvar_subsection, error=error)
           ENDDO
        ENDIF
        colvar%reaction_path_param%n_components=ncol
@@ -582,14 +576,14 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE colvar_read
 
-  ! *****************************************************************************
-  !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
-  !>      variables in a molecular environment
-  !> \param colvar the collective variable to evaluate
-  !> \param error variable to control error logging, stopping,... 
-  !>        see module cp_error_handling 
-  !> \author Teodoro Laino
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief evaluates the derivatives (dsdr) given and due to the given colvar
+!>      variables in a molecular environment
+!> \param colvar the collective variable to evaluate
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE colvar_eval_mol_f(colvar, cell, particles, pos, fixd_list, error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -650,16 +644,16 @@ CONTAINS
 
   END SUBROUTINE colvar_eval_mol_f
 
-  ! *****************************************************************************
-  !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
-  !> \param colvar the collective variable to evaluate
-  !> \param error variable to control error logging, stopping,... 
-  !>        see module cp_error_handling 
-  !> \note
-  !>      The torsion that generally is defined without the continuity problem 
-  !>      here (for free energy calculations) is defined only for (-pi,pi]
-  !> \author Alessandro Laio and fawzi
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief evaluates the derivatives (dsdr) given and due to the given colvar
+!> \param colvar the collective variable to evaluate
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      The torsion that generally is defined without the continuity problem 
+!>      here (for free energy calculations) is defined only for (-pi,pi]
+!> \author Alessandro Laio and fawzi
+! *****************************************************************************
   SUBROUTINE colvar_eval_glob_f(icolvar,force_env,error)
     INTEGER                                  :: icolvar
     TYPE(force_env_type), POINTER            :: force_env
@@ -712,14 +706,14 @@ CONTAINS
     END IF
   END SUBROUTINE colvar_eval_glob_f
 
-  ! *****************************************************************************
-  !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
-  !>        for the specification of a reaction path
-  !> \param colvar the collective variable to evaluate
-  !> \param error variable to control error logging, stopping,... 
-  !>        see module cp_error_handling 
-  !> \author sfchiff
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief evaluates the derivatives (dsdr) given and due to the given colvar
+!>        for the specification of a reaction path
+!> \param colvar the collective variable to evaluate
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author sfchiff
+! *****************************************************************************
   SUBROUTINE colvar_eval_r_path(colvar,cell,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -765,10 +759,10 @@ CONTAINS
     END IF
   END SUBROUTINE colvar_eval_r_path
 
-  ! *****************************************************************************
-  !> \brief Get coordinates of atoms or of geoemtrical points
-  !> \author Teodoro Laino 03.2007 [created]
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief Get coordinates of atoms or of geoemtrical points
+!> \author Teodoro Laino 03.2007 [created]
+! *****************************************************************************
   SUBROUTINE get_coordinates(colvar, i, ri, my_particles)
     TYPE(colvar_type), POINTER               :: colvar
     INTEGER, INTENT(IN)                      :: i
@@ -786,10 +780,10 @@ CONTAINS
 
   END SUBROUTINE get_coordinates
 
-  ! *****************************************************************************
-  !> \brief Transfer derivatives to ds/dr
-  !> \author Teodoro Laino 03.2007 [created]
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief Transfer derivatives to ds/dr
+!> \author Teodoro Laino 03.2007 [created]
+! *****************************************************************************
   SUBROUTINE put_derivative(colvar, i, fi)
     TYPE(colvar_type), POINTER               :: colvar
     INTEGER, INTENT(IN)                      :: i
@@ -806,10 +800,10 @@ CONTAINS
 
   END SUBROUTINE put_derivative
 
-  ! *****************************************************************************
-  !> \brief evaluates the force due (and on) the distance from the plane collective variable
-  !> \author Teodoro Laino 02.2006 [created]
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief evaluates the force due (and on) the distance from the plane collective variable
+!> \author Teodoro Laino 02.2006 [created]
+! *****************************************************************************
   SUBROUTINE plane_distance_colvar(colvar,cell,subsys,particles,error)
 
     TYPE(colvar_type), POINTER               :: colvar
@@ -917,10 +911,10 @@ CONTAINS
 
   END SUBROUTINE plane_distance_colvar
 
-  ! *****************************************************************************
-  !> \brief Evaluates the value of the rotation angle between two bonds 
-  !> \author Teodoro Laino 02.2006 [created]
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief Evaluates the value of the rotation angle between two bonds 
+!> \author Teodoro Laino 02.2006 [created]
+! *****************************************************************************
   SUBROUTINE rotation_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -1003,11 +997,11 @@ CONTAINS
 
   END SUBROUTINE rotation_colvar
 
-  ! *****************************************************************************
-  !> \brief evaluates the force due to the function of two distances
-  !> \author Teodoro Laino 02.2006 [created]
-  !        modified Florian Schiffmann 08.2008
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief evaluates the force due to the function of two distances
+!> \author Teodoro Laino 02.2006 [created]
+!        modified Florian Schiffmann 08.2008
+! *****************************************************************************
   SUBROUTINE dfunct_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -1071,10 +1065,10 @@ CONTAINS
 
   END SUBROUTINE dfunct_colvar
 
-  ! *****************************************************************************
-  !> \brief evaluates the force due (and on) the distance from the plane collective variable
-  !> \author Teodoro Laino 02.2006 [created]
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief evaluates the force due (and on) the distance from the plane collective variable
+!> \author Teodoro Laino 02.2006 [created]
+! *****************************************************************************
   SUBROUTINE angle_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -1146,10 +1140,10 @@ CONTAINS
 
   END SUBROUTINE angle_colvar
 
-  ! *****************************************************************************
-  !> \brief evaluates the force due (and on) the distance collective variable
-  !> \author Alessandro Laio, Fawzi Mohamed
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief evaluates the force due (and on) the distance collective variable
+!> \author Alessandro Laio, Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE dist_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -1217,10 +1211,10 @@ CONTAINS
 
   END SUBROUTINE dist_colvar
 
-  ! *****************************************************************************
-  !> \brief evaluates the force due to the torsion collective variable
-  !> \author Alessandro Laio, Fawzi Mohamed
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief evaluates the force due to the torsion collective variable
+!> \author Alessandro Laio, Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE torsion_colvar(colvar,cell,subsys,particles,no_riemann_sheet_op,error)
 
     TYPE(colvar_type), POINTER               :: colvar
@@ -1378,9 +1372,9 @@ CONTAINS
     CALL put_derivative(colvar, 4, ftmp)
   END SUBROUTINE torsion_colvar
 
-  ! *****************************************************************************
-  !> \brief evaluates the force due (and on) the Q PARM collective variable
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief evaluates the force due (and on) the Q PARM collective variable
+! *****************************************************************************
   SUBROUTINE qparm_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -1515,12 +1509,12 @@ CONTAINS
 
   END SUBROUTINE qparm_colvar
 
-  ! *****************************************************************************
-  !> \brief evaluates the force due (and on) the hydronium collective variable
-  !> \author Marcel Baer
-  !> \note This function needs to be extended to the POINT structure!! 
-  !>       non-standard conform.. it's a breach in the colvar module.
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief evaluates the force due (and on) the hydronium collective variable
+!> \author Marcel Baer
+!> \note This function needs to be extended to the POINT structure!! 
+!>       non-standard conform.. it's a breach in the colvar module.
+! *****************************************************************************
   SUBROUTINE hydronium_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -1718,12 +1712,12 @@ CONTAINS
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
   END SUBROUTINE hydronium_colvar
 
-  ! *****************************************************************************
-  !> \brief evaluates the force due (and on) the coordination-chain collective variable
-  !> \author MI
-  !> \note When the third set of atoms is not defined, this variable is equivalent
-  !>       to the simple coordination number. 
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief evaluates the force due (and on) the coordination-chain collective variable
+!> \author MI
+!> \note When the third set of atoms is not defined, this variable is equivalent
+!>       to the simple coordination number. 
+! *****************************************************************************
   SUBROUTINE coord_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -1828,12 +1822,12 @@ CONTAINS
     colvar%dsdr(:,:) = colvar%dsdr(:,:)*inv_n_atoms_from
   END SUBROUTINE coord_colvar
 
-  ! *****************************************************************************
-  !> \brief evaluates the force due (and on) reaction path collective variable
-  !> \author fschiff
-  !> \note the system is still able to move in the space spanned by the CV
-  !>       perpendicular to the path 
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief evaluates the force due (and on) reaction path collective variable
+!> \author fschiff
+!> \note the system is still able to move in the space spanned by the CV
+!>       perpendicular to the path 
+! *****************************************************************************
   SUBROUTINE reaction_path_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -1942,17 +1936,14 @@ CONTAINS
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(ds1,stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-
   END SUBROUTINE reaction_path_colvar
 
-  ! *****************************************************************************
-  !> \brief used to print reaction_path function values on an arbitrary dimensional grid
-  !> \author fschiff
-  ! *****************************************************************************
-
+! *****************************************************************************
+!> \brief used to print reaction_path function values on an arbitrary dimensional grid
+!> \author fschiff
+! *****************************************************************************
   RECURSIVE FUNCTION rec_eval_grid(iw1,ncol,f_vals,v_count,&
-       gp,grid_sp,step_size,&
-       istart,iend,s1v,s1,p_bounds,lambda) RESULT(k)
+       gp,grid_sp,step_size,istart,iend,s1v,s1,p_bounds,lambda) RESULT(k)
     INTEGER                                  :: iw1, ncol
     REAL(dp), DIMENSION(:, :), POINTER       :: f_vals
     INTEGER                                  :: v_count
@@ -1985,7 +1976,6 @@ CONTAINS
 
        END DO
        WRITE(iw1, '(5F10.5)')gp(:),s1(1)/s1(2)
-
     END IF
   END FUNCTION rec_eval_grid
 
