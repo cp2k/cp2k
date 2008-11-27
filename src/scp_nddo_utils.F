@@ -20,7 +20,8 @@ MODULE scp_nddo_utils
                                              get_matrix_diagonal,&
                                              get_matrix_info,&
                                              real_matrix_type,&
-                                             set_matrix_diagonal
+                                             set_matrix_diagonal, &
+                                             mpsum_dbm
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -72,12 +73,11 @@ CONTAINS
   END SUBROUTINE enforce_scp_nddo_constraint
 
 ! *****************************************************************************
-  SUBROUTINE evaluate_scp_kernel( atomic_kind_set, local_particles, pscp, &
+  SUBROUTINE evaluate_scp_kernel( atomic_kind_set, pscp, &
        ks_scp, para_env, energy_only, escp, error )
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(real_matrix_type), POINTER          :: pscp, ks_scp
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: energy_only
@@ -88,8 +88,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iatom, ikind, &
-                                                iparticle_local, j, natorb, &
-                                                nkind, nparticle_local
+                                                j, natorb, &
+                                                nkind, iparticle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: app, asp, ass
     REAL(KIND=dp), DIMENSION(9, 9)           :: a_scp
@@ -98,6 +98,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(semi_empirical_type), POINTER       :: se_kind
+    INTEGER, POINTER                         :: atom_list ( : )
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -107,7 +108,7 @@ CONTAINS
 
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind, atom_list=atom_list)
        CALL get_se_param(se_kind, ass=ass, app=app, asp=asp, natorb=natorb)
        IF (natorb>4) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -119,11 +120,8 @@ CONTAINS
        a_scp( 2:4,  1) = asp
        a_scp( 2:4,2:4) = app
 
-       nparticle_local = local_particles%n_el(ikind)
-
-       ! Loop over the (local) particles
-       DO iparticle_local=1,nparticle_local
-          iatom = local_particles%list(ikind)%array(iparticle_local)
+       DO iparticle=1, SIZE ( atom_list )
+          iatom = atom_list ( iparticle )
 
 
           CALL get_block_node(matrix=pscp,&
@@ -150,7 +148,6 @@ CONTAINS
     END DO ! ikind 
     ! collect escp from all processors
     escp=escp*0.5_dp
-    CALL mp_sum ( escp, para_env % group )
   END SUBROUTINE evaluate_scp_kernel
 
 ! *****************************************************************************

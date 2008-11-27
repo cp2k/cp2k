@@ -168,11 +168,11 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
    SELECT CASE(qs_ot_env(1)%settings%OT_METHOD)
    CASE ("CG")
         IF (current_point_is_fine(qs_ot_env)) THEN
-           IF ( do_scp_dft .OR. do_scp_nddo .AND. .NOT. do_ks ) THEN
+           IF ( ( do_scp_dft .OR. do_scp_nddo ) .AND. .NOT. do_ks ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="SCP CG"
            ELSEIF ( do_ks .AND. .NOT. do_scp_dft .AND. .NOT. do_scp_nddo ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="OT CG"
-           ELSEIF ( do_ks .AND. do_scp_dft .OR. do_scp_nddo ) THEN
+           ELSEIF ( do_ks .AND. ( do_scp_dft .OR. do_scp_nddo ) ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="OT CG"
            END IF
            CALL ot_new_cg_direction(qs_ot_env,error=error)
@@ -183,11 +183,11 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
         CALL do_line_search(qs_ot_env,error=error)
    CASE ("SD")
         IF (current_point_is_fine(qs_ot_env)) THEN
-           IF ( do_scp_dft .OR. do_scp_nddo .AND. .NOT. do_ks ) THEN
+           IF ( ( do_scp_dft .OR. do_scp_nddo ) .AND. .NOT. do_ks ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="SCP SD"
            ELSEIF ( do_ks .AND. .NOT. do_scp_dft .AND. .NOT. do_scp_nddo) THEN
              qs_ot_env(1)%OT_METHOD_FULL="OT SD"
-           ELSEIF ( do_scp_dft .OR. do_scp_nddo .AND. do_ks ) THEN
+           ELSEIF ( ( do_scp_dft .OR. do_scp_nddo ) .AND. do_ks ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="OT SD"
            ENDIF
            CALL ot_new_sd_direction(qs_ot_env,error=error)
@@ -197,11 +197,11 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
         ENDIF
         CALL do_line_search(qs_ot_env,error=error)
    CASE ("DIIS")
-           IF ( do_scp_dft .OR. do_scp_nddo .AND. .NOT. do_ks ) THEN
+           IF ( ( do_scp_dft .OR. do_scp_nddo ) .AND. .NOT. do_ks ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="SCP DIIS"
            ELSEIF ( do_ks .AND. .NOT. do_scp_dft .AND. .NOT. do_scp_nddo ) THEN
              qs_ot_env(1)%OT_METHOD_FULL="OT DIIS"
-           ELSEIF ( do_scp_dft .OR. do_scp_nddo .AND. do_ks) THEN
+           ELSEIF ( ( do_scp_dft .OR. do_scp_nddo ) .AND. do_ks) THEN
              qs_ot_env(1)%OT_METHOD_FULL="OT DIIS"
            END IF
            CALL ot_diis_step(qs_ot_env,error=error)
@@ -941,7 +941,7 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
          IF ( do_scp_dft ) THEN
            qs_ot_env ( 1 ) % dx = beta_pr * qs_ot_env ( 1 ) % dx - qs_ot_env ( 1 ) % gx
          END IF 
-         IF ( do_scp_dft ) THEN
+         IF ( do_scp_nddo ) THEN
            CALL cp_sm_scale_and_add ( qs_ot_env ( 1 ) % dxmat, beta_pr, &
                                       qs_ot_env ( 1 ) % gxmat,-1.0_dp, error=error )
          END IF 

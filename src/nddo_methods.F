@@ -83,7 +83,8 @@ MODULE nddo_methods
   USE sparse_matrix_types,             ONLY: &
        allocate_matrix_set, cp_sm_scale_and_add, cp_sm_sm_trace, &
        create_dbm_from_sm, deallocate_dbm_from_sm, get_block_node, &
-       real_matrix_p_type, real_matrix_type, set_matrix, transfer_matrix
+       real_matrix_p_type, real_matrix_type, set_matrix, transfer_matrix, &
+       mpsum_dbm, deallocate_matrix
   USE taper_types,                     ONLY: taper_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -133,7 +134,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -149,7 +149,7 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env, se_control)
-    NULLIFY(scp_env, pscp, ks_scp, energy_scp,atomic_kind_set,local_particles)
+    NULLIFY(scp_env, pscp, ks_scp, energy_scp,atomic_kind_set)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -163,7 +163,6 @@ CONTAINS
        scp_nddo    =  se_control%scp
 
        IF ( scp_nddo ) CALL get_qs_env ( qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
-                                         local_particles=local_particles, &
                                          scp_env=scp_env, error=error )
 
        scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
@@ -220,9 +219,11 @@ CONTAINS
        ! Compute the SCP Hartree energy and polarization energy and update ks_scp
        IF (scp_nddo) THEN
           CALL get_scp_env ( scp_env, pscp=pscp, ks_scp=ks_scp, energy=energy_scp, error = error )
+          ! Get energy
           CALL cp_sm_sm_trace(ks_scp,pscp,trace=ecoul_scp,error=error)
           energy_scp%e_scp_hartree = ecoul_scp*0.5_dp
-          CALL evaluate_scp_kernel ( atomic_kind_set, local_particles, pscp, ks_scp, para_env,&
+          ! evalulate kernel and forces on the SCP coeffs
+          CALL evaluate_scp_kernel ( atomic_kind_set, pscp, ks_scp, para_env,&
                                      just_energy, energy_scp%e_scp_kernel, error )
          !NOTE: If needed, at this point, forces on P_SCP are up-to-date and stored in KS_SCP as a*ks_scp
        END IF
@@ -792,6 +793,9 @@ CONTAINS
        IF ( scp_nddo ) THEN
           ! Update the SCP coulomb fock matrix.  Should be K = (P + p )C + CZ
           CALL transfer_matrix ( diagmat_ks(1)%matrix, ks_scp, error )
+          ! sum over all procs to get the replicated ks_scp
+          CALL mpsum_dbm ( ks_scp, para_env, error )
+          CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp, error = error ) 
        ENDIF 
        
        DO ispin = 1, nspins
@@ -847,7 +851,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: force_a
     REAL(KIND=dp), DIMENSION(3, 3)           :: qcart
     REAL(KIND=dp), DIMENSION(5)              :: qsph
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksa_block_a, ksa_scp_block, &
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksa_block_a, &
                                                 pa_block_a, pscpa_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -867,7 +871,7 @@ CONTAINS
       POINTER                                :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: diagmat_ks, diagmat_p
-    TYPE(real_matrix_type), POINTER          :: ks_scp, pscp
+    TYPE(real_matrix_type), POINTER          :: ks_scp, pscp, dbm
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: se_section
     TYPE(semi_empirical_control_type), &
@@ -923,6 +927,11 @@ CONTAINS
                                   "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env,error=error)
           CALL create_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,&
                                   "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
+          IF ( ispin == 1 .AND. scp_nddo ) THEN
+            CALL create_dbm_from_sm(dbm,ks_matrix(ispin)%matrix,&
+                                    "DUMMY BLOCK KS MATRIX",.FALSE.,error=error)
+            CALL set_matrix ( dbm, 0.0_dp )
+          END IF
        END DO
 
        IF ( scp_nddo )  CALL get_scp_env(scp_env=scp_env, pscp=pscp, ks_scp=ks_scp, error=error)
@@ -1059,7 +1068,7 @@ CONTAINS
           END IF
 
           ! Modify the KS matrix and possibly compute derivatives
-          node = 0
+          node = 0 
           DO ikind=1,nkind
              atomic_kind => atomic_kind_set(ikind)
              CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
@@ -1078,13 +1087,6 @@ CONTAINS
                                        BLOCK=ksa_block_a)
                    CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
                 END IF
-                IF ( scp_nddo ) THEN
-                   CALL get_block_node(matrix=ks_scp,&
-                                       block_row=iatom,&
-                                       block_col=iatom,&
-                                       BLOCK=ksa_scp_block)
-                   CPPostcondition(ASSOCIATED(ksa_scp_block),cp_failure_level,routineP,error,failure)
-                ENDIF
 
                 ! Modify Hamiltonian Matrix accordingly potential, field and electric field gradient
                 size_1c_int = SIZE(se_kind_a%w_mpole)
@@ -1136,8 +1138,14 @@ CONTAINS
 
        ! Increment the SCP portion of the Fock matrix with the long-range coulomb portion of the Fock matrix
        IF ( scp_nddo ) THEN
-          CALL cp_sm_scale_and_add ( ks_scp, 1.0_dp, diagmat_ks ( 1 ) % matrix, 1.0_dp, error )  
+          ! transfer to dummy dbm
+          CALL transfer_matrix ( diagmat_ks ( 1 ) % matrix, dbm, error )
+          ! replicate the dbm
+          CALL mpsum_dbm ( dbm, para_env, error )
+          ! add dbm (which is the long range part of (P+p)C + CZ )to the replicated ks_scp
+          CALL cp_sm_scale_and_add ( ks_scp, 1.0_dp, dbm, 1.0_dp, error )  
           CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp, error = error ) 
+          CALL deallocate_matrix ( dbm, error=error )
        ENDIF
        
        ! Deallocate diagonal block matrix

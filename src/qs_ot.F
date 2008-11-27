@@ -942,7 +942,6 @@ CONTAINS
 
     CALL transfer_matrix ( pscp, qs_ot_env%xmat, error )
     CALL transfer_matrix ( fscp, qs_ot_env%gxmat, error )
-!    CALL scale_matrix ( qs_ot_env%gxmat, -1.0_dp )
      
   END SUBROUTINE qs_ot_get_scp_nddo_derivative 
 ! *****************************************************************************

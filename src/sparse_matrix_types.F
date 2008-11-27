@@ -117,7 +117,8 @@ MODULE sparse_matrix_types
             cp_sm_maxabsval,&
             create_dbm_from_sm,&
             deallocate_dbm_from_sm,&
-            cp_sm_add_constant
+            cp_sm_add_constant, &
+            mpsum_dbm
 
 ! *** Public functions ***
 
@@ -2707,6 +2708,30 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env,error)
     CALL timestop(handle)
 
 END SUBROUTINE create_dbm_from_sm
+! *****************************************************************************
+!> \brief  mp_sum the diagonal blocks 
+!> \version 1.0
+! *****************************************************************************
+SUBROUTINE mpsum_dbm(dbm,para_env,error)
+    TYPE(real_matrix_type), POINTER          :: dbm
+    TYPE(cp_para_env_type), INTENT(IN)       :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'mpsum_dbm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iblock_row, ii,jj
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
+
+    CALL timeset(routineN,handle)
+    DO iblock_row=1,dbm%nblock_row
+      NULLIFY(block)
+      CALL get_block_node(matrix=dbm,&
+                          block_row=iblock_row,block_col=iblock_row,&
+                          BLOCK=block)
+      CALL mp_sum(block,para_env%group)
+    END DO
+    CALL timestop(handle)
+END SUBROUTINE mpsum_dbm
 
 ! *****************************************************************************
 !> \brief   Deallocate a diagonal block matrix
