@@ -148,7 +148,7 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        IF(.NOT. skip_reaction_path)THEN
-          CALL create_colvar_reaction_path_section(subsection,error)
+          CALL create_colvar_rpath_section(subsection,error)
           CALL section_add_subsection(section, subsection, error=error)
           CALL section_release(subsection,error=error)
        ENDIF
@@ -908,12 +908,11 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author fschiff
 ! *****************************************************************************
-  SUBROUTINE create_colvar_reaction_path_section(section,error)
+  SUBROUTINE create_colvar_rpath_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'create_colvar_reaction_path_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rpath_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -1006,6 +1005,6 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
     END IF
-  END SUBROUTINE create_colvar_reaction_path_section
+  END SUBROUTINE create_colvar_rpath_section
 
 END MODULE input_cp2k_colvar
