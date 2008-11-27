@@ -232,7 +232,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
     ncolv%ndist          = 0
