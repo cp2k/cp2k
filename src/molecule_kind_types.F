@@ -222,16 +222,19 @@ MODULE molecule_kind_types
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE setup_colvar_counters(colv_list, ncolv)
+  SUBROUTINE setup_colvar_counters(colv_list, ncolv,error)
     TYPE(colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: colv_list
     TYPE(colvar_counters)                    :: ncolv
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_colvar_counters', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k
+    LOGICAL :: failure
 
+    failure=.FALSE.
     ncolv%ndist          = 0
     ncolv%nangle         = 0
     ncolv%ndfunct        = 0
@@ -267,6 +270,8 @@ CONTAINS
              ncolv%nhydronium = ncolv%nhydronium + 1
           CASE(reaction_path_colvar_id)
              ncolv%nreactionpath = ncolv%nreactionpath + 1
+          CASE DEFAULT
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
        END DO
     END IF
@@ -340,7 +345,7 @@ CONTAINS
       molecule_kind_set(imolecule_kind)%nonfo = 0
       molecule_kind_set(imolecule_kind)%nub = 0
       CALL setup_colvar_counters(molecule_kind_set(imolecule_kind)%colv_list,&
-        molecule_kind_set(imolecule_kind)%ncolv)
+        molecule_kind_set(imolecule_kind)%ncolv,error)
       molecule_kind_set(imolecule_kind)%ng3x3 = 0
       molecule_kind_set(imolecule_kind)%ng4x6 = 0
       molecule_kind_set(imolecule_kind)%nfixd = 0

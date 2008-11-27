@@ -185,7 +185,7 @@ CONTAINS
     gci%ng4x6  = 0
     gci%ng3x3_restraint  = 0
     gci%ng4x6_restraint  = 0
-    CALL setup_colvar_counters(gci%colv_list,gci%ncolv)
+    CALL setup_colvar_counters(gci%colv_list,gci%ncolv,error)
     gci%nrestraint = gci%ng3x3_restraint +&
                      gci%ng4x6_restraint +&
                      gci%ncolv%nrestraint
@@ -412,7 +412,7 @@ CONTAINS
           CALL setup_colv_list(colv_list, constr_x_mol(ii)%constr, gind,&
                cons_info, topology, particle_set, restart_restraint_clv,&
                colvar_rest, first_atom, error)
-          CALL setup_colvar_counters(colv_list,ncolv)
+          CALL setup_colvar_counters(colv_list,ncolv,error)
           CALL set_molecule_kind(molecule_kind,colv_list=colv_list,ncolv=ncolv)
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
@@ -439,7 +439,7 @@ CONTAINS
           CALL setup_colv_list(colv_list, constr_x_glob, gind, cons_info,&
                topology, particle_set, restart_restraint_clv, colvar_rest,&
                first_atom=1, error=error)
-          CALL setup_colvar_counters(colv_list,ncolv)
+          CALL setup_colvar_counters(colv_list,ncolv,error)
           ALLOCATE(lcolv(ncolv_glob),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL setup_lcolv(lcolv, constr_x_glob, 1, SIZE(particle_set), cons_info, error)
