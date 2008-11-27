@@ -5,3 +5,5 @@ H2O-MNDO-2.inp
 H2.inp
 H2O-3.inp
 O2.inp
+# index bug fix
+N3-rp_colvar.inp
