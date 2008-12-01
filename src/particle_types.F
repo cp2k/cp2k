@@ -586,12 +586,9 @@ CONTAINS
              y4(:) = particle_set(:)%r(2)
              z4(:) = particle_set(:)%r(3)
           END IF
-          x4 = x4*factor
-          y4 = y4*factor
-          z4 = z4*factor
-          WRITE(iunit) x4
-          WRITE(iunit) y4
-          WRITE(iunit) z4
+          WRITE(iunit) x4*REAL(factor,KIND=sp)
+          WRITE(iunit) y4*REAL(factor,KIND=sp)
+          WRITE(iunit) z4*REAL(factor,KIND=sp)
        CASE ("VEL")
           IF (PRESENT(array)) THEN
              x4(:) = arr(1,:)
@@ -602,12 +599,9 @@ CONTAINS
              y4(:) = particle_set(:)%v(2)
              z4(:) = particle_set(:)%v(3)
           END IF
-          x4 = x4*factor
-          y4 = y4*factor
-          z4 = z4*factor
-          WRITE(iunit) x4
-          WRITE(iunit) y4
-          WRITE(iunit) z4
+          WRITE(iunit) x4*REAL(factor,KIND=sp)
+          WRITE(iunit) y4*REAL(factor,KIND=sp)
+          WRITE(iunit) z4*REAL(factor,KIND=sp)
        CASE ("FORCE")
           IF (PRESENT(array)) THEN
              x4(:) = arr(1,:)
@@ -618,12 +612,9 @@ CONTAINS
              y4(:) = particle_set(:)%f(2)
              z4(:) = particle_set(:)%f(3)
           END IF
-          x4 = x4*factor
-          y4 = y4*factor
-          z4 = z4*factor
-          WRITE(iunit) x4
-          WRITE(iunit) y4
-          WRITE(iunit) z4
+          WRITE(iunit) x4*REAL(factor,KIND=sp)
+          WRITE(iunit) y4*REAL(factor,KIND=sp)
+          WRITE(iunit) z4*REAL(factor,KIND=sp)
        CASE DEFAULT
           CALL stop_program ("particle_types","illegal dcd dump type")
        END SELECT
