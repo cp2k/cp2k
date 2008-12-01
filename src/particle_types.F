@@ -476,10 +476,11 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
     INTEGER                                  :: i, iatom, j, natom, stat
     LOGICAL                                  :: dummy, failure
+    REAL(KIND=dp)                            :: alpha, beta, gamma
     REAL(KIND=dp)                            :: factor
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: arr
-    REAL(KIND=dp), DIMENSION(3)              :: f, r, v
+    REAL(KIND=dp), DIMENSION(3)              :: abc, f, r, v
     REAL(KIND=sp), DIMENSION(:), POINTER     :: x4, y4, z4
 
     failure = .FALSE.
@@ -574,7 +575,8 @@ CONTAINS
        NULLIFY(x4,y4,z4)
        ALLOCATE(x4(natom),y4(natom),z4(natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       WRITE(iunit) ((cell%hmat(i,j)*angstrom,i=1,j),j=1,3)
+       CALL get_cell(cell, alpha=alpha, beta=beta, gamma=gamma, abc=abc)
+       WRITE(iunit) abc(1)*factor, gamma, abc(2)*factor, beta, alpha, abc(3)*factor
        SELECT CASE (TRIM(content))
        CASE ("POS")
           IF (PRESENT(array)) THEN
@@ -586,9 +588,12 @@ CONTAINS
              y4(:) = particle_set(:)%r(2)
              z4(:) = particle_set(:)%r(3)
           END IF
-          WRITE(iunit) x4*factor
-          WRITE(iunit) y4*factor
-          WRITE(iunit) z4*factor
+          x4 = x4*factor
+          y4 = y4*factor
+          z4 = z4*factor
+          WRITE(iunit) x4
+          WRITE(iunit) y4
+          WRITE(iunit) z4
        CASE ("VEL")
           IF (PRESENT(array)) THEN
              x4(:) = arr(1,:)
@@ -599,9 +604,12 @@ CONTAINS
              y4(:) = particle_set(:)%v(2)
              z4(:) = particle_set(:)%v(3)
           END IF
-          WRITE(iunit) x4*factor
-          WRITE(iunit) y4*factor
-          WRITE(iunit) z4*factor
+          x4 = x4*factor
+          y4 = y4*factor
+          z4 = z4*factor
+          WRITE(iunit) x4
+          WRITE(iunit) y4
+          WRITE(iunit) z4
        CASE ("FORCE")
           IF (PRESENT(array)) THEN
              x4(:) = arr(1,:)
@@ -612,9 +620,12 @@ CONTAINS
              y4(:) = particle_set(:)%f(2)
              z4(:) = particle_set(:)%f(3)
           END IF
-          WRITE(iunit) x4*factor
-          WRITE(iunit) y4*factor
-          WRITE(iunit) z4*factor
+          x4 = x4*factor
+          y4 = y4*factor
+          z4 = z4*factor
+          WRITE(iunit) x4
+          WRITE(iunit) y4
+          WRITE(iunit) z4
        CASE DEFAULT
           CALL stop_program ("particle_types","illegal dcd dump type")
        END SELECT
