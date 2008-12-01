@@ -41,8 +41,7 @@ MODULE particle_types
   USE mathlib,                         ONLY: angle,&
                                              dihedral_angle
   USE message_passing,                 ONLY: mp_sum
-  USE physcon,                         ONLY: angstrom,&
-                                             massunit
+  USE physcon,                         ONLY: massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_program
@@ -474,10 +473,9 @@ CONTAINS
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=4)                         :: name
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
-    INTEGER                                  :: i, iatom, j, natom, stat
+    INTEGER                                  :: iatom, natom, stat
     LOGICAL                                  :: dummy, failure
-    REAL(KIND=dp)                            :: alpha, beta, gamma
-    REAL(KIND=dp)                            :: factor
+    REAL(KIND=dp)                            :: alpha, beta, factor, gamma
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: arr
     REAL(KIND=dp), DIMENSION(3)              :: abc, f, r, v
