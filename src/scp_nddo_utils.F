@@ -45,24 +45,23 @@ CONTAINS
     REAL(dp), INTENT(out)                    :: escp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_scp_kernel', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_scp_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iatom, ikind, iparticle, &
-                                                j, natorb, nkind
+    INTEGER                                  :: i, iatom, ii, ikind, &
+                                                iparticle, j, n_el, natorb, &
+                                                nkind, stat
     INTEGER, POINTER                         :: atom_list( : )
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: app, asp, ass
+    REAL(KIND=dp)                            :: app, asp, ass, ratio, &
+                                                sum_adiag, sum_ksdiag
+    REAL(KIND=dp), ALLOCATABLE               :: ksdiag( : )
     REAL(KIND=dp), DIMENSION(9, 9)           :: a_scp
     REAL(KIND=dp), POINTER                   :: ks_block( :, : ), &
                                                 p_block( :, : )
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(semi_empirical_type), POINTER       :: se_kind
-
-    INTEGER                                  :: ii, n_el, stat
-    REAL(KIND=dp)                            :: ratio, sum_adiag, sum_ksdiag
-    REAL(KIND=dp), ALLOCATABLE               :: ksdiag( : )
 
     failure = .FALSE.
     NULLIFY(logger)

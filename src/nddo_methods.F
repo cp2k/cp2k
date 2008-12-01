@@ -124,9 +124,9 @@ CONTAINS
     INTEGER                                  :: handle, ispin, ncol_global, &
                                                 nspins, output_unit
     LOGICAL                                  :: do_ewald, failure, scp_nddo
+    REAL(dp), POINTER                        :: ascp_diag( : )
     REAL(KIND=dp)                            :: ecoul, ecoul_scp, qmmm_el
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
-    REAL(dp), POINTER                        :: ascp_diag( : )
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
