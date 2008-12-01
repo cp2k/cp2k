@@ -173,7 +173,6 @@ MODULE qs_scf
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type,&
                                              set_scp_env
-  USE scp_nddo_utils,                  ONLY: enforce_scp_nddo_constraint
   USE sparse_matrix_output,            ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
@@ -364,7 +363,6 @@ CONTAINS
     LOGICAL :: diis_step, energy_only, exit_inner_loop, failure, gapw, &
       gapw_xc, harris_energy, harris_flag, has_unit_metric, &
       outer_loop_converged, scp_dft, scp_nddo, use_jacobi, use_virial
-    REAL(dp), POINTER                        :: ascp_diag( : )
     REAL(KIND=dp)                            :: outer_loop_eps, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -400,7 +398,7 @@ CONTAINS
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set, &
             particle_set,harris_env,dft_section,input,&
             scf_section)
-    NULLIFY ( aux_coeff_set, scp_env, pscp, ks_scp, ascp_diag )
+    NULLIFY ( aux_coeff_set, scp_env, pscp, ks_scp)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -601,8 +599,6 @@ CONTAINS
                 CALL qs_scf_loop_do_ot(scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &
                      matrix_s, pscp=pscp, fscp=ks_scp, energy_only=energy_only, &
                      has_unit_metric=has_unit_metric,error=error)
-                CALL get_scp_env ( scp_env, ascp_diag = ascp_diag, error = error )
-                CALL enforce_scp_nddo_constraint ( pscp, ascp_diag, error )
                 CALL set_scp_env ( scp_env = scp_env, pscp = pscp, error = error )
              ELSE
                 CALL qs_scf_loop_do_ot(scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &

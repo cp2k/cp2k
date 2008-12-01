@@ -27,55 +27,19 @@ MODULE scp_nddo_utils
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_nddo_utils'
 
-  PUBLIC :: evaluate_scp_kernel, enforce_scp_nddo_constraint
+  PUBLIC :: evaluate_scp_force
 
 
 CONTAINS
-! *****************************************************************************
-!> \brief   Allocation of scp coefficient arrays for scp-nddo
-!> \author  CJM
-!> \par     History
-!> \date    11.03.2002
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE enforce_scp_nddo_constraint ( pscp, ascp_diag, error )
-    TYPE(real_matrix_type), POINTER          :: pscp
-    REAL(dp), POINTER                        :: ascp_diag( : )
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'enforce_scp_nddo_constraint', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ii, n_el, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: ratio, sum_adiag, sum_pdiag
-    REAL(KIND=dp), ALLOCATABLE               :: pdiag( : )
-
-    failure = .FALSE.
-    CALL get_matrix_info ( pscp, nrow=n_el )
-    ALLOCATE (pdiag(n_el),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    CALL get_matrix_diagonal ( pscp, pdiag )
-    sum_pdiag = SUM ( pdiag )
-    sum_adiag = SUM ( ascp_diag )
-    ratio = sum_pdiag/sum_adiag
-    DO ii = 1, n_el
-       pdiag ( ii ) = pdiag ( ii ) - ascp_diag ( ii ) * ratio 
-    END DO
-    CALL set_matrix_diagonal ( pscp, pdiag )
-    DEALLOCATE (pdiag,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
-  END SUBROUTINE enforce_scp_nddo_constraint
 
 ! *****************************************************************************
-  SUBROUTINE evaluate_scp_kernel( atomic_kind_set, pscp, &
-       ks_scp, para_env, energy_only, escp, error )
+  SUBROUTINE evaluate_scp_force( atomic_kind_set, pscp, &
+       ks_scp, ascp_diag, para_env, energy_only, escp, error )
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(real_matrix_type), POINTER          :: pscp, ks_scp
+    REAL(dp), POINTER                        :: ascp_diag( : )
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: energy_only
     REAL(dp), INTENT(out)                    :: escp
@@ -95,6 +59,10 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(semi_empirical_type), POINTER       :: se_kind
+
+    INTEGER                                  :: ii, n_el, stat
+    REAL(KIND=dp)                            :: ratio, sum_adiag, sum_ksdiag
+    REAL(KIND=dp), ALLOCATABLE               :: ksdiag( : )
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -142,9 +110,25 @@ CONTAINS
           END IF
        END DO ! iparticle_local
     END DO ! ikind 
-    ! collect escp from all processors
     escp=escp*0.5_dp
-  END SUBROUTINE evaluate_scp_kernel
+! compute constraint force
+    IF(.NOT.energy_only) THEN
+      CALL get_matrix_info ( ks_scp, nrow=n_el )
+      ALLOCATE (ksdiag(n_el),STAT=stat)
+      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      CALL get_matrix_diagonal ( ks_scp, ksdiag )
+      sum_ksdiag = SUM ( ksdiag )
+      sum_adiag = SUM ( ascp_diag )
+      ratio = sum_ksdiag/sum_adiag
+      DO ii = 1, n_el
+         ksdiag ( ii ) = ksdiag ( ii ) + ascp_diag ( ii ) * ratio 
+      END DO
+      CALL set_matrix_diagonal ( ks_scp, ksdiag )
+      DEALLOCATE (ksdiag,STAT=stat)
+      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+  END SUBROUTINE evaluate_scp_force
 
 ! *****************************************************************************
 

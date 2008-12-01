@@ -62,7 +62,7 @@ MODULE nddo_methods
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type,&
                                              set_scp_env
-  USE scp_nddo_utils,                  ONLY: evaluate_scp_kernel
+  USE scp_nddo_utils,                  ONLY: evaluate_scp_force
   USE semi_empirical_int_arrays,       ONLY: rij_threshold,&
                                              se_orbital_pointer
   USE semi_empirical_integrals,        ONLY: corecore,&
@@ -126,6 +126,7 @@ CONTAINS
     LOGICAL                                  :: do_ewald, failure, scp_nddo
     REAL(KIND=dp)                            :: ecoul, ecoul_scp, qmmm_el
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
+    REAL(dp), POINTER                        :: ascp_diag( : )
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -149,7 +150,7 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env, se_control)
-    NULLIFY(scp_env, pscp, ks_scp, energy_scp,atomic_kind_set)
+    NULLIFY(scp_env, pscp, ks_scp, ascp_diag, energy_scp,atomic_kind_set)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -218,13 +219,14 @@ CONTAINS
        END DO
        ! Compute the SCP Hartree energy and polarization energy and update ks_scp
        IF (scp_nddo) THEN
-          CALL get_scp_env ( scp_env, pscp=pscp, ks_scp=ks_scp, energy=energy_scp, error = error )
+          CALL get_scp_env ( scp_env, pscp=pscp, ks_scp=ks_scp, energy=energy_scp, &
+                             ascp_diag= ascp_diag, error = error )
           ! Get energy
           CALL cp_sm_sm_trace(ks_scp,pscp,trace=ecoul_scp,error=error)
           energy_scp%e_scp_hartree = ecoul_scp*0.5_dp
           ! evalulate kernel and forces on the SCP coeffs
-          CALL evaluate_scp_kernel ( atomic_kind_set, pscp, ks_scp, para_env,&
-                                     just_energy, energy_scp%e_scp_kernel, error )
+          CALL evaluate_scp_force ( atomic_kind_set, pscp, ks_scp, ascp_diag, para_env,&
+                                    just_energy, energy_scp%e_scp_kernel, error )
          !NOTE: If needed, at this point, forces on P_SCP are up-to-date and stored in KS_SCP as a*ks_scp
        END IF
 
