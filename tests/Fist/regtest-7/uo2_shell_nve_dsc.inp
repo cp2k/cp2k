@@ -16,14 +16,14 @@
         SHELL_CHARGE 6.840000
         MASS_FRACTION  0.1
         SPRING  [eV*angstrom^-2] 171.556
-        MAX_DISTANCE [angstrom] 0.1
+        MAX_DISTANCE [angstrom] 0.8
       &END SHELL
       &SHELL O
         CORE_CHARGE 1.186267
         SHELL_CHARGE -3.186267
         MASS_FRACTION 0.2
         SPRING [eV*angstrom^-2] 70.824
-        MAX_DISTANCE [angstrom] 0.01
+        MAX_DISTANCE [angstrom] 0.1
       &END SHELL
       &NONBONDED
         &WILLIAMS
@@ -53,6 +53,10 @@
           RCUT 10.4
         &END WILLIAMS
       &END NONBONDED
+      &SPLINE
+        R0_NB   0.5
+        EMAX_SPLINE 1000
+      &END
     &END FORCEFIELD
     &POISSON
       &EWALD
@@ -88,9 +92,10 @@
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS  20
+    STEPS  10
     TIMESTEP 2.0
     TEMPERATURE 2000.0
+    TEMP_TOL 100
     &PRINT
       &ENERGY
       &END
@@ -98,10 +103,25 @@
       &END
     &END PRINT
   &END MD
+  &SHELL_OPT
+    OPTIMIZER CG
+    MAX_DR 0.02
+    RMS_DR 0.01
+    MAX_FORCE 0.0002
+    RMS_FORCE 0.0001
+    &CG
+      &LINE_SEARCH
+        TYPE 2PNT
+        &2PNT
+        &END
+      &END
+    &END
+  &END
+
   &PRINT
     &TRAJECTORY
     &END
-    &VELOCITIES
+    &VELOCITIES OFF
       &EACH
         MD 1000
       &END
@@ -110,7 +130,7 @@
     &END
     &RESTART
       &EACH
-        MD 5
+        MD 200
       &END
     &END
     &RESTART_HISTORY

@@ -1,8 +1,5 @@
-
-&FORCE_EVAL
-  METHOD Fist
-  &MM
     &FORCEFIELD
+      MULTIPLE_POTENTIAL
       &CHARGE
         ATOM U
         CHARGE 4.0
@@ -14,14 +11,16 @@
       &SHELL U
         CORE_CHARGE   -2.840000
         SHELL_CHARGE 6.840000
-        MASS_FRACTION  0.1
+        MASS_FRACTION  0.01
         SPRING  [eV*angstrom^-2] 171.556
+        MAX_DISTANCE [angstrom] 0.8
       &END SHELL
       &SHELL O
         CORE_CHARGE 1.186267
         SHELL_CHARGE -3.186267
-        MASS_FRACTION 0.2
+        MASS_FRACTION 0.1
         SPRING [eV*angstrom^-2] 70.824
+        MAX_DISTANCE [angstrom] 0.8
       &END SHELL
       &NONBONDED
         &WILLIAMS
@@ -30,7 +29,27 @@
           B [angstrom^-1] 2.35159661652
           C [eV*angstrom^6] 0.0
           RCUT 10.4
+	  RMIN [angstrom] 0.8
         &END WILLIAMS
+	&GENPOT
+          atoms U O
+	  FUNCTION P/X*(a1*EXP(-3.2*X/AU)+a2*EXP(-0.9423*X/AU)+a3*EXP(-0.4029*X/AU)+a4*EXP(-0.2016*X/AU)) 
+	  PARAMETERS P AU a1 a2 a3 a4
+	  VALUES  51.11239406426095344911  .37659841887685972746 0.1818 0.5099 0.2802  0.02817
+	  VARIABLES X
+	  RMAX [angstrom]  0.4
+          RCUT 10.4
+	&END
+	&GENPOT
+          atoms U O
+	  FUNCTION a0 + a1*X + a2*X**2 + a3 *X**3 + a4* X**4 + a5 * X**5
+	  PARAMETERS a0 a1 a2 a3 a4  a5
+	  VALUES 103.31962895    -182.45077437       32.96257294      140.94822916     -111.18252029       24.77706269 
+	  VARIABLES X
+	  RMIN [angstrom]  0.4
+	  RMAX [angstrom]  0.8
+          RCUT 10.4
+	&END
         &BUCK4RANGES
           atoms O O
           A [eV] 20908.03
@@ -51,71 +70,8 @@
           RCUT 10.4
         &END WILLIAMS
       &END NONBONDED
-
+      &SPLINE
+        R0_NB   0.05
+        EMAX_SPLINE 100
+      &END
     &END FORCEFIELD
-    &POISSON
-      &EWALD
-        EWALD_TYPE spme
-        ALPHA .44
-        GMAX  64
-      &END EWALD
-    &END POISSON
-  &END MM
-  &SUBSYS
-    &CELL
-      ABC  10.936 10.936 10.936
-    &END CELL
-    &TOPOLOGY
-      CONN_FILE ../sample_psf/uo2_2x2x2.psf
-      CONNECTIVITY UPSF
-      COORD_FILE ../sample_xyz/uo2_displ.xyz
-      COORDINATE XYZ
-    &END TOPOLOGY
-    &KIND U
-      MASS 238.03000
-    &END
-    &KIND O
-      MASS 16.000
-    &END
-  &END SUBSYS
-&END FORCE_EVAL
-&GLOBAL
-  PRINT_LEVEL LOW
-  PROJECT uo2_shell_nve
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS  20
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-    &PRINT
-      &ENERGY
-      &END
-      &SHELL_ENERGY LOW
-      &END
-    &END PRINT
-  &END MD
-  &PRINT
-    &TRAJECTORY
-    &END
-    &VELOCITIES
-      &EACH
-        MD 1000
-      &END
-    &END
-    &STRESS
-    &END
-    &RESTART
-      &EACH
-        MD 5
-      &END
-    &END
-    &RESTART_HISTORY
-      &EACH
-        MD 1000
-      &END
-    &END
-  &END
-&END MOTION

@@ -47,3 +47,7 @@ uo2_shell_npt_vdt_2.inp         2
 #Check on shell-core distance
 uo2_shell_nve_dsc.inp           2
 uo2_shell_npt_dsc.inp           2
+#ZBL repulsive term for core-core and shell-core interactions
+uo2_shell_nve_zbl.inp           2
+# thermal regions
+uo2_shell_nve_cascade.inp       2

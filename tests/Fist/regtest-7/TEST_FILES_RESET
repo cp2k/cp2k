@@ -175,3 +175,19 @@ uo2_shell_npt_vdt_2.inp
 ##
 uo2_shell_npt_vdt.inp 
 uo2_shell_npt_vdt_2.inp         
+# new features : shell-core CG optimization
+uo2_shell_nve.inp 
+uo2_shell_nve_r.inp  
+uo2_nvt_1.inp
+uo2_nvt_2.inp
+uo2_nvt_3.inp
+uo2_nvt_4.inp
+uo2_shell_nve_shnose.inp
+uo2_shell_npe_1.inp  
+uo2_shell_nve_vdt.inp  
+uo2_shell_nve_vdt_r.inp 
+uo2_shell_npt_vdt.inp  
+uo2_shell_npt_vdt_2.inp
+uo2_shell_nve_dsc.inp  
+uo2_shell_npt_dsc.inp  
+uo2_shell_nve_zbl.inp  

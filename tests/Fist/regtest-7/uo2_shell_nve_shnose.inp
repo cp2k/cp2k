@@ -113,6 +113,21 @@
       &END
     &END PRINT
   &END MD
+  &SHELL_OPT
+    OPTIMIZER CG
+    MAX_DR 0.02
+    RMS_DR 0.01
+    MAX_FORCE 0.0002
+    RMS_FORCE 0.0001
+    &CG
+      &LINE_SEARCH
+        TYPE 2PNT
+        &2PNT
+        &END
+      &END
+    &END
+  &END
+
   &PRINT
     &TRAJECTORY
     &END

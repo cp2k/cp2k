@@ -2,7 +2,7 @@
 &FORCE_EVAL
   METHOD Fist
   &MM
-@include pmeis_forcefield.inc 
+@include pmeis_forcefield.inc    
     &POISSON
       &EWALD
         EWALD_TYPE spme
@@ -28,52 +28,63 @@
       MASS 16.000
     &END
   &END SUBSYS
-  STRESS_TENSOR ANALYTICAL
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT uo2_shell_npt
+  PROJECT uo2_shell_cascade
   RUN_TYPE MD
 &END GLOBAL
 &MOTION
   &MD
-    ENSEMBLE NPT_F
-    STEPS  10
-    TIMESTEP 1.5
-    TEMPERATURE 2000.0
-    &BAROSTAT
-      PRESSURE 0.
-      TIMECON 1000
-    &END BAROSTAT
-    &THERMOSTAT
-      REGION MOLECULE
-      &NOSE
-        LENGTH 6
-        YOSHIDA 3
-        TIMECON 1000
-        MTS 2
-      &END NOSE
-    &END
-    &SHELL
-      TEMPERATURE 1.0
-##      TEMP_TOL 25.0
-      &THERMOSTAT
-        TYPE NOSE
-        REGION GLOBAL
-        &NOSE
-          LENGTH 6
-          YOSHIDA 3
-          TIMECON 1000
-          MTS 2
+    ENSEMBLE NVE
+    STEPS  20
+    TIMESTEP 0.5
+    TEMPERATURE 300.0
+    DISPLACEMENT_TOL [angstrom] 0.01
+    &THERMAL_REGION
+      &DEFINE_REGION
+        TEMPERATURE  100
+        TEMP_TOL  10
+        LIST 45  46  47  48  51  52  53  54  55  56  58  60  61  62  63  64  66  67  68  69  70  71  72  
+        LIST 75  76  79  80  82  84  86  88  90  91  92  94  95  96 
+      &END
+      &DEFINE_REGION
+        TEMPERATURE  500000
+        LIST  11
+      &END
+      &PRINT
+        &TEMPERATURE
+          &EACH
+            MD 1
+          &END
         &END
       &END
     &END
 
+    &SHELL
+      TEMPERATURE  2
+      TEMP_TOL  10
+      DISPLACEMENT_SHELL_TOL [angstrom] 0.004
+      &THERMOSTAT
+        TYPE CSVR
+        REGION GLOBAL
+        &CSVR
+          TIMECON 7
+        &END
+      &END
+    &END
+    COMVEL_TOL  2.0E-7
 
     &PRINT
       &ENERGY
+          &EACH
+            MD 1
+          &END
       &END
       &SHELL_ENERGY LOW
+          &EACH
+            MD 1
+          &END
       &END
     &END PRINT
   &END MD
@@ -92,14 +103,13 @@
     &END
   &END
 
-
   &PRINT
     &TRAJECTORY
+          &EACH
+            MD 1
+          &END
     &END
-    &VELOCITIES
-      &EACH
-        MD 1000
-      &END
+    &VELOCITIES OFF
     &END
     &STRESS
     &END
@@ -108,10 +118,7 @@
         MD 5
       &END
     &END
-    &RESTART_HISTORY
-      &EACH
-        MD 1000
-      &END
+    &RESTART_HISTORY OFF
     &END
   &END
 &END MOTION

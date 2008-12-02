@@ -1,8 +1,5 @@
-
-&FORCE_EVAL
-  METHOD Fist
-  &MM
     &FORCEFIELD
+      ZBL_SCATTERING
       &CHARGE
         ATOM U
         CHARGE 4.0
@@ -14,14 +11,16 @@
       &SHELL U
         CORE_CHARGE   -2.840000
         SHELL_CHARGE 6.840000
-        MASS_FRACTION  0.1
+        MASS_FRACTION  0.01
         SPRING  [eV*angstrom^-2] 171.556
+        MAX_DISTANCE [angstrom] 0.1
       &END SHELL
       &SHELL O
         CORE_CHARGE 1.186267
         SHELL_CHARGE -3.186267
-        MASS_FRACTION 0.2
+        MASS_FRACTION 0.1
         SPRING [eV*angstrom^-2] 70.824
+        MAX_DISTANCE [angstrom] 0.05
       &END SHELL
       &NONBONDED
         &WILLIAMS
@@ -51,71 +50,8 @@
           RCUT 10.4
         &END WILLIAMS
       &END NONBONDED
-
+      &SPLINE
+        R0_NB   0.05
+        EMAX_SPLINE 100
+      &END
     &END FORCEFIELD
-    &POISSON
-      &EWALD
-        EWALD_TYPE spme
-        ALPHA .44
-        GMAX  64
-      &END EWALD
-    &END POISSON
-  &END MM
-  &SUBSYS
-    &CELL
-      ABC  10.936 10.936 10.936
-    &END CELL
-    &TOPOLOGY
-      CONN_FILE ../sample_psf/uo2_2x2x2.psf
-      CONNECTIVITY UPSF
-      COORD_FILE ../sample_xyz/uo2_displ.xyz
-      COORDINATE XYZ
-    &END TOPOLOGY
-    &KIND U
-      MASS 238.03000
-    &END
-    &KIND O
-      MASS 16.000
-    &END
-  &END SUBSYS
-&END FORCE_EVAL
-&GLOBAL
-  PRINT_LEVEL LOW
-  PROJECT uo2_shell_nve
-  RUN_TYPE MD
-&END GLOBAL
-&MOTION
-  &MD
-    ENSEMBLE NVE
-    STEPS  20
-    TIMESTEP 0.5
-    TEMPERATURE 300.0
-    &PRINT
-      &ENERGY
-      &END
-      &SHELL_ENERGY LOW
-      &END
-    &END PRINT
-  &END MD
-  &PRINT
-    &TRAJECTORY
-    &END
-    &VELOCITIES
-      &EACH
-        MD 1000
-      &END
-    &END
-    &STRESS
-    &END
-    &RESTART
-      &EACH
-        MD 5
-      &END
-    &END
-    &RESTART_HISTORY
-      &EACH
-        MD 1000
-      &END
-    &END
-  &END
-&END MOTION

@@ -2,7 +2,7 @@
 &FORCE_EVAL
   METHOD Fist
   &MM
-@include pmeis_forcefield.inc 
+@include pmeis_forcefield.inc    
     &POISSON
       &EWALD
         EWALD_TYPE spme
@@ -28,48 +28,18 @@
       MASS 16.000
     &END
   &END SUBSYS
-  STRESS_TENSOR ANALYTICAL
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT uo2_shell_npt
+  PROJECT uo2_shell_nve
   RUN_TYPE MD
 &END GLOBAL
 &MOTION
   &MD
-    ENSEMBLE NPT_F
-    STEPS  10
-    TIMESTEP 1.5
-    TEMPERATURE 2000.0
-    &BAROSTAT
-      PRESSURE 0.
-      TIMECON 1000
-    &END BAROSTAT
-    &THERMOSTAT
-      REGION MOLECULE
-      &NOSE
-        LENGTH 6
-        YOSHIDA 3
-        TIMECON 1000
-        MTS 2
-      &END NOSE
-    &END
-    &SHELL
-      TEMPERATURE 1.0
-##      TEMP_TOL 25.0
-      &THERMOSTAT
-        TYPE NOSE
-        REGION GLOBAL
-        &NOSE
-          LENGTH 6
-          YOSHIDA 3
-          TIMECON 1000
-          MTS 2
-        &END
-      &END
-    &END
-
-
+    ENSEMBLE NVE
+    STEPS  20
+    TIMESTEP 0.5
+    TEMPERATURE 300.0
     &PRINT
       &ENERGY
       &END
@@ -77,6 +47,7 @@
       &END
     &END PRINT
   &END MD
+
   &SHELL_OPT
     OPTIMIZER CG
     MAX_DR 0.02
@@ -91,7 +62,6 @@
       &END
     &END
   &END
-
 
   &PRINT
     &TRAJECTORY
