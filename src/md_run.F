@@ -81,6 +81,9 @@ MODULE md_run
                                              release_simpar_type,&
                                              simpar_type
   USE termination,                     ONLY: external_control
+  USE thermal_region_types,            ONLY: release_thermal_regions,&
+                                             thermal_regions_type
+  USE thermal_region_utils,            ONLY: create_thermal_regions
   USE thermostat_methods,              ONLY: create_thermostats
   USE thermostat_types,                ONLY: release_thermostats,&
                                              thermostats_type
@@ -185,6 +188,7 @@ CONTAINS
       force_env_section, free_energy_section, global_section, &
       kg_coeff_section, reftraj_section, subsys_section, work_section
     TYPE(simpar_type), POINTER               :: simpar
+    TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(thermostats_type), POINTER          :: thermostats
 
     CALL timeset(routineN,handle)
@@ -196,7 +200,7 @@ CONTAINS
          md_ener, thermostats, barostat, reftraj, force_env_section, &
          kg_coeff_section, reftraj_section, work_section, atomic_kinds, &
          local_particles, time, fe_env, dyn_coeff_set, free_energy_section, &
-         constraint_section)
+         constraint_section, thermal_regions)
     logger   => cp_error_get_logger(error)
     para_env => force_env%para_env
 
@@ -233,7 +237,10 @@ CONTAINS
     CALL create_barostat_type(barostat, md_section, force_env, simpar, para_env,&
          globenv, error )
 
-    CALL set_md_env(md_env, thermostats=thermostats, barostat=barostat, error=error)
+    ! If requested setup different thermal regions
+    CALL create_thermal_regions(thermal_regions,  md_section, simpar, force_env, error )
+
+    CALL set_md_env(md_env, thermostats=thermostats, barostat=barostat, thermal_regions=thermal_regions,error=error)
 
     ! Initialize or possibly restart KG coefficients (after thermostats)
     CALL force_env_get(force_env, dyn_coeff_set=dyn_coeff_set, error=error )
@@ -260,7 +267,7 @@ CONTAINS
     ENDIF
 
     ! Initialize velocities possibly applying constraints at the zeroth MD step
-    CALL setup_velocities(force_env, simpar, globenv, md_section, constraint_section, error)
+    CALL setup_velocities(force_env, simpar, globenv, md_env, md_section, constraint_section, error)
 
     ! Setup Free Energy Calculation (if required)
     CALL fe_env_create (fe_env, free_energy_section, error)
@@ -373,7 +380,7 @@ CONTAINS
             "LAGRANGE_MULTIPLIERS",error=error),cp_p_file)      
        
        ! Velocity Verlet Integrator
-       CALL velocity_verlet(md_env,error)
+       CALL velocity_verlet(md_env,globenv,error)
        
        ! Close Shake output if requested...
        CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
@@ -426,6 +433,7 @@ CONTAINS
     CALL release_thermostats(thermostats, error=error)
     CALL release_barostat_type(barostat, error=error)
     CALL release_simpar_type(simpar, error)
+    CALL release_thermal_regions(thermal_regions, error)
     CALL timestop(handle)
 
   END SUBROUTINE qs_mol_dyn_low

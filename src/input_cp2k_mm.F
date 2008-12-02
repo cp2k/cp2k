@@ -214,7 +214,7 @@ CONTAINS
             "Controls the printing of information in the forcefield settings", &
             print_level=high_print_level,filename="__STD_OUT__",&
             error=error)
-       
+
        CALL keyword_create(keyword,"spline_info",&
             description="if the printkey is active prints information regarding the splines"//&
             " used in the nonbonded interactions",&
@@ -330,6 +330,15 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       !Universal scattering potential at very short distances
+       CALL keyword_create(keyword, name="ZBL_SCATTERING",&
+            description="A short range repulsive potential is added, to simulate"//&
+            "collisions and scattering.",&
+            usage="ZBL_SCATTERING T",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        !
        ! subsections
        !

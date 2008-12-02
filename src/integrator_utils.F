@@ -62,6 +62,7 @@ MODULE integrator_utils
 
 ! *****************************************************************************
   TYPE tmp_variables_type
+    INTEGER, POINTER :: itimes
     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: pos
     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: vel
     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: shell_pos
@@ -189,7 +190,8 @@ CONTAINS
 !>      none
 !> \author MI (February 2008)
 ! *****************************************************************************
-  SUBROUTINE allocate_tmp ( tmp, nparticle, nshell, shell_adiabatic, error )
+  SUBROUTINE allocate_tmp ( md_env, tmp, nparticle, nshell, shell_adiabatic, error )
+    TYPE(md_environment_type), POINTER       :: md_env
     TYPE(tmp_variables_type), POINTER        :: tmp
     INTEGER, INTENT(IN)                      :: nparticle, nshell
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
@@ -213,6 +215,7 @@ CONTAINS
     NULLIFY(tmp%shell_vel)
     NULLIFY(tmp%core_pos)
     NULLIFY(tmp%core_vel)
+    NULLIFY(tmp%itimes)
 
     !     *** Allocate work storage for positions and velocities ***
     ALLOCATE (tmp%pos(3,nparticle),STAT=stat)
@@ -256,6 +259,8 @@ CONTAINS
    tmp%scale_v = 1.0_dp
    tmp%poly_r = 1.0_dp
    tmp%poly_v = 1.0_dp
+
+   CALL get_md_env(md_env=md_env, itimes=tmp%itimes, error=error)
 
   END SUBROUTINE allocate_tmp
 
@@ -1213,10 +1218,6 @@ CONTAINS
                      fac_massc*tmp%core_vel(2,shell_index)
                 tmp%vel(3,iparticle) = fac_masss*tmp%shell_vel(3,shell_index) + &
                      fac_massc*tmp%core_vel(3,shell_index)
-                IF(shell%max_dist > 0.0_dp) THEN
-                   CALL reverse_shell_core_vel(shell, tmp, core_particle_set,&
-                        shell_particle_set, shell_index, iparticle, dt, error=error)
-                END IF
              END DO  ! iparticle_local
           ELSE
              DO iparticle_local=1,nparticle_local
@@ -1247,10 +1248,6 @@ CONTAINS
                      fac_massc*tmp%core_vel (2,shell_index)
                 tmp%vel ( 3, iparticle) = fac_masss*tmp%shell_vel (3,shell_index)+ &
                      fac_massc*tmp%core_vel (3,shell_index)
-                IF(shell%max_dist > 0.0_dp) THEN 
-                    CALL reverse_shell_core_vel(shell, tmp, core_particle_set, shell_particle_set,&
-                          shell_index, iparticle, dt, error=error)
-                END IF
 
              END DO  ! iparticle_local
           END IF
@@ -1415,41 +1412,42 @@ CONTAINS
 
     dt_fact_f = MIN(dt_fact, dt_fact_sc,1.0_dp)
     IF(dt_fact_f < 1.0_dp) THEN
+       IF(dt_fact_f < 0.1_dp) dt_fact_f = 0.1_dp
        ! repeat the first vv half-step with the rescaled time step 
        dt = dt*dt_fact_f
        simpar%dt_fact = dt_fact_f
        CALL rescaled_vv_first(tmp,dt,simpar,atomic_kind_set, local_particles,&
             particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
-    ELSE
+    END IF
 
-       dt_fact = 1.0_dp
-       dt_fact_sc = 1.0_dp
-       CALL mp_max(tmp%max_dr,para_env%group)
-       IF(tmp%max_dr  > simpar%dr_tol) THEN
-          CALL mp_max(tmp%max_vel,para_env%group)
-          dt_fact = simpar%dr_tol/tmp%max_vel/dt
-       END IF
+    dt_fact = 1.0_dp
+    dt_fact_sc = 1.0_dp
+    CALL mp_max(tmp%max_dr,para_env%group)
+    IF(tmp%max_dr  > simpar%dr_tol) THEN
+       CALL mp_max(tmp%max_vel,para_env%group)
+       dt_fact = simpar%dr_tol/tmp%max_vel/dt
+    END IF
 
-       IF(shell_adiabatic) THEN
-          CALL mp_max(tmp%max_dsc,para_env%group)
-          IF(tmp%max_dsc > simpar%dsc_tol) THEN
-             CALL mp_max(tmp%max_vel_sc,para_env%group)
-             dt_fact_sc = simpar%dsc_tol/tmp%max_vel_sc/dt
-          END IF
+    IF(shell_adiabatic) THEN
+       CALL mp_max(tmp%max_dsc,para_env%group)
+       IF(tmp%max_dsc > simpar%dsc_tol) THEN
+          CALL mp_max(tmp%max_vel_sc,para_env%group)
+          dt_fact_sc = simpar%dsc_tol/tmp%max_vel_sc/dt
        END IF
-       dt_fact_v = MIN(dt_fact, dt_fact_sc,1.0_dp)
+    END IF
+    dt_fact_v = MIN(dt_fact, dt_fact_sc,1.0_dp)
 
-       IF(dt_fact_v < 1.0_dp) THEN
-          ! repeat the first vv half-step with the rescaled time step 
-          dt = dt*dt_fact_v
-          simpar%dt_fact = dt_fact_f*dt_fact_v
-          CALL rescaled_vv_first(tmp,dt,simpar,atomic_kind_set, local_particles,&
-               particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
-       END IF
+    IF(dt_fact_v < 1.0_dp) THEN
+       IF(dt_fact_v < 0.1_dp) dt_fact_v = 0.1_dp
+       ! repeat the first vv half-step with the rescaled time step 
+       dt = dt*dt_fact_v
+       simpar%dt_fact = dt_fact_f*dt_fact_v
+       CALL rescaled_vv_first(tmp,dt,simpar,atomic_kind_set, local_particles,&
+            particle_set, core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic,npt,error)
     END IF
 
     simpar%dt_fact = dt_fact_f*dt_fact_v
-    IF(simpar%dt_fact  /= dt_fact_old) THEN
+    IF(simpar%dt_fact  < 1.0_dp) THEN
       CALL get_md_env(md_env, t=time, thermostats=thermostats, error=error)
       time = time - dt_old + dt_old*simpar%dt_fact
       IF(ASSOCIATED(thermostats)) THEN
@@ -1558,49 +1556,4 @@ CONTAINS
 
   END SUBROUTINE rescaled_vv_first
 
-! *****************************************************************************
-!> \brief Reverse the direction of the CORE-SHELL velocity
-!> \par History
-!>      none
-!> \author MI (October 2008)
-!>     I soliti ignoti
-! *****************************************************************************
-  SUBROUTINE reverse_shell_core_vel(shell,tmp,core_particle_set,shell_particle_set,shell_index,iparticle,dt,error)
-
-    TYPE(shell_kind_type), POINTER           :: shell
-    TYPE(tmp_variables_type), POINTER        :: tmp
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set, &
-                                                shell_particle_set
-    INTEGER, INTENT(IN)                      :: shell_index, iparticle
-    REAL(dp), INTENT(IN)                     :: dt
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'reverse_shell_core_vel', &
-      routineP = moduleN//':'//routineN
-
-    REAL(dp)                                 :: dsc, dsc_1, mc, ms, rc(3), &
-                                                rs(3), vc(3), vs(3)
-
-    rc = core_particle_set(shell_index)%r
-    vc = tmp%core_vel(:,shell_index)
-    rs = shell_particle_set(shell_index)%r
-    vs = tmp%shell_vel(:,shell_index)
-    ms = shell%mass_shell
-    mc = shell%mass_core
-    dsc = SQRT((rc(1)-rs(1))**2 + (rc(2)-rs(2))**2 + (rc(3)-rs(3))**2)
-    dsc_1 = SQRT((rc(1)+dt*vc(1)-rs(1)-dt*vs(1))**2 + (rc(2)+dt*vc(2)-rs(2)-dt*vs(2))**2 + (rc(3)+dt*vc(3)-rs(3)-dt*vs(3))**2)
-    IF ( dsc > 2.0_dp* shell%max_dist  ) THEN
-      tmp%shell_vel(:,shell_index) =tmp%vel(:,iparticle) 
-      tmp%core_vel(:,shell_index) =tmp%vel(:,iparticle) 
-    ELSE IF ( dsc > shell%max_dist) THEN
-       IF( dsc_1>dsc ) THEN
-         tmp%shell_vel(:,shell_index) = (2.0_dp*mc*vc(:)+(ms-mc)*vs(:))/(ms+mc)
-         tmp%core_vel(:,shell_index) = (2.0_dp*ms*vs(:)+(mc-ms)*vc(:))/(ms+mc)
-       END IF
-    END IF
-
- END SUBROUTINE reverse_shell_core_vel
-
 END MODULE integrator_utils
-

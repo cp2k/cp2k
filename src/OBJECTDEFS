@@ -558,6 +558,7 @@ OBJECTS_GENERIC =\
  semi_empirical_store_int_types.o\
  semi_empirical_types.o\
  semi_empirical_utils.o\
+ shell_opt.o\
  shell_potential_types.o\
  simpar_types.o\
  simpar_methods.o\
@@ -578,6 +579,8 @@ OBJECTS_GENERIC =\
  task_list_types.o\
  task_list_methods.o\
  termination.o\
+ thermal_region_types.o\
+ thermal_region_utils.o\
  thermostat_mapping.o\
  thermostat_methods.o\
  thermostat_types.o\

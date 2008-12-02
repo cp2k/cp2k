@@ -12,11 +12,14 @@
 MODULE periodic_table
   USE f77_blas
   USE kinds,                           ONLY: dp
+  USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: init_periodic_table, ptable, atom, nelem
+  PUBLIC :: init_periodic_table, ptable, atom, nelem,&
+            get_ptable_info
 
 ! *****************************************************************************
   TYPE atom
@@ -40,6 +43,46 @@ MODULE periodic_table
   REAL(KIND=dp), PARAMETER                     :: z = 0.0_dp
 
 CONTAINS
+
+
+! *****************************************************************************
+!> \brief Pass information about the kind given the element symbol
+!> \par History
+!>      none
+!> \author MI
+! *****************************************************************************
+SUBROUTINE  get_ptable_info(symbol,number,amass,mass,ielement,covalent_radius)
+
+    CHARACTER(LEN=2)                         :: symbol
+    INTEGER, INTENT(OUT), OPTIONAL           :: number
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: amass, mass
+    INTEGER, INTENT(OUT), OPTIONAL           :: ielement
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: covalent_radius
+
+    CHARACTER(LEN=2)                         :: symb_ielem
+    INTEGER                                  :: ielem, ielem_found
+
+     ielem_found = -1
+     CALL uppercase(symbol)
+     DO ielem = 1,nelem
+       symb_ielem = ptable(ielem)%symbol
+       CALL uppercase(symb_ielem)
+       IF(symbol==symb_ielem) THEN
+         ielem_found = ielem
+         EXIT
+       END IF
+     END DO
+     IF(ielem_found <0) CALL stop_program('get_ptable_info',&
+         "CP2K does not regognize the element symbol")
+
+     IF(PRESENT(ielement)) ielement = ielem_found
+     IF(PRESENT(number)) number = ptable(ielem_found)%number
+     IF(PRESENT(amass)) amass = ptable(ielem_found)%amass
+     IF(PRESENT(mass)) mass = ptable(ielem_found)%mass
+     IF(PRESENT(covalent_radius)) covalent_radius = ptable(ielem_found)%covalent_radius
+   
+
+END SUBROUTINE get_ptable_info
 
 ! *****************************************************************************
 !> \brief Initialization of Periodic Table related data

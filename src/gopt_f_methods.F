@@ -27,6 +27,7 @@ MODULE gopt_f_methods
   USE gopt_param_types,                ONLY: gopt_param_type
   USE input_constants,                 ONLY: default_cell_method_id,&
                                              default_minimization_method_id,&
+                                             default_shellcore_method_id,&
                                              default_ts_method_id
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_type
@@ -167,6 +168,8 @@ CONTAINS
        pres_int = gopt_env%cell_env%pres_int
        CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,pres_int=pres_int,wildcard=wildcard,&
                               error=error)
+    CASE(default_shellcore_method_id)
+       CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,wildcard=wildcard,error=error)
     END SELECT
 
   END SUBROUTINE gopt_f_io_init
@@ -247,6 +250,16 @@ CONTAINS
           CPPostcondition(PRESENT(xi),cp_failure_level,routineP,error,failure)
           CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param,pres_diff,pres_tol,error=error)
        END IF
+    CASE(default_shellcore_method_id)
+          CALL write_cycle_infos(output_unit,its,etot=opt_energy,ediff=opt_energy-eold,&
+               pred=pred,rat=rat,step=step,rad=rad,emin=emin,wildcard=wildcard,error=error)
+          ! Possibly check convergence
+          IF (PRESENT(conv)) THEN
+             CPPostcondition(PRESENT(ndf),cp_failure_level,routineP,error,failure)
+             CPPostcondition(PRESENT(dx),cp_failure_level,routineP,error,failure)
+             CPPostcondition(PRESENT(xi),cp_failure_level,routineP,error,failure)
+             CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param,error=error)
+          END IF
     END SELECT
   END SUBROUTINE gopt_f_io
 

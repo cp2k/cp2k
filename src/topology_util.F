@@ -11,7 +11,6 @@
 MODULE topology_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE graphcon,                        ONLY: graph_type,&
                                              hash_molecule,&
@@ -27,7 +26,8 @@ MODULE topology_util
   USE mm_mapping_library,              ONLY: amber_map,&
                                              charmm_map,&
                                              gromos_map
-  USE periodic_table,                  ONLY: ptable
+  USE periodic_table,                  ONLY: get_ptable_info,&
+                                             ptable
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE string_table,                    ONLY: str2id
   USE string_utilities,                ONLY: uppercase
@@ -78,10 +78,9 @@ CONTAINS
 !> \par History
 !>      Teodoro Laino 09.2006 - Rewritten with a graph matching algorithm
 ! *****************************************************************************
-  SUBROUTINE topology_reorder_atoms(topology,para_env,qmmm,qmmm_env_mm,subsys_section,force_env_section,error)
+  SUBROUTINE topology_reorder_atoms(topology,qmmm,qmmm_env_mm,subsys_section,force_env_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env_mm
@@ -1030,10 +1029,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Use info from periodic table and set atm_mass
 ! *****************************************************************************
-  SUBROUTINE topology_set_atm_mass(topology,para_env,subsys_section,error)
+  SUBROUTINE topology_set_atm_mass(topology,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1041,14 +1039,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock = 1000
 
-    CHARACTER(LEN=2)                         :: upper_sym_1, upper_sym_2
+    CHARACTER(LEN=2)                         :: upper_sym_1
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: keyword
     INTEGER                                  :: handle, i, i_rep, iatom, &
-                                                ielem, ielem_found, iw, &
-                                                n_rep, natom, nelem, stat
-    LOGICAL                                  :: element_found, failure, &
-                                                user_defined
+                                                ielem_found, iw, n_rep, &
+                                                natom, stat
+    LOGICAL                                  :: failure, user_defined
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mass
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1096,26 +1093,10 @@ CONTAINS
        ! If name didn't match let's try with the element
        IF (.NOT.user_defined) THEN
           upper_sym_1=atom_info%element(iatom)
-          CALL uppercase(upper_sym_1)
-          !If not let's look at the tabulated value
-          nelem = UBOUND(ptable,1)
-          element_found=.FALSE.
-          ielem_found=0
-          DO ielem=1,nelem 
-             upper_sym_2=ptable(ielem)%symbol
-             CALL uppercase(upper_sym_2)
-             IF(upper_sym_1 == upper_sym_2)THEN
-                element_found=.TRUE.
-                ielem_found=ielem
-             END IF
-          END DO
-          IF (.NOT. element_found) THEN
-             CALL stop_program ("set_atm_mass"," CP2K should never reach this point!")         
-          ENDIF
-          atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
+          CALL get_ptable_info(symbol=upper_sym_1,ielement=ielem_found,amass=atom_info%atm_mass(iatom))
        END IF
-       IF(iw>0) WRITE(iw,'(7X,A,A5)') "In topology_set_atm_mass :: iatom = ",&
-            ptable(ielem_found)%symbol
+       IF(iw>0) WRITE(iw,'(7X,A,A5,A,F12.5)') "In topology_set_atm_mass :: element = ",&
+            atom_info%element(iatom)," a_mass ", atom_info%atm_mass(iatom)
     END DO
     DEALLOCATE(keyword,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

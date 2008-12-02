@@ -56,7 +56,7 @@ MODULE gopt_param_types
      LOGICAL                  :: Fletcher_Reeves
      INTEGER                  :: id_nr, ref_count
      INTEGER                  :: method_id, type_id
-     INTEGER                  :: ts_method_id, cell_method_id
+     INTEGER                  :: ts_method_id, cell_method_id, shellcore_method_id
      INTEGER                  :: max_f_per_iter, max_iter, max_h_rank
      INTEGER                  :: max_steep_steps
      REAL(KIND = dp)          :: restart_limit

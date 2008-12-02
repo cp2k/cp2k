@@ -116,8 +116,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: Ainfo
     INTEGER                                  :: handle, iw, iw2, iw3, iw4, &
                                                 output_unit
-    LOGICAL                                  :: failure, fatal, ionode, &
-                                                my_qmmm, shell_present
+    LOGICAL                                  :: do_zbl, failure, fatal, &
+                                                ionode, my_qmmm, shell_present
     REAL(KIND=dp)                            :: ewald_rcut, verlet_skin
     TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(charmm_info_type), POINTER          :: chm_info
@@ -274,9 +274,10 @@ CONTAINS
        !--------------------------------------------------------------------------
        NULLIFY(spline_nonbond_env, spline_c_coul_env, spline_cs_coul_env, &
             spline_sc_coul_env)
+       CALL section_vals_val_get(mm_section,"FORCEFIELD%ZBL_SCATTERING",l_val=do_zbl,error=error)
        CALL force_field_pack_ppse (atomic_kind_set, ewald_env, ff_type, iw2, iw3,&
             iw4, spline_nonbond_env, spline_c_coul_env, spline_cs_coul_env,&
-            spline_sc_coul_env, potparm_nonbond, error)
+            spline_sc_coul_env, potparm_nonbond, do_zbl, error)
        !--------------------------------------------------------------------------
        ! 15.(b) Setup of the pair potential spline environment (Evtl. Core/Shell)
        !--------------------------------------------------------------------------

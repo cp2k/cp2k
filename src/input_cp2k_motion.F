@@ -90,6 +90,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)       
 
+       CALL create_shellcore_opt_section(subsection, error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)       
+
        CALL create_md_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -769,6 +773,50 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_geoopt_section
+
+! *****************************************************************************
+!> \brief creates the section for the shell-core optimization
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Caino
+! *****************************************************************************
+  SUBROUTINE create_shellcore_opt_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_shellcore_opt_section', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(section_type), POINTER              :: print_key, subsection
+
+    CALL create_geoopt_section(section, label="SHELL_OPT",&
+         description="This section sets the environment for the optimization of the shell-core distances"//&
+         " that might turn to be necessary along a MD run using a shell-model potential. "//&
+         " The optimization procedure is activated when at least one of the shell-core "//&
+         "pairs becomes too elongated,  i.e. when the assumption of point dipole is not longer valid.",&
+         just_optimizers=.TRUE.,error=error)
+
+    NULLIFY(print_key, subsection)
+   
+
+    ! Create the PRINT subsection 
+    NULLIFY(subsection)
+    CALL section_create(subsection,name="PRINT",&
+         description="Controls the printing properties during a shell-core optimization procedure",&
+         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+         error=error)
+    NULLIFY(print_key)
+    CALL cp_print_key_section_create(print_key,"program_run_info",&
+         description="Controls the printing of basic information during the Optimization", &
+         print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+         error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)    
+
+  END SUBROUTINE create_shellcore_opt_section
 
 ! *****************************************************************************
 !> \brief creates the section for the cell optimization
@@ -1533,6 +1581,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_avgs_section(subsection, error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection, error=error)
+
+       CALL create_thermal_region_section(subsection, error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection, error=error)
 
@@ -3059,10 +3111,9 @@ CONTAINS
   END SUBROUTINE create_opt_band_section
   
 ! *****************************************************************************
-!> \param section will contain some parameters for the shells dynamics
+!> \brief section will contain some parameters for the shells dynamics
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
-!> \author teo
 ! *****************************************************************************
   SUBROUTINE create_shell_section(section, error)
     TYPE(section_type), POINTER              :: section
@@ -3082,13 +3133,13 @@ CONTAINS
 
        CALL section_create(section,name="shell",&
             description="Parameters of shell model in adiabatic dynamics.",&
-            n_keywords=2, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=4, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword,thermo_section)
 
        CALL keyword_create(keyword=keyword,name="temperature",&
-            description="The temperature in K used to control "//&
+            description="Temperature in K used to control "//&
             "the internal velocities of the core-shell motion ",&
             usage="temperature 5.0",&
             default_r_val=cp_unit_to_cp2k(value=0.0_dp,unit_str="K",error=error),&
@@ -3097,9 +3148,9 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="temp_tol",&
-            description="The maximum accepted oscillations of the temperature"//&
-            " of the internal core-hell motion from the wanted temperature."//&
-            "If it is 0 no rescaling is performed", &
+            description="Maximum accepted temperature deviation"//&
+            " from the expected value, for the internal core-hell motion."//&
+            "If 0, no rescaling is performed", &
             usage="temp_tol 0.0", default_r_val=0.0_dp, unit_str='K', error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -3108,7 +3159,6 @@ CONTAINS
             description="If nvt or npt, the core and shell velocities are controlled "//&
             "by the same thermostat used for the particle. This might favour heat exchange "//&
             "and additional rescaling of the internal core-shell velocity is needed (TEMP_TOL)",&
-            usage="nose_particle LOGICAL",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -3131,5 +3181,105 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_shell_section
+
+! *****************************************************************************
+!> \brief input section used to define regions with different temperature
+!>        initialization and control
+! *****************************************************************************
+  SUBROUTINE create_thermal_region_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_thermal_region_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, region_section, &
+                                                subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN  
+
+       CALL section_create(section,name="thermal_region",&
+            description="Define regions where different initialization and control "//&
+            "of the temperature is used.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+
+       NULLIFY(region_section)
+       NULLIFY(keyword,subsection)
+
+       CALL keyword_create(keyword=keyword,name="force_rescaling",&
+            description="Control the rescaling ot the velocities in all the regions, "//&
+            " according to the temperature assigned to each reagion, when RESTART_VELOCITY in EXT_RESTART is active.",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_create(region_section,name="DEFINE_REGION",&
+            description="This section provides the possibility to define arbitrary region ",&
+            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="LIST",&
+            description="Specifies a list of atoms belonging to the region.",&
+            usage="LIST {integer} {integer} .. {integer}", required=.TRUE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(region_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       
+       CALL keyword_create(keyword=keyword,name="temperature",&
+            description="The temperature in K used to "//&
+            " initialize the velocities of the atoms in this region ",&
+            usage="temperature 5.0",&
+            default_r_val=cp_unit_to_cp2k(value=0.0_dp,unit_str="K",error=error),&
+            unit_str="K", error=error)
+       CALL section_add_keyword(region_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="temp_tol",&
+            description="Maximum accepted  temperature deviation "//&
+            " from the expected value for this region."//&
+            "If  temp_tol=0 no rescaling is performed", &
+            usage="temp_tol 0.0", default_r_val=0.0_dp, unit_str='K', error=error)
+       CALL section_add_keyword(region_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section, region_section, error=error)
+       CALL section_release(region_section,error=error)
+
+       NULLIFY(print_key)
+       CALL section_create(subsection,name="PRINT",&
+            description="Collects all print_keys for thermal_regions",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL cp_print_key_section_create(print_key,"TEMPERATURE",&
+            description="Controls output of temperature per region.", &
+            print_level=high_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"THERMAL_REGION_INFO",&
+            description="Controls output information on thermal regions .", &
+            print_level=low_print_level, common_iter_levels=1,&
+            filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_thermal_region_section
 
 END MODULE input_cp2k_motion

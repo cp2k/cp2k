@@ -360,7 +360,8 @@ MODULE input_constants
                                            
   INTEGER, PUBLIC, PARAMETER               :: default_minimization_method_id=1,&
                                               default_ts_method_id=2,&
-                                              default_cell_method_id=3
+                                              default_cell_method_id=3,&
+                                              default_shellcore_method_id=4
                                            
   INTEGER, PUBLIC, PARAMETER               :: none_ts_method_id=0,&
                                               default_dimer_method_id=1

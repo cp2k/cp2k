@@ -70,7 +70,7 @@ MODULE particle_types
      ! Particle dependent terms for EAM
      REAL(KIND=dp)                         :: rho, f_embed
      ! Particle dependent terms for shell-model
-     INTEGER                               :: atom_index, shell_index
+     INTEGER                               :: atom_index, t_region_index, shell_index
   END TYPE particle_type
 
   ! Public data types
@@ -128,6 +128,7 @@ CONTAINS
     p_out%v=p_in%v
     p_out%shell_index=p_in%shell_index
     p_out%atom_index=p_in%atom_index
+    p_out%t_region_index=p_in%t_region_index
   END SUBROUTINE clone_particle
 
 ! *****************************************************************************
@@ -164,6 +165,7 @@ CONTAINS
       particle_set(iparticle)%v(:) = 0.0_dp
       particle_set(iparticle)%shell_index = 0
       particle_set(iparticle)%atom_index = 0
+      particle_set(iparticle)%t_region_index = 0
     END DO
 
   END SUBROUTINE allocate_particle_set

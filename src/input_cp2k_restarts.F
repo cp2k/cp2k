@@ -1612,7 +1612,8 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: unit_str
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, scale, use_ref_cell
+    LOGICAL                                  :: failure, save_mem, scale, &
+                                                use_ref_cell
     REAL(KIND=dp)                            :: conv_factor
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -1633,18 +1634,26 @@ CONTAINS
          shell_particles=shell_particles, core_particles=core_particles,&
          multipoles=multipoles, error=error)       
 
+    CALL section_vals_val_get(subsys_section,"LAST_CONF",l_val=save_mem,error=error)
     work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
     CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
     CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
     conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     !    Coordinates and Velocities
-    work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-    CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
-         cell, error=error)
+    IF(save_mem) THEN
+      !NYI
+    ELSE
+      CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
+           cell, error=error)
+    END IF
 
     work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
     IF (.NOT.skip_vel_section) THEN
-       CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
+      IF(save_mem) THEN
+         !NYI
+      ELSE
+        CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
+      END IF
     ELSE
        CALL section_vals_remove_values(work_section, error)
     END IF
@@ -1654,11 +1663,19 @@ CONTAINS
        CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
        CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
        conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-       CALL section_coord_val_set(work_section, shell_particles, molecules, &
-            conv_factor, scale, cell, shell=.TRUE., error=error)
+       IF(save_mem) THEN
+         !NYI
+       ELSE
+         CALL section_coord_val_set(work_section, shell_particles, molecules, &
+              conv_factor, scale, cell, shell=.TRUE., error=error)
+       END IF
        IF (.NOT.skip_vel_section) THEN
           work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
-          CALL section_velocity_val_set(work_section, shell_particles, conv_factor=1.0_dp, error=error)
+          IF(save_mem) THEN
+             !NYI
+          ELSE
+            CALL section_velocity_val_set(work_section, shell_particles, conv_factor=1.0_dp, error=error)
+          END IF
        END IF
     ENDIF
     IF(ASSOCIATED(core_particles)) THEN
@@ -1666,11 +1683,19 @@ CONTAINS
        CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
        CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
        conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-       CALL section_coord_val_set(work_section, core_particles, molecules, &
-            conv_factor, scale, cell, shell=.TRUE., error=error)
+       IF(save_mem) THEN
+          !NYI
+       ELSE
+         CALL section_coord_val_set(work_section, core_particles, molecules, &
+              conv_factor, scale, cell, shell=.TRUE., error=error)
+       END IF
        IF (.NOT.skip_vel_section) THEN
           work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
-          CALL section_velocity_val_set(work_section, core_particles, conv_factor=1.0_dp, error=error)
+          IF(save_mem) THEN
+             !NYI
+          ELSE
+            CALL section_velocity_val_set(work_section, core_particles, conv_factor=1.0_dp, error=error)
+          END IF
        END IF
     ENDIF
     ! Updating cell info

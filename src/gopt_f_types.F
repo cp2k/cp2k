@@ -30,6 +30,7 @@ MODULE gopt_f_types
   USE input_constants,                 ONLY: default_cell_method_id,&
                                              default_dimer_method_id,&
                                              default_minimization_method_id,&
+                                             default_shellcore_method_id,&
                                              default_ts_method_id
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -53,7 +54,7 @@ MODULE gopt_f_types
   TYPE gopt_f_type
      INTEGER                                  :: ref_count, id_nr
      INTEGER                                  :: nfree, its
-     INTEGER                                  :: type_id, ts_method_id, cell_method_id
+     INTEGER                                  :: type_id, ts_method_id, cell_method_id, shellcore_method_id
      LOGICAL                                  :: dimer_rotation, do_line_search, eval_opt_geo
      CHARACTER(LEN=default_string_length)     :: label, tag
      TYPE(force_env_type), POINTER            :: force_env
@@ -150,6 +151,11 @@ CONTAINS
           gopt_env%tag     = "  CELL  "
           gopt_env%cell_method_id = gopt_param%cell_method_id
           CALL cell_opt_env_create(gopt_env%cell_env, force_env, gopt_env%geo_section, error)
+       CASE(default_shellcore_method_id)
+          gopt_env%nfree   = force_env%subsys%shell_particles%n_els
+          gopt_env%label   = "SHELL_OPT"
+          gopt_env%tag     = "  SHELL-CORE  "
+          gopt_env%shellcore_method_id = gopt_param%shellcore_method_id
        END SELECT
     END IF
   END SUBROUTINE gopt_f_create

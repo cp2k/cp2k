@@ -405,7 +405,9 @@ CONTAINS
        CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
        CALL section_vals_val_get(reaction_path_section,"VARIABLE",c_vals=my_par,i_rep_val=1,error=error)
        CALL section_vals_val_get(reaction_path_section,"FUNCTION",n_rep_val=ncol,error=error)
-       CPPostcondition(ncol==SIZE(colvar%reaction_path_param%colvar_p) ,cp_failure_level,routinep,error,failure)     
+       IF(ncol/=SIZE(colvar%reaction_path_param%colvar_p)) THEN
+   CPPostcondition(.FALSE. ,cp_failure_level,routinep,error,failure)     
+       END IF
        CALL initf(ncol)
        DO i=1,ncol
           CALL section_vals_val_get(reaction_path_section,"FUNCTION",c_val=path_function,i_rep_val=i,error=error)

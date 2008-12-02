@@ -39,6 +39,9 @@ MODULE md_environment_types
                                              release_reftraj,&
                                              retain_reftraj
   USE simpar_types,                    ONLY: simpar_type
+  USE thermal_region_types,            ONLY: release_thermal_regions,&
+                                             retain_thermal_regions,&
+                                             thermal_regions_type
   USE thermostat_types,                ONLY: release_thermostats,&
                                              retain_thermostats,&
                                              thermostat_type,&
@@ -70,6 +73,7 @@ MODULE md_environment_types
      TYPE(free_energy_type) , POINTER           :: fe_env
      TYPE(simpar_type), POINTER                 :: simpar
      TYPE(average_quantities_type), POINTER     :: averages
+     TYPE(thermal_regions_type), POINTER        :: thermal_regions
   END TYPE md_environment_type
 
 
@@ -125,6 +129,7 @@ CONTAINS
     NULLIFY(md_env%md_ener)
     NULLIFY(md_env%reftraj)
     NULLIFY(md_env%averages)
+    NULLIFY(md_env%thermal_regions)
     md_env%para_env => para_env
     CALL cp_para_env_retain(md_env%para_env, error=error)
     ALLOCATE( md_env%itimes, stat=stat)
@@ -221,6 +226,7 @@ CONTAINS
           CALL release_md_ener(md_env%md_ener, error)
           CALL force_env_release(md_env%force_env, error=error)
           CALL release_averages(md_env%averages, error)
+          CALL release_thermal_regions(md_env%thermal_regions, error)
           DEALLOCATE(md_env,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
@@ -236,7 +242,7 @@ CONTAINS
   SUBROUTINE get_md_env(md_env, itimes, constant, used_time, cell, simpar, npt,&
        force_env, para_env, reftraj, t, init, first_time,fe_env, thermostats, barostat, &
        thermostat_coeff, thermostat_part, thermostat_shell, thermostat_baro,&
-       md_ener, averages, error)
+       md_ener, averages, thermal_regions, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
@@ -262,6 +268,8 @@ CONTAINS
     TYPE(md_ener_type), OPTIONAL, POINTER    :: md_ener
     TYPE(average_quantities_type), &
       OPTIONAL, POINTER                      :: averages
+    TYPE(thermal_regions_type), OPTIONAL, &
+      POINTER                                :: thermal_regions
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_md_env', &
@@ -310,6 +318,7 @@ CONTAINS
     IF (PRESENT(md_ener)) md_ener => md_env%md_ener
     IF (PRESENT(init)) init=md_env%init 
     IF (PRESENT(first_time)) first_time=md_env%first_time 
+    IF (PRESENT(thermal_regions)) thermal_regions => md_env%thermal_regions
 
   END SUBROUTINE get_md_env
 
@@ -321,7 +330,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_md_env(md_env, itimes, constant, cell, simpar, fe_env, force_env,&
        para_env, init, first_time,thermostats, barostat, reftraj, md_ener, averages,&
-       error)
+       thermal_regions, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
@@ -341,6 +350,8 @@ CONTAINS
     TYPE(md_ener_type), OPTIONAL, POINTER    :: md_ener
     TYPE(average_quantities_type), &
       OPTIONAL, POINTER                      :: averages
+    TYPE(thermal_regions_type), OPTIONAL, &
+      POINTER                                :: thermal_regions
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_md_env', &
@@ -368,6 +379,7 @@ CONTAINS
     IF(PRESENT(itimes)) md_env%itimes => itimes
     IF(PRESENT(fe_env)) md_env%fe_env => fe_env
     IF(PRESENT(constant)) md_env%constant => constant
+    IF(PRESENT(para_env)) md_env%para_env => para_env
     IF(PRESENT(force_env)) THEN
        IF (ASSOCIATED(force_env)) THEN
           CALL force_env_retain (force_env, error=error)
@@ -391,6 +403,11 @@ CONTAINS
        CALL release_averages(md_env%averages, error=error)
        CALL retain_averages(averages, error=error)
        md_env%averages => averages
+    END IF
+    IF(PRESENT(thermal_regions)) THEN
+       CALL release_thermal_regions(md_env%thermal_regions, error=error)
+       CALL retain_thermal_regions(thermal_regions, error=error)
+       md_env%thermal_regions => thermal_regions
     END IF
 
   END SUBROUTINE set_md_env

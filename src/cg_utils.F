@@ -17,6 +17,7 @@ MODULE cg_utils
   USE gopt_param_types,                ONLY: gopt_param_type
   USE input_constants,                 ONLY: default_cell_method_id,&
                                              default_minimization_method_id,&
+                                             default_shellcore_method_id,&
                                              default_ts_method_id,&
                                              ls_2pnt,&
                                              ls_fit,&
@@ -111,6 +112,17 @@ CONTAINS
                message="Line Search type not yet implemented in CG for cell optimization.", &
                error=error, error_level=cp_failure_level)
        END SELECT
+    CASE(default_shellcore_method_id)
+       SELECT CASE(gopt_param%cg_ls%type_id)
+       CASE(ls_2pnt)
+          CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, use_only_grad=.TRUE.,&
+               output_unit=output_unit, error=error)
+       CASE DEFAULT
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Line Search type not yet implemented in CG for shellcore optimization.", &
+               error=error, error_level=cp_failure_level)
+       END SELECT
+
     END SELECT
     gopt_env%do_line_search = .FALSE.
     CALL timestop(handle)
@@ -153,7 +165,6 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(gradient2(SIZE(ls_vec)),stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       
        ls_norm = ls_vec / norm_ls_vec
        dx      = norm_ls_vec
        dx_thrs = gopt_param%cg_ls%max_step

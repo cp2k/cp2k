@@ -58,8 +58,11 @@ MODULE md_vel_utils
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: kelvin
+  USE shell_opt,                       ONLY: optimize_shell_core
   USE shell_potential_types,           ONLY: shell_kind_type
   USE simpar_types,                    ONLY: simpar_type
+  USE thermal_region_types,            ONLY: thermal_region_type,&
+                                             thermal_regions_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -76,7 +79,7 @@ MODULE md_vel_utils
 
 CONTAINS
 
-! *****************************************************************************
+! ***************************************************************************** 
 !> \brief compute center of mass position
 !>      *** is only used by initialize_velocities below ***
 !> \par History
@@ -191,9 +194,10 @@ CONTAINS
 !>      2007-11-6: created
 !> \author Toon Verstraelen <Toon.Verstraelen@gmail.com>
 ! *****************************************************************************
-  FUNCTION compute_ekin(part) RESULT(ekin)
+  FUNCTION compute_ekin(part,ireg) RESULT(ekin)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
+    INTEGER, INTENT(IN), OPTIONAL            :: ireg
     REAL(KIND=dp)                            :: ekin
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_ekin', &
@@ -203,12 +207,23 @@ CONTAINS
     REAL(KIND=dp)                            :: mass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
+    NULLIFY(atomic_kind)
     ekin = 0.0_dp
-    DO i = 1, SIZE(part)
-       atomic_kind => part(i)%atomic_kind
-       CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
-       ekin = ekin + 0.5_dp * mass * SUM(part(i)%v(:) * part(i)%v(:))
-    END DO
+    IF(PRESENT(ireg)) THEN
+      DO i = 1, SIZE(part)
+       IF(part(i)%t_region_index==ireg) THEN
+         atomic_kind => part(i)%atomic_kind
+         CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+         ekin = ekin + 0.5_dp * mass * SUM(part(i)%v(:) * part(i)%v(:))
+       END IF
+      END DO
+    ELSE
+      DO i = 1, SIZE(part)
+         atomic_kind => part(i)%atomic_kind
+         CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+         ekin = ekin + 0.5_dp * mass * SUM(part(i)%v(:) * part(i)%v(:))
+      END DO
+    END IF
 
   END FUNCTION compute_ekin
 
@@ -220,22 +235,34 @@ CONTAINS
 !>      2007-11-6: created
 !> \author Toon Verstraelen <Toon.Verstraelen@gmail.com>
 ! *****************************************************************************
-  SUBROUTINE rescale_vel(part,simpar,ekin,vcom)
+  SUBROUTINE rescale_vel(part,simpar,ekin,vcom,ireg,nfree,temp)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
     TYPE(simpar_type), POINTER               :: simpar
     REAL(KIND=dp), INTENT(INOUT)             :: ekin
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT), OPTIONAL                :: vcom
+    INTEGER, INTENT(IN), OPTIONAL            :: ireg, nfree
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: temp
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rescale_vel', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
-    REAL(KIND=dp)                            :: factor
+    INTEGER                                  :: i, my_ireg, my_nfree
+    REAL(KIND=dp)                            :: factor, my_temp
 
-    IF (simpar%nfree/=0) THEN
-       factor = simpar%temp_ext / ( 2.0_dp * ekin ) * REAL(simpar%nfree,KIND=dp)
+    IF(PRESENT(ireg)) THEN
+      my_ireg = ireg
+      my_nfree = nfree
+      my_temp = temp
+    ELSE
+      my_ireg = 0
+      my_nfree = simpar%nfree
+      my_temp = simpar%temp_ext
+    END IF
+
+    IF (my_nfree/=0) THEN
+       factor = my_temp / ( 2.0_dp * ekin ) * REAL(my_nfree,KIND=dp)
     ELSE
        factor = 0.0_dp
     ENDIF
@@ -244,14 +271,69 @@ CONTAINS
     ! rescaling is generally not correct, so needs fixing
     ekin = ekin * factor
     factor = SQRT(factor)
-    DO i = 1, SIZE(part)
-       part(i)%v(:) = factor*part(i)%v(:)
-    END DO
-    IF (PRESENT(vcom)) THEN
-       vcom = factor*vcom
+    IF(PRESENT(ireg)) THEN
+      DO i = 1, SIZE(part)
+        IF(part(i)%t_region_index == my_ireg) part(i)%v(:) = factor*part(i)%v(:)
+      END DO
+    ELSE
+      DO i = 1, SIZE(part)
+        part(i)%v(:) = factor*part(i)%v(:)
+      END DO
+      IF (PRESENT(vcom)) THEN
+         vcom = factor*vcom
+      END IF
     END IF
 
   END SUBROUTINE rescale_vel
+
+! *****************************************************************************
+!> \brief Rescale the velocity of separated regions independently
+!> \par History
+!>      2008-11
+!> \author  MI
+! *****************************************************************************
+  SUBROUTINE rescale_vel_region(part,md_env,simpar,error)
+    
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: part
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(simpar_type), POINTER               :: simpar
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rescale_vel_region', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ireg, nfree, nfree0, &
+                                                nfree_done
+    REAL(KIND=dp)                            :: ekin, temp
+    TYPE(thermal_region_type), POINTER       :: t_region
+    TYPE(thermal_regions_type), POINTER      :: thermal_regions
+
+    NULLIFY(thermal_regions, t_region)
+
+    CALL get_md_env(md_env,thermal_regions=thermal_regions,error=error)
+    nfree_done = 0
+    DO ireg = 1,thermal_regions%nregions
+      NULLIFY(t_region)
+      t_region => thermal_regions%thermal_region(ireg)
+      nfree = t_region%npart*3
+      ekin = compute_ekin(part,ireg)
+      temp =  t_region%temp_expected
+      CALL rescale_vel(part,simpar,ekin,ireg=ireg,nfree=nfree,temp=temp)
+      nfree_done = nfree_done+nfree
+      ekin = compute_ekin(part,ireg)
+      temp = 2.0_dp* ekin/REAL(nfree,dp)*kelvin
+      t_region%temperature = temp
+    END DO
+    nfree0 = simpar%nfree - nfree_done
+    IF(nfree0>0) THEN
+      ekin = compute_ekin(part,0)
+      CALL rescale_vel(part,simpar,ekin,ireg=0,nfree=nfree0,temp=simpar%temp_ext)
+      ekin = compute_ekin(part,0)
+      temp = 2.0_dp* ekin/REAL(nfree0,dp)*kelvin
+      thermal_regions%temp_reg0 = temp
+    END IF
+  END SUBROUTINE  rescale_vel_region
 
 ! *****************************************************************************
 !> \brief subtract center of mass velocity
@@ -318,6 +400,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3)           :: iner
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
+    NULLIFY(atomic_kind)
     mang(:)   = 0.0_dp
     iner(:,:) = 0.0_dp
     DO i=1,SIZE(part)
@@ -415,7 +498,7 @@ CONTAINS
 !>      - 2007-11-09: Added angvel_zero feature
 !> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>
 ! *****************************************************************************
-  SUBROUTINE initialize_velocities(simpar, part, force_env, para_env, globenv, &
+  SUBROUTINE initialize_velocities(simpar, part, force_env, para_env, globenv, md_env, &
        molecule_kinds, print_section, subsys_section, shell_present, shell_part, &
        core_part, force_rescaling, error)
 
@@ -425,6 +508,7 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(section_vals_type), POINTER         :: print_section, subsys_section
     LOGICAL, INTENT(IN)                      :: shell_present
@@ -440,9 +524,8 @@ CONTAINS
                                                 imolecule_kind, iw, natoms, &
                                                 nshell, shell_index, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: is_fixed
-    LOGICAL                                  :: atomvel_explicit, &
-                                                corevel_explicit, failure, &
-                                                is_ok, shellvel_explicit
+    LOGICAL :: atomvel_explicit, corevel_explicit, failure, is_ok, &
+      rescale_regions, shellvel_explicit
     REAL(KIND=dp)                            :: ecom, ekin, fac_massc, &
                                                 fac_masss, mass, mass_tot, &
                                                 temp, tmp_r1
@@ -462,6 +545,7 @@ CONTAINS
                                                 corevel_section, &
                                                 shellvel_section
     TYPE(shell_kind_type), POINTER           :: shell
+    TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(val_type), POINTER                  :: val
 
     CALL timeset(routineN,handle)
@@ -470,8 +554,8 @@ CONTAINS
     failure = .FALSE.
     NULLIFY (atomic_kind, fixd_list, atom_list, shell_list, core_list, logger, molecule_kind)
     NULLIFY (molecule_kind_set, shell, val)
-
     NULLIFY (atomvel_section,shellvel_section, corevel_section)
+
     atomvel_section  => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
     shellvel_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
     corevel_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
@@ -580,8 +664,21 @@ CONTAINS
        CALL compute_vcom(part,is_fixed,vcom,ecom)
        ekin = compute_ekin(part) - ecom
 
-       IF (simpar%nfree /= 0 .AND. force_rescaling) THEN
-          CALL rescale_vel(part,simpar,ekin,vcom)
+       IF(simpar%do_thermal_region) THEN
+         CALL get_md_env (md_env, thermal_regions=thermal_regions, error=error)
+         IF(ASSOCIATED(thermal_regions)) THEN
+           rescale_regions = thermal_regions%force_rescaling
+         END IF
+       ELSE
+         rescale_regions = .FALSE.
+       END IF
+       IF (simpar%nfree /= 0 .AND. (force_rescaling .OR. rescale_regions)) THEN
+          IF(simpar%do_thermal_region) THEN
+            CALL rescale_vel_region(part,md_env,simpar,error=error)
+          ELSE
+            CALL rescale_vel(part,simpar,ekin,vcom=vcom)
+          END IF
+
           ! After rescaling, the core and shell velocities must also adapt.
           DO i = 1, natoms
             shell_index = part(i)%shell_index
@@ -646,13 +743,17 @@ CONTAINS
        END IF
 
        ! Rescale the velocities
-       ekin = compute_ekin(part)
-       CALL rescale_vel(part,simpar,ekin)
+       IF(simpar%do_thermal_region) THEN
+         CALL rescale_vel_region(part,md_env,simpar,error=error)
+       ELSE
+         ekin = compute_ekin(part)
+         CALL rescale_vel(part,simpar,ekin)
+       END IF
        
        ! Initialize the core and the shell velocity. Atom velocities are just
        ! copied so that the initial relative core-shell velocity is zero.
        IF (shell_present) THEN
-         CALL clone_core_shell_vel(part, shell_part, core_part)
+         CALL optimize_shell_core(force_env,part,shell_part, core_part, globenv, error=error)
        ENDIF 
     END IF
 
@@ -794,18 +895,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom, iatom, ikind, natom, &
-                                                shell_index
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: ekin_old, imass, mass, scale, &
-                                                temp_old, v2
-    REAL(KIND=dp), DIMENSION(3)              :: tmp, v, vc, vs
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
-                                                shell_particles
-    TYPE(shell_kind_type), POINTER           :: shell
+    REAL(KIND=dp)                            :: ekin_old, scale, temp_old
 
     IF (ABS(temp_expected - md_ener%temp_part/kelvin) > temp_tol) THEN
        scale = 0.0_dp
@@ -817,63 +907,7 @@ CONTAINS
        md_ener%vcom       = 0.0_dp
        md_ener%total_mass = 0.0_dp
 
-       CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, particles=particles,&
-          shell_particles=shell_particles, core_particles=core_particles, error=error)
-
-       DO ikind=1,atomic_kinds%n_els
-          atomic_kind => atomic_kinds%els(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind, atom_list=atom_list, mass=mass,&
-             natom=natom, shell_active=is_shell, shell=shell)
-          IF(is_shell) THEN
-             imass = 1.0_dp / mass
-             v2 = 0.0_dp
-             v  = 0.0_dp
-             DO iatom=1,natom
-                atom = atom_list(iatom)
-                particles%els(atom)%v(:) = scale*particles%els(atom)%v
-                shell_index = particles%els(atom)%shell_index
-                vs = shell_particles%els(shell_index)%v
-                vc = core_particles %els(shell_index)%v
-                tmp(1) = imass*(vs(1)-vc(1))
-                tmp(2) = imass*(vs(2)-vc(2))
-                tmp(3) = imass*(vs(3)-vc(3))
-
-                shell_particles%els(shell_index)%v(1) = particles%els(atom)%v(1) + tmp(1)*shell%mass_core 
-                shell_particles%els(shell_index)%v(2) = particles%els(atom)%v(2) + tmp(2)*shell%mass_core
-                shell_particles%els(shell_index)%v(3) = particles%els(atom)%v(3) + tmp(3)*shell%mass_core
-
-                core_particles%els(shell_index)%v(1) =  particles%els(atom)%v(1) - tmp(1)*shell%mass_shell
-                core_particles%els(shell_index)%v(2) =  particles%els(atom)%v(2) - tmp(2)*shell%mass_shell
-                core_particles%els(shell_index)%v(3) =  particles%els(atom)%v(3) - tmp(3)*shell%mass_shell
-
-               ! kinetic energy and velocity of COM
-                v2 = v2 + SUM(particles%els(atom)%v**2)
-                v(1) = v(1) + particles%els(atom)%v(1)
-                v(2) = v(2) + particles%els(atom)%v(2)
-                v(3) = v(3) + particles%els(atom)%v(3)     
-             END DO
-          ELSE
-             v2 = 0.0_dp
-             v = 0.0_dp
-             DO iatom=1,natom
-                atom = atom_list(iatom)
-                particles%els(atom)%v(1) = scale*particles%els(atom)%v(1)
-                particles%els(atom)%v(2) = scale*particles%els(atom)%v(2)
-                particles%els(atom)%v(3) = scale*particles%els(atom)%v(3)
-               ! kinetic energy and velocity of COM
-                v2 = v2 + SUM(particles%els(atom)%v**2)
-                v(1) = v(1) + particles%els(atom)%v(1)
-                v(2) = v(2) + particles%els(atom)%v(2)
-                v(3) = v(3) + particles%els(atom)%v(3)     
-             END DO 
-          END IF
-          md_ener%ekin  = md_ener%ekin + 0.5_dp*mass*v2
-          md_ener%vcom(1)    = md_ener%vcom(1) + mass*v(1)
-          md_ener%vcom(2)    = md_ener%vcom(2) + mass*v(2)
-          md_ener%vcom(3)    = md_ener%vcom(3) + mass*v(3)
-          md_ener%total_mass = md_ener%total_mass + REAL(natom,KIND=dp)*mass
-       END DO 
-       md_ener%vcom = md_ener%vcom / md_ener%total_mass
+       CALL scale_velocity_low(subsys,scale,ireg=0,ekin=md_ener%ekin,vcom=md_ener%vcom,error=error)
        IF(md_ener%nfree /=0) THEN
            md_ener%temp_part = 2.0_dp*md_ener%ekin/REAL(md_ener%nfree,KIND=dp)*kelvin
        END IF
@@ -885,6 +919,195 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE scale_velocity
+
+! *****************************************************************************
+!> \brief Scale velocities of set of regions
+!> \par author MI
+! *****************************************************************************
+  SUBROUTINE scale_velocity_region(md_env, subsys, md_ener, simpar, iw, error)
+
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(md_ener_type), POINTER              :: md_ener
+    TYPE(simpar_type), POINTER               :: simpar
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_region', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ireg, istat, nfree, &
+                                                nfree_done, nregions
+    REAL(KIND=dp)                            :: ekin, ekin_old, &
+                                                ekin_total_new, fscale, &
+                                                vcom(3), vcom_total(3)
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: temp_new, temp_old
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: part
+    TYPE(thermal_region_type), POINTER       :: t_region
+    TYPE(thermal_regions_type), POINTER      :: thermal_regions
+
+     NULLIFY( particles, part, thermal_regions, t_region)
+     CALL cp_subsys_get(subsys, particles=particles, error=error)
+     part => particles%els
+     CALL get_md_env(md_env, thermal_regions=thermal_regions, error=error)
+
+     nregions = thermal_regions%nregions
+     nfree_done = 0
+     ekin_total_new = 0.0_dp
+     ekin_old = md_ener%ekin
+     vcom_total = 0.0_dp
+     ALLOCATE(temp_new(0:nregions),temp_old(0:nregions), STAT=istat)
+     temp_new = 0.0_dp
+     temp_old = 0.0_dp
+     !loop regions
+     DO ireg = 1,nregions
+       NULLIFY(t_region)
+       t_region => thermal_regions%thermal_region(ireg)
+       nfree = 3.0_dp*t_region%npart
+       ekin = compute_ekin(part,ireg)
+       IF(nfree > 0) t_region%temperature = 2.0_dp*ekin/REAL(nfree,KIND=dp)*kelvin
+       temp_old(ireg) =  t_region%temperature
+       IF(t_region%temp_tol > 0.0_dp .AND. &
+         ABS(t_region%temp_expected - t_region%temperature/kelvin) > t_region%temp_tol) THEN
+           fscale =  SQRT((t_region%temp_expected/t_region%temperature)*kelvin)
+           CALL scale_velocity_low(subsys,fscale,ireg,ekin,vcom,error)
+           t_region%temperature = 2.0_dp*ekin/REAL(nfree,KIND=dp)*kelvin
+           temp_new(ireg) = t_region%temperature
+       END IF
+       nfree_done = nfree_done + nfree
+       ekin_total_new = ekin_total_new + ekin
+     END DO 
+     nfree = simpar%nfree - nfree_done
+     ekin = compute_ekin(part,ireg=0)
+     IF(nfree>0) thermal_regions%temp_reg0 = 2.0_dp*ekin/REAL(nfree,KIND=dp)*kelvin
+     temp_old(0) =  thermal_regions%temp_reg0 
+     IF(simpar%temp_tol > 0.0_dp .AND. nfree>0) THEN
+        IF (ABS(simpar%temp_ext - thermal_regions%temp_reg0/kelvin) > simpar%temp_tol) THEN
+           fscale =  SQRT((simpar%temp_ext/thermal_regions%temp_reg0)*kelvin)
+           CALL scale_velocity_low(subsys,fscale,0,ekin,vcom,error)
+           thermal_regions%temp_reg0 = 2.0_dp*ekin/REAL(nfree,KIND=dp)*kelvin
+           temp_new(0) = thermal_regions%temp_reg0
+        END IF
+     END IF
+     ekin_total_new = ekin_total_new + ekin
+
+     md_ener%ekin = ekin_total_new
+     IF(md_ener%nfree /=0) THEN
+         md_ener%temp_part = 2.0_dp*md_ener%ekin/REAL(md_ener%nfree,KIND=dp)*kelvin
+     END IF
+     md_ener%constant = md_ener%constant - ekin_old + md_ener%ekin
+
+     DO ireg = 0,nregions 
+       IF (iw>0 .AND. temp_new(ireg)>0.0_dp) THEN
+          WRITE (UNIT=iw,FMT="(/,T2,A,I5, A,F10.2,A,F10.2,A)")"Temperature region ", ireg, &
+             " rescaled from:",temp_old(ireg)," K  to ",temp_new(ireg)," K"
+       END IF
+     END DO
+     DEALLOCATE(temp_new,temp_old,STAT=istat)
+
+  END SUBROUTINE scale_velocity_region
+
+! *****************************************************************************
+!> \brief Scale velocities  for a specific region
+!> \par author MI
+! *****************************************************************************
+  SUBROUTINE scale_velocity_low(subsys,fscale,ireg,ekin,vcom,error)
+
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    REAL(KIND=dp), INTENT(IN)                :: fscale
+    INTEGER, INTENT(IN)                      :: ireg
+    REAL(KIND=dp), INTENT(OUT)               :: ekin, vcom(3)
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_low', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: atom, iatom, ikind, my_ireg, &
+                                                natom, shell_index
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: is_shell
+    REAL(KIND=dp)                            :: imass, mass, tmass, v2
+    REAL(KIND=dp), DIMENSION(3)              :: tmp, v, vc, vs
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
+    TYPE(shell_kind_type), POINTER           :: shell
+
+    NULLIFY(atomic_kinds,particles,shell_particles,core_particles,shell,atom_list)
+
+     my_ireg = ireg
+    ekin = 0.0_dp
+    tmass = 0.0_dp
+    vcom = 0.0_dp
+
+    CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, particles=particles,&
+          shell_particles=shell_particles, core_particles=core_particles, error=error)
+
+    DO ikind=1,atomic_kinds%n_els
+       atomic_kind => atomic_kinds%els(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind, atom_list=atom_list, mass=mass,&
+            natom=natom, shell_active=is_shell, shell=shell)
+       IF(is_shell) THEN
+          imass = 1.0_dp / mass
+          v2 = 0.0_dp
+          v  = 0.0_dp
+          DO iatom=1,natom
+             atom = atom_list(iatom)
+             !check region
+             IF( particles%els(atom)%t_region_index/=my_ireg) CYCLE
+
+             particles%els(atom)%v(:) = fscale*particles%els(atom)%v
+             shell_index = particles%els(atom)%shell_index
+             vs = shell_particles%els(shell_index)%v
+             vc = core_particles %els(shell_index)%v
+             tmp(1) = imass*(vs(1)-vc(1))
+             tmp(2) = imass*(vs(2)-vc(2))
+             tmp(3) = imass*(vs(3)-vc(3))
+
+             shell_particles%els(shell_index)%v(1) = particles%els(atom)%v(1) + tmp(1)*shell%mass_core 
+             shell_particles%els(shell_index)%v(2) = particles%els(atom)%v(2) + tmp(2)*shell%mass_core
+             shell_particles%els(shell_index)%v(3) = particles%els(atom)%v(3) + tmp(3)*shell%mass_core
+
+             core_particles%els(shell_index)%v(1) =  particles%els(atom)%v(1) - tmp(1)*shell%mass_shell
+             core_particles%els(shell_index)%v(2) =  particles%els(atom)%v(2) - tmp(2)*shell%mass_shell
+             core_particles%els(shell_index)%v(3) =  particles%els(atom)%v(3) - tmp(3)*shell%mass_shell
+
+             ! kinetic energy and velocity of COM
+             v2 = v2 + SUM(particles%els(atom)%v**2)
+             v(1) = v(1) + particles%els(atom)%v(1)
+             v(2) = v(2) + particles%els(atom)%v(2)
+             v(3) = v(3) + particles%els(atom)%v(3)     
+             tmass = tmass + mass
+          END DO
+       ELSE
+          v2 = 0.0_dp
+          v = 0.0_dp
+          DO iatom=1,natom
+             atom = atom_list(iatom)
+             !check region
+             IF( particles%els(atom)%t_region_index/=my_ireg) CYCLE
+
+             particles%els(atom)%v(:) = fscale*particles%els(atom)%v
+            ! kinetic energy and velocity of COM
+             v2 = v2 + SUM(particles%els(atom)%v**2)
+             v(1) = v(1) + particles%els(atom)%v(1)
+             v(2) = v(2) + particles%els(atom)%v(2)
+             v(3) = v(3) + particles%els(atom)%v(3)     
+             tmass = tmass + mass
+          END DO 
+       END IF
+       ekin  = ekin + 0.5_dp*mass*v2
+       vcom(1)    = vcom(1) + mass*v(1)
+       vcom(2)    = vcom(2) + mass*v(2)
+       vcom(3)    = vcom(3) + mass*v(3)
+
+     END DO 
+     vcom = vcom / tmass
+
+  END SUBROUTINE scale_velocity_low
 
 ! *****************************************************************************
 !> \brief Scale internal motion of CORE-SHELL model to the correct temperature
@@ -915,6 +1138,7 @@ CONTAINS
                                                 shell_particles
     TYPE(shell_kind_type), POINTER           :: shell
 
+    NULLIFY(atom_list,atomic_kinds,atomic_kind,core_particles,particles,shell_particles,shell)
     IF (ABS(temp_expected - md_ener%temp_shell/kelvin) > temp_tol) THEN
        scale = 0.0_dp
        IF (md_ener%temp_shell>EPSILON(0.0_dp)) scale = SQRT((temp_expected/md_ener%temp_shell)*kelvin)
@@ -977,7 +1201,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Scale barostat velocities to get the desired temperature
 !> \par History
-!>     MI 02.200s87
+!>     MI 02.2008
 ! *****************************************************************************
   SUBROUTINE scale_velocity_baro(md_env, md_ener, temp_expected, temp_tol, iw, error)
     TYPE(md_environment_type), POINTER       :: md_env
@@ -1060,9 +1284,13 @@ CONTAINS
          extension=".mdLog",error=error)
 
     ! Control the particle motion
-    IF (simpar%temp_tol > 0.0_dp ) THEN
-       CALL scale_velocity(subsys, md_ener, simpar%temp_ext, simpar%temp_tol, iw, error)
-    END IF    
+    IF(simpar%do_thermal_region) THEN
+       CALL scale_velocity_region(md_env, subsys, md_ener, simpar, iw, error)
+    ELSE        
+      IF (simpar%temp_tol > 0.0_dp ) THEN
+         CALL scale_velocity(subsys, md_ener, simpar%temp_ext, simpar%temp_tol, iw, error)
+      END IF    
+    END IF
     ! Control the internal core-shell motion
     IF(simpar%temp_sh_tol > 0.0_dp) THEN
        CALL scale_velocity_internal(subsys, md_ener, simpar%temp_sh_ext, simpar%temp_sh_tol, iw, error)
@@ -1151,12 +1379,13 @@ CONTAINS
 !> \par History
 !>     Teodoro Laino - University of Zurich - 09.2007 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE setup_velocities(force_env, simpar, globenv, md_section, &
+  SUBROUTINE setup_velocities(force_env, simpar, globenv, md_env, md_section, &
        constraint_section, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: md_section, constraint_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1182,6 +1411,8 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
+    NULLIFY(atomic_kinds,cell,cell_ref,para_env,subsys,molecule_kinds_new,core_particles,particles)
+    NULLIFY(shell_particles,core_particle_set,particle_set,shell_particle_set,force_env_section,print_section,subsys_section)
     print_section => section_vals_get_subs_vals(md_section,"PRINT",error=error)
     apply_cns0 = .FALSE.
     IF (simpar%constraint) THEN
@@ -1211,7 +1442,8 @@ CONTAINS
     END IF
 
     CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds_new,&
-       force_env=force_env, para_env=para_env, globenv=globenv, print_section=print_section,&
+       force_env=force_env, para_env=para_env, globenv=globenv, md_env=md_env,&
+       print_section=print_section,&
        subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
        shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.FALSE., &
        error=error)
@@ -1241,7 +1473,8 @@ CONTAINS
           CALL update_subsys(subsys_section,force_env,.FALSE.,error)
 
           CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds_new,&
-             force_env=force_env, para_env=para_env, globenv=globenv, print_section=print_section, &
+             force_env=force_env, para_env=para_env, globenv=globenv, md_env=md_env,&
+             print_section=print_section, &
              subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
              shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.TRUE., &
              error=error)

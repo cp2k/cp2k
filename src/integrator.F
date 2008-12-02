@@ -53,6 +53,7 @@ MODULE integrator
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
+  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: npe_f_ensemble,&
                                              npe_i_ensemble
   USE integrator_utils,                ONLY: &
@@ -81,6 +82,7 @@ MODULE integrator
   USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
   USE reftraj_types,                   ONLY: reftraj_type
   USE reftraj_util,                    ONLY: compute_msd_reftraj
+  USE shell_opt,                       ONLY: optimize_shell_core
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
   USE thermostat_methods,              ONLY: apply_thermostat_baro,&
@@ -119,8 +121,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'langevin', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, nmolecule, &
-      nmolecule_kind, nparticle, nparticle_kind, nparticle_local, stat
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, nparticle, &
+      nparticle_kind, nparticle_local, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c, c1, c2, c3, c4, dm, dt, &
                                                 gam, mass, sigma
@@ -152,6 +154,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY (cell, para_env, gci, force_env)
+    NULLIFY (atomic_kinds, local_particles,subsys,local_molecules,molecule_kinds,molecules)
+    NULLIFY (molecule_kind_set,molecule_set,particles,particle_set,rng_stream,simpar,virial)
     CALL get_md_env(md_env=md_env, simpar=simpar, force_env=force_env,&
          para_env=para_env, error=error)
     
@@ -170,12 +174,10 @@ CONTAINS
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind = molecule_kinds%n_els
     molecule_kind_set => molecule_kinds%els
 
     nparticle = particles%n_els
     particle_set => particles%els
-    nmolecule = molecules%n_els
     molecule_set => molecules%els
 
     ! Allocate work storage
@@ -307,18 +309,19 @@ CONTAINS
 !>      - usage of fragments retrieved from the force environment (Oct. 2003,MK)
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE nve ( md_env, error)
+  SUBROUTINE nve ( md_env, globenv, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nve', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nmolecule, nmolecule_kind, &
-                                                nparticle, nparticle_kind, &
+    INTEGER                                  :: nparticle, nparticle_kind, &
                                                 nshell
     LOGICAL                                  :: failure, shell_adiabatic, &
+                                                shell_check_distance, &
                                                 shell_present
     REAL(KIND=dp)                            :: dt
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -373,16 +376,15 @@ CONTAINS
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind = molecule_kinds%n_els
     molecule_kind_set => molecule_kinds%els
 
     nparticle = particles%n_els
     particle_set => particles%els
-    nmolecule = molecules%n_els
     molecule_set => molecules%els
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         shell_present=shell_present,shell_adiabatic=shell_adiabatic)
+         shell_present=shell_present,shell_adiabatic=shell_adiabatic,&
+         shell_check_distance=shell_check_distance)
 
     IF(shell_present) THEN
        CALL cp_subsys_get(subsys=subsys,shell_particles=shell_particles,&
@@ -395,7 +397,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL allocate_tmp(tmp, nparticle,nshell,shell_adiabatic,error=error)
+    CALL allocate_tmp(md_env, tmp, nparticle,nshell,shell_adiabatic,error=error)
 
     ! Apply thermostat over the full set of shells if required
     IF(shell_adiabatic) THEN
@@ -413,7 +415,7 @@ CONTAINS
 
     IF(simpar%variable_dt) CALL variable_timestep(md_env,tmp, dt, simpar, para_env, atomic_kind_set,&
          local_particles, particle_set, core_particle_set, shell_particle_set,&
-         nparticle_kind, shell_adiabatic,error=error)
+         nparticle_kind, shell_adiabatic, error=error)
 
     IF (simpar%constraint) THEN 
        ! Possibly update the target values
@@ -430,6 +432,11 @@ CONTAINS
     CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
          core_particle_set, para_env, shell_adiabatic, pos=.TRUE.,  error=error )
 
+    IF(shell_adiabatic .AND. shell_check_distance) THEN
+        CALL optimize_shell_core(force_env,  particle_set,&
+             shell_particle_set, core_particle_set, globenv, tmp=tmp, check=.TRUE., error=error) 
+    END IF     
+
     ! coefficients
     CALL dynamical_coeff_verlet1(dyn_coeff_set, thermostat_coeff, para_env, dt, error)
     
@@ -439,7 +446,7 @@ CONTAINS
 
     ! Velocity Verlet (second part)
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
-         core_particle_set, shell_particle_set, nparticle_kind,shell_adiabatic, dt, error=error )
+         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, error=error )
 
     IF (simpar%constraint) CALL rattle_control(gci,local_molecules, molecule_set, &
          molecule_kind_set, particle_set, tmp%vel, dt,simpar%shake_tol,&
@@ -522,7 +529,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(force_env, tmp)
+    NULLIFY(force_env, tmp, simpar)
     NULLIFY(atomic_kinds,para_env,subsys,local_particles)
     NULLIFY(core_particles,particles,shell_particles)
     NULLIFY(core_particle_set,particle_set,shell_particle_set)
@@ -565,7 +572,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL allocate_tmp (tmp, nparticle, nshell, shell_adiabatic, error=error)
+    CALL allocate_tmp (md_env,tmp, nparticle, nshell, shell_adiabatic, error=error)
 
     ! compute s,ds
     CALL get_s_ds(tmp, nparticle_kind, atomic_kind_set, local_particles, particle_set,&
@@ -616,18 +623,19 @@ CONTAINS
 !>      - usage of fragments retrieved from the force environment (Oct. 2003,MK)
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE nvt ( md_env, error)
+  SUBROUTINE nvt ( md_env, globenv, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nvt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nmolecule, nmolecule_kind, &
-                                                nparticle, nparticle_kind, &
+    INTEGER                                  :: nparticle, nparticle_kind, &
                                                 nshell
     LOGICAL                                  :: failure, shell_adiabatic, &
+                                                shell_check_distance, &
                                                 shell_present
     REAL(KIND=dp)                            :: dt
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -666,7 +674,7 @@ CONTAINS
          thermostat_part, thermostat_shell, cell, shell_particles, &
          shell_particle_set, core_particles, core_particle_set)
     NULLIFY(para_env, subsys, local_molecules, local_particles, molecule_kinds,&
-         molecules, molecule_kind_set, molecule_set)
+         molecules, molecule_kind_set, molecule_set, atomic_kinds,particles)
     NULLIFY(simpar, thermostat_coeff, thermostat_part, thermostat_shell)
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
@@ -687,16 +695,15 @@ CONTAINS
 
     nparticle_kind  = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind  = molecule_kinds%n_els
     molecule_kind_set => molecule_kinds%els
 
     nparticle    = particles%n_els
     particle_set => particles%els
-    nmolecule    = molecules%n_els
     molecule_set => molecules%els
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         shell_present=shell_present,shell_adiabatic=shell_adiabatic)
+         shell_present=shell_present,shell_adiabatic=shell_adiabatic,&
+         shell_check_distance=shell_check_distance)
 
     !  Allocate work storage for positions and velocities
     IF(shell_present) THEN
@@ -710,7 +717,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL allocate_tmp(tmp, nparticle,nshell,shell_adiabatic,error=error)
+    CALL allocate_tmp(md_env, tmp, nparticle,nshell,shell_adiabatic,error=error)
 
     ! Apply Thermostat over the full set of particles
     IF(shell_adiabatic) THEN
@@ -752,6 +759,11 @@ CONTAINS
     ! Broadcast the new particle positions and deallocate pos components of temporary
     CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
          core_particle_set, para_env, shell_adiabatic, pos=.TRUE.,  error=error )
+
+    IF(shell_adiabatic .AND. shell_check_distance) THEN
+        CALL optimize_shell_core(force_env,  particle_set,&
+             shell_particle_set, core_particle_set, globenv, tmp=tmp, check=.TRUE., error=error) 
+    END IF     
 
     ! coefficients
     CALL dynamical_coeff_verlet1 ( dyn_coeff_set, thermostat_coeff, para_env, dt, error)
@@ -808,9 +820,10 @@ CONTAINS
 !>      none
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE npt_i ( md_env, error )
+  SUBROUTINE npt_i ( md_env, globenv, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'npt_i', &
@@ -821,11 +834,12 @@ CONTAINS
                                                 e6 = e4/42.0_dp, &
                                                 e8 = e6/72.0_dp
 
-    INTEGER                                  :: iroll, nmolecule, &
-                                                nmolecule_kind, nparticle, &
+    INTEGER                                  :: iroll, nparticle, &
                                                 nparticle_kind, nshell
     LOGICAL                                  :: failure, first, first_time, &
-                                                shell_adiabatic, shell_present
+                                                shell_adiabatic, &
+                                                shell_check_distance, &
+                                                shell_present
     REAL(KIND=dp)                            :: dt, infree, kin, roll_tol, &
                                                 roll_tol_thrs
     REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
@@ -890,16 +904,15 @@ CONTAINS
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind = molecule_kinds%n_els
     molecule_kind_set => molecule_kinds%els
 
     nparticle = particles%n_els
     particle_set => particles%els
-    nmolecule = molecules%n_els
     molecule_set => molecules%els
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         shell_present=shell_present,shell_adiabatic=shell_adiabatic)
+         shell_present=shell_present,shell_adiabatic=shell_adiabatic,&
+         shell_check_distance=shell_check_distance)
 
     IF ( first_time ) THEN
        CALL virial_evaluate ( atomic_kind_set, particle_set,  &
@@ -920,7 +933,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL allocate_tmp(tmp, nparticle, nshell, shell_adiabatic, error=error)
+    CALL allocate_tmp(md_env, tmp, nparticle, nshell, shell_adiabatic, error=error)
 
     ! Initialize eps_0 the first time through
     IF ( first_time ) eps_0 = npt (1,1)%eps
@@ -1025,6 +1038,11 @@ CONTAINS
     ! Broadcast the new particle positions and deallocate the pos components of temporary
     CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
          core_particle_set, para_env, shell_adiabatic, pos=.TRUE.,  error=error )
+
+    IF(shell_adiabatic .AND. shell_check_distance) THEN
+        CALL optimize_shell_core(force_env,  particle_set,&
+             shell_particle_set, core_particle_set, globenv, tmp=tmp, check=.TRUE., error=error)
+    END IF
 
     ! Update forces
     CALL force_env_set_cell(force_env, cell, error)
@@ -1152,7 +1170,7 @@ CONTAINS
     TYPE(simpar_type), POINTER               :: simpar
 
     failure = .FALSE.
-    NULLIFY(reftraj_env, particle_set, particles, force_env, subsys, simpar, para_env, cell)
+    NULLIFY(reftraj_env, particle_set, particles, force_env, subsys, simpar, para_env, cell, itimes, time)
     CALL get_md_env(md_env=md_env, init=init, reftraj=reftraj_env, force_env=force_env,&
          para_env=para_env, simpar=simpar, error=error)
 
@@ -1284,8 +1302,7 @@ CPSourceFileRef,&
                                                 e4 = e2/20._dp, &
                                                 e6 = e4/42._dp, e8 = e6/72._dp
 
-    INTEGER                                  :: iroll, nmolecule, &
-                                                nmolecule_kind, nparticle, &
+    INTEGER                                  :: iroll, nparticle, &
                                                 nparticle_kind, nshell
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
@@ -1346,12 +1363,10 @@ CPSourceFileRef,&
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind = molecule_kinds%n_els
     molecule_kind_set => molecule_kinds%els
 
     nparticle = particles%n_els
     particle_set => particles%els
-    nmolecule = molecules%n_els
     molecule_set => molecules%els
 
     IF ( first_time ) THEN
@@ -1376,7 +1391,7 @@ CPSourceFileRef,&
        END IF
     END IF
 
-    CALL allocate_tmp(tmp,nparticle, nshell, shell_adiabatic, error=error)
+    CALL allocate_tmp(md_env, tmp,nparticle, nshell, shell_adiabatic, error=error)
 
     IF (simpar%constraint) THEN
        ! Possibly update the target values
@@ -1544,8 +1559,7 @@ CPSourceFileRef,&
                                                 e4 = e2/20._dp, &
                                                 e6 = e4/42._dp, e8 = e6/72._dp
 
-    INTEGER                                  :: iroll, nmolecule, &
-                                                nmolecule_kind, nparticle, &
+    INTEGER                                  :: iroll, nparticle, &
                                                 nparticle_kind, nshell
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
@@ -1604,12 +1618,10 @@ CPSourceFileRef,&
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind = molecule_kinds%n_els
     molecule_kind_set => molecule_kinds%els
 
     nparticle = particles%n_els
     particle_set => particles%els
-    nmolecule = molecules%n_els
     molecule_set => molecules%els
 
     IF ( first_time ) THEN
@@ -1634,7 +1646,7 @@ CPSourceFileRef,&
        END IF
     END IF
 
-    CALL allocate_tmp(tmp,nparticle, nshell, shell_adiabatic, error=error)
+    CALL allocate_tmp(md_env, tmp,nparticle, nshell, shell_adiabatic, error=error)
 
     ! perform damping on velocities
     CALL damp_v ( molecule_kind_set, molecule_set, particle_set, local_molecules,&
@@ -1800,9 +1812,10 @@ CPSourceFileRef,&
 !>      none
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE npt_f ( md_env, error )
+  SUBROUTINE npt_f ( md_env, globenv, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'npt_f', &
@@ -1813,11 +1826,12 @@ CPSourceFileRef,&
                                                 e6 = e4/42.0_dp, &
                                                 e8 = e6/72.0_dp
 
-    INTEGER                                  :: i, iroll, j, nmolecule, &
-                                                nmolecule_kind, nparticle, &
+    INTEGER                                  :: i, iroll, j, nparticle, &
                                                 nparticle_kind, nshell
     LOGICAL                                  :: failure, first, first_time, &
-                                                shell_adiabatic, shell_present
+                                                shell_adiabatic, &
+                                                shell_check_distance, &
+                                                shell_present
     REAL(KIND=dp)                            :: dt, infree, kin, roll_tol, &
                                                 roll_tol_thrs, trvg
     REAL(KIND=dp), DIMENSION(3)              :: vector_v
@@ -1880,16 +1894,15 @@ CPSourceFileRef,&
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind = molecule_kinds%n_els
     molecule_kind_set => molecule_kinds%els
 
     nparticle = particles%n_els
     particle_set => particles%els
-    nmolecule = molecules%n_els
     molecule_set => molecules%els
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         shell_present=shell_present,shell_adiabatic=shell_adiabatic)
+         shell_present=shell_present,shell_adiabatic=shell_adiabatic,&
+         shell_check_distance=shell_check_distance)
 
     IF ( first_time ) THEN
        CALL virial_evaluate ( atomic_kind_set, particle_set,  &
@@ -1910,7 +1923,7 @@ CPSourceFileRef,&
        END IF
     END IF
 
-    CALL allocate_tmp(tmp,nparticle, nshell, shell_adiabatic, error=error)
+    CALL allocate_tmp(md_env, tmp,nparticle, nshell, shell_adiabatic, error=error)
 
     ! Apply Thermostat to Barostat
     CALL apply_thermostat_baro( thermostat_baro, npt, para_env%group, error)
@@ -2013,6 +2026,11 @@ CPSourceFileRef,&
     ! Broadcast the new particle positions and deallocate the pos components of temporary
     CALL update_dealloc_tmp (tmp,particle_set, shell_particle_set, &
          core_particle_set, para_env, shell_adiabatic, pos=.TRUE., error=error )
+
+    IF(shell_adiabatic .AND. shell_check_distance) THEN
+        CALL optimize_shell_core(force_env,  particle_set,&
+             shell_particle_set, core_particle_set, globenv, tmp=tmp, check=.TRUE., error=error)
+    END IF
 
     ! Update forces
     CALL force_env_set_cell(force_env, cell, error)
@@ -2119,8 +2137,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER :: i_step, iparticle, iparticle_kind, iparticle_local, &
-      n_time_steps, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
-      nparticle_local, stat
+      n_time_steps, nparticle, nparticle_kind, nparticle_local, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dm, dt, mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -2151,7 +2168,9 @@ CPSourceFileRef,&
 
     failure = .FALSE.
 
-    NULLIFY (para_env,cell,subsys_respa,particles_respa, particle_set_respa,gci, force_env)
+    NULLIFY (para_env,cell,subsys_respa,particles_respa, particle_set_respa, gci, force_env, atomic_kinds)
+    NULLIFY (atomic_kind_set,simpar,subsys,particles,particle_set,virial)
+    NULLIFY (local_molecules,molecule_kinds, molecules,molecule_kind_set, local_particles)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env, para_env=para_env, error=error)
     dt = simpar%dt
 
@@ -2172,12 +2191,10 @@ CPSourceFileRef,&
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
-    nmolecule_kind = molecule_kinds%n_els
     molecule_kind_set => molecule_kinds%els
 
     nparticle = particles%n_els
     particle_set => particles%els
-    nmolecule = molecules%n_els
     molecule_set => molecules%els
 
     ! Allocate work storage for positions and velocities

@@ -71,6 +71,8 @@ MODULE md_energies
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE reftraj_types,                   ONLY: reftraj_type
   USE simpar_types,                    ONLY: simpar_type
+  USE thermal_region_types,            ONLY: thermal_regions_type
+  USE thermal_region_utils,            ONLY: print_thermal_regions
   USE thermostat_types,                ONLY: thermostats_type
   USE thermostat_utils,                ONLY: print_thermostats_status
   USE timings,                         ONLY: timeset,&
@@ -317,6 +319,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: motion_section, print_key, &
                                                 root_section
     TYPE(simpar_type), POINTER               :: simpar
+    TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(virial_type), POINTER               :: virial
 
@@ -333,12 +336,12 @@ CONTAINS
     NULLIFY(motion_section, atomic_kinds, atomic_kind_set, cell, subsys, &
          force_env, md_ener, qmmm_env, reftraj, core_particles, particles, &
          shell_particles, print_key, root_section, simpar, virial, &
-         thermostats)
+         thermostats, thermal_regions)
 
     CALL get_md_env(md_env=md_env, itimes=itimes, t=time, used_time=used_time,&
          simpar=simpar, force_env=force_env, init=init, md_ener=md_ener,&
          reftraj=reftraj, thermostats=thermostats, barostat=barostat, &
-         para_env=para_env, averages=averages, error=error)
+         para_env=para_env, averages=averages, thermal_regions=thermal_regions, error=error)
 
     root_section   => force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
@@ -519,6 +522,8 @@ CONTAINS
 CPSourceFileRef,&
                only_ionode=.TRUE.)
        END IF
+       !Thermal Region
+       CALL print_thermal_regions(thermal_regions,simpar,itimes,time*femtoseconds,my_pos,my_act,error) 
 
        ! Core/Shell Model
        IF(shell_present) THEN

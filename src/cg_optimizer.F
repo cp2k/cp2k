@@ -149,15 +149,13 @@ CONTAINS
        ! Main Loop
        wildcard = "   SD"
        CALL gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, error)
-       
+       eold = opt_energy
        DO its = 1, maxiter
           gopt_env%its = its
           CALL cp_iterate(logger%iter_info,iter_nr=its,last=(its==maxiter),error=error)
           CALL gopt_f_ii(its, output_unit)
 
           xold = x0
-          eold = opt_energy
-          emin = MIN(emin, opt_energy)
 
           ! Line minimization
           CALL cg_linmin(gopt_env, x0, xi, g, opt_energy, output_unit, gopt_param, globenv, error)
@@ -170,6 +168,8 @@ CONTAINS
           CALL gopt_f_io(gopt_env, force_env, root_section, its, opt_energy,&
                output_unit, eold, emin, wildcard, gopt_param, SIZE(x0), x0-xold, xi, conv, &
                error=error)
+          eold = opt_energy
+          emin = MIN(emin, opt_energy)
 
           IF (conv.OR.(its==maxiter))  EXIT
           CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&

@@ -18,6 +18,8 @@
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! *****************************************************************************
   RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, error)
+    USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                               get_atomic_kind
     USE averages_types,                  ONLY: average_quantities_type,&
                                                create_averages,&
                                                release_averages
@@ -36,16 +38,15 @@
     USE f77_blas
     USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                                force_env_set_cell
-    USE force_env_types,                 ONLY: force_env_get,&
-                                               force_env_type
+    USE force_env_types,                 ONLY: force_env_get
     USE geo_opt,                         ONLY: cp_geo_opt
     USE gopt_f_types,                    ONLY: gopt_f_type
-    USE gopt_param_types,                ONLY: gopt_param_type
     USE input_constants,                 ONLY: default_minimization_method_id,&
                                                default_ts_method_id,&
                                                default_cell_method_id,&
                                                default_cell_geo_opt_id,&
                                                default_cell_md_id,&
+                                               default_shellcore_method_id,&
                                                nvt_ensemble,&
                                                mol_dyn_run,&
                                                geo_opt_run,&
@@ -59,6 +60,7 @@
                                                default_string_length
     USE particle_list_types,             ONLY: particle_list_type
     USE particle_types,                  ONLY: write_structure_data
+    USE shell_potential_types,           ONLY: shell_kind_type
     USE timings,                         ONLY: timeset,&
                                                timestop
     USE virial_methods,                  ONLY: virial_update
@@ -79,23 +81,27 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at', moduleN='gopt_f77_methods',&
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ensemble, handle, idg, idir, ip, stat
-    LOGICAL                                  :: failure, explicit
-    REAL(KIND=dp)                            :: f_ts, potential_energy, pres_ext
+    INTEGER                                  :: ensemble, handle, idg, idir, ip, shell_index, stat
+    LOGICAL                                  :: failure, explicit, is_shell
+    REAL(KIND=dp)                            :: f_ts, mass, massc, masss, potential_energy
     REAL(KIND=dp), DIMENSION(3)              :: r, s
-    REAL(KIND=dp), DIMENSION(3,3)            :: pres_ext_tens, mtrx, av_ptens
+    REAL(KIND=dp), DIMENSION(3,3)            :: av_ptens
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient_ts
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_list_type), POINTER        :: shell_particles
+    TYPE(particle_list_type), POINTER        :: core_particles
     TYPE(virial_type), POINTER               :: virial, virial_avg
     TYPE(cp_error_type)                      :: new_error
     CHARACTER(LEN=default_string_length)     :: project_name
     TYPE(average_quantities_type), POINTER   :: averages
     TYPE(section_vals_type), POINTER         :: work, avgs_section
+    TYPE(shell_kind_type), POINTER           :: shell
 
     failure=.FALSE.
-    NULLIFY(particles, subsys, cell, gradient_ts, virial, averages)
+    NULLIFY(particles, shell_particles, core_particles, subsys, cell, gradient_ts, virial, averages)
 
     CALL timeset(routineN,handle)
     CALL force_env_get(gopt_env%force_env, subsys=subsys, cell=cell, error=error)
@@ -287,8 +293,55 @@ CPSourceFileRef,&
           END IF
        END IF
        CALL virial_release(virial_avg, error)
+    CASE(default_shellcore_method_id)
+       CALL cp_subsys_get(subsys, shell_particles=shell_particles,&
+            core_particles=core_particles,  error=error)
+       idg=0
+       DO ip=1,particles%n_els
+         NULLIFY(atomic_kind)
+         atomic_kind => particles%els(ip)%atomic_kind
+         CALL get_atomic_kind(atomic_kind=atomic_kind,shell_active=is_shell,mass=mass,shell=shell)
+         IF(is_shell) THEN 
+           massc = shell%mass_core/mass
+           masss = shell%mass_shell/mass
+           shell_index = particles%els(ip)%shell_index
+           DO idir=1,3
+              idg= 3*(shell_index-1)+idir
+              shell_particles%els(shell_index)%r(idir) = particles%els(ip)%r(idir)-massc*x(idg)
+              core_particles%els(shell_index)%r(idir)  = particles%els(ip)%r(idir)+masss*x(idg)
+           END DO
+         END IF
+       END DO
+       CALL write_structure_data(particles%els,cell,gopt_env%motion_section,error)
+       
+       ! Shell-core optimization
+       CALL force_env_calc_energy_force(gopt_env%force_env,&
+               calc_force=PRESENT(gradient),error=error)
+          
+       ! Possibly take the potential energy
+       IF (PRESENT(f)) THEN
+          CALL force_env_get(gopt_env%force_env,potential_energy=f,error=error)
+       END IF
+          
+       ! Possibly take the gradients
+       IF (PRESENT(gradient)) THEN
+         IF (master==para_env%mepos) THEN ! we are on the master
+            CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
+            CALL force_env_get(gopt_env%force_env, subsys=subsys,error=error)
+            idg=0
+            CALL cp_subsys_get(subsys, shell_particles=shell_particles, core_particles=core_particles, error=error)
+            DO ip=1,shell_particles%n_els
+               shell_index = core_particles%els(ip)%shell_index
+               DO idir=1,3
+                 idg=idg+1
+                 gradient(idg)=-(core_particles%els(ip)%f(idir)-shell_particles%els(ip)%f(idir))
+               END DO
+            END DO
+         END IF
+       END IF
     CASE DEFAULT
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
+
     CALL timestop(handle)
   END SUBROUTINE cp_eval_at

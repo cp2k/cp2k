@@ -791,7 +791,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE get_atom_info(i, particle_set, shell_particle_set, core_particle_set,&
-       shell_i_index, i_is_shell, rsi, rci, qci, qsi)
+       shell_i_index, i_is_shell, rsi, rci, qci, qsi, zi)
 
     INTEGER, INTENT(IN)                      :: i
     TYPE(particle_type), POINTER             :: particle_set(:)
@@ -801,10 +801,12 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: i_is_shell
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: rsi, rci
     REAL(KIND=dp), INTENT(OUT)               :: qci, qsi
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zi
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_info', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: zeta
     REAL(KIND=dp)                            :: qi
     REAL(KIND=dp), DIMENSION(3)              :: ri
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -815,17 +817,19 @@ CONTAINS
     ri (:) = particle_set ( i ) % r (:)
     CALL get_atomic_kind ( atomic_kind,qeff = qi,&
                            shell_active=i_is_shell,&
-                           shell=shell_i )
+                           shell=shell_i, z = zeta )
     IF(i_is_shell) THEN
        shell_i_index = particle_set(i)%shell_index
        rsi = shell_particle_set(shell_i_index)%r
        rci = core_particle_set(shell_i_index)%r
        qci = shell_i%charge_core
        qsi = shell_i%charge_shell
+       IF(PRESENT(zi)) zi  = REAL(zeta)
     ELSE
        qsi = 0.0_dp
        qci = qi
        rci = ri
+       IF(PRESENT(zi)) zi  = 0.0_dp
     END IF
 
   END SUBROUTINE get_atom_info

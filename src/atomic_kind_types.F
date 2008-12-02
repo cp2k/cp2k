@@ -55,7 +55,7 @@ MODULE atomic_kind_types
                                              get_paw_proj_set,&
                                              paw_proj_set_type,&
                                              projectors
-  USE periodic_table,                  ONLY: ptable
+  USE periodic_table,                  ONLY: get_ptable_info
   USE physcon,                         ONLY: bohr,&
                                              evolt,&
                                              massunit
@@ -346,7 +346,7 @@ CONTAINS
   SUBROUTINE get_atomic_kind(atomic_kind,all_potential,elp_potential,&
        gth_potential,se_parameter,dftb_parameter,aux_basis_set,aux_fit_basis_set,orb_basis_set,&
        element_symbol,name,mass,kind_number,natom,atom_list,alpha_core_charge,&
-       ccore_charge,core_charge,alpha_scp,I_scp,core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
+       ccore_charge,core_charge,alpha_scp,I_scp,core_charge_radius,ncgf,nsgf,rcov,z,zeff,qeff,&
        soft_basis_set, elec_conf,hard_basis_set,paw_proj_set,softb,paw_atom,qm_atom,&
        hard_radius,hard0_radius,max_rad_local, gpw_type_forced,harmonics, max_iso_not0,&
        max_s_harm, grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active,&
@@ -377,7 +377,9 @@ CONTAINS
                                                 ccore_charge, core_charge, &
                                                 alpha_scp, I_scp, &
                                                 core_charge_radius
-    INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf, z
+    INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcov
+    INTEGER, INTENT(OUT), OPTIONAL           :: z
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff
     TYPE(gto_basis_set_type), OPTIONAL, &
       POINTER                                :: soft_basis_set
@@ -575,7 +577,7 @@ CONTAINS
           ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
              CALL get_potential(potential=atomic_kind%gth_potential,z=z)
           ELSE
-             z = 0
+             CALL get_ptable_info(atomic_kind%element_symbol, number=z)
           END IF
        END IF
        IF (PRESENT(zeff)) THEN
@@ -586,6 +588,9 @@ CONTAINS
           ELSE
              zeff = 0.0_dp
           END IF
+       END IF
+       IF (PRESENT(rcov)) THEN
+          CALL get_ptable_info(atomic_kind%element_symbol, covalent_radius=rcov)
        END IF
        IF (PRESENT(qeff)) THEN
           IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
@@ -665,7 +670,7 @@ CONTAINS
        all_potential_present,gth_potential_present,&
        elp_potential_present,paw_atom_present,&
        qm_atom_present,shell_present, shell_adiabatic,&
-       dft_plus_u_atom_present,&
+       shell_check_distance, dft_plus_u_atom_present,&
        atom_of_kind,kind_of,natom_of_kind,maxder,&
        max_ngrid_rad,&
        max_sph_harm,maxg_iso_not0,lmax_rho0,&
@@ -679,7 +684,8 @@ CONTAINS
       ncgf_aux, npgf, nset, nsgf, nshell
     LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, &
       gth_potential_present, elp_potential_present, paw_atom_present, &
-      qm_atom_present, shell_present, shell_adiabatic, dft_plus_u_atom_present
+      qm_atom_present, shell_present, shell_adiabatic, shell_check_distance, &
+      dft_plus_u_atom_present
     INTEGER, DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: atom_of_kind, kind_of, &
                                                 natom_of_kind
@@ -749,6 +755,7 @@ CONTAINS
        IF (PRESENT(qm_atom_present)) qm_atom_present = .FALSE.
        IF (PRESENT(shell_present)) shell_present = .FALSE.
        IF (PRESENT(shell_adiabatic)) shell_adiabatic = .FALSE.
+       IF (PRESENT(shell_check_distance)) shell_check_distance = .FALSE.
        IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
        IF (PRESENT(kind_of)) kind_of(:) = 0
        IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
@@ -1152,6 +1159,9 @@ CONTAINS
           IF (PRESENT(shell_adiabatic) .AND. ASSOCIATED(shell) )THEN
              IF(.NOT. shell_adiabatic) shell_adiabatic = (shell%massfrac /= 0.0_dp)
           END IF
+          IF (PRESENT(shell_check_distance) .AND. ASSOCIATED(shell) )THEN
+             IF(.NOT. shell_check_distance) shell_check_distance = (shell%max_dist > 0.0_dp)
+          END IF
           IF (PRESENT(atom_of_kind)) THEN
              DO iatom=1,atomic_kind%natom
                 atom_a = atomic_kind%atom_list(iatom)
@@ -1413,7 +1423,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_atomic_kind', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=2)                         :: current_symbol, element_symbol
+    CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
       aux_fit_basis_set_name, keyword, orb_basis_set_name, potential_name, &
       potential_type
@@ -1527,19 +1537,8 @@ CONTAINS
                keyword_name="ELEMENT",c_val=element_symbol,error=error)
        END IF
     END IF
-    CALL uppercase(element_symbol)
-    DO i=LBOUND(ptable,1),UBOUND(ptable,1)
-       current_symbol = ptable(i)%symbol
-       CALL uppercase(current_symbol)
-       IF (current_symbol == element_symbol) THEN
-          atomic_kind%element_symbol = ptable(i)%symbol
-          IF (atomic_kind%mass==-1.0_dp) THEN
-             atomic_kind%mass = ptable(i)%amass
-          END IF
-          z = i
-          EXIT
-       END IF
-    END DO
+
+    CALL get_ptable_info(element_symbol, amass=atomic_kind%mass, ielement=z)
 
     ! If a proper element was not found exit the normal execution
 

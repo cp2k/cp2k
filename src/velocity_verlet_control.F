@@ -12,6 +12,7 @@ MODULE velocity_verlet_control
 
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
+  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
@@ -40,9 +41,10 @@ CONTAINS
 !>      none
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE velocity_verlet ( md_env, error )
+  SUBROUTINE velocity_verlet ( md_env, globenv, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'velocity_verlet', &
@@ -70,16 +72,16 @@ CONTAINS
        IF(simpar%do_respa)THEN
           CALL nve_respa(md_env,error)
        ELSE
-          CALL nve (md_env, error)
+          CALL nve (md_env, globenv, error)
        END IF
     CASE (nvt_ensemble)
-       CALL nvt (md_env, error)
+       CALL nvt (md_env, globenv, error)
     CASE (isokin_ensemble)
        CALL isokin (md_env, error)
     CASE (npt_i_ensemble)
-       CALL npt_i (md_env, error)
+       CALL npt_i (md_env, globenv, error)
     CASE (npt_f_ensemble)
-       CALL npt_f (md_env, error)
+       CALL npt_f (md_env, globenv, error)
     CASE (nph_uniaxial_ensemble)
        CALL nph_uniaxial (md_env, error)
     CASE (nph_uniaxial_damped_ensemble)
@@ -89,9 +91,9 @@ CONTAINS
     CASE (langevin_ensemble)
        CALL langevin(md_env, error)
     CASE (npe_f_ensemble)
-       CALL npt_f (md_env, error)
+       CALL npt_f (md_env, globenv, error)
     CASE (npe_i_ensemble)
-       CALL npt_i (md_env, error)
+       CALL npt_i (md_env, globenv, error)
     END SELECT
 
     CALL timestop(handle)

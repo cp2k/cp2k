@@ -2677,7 +2677,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
   SUBROUTINE force_field_pack_ppse (atomic_kind_set, ewald_env, ff_type, &
        iw2, iw3, iw4, spline_nonbond_env, spline_c_coul_env, spline_cs_coul_env,&
-       spline_sc_coul_env, potparm_nonbond, error)
+       spline_sc_coul_env, potparm_nonbond, do_zbl, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -2689,6 +2689,7 @@ CPSourceFileRef,&
                                                 spline_cs_coul_env, &
                                                 spline_sc_coul_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond
+    LOGICAL, INTENT(IN)                      :: do_zbl
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_ppse', &
@@ -2703,22 +2704,24 @@ CPSourceFileRef,&
     IF(shell_present) THEN
       CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
            spline_c_coul_env=spline_c_coul_env, spline_cs_coul_env=spline_cs_coul_env,&
-           spline_sc_coul_env=spline_sc_coul_env, do_14=.FALSE., ewald_env=ewald_env, &
+           spline_sc_coul_env=spline_sc_coul_env, do_14=.FALSE., do_zbl=do_zbl, ewald_env=ewald_env, &
            scale_cutoff=ff_type%scale_cutoff, error=error)
       CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
            atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
            max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-           emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
+           emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,do_zbl=do_zbl,&
            scale_cutoff=ff_type%scale_cutoff, spline_c_coul=spline_c_coul_env, &
            spline_cs_coul=spline_cs_coul_env, spline_sc_coul=spline_sc_coul_env, error=error)
     ELSE
       CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
-           do_14=.FALSE., ewald_env=ewald_env, scale_cutoff=ff_type%scale_cutoff,error=error)
+      do_14=.FALSE., do_zbl=do_zbl, ewald_env=ewald_env, scale_cutoff=ff_type%scale_cutoff,&
+      error=error)
       NULLIFY (spline_c_coul_env,spline_cs_coul_env,spline_sc_coul_env) 
       CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
            atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
            max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-           emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
+           emax_spline=ff_type%emax_spline, iw=iw2,&
+           iw2=iw3,iw3=iw4,do_zbl=do_zbl,&
            scale_cutoff=ff_type%scale_cutoff, error=error)
     END IF
     CALL timestop(handle2)

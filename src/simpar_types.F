@@ -73,6 +73,7 @@ MODULE simpar_types
      REAL (KIND=dp) :: temp_sh_tol
      LOGICAL        :: temperature_per_kind
      LOGICAL        :: scale_temperature_per_kind
+     LOGICAL        :: do_thermal_region
   END TYPE simpar_type
 
 

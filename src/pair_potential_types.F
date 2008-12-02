@@ -224,6 +224,10 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: e_fcc
      REAL (KIND=dp) :: e_fcs
      REAL (KIND=dp) :: e_fsc
+     REAL (KIND=dp) :: z1
+     REAL (KIND=dp) :: z2
+     REAL (KIND=dp) :: zbl_poly(0:5)
+     REAL (KIND=dp) :: zbl_rcut(2)
      LOGICAL        :: undef, only_pp, only_mb
      INTEGER        :: shell_type
      CHARACTER ( LEN = default_string_length )   :: at1
