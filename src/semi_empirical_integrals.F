@@ -29,7 +29,8 @@ MODULE semi_empirical_integrals
                                              rotint_num,&
                                              rotnuc_num
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
-  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_types,            ONLY: ewald_control_type,&
+                                             semi_empirical_type
   USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
 
@@ -48,11 +49,12 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   05.2008
 ! *****************************************************************************
-  SUBROUTINE rotint(sepi,sepj,rij,w,anag,shortrange,taper,store_int_env,error)
+  SUBROUTINE rotint(sepi,sepj,rij,w,anag,ewald_control,taper,store_int_env,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(2025), INTENT(OUT)   :: w
-    LOGICAL                                  :: anag, shortrange
+    LOGICAL                                  :: anag
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -84,9 +86,9 @@ CONTAINS
           END IF
           ! Compute Integrals
           IF (anag) THEN
-             CALL rotint_ana (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
+             CALL rotint_ana (sepi,sepj,rij,w,ewald_control=ewald_control,taper=taper,error=error)
           ELSE
-             CALL rotint_num (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
+             CALL rotint_num (sepi,sepj,rij,w,ewald_control=ewald_control,taper=taper,error=error)
           END IF
           ! Store integrals if we did not go overflow
           IF (.NOT.buffer_overflow) THEN
@@ -160,17 +162,17 @@ CONTAINS
              END IF
           ELSE
              IF (anag) THEN
-                CALL rotint_ana (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
+                CALL rotint_ana (sepi,sepj,rij,w,ewald_control=ewald_control,taper=taper,error=error)
              ELSE
-                CALL rotint_num (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
+                CALL rotint_num (sepi,sepj,rij,w,ewald_control=ewald_control,taper=taper,error=error)
              END IF
           END IF
        END IF
     ELSE
        IF (anag) THEN
-          CALL rotint_ana (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
+          CALL rotint_ana (sepi,sepj,rij,w,ewald_control=ewald_control,taper=taper,error=error)
        ELSE
-          CALL rotint_num (sepi,sepj,rij,w,shortrange=shortrange,taper=taper,error=error)
+          CALL rotint_num (sepi,sepj,rij,w,ewald_control=ewald_control,taper=taper,error=error)
        END IF
     END IF
   END SUBROUTINE rotint
@@ -180,13 +182,14 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   05.2008
 ! *****************************************************************************
-  SUBROUTINE rotnuc (sepi,sepj,rij,e1b,e2a,itype,anag,shortrange,taper,store_int_env,error)
+  SUBROUTINE rotnuc (sepi,sepj,rij,e1b,e2a,itype,anag,ewald_control,taper,store_int_env,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(45), INTENT(OUT), &
       OPTIONAL                               :: e1b, e2a
     INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    LOGICAL, INTENT(IN)                      :: anag
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(semi_empirical_si_type), OPTIONAL, &
       POINTER                                :: store_int_env
@@ -227,10 +230,10 @@ CONTAINS
           ! Compute Integrals
           IF (anag) THEN
              CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                  shortrange=shortrange, taper=taper, error=error)
+                  ewald_control=ewald_control, taper=taper, error=error)
           ELSE
              CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                  shortrange=shortrange, taper=taper, error=error)    
+                  ewald_control=ewald_control, taper=taper, error=error)    
           END IF
           ! Store integrals if we did not go overflow
           IF (.NOT.buffer_overflow) THEN
@@ -310,20 +313,20 @@ CONTAINS
           ELSE
              IF (anag) THEN
                 CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                     shortrange=shortrange, taper=taper, error=error)
+                     ewald_control=ewald_control, taper=taper, error=error)
              ELSE
                 CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-                     shortrange=shortrange, taper=taper, error=error)    
+                     ewald_control=ewald_control, taper=taper, error=error)    
              END IF
           END IF
        END IF
     ELSE
        IF (anag) THEN
           CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-               shortrange=shortrange, taper=taper, error=error)
+               ewald_control=ewald_control, taper=taper, error=error)
        ELSE
           CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-               shortrange=shortrange, taper=taper, error=error)    
+               ewald_control=ewald_control, taper=taper, error=error)    
        END IF
     END IF
 
@@ -337,12 +340,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   04.2008
 ! *****************************************************************************
-  SUBROUTINE corecore (sepi,sepj,rij,enuc,itype,anag,shortrange,taper,error)
+  SUBROUTINE corecore (sepi,sepj,rij,enuc,itype,anag,ewald_control,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), INTENT(OUT)                    :: enuc
     INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    LOGICAL, INTENT(IN)                      :: anag
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -350,10 +354,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF (anag) THEN
-       CALL corecore_ana (sepi,sepj,rij,enuc=enuc,itype=itype,shortrange=shortrange,&
+       CALL corecore_ana (sepi,sepj,rij,enuc=enuc,itype=itype,ewald_control=ewald_control,&
             taper=taper, error=error)
     ELSE
-       CALL corecore_num (sepi,sepj,rij,enuc=enuc,itype=itype,shortrange=shortrange,&
+       CALL corecore_num (sepi,sepj,rij,enuc=enuc,itype=itype,ewald_control=ewald_control,&
             taper=taper, error=error)
     END IF
 
@@ -364,13 +368,14 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   04.2008
 ! *****************************************************************************
-  SUBROUTINE drotint (sepi,sepj,rij,dw,delta,anag,shortrange,taper, error)
+  SUBROUTINE drotint (sepi,sepj,rij,dw,delta,anag,ewald_control,taper, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3, 2025), &
       INTENT(OUT)                            :: dw
     REAL(dp), INTENT(IN)                     :: delta
-    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    LOGICAL, INTENT(IN)                      :: anag
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -378,9 +383,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF (anag) THEN
-       CALL  rotint_ana(sepi,sepj,rij,dw=dw,   shortrange=shortrange,taper=taper,error=error)
+       CALL  rotint_ana(sepi,sepj,rij,dw=dw,   ewald_control=ewald_control,taper=taper,error=error)
     ELSE
-       CALL drotint_num(sepi,sepj,rij,dw,delta,shortrange=shortrange,taper=taper,error=error)
+       CALL drotint_num(sepi,sepj,rij,dw,delta,ewald_control=ewald_control,taper=taper,error=error)
     END IF
 
   END SUBROUTINE drotint
@@ -390,14 +395,15 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   04.2008
 ! *****************************************************************************
-  SUBROUTINE drotnuc (sepi,sepj,rij,de1b,de2a,itype,delta,anag,shortrange,taper,error)
+  SUBROUTINE drotnuc (sepi,sepj,rij,de1b,de2a,itype,delta,anag,ewald_control,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3, 45), &
       INTENT(OUT), OPTIONAL                  :: de1b, de2a
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(IN)                     :: delta
-    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    LOGICAL, INTENT(IN)                      :: anag
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -406,10 +412,10 @@ CONTAINS
 
     IF (anag) THEN
        CALL rotnuc_ana  (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype,&
-            shortrange=shortrange,taper=taper,error=error)
+            ewald_control=ewald_control,taper=taper,error=error)
     ELSE
        CALL drotnuc_num (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype,&
-            delta=delta,shortrange=shortrange,taper=taper,error=error)
+            delta=delta,ewald_control=ewald_control,taper=taper,error=error)
     END IF
 
   END SUBROUTINE drotnuc
@@ -419,13 +425,14 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   04.2008
 ! *****************************************************************************
-  SUBROUTINE dcorecore (sepi,sepj,rij,denuc,itype,delta,anag,shortrange,taper,error)
+  SUBROUTINE dcorecore (sepi,sepj,rij,denuc,itype,delta,anag,ewald_control,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3), INTENT(OUT)      :: denuc
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(IN)                     :: delta
-    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    LOGICAL, INTENT(IN)                      :: anag
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -433,11 +440,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF (anag) THEN
-       CALL corecore_ana (sepi,sepj,rij,denuc=denuc,itype=itype,shortrange=shortrange,&
+       CALL corecore_ana (sepi,sepj,rij,denuc=denuc,itype=itype,ewald_control=ewald_control,&
             taper=taper, error=error)
     ELSE
        CALL dcorecore_num (sepi,sepj,rij,denuc=denuc,delta=delta,itype=itype,&
-            shortrange=shortrange,taper=taper, error=error)
+            ewald_control=ewald_control,taper=taper, error=error)
     END IF
 
   END SUBROUTINE dcorecore

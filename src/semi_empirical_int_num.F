@@ -32,10 +32,12 @@ MODULE semi_empirical_int_num
                                              rot_2el_2c_first,&
                                              rotmat,&
                                              store_2el_2c_diag
-  USE semi_empirical_types,            ONLY: rotmat_create,&
+  USE semi_empirical_types,            ONLY: ewald_control_type,&
+                                             rotmat_create,&
                                              rotmat_release,&
                                              rotmat_type,&
-                                             semi_empirical_type
+                                             semi_empirical_type,&
+                                             setup_ewald_control_type
   USE taper_types,                     ONLY: taper_eval,&
                                              taper_type
 #include "cp_common_uses.h"
@@ -58,7 +60,8 @@ CONTAINS
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j
-!>            shortrange   = compute only the short range part of the integrals
+!>         ewald_control   = input parameters that control the calculation of
+!>                           the short range part of the integrals
 !> 
 !>    on output     w      = Array of two-electron repulsion integrals.
 !> 
@@ -66,11 +69,11 @@ CONTAINS
 !>       written by Ernest R. Davidson, Indiana University.
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : major rewriting
 ! *****************************************************************************
-  SUBROUTINE rotint_num (sepi,sepj,rijv,w,shortrange,taper,error)
+  SUBROUTINE rotint_num (sepi,sepj,rijv,w,ewald_control,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     REAL(dp), DIMENSION(2025), INTENT(OUT)   :: w
-    LOGICAL                                  :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -102,7 +105,7 @@ CONTAINS
        CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
        
        ! Compute Integrals in Diatomic Frame
-       CALL terep_num(sepi,sepj,rij,rep,taper=taper,shortrange=shortrange,error=error)
+       CALL terep_num(sepi,sepj,rij,rep,taper=taper,ewald_control=ewald_control,error=error)
 
        ! Rotate Integrals
        ii = sepi%natorb
@@ -116,7 +119,7 @@ CONTAINS
           END DO
 
           ! First step in rotation of integrals
-          CALL rot_2el_2c_first(sepi, sepj, rijv, shortrange, taper, .FALSE., ii, kk, rep, &
+          CALL rot_2el_2c_first(sepi, sepj, rijv, ewald_control, taper, .FALSE., ii, kk, rep, &
                logv, ij_matrix, v, lgrad=.FALSE.,error=error)
 
           ! Second step in rotation of integrals
@@ -211,7 +214,8 @@ CONTAINS
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>         shortrange    = requests only the evaluation of the short range part
+!>       ewald_control   = input parameters that control the calculation of
+!>                         the short range part of the integrals
 !>
 !>     on output ri      = array of two-electron repulsion integrals
 !>
@@ -219,12 +223,12 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
-  SUBROUTINE terep_num(sepi, sepj, rij, rep, taper, shortrange, error)
+  SUBROUTINE terep_num(sepi, sepj, rij, rep, taper, ewald_control, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(OUT)    :: rep
     TYPE(taper_type), POINTER                :: taper
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'terep_num', &
@@ -237,11 +241,11 @@ CONTAINS
     ft        = taper_eval(taper, rij, error)
 
     ! Contribution from sp shells
-    CALL terep_sp_num(sepi, sepj, rij, rep, shortrange=shortrange, ft=ft, error=error)
+    CALL terep_sp_num(sepi, sepj, rij, rep, ewald_control, ft, error)
 
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d shells
-       CALL terep_d_num (sepi, sepj, rij, rep, shortrange=shortrange, ft=ft, error=error)
+       CALL terep_d_num (sepi, sepj, rij, rep, ewald_control, ft, error)
     END IF
 
   END SUBROUTINE terep_num
@@ -251,7 +255,8 @@ CONTAINS
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>         shortrange    = requests only the evaluation of the short range part
+!>       ewald_control   = input parameters that control the calculation of
+!>                         the short range part of the integrals
 !>
 !>     on output rep     = array of two-electron repulsion integrals
 !>
@@ -259,11 +264,11 @@ CONTAINS
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 ! *****************************************************************************
-  SUBROUTINE terep_sp_num (sepi, sepj, rij, rep, shortrange, ft, error )
+  SUBROUTINE terep_sp_num (sepi, sepj, rij, rep, ewald_control, ft, error )
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(OUT)    :: rep
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     REAL(dp), INTENT(IN)                     :: ft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -299,7 +304,7 @@ CONTAINS
                       rep(numb) = -rep(-nold)
                    ELSE IF (nold == 0) THEN
                       tmp = ijkl_sp (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
-                                     shortrange, do_method_undef, error) * ft
+                                     ewald_control, do_method_undef, error) * ft
                       rep(numb) = tmp
                    END IF
                 END IF
@@ -314,7 +319,8 @@ CONTAINS
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>         shortrange    = requests only the evaluation of the short range part
+!>       ewald_control   = input parameters that control the calculation of
+!>                         the short range part of the integrals
 !>
 !>     on output rep     = array of two-electron repulsion integrals
 !>
@@ -322,11 +328,11 @@ CONTAINS
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 ! *****************************************************************************
-  SUBROUTINE terep_d_num (sepi, sepj, rij, rep, shortrange, ft, error )
+  SUBROUTINE terep_d_num (sepi, sepj, rij, rep, ewald_control, ft, error )
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(INOUT)  :: rep
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     REAL(dp), INTENT(IN)                     :: ft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -363,7 +369,7 @@ CONTAINS
                       rep(numb) = -rep(-nold)
                    ELSE IF (nold == 0) THEN
                       tmp = ijkl_d (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
-                                    shortrange, do_method_undef, error) * ft
+                                    ewald_control, do_method_undef, error) * ft
                       rep(numb) = tmp
                    END IF
                 END IF
@@ -379,6 +385,8 @@ CONTAINS
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j
+!>         ewald_control   = input parameters that control the calculation of
+!>                           the short range part of the integrals
 !>
 !>    on output e1b,e2a= Array of electron-nuclear attraction integrals,
 !>                       e1b = Electron on atom ni attracting nucleus of nj.
@@ -389,13 +397,13 @@ CONTAINS
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : major rewriting
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the core-core part
 ! *****************************************************************************
-  SUBROUTINE rotnuc_num(sepi,sepj,rijv,e1b,e2a,itype,shortrange,taper,error)
+  SUBROUTINE rotnuc_num(sepi,sepj,rijv,e1b,e2a,itype,ewald_control,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     REAL(dp), DIMENSION(45), INTENT(OUT), &
       OPTIONAL                               :: e1b, e2a
     INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -422,8 +430,8 @@ CONTAINS
        CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
 
        ! Compute Integrals in Diatomic Frame
-       CALL core_nucint_num(sepi,sepj,rij,core=core,itype=itype,taper=taper,shortrange=shortrange,&
-            error=error)
+       CALL core_nucint_num(sepi,sepj,rij,core=core,itype=itype,taper=taper,&
+            ewald_control=ewald_control,error=error)
        
        ! Copy parameters over to arrays for do loop.
        last_orbital(1)  = sepi%natorb
@@ -490,7 +498,8 @@ CONTAINS
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j
-!>           shortrange    = requests only the evaluation of the short range part
+!>         ewald_control   = input parameters that control the calculation of
+!>                           the short range part of the integrals
 !>
 !>    on output     enuc= nuclear-nuclear repulsion term.
 !>
@@ -499,12 +508,12 @@ CONTAINS
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : major rewriting
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : splitted from rotnuc
 ! *****************************************************************************
-  SUBROUTINE corecore_num(sepi,sepj,rijv,enuc,itype,shortrange,taper,error)
+  SUBROUTINE corecore_num(sepi,sepj,rijv,enuc,itype,ewald_control,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     REAL(dp), INTENT(OUT)                    :: enuc
     INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -517,17 +526,19 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: z
     REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
                                                 fnj3
+    TYPE(ewald_control_type)                 :: ewald_control_off
 
     rij    =  DOT_PRODUCT(rijv,rijv)
     enuc   =  0.0_dp
     IF (rij > rij_threshold) THEN
        rij = SQRT(rij)
-
-       CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,taper=taper,shortrange=.FALSE.,&
-            error=error)
-       IF (shortrange) THEN
+       CALL setup_ewald_control_type(ewald_control_off, shortrange=.FALSE.)
+       CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,taper=taper,&
+            ewald_control=ewald_control_off,error=error)
+       ! In case let's compute the short-range part of the (ss|ss) integral
+       IF (ewald_control%shortrange) THEN
           CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss_sr,itype=itype,taper=taper,&
-               shortrange=shortrange,error=error)
+               ewald_control=ewald_control,error=error)
        ELSE
           ssss_sr = ssss
        END IF
@@ -668,7 +679,8 @@ CONTAINS
 !>                sepj    = paramters of atom j
 !>                itype   = type of semi_empirical model
 !>                          extension to the original routine to compute qm/mm integrals
-!>           shortrange   = requests only the evaluation of the short range part
+!>        ewald_control   = input parameters that control the calculation of
+!>                          the short range part of the integrals
 !>
 !>      on output ssss    = derivative of (ssss) integral
 !>                          derivatives are intended w.r.t. rij
@@ -676,13 +688,13 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE ssss_nucint_num(sepi, sepj, rij, ssss, itype, taper, shortrange, error)
+  SUBROUTINE ssss_nucint_num(sepi, sepj, rij, ssss, itype, taper, ewald_control, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(OUT)                    :: ssss
     INTEGER, INTENT(IN)                      :: itype
     TYPE(taper_type), POINTER                :: taper
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ssss_nucint_num', &
@@ -694,7 +706,8 @@ CONTAINS
     failure   = .FALSE.
 
     ! Contribution from the sp shells
-    CALL nucint_sp_num(sepi, sepj, rij, ssss=ssss, itype=itype, shortrange=shortrange, error=error)
+    CALL nucint_sp_num(sepi, sepj, rij, ssss=ssss, itype=itype, ewald_control=ewald_control,&
+         error=error)
 
     ! Tapering function
     ft = 1.0_dp
@@ -710,7 +723,8 @@ CONTAINS
 !>                sepj    = paramters of atom j
 !>                itype   = type of semi_empirical model
 !>                          extension to the original routine to compute qm/mm integrals
-!>           shortrange   = requests only the evaluation of the short range part
+!>        ewald_control   = input parameters that control the calculation of
+!>                          the short range part of the integrals
 !>
 !>      on output core    = derivative of 4 X 2 array of electron-core attraction integrals
 !>                          derivatives are intended w.r.t. rij
@@ -718,13 +732,13 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE core_nucint_num(sepi, sepj, rij, core, itype, taper, shortrange, error)
+  SUBROUTINE core_nucint_num(sepi, sepj, rij, core, itype, taper, ewald_control, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(10, 2), INTENT(OUT)  :: core
     INTEGER, INTENT(IN)                      :: itype
     TYPE(taper_type), POINTER                :: taper
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'core_nucint_num', &
@@ -736,11 +750,12 @@ CONTAINS
 
     failure   = .FALSE.
     ! Contribution from the sp shells
-    CALL nucint_sp_num(sepi, sepj, rij, core=core, itype=itype, shortrange=shortrange, error=error)
+    CALL nucint_sp_num(sepi, sepj, rij, core=core, itype=itype, ewald_control=ewald_control,&
+         error=error)
 
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d shells
-       CALL nucint_d_num(sepi, sepj, rij, core, itype, shortrange, error=error)
+       CALL nucint_d_num(sepi, sepj, rij, core, itype, ewald_control, error=error)
     END IF
 
     ! Tapering function
@@ -762,7 +777,8 @@ CONTAINS
 !>                sepj   = paramters of atom j
 !>                itype  = type of semi_empirical model
 !>                         extension to the original routine to compute qm/mm integrals
-!>        shortrange     = requests only the evaluation of the short range part
+!>       ewald_control   = input parameters that control the calculation of
+!>                         the short range part of the integrals
 !>
 !>      on output core   = 4 X 2 array of electron-core attraction integrals
 !>                ssss   = (ssss) integral
@@ -778,14 +794,14 @@ CONTAINS
 !>      Teodoro Laino (04.2008) [tlaino] - Totally rewritten: nothing to do with
 !>                    the old version
 ! *****************************************************************************
-  SUBROUTINE nucint_sp_num( sepi, sepj, rij, ssss, core, itype, shortrange, error)
+  SUBROUTINE nucint_sp_num( sepi, sepj, rij, ssss, core, itype, ewald_control, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(INOUT), OPTIONAL        :: ssss
     REAL(dp), DIMENSION(10, 2), &
       INTENT(INOUT), OPTIONAL                :: core
     INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_sp_num', &
@@ -805,38 +821,38 @@ CONTAINS
     ij = indexa(1, 1)
     IF (l_ssss) THEN
        ! Store the value for <S  S  | S  S  > (Used for computing the core-core interactions)
-       ssss = ijkl_sp (sepi, sepj, ij, ij, 0, 0, 0, 0, -1, rij, shortrange, itype, error)
+       ssss = ijkl_sp (sepi, sepj, ij, ij, 0, 0, 0, 0, -1, rij, ewald_control, itype, error)
     END IF
 
     IF (l_core) THEN
        !     <S  S  | S  S  >
        kl = indexa(1, 1)
-       core(1,1)    = ijkl_sp (sepi, sepj, kl, ij, 0, 0, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
+       core(1,1)    = ijkl_sp (sepi, sepj, kl, ij, 0, 0, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
        IF (si) THEN
           !  <S  P  | S  S  >
           kl = indexa(2, 1)
-          core(2,1) = ijkl_sp (sepi, sepj, kl, ij, 0, 1, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
+          core(2,1) = ijkl_sp (sepi, sepj, kl, ij, 0, 1, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
           !  <P  P  | S  S  >
           kl = indexa(2, 2)
-          core(3,1) = ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
+          core(3,1) = ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
           !  <P+ P+ | S  S  >
           kl = indexa(3, 3)
-          core(4,1) = ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
+          core(4,1) = ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
        END IF
 
        !     <S  S  | S  S  >
        kl = indexa(1, 1)
-       core(1,2)    = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 0, 1, rij, shortrange, itype, error) * sepi%zeff
+       core(1,2)    = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 0, 1, rij, ewald_control, itype, error) * sepi%zeff
        IF (sj) THEN
           !  <S  S  | S  P  >
           kl = indexa(2, 1)
-          core(2,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 1, 1, rij, shortrange, itype, error) * sepi%zeff
+          core(2,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 1, 1, rij, ewald_control, itype, error) * sepi%zeff
           !  <S  S  | P  P  >
           kl = indexa(2, 2)
-          core(3,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, shortrange, itype, error) * sepi%zeff
+          core(3,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, ewald_control, itype, error) * sepi%zeff
           !  <S  S  | P+ P+ >
           kl = indexa(3, 3)
-          core(4,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, shortrange, itype, error) * sepi%zeff
+          core(4,2) = ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, ewald_control, itype, error) * sepi%zeff
        END IF
     END IF
 
@@ -849,7 +865,9 @@ CONTAINS
 !>                sepj   = paramters of atom j
 !>                itype  = type of semi_empirical model
 !>                         extension to the original routine to compute qm/mm integrals
-!>          shortrange   = requests only the evaluation of the short range part
+!>       ewald_control   = input parameters that control the calculation of
+!>                         the short range part of the integrals
+!>
 !>      on output core   = 4 X 2 array of electron-core attraction integrals
 !>
 !>         The storage of the nuclear attraction integrals  core(kl/ij) iS
@@ -860,13 +878,13 @@ CONTAINS
 !> \author
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich 
 ! *****************************************************************************
-  SUBROUTINE nucint_d_num( sepi, sepj, rij, core, itype, shortrange, error)
+  SUBROUTINE nucint_d_num( sepi, sepj, rij, core, itype, ewald_control, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(10, 2), &
       INTENT(INOUT)                          :: core
     INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_d_num', &
@@ -882,42 +900,42 @@ CONTAINS
        IF (sepj%dorb) THEN
           !  <S S | D S>
           kl = indexa(5, 1)
-          core(5, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, shortrange, itype, error) * sepi%zeff
+          core(5, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, ewald_control, itype, error) * sepi%zeff
           !  <S S | D P >
           kl = indexa(5, 2)
-          core(6, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, shortrange, itype, error) * sepi%zeff
+          core(6, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, ewald_control, itype, error) * sepi%zeff
           !  <S S | D D >
           kl = indexa(5, 5)
-          core(7, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, shortrange, itype, error) * sepi%zeff
+          core(7, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, ewald_control, itype, error) * sepi%zeff
           !  <S S | D+P+>
           kl = indexa(6, 3)
-          core(8, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, shortrange, itype, error) * sepi%zeff
+          core(8, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, ewald_control, itype, error) * sepi%zeff
           !  <S S | D+D+>
           kl = indexa(6, 6)
-          core(9, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, shortrange, itype, error) * sepi%zeff
+          core(9, 2) = ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, ewald_control, itype, error) * sepi%zeff
           !  <S S | D#D#>
           kl = indexa(8, 8)
-          core(10, 2)= ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, shortrange, itype, error) * sepi%zeff
+          core(10, 2)= ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, ewald_control, itype, error) * sepi%zeff
        END IF
        IF (sepi%dorb) THEN
           !  <D S | S S>
           kl = indexa(5, 1)
-          core(5, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
+          core(5, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
           !  <D P | S S >
           kl = indexa(5, 2)
-          core(6, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
+          core(6, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
           !  <D D | S S >
           kl = indexa(5, 5)
-          core(7, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
+          core(7, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
           !  <D+P+| S S >
           kl = indexa(6, 3)
-          core(8, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
+          core(8, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
           !  <D+D+| S S >
           kl = indexa(6, 6)
-          core(9, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
+          core(9, 1) = ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
           !  <D#D#| S S >
           kl = indexa(8, 8)
-          core(10, 1)= ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, shortrange, itype, error) * sepj%zeff
+          core(10, 1)= ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
        END IF
 
     END IF
@@ -926,13 +944,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Numerical Derivatives for rotint
 ! *****************************************************************************
-  SUBROUTINE drotint_num(sepi,sepj,r,dw,delta,shortrange,taper, error)
+  SUBROUTINE drotint_num(sepi,sepj,r,dw,delta,ewald_control,taper, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
     REAL(dp), DIMENSION(3, 2025), &
       INTENT(OUT)                            :: dw
     REAL(dp), INTENT(IN)                     :: delta
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -949,9 +967,9 @@ CONTAINS
     DO i=1,3
        rr=r
        rr(i)=rr(i)+delta
-       CALL rotint_num(sepi,sepj,rr,wp,shortrange,taper=taper,error=error)
+       CALL rotint_num(sepi,sepj,rr,wp,ewald_control,taper=taper,error=error)
        rr(i)=rr(i)-2._dp*delta
-       CALL rotint_num(sepi,sepj,rr,wm,shortrange,taper=taper,error=error)
+       CALL rotint_num(sepi,sepj,rr,wm,ewald_control,taper=taper,error=error)
        DO j = 1, nsize
           dw(i,j) = od * (wp(j) - wm(j))
        END DO
@@ -962,14 +980,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Numerical Derivatives for rotnuc
 ! *****************************************************************************
-  SUBROUTINE drotnuc_num(sepi,sepj,r,de1b,de2a,itype,delta,shortrange,taper,error)
+  SUBROUTINE drotnuc_num(sepi,sepj,r,de1b,de2a,itype,delta,ewald_control,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
     REAL(dp), DIMENSION(3, 45), &
       INTENT(OUT), OPTIONAL                  :: de1b, de2a
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(IN)                     :: delta
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -989,9 +1007,9 @@ CONTAINS
     DO i=1,3
        rr=r
        rr(i)=rr(i)+delta
-       CALL rotnuc_num(sepi,sepj,rr,e1p,e2p,itype,shortrange,taper=taper,error=error)
+       CALL rotnuc_num(sepi,sepj,rr,e1p,e2p,itype,ewald_control,taper=taper,error=error)
        rr(i)=rr(i)-2._dp*delta
-       CALL rotnuc_num(sepi,sepj,rr,e1m,e2m,itype,shortrange,taper=taper,error=error)
+       CALL rotnuc_num(sepi,sepj,rr,e1m,e2m,itype,ewald_control,taper=taper,error=error)
        IF (l_de1b) THEN
           DO j = 1, sepi%atm_int_size
              de1b(i,j) = od * (e1p(j) - e1m(j))
@@ -1008,13 +1026,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Numerical Derivatives for corecore
 ! *****************************************************************************
-  SUBROUTINE dcorecore_num(sepi,sepj,r,denuc,itype,delta,shortrange,taper,error)
+  SUBROUTINE dcorecore_num(sepi,sepj,r,denuc,itype,delta,ewald_control,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
     REAL(dp), DIMENSION(3), INTENT(OUT)      :: denuc
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(IN)                     :: delta
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1029,9 +1047,9 @@ CONTAINS
     DO i=1,3
        rr=r
        rr(i)=rr(i)+delta
-       CALL corecore_num(sepi,sepj,rr,enucp,itype,shortrange,taper=taper,error=error)
+       CALL corecore_num(sepi,sepj,rr,enucp,itype,ewald_control,taper=taper,error=error)
        rr(i)=rr(i)-2._dp*delta
-       CALL corecore_num(sepi,sepj,rr,enucm,itype,shortrange,taper=taper,error=error)
+       CALL corecore_num(sepi,sepj,rr,enucm,itype,ewald_control,taper=taper,error=error)
        denuc(i)  = od * ( enucp - enucm )
     END DO
   END SUBROUTINE dcorecore_num

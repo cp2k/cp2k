@@ -77,8 +77,10 @@ MODULE nddo_methods
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_finalize,&
                                              semi_empirical_si_initialize,&
                                              semi_empirical_si_type
-  USE semi_empirical_types,            ONLY: get_se_param,&
-                                             semi_empirical_type
+  USE semi_empirical_types,            ONLY: ewald_control_type,&
+                                             get_se_param,&
+                                             semi_empirical_type,&
+                                             setup_ewald_control_type
   USE semi_empirical_utils,            ONLY: get_se_type
   USE sparse_matrix_types,             ONLY: &
        allocate_matrix_set, cp_sm_scale_and_add, cp_sm_sm_trace, &
@@ -322,6 +324,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(ewald_control_type)                 :: ewald_control
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_2c
     TYPE(neighbor_list_type), POINTER        :: sab_2c_neighbor_list
@@ -350,6 +353,7 @@ CONTAINS
     se_control => dft_control%qs_control%se_control
     do_ewald   =  se_control%do_ewald
     anag       =  se_control%analytical_gradients
+    CALL setup_ewald_control_type(ewald_control, shortrange=do_ewald)
 
     IF ( .NOT. failure ) THEN
        CALL get_qs_env(qs_env=qs_env,sab_2c=sab_2c,atomic_kind_set=atomic_kind_set,&
@@ -406,7 +410,7 @@ CONTAINS
                          
                          ! Core-Core energy term
                          CALL corecore (se_kind_a,se_kind_b,rij,enuc=enuc,itype=itype,anag=anag,&
-                              shortrange=do_ewald, taper=taper, error=error)
+                              ewald_control=ewald_control, taper=taper, error=error)
                          enuclear = enuclear + enuc
                          
                          ! Core-Core Derivatives
@@ -415,7 +419,7 @@ CONTAINS
                             atom_b = atom_of_kind(jatom)
                             
                             CALL dcorecore (se_kind_a,se_kind_b,rij,denuc=force_ab,itype=itype,delta=delta,&
-                                 anag=anag,shortrange=do_ewald,taper=taper,error=error)
+                                 anag=anag,ewald_control=ewald_control,taper=taper,error=error)
 
                             ! Sum up force components
                             force(ikind)%all_potential(1,atom_a) = force(ikind)%all_potential(1,atom_a) - force_ab(1)
@@ -1423,10 +1427,13 @@ CONTAINS
     INTEGER                                  :: i1, i1L, i2, j1, j1L
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(45)             :: e1b, e2a
+    TYPE(ewald_control_type)                 :: ewald_control
 
     failure = .FALSE.
+    CALL setup_ewald_control_type(ewald_control, shortrange)
+    ! Compute integrals
     CALL rotnuc (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype, anag=anag,&
-         shortrange=shortrange, taper=taper, store_int_env=store_int_env,&
+         ewald_control=ewald_control, taper=taper, store_int_env=store_int_env,&
          error=error)
     !
     ! Add the electron-nuclear attraction term for atom sepi
@@ -1497,10 +1504,13 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(3, 45)          :: de1b, de2a
+    TYPE(ewald_control_type)                 :: ewald_control
 
     failure = .FALSE.
+    CALL setup_ewald_control_type(ewald_control, shortrange)
+    ! Compute integrals
     CALL drotnuc (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype, anag=anag,&
-         shortrange=shortrange, taper=taper, delta=delta, error=error)
+         ewald_control=ewald_control, taper=taper, delta=delta, error=error)
     !
     ! Add the electron-nuclear attraction term for atom sepi
     !
@@ -1647,15 +1657,17 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, aa, bb, irij(3)
     REAL(KIND=dp), DIMENSION(2025)           :: w
+    TYPE(ewald_control_type)                 :: ewald_control
 
-    failure = .FALSE.    
+    failure = .FALSE.
+    CALL setup_ewald_control_type(ewald_control, shortrange)
     ! Evaluate integrals
     IF (.NOT.switch) THEN
-       CALL rotint (sepi,sepj, rij,w,anag=anag,shortrange=shortrange,taper=taper,&
+       CALL rotint (sepi,sepj, rij,w,anag=anag,ewald_control=ewald_control,taper=taper,&
             store_int_env=store_int_env, error=error)
     ELSE
        irij = -rij
-       CALL rotint (sepj,sepi,irij,w,anag=anag,shortrange=shortrange,taper=taper,&
+       CALL rotint (sepj,sepi,irij,w,anag=anag,ewald_control=ewald_control,taper=taper,&
             store_int_env=store_int_env, error=error)
     END IF
     kr = 0
@@ -1731,14 +1743,18 @@ CONTAINS
     REAL(KIND=dp)                            :: aa, bb, tmp
     REAL(KIND=dp), DIMENSION(3)              :: a, irij
     REAL(KIND=dp), DIMENSION(3, 2025)        :: dw
+    TYPE(ewald_control_type)                 :: ewald_control
 
     failure = .FALSE.
+    CALL setup_ewald_control_type(ewald_control, shortrange)
     ! Evaluate integrals' derivatives
     IF (.NOT.switch) THEN
-       CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,shortrange=shortrange,taper=taper,error=error)
+       CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,ewald_control=ewald_control,&
+            taper=taper,error=error)
     ELSE
        irij = -rij
-       CALL drotint (sepj,sepi,irij,dw,delta,anag=anag,shortrange=shortrange,taper=taper,error=error)
+       CALL drotint (sepj,sepi,irij,dw,delta,anag=anag,ewald_control=ewald_control,&
+            taper=taper,error=error)
     END IF
 
     kr = 0
@@ -1819,15 +1835,17 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, aa, bb, irij(3)
     REAL(KIND=dp), DIMENSION(2025)           :: w
+    TYPE(ewald_control_type)                 :: ewald_control
 
     failure = .FALSE.
+    CALL setup_ewald_control_type(ewald_control, shortrange)
     ! Evaluate integrals
     IF (.NOT.switch) THEN
-       CALL rotint (sepi,sepj, rij,w,anag=anag,shortrange=shortrange,taper=taper,&
+       CALL rotint (sepi,sepj, rij,w,anag=anag,ewald_control=ewald_control,taper=taper,&
             store_int_env=store_int_env, error=error)
     ELSE
        irij = -rij
-       CALL rotint (sepj,sepi,irij,w,anag=anag,shortrange=shortrange,taper=taper,&
+       CALL rotint (sepj,sepi,irij,w,anag=anag,ewald_control=ewald_control,taper=taper,&
             store_int_env=store_int_env, error=error)
     END IF
     kr = 0
@@ -1902,14 +1920,18 @@ CONTAINS
                                                 tmp3, tmp4
     REAL(KIND=dp), DIMENSION(3)              :: a, irij
     REAL(KIND=dp), DIMENSION(3, 2025)        :: dw
+    TYPE(ewald_control_type)                 :: ewald_control
 
     failure = .FALSE.
+    CALL setup_ewald_control_type(ewald_control, shortrange)
     ! Evaluate integrals' derivatives
     IF (.NOT.switch) THEN
-       CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,shortrange=shortrange,taper=taper,error=error)
+       CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,ewald_control=ewald_control,&
+            taper=taper,error=error)
     ELSE
        irij = -rij
-       CALL drotint (sepj,sepi,irij,dw,delta,anag=anag,shortrange=shortrange,taper=taper,error=error)
+       CALL drotint (sepj,sepi,irij,dw,delta,anag=anag,ewald_control=ewald_control,&
+            taper=taper,error=error)
     END IF
 
     kr = 0

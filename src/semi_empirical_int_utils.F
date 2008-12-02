@@ -15,7 +15,8 @@ MODULE semi_empirical_int_utils
   USE semi_empirical_int_arrays,       ONLY: &
        CLMp, CLMxx, CLMxy, CLMyy, CLMz, CLMzp, CLMzz, clm_d, clm_sp, &
        ijkl_ind, indexa, indexb, int2c_type
-  USE semi_empirical_types,            ONLY: rotmat_type,&
+  USE semi_empirical_types,            ONLY: ewald_control_type,&
+                                             rotmat_type,&
                                              semi_empirical_type
   USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
@@ -43,11 +44,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, error) RESULT(res)
+  FUNCTION ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control, itype, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     INTEGER, INTENT(IN)                      :: itype
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -55,7 +56,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_sp', &
       routineP = moduleN//':'//routineN
 
-    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, charg_int_nri, error)
+    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control%shortrange,&
+         itype, charg_int_nri, error)
 
   END FUNCTION ijkl_sp
 
@@ -69,11 +71,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 05.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION d_ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, error) RESULT(res)
+  FUNCTION d_ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control, itype, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     INTEGER, INTENT(IN)                      :: itype
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -81,7 +83,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_sp', &
       routineP = moduleN//':'//routineN
 
-    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, dcharg_int_nri, error)
+    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control%shortrange,&
+         itype, dcharg_int_nri, error)
 
   END FUNCTION d_ijkl_sp
 
@@ -627,11 +630,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, error) RESULT(res)
+  FUNCTION ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control, itype, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     INTEGER, INTENT(IN)                      :: itype
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -639,7 +642,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_d', &
       routineP = moduleN//':'//routineN
 
-    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, charg_int_ri, error)
+    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control%shortrange,&
+         itype, charg_int_ri, error)
 
   END FUNCTION ijkl_d
 
@@ -659,11 +663,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION d_ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, error) RESULT(res)
+  FUNCTION d_ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control, itype, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     INTEGER, INTENT(IN)                      :: itype
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -671,7 +675,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_d', &
       routineP = moduleN//':'//routineN
 
-    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, dcharg_int_ri, error)
+    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control%shortrange,&
+         itype, dcharg_int_ri, error)
 
   END FUNCTION d_ijkl_d
 
@@ -1474,11 +1479,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE rot_2el_2c_first (sepi, sepj, rijv, shortrange, taper, invert, ii, kk,&
+  RECURSIVE SUBROUTINE rot_2el_2c_first (sepi, sepj, rijv, ewald_control, taper, invert, ii, kk,&
        rep, logv, ij_matrix, v, lgrad, rep_d, v_d, logv_d, drij, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rijv
-    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
     TYPE(taper_type), POINTER                :: taper
     LOGICAL, INTENT(IN)                      :: invert
     INTEGER, INTENT(IN)                      :: ii, kk
@@ -1800,7 +1805,7 @@ CONTAINS
           END DO
        END DO
        IF (debug_this_module) THEN
-          CALL rot_2el_2c_first_debug(sepi, sepj, rijv, shortrange, taper, invert, ii, kk, v_d, error)
+          CALL rot_2el_2c_first_debug(sepi, sepj, rijv, ewald_control, taper, invert, ii, kk, v_d, error)
        END IF
     END IF
   END SUBROUTINE rot_2el_2c_first

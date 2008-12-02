@@ -16,7 +16,8 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
   USE semi_empirical_types,            ONLY: rotmat_create,&
                                              rotmat_release,&
                                              rotmat_type,&
-                                             semi_empirical_type
+                                             semi_empirical_type,&
+                                             ewald_control_type
 #include "cp_common_uses.h"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -134,7 +135,7 @@ END SUBROUTINE check_rotmat_der
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, shortrange, taper, invert, ii, kk, v_d, error)
+SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, ewald_control, taper, invert, ii, kk, v_d, error)
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_utils,        ONLY: rotmat
@@ -143,14 +144,16 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, shortrange, taper, invert, i
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                              rotmat_type,&
                                              rotmat_create,&
-                                             rotmat_release
+                                             rotmat_release,&
+                                             ewald_control_type
   USE taper_types,                     ONLY: taper_type
   USE semi_empirical_int_utils,        ONLY: rot_2el_2c_first
 #include "cp_common_uses.h"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rijv
-  LOGICAL, INTENT(IN)                      :: shortrange, invert
+  TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+  LOGICAL, INTENT(IN)                      :: invert
   TYPE(taper_type), POINTER                :: taper
   INTEGER, INTENT(IN)                      :: ii, kk
   REAL(KIND=dp), DIMENSION(3, 45, 45), &
@@ -195,14 +198,14 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, shortrange, taper, invert, i
              error=error)
 
         ! Compute integrals in diatomic frame
-        CALL terep_num(sepi,sepj,r,rep,taper=taper,shortrange=shortrange,error=error)  
+        CALL terep_num(sepi,sepj,r,rep,taper=taper,ewald_control=ewald_control,error=error)  
        
         IF (i==1) THEN
-           CALL rot_2el_2c_first(sepi, sepj, r0, shortrange, taper, invert, ii, kk, rep, logv, matrix,&
+           CALL rot_2el_2c_first(sepi, sepj, r0, ewald_control, taper, invert, ii, kk, rep, logv, matrix,&
                 v_p, lgrad=.FALSE., error=error)
         END IF
         IF (i==2) THEN
-           CALL rot_2el_2c_first(sepi, sepj, r0, shortrange, taper, invert, ii, kk, rep, logv, matrix,&
+           CALL rot_2el_2c_first(sepi, sepj, r0, ewald_control, taper, invert, ii, kk, rep, logv, matrix,&
                 v_m, lgrad=.FALSE., error=error)
         END IF
         CALL rotmat_release(matrix, error)
@@ -229,11 +232,12 @@ END SUBROUTINE rot_2el_2c_first_debug
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,shortrange,taper,error)
+SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,ewald_control,taper,error)
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: ssss_nucint_num
-  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_types,            ONLY: semi_empirical_type,&
+                                             ewald_control_type
   USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
   IMPLICIT NONE
@@ -241,7 +245,7 @@ SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,shortrange,taper,erro
   REAL(dp), INTENT(IN)                     :: r
   REAL(dp), INTENT(IN)                     :: dssss
   INTEGER, INTENT(IN)                      :: itype
-  LOGICAL, INTENT(IN)                      :: shortrange
+  TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
   TYPE(taper_type), POINTER                :: taper
   TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -255,9 +259,9 @@ SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,shortrange,taper,erro
   delta = 1.0E-8_dp
   od = 0.5_dp/delta
   rn = r + delta
-  CALL ssss_nucint_num(sepi,sepj,rn,ssssp,itype,taper,shortrange,error=error)
+  CALL ssss_nucint_num(sepi,sepj,rn,ssssp,itype,taper,ewald_control,error=error)
   rn = r - delta
-  CALL ssss_nucint_num(sepi,sepj,rn,ssssm,itype,taper,shortrange,error=error)
+  CALL ssss_nucint_num(sepi,sepj,rn,ssssm,itype,taper,ewald_control,error=error)
   nssss = od * (ssssp - ssssm)
   ! check
   WRITE(*,*)"DEBUG::"//routineP
@@ -275,11 +279,12 @@ END SUBROUTINE check_dssss_nucint_ana
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,shortrange,taper,error)
+SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,ewald_control,taper,error)
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: core_nucint_num
-  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_types,            ONLY: semi_empirical_type,&
+                                             ewald_control_type
   USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
   IMPLICIT NONE
@@ -287,7 +292,7 @@ SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,shortrange,taper,erro
   REAL(dp), INTENT(IN)                     :: r
   REAL(dp), DIMENSION(10, 2), INTENT(IN)   :: dcore
   INTEGER, INTENT(IN)                      :: itype
-  LOGICAL, INTENT(IN)                      :: shortrange
+  TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
   TYPE(taper_type), POINTER                :: taper
   TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -302,9 +307,9 @@ SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,shortrange,taper,erro
   delta = 1.0E-8_dp
   od = 0.5_dp/delta
   rn = r + delta
-  CALL core_nucint_num(sepi,sepj,rn,corep,itype,taper,shortrange,error=error)
+  CALL core_nucint_num(sepi,sepj,rn,corep,itype,taper,ewald_control,error=error)
   rn = r - delta
-  CALL core_nucint_num(sepi,sepj,rn,corem,itype,taper,shortrange,error=error)
+  CALL core_nucint_num(sepi,sepj,rn,corem,itype,taper,ewald_control,error=error)
   ncore = od * (corep - corem)
   ! check
   WRITE(*,*)"DEBUG::"//routineP
@@ -360,19 +365,20 @@ END FUNCTION check_value
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, shortrange, taper, e1b, e2a, de1b, de2a, error)
+SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, ewald_control, taper, e1b, e2a, de1b, de2a, error)
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: rotnuc_num,&
                                              drotnuc_num
-  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_types,            ONLY: semi_empirical_type,&
+                                             ewald_control_type
   USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
   INTEGER, INTENT(IN)                      :: itype
-  LOGICAL, INTENT(IN)                      :: shortrange
+  TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
   TYPE(taper_type), POINTER                :: taper
   REAL(dp), DIMENSION(45), INTENT(IN), &
     OPTIONAL                               :: e1b, e2a
@@ -398,7 +404,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, shortrange, taper, e1b, e2
   delta = 1.0E-5_dp
   ! Check value of integrals
   WRITE(*,*)"DEBUG::"//routineP
-  CALL rotnuc_num(sepi,sepj,rijv,e1b2,e2a2,itype,shortrange,taper=taper,error=error)
+  CALL rotnuc_num(sepi,sepj,rijv,e1b2,e2a2,itype,ewald_control,taper=taper,error=error)
   IF (l_e1b) THEN
      DO j = 1, 45
         IF (.NOT.check_value(e1b2(j), e1b(j), delta, 0.1_dp)) THEN
@@ -419,7 +425,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, shortrange, taper, e1b, e2
   ! Check derivatives
   IF (lgrad) THEN
      CALL drotnuc_num(sepi,sepj,rijv,de1b2,de2a2,itype,delta=delta,&
-          shortrange=shortrange,taper=taper,error=error)
+          ewald_control=ewald_control,taper=taper,error=error)
      IF (l_de1b) THEN
         DO i = 1, 3
            DO j = 1, 45
@@ -457,12 +463,13 @@ END SUBROUTINE check_drotnuc_ana
 !>      04.2007 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,shortrange, taper, enuc, denuc, error)
+SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,ewald_control, taper, enuc, denuc, error)
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: corecore_num,&
                                              dcorecore_num
-  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_types,            ONLY: semi_empirical_type,&
+                                             ewald_control_type
   USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
   IMPLICIT NONE
@@ -472,7 +479,7 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,shortrange, taper, enuc, 
   REAL(dp), INTENT(IN), OPTIONAL           :: enuc
   REAL(dp), DIMENSION(3), INTENT(IN), &
        OPTIONAL                            :: denuc
-  LOGICAL, INTENT(IN)                      :: shortrange
+  TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
   TYPE(taper_type), POINTER                :: taper
   TYPE(cp_error_type), INTENT(inout)       :: error
   
@@ -488,14 +495,14 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,shortrange, taper, enuc, 
   delta = 1.0E-7_dp
   ! check
   IF (PRESENT(enuc)) THEN
-     CALL  corecore_num(sepi,sepj,rijv, enuc_num,itype,shortrange,taper,error)
+     CALL  corecore_num(sepi,sepj,rijv, enuc_num,itype,ewald_control,taper,error)
      IF (.NOT.check_value(enuc, enuc_num, delta, 0.001_dp)) THEN
         WRITE(*,*)"ERROR for CORE-CORE energy value (numerical different from analytical)!!"
         STOP
      END IF
   END IF
   IF (PRESENT(denuc)) THEN
-     CALL dcorecore_num(sepi,sepj,rijv,denuc_num,itype,delta,shortrange,taper,error)
+     CALL dcorecore_num(sepi,sepj,rijv,denuc_num,itype,delta,ewald_control,taper,error)
      DO j = 1, 3
         IF (.NOT.check_value(denuc(j), denuc_num(j), delta, 0.001_dp)) THEN
            WRITE(*,*)"ERROR for CORE-CORE energy derivative value (numerical different from analytical). DENUC(j), j::", j
@@ -513,18 +520,20 @@ END SUBROUTINE check_dcorecore_ana
 !>      04.2007 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,lgrad,error)
+SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,ewald_control,taper,lgrad,error)
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: terep_num
-  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_types,            ONLY: semi_empirical_type,&
+                                             ewald_control_type
   USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), INTENT(IN)                     :: r
   REAL(dp), DIMENSION(491), INTENT(IN)     :: ri, dri
-  LOGICAL, INTENT(IN)                      :: shortrange, lgrad
+  TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+  LOGICAL, INTENT(IN)                      :: lgrad
   TYPE(taper_type), POINTER                :: taper
   TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -539,12 +548,12 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,lgrad,error)
   delta = 1.0E-8_dp
   od = 0.5_dp/delta
   rn = r
-  CALL terep_num(sepi,sepj,rn,ri0,taper,shortrange,error=error)
+  CALL terep_num(sepi,sepj,rn,ri0,taper,ewald_control,error=error)
   IF (lgrad) THEN
      rn = r + delta
-     CALL terep_num(sepi,sepj,rn,rip,taper,shortrange,error=error)
+     CALL terep_num(sepi,sepj,rn,rip,taper,ewald_control,error=error)
      rn = r - delta
-     CALL terep_num(sepi,sepj,rn,rim,taper,shortrange,error=error)
+     CALL terep_num(sepi,sepj,rn,rim,taper,ewald_control,error=error)
      nri = od * (rip - rim)
   END IF
   ! check
@@ -575,12 +584,13 @@ END SUBROUTINE check_dterep_ana
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,shortrange,taper,error)
+SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,ewald_control,taper,error)
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: rotint_num,&
                                              drotint_num
-  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_types,            ONLY: semi_empirical_type,&
+                                             ewald_control_type
   USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
   IMPLICIT NONE
@@ -590,7 +600,7 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,shortrange,taper,error)
     OPTIONAL                               :: w
   REAL(dp), DIMENSION(3, 2025), &
     INTENT(IN), OPTIONAL                   :: dw
-  LOGICAL, INTENT(IN)                      :: shortrange
+  TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
   TYPE(taper_type), POINTER                :: taper
   TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -607,7 +617,7 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,shortrange,taper,error)
   WRITE(*,*)"DEBUG::"//routineP
   IF (PRESENT(w)) THEN
      w2=0.0_dp
-     CALL rotint_num(sepi,sepj,rijv,w2,shortrange,taper=taper,error=error)
+     CALL rotint_num(sepi,sepj,rijv,w2,ewald_control,taper=taper,error=error)
      DO j = 1, 2025
         IF (.NOT.check_value(w(j), w2(j), delta, 0.1_dp)) THEN
            WRITE(*,*)"ERROR for integral value W(j), j::",j
@@ -620,8 +630,8 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,shortrange,taper,error)
      ! First of all let's decide if the value we get for delta is compatible
      ! with a reasonable value of the integral.. (compatible if the value of the
      ! integral is greater than 1.0E-6)
-     CALL drotint_num(sepi,sepj,rijv,dw2,delta=delta,shortrange=shortrange,taper=taper,error=error)
-     CALL rotint_num(sepi,sepj,rijv,w2,shortrange=shortrange,taper=taper,error=error)
+     CALL drotint_num(sepi,sepj,rijv,dw2,delta=delta,ewald_control=ewald_control,taper=taper,error=error)
+     CALL rotint_num(sepi,sepj,rijv,w2,ewald_control=ewald_control,taper=taper,error=error)
      DO i = 1, 3
         DO j = 1, 2025
            IF ((ABS(w2(j))>delta).AND.(ABS(dw2(i,j))>delta*10)) THEN

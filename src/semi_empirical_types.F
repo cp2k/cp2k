@@ -38,9 +38,7 @@ MODULE semi_empirical_types
   PRIVATE
 
 ! *** Global parameters ***
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_types'
-
 
 ! *****************************************************************************
 !> \brief Semi-empirical type
@@ -105,6 +103,14 @@ MODULE semi_empirical_types
      REAL(KIND=dp), DIMENSION (3, 15, 5, 5)   :: dd_d
   END TYPE rotmat_type
 
+! *****************************************************************************
+!> \brief  Ewald control type (for periodic SE)
+!> \author Teodoro Laino [tlaino]  - 12.2008
+! *****************************************************************************
+  TYPE ewald_control_type
+     LOGICAL                                  :: shortrange
+  END TYPE ewald_control_type
+
   PUBLIC :: semi_empirical_type,&
             semi_empirical_create,&
             semi_empirical_release,&
@@ -113,7 +119,9 @@ MODULE semi_empirical_types
             rotmat_release,&
             get_se_param,&
             set_se_param,&
-            write_se_param
+            write_se_param,&
+            ewald_control_type,&
+            setup_ewald_control_type
 
 CONTAINS
 
@@ -443,6 +451,17 @@ CONTAINS
     END IF
    
   END SUBROUTINE rotmat_release
+
+! *****************************************************************************
+!> \brief Setup the Ewald control type
+!> \author Teodoro Laino [tlaino] - 12.2008
+! ***************************************************************************** 
+  SUBROUTINE setup_ewald_control_type(ewald_control, shortrange)
+    TYPE(ewald_control_type)                 :: ewald_control
+    LOGICAL, INTENT(IN)                      :: shortrange
+
+    ewald_control%shortrange = shortrange
+  END SUBROUTINE setup_ewald_control_type
 
 ! *****************************************************************************
 !> \brief Writes the semi-empirical type

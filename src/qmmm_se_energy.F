@@ -41,10 +41,12 @@ MODULE qmmm_se_energy
   USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
   USE semi_empirical_integrals,        ONLY: corecore,&
                                              rotnuc
-  USE semi_empirical_types,            ONLY: get_se_param,&
+  USE semi_empirical_types,            ONLY: ewald_control_type,&
+                                             get_se_param,&
                                              semi_empirical_create,&
                                              semi_empirical_release,&
-                                             semi_empirical_type
+                                             semi_empirical_type,&
+                                             setup_ewald_control_type
   USE semi_empirical_utils,            ONLY: get_se_type,&
                                              se_param_set_default
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
@@ -265,9 +267,11 @@ CONTAINS
                                                 sph_chrg_factor
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc, rij
     REAL(KIND=dp), DIMENSION(45)             :: e1b
+    TYPE(ewald_control_type)                 :: ewald_control
     TYPE(qmmm_pot_type), POINTER             :: Pot
 
     CALL timeset(routineN,handle)
+    CALL setup_ewald_control_type(ewald_control, shortrange=.FALSE.)
     ! Loop Over MM atoms
     ! Loop over Pot stores atoms with the same charge
     MainLoopPot: DO Ipot = 1, SIZE(Potentials)
@@ -289,9 +293,9 @@ CONTAINS
           END IF
           IF (ABS(se_kind_mm%zeff)<=EPSILON(0.0_dp)) CYCLE
           CALL rotnuc (se_kind_a, se_kind_mm, rij, itype=itype, e1b=e1b, anag=anag,&
-               shortrange=.FALSE., taper=taper, error=error)
+               ewald_control=ewald_control, taper=taper, error=error)
           CALL corecore(se_kind_a, se_kind_mm, rij, itype=itype, enuc=enuc, anag=anag,&
-               shortrange=.FALSE., taper=taper, error=error)
+               ewald_control=ewald_control, taper=taper, error=error)
           enuclear = enuclear + enuc
           ! Contribution to the iatom block
           ! Computation of the QMMM core matrix
