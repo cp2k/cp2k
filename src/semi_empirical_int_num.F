@@ -532,7 +532,7 @@ CONTAINS
     enuc   =  0.0_dp
     IF (rij > rij_threshold) THEN
        rij = SQRT(rij)
-       CALL setup_ewald_control_type(ewald_control_off, shortrange=.FALSE.)
+       CALL setup_ewald_control_type(ewald_control_off, shortrange=.FALSE., do_ewald_r3=.FALSE.)
        CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,taper=taper,&
             ewald_control=ewald_control_off,error=error)
        ! In case let's compute the short-range part of the (ss|ss) integral

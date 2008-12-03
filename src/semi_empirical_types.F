@@ -28,6 +28,8 @@ MODULE semi_empirical_types
   USE physcon,                         ONLY: angstrom,&
                                              evolt,&
                                              kcalmol
+  USE semi_empirical_expns3_types,     ONLY: semi_empirical_expns3_p_type,&
+                                             semi_empirical_expns3_release
   USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_p_release,&
                                              semi_empirical_mpole_p_type
   USE termination,                     ONLY: stop_program
@@ -82,6 +84,9 @@ MODULE semi_empirical_types
          POINTER                           :: w
     TYPE(semi_empirical_mpole_p_type),&
          POINTER, DIMENSION(:)             :: w_mpole
+    ! 1/R^3 residual integral part
+    TYPE(semi_empirical_expns3_p_type),&
+         POINTER, DIMENSION(:)             :: expns3_int
   END TYPE semi_empirical_type
 
 ! *****************************************************************************
@@ -109,6 +114,7 @@ MODULE semi_empirical_types
 ! *****************************************************************************
   TYPE ewald_control_type
      LOGICAL                                  :: shortrange
+     LOGICAL                                  :: do_ewald_r3
   END TYPE ewald_control_type
 
   PUBLIC :: semi_empirical_type,&
@@ -151,6 +157,7 @@ CONTAINS
     NULLIFY(sep%basis)
     NULLIFY(sep%w)
     NULLIFY(sep%w_mpole)
+    NULLIFY(sep%expns3_int)
     CALL zero_se_param(sep,error)
     
   END SUBROUTINE semi_empirical_create
@@ -166,7 +173,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -187,6 +194,13 @@ CONTAINS
        END IF
        IF (ASSOCIATED(sep%w)) THEN
           DEALLOCATE (sep%w,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(sep%expns3_int)) THEN
+          DO i = 1, SIZE(sep%expns3_int)
+             CALL semi_empirical_expns3_release(sep%expns3_int(i)%expns3,error)
+          END DO
+          DEALLOCATE (sep%expns3_int,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        DEALLOCATE (sep,STAT=stat)
@@ -456,11 +470,12 @@ CONTAINS
 !> \brief Setup the Ewald control type
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! ***************************************************************************** 
-  SUBROUTINE setup_ewald_control_type(ewald_control, shortrange)
+  SUBROUTINE setup_ewald_control_type(ewald_control, shortrange, do_ewald_r3)
     TYPE(ewald_control_type)                 :: ewald_control
-    LOGICAL, INTENT(IN)                      :: shortrange
+    LOGICAL, INTENT(IN)                      :: shortrange, do_ewald_r3
 
-    ewald_control%shortrange = shortrange
+    ewald_control%shortrange  = shortrange
+    ewald_control%do_ewald_r3 = do_ewald_r3
   END SUBROUTINE setup_ewald_control_type
 
 ! *****************************************************************************

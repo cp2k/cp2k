@@ -545,12 +545,15 @@ OBJECTS_GENERIC =\
  scp_rho_types.o\
  scp_rspw_methods.o\
  scp_rspw_types.o\
+ semi_empirical_expns3_methods.o\
+ semi_empirical_expns3_types.o\
  semi_empirical_integrals.o\
  semi_empirical_int_ana.o\
  semi_empirical_int_arrays.o\
  semi_empirical_int_debug.o\
  semi_empirical_int_num.o\
  semi_empirical_int_utils.o\
+ semi_empirical_int3_utils.o\
  semi_empirical_mpole_types.o\
  semi_empirical_mpole_methods.o\
  semi_empirical_parameters.o\

@@ -353,7 +353,7 @@ CONTAINS
     se_control => dft_control%qs_control%se_control
     do_ewald   =  se_control%do_ewald
     anag       =  se_control%analytical_gradients
-    CALL setup_ewald_control_type(ewald_control, shortrange=do_ewald)
+    CALL setup_ewald_control_type(ewald_control, shortrange=do_ewald, do_ewald_r3=se_control%do_ewald_r3)
 
     IF ( .NOT. failure ) THEN
        CALL get_qs_env(qs_env=qs_env,sab_2c=sab_2c,atomic_kind_set=atomic_kind_set,&
@@ -476,8 +476,8 @@ CONTAINS
       natorb_b2, nkind, nlist, nnode, nspins, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
-                                                do_ewald, failure, scp_nddo, &
-                                                switch
+                                                do_ewald, do_ewald_r3, &
+                                                failure, scp_nddo, switch
     REAL(KIND=dp)                            :: delta, dr1, ecore2
     REAL(KIND=dp), DIMENSION(2025)           :: pa_a, pa_b, pb_a, pb_b
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
@@ -520,10 +520,11 @@ CONTAINS
       
 
        ! Parameters
-       se_control => dft_control%qs_control%se_control
-       do_ewald   =  se_control%do_ewald
-       anag       =  se_control%analytical_gradients
-       scp_nddo   =  se_control%scp
+       se_control  => dft_control%qs_control%se_control
+       do_ewald    =  se_control%do_ewald
+       do_ewald_r3 =  se_control%do_ewald_r3
+       anag        =  se_control%analytical_gradients
+       scp_nddo    =  se_control%scp
 
        IF (scp_nddo) CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
        
@@ -702,32 +703,29 @@ CONTAINS
                          ! Two-centers One-electron terms
                          IF      ( nspins == 1 ) THEN
                             CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
-                                 pa_a, pb_a, ecore=ecore2, itype=itype, anag=anag,&
-                                 shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
-                                 error=error)
+                                 pa_a, pb_a, ecore=ecore2, itype=itype, anag=anag, do_ewald_r3=do_ewald_r3,&
+                                 shortrange=do_ewald, taper=taper, store_int_env=store_int_env, error=error)
                          ELSE IF ( nspins == 2 ) THEN
                             CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
-                                 pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&
-                                 shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
-                                 error=error)
+                                 pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag, do_ewald_r3=do_ewald_r3,&
+                                 shortrange=do_ewald, taper=taper, store_int_env=store_int_env, error=error)
                             CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_b, ksb_block_b,&
-                                 pa_b, pb_b, ecore=ecore2, itype=itype, anag=anag,&
-                                 shortrange=do_ewald, taper=taper, store_int_env=store_int_env,&
-                                 error=error)
+                                 pa_b, pb_b, ecore=ecore2, itype=itype, anag=anag, do_ewald_r3=do_ewald_r3,&
+                                 shortrange=do_ewald, taper=taper, store_int_env=store_int_env, error=error)
                          END IF
                          ! Coulomb Terms
                          IF      ( nspins == 1 ) THEN
                             CALL fock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, ksa_block_a, p_block_tot_b,&
-                                 ksb_block_a, factor=0.5_dp, anag=anag, shortrange=do_ewald, taper=taper,&
-                                 store_int_env=store_int_env, error=error)
+                                 ksb_block_a, factor=0.5_dp, anag=anag, do_ewald_r3=do_ewald_r3, shortrange=do_ewald,&
+                                 taper=taper, store_int_env=store_int_env, error=error)
                          ELSE IF ( nspins == 2 ) THEN
                             CALL fock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, ksa_block_a, p_block_tot_b,&
-                                 ksb_block_a, factor=1.0_dp, anag=anag, shortrange=do_ewald, taper=taper,&
-                                 store_int_env=store_int_env, error=error)
+                                 ksb_block_a, factor=1.0_dp, anag=anag, do_ewald_r3=do_ewald_r3, shortrange=do_ewald,&
+                                 taper=taper, store_int_env=store_int_env, error=error)
  
                             CALL fock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, ksa_block_b, p_block_tot_b,&
-                                 ksb_block_b, factor=1.0_dp, anag=anag, shortrange=do_ewald, taper=taper,&
-                                 store_int_env=store_int_env, error=error)
+                                 ksb_block_b, factor=1.0_dp, anag=anag, do_ewald_r3=do_ewald_r3, shortrange=do_ewald,&
+                                 taper=taper, store_int_env=store_int_env, error=error)
                          END IF
  
                          IF(calculate_forces) THEN
@@ -738,12 +736,15 @@ CONTAINS
                             force_ab = 0.0_dp
                             IF      ( nspins == 1 ) THEN
                                CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_a, pb_a, itype=itype, anag=anag,&
-                                    shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
+                                    do_ewald_r3=do_ewald_r3, shortrange=do_ewald, taper=taper, force=force_ab,&
+                                    delta=delta, error=error)
                             ELSE IF ( nspins == 2 ) THEN
                                CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_block_a, pb_block_a, itype=itype, anag=anag,&
-                                    shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
+                                    do_ewald_r3=do_ewald_r3, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta,&
+                                    error=error)
                                CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_b, pb_b, itype=itype, anag=anag,&
-                                    shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
+                                    do_ewald_r3=do_ewald_r3, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta,&
+                                    error=error)
                             END IF
                             force_ab(1) = -force_ab(1)
                             force_ab(2) = -force_ab(2)
@@ -763,13 +764,16 @@ CONTAINS
                             force_ab = 0._dp
                             IF      ( nspins == 1 ) THEN
                                CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.25_dp,&
-                                    anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
+                                    anag=anag, do_ewald_r3=do_ewald_r3, shortrange=do_ewald, taper=taper, force=force_ab, &
+                                    delta=delta, error=error)
                             ELSE IF ( nspins == 2 ) THEN
                                CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp,&
-                                    anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
+                                    anag=anag, do_ewald_r3=do_ewald_r3, shortrange=do_ewald, taper=taper, force=force_ab, &
+                                    delta=delta, error=error)
                                
                                CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp,&
-                                    anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
+                                    anag=anag, do_ewald_r3=do_ewald_r3, shortrange=do_ewald, taper=taper, force=force_ab, &
+                                    delta=delta, error=error)
                             END IF
                             IF ( switch ) THEN 
                                force_ab(1) = -force_ab(1)
@@ -1335,16 +1339,16 @@ CONTAINS
                       ! Exchange Terms
                       IF      ( nspins == 1 ) THEN
                          CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a, ks_block_a,&
-                              factor=0.5_dp, anag=anag, shortrange=.FALSE., taper=taper, store_int_env=store_int_env,&
-                              error=error)
+                              factor=0.5_dp, anag=anag, do_ewald_r3=.FALSE., shortrange=.FALSE., taper=taper, &
+                              store_int_env=store_int_env, error=error)
                       ELSE IF ( nspins == 2 ) THEN
                          CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a, ks_block_a,&
-                              factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper, store_int_env=store_int_env,&
-                              error=error)
+                              factor=1.0_dp, anag=anag, do_ewald_r3=.FALSE., shortrange=.FALSE., taper=taper, &
+                              store_int_env=store_int_env, error=error)
                          
                          CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_b, ks_block_b,&
-                              factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper, store_int_env=store_int_env,&
-                              error=error)
+                              factor=1.0_dp, anag=anag, do_ewald_r3=.FALSE., shortrange=.FALSE., taper=taper, &
+                              store_int_env=store_int_env, error=error)
                       END IF
                       IF(calculate_forces) THEN
                          atom_a = atom_of_kind(iatom)
@@ -1352,16 +1356,16 @@ CONTAINS
                          force_ab = 0.0_dp
                          IF      ( nspins == 1 ) THEN
                             CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a,&
-                                 factor=0.5_dp, anag=anag, shortrange=.FALSE., taper=taper, force=force_ab, delta=delta,&
-                                 error=error)
+                                 factor=0.5_dp, anag=anag, do_ewald_r3=.FALSE., shortrange=.FALSE., taper=taper, &
+                                 force=force_ab, delta=delta, error=error)
                          ELSE IF ( nspins == 2 ) THEN
                             CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a,&
-                                 factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper, force=force_ab, delta=delta,&
-                                 error=error)
+                                 factor=1.0_dp, anag=anag, do_ewald_r3=.FALSE., shortrange=.FALSE., taper=taper, &
+                                 force=force_ab, delta=delta, error=error)
                             
                             CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_b,&
-                                 factor=1.0_dp, anag=anag, shortrange=.FALSE., taper=taper, force=force_ab, delta=delta,&
-                                 error=error)
+                                 factor=1.0_dp, anag=anag, do_ewald_r3=.FALSE., shortrange=.FALSE., taper=taper, &
+                                 force=force_ab, delta=delta, error=error)
                          END IF
                          IF (switch) THEN
                             force_ab(1) = -force_ab(1)
@@ -1399,7 +1403,7 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2_1el (sepi, sepj, rij, ksi_block, ksj_block, pi_block, pj_block,&
-       ecore, itype, anag, shortrange, taper, store_int_env, error)
+       ecore, itype, anag, do_ewald_r3, shortrange, taper, store_int_env, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     REAL(KIND=dp), &
@@ -1416,7 +1420,7 @@ CONTAINS
       INTENT(IN)                             :: pj_block
     REAL(KIND=dp), INTENT(INOUT)             :: ecore
     INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    LOGICAL, INTENT(IN)                      :: anag, do_ewald_r3, shortrange
     TYPE(taper_type), POINTER                :: taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1430,7 +1434,7 @@ CONTAINS
     TYPE(ewald_control_type)                 :: ewald_control
 
     failure = .FALSE.
-    CALL setup_ewald_control_type(ewald_control, shortrange)
+    CALL setup_ewald_control_type(ewald_control, shortrange, do_ewald_r3)
     ! Compute integrals
     CALL rotnuc (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype, anag=anag,&
          ewald_control=ewald_control, taper=taper, store_int_env=store_int_env,&
@@ -1480,7 +1484,7 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE dfock2_1el (sepi, sepj, rij, pi_block, pj_block, itype, anag,&
-       shortrange, taper, force, delta, error)
+       do_ewald_r3, shortrange, taper, force, delta, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     REAL(KIND=dp), &
@@ -1490,7 +1494,7 @@ CONTAINS
       DIMENSION(sepj%natorb, sepj%natorb), &
       INTENT(IN)                             :: pj_block
     INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    LOGICAL, INTENT(IN)                      :: anag, do_ewald_r3, shortrange
     TYPE(taper_type), POINTER                :: taper
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force
@@ -1507,7 +1511,7 @@ CONTAINS
     TYPE(ewald_control_type)                 :: ewald_control
 
     failure = .FALSE.
-    CALL setup_ewald_control_type(ewald_control, shortrange)
+    CALL setup_ewald_control_type(ewald_control, shortrange, do_ewald_r3)
     ! Compute integrals
     CALL drotnuc (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype, anag=anag,&
          ewald_control=ewald_control, taper=taper, delta=delta, error=error)
@@ -1629,7 +1633,7 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2C(sepi, sepj, rij, switch, pi_tot, fi_mat, pj_tot, fj_mat, &
-       factor, anag, shortrange, taper, store_int_env, error)
+       factor, anag, do_ewald_r3, shortrange, taper, store_int_env, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
@@ -1644,7 +1648,7 @@ CONTAINS
       DIMENSION(sepj%natorb, sepj%natorb), &
       INTENT(INOUT)                          :: fj_mat
     REAL(KIND=dp), INTENT(IN)                :: factor
-    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    LOGICAL, INTENT(IN)                      :: anag, do_ewald_r3, shortrange
     TYPE(taper_type), POINTER                :: taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1660,7 +1664,7 @@ CONTAINS
     TYPE(ewald_control_type)                 :: ewald_control
 
     failure = .FALSE.
-    CALL setup_ewald_control_type(ewald_control, shortrange)
+    CALL setup_ewald_control_type(ewald_control, shortrange, do_ewald_r3)
     ! Evaluate integrals
     IF (.NOT.switch) THEN
        CALL rotint (sepi,sepj, rij,w,anag=anag,ewald_control=ewald_control,taper=taper,&
@@ -1720,14 +1724,14 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE dfock2C(sepi, sepj, rij, switch, pi_tot, pj_tot, factor, anag,&
-       shortrange, taper, force, delta, error)
+       do_ewald_r3, shortrange, taper, force, delta, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
     REAL(KIND=dp), DIMENSION(45, 45), &
       INTENT(IN)                             :: pi_tot, pj_tot
     REAL(KIND=dp), INTENT(IN)                :: factor
-    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    LOGICAL, INTENT(IN)                      :: anag, do_ewald_r3, shortrange
     TYPE(taper_type), POINTER                :: taper
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force
@@ -1746,7 +1750,7 @@ CONTAINS
     TYPE(ewald_control_type)                 :: ewald_control
 
     failure = .FALSE.
-    CALL setup_ewald_control_type(ewald_control, shortrange)
+    CALL setup_ewald_control_type(ewald_control, shortrange, do_ewald_r3)
     ! Evaluate integrals' derivatives
     IF (.NOT.switch) THEN
        CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,ewald_control=ewald_control,&
@@ -1808,7 +1812,7 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2E(sepi, sepj, rij, switch, isize, pi_tot, pi_mat, fi_mat, factor,&
-       anag, shortrange, taper, store_int_env, error)
+       anag, do_ewald_r3, shortrange, taper, store_int_env, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
@@ -1822,7 +1826,7 @@ CONTAINS
       DIMENSION(isize(1), isize(2)), &
       INTENT(INOUT)                          :: fi_mat
     REAL(KIND=dp), INTENT(IN)                :: factor
-    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    LOGICAL, INTENT(IN)                      :: anag, do_ewald_r3, shortrange
     TYPE(taper_type), POINTER                :: taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1838,7 +1842,7 @@ CONTAINS
     TYPE(ewald_control_type)                 :: ewald_control
 
     failure = .FALSE.
-    CALL setup_ewald_control_type(ewald_control, shortrange)
+    CALL setup_ewald_control_type(ewald_control, shortrange, do_ewald_r3)
     ! Evaluate integrals
     IF (.NOT.switch) THEN
        CALL rotint (sepi,sepj, rij,w,anag=anag,ewald_control=ewald_control,taper=taper,&
@@ -1892,7 +1896,7 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE dfock2E(sepi, sepj, rij, switch, isize, pi_tot, pi_mat, factor, anag,&
-       shortrange, taper, force, delta, error)
+       do_ewald_r3, shortrange, taper, force, delta, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
@@ -1903,7 +1907,7 @@ CONTAINS
       DIMENSION(isize(1), isize(2)), &
       INTENT(IN)                             :: pi_mat
     REAL(KIND=dp), INTENT(IN)                :: factor
-    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    LOGICAL, INTENT(IN)                      :: anag, do_ewald_r3, shortrange
     TYPE(taper_type), POINTER                :: taper
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force
@@ -1923,7 +1927,7 @@ CONTAINS
     TYPE(ewald_control_type)                 :: ewald_control
 
     failure = .FALSE.
-    CALL setup_ewald_control_type(ewald_control, shortrange)
+    CALL setup_ewald_control_type(ewald_control, shortrange, do_ewald_r3)
     ! Evaluate integrals' derivatives
     IF (.NOT.switch) THEN
        CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,ewald_control=ewald_control,&

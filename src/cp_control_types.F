@@ -66,7 +66,7 @@ MODULE cp_control_types
   TYPE semi_empirical_control_type
      LOGICAL               :: orthogonal_basis
      LOGICAL               :: analytical_gradients
-     LOGICAL               :: do_ewald
+     LOGICAL               :: do_ewald, do_ewald_r3
      LOGICAL               :: scp
      REAL(KIND = dp)       :: delta
      REAL(KIND = dp)       :: rc_interaction

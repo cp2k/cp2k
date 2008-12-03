@@ -12,6 +12,9 @@ MODULE semi_empirical_int_utils
   USE f77_blas
   USE input_constants,                 ONLY: do_method_pchg
   USE kinds,                           ONLY: dp
+  USE semi_empirical_int3_utils,       ONLY: charg_int_3,&
+                                             dcharg_int_3,&
+                                             ijkl_low_3
   USE semi_empirical_int_arrays,       ONLY: &
        CLMp, CLMxx, CLMxy, CLMyy, CLMz, CLMzp, CLMzz, clm_d, clm_sp, &
        ijkl_ind, indexa, indexb, int2c_type
@@ -59,6 +62,10 @@ CONTAINS
     res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control%shortrange,&
          itype, charg_int_nri, error)
 
+    ! Handle the 1/r^3 term
+    IF (ewald_control%shortrange.AND.ewald_control%do_ewald_r3) THEN
+       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, itype, charg_int_3, error)
+    END IF
   END FUNCTION ijkl_sp
 
 ! *****************************************************************************
@@ -86,6 +93,10 @@ CONTAINS
     res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control%shortrange,&
          itype, dcharg_int_nri, error)
 
+    ! Handle the 1/r^3 term
+    IF (ewald_control%shortrange.AND.ewald_control%do_ewald_r3) THEN
+       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, itype, dcharg_int_3, error)
+    END IF
   END FUNCTION d_ijkl_sp
 
 ! *****************************************************************************
@@ -146,8 +157,6 @@ CONTAINS
              END IF
           ELSE IF (lij == 3) THEN
              pij = sepi%ko(7)
-          ELSE IF (lij == 6) THEN
-             pij = sepi%ko(8)
           END IF
        ELSE
           dij = sepi%cs(lij)*fact_ij
@@ -163,8 +172,6 @@ CONTAINS
                 END IF
              ELSE IF (lkl == 3) THEN
                 pkl = sepj%ko(7)
-             ELSE IF (lkl == 6) THEN
-                pkl = sepj%ko(8)
              END IF
           ELSE
              dkl = sepj%cs(lkl)*fact_kl
@@ -645,6 +652,10 @@ CONTAINS
     res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control%shortrange,&
          itype, charg_int_ri, error)
 
+    ! Handle the 1/r^3 term
+    IF (ewald_control%shortrange.AND.ewald_control%do_ewald_r3) THEN
+       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, itype, charg_int_3, error)
+    END IF
   END FUNCTION ijkl_d
 
 ! *****************************************************************************
@@ -678,6 +689,10 @@ CONTAINS
     res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control%shortrange,&
          itype, dcharg_int_ri, error)
 
+    ! Handle the 1/r^3 term
+    IF (ewald_control%shortrange.AND.ewald_control%do_ewald_r3) THEN
+       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, itype, dcharg_int_3, error)
+    END IF
   END FUNCTION d_ijkl_d
 
 ! *****************************************************************************
@@ -1479,8 +1494,9 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE rot_2el_2c_first (sepi, sepj, rijv, ewald_control, taper, invert, ii, kk,&
-       rep, logv, ij_matrix, v, lgrad, rep_d, v_d, logv_d, drij, error)
+  RECURSIVE SUBROUTINE rot_2el_2c_first (sepi, sepj, rijv, ewald_control, taper,&
+       invert, ii, kk, rep, logv, ij_matrix, v, lgrad, rep_d, v_d, logv_d, drij,&
+       error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rijv
     TYPE(ewald_control_type), INTENT(IN)     :: ewald_control

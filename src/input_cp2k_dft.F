@@ -2256,6 +2256,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="DO_EWALD_R3",&
+            description="Use an Ewald type method for the calculation of the "//&
+            "residual (1/R^3) slowly convergent part of the Coulomb interactions.", &
+            usage="DO_EWALD",default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="SCP",&
             description="Perform a SCP-NDDO calculation",&
             usage="SCP",default_l_val=.FALSE., error=error)

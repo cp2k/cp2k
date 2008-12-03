@@ -105,7 +105,7 @@ CONTAINS
                                                 stat, v_count
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
-    LOGICAL                                  :: failure, check
+    LOGICAL                                  :: check, failure
     LOGICAL, DIMENSION(10)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v

@@ -271,7 +271,7 @@ CONTAINS
     TYPE(qmmm_pot_type), POINTER             :: Pot
 
     CALL timeset(routineN,handle)
-    CALL setup_ewald_control_type(ewald_control, shortrange=.FALSE.)
+    CALL setup_ewald_control_type(ewald_control, shortrange=.FALSE., do_ewald_r3=.FALSE.)
     ! Loop Over MM atoms
     ! Loop over Pot stores atoms with the same charge
     MainLoopPot: DO Ipot = 1, SIZE(Potentials)

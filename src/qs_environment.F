@@ -158,6 +158,7 @@ MODULE qs_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
+  USE semi_empirical_expns3_methods,   ONLY: semi_empirical_expns3_setup
   USE semi_empirical_int_arrays,       ONLY: init_se_intd_array
   USE semi_empirical_mpole_methods,    ONLY: nddo_mpole_setup
   USE semi_empirical_mpole_types,      ONLY: nddo_mpole_type
@@ -177,12 +178,10 @@ MODULE qs_environment
 
   PRIVATE
 
-! *** Global parameters ***
-
+  ! *** Global parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment'
 
-! *** Public subroutines ***
-
+  ! *** Public subroutines ***
   PUBLIC :: qs_init, qs_init_subsys
 
 CONTAINS
@@ -498,7 +497,6 @@ CONTAINS
     CALL read_mgrid_section(dft_control%qs_control,dft_section,error=error)
 
     !   Create relativistic control section
-
     CALL rel_c_create(rel_control,error=error)
     CALL rel_c_read_parameters(rel_control,dft_section,error=error)
     CALL set_qs_env(qs_env,rel_control=rel_control,error=error)
@@ -705,8 +703,7 @@ CONTAINS
        CASE DEFAULT
        CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pm3,&
              do_method_pm6,do_method_mndod)
-          ! Neighbor lists have to be
-          ! MAX(interaction range, orbital range)
+          ! Neighbor lists have to be MAX(interaction range, orbital range)
           ! set new kind radius
           CALL init_se_nlradius(se_control,cell,atomic_kind_set,subsys_section,error)
        END SELECT
@@ -737,6 +734,9 @@ CONTAINS
                error=error)
           CALL ewald_env_release(ewald_env,error=error)
           CALL ewald_pw_release(ewald_pw,error=error)
+          ! Handle the residual integral part 1/R^3
+          CALL semi_empirical_expns3_setup(atomic_kind_set, se_control,&
+               dft_control%qs_control%method_id,error)
        END IF
        ! Taper function
        CALL taper_create(taper, se_control%rc_coulomb, se_control%rc_range, error)

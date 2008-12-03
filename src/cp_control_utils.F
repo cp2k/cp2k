@@ -589,6 +589,8 @@ CPSourceFileRef,&
             l_val=qs_control%se_control%orthogonal_basis,error=error)
        CALL section_vals_val_get(se_section,"DO_EWALD",&
             l_val=qs_control%se_control%do_ewald,error=error)
+       CALL section_vals_val_get(se_section,"DO_EWALD_R3",&
+            l_val=qs_control%se_control%do_ewald_r3,error=error)
        CALL section_vals_val_get(se_section,"SCP",&
             l_val=qs_control%se_control%scp,error=error)
        CALL section_vals_val_get(se_section,"DELTA",&

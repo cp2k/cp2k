@@ -384,7 +384,7 @@ CONTAINS
     IF ((rij > rij_threshold).AND.(l_enuc.OR.l_denuc)) THEN
        ! Compute Integrals in diatomic frame
        rij  = SQRT(rij)
-       CALL setup_ewald_control_type(ewald_control_off, shortrange=.FALSE.)
+       CALL setup_ewald_control_type(ewald_control_off, shortrange=.FALSE., do_ewald_r3=.FALSE.)
        CALL dssss_nucint_ana(sepi,sepj,rij,ssss=ssss,dssss=dssss,itype=itype,taper=taper,&
             ewald_control=ewald_control_off,lgrad=l_denuc,error=error)
        ! In case let's compute the short-range part of the (ss|ss) integral
