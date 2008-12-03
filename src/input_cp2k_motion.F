@@ -1479,7 +1479,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="temp_tol",&
-            variants=(/"temp_to              ", "temperature_tolerance"/),&
+            variants=s2a("temp_to","temperature_tolerance"),&
             description="The maximum accepted deviation of the (global) temperature"//&
             "from the desired target temperature before a rescaling of the velocites "//&
             "is performed. If it is 0 no rescaling is performed. NOTE: This keyword is "//&
@@ -2334,7 +2334,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ensemble",&
             description="md ensemble for KG-POL coefficients", usage="ENSEMBLE NVT", &
             default_i_val=nvt_ensemble,&
-            enum_c_vals=(/"nve  ","nvt  "/),&
+            enum_c_vals=s2a("nve","nvt"),&
             enum_i_vals=(/nve_ensemble,nvt_ensemble/),&
             error=error)
        CALL section_add_keyword(coeff_section,keyword,error=error)
@@ -2704,12 +2704,12 @@ CONTAINS
             description="Specifies the type of BAND calculation",&
             usage="BAND_TYPE (B-NEB|IT-NEB|CI-NEB|D-NEB|SM|EB)",&
             default_i_val=do_it_neb,&
-            enum_c_vals=(/"B-NEB ",&
-                          "IT-NEB",&
-                          "CI-NEB",&
-                          "D-NEB ",&
-                          "SM    ",&
-                          "EB    "/),&
+            enum_c_vals=s2a("B-NEB",&
+                            "IT-NEB",&
+                            "CI-NEB",&
+                            "D-NEB",&
+                            "SM",&
+                            "EB"),&
             enum_desc=s2a( "Bisection NEB",&
                            "Improved tangent NEB",&
                            "Climbing Image NEB",&
@@ -2737,9 +2737,9 @@ CONTAINS
             description="Specifies the type of potential used in the BAND calculation",&
             usage="POT_TYPE (FULL|FE|ME)",&
             default_i_val=pot_neb_full,&
-            enum_c_vals=(/"FULL",&
-                          "FE  ",&
-                          "ME  "/),&
+            enum_c_vals=s2a("FULL",&
+                            "FE",&
+                            "ME"),&
             enum_desc=s2a( "Full potential (no projections in a subspace of colvars)",&
                            "Free energy (requires a projections in a subspace of colvars)",&
                            "Minimum energy (requires a projections in a subspace of colvars)"),&
@@ -2935,8 +2935,8 @@ CONTAINS
             description="Specifies the type optimizer used for the band",&
             usage="OPT_TYPE (MD|DIIS)",&
             default_i_val=band_diis_opt,&
-            enum_c_vals=(/"MD  ",&
-                          "DIIS"/),&
+            enum_c_vals=s2a("MD",&
+                            "DIIS"),&
             enum_desc=s2a( "Molecular Dynamics based Optimizer",&
                            "Coupled Steepest Descent / DIIS "),&
             enum_i_vals=(/band_md_opt,band_diis_opt/),&
@@ -3149,7 +3149,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="temp_tol",&
             description="Maximum accepted temperature deviation"//&
-            " from the expected value, for the internal core-hell motion."//&
+            " from the expected value, for the internal core-shell motion."//&
             "If 0, no rescaling is performed", &
             usage="temp_tol 0.0", default_r_val=0.0_dp, unit_str='K', error=error)
        CALL section_add_keyword(section,keyword,error=error)
