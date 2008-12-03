@@ -191,3 +191,5 @@ uo2_shell_npt_vdt_2.inp
 uo2_shell_nve_dsc.inp  
 uo2_shell_npt_dsc.inp  
 uo2_shell_nve_zbl.inp  
+#reset for a conceptual bug!
+uo2_shell_nve_cascade.inp

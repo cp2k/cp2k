@@ -214,7 +214,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
@@ -226,14 +225,7 @@ CONTAINS
             n_keywords=0, n_subsections=9, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword, subsection)
-
-       CALL keyword_create(keyword,"LAST_CONF",&
-            description="This activates a simplified I/O of trajectory and velocities, "//&
-            "not through the restart file but using additional output files",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       NULLIFY(subsection)
 
        CALL create_rng_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)

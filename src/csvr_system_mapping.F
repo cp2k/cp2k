@@ -364,10 +364,10 @@ CONTAINS
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
        CALL stop_program ( routineN, 'Unknown ensemble!' )
-    CASE ( isokin_ensemble, nph_uniaxial_ensemble,&
+    CASE ( nve_ensemble, isokin_ensemble, nph_uniaxial_ensemble,&
            nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble )
        CALL stop_program ( routineN, 'Never reach this point!' )
-    CASE ( nve_ensemble, npe_f_ensemble, npe_i_ensemble, nvt_ensemble, npt_i_ensemble, npt_f_ensemble )
+    CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble )
 
        CALL setup_csvr_thermostat(csvr, thermostat_info, deg_of_freedom, massive_shell_list,&
             molecule_kind_set, local_molecules, molecule_set, para_env, nshell_local, &

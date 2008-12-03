@@ -65,13 +65,6 @@
       TEMPERATURE  2
       TEMP_TOL  10
       DISPLACEMENT_SHELL_TOL [angstrom] 0.004
-      &THERMOSTAT
-        TYPE CSVR
-        REGION GLOBAL
-        &CSVR
-          TIMECON 7
-        &END
-      &END
     &END
     COMVEL_TOL  2.0E-7
 

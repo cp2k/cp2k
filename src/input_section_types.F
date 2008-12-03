@@ -40,8 +40,6 @@ MODULE input_section_types
                                              substitute_special_xml_tokens,&
                                              typo_match,&
                                              uppercase
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1273,7 +1271,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_remove_values', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, stat
+    INTEGER                                  :: i, j, stat
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_p_type), &
       DIMENSION(:, :), POINTER               :: new_values
@@ -1281,7 +1279,7 @@ CONTAINS
     TYPE(val_type), POINTER                  :: el
 
     failure=.FALSE.
-    CALL timeset(routinen,handle)
+
     IF (ASSOCIATED(section_vals)) THEN
        CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
        IF (.NOT. failure) THEN
@@ -1304,7 +1302,6 @@ CONTAINS
           section_vals%values => new_values
        END IF
     END IF
-    CALL timestop(handle)
   END SUBROUTINE section_vals_remove_values
 
 ! These accessor functions can be used instead of passing a variable 

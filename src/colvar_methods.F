@@ -105,7 +105,7 @@ CONTAINS
                                                 stat, v_count
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, check
     LOGICAL, DIMENSION(10)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
@@ -405,9 +405,8 @@ CONTAINS
        CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
        CALL section_vals_val_get(reaction_path_section,"VARIABLE",c_vals=my_par,i_rep_val=1,error=error)
        CALL section_vals_val_get(reaction_path_section,"FUNCTION",n_rep_val=ncol,error=error)
-       IF(ncol/=SIZE(colvar%reaction_path_param%colvar_p)) THEN
-   CPPostcondition(.FALSE. ,cp_failure_level,routinep,error,failure)     
-       END IF
+       check = (ncol==SIZE(colvar%reaction_path_param%colvar_p))
+       CPPostcondition(check,cp_failure_level,routinep,error,failure)     
        CALL initf(ncol)
        DO i=1,ncol
           CALL section_vals_val_get(reaction_path_section,"FUNCTION",c_val=path_function,i_rep_val=i,error=error)
