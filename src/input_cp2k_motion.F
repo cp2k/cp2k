@@ -3268,13 +3268,6 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"THERMAL_REGION_INFO",&
-            description="Controls output information on thermal regions .", &
-            print_level=low_print_level, common_iter_levels=1,&
-            filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

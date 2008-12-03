@@ -1,4 +1,9 @@
-! *****************************************************************************                                                                                                       
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2008  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
 !> \brief Setup of regions with different temperature
 !> \author MI
 ! *****************************************************************************
@@ -43,7 +48,6 @@ CONTAINS
 !> \brief create thermal_regions
 !> \author 
 ! *****************************************************************************
-
   SUBROUTINE create_thermal_regions(thermal_regions, md_section, simpar, force_env, error)
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(section_vals_type), POINTER         :: md_section
@@ -127,14 +131,6 @@ CPSourceFileRef,&
            t_region%temp_tol = temp_tol
          END DO 
          simpar%do_thermal_region = .TRUE.
-!      print_key => section_vals_get_subs_vals(thermal_regions%section,"PRINT%THERMAL_REGIONS_INFO",error=error)
-!      IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-!          unit = cp_print_key_unit_nr(logger,thermal_regions%section,"PRINT%PROGRAM_RUN_INFO",&
-!                 extension=".log", error=error)
-!          IF(unit>0) THEN
-!          END IF
-!          CALL cp_print_key_finished_output(unit,logger,thermal_regions%section,"PRINT%TEMPERATURE", error=error)
-!      END IF
        ELSE
          CALL release_thermal_regions(thermal_regions,error)
          simpar%do_thermal_region = .FALSE.
@@ -146,6 +142,10 @@ CPSourceFileRef,&
 
   END SUBROUTINE create_thermal_regions
 
+! *****************************************************************************
+!> \brief create thermal_regions
+!> \author 
+! *****************************************************************************
   SUBROUTINE print_thermal_regions(thermal_regions, simpar, itimes, time, pos, act , error)
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(simpar_type), POINTER               :: simpar
@@ -196,7 +196,6 @@ CPSourceFileRef,&
           CALL cp_print_key_finished_output(unit,logger,thermal_regions%section,"PRINT%TEMPERATURE", error=error)
       END IF
     END IF
-
-    END SUBROUTINE print_thermal_regions
+  END SUBROUTINE print_thermal_regions
 
 END MODULE thermal_region_utils
