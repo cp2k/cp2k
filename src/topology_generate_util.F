@@ -38,7 +38,7 @@ MODULE topology_generate_util
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              deallocate_particle_set,&
                                              particle_type
-  USE periodic_table,                  ONLY: ptable
+  USE periodic_table,                  ONLY: get_ptable_info
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
@@ -489,15 +489,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bond', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=2)                         :: upper_sym_1, upper_sym_2
-    CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
+    CHARACTER(LEN=2)                         :: upper_sym_1
     INTEGER :: cbond, handle, handle2, i, iatm1, iatm2, iatom, ibond, idim, &
-      ielem, ielem_found, iw, j, jatom, k, n_bonds, n_heavy_bonds, &
-      n_hydr_bonds, n_rep, natom, nelem, npairs, output_unit, stat
+      iw, j, jatom, k, n_bonds, n_heavy_bonds, n_hydr_bonds, n_rep, natom, &
+      npairs, output_unit, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bond_a, bond_b, list, map_nb
     INTEGER, DIMENSION(:), POINTER           :: isolated_atoms, tmp_v
-    LOGICAL                                  :: connectivity_ok, &
-                                                element_found, explicit, &
+    LOGICAL                                  :: connectivity_ok, explicit, &
                                                 failure, ionode, print_info
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: h_list
     REAL(KIND=dp)                            :: bondparm_factor, cell_v(3), &
@@ -551,10 +549,8 @@ CONTAINS
        bondparm_factor = topology%bondparm_factor
        cbond = 0    
        natom = topology%natoms    
-       NULLIFY(atm_symbol,radius)
+       NULLIFY(radius)
        ! Allocate temporary arrays
-       ALLOCATE(atm_symbol(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(radius(natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(list(natom),STAT=stat)
@@ -566,50 +562,23 @@ CONTAINS
        h_list = .FALSE.
        CALL timeset(TRIM(routineN)//"_1",handle2)
        DO iatom=1,natom
-          atm_symbol(iatom) = ''
-          IF(ASSOCIATED(atom_info%element)) THEN
-             atm_symbol(iatom) = atom_info%element(iatom)
-          END IF
-       END DO
-       nelem = UBOUND(ptable,1)
-       DO iatom=1,natom
           list(iatom) = iatom
-          element_found=.FALSE.
-          ielem_found  =0
-          upper_sym_1  =atm_symbol(iatom)
-          CALL uppercase(upper_sym_1)
-          DO ielem=1,nelem 
-             upper_sym_2=ptable(ielem)%symbol
-             CALL uppercase(upper_sym_2)
-             IF(upper_sym_1 == upper_sym_2)THEN
-                element_found=.TRUE.
-                ielem_found=ielem
-                EXIT
-             END IF
-          END DO
-          IF (upper_sym_2=="H ") h_list(iatom) = .TRUE.
-          IF (.NOT. element_found) THEN
-             failure = .TRUE.
-             IF (output_unit>0) WRITE(output_unit,'(A)') "ERROR : topology_generate_bond: The element " &
-                  //atm_symbol(iatom)//" was not found in the periodic table.",&
-                  " Specify a valid element in order to use generate topology"
-          ENDIF
-          
+          upper_sym_1 = atom_info%element(iatom)
           IF(topology%bondparm_type==do_bondparm_covalent) THEN
-             radius(iatom) = ptable(ielem_found)%covalent_radius
+             CALL get_ptable_info(symbol=upper_sym_1, covalent_radius=radius(iatom))
           ELSE IF(topology%bondparm_type==do_bondparm_vdw) THEN
-             radius(iatom) = ptable(ielem_found)%vdw_radius
+             CALL get_ptable_info(symbol=upper_sym_1, vdw_radius=radius(iatom))
           ELSE
              CALL stop_program ("topology_generate_bond","illegal bondparm_type")
           END IF
+          IF (upper_sym_1=="H ") h_list(iatom) = .TRUE.
           ! isolated atoms? put the radius to 0.0_dp
           IF (ANY(isolated_atoms==iatom)) radius(iatom) = 0.0_dp
           radius(iatom) = cp_unit_to_cp2k(radius(iatom),"angstrom",error=error)
           IF(iw>0) WRITE(iw,'(T2,"GENERATE|",5X,A,T50,A5,T60,A,T69,F12.6)') &
-               "In topology_generate_bond :: iatom = ",ptable(ielem_found)%symbol,&
+               "In topology_generate_bond :: iatom = ",upper_sym_1,&
                "radius:",radius(iatom)
        END DO
-       CPPostcondition(.NOT.failure,cp_failure_level,routineP,error,failure)
        CALL timestop(handle2)
        CALL timeset(TRIM(routineN)//"_2",handle2)
        ! Initialize fake particle_set and atomic_kinds to generate the bond list
@@ -861,8 +830,6 @@ CONTAINS
        DEALLOCATE(bond_list,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(pbc_coord,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(atm_symbol,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(radius,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1908,7 +1875,7 @@ CONTAINS
     INTEGER                                  :: handle, i, ind, iw, j, natom, &
                                                 nbond, nimpr, nsize, &
                                                 output_unit, stat
-    LOGICAL                                  :: accept_impr, failure, ionode
+    LOGICAL                                  :: accept_impr, failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -1921,12 +1888,9 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
          extension=".subsysLog",error=error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
+    output_unit = -1
+    IF (logger%para_env%mepos==logger%para_env%source)&
+         output_unit= cp_logger_get_default_unit_nr(logger)
     CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        atom_info => topology%atom_info
@@ -1952,7 +1916,7 @@ CONTAINS
           ! Count all atoms with three bonds
           IF (SIZE(bond_list(I)%array1)==3) THEN
              ! Problematic cases::
-             ! Nitrogen
+             ! Nitrogen 
              accept_impr = .TRUE.
              atm_symbol  = atom_info%element(i)
              CALL uppercase(atm_symbol)
@@ -2029,7 +1993,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iphi, iw, nphi, &
                                                 output_unit
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -2038,14 +2002,10 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
          extension=".subsysLog",error=error) 
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
-    CALL timeset(routineN,handle)
-    
+    output_unit = -1
+    IF (logger%para_env%mepos==logger%para_env%source) &
+         output_unit= cp_logger_get_default_unit_nr(logger)
+    CALL timeset(routineN,handle)    
     conn_info => topology%conn_info    
     nphi = SIZE(conn_info%phi_a)
     CALL reallocate(conn_info%onfo_a,1,nphi)
