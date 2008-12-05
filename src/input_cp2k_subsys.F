@@ -863,11 +863,12 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The atoms coordinates in xyz format.",repeats=.TRUE.,&
+            description="ATOM_KIND  X  Y  Z  <MOLNAME>. MOLNAME is optional. "//&
+            "If not provided the molecule name is internally created. All other "//&
+            "fields after MOLNAME are simply ignored.",repeats=.TRUE.,&
             usage="H 0.7 0.3 0.3", type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
     END IF
   END SUBROUTINE create_coord_section
 
