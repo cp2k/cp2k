@@ -17,6 +17,8 @@
 !>      IAB (15-Oct-2008): Moved mp_cart_sub calls out of cube_tranpose_* and into
 !>                         fft_scratch type, reducing number of calls dramatically
 !>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
+!>      IAB (05-Dec-2008): Moved all other non-essential MPI calls into scratch type
+!>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !> \author JGH
 ! *****************************************************************************
 MODULE fft_tools
@@ -71,7 +73,7 @@ MODULE fft_tools
      INTEGER                              :: group
      INTEGER, DIMENSION(3)                :: nfft
      ! to be used in cube_transpose_* routines
-     INTEGER, DIMENSION(2)                :: cart_sub_comm=mp_comm_null
+     INTEGER, DIMENSION(2)                :: cart_sub_comm=mp_comm_null, dim, pos
      ! to be used in fft3d_s
      COMPLEX(KIND=lp), DIMENSION(:, :, :), POINTER &
                                           :: zoptr
@@ -88,9 +90,9 @@ MODULE fft_tools
             :: a1buf, a2buf, a3buf, a4buf, a5buf, a6buf
      ! to be used in communication routines
      INTEGER, DIMENSION(:), POINTER       :: scount, rcount, sdispl, rdispl
-     INTEGER, DIMENSION(:), POINTER       :: pgcube
+     INTEGER, DIMENSION(:,:), POINTER     :: pgcube
      INTEGER, DIMENSION(:), POINTER       :: strans, rtrans
-     INTEGER                              :: ins, inr
+     INTEGER                              :: ins, inr, mip
      REAL(KIND=dp)                        :: rsratio
      COMPLEX(KIND=lp), DIMENSION(:, :), POINTER &
                                           :: qq, rr
@@ -1660,7 +1662,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
       POINTER                                :: rq, rs
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       POINTER                                :: tq, ts
-    INTEGER                                  :: cpos( 2 ), handle, icrs, ip, &
+    INTEGER                                  :: handle, icrs, ip, &
                                                 ipr, ir, ix, iz, jj, jx, jy, &
                                                 jz, myx, myz, nmax, np, npx, &
                                                 npz, nx, nz, rs_pos
@@ -1695,13 +1697,6 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
   sdispl => fft_scratch%sdispl
   rdispl => fft_scratch%rdispl
 
-  DO ix = 0, npx - 1
-    DO iz = 0, npz - 1
-      cpos ( 1 ) = ix
-      cpos ( 2 ) = iz
-      CALL mp_cart_rank ( group, cpos, pgrid ( ix, iz ) )
-    END DO
-  END DO
   DO ix = 0, npx - 1
     ip = pgrid ( ix, 0 )
     xcor ( bo ( 1, 1, ip ) : bo ( 2, 1, ip ) ) = ix
@@ -1763,9 +1758,8 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     END IF
   END IF
 
-  CALL mp_cart_coords ( group, rs_pos, cpos )
-  myx = cpos ( 1 )
-  myz = cpos ( 2 )
+  myx = fft_scratch%sizes%r_pos ( 1 )
+  myz = fft_scratch%sizes%r_pos ( 2 )
   nz = bo ( 2, 3, rs_pos ) - bo ( 1, 3, rs_pos ) + 1
   tb = 0.0_lp
   DO ip = 0, np - 1
@@ -1825,7 +1819,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
       POINTER                                :: rq, rs
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       POINTER                                :: tq, ts
-    INTEGER                                  :: cpos( 2 ), handle, icrs, ip, &
+    INTEGER                                  :: handle, icrs, ip, &
                                                 ipl, ir, ix, ixx, iz, jj, jx, &
                                                 jy, jz, mp, myx, myz, nmax, &
                                                 np, npx, npz, nx, nz
@@ -1858,13 +1852,6 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
   sdispl => fft_scratch%sdispl
   rdispl => fft_scratch%rdispl
 
-  DO ix = 0, npx - 1
-    DO iz = 0, npz - 1
-      cpos ( 1 ) = ix
-      cpos ( 2 ) = iz
-      CALL mp_cart_rank ( group, cpos, pgrid ( ix, iz ) )
-    END DO
-  END DO
   DO ix = 0, npx - 1
     ip = pgrid ( ix, 0 )
     xcor ( bo ( 1, 1, ip ) : bo ( 2, 1, ip ) ) = ix
@@ -1900,9 +1887,8 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     scount = fft_scratch%strans
   END IF
 
-  CALL mp_cart_coords ( group, p2p ( my_pos ), cpos )
-  myx = cpos ( 1 )
-  myz = cpos ( 2 )
+  myx = fft_scratch%sizes%r_pos ( 1 )
+  myz = fft_scratch%sizes%r_pos ( 2 )
   mp = p2p ( my_pos )
   nz = bo ( 2, 3, mp ) - bo ( 1, 3, mp ) + 1
   nx = bo ( 2, 1, mp ) - bo ( 1, 1, mp ) + 1
@@ -1995,18 +1981,19 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
     INTEGER                                  :: handle, ip, ipl, ir, is, ixy, &
                                                 iz, mip, mz, n, np, nx, ny, &
                                                 nz, sub_group
-    INTEGER, DIMENSION(2)                    :: dim, pos, pp
-    INTEGER, DIMENSION(:), POINTER           :: pgrid, rcount, rdispl, &
+    INTEGER, DIMENSION(2)                    :: dim, pos
+    INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, &
                                                 scount, sdispl
+    INTEGER, DIMENSION(:, :), POINTER        :: pgrid
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,handle)
 
-  CALL mp_environ ( n, dim, pos, group )
-  CALL mp_cart_rank ( group, pos, mip )
   sub_group = fft_scratch%cart_sub_comm(2)
-
+  mip    =  fft_scratch%mip
+  dim    =  fft_scratch%dim
+  pos    =  fft_scratch%pos
   scount => fft_scratch%scount
   rcount => fft_scratch%rcount
   sdispl => fft_scratch%sdispl
@@ -2014,16 +2001,10 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
   pgrid  => fft_scratch%pgcube
   np = DIM ( 2 )
 
-  pp = pos
-  DO ip = 0, np - 1
-    pp ( 2 ) = ip
-    CALL mp_cart_rank ( group, pp, pgrid ( ip ) )
-  END DO
-
   nx = boin ( 2, 1, mip ) - boin ( 1, 1, mip ) + 1
   nz = boin ( 2, 3, mip ) - boin ( 1, 3, mip ) + 1
   DO ip = 0, np - 1
-    ipl = pgrid ( ip )
+    ipl = pgrid ( ip, 2 )
     ny = boout ( 2, 2, ipl ) - boout ( 1, 2, ipl ) + 1
     scount ( ip ) = nx * nz * ny
     sdispl ( ip ) = nx * nz * ( boout ( 1, 2, ipl ) - 1 )
@@ -2031,7 +2012,7 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
   ny = boout ( 2, 2, mip ) - boout ( 1, 2, mip ) + 1
   mz = MAXVAL ( boin ( 2, 3, : ) - boin ( 1, 3, : ) + 1 )
   DO ip = 0, np - 1
-    ipl = pgrid ( ip )
+    ipl = pgrid ( ip, 2 )
     nz = boin ( 2, 3, ipl ) - boin ( 1, 3, ipl ) + 1
     rcount ( ip ) = nx * nz * ny
     rdispl ( ip ) = nx * ny * mz * ip
@@ -2043,7 +2024,7 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
 
   DO ixy = 1, nx * ny
     DO ip = 0, np - 1
-      ipl = pgrid ( ip )
+      ipl = pgrid ( ip, 2 )
       nz = boin ( 2, 3, ipl ) - boin ( 1, 3, ipl ) + 1
       DO iz = 1, nz
         is = boin ( 1, 3, ipl ) + iz - 1
@@ -2077,30 +2058,25 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
     INTEGER                                  :: handle, ip, ipl, ir, ixy, iz, &
                                                 mip, mz, n, np, nx, ny, nz, &
                                                 sub_group
-    INTEGER, DIMENSION(2)                    :: dim, pos, pp
-    INTEGER, DIMENSION(:), POINTER           :: pgrid, rcount, rdispl, &
+    INTEGER, DIMENSION(2)                    :: dim, pos
+    INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, &
                                                 scount, sdispl
+    INTEGER, DIMENSION(:, :), POINTER        :: pgrid
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,handle)
 
-  CALL mp_environ ( n, dim, pos, group )
-  CALL mp_cart_rank ( group, pos, mip )
   sub_group = fft_scratch%cart_sub_comm(2)
-
+  mip    =  fft_scratch%mip
+  dim    =  fft_scratch%dim
+  pos    =  fft_scratch%pos
   scount => fft_scratch%scount
   rcount => fft_scratch%rcount
   sdispl => fft_scratch%sdispl
   rdispl => fft_scratch%rdispl
   pgrid  => fft_scratch%pgcube
   np = DIM ( 2 )
-
-  pp = pos
-  DO ip = 0, np - 1
-    pp ( 2 ) = ip
-    CALL mp_cart_rank ( group, pp, pgrid ( ip ) )
-  END DO
 
   nx = boin ( 2, 1, mip ) - boin ( 1, 1, mip ) + 1
   ny = boin ( 2, 2, mip ) - boin ( 1, 2, mip ) + 1
@@ -2110,7 +2086,7 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
 
   DO ixy = 1, nx * ny
     DO ip = 0, np - 1
-      ipl = pgrid ( ip )
+      ipl = pgrid ( ip, 2 )
       nz = boout ( 2, 3, ipl ) - boout ( 1, 3, ipl ) + 1
       DO iz = boout ( 1, 3, ipl ), boout ( 2, 3, ipl )
         ir = iz - boout ( 1, 3, ipl ) + 1 + ( ixy - 1 ) * nz
@@ -2120,14 +2096,14 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
   END DO
 
   DO ip = 0, np - 1
-    ipl = pgrid ( ip )
+    ipl = pgrid ( ip, 2 )
     nz = boout ( 2, 3, ipl ) - boout ( 1, 3, ipl ) + 1
     scount ( ip ) = nx * ny * nz
     sdispl ( ip ) = nx * ny * mz * ip
   END DO
   nz = boout ( 2, 3, mip ) - boout ( 1, 3, mip ) + 1
   DO ip = 0, np - 1
-    ipl = pgrid ( ip )
+    ipl = pgrid ( ip, 2 )
     ny = boin ( 2, 2, ipl ) - boin ( 1, 2, ipl ) + 1
     rcount ( ip ) = nx * ny * nz
     rdispl ( ip ) = nx * nz * ( boin ( 1, 2, ipl ) - 1 )
@@ -2159,18 +2135,19 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
     INTEGER                                  :: handle, ip, ipl, ir, is, ixz, &
                                                 iy, mip, my, n, np, nx, ny, &
                                                 nz, sub_group
-    INTEGER, DIMENSION(2)                    :: dim, pos, pp
-    INTEGER, DIMENSION(:), POINTER           :: pgrid, rcount, rdispl, &
+    INTEGER, DIMENSION(2)                    :: dim, pos
+    INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, &
                                                 scount, sdispl
+    INTEGER, DIMENSION(:, :), POINTER        :: pgrid
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,handle)
 
-  CALL mp_environ ( n, dim, pos, group )
-  CALL mp_cart_rank ( group, pos, mip )
   sub_group = fft_scratch%cart_sub_comm(1)
-
+  mip    =  fft_scratch%mip
+  dim    =  fft_scratch%dim
+  pos    =  fft_scratch%pos
   np = DIM ( 1 )
   scount => fft_scratch%scount
   rcount => fft_scratch%rcount
@@ -2178,16 +2155,10 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
   rdispl => fft_scratch%rdispl
   pgrid  => fft_scratch%pgcube
 
-  pp = pos
-  DO ip = 0, np - 1
-    pp ( 1 ) = ip
-    CALL mp_cart_rank ( group, pp, pgrid ( ip ) )
-  END DO
-
   ny = boin ( 2, 2, mip ) - boin ( 1, 2, mip ) + 1
   nz = boin ( 2, 3, mip ) - boin ( 1, 3, mip ) + 1
   DO ip = 0, np - 1
-    ipl = pgrid ( ip )
+    ipl = pgrid ( ip, 1 )
     nx = boout ( 2, 1, ipl ) - boout ( 1, 1, ipl ) + 1
     scount ( ip ) = nx * nz * ny
     sdispl ( ip ) = ny * nz * ( boout ( 1, 1, ipl ) - 1 )
@@ -2195,7 +2166,7 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
   nx = boout ( 2, 1, mip ) - boout ( 1, 1, mip ) + 1
   my = MAXVAL ( boin ( 2, 2, : ) - boin ( 1, 2, : ) + 1 )
   DO ip = 0, np - 1
-    ipl = pgrid ( ip )
+    ipl = pgrid ( ip, 1 )
     ny = boin ( 2, 2, ipl ) - boin ( 1, 2, ipl ) + 1
     rcount ( ip ) = nx * nz * ny
     rdispl ( ip ) = nx * my * nz * ip
@@ -2208,7 +2179,7 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
 
   DO ixz = 1, nx * nz
     DO ip = 0, np - 1
-      ipl = pgrid ( ip )
+      ipl = pgrid ( ip, 1 )
       ny = boin ( 2, 2, ipl ) - boin ( 1, 2, ipl ) + 1
       DO iy = 1, ny
         is = boin ( 1, 2, ipl ) + iy - 1
@@ -2242,30 +2213,25 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
     INTEGER                                  :: handle, ip, ipl, ir, iy, izx, &
                                                 mip, my, n, np, nx, ny, nz, &
                                                 sub_group
-    INTEGER, DIMENSION(2)                    :: dim, pos, pp
-    INTEGER, DIMENSION(:), POINTER           :: pgrid, rcount, rdispl, &
+    INTEGER, DIMENSION(2)                    :: dim, pos
+    INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, &
                                                 scount, sdispl
+    INTEGER, DIMENSION(:, :), POINTER        :: pgrid
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,handle)
 
-  CALL mp_environ ( n, dim, pos, group )
-  CALL mp_cart_rank ( group, pos, mip )
   sub_group = fft_scratch%cart_sub_comm(1)
-
+  mip    =  fft_scratch%mip
+  dim    =  fft_scratch%dim
+  pos    =  fft_scratch%pos
   np = DIM ( 1 )
   scount => fft_scratch%scount
   rcount => fft_scratch%rcount
   sdispl => fft_scratch%sdispl
   rdispl => fft_scratch%rdispl
   pgrid  => fft_scratch%pgcube
-
-  pp = pos
-  DO ip = 0, np - 1
-    pp ( 1 ) = ip
-    CALL mp_cart_rank ( group, pp, pgrid ( ip ) )
-  END DO
 
   nx = boin ( 2, 1, mip ) - boin ( 1, 1, mip ) + 1
   nz = boin ( 2, 3, mip ) - boin ( 1, 3, mip ) + 1
@@ -2276,7 +2242,7 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
 
   DO izx = 1, nz * nx
     DO ip = 0, np - 1
-      ipl = pgrid ( ip )
+      ipl = pgrid ( ip, 1 )
       ny = boout ( 2, 2, ipl ) - boout ( 1, 2, ipl ) + 1
       DO iy = boout ( 1, 2, ipl ), boout ( 2, 2, ipl )
         ir = iy - boout ( 1, 2, ipl ) + 1 + ( izx - 1 ) * ny
@@ -2286,14 +2252,14 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
   END DO
 
   DO ip = 0, np - 1
-    ipl = pgrid ( ip )
+    ipl = pgrid ( ip, 1 )
     ny = boout ( 2, 2, ipl ) - boout ( 1, 2, ipl ) + 1
     scount ( ip ) = nx * ny * nz
     sdispl ( ip ) = nx * nz * my * ip
   END DO
   ny = boout ( 2, 2, mip ) - boout ( 1, 2, mip ) + 1
   DO ip = 0, np - 1
-    ipl = pgrid ( ip )
+    ipl = pgrid ( ip, 1 )
     nx = boin ( 2, 1, ipl ) - boin ( 1, 1, ipl ) + 1
     rcount ( ip ) = nx * ny * nz
     rdispl ( ip ) = ny * nz * ( boin ( 1, 1, ipl ) - 1 )
@@ -2324,16 +2290,14 @@ SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout, fft_scratch, error 
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ir, is, ixz, iy, &
                                                 mip, my, np, nx, ny, nz
-    INTEGER, DIMENSION(2)                    :: dim, pos
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,handle)
 
-  CALL mp_environ ( np, dim, pos, group )
-  CALL mp_cart_rank ( group, pos, mip )
-
+  np     =  fft_scratch%sizes%numtask
+  mip    =  fft_scratch%mip
   scount => fft_scratch%scount
   rcount => fft_scratch%rcount
   sdispl => fft_scratch%sdispl
@@ -2393,16 +2357,14 @@ SUBROUTINE cube_transpose_6 ( cin, group, boin, boout, sout, fft_scratch, error 
       POINTER                                :: rbuf
     INTEGER                                  :: handle, ip, ir, iy, izx, mip, &
                                                 my, np, nx, ny, nz
-    INTEGER, DIMENSION(2)                    :: dim, pos
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,handle)
 
-  CALL mp_environ ( np, dim, pos, group )
-  CALL mp_cart_rank ( group, pos, mip )
-
+  np     =  fft_scratch%sizes%numtask
+  mip    =  fft_scratch%mip
   scount => fft_scratch%scount
   rcount => fft_scratch%rcount
   sdispl => fft_scratch%sdispl
@@ -2782,7 +2744,7 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: DIM(2), ierr, lg, lmax, m1, m2, mcx2, mcy3, mcz1, mcz2, mg, &
+    INTEGER :: DIM(2), i, ierr, ix, iz, lg, lmax, m1, m2, mcx2, mcy3, mcz1, mcz2, mg, &
       mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, nbx, nbz, nm, nmax, nmray, nn, &
       np, nx, ny, nyzray, nz, pos(2)
     LOGICAL                                  :: equal, failure
@@ -2874,6 +2836,14 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
 
       fft_scratch_new%fft_scratch%sizes=fft_sizes
       fft_scratch_new%fft_scratch%cart_sub_comm=mp_comm_null
+
+      IF ( tf_type .NE. 400 ) THEN
+         np = fft_sizes%numtask
+         ALLOCATE ( fft_scratch_new%fft_scratch%scount(0:np-1), fft_scratch_new%fft_scratch%rcount(0:np-1),&
+         fft_scratch_new%fft_scratch%sdispl(0:np-1), fft_scratch_new%fft_scratch%rdispl(0:np-1),&
+         fft_scratch_new%fft_scratch%pgcube(0:np-1, 2),STAT=ierr)
+      END IF
+
       SELECT CASE (tf_type)
         CASE DEFAULT
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -2884,7 +2854,6 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
           mz2   = fft_sizes%mz2
           my3   = fft_sizes%my3
           mz3   = fft_sizes%mz3
-          np    = fft_sizes%numtask
           ALLOCATE ( fft_scratch_new%fft_scratch%a1buf(mx1*my1,n(3)),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
           ALLOCATE ( fft_scratch_new%fft_scratch%a2buf(n(3),mx1*my1),STAT=ierr)
@@ -2900,6 +2869,9 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
           fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
 
           CALL mp_environ ( nn, dim, pos, fft_sizes%rs_group )
+          CALL mp_cart_rank ( fft_sizes%rs_group, pos, fft_scratch_new%fft_scratch%mip )
+          fft_scratch_new%fft_scratch%dim = dim
+          fft_scratch_new%fft_scratch%pos = pos 
           mcz1   = fft_sizes%mcz1
           mcx2   = fft_sizes%mcx2
           mcz2   = fft_sizes%mcz2
@@ -2913,10 +2885,16 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
           ALLOCATE ( fft_scratch_new%fft_scratch%rbuf4(mx2*mz2*mcy3,0:DIM(1)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
 
-
           CALL mp_cart_sub( fft_sizes%rs_group, (/.TRUE.,.FALSE./), fft_scratch_new%fft_scratch%cart_sub_comm(1))
           CALL mp_cart_sub( fft_sizes%rs_group, (/.FALSE.,.TRUE./), fft_scratch_new%fft_scratch%cart_sub_comm(2))
 
+          !initialise pgcube
+          DO i = 0, dim(1) - 1
+            CALL mp_cart_rank ( fft_sizes%rs_group, (/i, pos(2)/), fft_scratch_new%fft_scratch%pgcube (i, 1) ) 
+          END DO
+          DO i = 0, dim(2) - 1
+            CALL mp_cart_rank ( fft_sizes%rs_group, (/pos(1), i/), fft_scratch_new%fft_scratch%pgcube (i, 2) )
+          END DO
 
         CASE (101)    ! fft3d_pb: full cube distribution (dim 1)
           mx1   = fft_sizes%mx1
@@ -2924,7 +2902,6 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
           mz1   = fft_sizes%mz1
           my3   = fft_sizes%my3
           mz3   = fft_sizes%mz3
-          np    = fft_sizes%numtask
           ALLOCATE ( fft_scratch_new%fft_scratch%a1buf(mx1*my1,n(3)),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
           ALLOCATE ( fft_scratch_new%fft_scratch%a2buf(n(3),mx1*my1),STAT=ierr)
@@ -2940,6 +2917,9 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
 
           CALL mp_environ ( nn, dim, pos, fft_sizes%rs_group )
+          CALL mp_cart_rank ( fft_sizes%rs_group, pos, fft_scratch_new%fft_scratch%mip )
+          fft_scratch_new%fft_scratch%dim = dim
+          fft_scratch_new%fft_scratch%pos = pos
           mcy3   = fft_sizes%mcy3
           ALLOCATE ( fft_scratch_new%fft_scratch%rbuf5(mx1*mz3*mcy3,0:DIM(1)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -2987,7 +2967,6 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
           nmax  = fft_sizes%nmax  
           nmray = fft_sizes%nmray 
           nyzray= fft_sizes%nyzray
-          np    = fft_sizes%numtask
           m1    = fft_sizes%r_dim(1)
           m2    = fft_sizes%r_dim(2)
           nbx   = fft_sizes%nbx
@@ -3035,6 +3014,9 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
           fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
 
           CALL mp_environ ( nn, dim, pos, fft_sizes%rs_group )
+          CALL mp_cart_rank ( fft_sizes%rs_group, pos, fft_scratch_new%fft_scratch%mip )
+          fft_scratch_new%fft_scratch%dim = dim
+          fft_scratch_new%fft_scratch%pos = pos
           mcz1   = fft_sizes%mcz1
           mcz2   = fft_sizes%mcz2
           ALLOCATE ( fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2,0:DIM(2)-1),STAT=ierr)
@@ -3044,18 +3026,23 @@ SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
 
           CALL mp_cart_sub( fft_sizes%rs_group, (/.FALSE.,.TRUE./), fft_scratch_new%fft_scratch%cart_sub_comm(2))
 
+          !initialise pgcube
+          DO i = 0, dim(2) - 1
+            CALL mp_cart_rank ( fft_sizes%rs_group, (/pos(1), i/), fft_scratch_new%fft_scratch%pgcube (i, 2) )
+          END DO
+
+          !initialise pgrid
+          DO ix = 0, m1 - 1
+            DO iz = 0, m2 - 1
+              CALL mp_cart_rank ( fft_sizes%rs_group, (/ix, iz/), fft_scratch_new%fft_scratch%pgrid ( ix, iz ) )
+            END DO
+          END DO
 
         CASE (400)    ! serial FFT_SGL 
           np = 0
           ALLOCATE ( fft_scratch_new%fft_scratch%zoptr(n(1),n(2),n(3)),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
       END SELECT
-
-      IF ( np /= 0 ) THEN
-        ALLOCATE ( fft_scratch_new%fft_scratch%scount(0:np-1), fft_scratch_new%fft_scratch%rcount(0:np-1),&
-         fft_scratch_new%fft_scratch%sdispl(0:np-1), fft_scratch_new%fft_scratch%rdispl(0:np-1),&
-         fft_scratch_new%fft_scratch%pgcube(0:np-1),STAT=ierr)
-      END IF
 
       NULLIFY(fft_scratch_new%fft_scratch_next) 
       fft_scratch_new%fft_scratch%fft_scratch_id = &
