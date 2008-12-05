@@ -1,11 +1,12 @@
 <HTML>
  <head>
-  <title> CP2K project homepage </title>
+  <title>CP2K project homepage</title>
   <meta name="language" content="en"/>
   <meta name="copyright" content="2000 - 2008 CP2K developers group"/>
   <meta name="description" content="CP2K project page"/>
   <meta name="keywords" content="scientific,computing,chemistry,physics,documentation,help,manual,Fortran,parallel,molecular dynamics,MD,density functional theory,DFT,electronic structure,linear scaling,force field,Quickstep,GPW,GAPW,FIST,QM,MM"/>
-  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <link xmlns="" rel="shortcut icon" href="manual/favicon.png" type="image/png"/>
  </head>
 
 <BODY TEXT=BLACK BGCOLOR=WHITE LINK=blue VLINK=blue>
