@@ -54,27 +54,28 @@ CONTAINS
   SUBROUTINE  get_ptable_info(symbol,number,amass,mass,ielement,covalent_radius,&
        vdw_radius)
 
-    CHARACTER(LEN=2), INTENT(INOUT)          :: symbol
+    CHARACTER(LEN=2), INTENT(IN)             :: symbol
     INTEGER, INTENT(OUT), OPTIONAL           :: number
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: amass, mass
     INTEGER, INTENT(OUT), OPTIONAL           :: ielement
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: covalent_radius, vdw_radius
 
-    CHARACTER(LEN=2)                         :: symb_ielem
+    CHARACTER(LEN=2)                         :: symb_ielem, symbol_in
     INTEGER                                  :: ielem, ielem_found
 
     ielem_found = -1
-    CALL uppercase(symbol)
+    symbol_in   = symbol
+    CALL uppercase(symbol_in)
     DO ielem = 1,nelem
        symb_ielem = ptable(ielem)%symbol
        CALL uppercase(symb_ielem)
-       IF(symbol==symb_ielem) THEN
+       IF(symbol_in==symb_ielem) THEN
           ielem_found = ielem
           EXIT
        END IF
     END DO
     IF (ielem_found <0) CALL stop_program('get_ptable_info',&
-         "CP2K does not regognize the element symbol")
+         "CP2K does not regognize the element symbol <"//TRIM(symbol)//">.")
 
     IF(PRESENT(ielement)) ielement = ielem_found
     IF(PRESENT(number)) number = ptable(ielem_found)%number
@@ -94,7 +95,6 @@ CONTAINS
   SUBROUTINE init_periodic_table()
 
     ! Dummy
-
     ptable(0) % symbol = 'X '
     ptable(0) % name = 'Dummy'
     ptable(0) % number = 0
