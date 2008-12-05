@@ -42,6 +42,7 @@ MODULE qs_dftb_parameters
   USE qs_dftb_utils,                   ONLY: allocate_dftb_atom_param,&
                                              get_dftb_atom_param,&
                                              set_dftb_atom_param
+  USE string_utilities,                ONLY: uppercase
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -174,8 +175,8 @@ CONTAINS
             IF ( at_end ) EXIT
             CALL parser_get_object(parser,name_a,error=error)
             CALL parser_get_object(parser,name_b,error=error)
-            name_a = TRIM(name_a)
-            name_b = TRIM(name_b)
+            CALL uppercase(name_a)
+            CALL uppercase(name_b)
             !Checking Names
             IF ( (iname==name_a .AND. jname==name_b) ) THEN 
               CALL parser_get_object(parser,skfn,string_length=8,error=error)
