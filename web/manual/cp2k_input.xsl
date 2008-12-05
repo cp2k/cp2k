@@ -8,7 +8,9 @@
  <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
   <head>
    <title>CP2K input reference</title>
-   <xsl:call-template name="head"/>
+   <xsl:call-template name="head">
+    <xsl:with-param name="root" select="''"/>
+   </xsl:call-template>
   </head>
   <body>
    <xsl:call-template name="write_generate_manual_howto"/>
@@ -96,7 +98,9 @@
    <html>
     <head>
      <title>CP2K input file</title>
-     <xsl:call-template name="head"/>
+     <xsl:call-template name="head">
+      <xsl:with-param name="root" select="''"/>
+     </xsl:call-template>
     </head>
     <body>
      <xsl:call-template name="header">
@@ -150,6 +154,7 @@
 </xsl:template>
 
 <xsl:template name="head">
+ <xsl:param name="root"/>
  <xsl:variable name="description">
   <xsl:choose>
    <xsl:when test="string-length(DESCRIPTION) > 0">
@@ -164,6 +169,7 @@
  <meta name="copyright" content="2000 - {year-from-dateTime(current-dateTime())} CP2K developers group"/>
  <meta name="description" content="{$description}"/>
  <meta name="keywords" content="scientific,computing,chemistry,physics,documentation,help,manual,Fortran,parallel,molecular dynamics,MD,density functional theory,DFT,electronic structure,linear scaling,force field,Quickstep,GPW,GAPW,FIST,QM,MM"/>
+ <link rel="shortcut icon" href="{$root}favicon.png" type="image/png"/>
  <style type="text/css">
   body {background-color: #ffffff}
   big.tt {font-family: monospace; font-size: 100%}
@@ -236,7 +242,9 @@
    <html>
     <head>
      <title>Input section <xsl:value-of select="NAME"/></title>
-     <xsl:call-template name="head"/>
+     <xsl:call-template name="head">
+      <xsl:with-param name="root" select="$root"/>
+     </xsl:call-template>
     </head>
     <body>
      <xsl:call-template name="header">
@@ -595,7 +603,9 @@
   <html>
    <head>
     <title>How to generate the CP2K input reference manual</title>
-    <xsl:call-template name="head"/>
+    <xsl:call-template name="head">
+     <xsl:with-param name="root" select="''"/>
+    </xsl:call-template>
    </head>
    <body>
     <xsl:call-template name="header">
