@@ -984,12 +984,13 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE parser_get_logical(parser,object,newline,skip_lines,string_length,&
-       at_end,error)
+       at_end,lower_to_upper,error)
     TYPE(cp_parser_type), POINTER            :: parser
     LOGICAL, INTENT(OUT)                     :: object
     LOGICAL, INTENT(IN), OPTIONAL            :: newline
     INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
     LOGICAL, INTENT(out), OPTIONAL           :: at_end
+    INTEGER, INTENT(IN), OPTIONAL            :: lower_to_upper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_logical', &
