@@ -14,8 +14,8 @@
    sodipodi:version="0.32"
    inkscape:version="0.45.1"
    version="1.0"
-   sodipodi:docbase="/home/krack"
-   sodipodi:docname="cp2k_unispace.svg"
+   sodipodi:docbase="/home/krack/rt/ref/cp2k/web/manual"
+   sodipodi:docname="favicon_color.svg"
    inkscape:output_extension="org.inkscape.output.svg.inkscape"
    inkscape:export-filename="/home/krack/cp2k_unispace.png"
    inkscape:export-xdpi="90"
@@ -64,7 +64,7 @@
      id="layer1">
     <text
        xml:space="preserve"
-       style="font-size:26.20915794px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Unispace"
+       style="font-size:26.20915794px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#ff6000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Unispace;opacity:0.99999999"
        x="-0.26645979"
        y="18.561699"
        id="text2162"
@@ -73,15 +73,18 @@
          sodipodi:role="line"
          id="tspan2164"
          x="-0.26645979"
-         y="18.561699">CP</tspan></text>
+         y="18.561699"
+         style="fill-opacity:1;fill:#ff6000">CP</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:25.8891983px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Unispace"
+       style="font-size:25.8891983px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#ff6000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Unispace"
        x="0.0094926851"
        y="38.047226"
        id="text2166"
        sodipodi:linespacing="125%"
-       transform="scale(1.2314394,0.8120579)"><tspan
+       transform="scale(1.2314394,0.8120579)"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90"><tspan
          sodipodi:role="line"
          id="tspan2168"
          x="0.0094926851"
