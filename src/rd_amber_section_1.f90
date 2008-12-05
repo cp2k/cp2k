@@ -4,7 +4,7 @@
        IF (parser_test_next_token(parser,error=error)=="EOL")&
             CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
        IF (my_end) EXIT
-       CALL parser_get_object  (parser,array1(i),error=error)
+       CALL parser_get_object  (parser,array1(i),lower_to_upper=.TRUE.,error=error)
        i = i + 1
     END DO
     ! Trigger end of file aborting
