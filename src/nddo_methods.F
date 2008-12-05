@@ -746,9 +746,6 @@ CONTAINS
                                     do_ewald_r3=do_ewald_r3, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta,&
                                     error=error)
                             END IF
-                            force_ab(1) = -force_ab(1)
-                            force_ab(2) = -force_ab(2)
-                            force_ab(3) = -force_ab(3)
 
                             ! Sum up force components
                             force(ikind)%all_potential(1,atom_a) = force(ikind)%all_potential(1,atom_a) - force_ab(1)
@@ -1525,15 +1522,15 @@ CONTAINS
           j1 = se_orbital_pointer(j1L)
           i2 = i2 + 1
           tmp= 2.0_dp * pi_block(i1,j1)
-          force(1) = force(1) - de1b(1,i2) * tmp 
-          force(2) = force(2) - de1b(2,i2) * tmp
-          force(3) = force(3) - de1b(3,i2) * tmp
+          force(1) = force(1) + de1b(1,i2) * tmp 
+          force(2) = force(2) + de1b(2,i2) * tmp
+          force(3) = force(3) + de1b(3,i2) * tmp
        END DO
        j1 = se_orbital_pointer(j1L)
        i2 = i2 + 1
-       force(1) = force(1) - de1b(1,i2) * pi_block(i1,j1)
-       force(2) = force(2) - de1b(2,i2) * pi_block(i1,j1)
-       force(3) = force(3) - de1b(3,i2) * pi_block(i1,j1)
+       force(1) = force(1) + de1b(1,i2) * pi_block(i1,j1)
+       force(2) = force(2) + de1b(2,i2) * pi_block(i1,j1)
+       force(3) = force(3) + de1b(3,i2) * pi_block(i1,j1)
     END DO
     !
     ! Add the electron-nuclear attraction term for atom sepj
@@ -1545,15 +1542,15 @@ CONTAINS
           j1 = se_orbital_pointer(j1L)
           i2 = i2 + 1
           tmp= 2.0_dp * pj_block(i1,j1)
-          force(1) = force(1) - de2a(1,i2) * tmp
-          force(2) = force(2) - de2a(2,i2) * tmp
-          force(3) = force(3) - de2a(3,i2) * tmp
+          force(1) = force(1) + de2a(1,i2) * tmp
+          force(2) = force(2) + de2a(2,i2) * tmp
+          force(3) = force(3) + de2a(3,i2) * tmp
        END DO
        j1 = se_orbital_pointer(j1L)
        i2 = i2 + 1
-       force(1) = force(1) - de2a(1,i2) * pj_block(i1,j1)
-       force(2) = force(2) - de2a(2,i2) * pj_block(i1,j1)
-       force(3) = force(3) - de2a(3,i2) * pj_block(i1,j1)
+       force(1) = force(1) + de2a(1,i2) * pj_block(i1,j1)
+       force(2) = force(2) + de2a(2,i2) * pj_block(i1,j1)
+       force(3) = force(3) + de2a(3,i2) * pj_block(i1,j1)
     END DO
     
   END SUBROUTINE dfock2_1el
