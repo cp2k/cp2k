@@ -148,15 +148,21 @@ CONTAINS
     DO ikind = 1, nkind
       atomic_kind_a => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atomic_kind_a,name=iname,element_symbol=iel)
+      CALL uppercase(iname)
+      CALL uppercase(iel)
       ldum = qmmm_ff_precond_only_qm(iname)
       DO jkind = 1, nkind
         atomic_kind_b => atomic_kind_set(jkind)
         CALL get_atomic_kind(atomic_kind=atomic_kind_b,name=jname,element_symbol=jel)
+        CALL uppercase(jname)
+        CALL uppercase(jel)
         ldum = qmmm_ff_precond_only_qm(jname)
         found = .FALSE.
         DO k=1,SIZE(dftb_control%sk_pair_list,2)
           name_a=TRIM(dftb_control%sk_pair_list(1,k))
           name_b=TRIM(dftb_control%sk_pair_list(2,k))
+          CALL uppercase(name_a)
+          CALL uppercase(name_b)
           IF ( (iname==name_a .AND. jname==name_b) ) THEN 
             sk_files(ikind,jkind) = TRIM(dftb_control%sk_file_path)//"/"//&
                                     TRIM(dftb_control%sk_pair_list(3,k))
@@ -173,10 +179,8 @@ CONTAINS
             at_end = .FALSE.
             CALL parser_get_next_line(parser,1,at_end,error=error)
             IF ( at_end ) EXIT
-            CALL parser_get_object(parser,name_a,error=error)
-            CALL parser_get_object(parser,name_b,error=error)
-            CALL uppercase(name_a)
-            CALL uppercase(name_b)
+            CALL parser_get_object(parser,name_a,lower_to_upper=.TRUE.,error=error)
+            CALL parser_get_object(parser,name_b,lower_to_upper=.TRUE.,error=error)
             !Checking Names
             IF ( (iname==name_a .AND. jname==name_b) ) THEN 
               CALL parser_get_object(parser,skfn,string_length=8,error=error)
@@ -196,7 +200,11 @@ CONTAINS
           END DO
           CALL parser_release(parser,error=error)
         END IF
-        CPPostcondition(found,cp_fatal_level,routineP,error,failure)
+        CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
+             "Failure in assigning KINDS <"//TRIM(iname)//"> and <"//TRIM(jname)//&
+             "> to a DFTB interaction pair!"//&
+CPSourceFileRef,&
+             only_ionode=.TRUE.)
       END DO
     END DO
     ! reading the files
