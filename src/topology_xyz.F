@@ -18,7 +18,6 @@ MODULE topology_xyz
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
-  USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -100,7 +99,6 @@ CONTAINS
                                    atom_info%r(1,j),&
                                    atom_info%r(2,j),&
                                    atom_info%r(3,j)
-          CALL uppercase(atom_info%label_atmname(j))
           ! For default, set atom name to residue name to molecule name
           WRITE(my_default_index,'(I0)')j   
           atom_info%label_molname(j)   =  TRIM(atom_info%label_atmname(j))//TRIM(my_default_index)

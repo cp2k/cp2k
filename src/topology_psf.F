@@ -240,7 +240,6 @@ CPSourceFileRef,&
                                       atom_info%label_atmname(index_now),&
                                       atom_info%atm_charge(index_now),&
                                       atom_info%atm_mass(index_now)
-             CALL uppercase ( atom_info%label_atmname(index_now) )
           END DO
        ELSE
           DO iatom=1,natom
@@ -257,7 +256,6 @@ CPSourceFileRef,&
                   atom_info%atm_mass(index_now),&
                   idum
              atom_info%label_atmname(index_now) = TRIM(ADJUSTL(atom_info%label_atmname(index_now)))
-             CALL uppercase ( atom_info%label_atmname(index_now) )
           END DO
        END IF
        ! In case element was autoassigned let's keep up2date the element name 

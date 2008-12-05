@@ -53,7 +53,6 @@ MODULE topology_pdb
   USE memory_utilities,                ONLY: reallocate
   USE physcon,                         ONLY: angstrom
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
@@ -148,7 +147,6 @@ CONTAINS
        CASE ("ATOM","HETATM") 
           atom_info%label_molname(natom) = TRIM(root_mol_name)
           READ(line(13:16),*) atom_info%label_atmname(natom)
-          CALL uppercase(atom_info%label_atmname(natom))
           READ(line(18:20),*,IOSTAT=istat) atom_info%label_resname(natom)
           READ(line(23:26),*,IOSTAT=istat) atom_info%label_resid(natom)
           READ(line(31:38),*,IOSTAT=istat) atom_info%r(1,natom)
