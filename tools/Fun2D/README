@@ -1,0 +1,22 @@
+A package to generate Fortran code for the evaluation of bivariate functions.
+Using recursive bisection and lagrane interpolation at padua points, the code
+and necessary tables are being constructed.
+
+The function (f) must be defined in drvrec_mpfr.f90,
+and its domain must be (transformed to) rectangular.
+
+The settings for the bisection, accuracy, ... are set in recurse.f90. Most important
+are the degree of the interpolation, and the target error.
+The actual error is usually smaller than the estimate of the error.
+The degree of the interpolation and the target error influence the size of the tables,
+and speed of evaluation.
+
+The code is interfaced to the arbitrary precision library MPFR, with a convenient Fortran
+wrapper. However, as long as derived type finalization (a Fortran2003 feature) is not available,
+memory is not freed during MPFR math, and thus a significant amount of memory is needed. To reduce the
+impact, drvrec_mpfr has been transformed into a little program, so that the OS frees the memory in between
+calls.
+
+The code for interpolation through the Padua points is based on an older version of Padua2D,
+kindly made available by the authors (Marco Caliari and Marco Vianello and Stefano De Marchi)
+see top of padua2_mpfr.f90 for further credits.
