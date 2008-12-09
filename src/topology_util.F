@@ -26,8 +26,7 @@ MODULE topology_util
   USE mm_mapping_library,              ONLY: amber_map,&
                                              charmm_map,&
                                              gromos_map
-  USE periodic_table,                  ONLY: get_ptable_info,&
-                                             ptable
+  USE periodic_table,                  ONLY: get_ptable_info
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE string_table,                    ONLY: str2id
   USE string_utilities,                ONLY: uppercase
@@ -1256,8 +1255,9 @@ CONTAINS
 !>      12.2005 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE check_subsys_element(element_in, element_in_org, element_out, subsys_section, error)
-    CHARACTER(len=*), INTENT(IN)             :: element_in, element_in_org
+  SUBROUTINE check_subsys_element(element_in, atom_name_in, element_out, subsys_section, error)
+    CHARACTER(len=*), INTENT(IN)             :: element_in
+    CHARACTER(len=default_string_length)     :: atom_name_in
     CHARACTER(len=default_string_length), &
       INTENT(OUT)                            :: element_out
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -1266,61 +1266,55 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'check_subsys_element', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: current_symbol, &
-                                                element_symbol, &
-                                                element_symbol_org, keyword
-    INTEGER                                  :: i, i_rep, n_rep, output_unit
-    LOGICAL                                  :: failure, found, ionode
-    TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(len=default_string_length)     :: atom_name, element_symbol, &
+                                                keyword
+    INTEGER                                  :: i, i_rep, n_rep
+    LOGICAL                                  :: defined_kind_section, &
+                                                failure, found
     TYPE(section_vals_type), POINTER         :: kind_section
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-      output_unit = -1
-    END IF
-    found              = .FALSE.
-    failure            = .FALSE.
-    element_symbol     = element_in
-    element_symbol_org = element_in_org
-    element_out        = ""
-    ! First check the element read from the input file..
-    CALL uppercase(element_symbol)
-    CALL uppercase(element_symbol_org)
-    DO i=LBOUND(ptable,1),UBOUND(ptable,1)
-       current_symbol = ptable(i)%symbol
-       CALL uppercase(current_symbol)
-       IF (TRIM(current_symbol) == TRIM(element_symbol)) THEN
-          element_out = TRIM(element_symbol)
-          found = .TRUE.
-          EXIT
+    failure = .FALSE.
+    found          = .FALSE.
+    element_symbol = element_in
+    atom_name      = atom_name_in
+    element_out    = ""
+    defined_kind_section = .FALSE.
+
+    ! First check if a KIND section is overriding the element 
+    ! definition
+    CALL uppercase(atom_name)
+    kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
+    CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
+    DO i_rep=1,n_rep
+       CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
+            c_val=keyword,i_rep_section=i_rep,error=error)
+       CALL uppercase(keyword)
+       IF (TRIM(keyword)==TRIM(atom_name)) THEN
+          CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
+               keyword_name="ELEMENT",n_rep_val=i,error=error)
+          IF (i>0) THEN
+             CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
+                  keyword_name="ELEMENT",c_val=element_symbol,error=error)
+             defined_kind_section = .TRUE.           
+             EXIT
+          END IF
        END IF
     END DO
-    ! If not found maybe the user defined a KIND section..
-    IF (.NOT.found) THEN
-       kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
-       CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
-       DO i_rep=1,n_rep
-          CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
-               c_val=keyword,i_rep_section=i_rep,error=error)
-          CALL uppercase(keyword)
-          IF (TRIM(keyword)==TRIM(element_symbol_org)) THEN
-             CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
-                  keyword_name="ELEMENT",n_rep_val=i,error=error)
-             IF (i>0) THEN
-                CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
-                     keyword_name="ELEMENT",c_val=element_symbol,error=error)
-                element_out = TRIM(element_symbol)
-                found = .TRUE.                
-                EXIT
-             END IF
-          END IF
-       END DO
-    END IF
+
+    ! Let's check the validity of the element so far stored..
+    CALL get_ptable_info(element_symbol,found=found)
+    IF (found) element_out = TRIM(element_symbol)
+
+    ! This is clearly a user error
+    CALL cp_assert(found.OR.(.NOT.defined_kind_section),cp_fatal_level,cp_assertion_failed,routineP,&
+         "Element <"//TRIM(element_symbol)//"> provided for KIND <"//TRIM(atom_name_in)//"> "//&
+         "which cannot be mapped with any standard element label. Please correct your "//&
+         "input file!"//&
+CPSourceFileRef,&
+         only_ionode=.TRUE.)
+
     ! Last chance.. are these atom_kinds of AMBER or CHARMM or GROMOS FF ?
+    CALL uppercase(element_symbol)
     IF (.NOT.found) THEN
        ! First we go through the AMBER library
        DO i = 1, SIZE(amber_map%kind)
@@ -1360,7 +1354,7 @@ CONTAINS
     ! If no element is found the job stops here.
     IF (.NOT.found) THEN
        CALL stop_program ("check_subsys_element",&
-            " Unknown element for KIND <"//TRIM(element_symbol)//">."//&
+            " Unknown element for KIND <"//TRIM(atom_name_in)//">."//&
             " This problem can be fixed specifying properly elements in PDB"//&
             " or specifying a KIND section or getting in touch with one of "//&
             " the developers!")         

@@ -395,7 +395,8 @@ CONTAINS
        END DO
        element0 = elements(i)(1:j)
        ! ALWAYS check for elements..
-       CALL check_subsys_element(element0,elements(i),my_element,subsys_section,error)
+       CALL check_subsys_element(element0,topology%atom_info%label_atmname(i),my_element,&
+            subsys_section,error)
        ! Earn time fixing same element labels for same atoms
        element0 = elements(i)
        DO k = i, topology%natoms
