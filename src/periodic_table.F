@@ -41,6 +41,7 @@ MODULE periodic_table
   TYPE ( atom ) :: ptable ( 0:nelem )
 
   REAL(KIND=dp), PARAMETER                     :: z = 0.0_dp
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'periodic_table'
 
 CONTAINS
 
@@ -52,13 +53,17 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE  get_ptable_info(symbol,number,amass,mass,ielement,covalent_radius,&
-       vdw_radius)
+       vdw_radius,found)
 
     CHARACTER(LEN=2), INTENT(IN)             :: symbol
     INTEGER, INTENT(OUT), OPTIONAL           :: number
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: amass, mass
     INTEGER, INTENT(OUT), OPTIONAL           :: ielement
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: covalent_radius, vdw_radius
+    LOGICAL, OPTIONAL                        :: found
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_ptable_info', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: symb_ielem, symbol_in
     INTEGER                                  :: ielem, ielem_found
@@ -74,15 +79,24 @@ CONTAINS
           EXIT
        END IF
     END DO
-    IF (ielem_found <0) CALL stop_program('get_ptable_info',&
-         "CP2K does not regognize the element symbol <"//TRIM(symbol)//">.")
 
-    IF(PRESENT(ielement)) ielement = ielem_found
-    IF(PRESENT(number)) number = ptable(ielem_found)%number
-    IF(PRESENT(amass)) amass = ptable(ielem_found)%amass
-    IF(PRESENT(mass)) mass = ptable(ielem_found)%mass
-    IF(PRESENT(covalent_radius)) covalent_radius = ptable(ielem_found)%covalent_radius
-    IF(PRESENT(vdw_radius)) vdw_radius = ptable(ielem_found)%vdw_radius
+    ! If requested give back the value and avoid failing
+    IF (PRESENT(found)) THEN
+       found = (ielem_found >0)
+    ELSE
+       IF (ielem_found <0) CALL stop_program(routineN,&
+            "CP2K does not regognize the element symbol <"//TRIM(symbol)//">.")
+    END IF
+
+    ! If the element has been identified provide the requested information
+    IF (ielem_found >0) THEN
+       IF(PRESENT(ielement)) ielement = ielem_found
+       IF(PRESENT(number)) number = ptable(ielem_found)%number
+       IF(PRESENT(amass)) amass = ptable(ielem_found)%amass
+       IF(PRESENT(mass)) mass = ptable(ielem_found)%mass
+       IF(PRESENT(covalent_radius)) covalent_radius = ptable(ielem_found)%covalent_radius
+       IF(PRESENT(vdw_radius)) vdw_radius = ptable(ielem_found)%vdw_radius
+    END IF
 
   END SUBROUTINE get_ptable_info
 
