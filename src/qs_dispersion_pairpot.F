@@ -92,81 +92,87 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: pp_section
 
     failure = .FALSE.
-
     CALL section_vals_val_get(vdw_section,"POTENTIAL_TYPE",i_val=vdw_type,error=error)
     nkind  = SIZE(atomic_kind_set)
     DO ikind = 1, nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind,element_symbol=symbol,z=elem)
-      ALLOCATE(disp,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      SELECT CASE (vdw_type)
-        CASE DEFAULT
-           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-        CASE (xc_vdw_fun_none)
-           disp%defined = .FALSE.
-        CASE (xc_vdw_fun_pairpot)
-           ! setup information on pair potentials
-           pp_section => section_vals_get_subs_vals(vdw_section,"PAIR_POTENTIAL",error=error)
-           CALL section_vals_val_get(pp_section,"TYPE",i_val=vdw_pp_type,error=error)
-           SELECT CASE (vdw_pp_type)
-             CASE DEFAULT
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             CASE (vdw_pairpot_grimme)
-                CALL cite_reference(Grimme2006)
-                disp%type = grimme_pp
-                ! get filename of parameter file
-                CALL section_vals_val_get(pp_section,"PARAMETER_FILE_NAME",c_val=filename,error=error)
-                ! check for local parameters
-                CALL section_vals_val_get(pp_section,"ATOMPARM",n_rep_val=n_rep,error=error)
-                found = .FALSE.
-                DO i=1,n_rep
-                   CALL section_vals_val_get(pp_section,"ATOMPARM", i_rep_val=i,&
-                                  c_vals=tmpstringlist, error=error)
-                   IF ( TRIM(tmpstringlist(1)) == TRIM(symbol) ) THEN
-                     ! we assume the parameters are in atomic units!
-                     READ(tmpstringlist(2),*) disp%c6
-                     READ(tmpstringlist(3),*) disp%vdw_radii
-                     found = .TRUE.
-                     EXIT
-                   END IF
-                END DO
-                IF ( .NOT. found ) THEN
-                  ! check for internal parameters
-                  CALL grimme_param(elem,disp%c6,disp%vdw_radii,found,error)
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind,element_symbol=symbol,z=elem)
+       ALLOCATE(disp,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       SELECT CASE (vdw_type)
+       CASE DEFAULT
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CASE (xc_vdw_fun_none)
+          disp%defined = .FALSE.
+       CASE (xc_vdw_fun_pairpot)
+          ! setup information on pair potentials
+          pp_section => section_vals_get_subs_vals(vdw_section,"PAIR_POTENTIAL",error=error)
+          CALL section_vals_val_get(pp_section,"TYPE",i_val=vdw_pp_type,error=error)
+          SELECT CASE (vdw_pp_type)
+          CASE DEFAULT
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CASE (vdw_pairpot_grimme)
+             CALL cite_reference(Grimme2006)
+             disp%type = grimme_pp
+             ! get filename of parameter file
+             CALL section_vals_val_get(pp_section,"PARAMETER_FILE_NAME",c_val=filename,error=error)
+             ! check for local parameters
+             CALL section_vals_val_get(pp_section,"ATOMPARM",n_rep_val=n_rep,error=error)
+             found = .FALSE.
+             DO i=1,n_rep
+                CALL section_vals_val_get(pp_section,"ATOMPARM", i_rep_val=i,&
+                     c_vals=tmpstringlist, error=error)
+                IF ( TRIM(tmpstringlist(1)) == TRIM(symbol) ) THEN
+                   ! we assume the parameters are in atomic units!
+                   READ(tmpstringlist(2),*) disp%c6
+                   READ(tmpstringlist(3),*) disp%vdw_radii
+                   found = .TRUE.
+                   EXIT
                 END IF
-                IF ( .NOT. found ) THEN
-                  ! check on file
-                  INQUIRE (FILE=filename,EXIST=is_available)
-                  IF (is_available) THEN
-                    NULLIFY(parser)
-                    CALL parser_create(parser,filename,para_env=para_env,error=error)
-                    DO
+             END DO
+             IF ( .NOT. found ) THEN
+                ! check for internal parameters
+                CALL grimme_param(elem,disp%c6,disp%vdw_radii,found,error)
+             END IF
+             IF ( .NOT. found ) THEN
+                ! check on file
+                INQUIRE (FILE=filename,EXIST=is_available)
+                IF (is_available) THEN
+                   NULLIFY(parser)
+                   CALL parser_create(parser,filename,para_env=para_env,error=error)
+                   DO
                       at_end = .FALSE.
                       CALL parser_get_next_line(parser,1,at_end,error=error)
                       IF ( at_end ) EXIT
                       CALL parser_get_object(parser,aname,error=error)
                       IF ( TRIM(aname) == TRIM(symbol) ) THEN
-                        CALL parser_get_object(parser,disp%c6,error=error)
-                        ! we have to change the units J*nm^6*mol^-1 -> Hartree*Bohr^6
-                        disp%c6 = disp%c6 * 1000._dp*bohr**6/kjmol
-                        CALL parser_get_object(parser,disp%vdw_radii,error=error)
-                        disp%vdw_radii = disp%vdw_radii*bohr
-                        found = .TRUE.
-                        EXIT
+                         CALL parser_get_object(parser,disp%c6,error=error)
+                         ! we have to change the units J*nm^6*mol^-1 -> Hartree*Bohr^6
+                         disp%c6 = disp%c6 * 1000._dp*bohr**6/kjmol
+                         CALL parser_get_object(parser,disp%vdw_radii,error=error)
+                         disp%vdw_radii = disp%vdw_radii*bohr
+                         found = .TRUE.
+                         EXIT
                       END IF
-                    END DO
-                    CALL parser_release(parser,error=error)
-                  END IF
+                   END DO
+                   CALL parser_release(parser,error=error)
                 END IF
-                IF ( found ) THEN
-                  disp%defined = .TRUE.
-                ELSE
-                  disp%defined = .FALSE.
-                END IF
-           END SELECT
-      END SELECT
-      CALL set_atomic_kind(atomic_kind,dispersion=disp,error=error)
+             END IF
+             IF ( found ) THEN
+                disp%defined = .TRUE.
+             ELSE
+                disp%defined = .FALSE.
+             END IF
+          END SELECT
+       END SELECT
+       ! Check if the parameter is defined
+       CALL cp_assert(disp%defined,cp_failure_level,cp_assertion_failed,routineP,&
+            "Dispersion parameters for element ("//TRIM(symbol)//") are not defined! "//&
+            "Please provide a valid set of parameters through the input section or "//&
+            "through an external file! "//&
+ CPSourceFileRef,&
+            error=error,failure=failure)
+       CALL set_atomic_kind(atomic_kind,dispersion=disp,error=error)
     END DO
 
   END SUBROUTINE qs_dispersion_pairpot_init
@@ -201,40 +207,40 @@ CONTAINS
     scaling = 0._dp
 
     SELECT CASE (TRIM(pptype))
-      CASE DEFAULT
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-      CASE ("GRIMME")
-        ! try to find the correct correlation functional scaling parameter
-        CALL xc_functionals_expand(xc_fun_section,xc_section,error=error)
-        ifun=0
-        DO
+    CASE DEFAULT
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    CASE ("GRIMME")
+       ! try to find the correct correlation functional scaling parameter
+       CALL xc_functionals_expand(xc_fun_section,xc_section,error=error)
+       ifun=0
+       DO
           ifun=ifun+1
           NULLIFY(xc_fun)
           xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
           IF (.NOT.ASSOCIATED(xc_fun)) EXIT
           SELECT CASE(xc_fun%section%name)
-            CASE("LYP")
-              IF(scaling==1.00_dp) THEN
+          CASE("LYP")
+             IF(scaling==1.00_dp) THEN
                 ! assume this is B3LYP
                 scaling = 1.05_dp
-              ELSE
+             ELSE
                 scaling = 1.20_dp
-              END IF
-            CASE("TPSS")
-              scaling = 1.00_dp
-            CASE("PBE")
-              scaling = 0.75_dp
-            CASE("P86C")
-              scaling = 1.05_dp
-            CASE("VWN")
-              IF(scaling==1.20_dp) THEN
+             END IF
+          CASE("TPSS")
+             scaling = 1.00_dp
+          CASE("PBE")
+             scaling = 0.75_dp
+          CASE("P86C")
+             scaling = 1.05_dp
+          CASE("VWN")
+             IF(scaling==1.20_dp) THEN
                 ! assume this is B3LYP
                 scaling = 1.05_dp
-              ELSE
+             ELSE
                 scaling = 1.00_dp
-              END IF
+             END IF
           END SELECT
-        END DO
+       END DO
     END SELECT
     ! if the scaling parameter is still 0 use a default of 1
     IF ( scaling == 0._dp ) scaling = 1.0_dp
@@ -273,27 +279,27 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,error=error)
        ! vdW type specific output
        IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
-         WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T67,'Pair Potential')") 
-         ! Pair potentials
-         IF ( TRIM(dispersion_env%pp_type) == "GRIMME" ) THEN
-           WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Potential Form: S. Grimme, JCC 27: 1787 (2006)')") 
-           WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
-           WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Scaling Factor:',T73,F8.4)") dispersion_env%scaling
-           WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Exp Prefactor for Damping:',T73,F8.1)") dispersion_env%exp_pre
-           CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,error=error)
-           nkind  = SIZE(atomic_kind_set)
-           DO ikind = 1, nkind
-             atomic_kind => atomic_kind_set(ikind)
-             CALL get_atomic_kind(atomic_kind,element_symbol=symbol,dispersion=disp)
-             IF ( disp%defined ) THEN
-               WRITE (output_unit, fmt="(' vdW PARAMETER| ',T18,'Atom=',A2,"//&
-                 "T28,'C6[J*nm^6*mol^-1]=',F8.4,T63,'r(vdW)[A]=',F8.4)") &
-                 symbol, disp%c6/(1000._dp*bohr**6/kjmol), disp%vdw_radii/bohr
-             ELSE
-               WRITE (output_unit, fmt="(' vdW PARAMETER| ',T20,'Atom=',A2,T70,'not defined')")
-             END IF
-           END DO
-         END IF
+          WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T67,'Pair Potential')") 
+          ! Pair potentials
+          IF ( TRIM(dispersion_env%pp_type) == "GRIMME" ) THEN
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Potential Form: S. Grimme, JCC 27: 1787 (2006)')") 
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Scaling Factor:',T73,F8.4)") dispersion_env%scaling
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Exp Prefactor for Damping:',T73,F8.1)") dispersion_env%exp_pre
+             CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,error=error)
+             nkind  = SIZE(atomic_kind_set)
+             DO ikind = 1, nkind
+                atomic_kind => atomic_kind_set(ikind)
+                CALL get_atomic_kind(atomic_kind,element_symbol=symbol,dispersion=disp)
+                IF ( disp%defined ) THEN
+                   WRITE (output_unit, fmt="(' vdW PARAMETER| ',T18,'Atom=',A2,"//&
+                        "T28,'C6[J*nm^6*mol^-1]=',F8.4,T63,'r(vdW)[A]=',F8.4)") &
+                        symbol, disp%c6/(1000._dp*bohr**6/kjmol), disp%vdw_radii/bohr
+                ELSE
+                   WRITE (output_unit, fmt="(' vdW PARAMETER| ',T20,'Atom=',A2,T70,'not defined')")
+                END IF
+             END DO
+          END IF
        END IF
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
@@ -343,131 +349,131 @@ CONTAINS
     NULLIFY (atomic_kind_set,sab_vdw)
 
     CALL get_qs_env(qs_env=qs_env, energy=energy, atomic_kind_set=atomic_kind_set,&
-                    virial=virial, dft_control=dft_control,para_env=para_env,&
-                    dispersion_env=dispersion_env,error=error)
+         virial=virial, dft_control=dft_control,para_env=para_env,&
+         dispersion_env=dispersion_env,error=error)
 
     energy%dispersion = 0._dp
 
     IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
 
-      s6 = dispersion_env%scaling
-      dd = dispersion_env%exp_pre
+       s6 = dispersion_env%scaling
+       dd = dispersion_env%exp_pre
 
-      IF(calculate_forces) THEN
-        NULLIFY (force,particle_set)
-        CALL get_qs_env(qs_env=qs_env,&
-                        particle_set=particle_set,&
-                        force=force,error=error)
-        natom = SIZE (particle_set)
-        ALLOCATE (atom_of_kind(natom),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                 atom_of_kind=atom_of_kind)
-        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-      END IF
+       IF(calculate_forces) THEN
+          NULLIFY (force,particle_set)
+          CALL get_qs_env(qs_env=qs_env,&
+               particle_set=particle_set,&
+               force=force,error=error)
+          natom = SIZE (particle_set)
+          ALLOCATE (atom_of_kind(natom),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+               atom_of_kind=atom_of_kind)
+          use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+       END IF
 
-      evdw = 0._dp
+       evdw = 0._dp
 
-      CALL get_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
+       CALL get_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
 
-      nkind = SIZE(atomic_kind_set)
+       nkind = SIZE(atomic_kind_set)
 
-      DO ikind=1,nkind
-        atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             natom=natom, dispersion=disp_a)
-
-        IF (.NOT.disp_a%defined) CYCLE
-        IF ( disp_a%type == grimme_pp ) THEN
-          c6a = disp_a%c6
-          rc_a = disp_a%vdw_radii
-        END IF
-
-        DO jkind=1,nkind
-          atomic_kind => atomic_kind_set(jkind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind, dispersion=disp_b)
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               natom=natom, dispersion=disp_a)
 
           IF (.NOT.disp_a%defined) CYCLE
-
-          CPPrecondition(disp_a%type==disp_b%type,cp_failure_level,routineP,error,failure)
-
-          IF ( disp_b%type == grimme_pp ) THEN
-            c6b = disp_b%c6
-            rc_b = disp_b%vdw_radii
-
-            rc = rc_a + rc_b
-            c6 = SQRT(c6a*c6b)
+          IF ( disp_a%type == grimme_pp ) THEN
+             c6a = disp_a%c6
+             rc_a = disp_a%vdw_radii
           END IF
 
-          iab = ikind + nkind*(jkind - 1)
-          IF (.NOT.ASSOCIATED(sab_vdw(iab)%neighbor_list_set)) CYCLE
-          CALL get_neighbor_list_set(neighbor_list_set=&
-                                     sab_vdw(iab)%neighbor_list_set,&
-                                     nlist=nlist)
-          NULLIFY(sab_vdw_neighbor_list)
+          DO jkind=1,nkind
+             atomic_kind => atomic_kind_set(jkind)
+             CALL get_atomic_kind(atomic_kind=atomic_kind, dispersion=disp_b)
 
-          DO ilist=1,nlist
-            IF ( .NOT. ASSOCIATED(sab_vdw_neighbor_list) ) THEN
-              sab_vdw_neighbor_list => &
-                         first_list(sab_vdw(iab)%neighbor_list_set)
-            ELSE
-              sab_vdw_neighbor_list => next(sab_vdw_neighbor_list)
-            END IF
-            sab_vdw_neighbor_list_local => sab_vdw_neighbor_list
-            CALL get_neighbor_list(neighbor_list=sab_vdw_neighbor_list_local,&
-                                   atom=iatom,nnode=nnode)
+             IF (.NOT.disp_a%defined) CYCLE
 
-            sab_vdw_neighbor_node => first_node(sab_vdw_neighbor_list_local)
+             CPPrecondition(disp_a%type==disp_b%type,cp_failure_level,routineP,error,failure)
 
-            DO inode=1,nnode
-              CALL get_neighbor_node(neighbor_node=sab_vdw_neighbor_node,&
-                                     neighbor=jatom,r=rij)
+             IF ( disp_b%type == grimme_pp ) THEN
+                c6b = disp_b%c6
+                rc_b = disp_b%vdw_radii
 
-              ! vdW potential
-              dr = SQRT(SUM(rij(:)**2))
-              IF (dr <= dispersion_env%rc_disp) THEN
-                IF ( disp_a%type == grimme_pp .AND. dr > 0.001_dp ) THEN
-                  er = EXP(-dd*(dr/rc-1._dp))
-                  fdmp = 1._dp/(1._dp+er)
-                  xp = s6*c6/dr**6
-                  evdw = evdw - xp*fdmp
-                  IF(calculate_forces .AND. (dr > 0.001_dp)) THEN
-                    dfdmp = dd/rc * er * fdmp*fdmp
-                    devdw = -xp*(-6._dp*fdmp/dr + dfdmp)
-                  END IF
+                rc = rc_a + rc_b
+                c6 = SQRT(c6a*c6b)
+             END IF
+
+             iab = ikind + nkind*(jkind - 1)
+             IF (.NOT.ASSOCIATED(sab_vdw(iab)%neighbor_list_set)) CYCLE
+             CALL get_neighbor_list_set(neighbor_list_set=&
+                  sab_vdw(iab)%neighbor_list_set,&
+                  nlist=nlist)
+             NULLIFY(sab_vdw_neighbor_list)
+
+             DO ilist=1,nlist
+                IF ( .NOT. ASSOCIATED(sab_vdw_neighbor_list) ) THEN
+                   sab_vdw_neighbor_list => &
+                        first_list(sab_vdw(iab)%neighbor_list_set)
+                ELSE
+                   sab_vdw_neighbor_list => next(sab_vdw_neighbor_list)
                 END IF
-                IF(calculate_forces .AND. (dr > 0.001_dp)) THEN
-                  fdij(:) = devdw * rij(:)/dr
-                  atom_a = atom_of_kind(iatom)
-                  atom_b = atom_of_kind(jatom)
-                  force(ikind)%dispersion(:,atom_a) =&
-                      force(ikind)%dispersion(:,atom_a) - fdij(:)
-                  force(jkind)%dispersion(:,atom_b) =&
-                      force(jkind)%dispersion(:,atom_b) + fdij(:)
-                  IF ( use_virial ) THEN
-                    CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rij, error)
-                  END IF
-                END IF
-              END IF
+                sab_vdw_neighbor_list_local => sab_vdw_neighbor_list
+                CALL get_neighbor_list(neighbor_list=sab_vdw_neighbor_list_local,&
+                     atom=iatom,nnode=nnode)
 
-              sab_vdw_neighbor_node => next(sab_vdw_neighbor_node)
+                sab_vdw_neighbor_node => first_node(sab_vdw_neighbor_list_local)
 
-            END DO ! inode => jatom(atom B)
+                DO inode=1,nnode
+                   CALL get_neighbor_node(neighbor_node=sab_vdw_neighbor_node,&
+                        neighbor=jatom,r=rij)
 
-          END DO ! ilist => iatom(atom A)
+                   ! vdW potential
+                   dr = SQRT(SUM(rij(:)**2))
+                   IF (dr <= dispersion_env%rc_disp) THEN
+                      IF ( disp_a%type == grimme_pp .AND. dr > 0.001_dp ) THEN
+                         er = EXP(-dd*(dr/rc-1._dp))
+                         fdmp = 1._dp/(1._dp+er)
+                         xp = s6*c6/dr**6
+                         evdw = evdw - xp*fdmp
+                         IF(calculate_forces .AND. (dr > 0.001_dp)) THEN
+                            dfdmp = dd/rc * er * fdmp*fdmp
+                            devdw = -xp*(-6._dp*fdmp/dr + dfdmp)
+                         END IF
+                      END IF
+                      IF(calculate_forces .AND. (dr > 0.001_dp)) THEN
+                         fdij(:) = devdw * rij(:)/dr
+                         atom_a = atom_of_kind(iatom)
+                         atom_b = atom_of_kind(jatom)
+                         force(ikind)%dispersion(:,atom_a) =&
+                              force(ikind)%dispersion(:,atom_a) - fdij(:)
+                         force(jkind)%dispersion(:,atom_b) =&
+                              force(jkind)%dispersion(:,atom_b) + fdij(:)
+                         IF ( use_virial ) THEN
+                            CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rij, error)
+                         END IF
+                      END IF
+                   END IF
 
-       END DO ! jkind
+                   sab_vdw_neighbor_node => next(sab_vdw_neighbor_node)
 
-     END DO ! ikind
+                END DO ! inode => jatom(atom B)
 
-     IF(calculate_forces) THEN
-       DEALLOCATE(atom_of_kind,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     END IF
+             END DO ! ilist => iatom(atom A)
 
-     ! set dispersion energy
-     CALL mp_sum(evdw,para_env%group)
-     energy%dispersion = evdw
+          END DO ! jkind
+
+       END DO ! ikind
+
+       IF(calculate_forces) THEN
+          DEALLOCATE(atom_of_kind,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       END IF
+
+       ! set dispersion energy
+       CALL mp_sum(evdw,para_env%group)
+       energy%dispersion = evdw
 
     END IF
 
