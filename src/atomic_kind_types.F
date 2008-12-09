@@ -1423,7 +1423,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_atomic_kind', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
       aux_fit_basis_set_name, keyword, orb_basis_set_name, potential_name, &
       potential_type
@@ -1522,37 +1521,10 @@ CONTAINS
             " corresponding element <"//TRIM(atomic_kind%element_symbol)//"> "//&
             " and for the DEFAULT section but no match was found. Check your input file!",para_env)
     END IF
-    ! Defining the element name
-    ipos = INDEX(atomic_kind%element_symbol,"_")
-    IF ((ipos == 2).OR.(ipos == 3)) THEN
-       element_symbol = atomic_kind%element_symbol(1:ipos-1)
-    ELSE
-       element_symbol = atomic_kind%element_symbol(1:2)
-    END IF
-    IF (k_rep>0) THEN
-       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="ELEMENT",n_rep_val=i,error=error)
-       IF (i>0) THEN
-          CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-               keyword_name="ELEMENT",c_val=element_symbol,error=error)
-       END IF
-    END IF
-
-    CALL get_ptable_info(element_symbol, amass=atomic_kind%mass, ielement=z)
-
-    ! If a proper element was not found exit the normal execution
-
-    IF (z == -1) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "No element could be assign to the atomic kind <"//&
-            TRIM(akind_name)//">. Specify a valid "//&
-            "element symbol in the input section <KIND "//&
-            TRIM(akind_name)//"> or select a valid "//&
-            "element symbol for the atomic kind name",para_env)
-    END IF
+    ! Retrieve information on element
+    CALL get_ptable_info(atomic_kind%element_symbol, amass=atomic_kind%mass, ielement=z)
 
     ! Normal parsing of the KIND section
-
     IF (k_rep>0) THEN
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="AUX_FIT_BASIS_SET", c_val=aux_fit_basis_set_name,error=error)
