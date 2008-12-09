@@ -1,0 +1,224 @@
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &SPLINE
+        EMAX_SPLINE 1000000.0
+        RCUT_NB 12.0
+      &END SPLINE
+!GROMACS parms
+![ atomtypes ]
+!; full atom descriptions are available in ffoplsaa.atp
+!; name  bond_type    mass    charge   ptype          sigma      epsilon
+! opls_113   OW     15.99940     0.000       A    3.15365e-01  6.48520e-01
+! opls_114   HW      1.00800     0.520       A    0.00000e+00  0.00000e+00
+! opls_115   MW      0.00000    -1.040       D    0.00000e+00  0.00000e+00
+!
+![ bondtypes ]
+!; i    j  func       b0          kb
+!  OW    HW      1    0.09572   502080.0   ; For TIP4F Water - wlj 1/98  
+!  OW    LP      1    0.01750   753120.0   ;          -idem-
+!
+![ angletypes ]
+!;  i    j    k  func       th0       cth
+!  HW     OW     HW      1   109.500    627.600   ; For TIP4F Water - wj 1/98
+!  HW     OW     LP      1    54.750    418.400   ; For TIP4F Water - wj 1/98
+      &BEND
+        ATOMS      HW     OW     HW 
+        THETA0     [deg] 109.500 
+        !K          [rad^2kjmol] 627.600
+        K          [rad^2kjmol] 0.000
+        KIND   G87
+      &END BEND
+      &BEND
+        ATOMS      HW     OW     MW 
+        THETA0     [deg]  54.750
+        !K          [rad^2kjmol]  418.400 
+        K          [rad^2kjmol]  0.000 
+        KIND   G87
+      &END BEND
+      &BEND
+        ATOMS      MW     HW     OW 
+        THETA0     [deg] 109.500 
+        K          [rad^2kjmol] 0.000
+        KIND   G87
+      &END BEND
+      &BEND
+        ATOMS      MW     HW     HW 
+        THETA0     [deg] 109.500 
+        K          [rad^2kjmol] 0.000
+        KIND   G87
+      &END BEND
+      &BEND
+        ATOMS      OW     HW     HW 
+        THETA0     [deg] 109.500 
+        K          [rad^2kjmol] 0.000
+        KIND   G87
+      &END BEND
+      &BEND
+        ATOMS      OW     MW     HW 
+        THETA0     [deg] 109.500 
+        K          [rad^2kjmol] 0.000
+        KIND   G87
+      &END BEND
+      &BEND
+        ATOMS      HW     MW     HW 
+        THETA0     [deg] 109.500 
+        K          [rad^2kjmol] 0.000
+        KIND   G87
+      &END BEND
+      &BOND
+        ATOMS OW HW
+        K      [nm^-2kjmol] 502080.0 
+        !K      [nm^-2kjmol] 0.0 
+        R0     [nm] 0.09572
+        KIND   G87
+      &END BOND
+      &BOND
+        ATOMS OW MW
+        !K      [nm^-2kjmol]  753120.0 
+        K      [nm^-2kjmol]  00.0 
+        R0     [nm]  0.01750 
+        KIND   G87
+      &END BOND
+      &BOND
+        ATOMS HW HW
+        K      [nm^-2kjmol]  000000.0 
+        R0     [nm]  0.01750 
+        KIND   G87
+      &END BOND
+      &BOND
+        ATOMS HW MW
+        K      [nm^-2kjmol]  000000.0 
+        R0     [nm]  0.01750 
+        KIND   G87
+      &END BOND
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS      OW OW
+          EPSILON    [kjmol] 6.36386E-01
+          SIGMA      [nm] 3.15061E-01
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS      OW MW
+          EPSILON    0.0
+          SIGMA      0.1
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS      OW HW
+          EPSILON    0.0
+          SIGMA      0.1
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS      HW HW
+          EPSILON    0.0  
+          SIGMA      0.1
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS      HW MW
+          EPSILON    0.0  
+          SIGMA      0.1
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS      MW MW
+          EPSILON    0.0  
+          SIGMA      0.1
+        &END LENNARD-JONES
+      &END NONBONDED
+      &CHARGE
+        ATOM OW 
+       ! CHARGE -1.04
+        CHARGE 0.000000
+      &END CHARGE
+      &CHARGE
+        ATOM HW 
+        CHARGE 0.52
+        !CHARGE 0.00
+      &END CHARGE
+      &CHARGE
+        ATOM MW 
+        CHARGE -1.04
+       ! CHARGE 0.00
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        !EWALD_TYPE spme
+        EWALD_TYPE NONE
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 40.000 40.000 40.000
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/water_tip4p.pdb
+      COORDINATE pdb
+      CONN_FILE_NAME ../sample_psf/water_tip4p.psf
+      CONN_FILE_FORMAT PSF
+    &END TOPOLOGY
+    &KIND OW
+      ELEMENT O
+      MASS    15.99940
+    &END KIND
+    &KIND HW
+      ELEMENT H
+      MASS    1.00800 
+    &END KIND
+    &KIND MW
+      ELEMENT H
+      MASS    0.00000
+    &END KIND
+    &PRINT
+      &ATOMIC_COORDINATES SILENT
+      &END ATOMIC_COORDINATES
+      &MOLECULES ON
+      &END MOLECULES
+    &END PRINT
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT tip4p
+  RUN_TYPE MD 
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 200 
+    TIMESTEP 1.0
+    TEMPERATURE 100 
+  &END MD
+  &CONSTRAINT
+    &G3X3
+      INTERMOLECULAR FALSE
+      DISTANCES 1.89035 1.89035 3.0869
+      ATOMS 1 2 3
+      MOLECULE 1
+    &END G3X3
+    &VIRTUAL_SITE
+      INTERMOLECULAR FALSE
+      ATOMS 4 2 1 3
+      PARAMETERS 0.128012065 0.128012065 
+      MOLECULE 1
+    &END VIRTUAL_SITE
+  &END CONSTRAINT
+  &PRINT
+    &FORCES ON
+      &EACH
+        MD 2
+      &END EACH
+      FORMAT XYZ
+    &END FORCES
+    &VELOCITIES ON
+      &EACH
+        MD 2
+      &END EACH
+      FORMAT XYZ
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+

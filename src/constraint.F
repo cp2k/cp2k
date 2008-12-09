@@ -37,6 +37,8 @@ MODULE constraint
                                              get_roll_matrix,&
                                              restore_temporary_set,&
                                              update_temporary_set
+  USE constraint_vsite,                ONLY: shake_vsite_ext,&
+                                             shake_vsite_int
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
@@ -100,7 +102,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ikind, imol, ishake_ext, ishake_int, k, n3x3con, &
-      n4x6con, nconstraint, nkind, nmol_per_kind
+      n4x6con, nconstraint, nkind, nmol_per_kind, nvsitecon
     LOGICAL                                  :: do_ext_constraint
     REAL(KIND=dp)                            :: int_max_sigma, mass, max_sigma
     REAL(KIND=dp), DIMENSION(SIZE(pos, 2))   :: imass
@@ -114,7 +116,7 @@ CONTAINS
     DO k = 1, SIZE(pos,2)
        atomic_kind=>particle_set (k) % atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-       imass(k) = 1.0_dp/mass
+       imass(k) = 1.0_dp/MAX(mass,EPSILON(0.0_dp))
     END DO
     do_ext_constraint = (gci%ntot/=0)
     ishake_ext = 0
@@ -131,7 +133,7 @@ CONTAINS
              molecule_kind => molecule % molecule_kind
              CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
                                       ng3x3 = n3x3con, ng4x6=n4x6con,&
-                                      nconstraint=nconstraint )
+                                      nconstraint=nconstraint,nvsite=nvsitecon)
              IF (nconstraint==0) CYCLE
              ishake_int = 0
              int_max_sigma  = -1.0E+10_dp
@@ -153,6 +155,10 @@ CONTAINS
              END DO Shake_Intra_Loop
              max_sigma = MAX(max_sigma, int_max_sigma)
              CALL shake_int_info(log_unit,i,ishake_int,max_sigma,error)
+             ! Virtual Site 
+             IF ( nvsitecon /= 0 ) &
+                CALL shake_vsite_int( molecule, particle_set, pos, vel, dt, ishake_int,&
+                int_max_sigma, error)
           END DO
        END DO MOL
        ! Intermolecular constraints
@@ -170,12 +176,17 @@ CONTAINS
           IF ( gci%ncolv%ntot /= 0 ) &
                CALL shake_colv_ext(gci, particle_set, pos, vel, dt, ishake_ext,&
                cell, imass, max_sigma, error)
+          ! Virtual Site 
+          IF ( gci%nvsite /= 0 ) &
+               CALL shake_vsite_ext( gci, particle_set, pos, vel, dt, ishake_ext,&
+               max_sigma, error)
           CALL restore_temporary_set( particle_set, local_particles, pos=pos, vel=vel )
        END IF
        CALL shake_ext_info(log_unit,ishake_ext,max_sigma,error)
     END DO Shake_Inter_Loop
     CALL dump_lagrange_mult(dump_lm, lagrange_mult,local_molecules,molecule_set,gci,&
          molecule_kind_set,group,"S",error)
+  
     CALL timestop(handle)
   END SUBROUTINE shake_control
 
@@ -219,7 +230,7 @@ CONTAINS
     DO k = 1, SIZE(vel,2)
        atomic_kind=>particle_set (k) % atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-       imass(k) = 1.0_dp/mass
+       imass(k) = 1.0_dp/MAX(mass,EPSILON(0.0_dp))
     END DO
     do_ext_constraint = (gci%ntot/=0)
     irattle_ext = 0
@@ -311,7 +322,7 @@ CONTAINS
 
     INTEGER :: handle, i, ikind, imol, ishake_ext, ishake_int, k, &
       lagrange_mult, log_unit, n3x3con, n4x6con, nconstraint, nkind, &
-      nmol_per_kind
+      nmol_per_kind, nvsitecon
     LOGICAL                                  :: do_ext_constraint, dump_lm
     REAL(KIND=dp)                            :: int_max_sigma, mass, &
                                                 max_sigma, shake_tol
@@ -337,7 +348,7 @@ CONTAINS
     DO k = 1, SIZE(pos,2)
        atomic_kind=>particle_set (k) % atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-       imass(k) = 1.0_dp/mass
+       imass(k) = 1.0_dp/MAX(mass,EPSILON(0.0_dp))
     END DO
     do_ext_constraint = (gci%ntot/=0)
     ishake_ext = 0
@@ -354,7 +365,7 @@ CONTAINS
              molecule_kind => molecule % molecule_kind
              CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
                                       ng3x3 = n3x3con, ng4x6=n4x6con,&
-                                      nconstraint=nconstraint )
+                                      nconstraint=nconstraint,nvsite=nvsitecon)
              IF (nconstraint==0) CYCLE
              ishake_int = 0
              int_max_sigma = -1.0E+10_dp
@@ -376,6 +387,12 @@ CONTAINS
              END DO Shake_Roll_Intra_Loop
              max_sigma = MAX(max_sigma, int_max_sigma)
              CALL shake_int_info(log_unit,i,ishake_int,max_sigma,error)
+             ! Virtual Site
+             IF ( nvsitecon /= 0 ) THEN
+                CALL cp_unimplemented_error(fromWhere=routineP, &
+                     message="Virtual Site Constraint/Restraint not implemented for SHAKE_ROLL!", &
+                     error=error, error_level=cp_failure_level)
+             END IF
           END DO
        END DO MOL
        ! Intermolecular constraints
@@ -393,6 +410,11 @@ CONTAINS
           IF ( gci%ncolv%ntot /= 0 ) &
                CALL shake_roll_colv_ext( gci, particle_set, pos, vel, r_shake,&
                v_shake, dt, ishake_ext, cell, imass, max_sigma, error )
+          ! Virtual Site 
+          IF ( gci%nvsite /= 0 ) &
+               CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Virtual Site Constraint/Restraint not implemented for SHAKE_ROLL!", &
+               error=error, error_level=cp_failure_level)
           CALL restore_temporary_set ( particle_set, local_particles, pos = pos, vel = vel )
        END IF
        CALL shake_ext_info(log_unit,ishake_ext,max_sigma,error)
@@ -410,7 +432,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE rattle_roll_control( gci, local_molecules, molecule_set, &
        molecule_kind_set, particle_set, vel, dt, simpar, virial, vector,&
-       veps, mass, roll_tol, iroll, para_env, u, cell, local_particles, error )
+       veps, roll_tol, iroll, para_env, u, cell, local_particles, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(distribution_1d_type), POINTER      :: local_molecules
@@ -424,8 +446,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vector
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: veps
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: mass
     REAL(KIND=dp), INTENT(OUT)               :: roll_tol
     INTEGER, INTENT(INOUT)                   :: iroll
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
@@ -442,7 +462,7 @@ CONTAINS
       lagrange_mult, log_unit, n3x3con, n4x6con, nconstraint, nkind, &
       nmol_per_kind
     LOGICAL                                  :: do_ext_constraint, dump_lm
-    REAL(KIND=dp)                            :: amass, int_max_sigma, &
+    REAL(KIND=dp)                            :: int_max_sigma, mass, &
                                                 max_sigma, rattle_tol
     REAL(KIND=dp), DIMENSION(3, 3)           :: r_rattle
     REAL(KIND=dp), DIMENSION(SIZE(vel, 2))   :: imass
@@ -466,8 +486,8 @@ CONTAINS
     END IF
     DO k = 1, SIZE(vel,2)
        atomic_kind=>particle_set (k) % atomic_kind
-       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=amass)
-       imass(k) = 1.0_dp/amass
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass(k) = 1.0_dp/MAX(mass,EPSILON(0.0_dp))
     END DO
     do_ext_constraint = (gci%ntot/=0)
     irattle_ext = 0

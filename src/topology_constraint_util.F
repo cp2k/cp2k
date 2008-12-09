@@ -35,7 +35,8 @@ MODULE topology_constraint_util
   USE molecule_kind_types,             ONLY: &
        atom_type, bond_type, colvar_constraint_type, fixd_constraint_type, &
        g3x3_constraint_type, g4x6_constraint_type, get_molecule_kind, &
-       molecule_kind_type, set_molecule_kind, setup_colvar_counters
+       molecule_kind_type, set_molecule_kind, setup_colvar_counters, &
+       vsite_constraint_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              global_constraint_type,&
                                              local_colvar_constraint_type,&
@@ -97,7 +98,7 @@ CONTAINS
       k1loc, k2loc, kk, last, last_atom, m, n_start_colv, natom, nbond, &
       ncolv_glob, ncolv_mol, nfixd_list_gci, nfixd_restart, nfixd_restraint, &
       nfixed_atoms, ng3x3, ng3x3_restraint, ng4x6, ng4x6_restraint, nhdist, &
-      nmolecule, nrep, offset, output_unit, stat
+      nmolecule, nrep, nvsite, nvsite_restraint, offset, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: constr_x_glob, inds, &
                                                 molecule_list
     LOGICAL :: exclude_mm, exclude_qm, failure, fix_atom_mm, &
@@ -134,6 +135,8 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(section_vals_type), POINTER         :: colvar_rest, fixd_restr_rest, &
                                                 hbonds_section
+    TYPE(vsite_constraint_type), &
+      DIMENSION(:), POINTER                  :: vsite_list
 
     failure = .FALSE.
     NULLIFY(logger, constr_x_mol, constr_x_glob)
@@ -179,15 +182,19 @@ CONTAINS
             gci%fixd_list,&
             gci%colv_list,&
             gci%g3x3_list,&
-            gci%g4x6_list)
+            gci%g4x6_list,&
+            gci%vsite_list)
     gci%ntot   = 0
     gci%ng3x3  = 0
     gci%ng4x6  = 0
+    gci%nvsite = 0
     gci%ng3x3_restraint  = 0
     gci%ng4x6_restraint  = 0
+    gci%nvsite_restraint  = 0
     CALL setup_colvar_counters(gci%colv_list,gci%ncolv,error)
     gci%nrestraint = gci%ng3x3_restraint +&
                      gci%ng4x6_restraint +&
+                     gci%nvsite_restraint +&
                      gci%ncolv%nrestraint
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -574,7 +581,54 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 6. Set the group fixed_atom constraint fixd_list
+    ! 6. Set the group vsite constraint vsite_list
+    !-----------------------------------------------------------------------------
+    IF(topology%const_vsite) THEN
+       CALL give_constraint_array(cons_info%const_vsite_mol,&
+                                  cons_info%const_vsite_molname,&
+                                  cons_info%vsite_intermolecular,&
+                                  constr_x_mol,&
+                                  constr_x_glob,&
+                                  molecule_kind_set,&
+                                  cons_info%vsite_exclude_qm,&
+                                  cons_info%vsite_exclude_mm,&
+                                  error)
+       ! Intramolecular constraints
+       DO ii = 1, SIZE(molecule_kind_set)
+          molecule_kind => molecule_kind_set(ii)
+          CALL get_molecule_kind(molecule_kind=molecule_kind,&
+               nmolecule=nmolecule,molecule_list=molecule_list)
+          nvsite = SIZE(constr_x_mol(ii)%constr)
+          ALLOCATE(vsite_list(nvsite),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL setup_vsite_list(vsite_list, constr_x_mol(ii)%constr, cons_info, nvsite_restraint, error)
+          CALL set_molecule_kind(molecule_kind,nvsite=nvsite,nvsite_restraint=nvsite_restraint,&
+               vsite_list=vsite_list)
+       END DO
+       DO j = 1, SIZE(constr_x_mol)
+          DEALLOCATE(constr_x_mol(j)%constr,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END DO
+       DEALLOCATE(constr_x_mol,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Intermolecular constraints
+       IF (ASSOCIATED(constr_x_glob)) THEN
+          nvsite =  SIZE(constr_x_glob)
+          ALLOCATE(vsite_list(nvsite),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL setup_vsite_list(vsite_list, constr_x_glob, cons_info, nvsite_restraint, error)
+          gci%vsite_list => vsite_list
+          gci%nvsite     = nvsite
+          gci%nvsite_restraint     = nvsite_restraint
+          ! Total number of Intermolecular constraints
+          gci%ntot = gci%nvsite + gci%ntot
+          DEALLOCATE(constr_x_glob,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)         
+       END IF
+    END IF
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 7. Set the group fixed_atom constraint fixd_list
     !-----------------------------------------------------------------------------
     IF(topology%const_atom) THEN
        ALLOCATE(fixd_list_gci(SIZE(particle_set)),stat=stat)
@@ -846,6 +900,7 @@ CONTAINS
     ! Final setup of the number of possible restraints
     gci%nrestraint = gci%ng3x3_restraint +&
                      gci%ng4x6_restraint +&
+                     gci%nvsite_restraint +&
                      gci%ncolv%nrestraint
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
@@ -1012,6 +1067,43 @@ CONTAINS
 
   END SUBROUTINE setup_g4x6_list
 
+! *****************************************************************************
+!> \brief Setup the vsite_list for the packing of constraints
+!> \par History
+!> \author Marcel Baer [2008]
+! *****************************************************************************
+  SUBROUTINE setup_vsite_list(vsite_list, ilist, cons_info, nvsite_restraint, error)
+    TYPE(vsite_constraint_type), &
+      DIMENSION(:), POINTER                  :: vsite_list
+    INTEGER, DIMENSION(:), POINTER           :: ilist
+    TYPE(constraint_info_type), POINTER      :: cons_info
+    INTEGER, INTENT(OUT)                     :: nvsite_restraint
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_vsite_list', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: j, nvsite
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    nvsite = 0
+    nvsite_restraint = 0
+    DO nvsite = 1, SIZE(ilist)
+       j = ilist(nvsite)
+       vsite_list(nvsite)%a   = cons_info%const_vsite_a(j)
+       vsite_list(nvsite)%b   = cons_info%const_vsite_b(j)
+       vsite_list(nvsite)%c   = cons_info%const_vsite_c(j)
+       vsite_list(nvsite)%d   = cons_info%const_vsite_d(j)
+       vsite_list(nvsite)%wbc = cons_info%const_vsite_wbc(j)
+       vsite_list(nvsite)%wdc = cons_info%const_vsite_wdc(j)
+       ! Restraint
+       vsite_list(nvsite)%restraint%active = cons_info%vsite_restraint(j)
+       vsite_list(nvsite)%restraint%k0     = cons_info%vsite_k0(j)
+       IF (vsite_list(nvsite)%restraint%active) nvsite_restraint = nvsite_restraint+ 1
+    END DO
+
+  END SUBROUTINE setup_vsite_list
 ! *****************************************************************************
 !> \brief Setup the lcolv for the packing of constraints
 !> \par History

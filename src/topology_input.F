@@ -126,10 +126,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rlist
     TYPE(constraint_info_type), POINTER      :: cons_info
-    TYPE(section_vals_type), POINTER         :: collective_section, &
-                                                fix_atom_section, &
-                                                g3x3_section, g4x6_section, &
-                                                hbonds_section
+    TYPE(section_vals_type), POINTER :: collective_section, fix_atom_section, &
+      g3x3_section, g4x6_section, hbonds_section, vsite_section
 
   cons_info => topology%cons_info
   failure   = .FALSE.
@@ -137,6 +135,7 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
      hbonds_section     => section_vals_get_subs_vals(constraint_section,"HBONDS",error=error)
      g3x3_section       => section_vals_get_subs_vals(constraint_section,"G3X3",error=error)
      g4x6_section       => section_vals_get_subs_vals(constraint_section,"G4X6",error=error)
+     vsite_section      => section_vals_get_subs_vals(constraint_section,"VIRTUAL_SITE",error=error)
      fix_atom_section   => section_vals_get_subs_vals(constraint_section,"FIXED_ATOMS",error=error)
      collective_section => section_vals_get_subs_vals(constraint_section,"COLLECTIVE",error=error)
      ! HBONDS
@@ -331,6 +330,93 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
            cons_info%const_g46_dbc(ig) = rlist(4)
            cons_info%const_g46_dbd(ig) = rlist(5)
            cons_info%const_g46_dcd(ig) = rlist(6)
+        END DO
+     END IF
+     ! virtual
+     CALL section_vals_get(vsite_section,explicit=explicit, n_repetition=ncons, error=error)
+     IF (explicit) THEN
+        topology%const_vsite   =.TRUE.
+        cons_info%nconst_vsite = ncons
+        !
+        ALLOCATE(cons_info%const_vsite_mol(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_vsite_molname(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_vsite_a(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_vsite_b(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_vsite_c(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_vsite_d(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_vsite_wbc(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_vsite_wdc(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%vsite_intermolecular(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%vsite_restraint(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%vsite_k0(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%vsite_exclude_qm(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%vsite_exclude_mm(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DO ig = 1, ncons
+           CALL check_restraint(vsite_section,&
+                                is_restraint=cons_info%vsite_restraint(ig), &
+                                k0=cons_info%vsite_k0(ig),&
+                                i_rep_section=ig,&
+                                label="Virtual_SITE",&
+                                error=error)
+           cons_info%const_vsite_mol(ig)     = 0
+           cons_info%const_vsite_molname(ig) = "UNDEF"
+           ! Exclude QM or MM
+           CALL section_vals_val_get(vsite_section,"EXCLUDE_QM",i_rep_section=ig,&
+                l_val=cons_info%vsite_exclude_qm(ig),error=error)
+           CALL section_vals_val_get(vsite_section,"EXCLUDE_MM",i_rep_section=ig,&
+                l_val=cons_info%vsite_exclude_mm(ig),error=error)
+           ! Intramolecular restraint 
+           CALL section_vals_val_get(vsite_section,"INTERMOLECULAR",i_rep_section=ig,&
+                l_val=cons_info%vsite_intermolecular(ig),error=error)
+           ! If it is intramolecular let's unset (in case user did it) 
+           ! the molecule and molname field
+           IF (cons_info%vsite_intermolecular(ig)) THEN
+              CALL section_vals_val_unset(vsite_section,"MOLECULE",i_rep_section=ig,error=error)
+              CALL section_vals_val_unset(vsite_section,"MOLNAME",i_rep_section=ig,error=error)
+           END IF
+           ! Let's tag to which molecule we want to apply constraints
+           CALL section_vals_val_get(vsite_section,"MOLECULE",i_rep_section=ig,&
+                n_rep_val=nrep,error=error)
+           IF (nrep/=0) THEN
+              CALL section_vals_val_get(vsite_section,"MOLECULE",i_rep_section=ig,&
+                   i_val=cons_info%const_vsite_mol(ig),error=error)
+           END IF
+           CALL section_vals_val_get(vsite_section,"MOLNAME",i_rep_section=ig,&
+                n_rep_val=nrep,error=error)
+           IF (nrep/=0) THEN
+              CALL section_vals_val_get(vsite_section,"MOLNAME",i_rep_section=ig,&
+                   c_val=cons_info%const_vsite_molname(ig),error=error)
+           END IF
+           IF  ((cons_info%const_vsite_mol(ig)/=0).AND.(cons_info%const_vsite_molname(ig)/="UNDEF")) THEN
+              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           END IF
+           IF  ((cons_info%const_vsite_mol(ig)==0).AND.(cons_info%const_vsite_molname(ig)=="UNDEF").AND.&
+                (.NOT.cons_info%vsite_intermolecular(ig))) THEN
+              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           END IF
+           CALL section_vals_val_get(vsite_section,"ATOMS",i_rep_section=ig,&
+                i_vals=ilist,error=error)
+           CALL section_vals_val_get(vsite_section,"PARAMETERS",i_rep_section=ig,&
+                r_vals=rlist,error=error)
+           cons_info%const_vsite_a(ig)   = ilist(1)
+           cons_info%const_vsite_b(ig)   = ilist(2)
+           cons_info%const_vsite_c(ig)   = ilist(3)
+           cons_info%const_vsite_d(ig)   = ilist(4)
+           cons_info%const_vsite_wbc(ig) = rlist(1)
+           cons_info%const_vsite_wdc(ig) = rlist(2)
         END DO
      END IF
      ! FIXED ATOMS

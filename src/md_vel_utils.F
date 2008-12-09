@@ -9,6 +9,8 @@
 !> \author CJM
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2008
 !>         reorganization of the original routines/modules
+!>      Teodoro Laino [tlaino] 12.2008 - Preparing for VIRTUAL SITE constraints
+!>                                       (patch by Marcel Baer)
 ! *****************************************************************************
 MODULE md_vel_utils
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
@@ -142,13 +144,15 @@ CONTAINS
     DO i = 1, SIZE(part)
        atomic_kind => part(i)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
-       SELECT CASE(is_fixed(i))
-       CASE(use_perd_x,use_perd_y,use_perd_z,use_perd_xy,use_perd_xz,use_perd_yz,use_perd_none)
-          vcom(1) = vcom(1) + part(i)%v(1) * mass
-          vcom(2) = vcom(2) + part(i)%v(2) * mass
-          vcom(3) = vcom(3) + part(i)%v(3) * mass
-          denom = denom + mass
-       END SELECT
+       IF (mass.NE.0.0) THEN
+          SELECT CASE(is_fixed(i))
+          CASE(use_perd_x,use_perd_y,use_perd_z,use_perd_xy,use_perd_xz,use_perd_yz,use_perd_none)
+             vcom(1) = vcom(1) + part(i)%v(1) * mass
+             vcom(2) = vcom(2) + part(i)%v(2) * mass
+             vcom(3) = vcom(3) + part(i)%v(3) * mass
+             denom = denom + mass
+          END SELECT
+       END IF
     END DO
     vcom = vcom/denom
     IF (PRESENT(ecom)) THEN
@@ -707,27 +711,29 @@ CONTAINS
           part(i)%v(1) = 0.0_dp
           part(i)%v(2) = 0.0_dp
           part(i)%v(3) = 0.0_dp
-          SELECT CASE(is_fixed(i))
-          CASE (use_perd_x)
-             part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-             part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-          CASE (use_perd_y)
-             part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-             part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-          CASE (use_perd_z)
-             part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-             part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-          CASE (use_perd_xy)
-             part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-          CASE (use_perd_xz)
-             part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-          CASE (use_perd_yz)
-             part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-          CASE (use_perd_none)
-             part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-             part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-             part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
-          END SELECT
+          IF (mass.NE.0.0) THEN
+             SELECT CASE(is_fixed(i))
+             CASE (use_perd_x)
+                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+             CASE (use_perd_y)
+                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+             CASE (use_perd_z)
+                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+             CASE (use_perd_xy)
+                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+             CASE (use_perd_xz)
+                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+             CASE (use_perd_yz)
+                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+             CASE (use_perd_none)
+                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error) / SQRT(mass)
+             END SELECT
+          END IF
        END DO
        
        ! Subtract the vcom

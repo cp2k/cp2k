@@ -7,6 +7,8 @@
 !> \brief Define the data structure for the molecule information.
 !> \par History
 !>      JGH (22.05.2004) add last_atom information
+!>      Teodoro Laino [tlaino] 12.2008 - Preparing for VIRTUAL SITE constraints
+!>                                       (patch by Marcel Baer)
 !> \author MK (29.08.2003)
 ! *****************************************************************************
 MODULE molecule_types_new
@@ -21,7 +23,8 @@ MODULE molecule_types_new
                                              fixd_constraint_type,&
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
-                                             molecule_kind_type
+                                             molecule_kind_type,&
+                                             vsite_constraint_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 #include "cp_common_uses.h"
@@ -86,10 +89,12 @@ MODULE molecule_types_new
      INTEGER                                  :: ntot,  nrestraint
      INTEGER                                  :: ng3x3, ng3x3_restraint
      INTEGER                                  :: ng4x6, ng4x6_restraint
+     INTEGER                                  :: nvsite, nvsite_restraint
      TYPE(fixd_constraint_type), DIMENSION(:), POINTER   :: fixd_list
      TYPE(colvar_constraint_type), DIMENSION(:), POINTER :: colv_list
      TYPE(g3x3_constraint_type), DIMENSION(:), POINTER   :: g3x3_list
      TYPE(g4x6_constraint_type), DIMENSION(:), POINTER   :: g4x6_list     
+     TYPE(vsite_constraint_type), DIMENSION(:), POINTER  :: vsite_list     
      TYPE(local_colvar_constraint_type), DIMENSION ( : ) , POINTER :: lcolv
      TYPE(local_g3x3_constraint_type),   DIMENSION ( : ) , POINTER :: lg3x3
      TYPE(local_g4x6_constraint_type),   DIMENSION ( : ) , POINTER :: lg4x6

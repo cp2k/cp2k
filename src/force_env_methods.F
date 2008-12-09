@@ -20,6 +20,7 @@ MODULE force_env_methods
                                              shake_control
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE constraint_util,                 ONLY: getold
+  USE constraint_vsite,                ONLY: vsite_force_control
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -299,6 +300,8 @@ CONTAINS
           CALL fix_atom_control(force_env, error=error)
           ! All Restraints
           CALL restraint_control(force_env, error=error)
+          ! Virtual Sites
+          CALL vsite_force_control(force_env,error)
           ! External Potential
           CALL add_external_potential(force_env, error=error)
           ! Rescale forces if requested
@@ -1488,7 +1491,6 @@ CPSourceFileRef,&
     TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
-
     CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)

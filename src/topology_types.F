@@ -9,6 +9,8 @@
 !>                         change name from input_file_name to coord_...
 !>                         added topology file
 !>                         added atom_names
+!>      Teodoro Laino [tlaino] 12.2008 - Preparing for VIRTUAL SITE constraints
+!>                                       (patch by Marcel Baer)
 !> \author CJM & JGH
 ! *****************************************************************************
 MODULE topology_types
@@ -119,6 +121,20 @@ MODULE topology_types
      LOGICAL, POINTER                              :: g46_restraint(:)                        ! Restraints control
      REAL(KIND=dp), POINTER                        :: g46_k0(:)                               ! Restraints control
      LOGICAL, POINTER, DIMENSION(:)                :: g46_exclude_qm, g46_exclude_mm
+     ! virtual_site
+     INTEGER                                       :: nconst_vsite
+     INTEGER, POINTER                              :: const_vsite_mol(:)
+     CHARACTER(LEN=default_string_length), POINTER :: const_vsite_molname(:)
+     INTEGER, POINTER                              :: const_vsite_a(:)
+     INTEGER, POINTER                              :: const_vsite_b(:)
+     INTEGER, POINTER                              :: const_vsite_c(:)
+     INTEGER, POINTER                              :: const_vsite_d(:)
+     REAL(KIND=dp), POINTER                        :: const_vsite_wbc(:)
+     REAL(KIND=dp), POINTER                        :: const_vsite_wdc(:)
+     LOGICAL, POINTER                              :: vsite_intermolecular(:)
+     LOGICAL, POINTER                              :: vsite_restraint(:)                      ! Restraints control
+     REAL(KIND=dp), POINTER                        :: vsite_k0(:)                             ! Restraints control
+     LOGICAL, POINTER, DIMENSION(:)                :: vsite_exclude_qm, vsite_exclude_mm
   END TYPE constraint_info_type
 
 ! *****************************************************************************
@@ -151,6 +167,7 @@ MODULE topology_types
      LOGICAL                                   :: const_colv
      LOGICAL                                   :: const_33
      LOGICAL                                   :: const_46
+     LOGICAL                                   :: const_vsite
      LOGICAL                                   :: charge_occup
      LOGICAL                                   :: charge_beta
      LOGICAL                                   :: charge_extended
@@ -226,6 +243,7 @@ CONTAINS
     topology%const_colv=.FALSE.
     topology%const_33=.FALSE.
     topology%const_46=.FALSE.
+    topology%const_vsite=.FALSE.
     topology%charge_occup=.FALSE.
     topology%charge_beta=.FALSE.
     topology%charge_extended=.FALSE.
@@ -360,6 +378,20 @@ CONTAINS
     NULLIFY(constraint_info%g46_restraint)
     NULLIFY(constraint_info%g46_k0)
     NULLIFY(constraint_info%g46_exclude_qm, constraint_info%g46_exclude_mm)
+    ! virtual_site
+    constraint_info%nconst_vsite = 0
+    NULLIFY(constraint_info%const_vsite_mol)
+    NULLIFY(constraint_info%const_vsite_molname)
+    NULLIFY(constraint_info%const_vsite_a)
+    NULLIFY(constraint_info%const_vsite_b)
+    NULLIFY(constraint_info%const_vsite_c)
+    NULLIFY(constraint_info%const_vsite_d)
+    NULLIFY(constraint_info%const_vsite_wbc)
+    NULLIFY(constraint_info%const_vsite_wdc)
+    NULLIFY(constraint_info%vsite_intermolecular)
+    NULLIFY(constraint_info%vsite_restraint)
+    NULLIFY(constraint_info%vsite_k0)
+    NULLIFY(constraint_info%vsite_exclude_qm, constraint_info%vsite_exclude_mm)
 
   END SUBROUTINE init_constraint
 
@@ -796,6 +828,59 @@ CONTAINS
        END IF
        IF(ASSOCIATED(constraint_info%g46_exclude_mm)) THEN
           DEALLOCATE(constraint_info%g46_exclude_mm, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       ! virtual_site
+       IF(ASSOCIATED(constraint_info%const_vsite_mol)) THEN
+          DEALLOCATE(constraint_info%const_vsite_mol,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%const_vsite_molname)) THEN
+          DEALLOCATE(constraint_info%const_vsite_molname,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%const_vsite_a)) THEN
+          DEALLOCATE(constraint_info%const_vsite_a,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%const_vsite_b)) THEN
+          DEALLOCATE(constraint_info%const_vsite_b,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%const_vsite_c)) THEN
+          DEALLOCATE(constraint_info%const_vsite_c,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%const_vsite_d)) THEN
+          DEALLOCATE(constraint_info%const_vsite_d,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%const_vsite_wbc)) THEN
+          DEALLOCATE(constraint_info%const_vsite_wbc,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%const_vsite_wdc)) THEN
+          DEALLOCATE(constraint_info%const_vsite_wdc,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%vsite_intermolecular)) THEN
+          DEALLOCATE(constraint_info%vsite_intermolecular,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%vsite_restraint)) THEN
+          DEALLOCATE(constraint_info%vsite_restraint,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%vsite_k0)) THEN
+          DEALLOCATE(constraint_info%vsite_k0,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%vsite_exclude_qm)) THEN
+          DEALLOCATE(constraint_info%vsite_exclude_qm, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%vsite_exclude_mm)) THEN
+          DEALLOCATE(constraint_info%vsite_exclude_mm, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF

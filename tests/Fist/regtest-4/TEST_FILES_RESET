@@ -177,3 +177,8 @@ nh3-meta-walks_2.inp
 nh3-meta-walks_1r.inp
 # unified cube_center 
 nh3-meta-walks_2r.inp
+# numerics
+nh3-meta-walks_1.inp
+nh3-meta-walks_1r.inp
+nh3-meta-walks_2.inp
+nh3-meta-walks_2r.inp

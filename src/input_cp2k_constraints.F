@@ -6,6 +6,8 @@
 ! *****************************************************************************
 !> \par History
 !>      10.2005 split input_cp2k into smaller modules [fawzi]
+!>      Teodoro Laino [tlaino] 12.2008 - Preparing for VIRTUAL SITE constraints
+!>                                       (patch by Marcel Baer)
 !> \author teo & fawzi
 ! *****************************************************************************
 MODULE input_cp2k_constraints
@@ -103,6 +105,11 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_g4x6_section(subsection, error=error)
+       CALL restraint_info_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+       
+       CALL create_vsite_section(subsection, error=error)
        CALL restraint_info_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -708,4 +715,88 @@ CONTAINS
 
   END SUBROUTINE create_g4x6_section
 
+! *****************************************************************************
+!> \brief Create the constraint section specialized on vsite constraints
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author marcel baer
+! *****************************************************************************
+  SUBROUTINE create_vsite_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_vsite_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="virtual_site",&
+            description="This section is used to set a virtual interaction-site constraint.",&
+            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       ! Integer
+       CALL keyword_create(keyword, name="MOLECULE",&
+            variants=(/"MOL"/),&
+            description="Specifies the molecule number on which constraint will be applied."//&
+            " MOLECULE and MOLNAME keyword exclude themself mutually.",&
+            usage="MOL {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MOLNAME",&
+            variants=(/"SEGNAME"/),&
+            description="Specifies the name of the molecule on which the constraint will be applied.",&
+            usage="MOLNAME {character}", required=.TRUE., n_var=1, type_of_var=char_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="INTERMOLECULAR",&
+            description="Specify if the constraint/restraint is intermolecular.",&
+            usage="INTERMOLECULAR <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Atoms' index on which apply the constraint (v i j k), first is virtual site",&
+            usage="ATOMS 1 2 3 4",&
+            n_var=4,type_of_var=integer_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! Real
+       CALL keyword_create(keyword, name="PARAMETERS",&
+            description="The constrained paramters' values to construct virtual site."//&
+            "r_v=a*r_ij+b*r_kj",&
+            usage="PARAMETERS {real} {real}",&
+            type_of_var=real_t, n_var=2,unit_str="internal_cp2k",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)              
+
+       ! Logical
+       CALL keyword_create(keyword, name="EXCLUDE_QM",&
+            description="Does not apply the constraint to the QM region within a QM/MM calculation",&
+            usage="EXCLUDE_QM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EXCLUDE_MM",&
+            description="Does not apply the constraint to the MM region within a QM/MM calculation",&
+            usage="EXCLUDE_MM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+
+  END SUBROUTINE create_vsite_section
 END MODULE input_cp2k_constraints
