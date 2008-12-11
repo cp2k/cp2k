@@ -10,10 +10,13 @@
 !> \author Manuel Guidon 
 ! *****************************************************************************
 MODULE hfx_screening_methods 
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc,&
+                                             real_to_scaled,&
+                                             scaled_to_real
   USE erf_fn,                          ONLY: erfc
   USE f77_blas
-  USE hfx_libint_interface,            ONLY: evaluate_eri_screen,&
-                                             pbc
+  USE hfx_libint_interface,            ONLY: evaluate_eri_screen
   USE hfx_libint_wrapper,              ONLY: lib_int
   USE hfx_types,                       ONLY: hfx_basis_type,&
                                              hfx_box_scheme,&
@@ -341,7 +344,7 @@ MODULE hfx_screening_methods
 !> \param screen_xxx screening matrices
 !> \param read_from_memory Flag to control reading (when true, data come from buffer)
 !> \param buffer stores the matrices
-!> \param neighbor_cells , box_size: contain information fort pbc
+!> \param neighbor_cells contain information for pbc
 !> \note
 !>      - already computes the square root
 !>      - also takes the primitive to sgf transformation into account
@@ -352,7 +355,7 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
   SUBROUTINE comp_screen_mat_per(lib, screen_set, screen_atom, screen_max,screen_periodic,particle_set,&
                                  max_set,potential_parameter, read_from_memory, kind_of, basis_parameter, buffer,&
-                                 neighbor_cells, box_size, box_size_inv, i_thread, error)
+                                 neighbor_cells, i_thread, cell, error)
     TYPE(lib_int)                            :: lib
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
     REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
@@ -371,8 +374,8 @@ MODULE hfx_screening_methods
       OPTIONAL, POINTER                      :: buffer
     TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
-    REAL(dp)                                 :: box_size(3), box_size_inv(3)
     INTEGER, INTENT(IN)                      :: i_thread
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'comp_screen_mat_per', &
@@ -455,7 +458,8 @@ MODULE hfx_screening_methods
                                zetb(:,jset), zetc(:,kset), &
                                lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
                                npgfb(jset), npgfc(kset), &
-                               max_val, potential_parameter, neighbor_cells, box_size, box_size_inv, i_thread)
+                               max_val, potential_parameter, neighbor_cells, &
+                               i_thread, cell)
                 screen_periodic(:,jset,kset,jatom,katom) = SQRT(max_val)*p2s_b*p2s_c
                 IF( PRESENT(buffer) ) buffer(:,jset,kset,jatom,katom) = screen_periodic(:,jset,kset,jatom,katom)
               END IF
@@ -503,7 +507,7 @@ MODULE hfx_screening_methods
                          la_min, la_max, lb_min, lb_max,&
                          npgfa, npgfb, &
                          max_val, potential_parameter, neighbor_cells, &
-                         box_size, box_size_inv, i_thread)
+                         i_thread, cell)
 
     TYPE(lib_int)                            :: lib
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3)
@@ -514,24 +518,24 @@ MODULE hfx_screening_methods
     TYPE(hfx_potential_type)                 :: potential_parameter
     TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
-    REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
     INTEGER, INTENT(IN)                      :: i_thread
+    TYPE(cell_type), POINTER                 :: cell
 
     CHARACTER(len=*), PARAMETER :: routineN = 'screen4_per', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ipgf, jpgf, la, lb
     REAL(dp)                                 :: B11(3), im_B(3), &
-                                                max_val_temp, pbc_B(3), &
+                                                max_val_temp, pbc_B(3), s(3), &
                                                 temp(3)
 
     temp = rb -ra
-    CALL pbc(temp, box_size, box_size_inv, pbc_B)
+    pbc_B = pbc(temp,cell)
     B11 = ra + pbc_B
     DO i = 1,SIZE(neighbor_cells)
-      im_B(1) = B11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-      im_B(2) = B11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-      im_B(3) = B11(3) + neighbor_cells(i)%cell(3) * box_size(3)
+      CALL real_to_scaled(s,B11,cell)
+      s = s + neighbor_cells(i)%cell
+      CALL scaled_to_real(im_B,s,cell)
       DO ipgf = 1,npgfa
         DO jpgf = 1,npgfb
           DO la = la_min,la_max
@@ -735,7 +739,8 @@ MODULE hfx_screening_methods
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE screen_farfield_per(boxes, particle_set, max_set, &
-                                 neighbor_cells, box_size, box_size_inv, kind_of, basis_parameter, error)
+                                 neighbor_cells, kind_of, &
+                                 basis_parameter, cell, error)
     TYPE(hfx_box_scheme), DIMENSION(:, :), &
       POINTER                                :: boxes
     TYPE(particle_type), DIMENSION(:), &
@@ -743,10 +748,10 @@ MODULE hfx_screening_methods
     INTEGER, INTENT(IN)                      :: max_set
     TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
-    REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'screen_farfield_per', &
@@ -763,7 +768,7 @@ MODULE hfx_screening_methods
     LOGICAL                                  :: failure
     REAL(dp) :: alpha, C11(3), im_C(3), K_max, Kbc, p2s_b, p2s_c, pbc_C(3), &
       px_max, px_min, py_max, py_min, pz_max, pz_min, R_max, rb(3), Rbc, &
-      rbc2, rc(3), rp(3), temp(3), zet1, zet2
+      rbc2, rc(3), rp(3), s(3), temp(3), zet1, zet2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: contraction_max
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_b, zetb, zetc
 
@@ -822,7 +827,7 @@ MODULE hfx_screening_methods
         rc=particle_set(katom)%r(:)
         box_idx1 = (jatom-1)*natom + katom 
         temp = rc-rb
-        CALL pbc(temp, box_size, box_size_inv, pbc_C)
+        pbc_C = pbc(temp,cell)
         C11 = rb + pbc_C
         DO jset = 1,nsetb
           p2s_b = contraction_max(jset,jatom)
@@ -838,9 +843,9 @@ MODULE hfx_screening_methods
             pz_max = -HUGE(pz_max)
             box_idx2 = (jset-1)* max_set + kset
             DO i = 1,SIZE(neighbor_cells)
-              im_C(1) = C11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-              im_C(2) = C11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-              im_C(3) = C11(3) + neighbor_cells(i)%cell(3) * box_size(3)
+              CALL real_to_scaled(s,C11,cell)
+              s = s + neighbor_cells(i)%cell
+              CALL scaled_to_real(im_C,s,cell)
               rbc2 = (rb(1)-im_C(1))**2+(rb(2)-im_C(2))**2+(rb(3)-im_C(3))**2
               DO jpgf = 1,npgfb(jset)
                 zet1 = zetb(jpgf,jset)
@@ -871,9 +876,10 @@ MODULE hfx_screening_methods
             boxes(box_idx2, box_idx1)%center(3) = (pz_max + pz_min) / 2.0_dp
             R_max = TINY(R_max)
             DO i = 1,SIZE(neighbor_cells)
-              im_C(1) = C11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-              im_C(2) = C11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-              im_C(3) = C11(3) + neighbor_cells(i)%cell(3) * box_size(3)
+              CALL real_to_scaled(s,C11,cell)
+              s = s + neighbor_cells(i)%cell
+              CALL scaled_to_real(im_C,s,cell)
+
               rbc2 = (rb(1)-im_C(1))**2+(rb(2)-im_C(2))**2+(rb(3)-im_C(3))**2
               DO jpgf = 1,npgfb(jset)
                 zet1 = zetb(jpgf,jset)

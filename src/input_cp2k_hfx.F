@@ -22,6 +22,7 @@ MODULE input_cp2k_hfx
                                              section_create,&
                                              section_release,&
                                              section_type
+  USE input_val_types,                 ONLY: real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
 #include "cp_common_uses.h"
@@ -254,16 +255,18 @@ CONTAINS
             description="Which interaction potential should be used "//&
                          "(Coulomb, longrange or shortrange).",&
             usage="POTENTIAL_TYPE SHORTRANGE",&
-            enum_c_vals=s2a("COULOMB","SHORTRANGE","LONGRANGE","MIX_CL","GAUSSIAN","MIX_LG","ID"),&
+            enum_c_vals=s2a("COULOMB","SHORTRANGE","LONGRANGE","MIX_CL","GAUSSIAN","MIX_LG","IDENTITY","TRUNCATED"),&
             enum_i_vals=(/do_hfx_potential_coulomb, do_hfx_potential_short, do_hfx_potential_long, &
-                          do_hfx_potential_mix_cl, do_hfx_potential_gaussian, do_hfx_potential_mix_lg,do_hfx_potential_id/),&
+                          do_hfx_potential_mix_cl, do_hfx_potential_gaussian, do_hfx_potential_mix_lg,&
+                          do_hfx_potential_id, do_hfx_potential_truncated/),&
             enum_desc=s2a("Coulomb potential: 1/r", &
                           "Shortrange potential: erfc(omega*r)/r",&
                           "Longrange potential: erf(omega*r)/r",&
                           "Mix coulomb and longrange potential: 1/r + erf(omega*r)/r",&
                           "Damped Gaussian potential: exp(-omega^2*r^2)",&
                           "Mix Gaussian and longrange potential: erf(omega*r)/r + exp(-omega^2*r^2)",&
-                          "Overlap"),&
+                          "Overlap",&
+                          "Truncated coulomb potential: if(r<R_c) 1/r else 0"),&
             default_i_val=do_hfx_potential_coulomb, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -281,22 +284,41 @@ CONTAINS
 
        CALL keyword_create(keyword, name="SCALE_COULOMB",&
             description="Scales Hartree-Fock contribution arising from a coulomb potential. "//&
-                        "Only comes into play when doing a mixed potential calculation",&
+                        "Only valid when doing a mixed potential calculation",&
             usage="SCALE_COULOMB 1.0", default_r_val=1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SCALE_LONGRANGE",&
             description="Scales Hartree-Fock contribution arising from a longrange potential. "//&
-                        "Only comes into play when doing a mixed potential calculation",&
+                        "Only valid when doing a mixed potential calculation",&
             usage="SCALE_LONGRANGE 1.0", default_r_val=1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SCALE_GAUSSIAN",&
             description="Scales Hartree-Fock contribution arising from a gaussian potential. "//&
-                        "Only comes into play when doing a mixed potential calculation",&
-            usage="SCALE_GAUSSIAN", default_r_val=1.0_dp,error=error)
+                        "Only valid when doing a mixed potential calculation",&
+            usage="SCALE_GAUSSIAN 1.0", default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CUTOFF_RADIUS",&
+            description="Determines cutoff radius for the truncated 1/r potential. "//&
+                        "Only valid when doing truncated calculation",&
+            usage="CUTOFF_RADIUS 10.0",required=.TRUE.,type_of_var=real_t,&! default_r_val=10.0_dp,&
+            unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="T_C_G_DATA",&
+            description="Location of the file t_c_g.dat that contains the data for the "//&
+                        "evaluation of the truncated gamma function ",&
+            usage="T_C_G_DATA /data/t_c_g.dat",&
+            default_c_val="../../t_c_g.dat",&  ! this is tests/QS i.e. regtests are possible
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -451,21 +473,16 @@ CONTAINS
        CALL keyword_create(&
             keyword=keyword,&
             name="NUMBER_OF_SHELLS",&
-            description="Number of shells taken into account for periodicity",&
+            description="Number of shells taken into account for periodicity. "//&
+            "By default, cp2k tries to automatically evaluate this number. "//&
+            "This algorithm might be to conservative, resulting in some overhead. "//&
+            "You can try to adjust this number in order to make a calculation cheaper. ", &
             usage="NUMBER_OF_SHELLS 2",&
-            default_i_val=0,&
+            default_i_val=-1,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(&
-            keyword=keyword,&
-            name="NUMBER_OF_K_LOOPS",&
-            description="Number of iterations in the 3rd loop. Only for experimental purpose",&
-            usage="NUMBER_OF_K_LOOPS 2",&
-            default_i_val=1,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+
     END IF
  
   END SUBROUTINE create_hf_pbc_section

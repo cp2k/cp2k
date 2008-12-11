@@ -17,15 +17,23 @@ MODULE hfx_types
                                              gto_basis_set_type
   USE bibliography,                    ONLY: cite_reference,&
                                              guidon2008
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell,&
+                                             plane_distance,&
+                                             scaled_to_real
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE hfx_helpers,                     ONLY: count_cells,&
-                                             next_image_cell
+  USE hfx_helpers,                     ONLY: count_cells_perd,&
+                                             next_image_cell_perd
   USE hfx_libint_wrapper,              ONLY: lib_int
-  USE input_constants,                 ONLY: use_aux_fit_basis_set
+  USE input_constants,                 ONLY: do_hfx_auto_shells,&
+                                             do_hfx_potential_truncated,&
+                                             use_aux_fit_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -36,6 +44,7 @@ MODULE hfx_types
   USE machine,                         ONLY: m_chdir,&
                                              m_getcwd
   USE string_utilities,                ONLY: compress
+  USE t_c_g0,                          ONLY: free
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -55,7 +64,19 @@ MODULE hfx_types
 #define CACHE_SIZE 1024
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_types'
-  INTEGER(int_8), PARAMETER, PRIVATE :: one = 1_int_8
+  INTEGER(int_8), PARAMETER, PRIVATE         :: one = 1_int_8
+  REAL(KIND=dp), DIMENSION(0:10), &
+     PARAMETER, PUBLIC                       :: mul_fact = (/1.0_dp,&
+                                                             1.1781_dp,&
+                                                             1.3333_dp,&
+                                                             1.4726_dp,&
+                                                             1.6000_dp,&
+                                                             1.7181_dp,&
+                                                             1.8286_dp,&
+                                                             1.9328_dp,&
+                                                             2.0317_dp,&
+                                                             2.1261_dp,&
+                                                             2.2165_dp/)
 !***
 
 ! *****************************************************************************
@@ -65,6 +86,8 @@ MODULE hfx_types
     REAL(dp)                                 :: scale_coulomb      !! scaling factor for mixed potential
     REAL(dp)                                 :: scale_longrange    !! scaling factor for mixed potential
     REAL(dp)                                 :: scale_gaussian     !! scaling factor for mixed potential
+    REAL(dp)                                 :: cutoff_radius      !! cutoff radius if cutoff potential in use
+    CHARACTER(default_path_length)           :: filename
   END TYPE
 
 ! *****************************************************************************
@@ -98,6 +121,7 @@ MODULE hfx_types
   TYPE hfx_periodic_type
     INTEGER                                  :: number_of_shells        !! number of periodic image cells 
     LOGICAL                                  :: do_periodic             !! periodic ?
+    INTEGER                                  :: perd(3)                 !! x,xy,xyz,...
   END TYPE
 
 ! *****************************************************************************
@@ -282,7 +306,8 @@ MODULE hfx_types
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,max_set,atomic_kind_set, dft_control, error)
+  SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,max_set,atomic_kind_set, &
+                        dft_control, cell, error)
     TYPE(hfx_type), DIMENSION(:, :), POINTER :: x_data
     TYPE(cp_para_env_type)                   :: para_env
     TYPE(section_vals_type), POINTER         :: hfx_section
@@ -290,17 +315,19 @@ MODULE hfx_types
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=512)                       :: error_msg
+    CHARACTER(LEN=default_path_length)       :: char_val, filename
     INTEGER                                  :: i, i_thread, ikind, int_val, &
                                                 irep, n_rep_hf, n_threads, &
                                                 nkind, pbc_shells, stat, &
                                                 storage_id
-    LOGICAL                                  :: do_periodic, failure, &
+    LOGICAL                                  :: do_periodic, exist, failure, &
                                                 logic_val
     REAL(dp)                                 :: omega, real_val
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -314,7 +341,6 @@ MODULE hfx_types
     CALL cite_reference(Guidon2008)
     !! There might be 2 hf sections
     CALL section_vals_get(hfx_section,n_repetition=n_rep_hf,error=error)
-  
     n_threads = 1
 !$  n_threads = omp_get_max_threads() 
     ALLOCATE(x_data(n_rep_hf,n_threads),STAT=stat)
@@ -336,11 +362,15 @@ MODULE hfx_types
 
         !! PERIODIC section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"PERIODIC", i_rep_section=irep, error=error)
-        CALL section_vals_get(hf_sub_section, explicit=logic_val, error=error)
-        actual_x_data%periodic_parameter%do_periodic = logic_val
         CALL section_vals_val_get(hf_sub_section, "NUMBER_OF_SHELLS", i_val=int_val, error=error)
         actual_x_data%periodic_parameter%number_of_shells = int_val
-        
+        CALL get_cell(cell=cell,periodic=actual_x_data%periodic_parameter%perd)       
+        IF( SUM(actual_x_data%periodic_parameter%perd) == 0 ) THEN
+          actual_x_data%periodic_parameter%do_periodic = .FALSE.
+        ELSE
+          actual_x_data%periodic_parameter%do_periodic = .TRUE.
+        END IF
+ 
         !! SCREENING section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"SCREENING",i_rep_section=irep, error=error)
         CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ", r_val=real_val, error=error)
@@ -375,6 +405,25 @@ MODULE hfx_types
         actual_x_data%potential_parameter%scale_longrange = real_val
         CALL section_vals_val_get(hf_sub_section, "SCALE_GAUSSIAN", r_val=real_val, error=error)
         actual_x_data%potential_parameter%scale_gaussian = real_val
+        IF (actual_x_data%potential_parameter%potential_type == do_hfx_potential_truncated) THEN
+          CALL section_vals_val_get(hf_sub_section, "CUTOFF_RADIUS", r_val=real_val, error=error)
+          actual_x_data%potential_parameter%cutoff_radius = real_val
+          CALL section_vals_val_get(hf_sub_section, "T_C_G_DATA", c_val=char_val, error=error)
+          CALL compress(char_val,.TRUE.)
+          ! ** Check if file is there
+          INQUIRE(FILE=char_val,exist=exist) 
+          IF ( .NOT. exist ) THEN
+            WRITE(error_msg,'(A,A,A)') "Truncated hfx calculation requested. The file containing "//&
+                 "the data could not be found at ", TRIM(char_val), " Please check T_C_G_DATA "//&
+                 "in the INTERCATION_POTENTIAL section"
+            CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
+                 error_msg , &
+                 error,&
+                 only_ionode=.TRUE.)
+          ELSE
+            actual_x_data%potential_parameter%filename = char_val
+          END IF
+        END IF
     
         !! LOAD_BALANCE section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"LOAD_BALANCE",i_rep_section=irep, error=error)
@@ -436,7 +485,7 @@ MODULE hfx_types
           CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_SHELLS",i_val=pbc_shells,error=error)
           ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL hfx_create_neighbor_cells(actual_x_data,pbc_shells, error=error)
+          CALL hfx_create_neighbor_cells(actual_x_data,pbc_shells, cell, hfx_section, error=error)
           ALLOCATE(actual_x_data%x_screening_buffer_periodic(SIZE(actual_x_data%neighbor_cells),&
                    max_set,max_set,natom,natom),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -646,6 +695,10 @@ MODULE hfx_types
     n_rep_hf = x_data(1,1)%n_rep_hf
     n_threads = 1
 !$  n_threads = omp_get_max_threads()
+
+    IF(x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_truncated) THEN
+      CALL free()
+    END IF
     DO i_thread= 1,n_threads
       DO irep=1,n_rep_hf
         actual_x_data => x_data(irep,i_thread)
@@ -735,37 +788,224 @@ MODULE hfx_types
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_create_neighbor_cells(x_data, pbc_shells, error)
+  SUBROUTINE hfx_create_neighbor_cells(x_data, pbc_shells, cell, hfx_section, error)
     TYPE(hfx_type), POINTER                  :: x_data
-    INTEGER, INTENT(IN)                      :: pbc_shells
+    INTEGER, INTENT(INOUT)                   :: pbc_shells
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_neighbor_cells', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, m(3), stat, &
-                                                total_number_of_cells
-    LOGICAL                                  :: failure
+    CHARACTER(LEN=512)                       :: error_msg
+    CHARACTER(LEN=64)                        :: char_nshells
+    INTEGER :: act_idx, i, ikind, ipgf, iset, iw, j, jkind, jpgf, jset, k, l, &
+      m(3), max_cells_old, ncells_old, nseta, nsetb, nshells, nshells_old, &
+      stat, total_number_of_cells
+    INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, npgfa, npgfb
+    LOGICAL                                  :: failure, max_shell_found
+    REAL(dp)                                 :: dist, dist_min, l_min, r(3), &
+                                                R1, R_max, s(3), x, y, z, &
+                                                Zeta1
+    REAL(dp), DIMENSION(:, :), POINTER       :: zeta, zetb
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(hfx_cell_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: tmp_neighbor_cells
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
     failure = .FALSE.
     total_number_of_cells = 0
-    DO i = 0,pbc_shells
-      total_number_of_cells = total_number_of_cells + count_cells(i)
-    END DO
 
-    DEALLOCATE(x_data%neighbor_cells,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! ** Check some settings
+    IF( x_data%potential_parameter%potential_type /= do_hfx_potential_truncated) THEN
+      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                 "Periodic Hartree Fock calculation requested without use "//&
+                 "of a truncated potential. This may lead to unphysical total energies. "//&
+                 "Use a truncated  potential to avoid possible problems. "//&
+                 CPSourceFileRef,&
+                 only_ionode=.TRUE.)
+    ELSE
+      l_min = MIN( plane_distance(1,0,0,cell), &
+                   plane_distance(0,1,0,cell), &
+                   plane_distance(0,0,1,cell) )
+      l_min = 0.5_dp * l_min
+      IF( x_data%potential_parameter%cutoff_radius >= l_min ) THEN
+        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                 "Periodic Hartree Fock calculation requested with use "//&
+                 "of a truncated potential. The cutoff radius is larger than half "//&
+                 "the minimal cell dimension. This may lead to unphysical "//&
+                 "total energies. Reduce the cutoff radius in order to avoid "//&
+                 "possible problems. "//&
+                 CPSourceFileRef,&
+                 only_ionode=.TRUE.)
+      END IF
+    END IF
 
-    ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    m = 0
-    i = 1
-    DO WHILE(SUM(m**2)<=pbc_shells)
-       x_data%neighbor_cells(i)%cell = m
-       CALL next_image_cell(m)
-       i=i+1
-    ENDDO
+    SELECT CASE(x_data%potential_parameter%potential_type)
+    CASE( do_hfx_potential_truncated )
+      R_max = 0.0_dp
+      DO ikind=1,SIZE(x_data%basis_parameter)
+        la_max => x_data%basis_parameter(ikind)%lmax
+        zeta => x_data%basis_parameter(ikind)%zet
+        nseta = x_data%basis_parameter(ikind)%nset
+        npgfa => x_data%basis_parameter(ikind)%npgf
+        DO jkind=1,SIZE(x_data%basis_parameter)
+          lb_max => x_data%basis_parameter(jkind)%lmax
+          zetb => x_data%basis_parameter(jkind)%zet
+          nsetb = x_data%basis_parameter(jkind)%nset
+          npgfb => x_data%basis_parameter(jkind)%npgf
+          DO iset=1,nseta
+            DO jset=1,nsetb
+              DO ipgf=1,npgfa(iset)
+                DO jpgf=1,npgfb(jset)
+                  Zeta1 = zeta(ipgf,iset) + zetb(jpgf,jset)
+                  R1 = 1.0_dp/SQRT(Zeta1) * mul_fact(la_max(iset)+lb_max(jset)) * &
+                       SQRT(-LOG(x_data%screening_parameter%eps_schwarz))
+                  R_max = MAX(R1,R_max)
+                END DO
+              END DO
+            END DO
+          END DO
+        END DO
+      END DO
+  
+      R_max = 2.0_dp*R_max + x_data%potential_parameter%cutoff_radius
+ 
+      max_shell_found = .FALSE.
+      nshells = -1
+      nshells_old = -1
+      ncells_old = -1
+      max_cells_old = -1
+      DO WHILE( .NOT. max_shell_found ) 
+        total_number_of_cells = 0
+        nshells = nshells + 1
+        DO i = 0,nshells
+          total_number_of_cells = total_number_of_cells + count_cells_perd(i,x_data%periodic_parameter%perd)
+        END DO
+        IF( total_number_of_cells == max_cells_old ) THEN
+          CYCLE
+        END IF
+        max_cells_old = total_number_of_cells
+        DEALLOCATE(x_data%neighbor_cells,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    
+        ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(tmp_neighbor_cells(total_number_of_cells), STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   
+        m = 0
+        i = 1
+        DO WHILE(SUM(m**2)<=nshells)
+          x_data%neighbor_cells(i)%cell = m
+          CALL next_image_cell_perd(m,x_data%periodic_parameter%perd)
+          i=i+1
+        END DO
+        act_idx = 1
+        DO i = 1,SIZE(x_data%neighbor_cells)
+          dist_min = HUGE(dist_min)
+          DO j=0,1
+            x = -1.0_dp/2.0_dp + j*1.0_dp
+            DO k=0,1
+              y = -1.0_dp/2.0_dp + k*1.0_dp 
+              DO l=0,1 
+                z = -1.0_dp/2.0_dp + l*1.0_dp
+                s(1) = x+x_data%neighbor_cells(i)%cell(1)
+                s(2) = y+x_data%neighbor_cells(i)%cell(2)
+                s(3) = z+x_data%neighbor_cells(i)%cell(3)
+                CALL scaled_to_real(r,s,cell)
+                dist = SQRT(SUM(r**2))
+                dist_min = MIN(dist,dist_min)
+              END DO
+            END DO
+          END DO
+          IF( dist_min <= R_max) THEN
+            tmp_neighbor_cells(act_idx) = x_data%neighbor_cells(i)
+            act_idx = act_idx + 1
+          END IF
+        END DO
+     
+        total_number_of_cells = act_idx-1
+        IF( ncells_old == total_number_of_cells) max_shell_found = .TRUE.
+        nshells_old = nshells
+        ncells_old = total_number_of_cells
+        IF( .NOT. max_shell_found ) THEN
+          DEALLOCATE(tmp_neighbor_cells,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
+      END DO
+      DEALLOCATE(x_data%neighbor_cells,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF(x_data%periodic_parameter%number_of_shells == do_hfx_auto_shells ) THEN 
+        ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        x_data%neighbor_cells(1:total_number_of_cells) = tmp_neighbor_cells
+        pbc_shells = nshells - 1
+      ELSE
+        IF( x_data%periodic_parameter%number_of_shells < nshells - 1) THEN
+          WRITE(char_nshells,'(I3)') nshells-1
+          WRITE(error_msg,'(A,A,A)') "Periodic Hartree Fock calculation requested with use "//&
+                   "of a truncated potential. The number of shells to be considered "//&
+                   "might be too small. CP2K conservatively estimates to need "//TRIM(char_nshells)//" shells. "//&
+                    "Please carefully check if you get converged results."
+
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                         error_msg,&
+                         error,&
+                         only_ionode=.TRUE.)
+        END IF
+        total_number_of_cells = 0
+        DO i = 0,x_data%periodic_parameter%number_of_shells
+          total_number_of_cells = total_number_of_cells + count_cells_perd(i,x_data%periodic_parameter%perd)
+        END DO
+        ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        m = 0
+        i = 1
+        DO WHILE(SUM(m**2)<=x_data%periodic_parameter%number_of_shells)
+           x_data%neighbor_cells(i)%cell = m
+           CALL next_image_cell_perd(m,x_data%periodic_parameter%perd)
+           i=i+1
+        ENDDO
+      END IF
+      DEALLOCATE(tmp_neighbor_cells,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CASE DEFAULT
+      total_number_of_cells = 0
+      IF( pbc_shells == -1 ) pbc_shells = 0
+      DO i = 0,pbc_shells
+        total_number_of_cells = total_number_of_cells + count_cells_perd(i,x_data%periodic_parameter%perd)
+      END DO
+      DEALLOCATE(x_data%neighbor_cells,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      m = 0
+      i = 1
+      DO WHILE(SUM(m**2)<=pbc_shells)
+         x_data%neighbor_cells(i)%cell = m
+         CALL next_image_cell_perd(m,x_data%periodic_parameter%perd)
+         i=i+1
+      ENDDO
+    END SELECT
+
+    iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
+         extension=".scfLog",error=error)
+    IF (iw>0) THEN
+      WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I5))")&
+            "HFX_INFO| Number of periodic shells considered:     ",pbc_shells
+      WRITE (UNIT=iw,FMT="((T3,A,T60,I5)),/")&
+            "HFX_INFO| Number of periodic cells considered:     ",SIZE(x_data%neighbor_cells)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,hfx_section,&
+                                      "HF_INFO", error=error)
+
   END SUBROUTINE hfx_create_neighbor_cells
 
 ! *****************************************************************************

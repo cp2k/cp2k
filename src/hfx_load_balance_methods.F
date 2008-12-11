@@ -10,12 +10,13 @@
 !> \author Manuel Guidon 
 ! *****************************************************************************
 MODULE hfx_load_balance_methods 
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
   USE f77_blas
   USE hfx_distribution_mc,             ONLY: optimize_distribution
   USE hfx_helpers,                     ONLY: FNV64
-  USE hfx_libint_interface,            ONLY: pbc
   USE hfx_types,                       ONLY: hfx_basis_type,&
                                              hfx_box_scheme,&
                                              hfx_distribution,&
@@ -29,7 +30,8 @@ MODULE hfx_load_balance_methods
                                              do_hfx_potential_id,&
                                              do_hfx_potential_mix_cl,&
                                              do_hfx_potential_mix_lg,&
-                                             do_hfx_potential_short
+                                             do_hfx_potential_short,&
+                                             do_hfx_potential_truncated
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants
@@ -87,8 +89,8 @@ MODULE hfx_load_balance_methods
   SUBROUTINE load_balance_energy(x_data, eps_schwarz, eps_box, particle_set,max_set,para_env,&
                                  potential_parameter, screen_set, screen_atom, screen_max,&
                                  is_assoc_atomic_block_global, do_periodic,&
-                                 load_balance_parameter, box_size, box_size_inv, kind_of, basis_parameter, pmax_set, &
-                                 i_thread, n_threads, shm_far_field_boxes, error)
+                                 load_balance_parameter, kind_of, basis_parameter, pmax_set, &
+                                 i_thread, n_threads, shm_far_field_boxes, cell, error)
     TYPE(hfx_type), POINTER                  :: x_data
     REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
     TYPE(particle_type), DIMENSION(:), &
@@ -102,7 +104,6 @@ MODULE hfx_load_balance_methods
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
     LOGICAL                                  :: do_periodic
     TYPE(hfx_load_balance_type)              :: load_balance_parameter
-    REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -110,6 +111,7 @@ MODULE hfx_load_balance_methods
     INTEGER, INTENT(IN)                      :: i_thread, n_threads
     TYPE(hfx_box_scheme), DIMENSION(:, :), &
       POINTER                                :: shm_far_field_boxes
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_energy', &
@@ -228,7 +230,7 @@ MODULE hfx_load_balance_methods
                         ELSE
                           center2 = shm_far_field_boxes(box_idx4, box_idx3)%center
                           temp = center2-center1
-                          CALL pbc(temp, box_size, box_size_inv ,pbc_center)
+                          pbc_center = pbc(temp, cell)
                           center2_folded = center1 + pbc_center
                         END IF
 
@@ -243,7 +245,7 @@ MODULE hfx_load_balance_methods
 
                           max_val2 = 0.0_dp
                           SELECT CASE(potential_parameter%potential_type)
-                            CASE(do_hfx_potential_coulomb)
+                            CASE(do_hfx_potential_coulomb, do_hfx_potential_truncated)
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
@@ -362,7 +364,7 @@ MODULE hfx_load_balance_methods
                         ELSE
                           center2 = shm_far_field_boxes(box_idx4, box_idx3)%center
                           temp = center2-center1
-                          CALL pbc(temp, box_size, box_size_inv, pbc_center)
+                          pbc_center = pbc(temp, cell)
                           center2_folded = center1 + pbc_center
                         END IF
 
@@ -377,7 +379,7 @@ MODULE hfx_load_balance_methods
                         IF(Rbox>pgf_radius_box) THEN
                           max_val2 = 0.0_dp
                           SELECT CASE(potential_parameter%potential_type)
-                            CASE(do_hfx_potential_coulomb)
+                            CASE(do_hfx_potential_coulomb, do_hfx_potential_truncated)
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
@@ -672,8 +674,8 @@ MODULE hfx_load_balance_methods
   SUBROUTINE load_balance_forces(x_data, eps_schwarz, eps_box, particle_set,max_set,para_env,&
                                  potential_parameter, screen_set, screen_atom, screen_max,&
                                  pmax_set, is_assoc_atomic_block_global, do_periodic, &
-                                 load_balance_parameter, box_size, box_size_inv, kind_of, basis_parameter,&
-                                 i_thread, n_threads, shm_far_field_boxes, error)
+                                 load_balance_parameter, kind_of, basis_parameter,&
+                                 i_thread, n_threads, shm_far_field_boxes, cell, error)
     TYPE(hfx_type), POINTER                  :: x_data
     REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
     TYPE(particle_type), DIMENSION(:), &
@@ -688,13 +690,13 @@ MODULE hfx_load_balance_methods
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
     LOGICAL                                  :: do_periodic
     TYPE(hfx_load_balance_type)              :: load_balance_parameter
-    REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     INTEGER, INTENT(IN)                      :: i_thread, n_threads
     TYPE(hfx_box_scheme), DIMENSION(:, :), &
       POINTER                                :: shm_far_field_boxes
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_forces', &
@@ -810,7 +812,7 @@ MODULE hfx_load_balance_methods
                         ELSE
                           center2 = shm_far_field_boxes(box_idx4, box_idx3)%center
                           temp = center2-center1
-                          CALL pbc(temp, box_size, box_size_inv, pbc_center)
+                          pbc_center = pbc(temp, cell)
                           center2_folded = center1 + pbc_center
                         END IF
                         R2 = shm_far_field_boxes(box_idx4, box_idx3)%R
@@ -824,7 +826,7 @@ MODULE hfx_load_balance_methods
                         IF(Rbox>pgf_radius_box) THEN
                           max_val2 = 0.0_dp
                           SELECT CASE(potential_parameter%potential_type)
-                            CASE(do_hfx_potential_coulomb)
+                            CASE(do_hfx_potential_coulomb, do_hfx_potential_truncated)
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry 
@@ -935,7 +937,7 @@ MODULE hfx_load_balance_methods
                         ELSE
                           center2 = shm_far_field_boxes(box_idx4, box_idx3)%center
                           temp = center2-center1
-                          CALL pbc(temp, box_size, box_size_inv, pbc_center)
+                          pbc_center = pbc(temp, cell)
                           center2_folded = center1 + pbc_center
                         END IF
                         R2 = shm_far_field_boxes(box_idx4, box_idx3)%R
@@ -949,7 +951,7 @@ MODULE hfx_load_balance_methods
                         IF(Rbox>pgf_radius_box) THEN
                           max_val2 = 0.0_dp
                           SELECT CASE(potential_parameter%potential_type)
-                            CASE(do_hfx_potential_coulomb)
+                            CASE(do_hfx_potential_coulomb, do_hfx_potential_truncated)
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry

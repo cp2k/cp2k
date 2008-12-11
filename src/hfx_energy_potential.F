@@ -15,6 +15,11 @@ MODULE hfx_energy_potential
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: cite_reference,&
                                              guidon2008
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc,&
+                                             real_to_scaled,&
+                                             scaled_to_real
+  USE cp_files,                        ONLY: get_unit_number
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -29,9 +34,10 @@ MODULE hfx_energy_potential
                                              hfx_get_mult_cache_elements,&
                                              hfx_get_single_cache_element,&
                                              hfx_reset_cache_and_container
-  USE hfx_helpers,                     ONLY: FNV64
+  USE hfx_helpers,                     ONLY: FNV64,&
+                                             get_occupation
   USE hfx_libint_interface,            ONLY: evaluate_eri,&
-                                             pbc
+                                             set_eps_cutoff
   USE hfx_libint_wrapper,              ONLY: initialize_libint,&
                                              lib_int
   USE hfx_load_balance_methods,        ONLY: load_balance_energy,&
@@ -51,7 +57,8 @@ MODULE hfx_energy_potential
                                              do_hfx_potential_id,&
                                              do_hfx_potential_mix_cl,&
                                              do_hfx_potential_mix_lg,&
-                                             do_hfx_potential_short
+                                             do_hfx_potential_short,&
+                                             do_hfx_potential_truncated
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -73,6 +80,7 @@ MODULE hfx_energy_potential
                                              next_block_node,&
                                              real_block_node_type,&
                                              real_matrix_p_type
+  USE t_c_g0,                          ONLY: init
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -82,6 +90,7 @@ MODULE hfx_energy_potential
    
   PUBLIC  integrate_four_center
   TYPE(lib_int),   ALLOCATABLE, DIMENSION(:), SAVE      :: lib
+  INTEGER, SAVE                                         :: init_t_c_g0_lmax = -1
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_energy_potential'
 
@@ -146,16 +155,15 @@ MODULE hfx_energy_potential
                                                 first_sgfc, first_sgfd
     LOGICAL :: buffer_overflow, do_correct_p_screening, do_p_screening, &
       do_periodic, failure, first_j_loop, first_k_loop, first_l_loop
-    REAL(dp) :: actual_pmax_entry, bintime_start, bintime_stop, box_size(3), &
-      box_size_inv(3), cartesian_estimate, center1(3), center2(3), &
-      center2_folded(3), compression_factor, compression_factor_disk, &
-      current_max_error, ene_x_aa, ene_x_bb, eps_box, eps_schwarz, &
-      eps_storage, fac, hf_fraction, Kbox, ks_bc, ks_bd, ks_beta_bc, &
-      ks_beta_bd, max_contraction_val, max_val1, max_val2, omega2Inv, &
-      omega_box, p_bc, p_bd, p_beta_bc, p_beta_bd, &
-      p_screening_correction_factor, pbc_center(3), pmax_entry, R1, R2, &
-      ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, spherical_estimate, &
-      symm_fac, temp(3), tmp
+    REAL(dp) :: actual_pmax_entry, bintime_start, bintime_stop, &
+      cartesian_estimate, center1(3), center2(3), center2_folded(3), &
+      compression_factor, compression_factor_disk, current_max_error, &
+      ene_x_aa, ene_x_bb, eps_box, eps_schwarz, eps_storage, fac, &
+      hf_fraction, Kbox, ks_bc, ks_bd, ks_beta_bc, ks_beta_bd, &
+      max_contraction_val, max_val1, max_val2, omega2Inv, omega_box, p_bc, &
+      p_bd, p_beta_bc, p_beta_bd, p_screening_correction_factor, &
+      pbc_center(3), pmax_entry, R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), &
+      screen_max, spherical_estimate, symm_fac, temp(3), tmp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: primitive_integrals, T1
     REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
       full_ks, full_ks_beta, max_contraction, screen_atom, sparse_block, &
@@ -202,17 +210,35 @@ MODULE hfx_energy_potential
                                                 shm_storage_counter_integrals, shm_neris_incore, &
                                                 shm_neris_disk, shm_stor_count_int_disk
     LOGICAL                                  :: do_disk_storage, use_disk_storage
-    INTEGER(int_8)                           :: counter
-    INTEGER                                  :: nkind, l_max
-
-
+    INTEGER(int_8)                           :: counter, neris_tmp, nprim_ints, shm_nprim_ints,&
+                                                mb_size_p, mb_size_f, mb_size_s, mb_size_buffers
+    INTEGER                                  :: nkind, l_max, istat
+    REAL(dp)                                 :: ks_occ
+    TYPE(cell_type), POINTER                 :: cell
+    LOGICAL                                  :: exist
+    CHARACTER(LEN=512)                       :: error_msg
+    INTEGER                                  :: unit_id
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,handle)
 
     CALL cite_reference(Guidon2008)
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, error=error)
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, error=error)
+
+    !! Get occupation of KS-matrix
+    IF( geometry_did_change) THEN
+      ks_occ = get_occupation(ks_matrix(1)%matrix,para_env,error)
+      IF( ks_occ < 100.0_dp ) THEN
+        WRITE(error_msg,'(A,A,A)') "The Kohn Sham matrix is not 100% occupied. This "//&
+              "may result in uncorrect Hartree-Fock results. Try to decrease EPS_PGF_ORB "//&
+              "in the QS section. "
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                         error_msg,&
+                         error,&
+                         only_ionode=.TRUE.)
+      END IF
+    END IF
 
     !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
     nkind = SIZE(atomic_kind_set,1)
@@ -223,12 +249,24 @@ MODULE hfx_energy_potential
     l_max = 4*l_max 
     CALL init_md_ftable(l_max)
 
+    IF(qs_env%x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_truncated) THEN
+      IF(l_max>init_t_c_g0_lmax) THEN
+        unit_id = get_unit_number()
+        OPEN(unit_id,FILE=qs_env%x_data(1,1)%potential_parameter%filename)
+        CALL init(l_max,unit_id)
+        CLOSE(unit_id)
+        init_t_c_g0_lmax = l_max
+      END IF
+    CALL set_eps_cutoff(qs_env%x_data(1,1)%screening_parameter%eps_schwarz)
+    END IF
+
 
     n_threads = 1
 !$  n_threads = omp_get_max_threads()
     ALLOCATE(lib(n_threads), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     shm_neris_total = 0 
+    shm_nprim_ints = 0
     shm_neris_onthefly = 0
     shm_storage_counter_integrals = 0
     shm_stor_count_int_disk = 0
@@ -267,8 +305,8 @@ MODULE hfx_energy_potential
 !$OMP                                  shm_stor_count_int_disk,&
 !$OMP                                  shm_neris_incore,&
 !$OMP                                  shm_neris_disk,&
-!$OMP                                  box_size,&
-!$OMP                                  box_size_inv)
+!$OMP                                  shm_nprim_ints,&
+!$OMP                                  cell)
 
 
     i_thread = 0
@@ -316,6 +354,7 @@ MODULE hfx_energy_potential
     mem_maxvals = 0_int_8
     compression_factor = 0.0_dp
     compression_factor_disk = 0.0_dp
+    nprim_ints = 0_int_8
 
 
     use_disk_storage = .FALSE.
@@ -537,27 +576,22 @@ MODULE hfx_energy_potential
 
     !! Initialize schwarz screening matrices for near field estimates and boxing screening matrices
     !! for far field estimates. The update is only performed if the geomtry of the system changed.
-    !! If the system is periodic, then the corresponding routines are called and some variables such as
-    !!! box_size are initialized
+    !! If the system is periodic, then the corresponding routines are called and some variables 
+    !! are initialized
     IF( do_periodic ) THEN
-      box_size(1) = qs_env%cell%hmat(1,1)
-      box_size(2) = qs_env%cell%hmat(2,2)
-      box_size(3) = qs_env%cell%hmat(3,3)
-      box_size_inv(1) = 1.0_dp/box_size(1)
-      box_size_inv(2) = 1.0_dp/box_size(2)
-      box_size_inv(3) = 1.0_dp/box_size(3)
       ALLOCATE(screen_periodic(SIZE(actual_x_data%neighbor_cells),max_set,max_set,natom,natom),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL comp_screen_mat_per(lib(i_thread+1), screen_set,screen_atom,screen_max,screen_periodic,particle_set,max_set,&
                                potential_parameter,.NOT.geometry_did_change,&
                                kind_of, basis_parameter,&
                                actual_x_data%x_screening_buffer_periodic,&
-                               actual_x_data%neighbor_cells,box_size,box_size_inv, i_thread, error)
+                               actual_x_data%neighbor_cells, i_thread, cell, error)
       IF(geometry_did_change) THEN
         NULLIFY(shm_far_field_boxes)
         CALL screen_farfield_per(actual_x_data%far_field_boxes, &
                                  particle_set, max_set, &
-                                 actual_x_data%neighbor_cells, box_size, box_size_inv, kind_of, basis_parameter, error)
+                                 actual_x_data%neighbor_cells, kind_of, basis_parameter, &
+                                 cell, error)
         shm_far_field_boxes => actual_x_data%far_field_boxes
        END IF
 
@@ -590,9 +624,9 @@ MODULE hfx_energy_potential
       IF( actual_x_data%b_first_load_balance_energy ) THEN
         CALL load_balance_energy(actual_x_data,eps_schwarz,eps_box,particle_set,max_set,para_env,&
                                  potential_parameter,screen_set,screen_atom,screen_max,&
-                                 shm_is_assoc_atomic_block,do_periodic,load_balance_parameter, box_size, &
-                                 box_size_inv, kind_of, basis_parameter, shm_initial_p, i_thread, n_threads, &
-                                 shm_far_field_boxes, error)
+                                 shm_is_assoc_atomic_block,do_periodic,load_balance_parameter, &
+                                 kind_of, basis_parameter, shm_initial_p, i_thread, n_threads, &
+                                 shm_far_field_boxes, cell, error)
         actual_x_data%b_first_load_balance_energy = .FALSE.
       ELSE
         
@@ -861,7 +895,7 @@ MODULE hfx_energy_potential
                           ELSE
                             center2 = shm_far_field_boxes(box_idx4, box_idx3)%center
                             temp = center2-center1
-                            CALL pbc(temp, box_size, box_size_inv, pbc_center)
+                            pbc_center = pbc(temp,cell)
                             center2_folded = center1 + pbc_center
                           END IF
   
@@ -892,11 +926,13 @@ MODULE hfx_energy_potential
                                                 la_min, la_max, lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, &
                                                 npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod, &
                                                 nsgfa, nsgfb, nsgfc, nsgfd, sgfa, sgfb, sgfc, sgfd, &
-                                                primitive_integrals, potential_parameter, box_size, box_size_inv, &
+                                                primitive_integrals, potential_parameter, &
                                                 screen_periodic, eps_schwarz, sphi_a, sphi_b, sphi_c, sphi_d, T1,&
                                                 full_ks, full_ks_beta, full_density, full_density_beta, fac, symm_fac, &
                                                 iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1,&
-                                                nspins, max_contraction_val, actual_x_data, i_thread, error)
+                                                nspins, max_contraction_val, actual_x_data, i_thread, cell, neris_tmp,&
+                                                error)
+                                nprim_ints = nprim_ints + neris_tmp
                               END IF
                             END IF
                             CYCLE
@@ -911,6 +947,12 @@ MODULE hfx_energy_potential
                           IF(Rbox>pgf_radius_box) THEN
                             max_val2 = 0.0_dp
                             SELECT CASE(potential_parameter%potential_type)
+                              CASE(do_hfx_potential_truncated)
+                              Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
+                                     shm_far_field_boxes(box_idx4, box_idx3)%K
+                              max_val2 = 1.0_dp/Rbox*Kbox
+                              IF( max_val2 < eps_box ) CYCLE
+                              max_val2 = max_val2 * pmax_entry
                               CASE(do_hfx_potential_coulomb)
                                 Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                        shm_far_field_boxes(box_idx4, box_idx3)%K
@@ -947,11 +989,13 @@ MODULE hfx_energy_potential
                                                   la_min, la_max, lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, &
                                                   npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod, &
                                                   nsgfa, nsgfb, nsgfc, nsgfd, sgfa, sgfb, sgfc, sgfd, &
-                                                  primitive_integrals, potential_parameter, box_size, box_size_inv, &
+                                                  primitive_integrals, potential_parameter, &
                                                   screen_periodic, eps_schwarz, sphi_a, sphi_b, sphi_c, sphi_d, T1, &
                                                   full_ks, full_ks_beta, full_density, full_density_beta, fac, symm_fac, &
                                                   iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1,&
-                                                  nspins, max_contraction_val, actual_x_data, i_thread, error)
+                                                  nspins, max_contraction_val, actual_x_data, i_thread, cell, neris_tmp,&
+                                                  error)
+                                   nprim_ints = nprim_ints + neris_tmp
                                 END IF 
                               END IF
                               CYCLE
@@ -1105,7 +1149,7 @@ MODULE hfx_energy_potential
                                             ncoa,ncob,ncoc,ncod,&
                                             primitive_integrals(1),&
                                             potential_parameter, eps_schwarz, max_contraction_val, &
-                                            cartesian_estimate, i_thread)
+                                            cartesian_estimate, i_thread, neris_tmp)
                             ELSE
                               CALL coulomb4_per(ra, rb, rc, rd,&
                                                 zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset), &
@@ -1115,15 +1159,17 @@ MODULE hfx_energy_potential
                                                 npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
                                                 ncoa,ncob,ncoc,ncod,&
                                                 primitive_integrals(1),&
-                                                potential_parameter, box_size, box_size_inv, &
+                                                potential_parameter, &
                                                 actual_x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
                                                 screen_periodic(:,kset,lset,katom,latom), eps_schwarz, &
-                                                max_contraction_val, cartesian_estimate, i_thread, error)
+                                                max_contraction_val, cartesian_estimate, i_thread, cell, neris_tmp,&
+                                                error)
                            
                             END IF
                             
                             nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
-                            neris_total = neris_total + nints 
+                            neris_total = neris_total + nints
+                            nprim_ints = nprim_ints + neris_tmp
                             IF(cartesian_estimate == 0.0_dp) cartesian_estimate = TINY(cartesian_estimate)
                             estimate_to_store_int = EXPONENT(cartesian_estimate)
                             estimate_to_store_int = MAX(estimate_to_store_int,-15_int_8)
@@ -1347,6 +1393,8 @@ MODULE hfx_energy_potential
     shm_neris_total = shm_neris_total + neris_total
 !$OMP ATOMIC
     shm_neris_onthefly = shm_neris_onthefly + neris_onthefly
+!$OMP ATOMIC
+    shm_nprim_ints = shm_nprim_ints + nprim_ints
     storage_counter_integrals = memory_parameter%actual_memory_usage * &
                                 memory_parameter%cache_size
     stor_count_int_disk = memory_parameter%actual_memory_usage_disk * &
@@ -1366,6 +1414,15 @@ MODULE hfx_energy_potential
     ene_x_aa = 0.0_dp
     ene_x_bb = 0.0_dp
    
+    mb_size_p = SIZE(full_density,1)**2/1024/128
+    mb_size_f = SIZE(full_ks,1)**2/1024/128
+    !! size of primitive_integrals and T1 buffer
+    mb_size_buffers = 2*nco_max**4/1024/128
+    IF( nspins == 2) THEN
+      mb_size_f = mb_size_f * 2
+      mb_size_p = mb_size_p * 2
+    END IF
+
     DO pa=1,SIZE(full_ks,1)
       DO pd=pa,SIZE(full_ks,2)
         IF(pa/=pd) THEN
@@ -1428,6 +1485,7 @@ MODULE hfx_energy_potential
       CALL mp_sum_i8(shm_neris_disk, para_env%group)
       CALL mp_sum_i8(shm_neris_total, para_env%group)
       CALL mp_sum_i8(shm_stor_count_int_disk, para_env%group)
+      CALL mp_sum_i8(shm_nprim_ints, para_env%group)
       mem_eris = (shm_storage_counter_integrals+128*1024-1)/1024/128
       compression_factor = REAL(shm_neris_incore,dp)/REAL(shm_storage_counter_integrals,dp)
       mem_eris_disk = (shm_stor_count_int_disk+128*1024-1)/1024/128
@@ -1441,33 +1499,52 @@ MODULE hfx_energy_potential
         mem_eris_disk = 0
         compression_factor_disk = 0.0_dp
       END IF
-      
+        
       iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
            extension=".scfLog",error=error)
       IF (iw>0) THEN
         WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Total number of  ERI's calculated:      ",shm_neris_total
+                 "HFX_MEM_INFO| Number of cart. primitive ERI's calculated:      ",shm_nprim_ints
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Number of ERI's stored in-core:        ",shm_neris_incore
+                 "HFX_MEM_INFO| Number of sph. ERI's calculated:           ",shm_neris_total+shm_neris_onthefly
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Number of ERI's stored on disk:        ",shm_neris_disk
+                 "HFX_MEM_INFO| Number of sph. ERI's stored in-core:        ",shm_neris_incore
+
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
+                 "HFX_MEM_INFO| Number of sph. ERI's stored on disk:        ",shm_neris_disk
   
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Number of ERI's calculated on the fly: ",shm_neris_onthefly
+                 "HFX_MEM_INFO| Number of sph. ERI's calculated on the fly: ",shm_neris_onthefly
   
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Total memory consumption ERI's RAM [MB's]            ",mem_eris
+                 "HFX_MEM_INFO| Total memory consumption ERI's RAM [MB's]:            ",mem_eris
       
         WRITE (UNIT=iw,FMT="((T3,A,T60,F20.2))")&
                  "HFX_MEM_INFO| Total compression factor ERI's RAM:                  ",compression_factor
              
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Total memory consumption ERI's disk [MB's]       ",mem_eris_disk
+                 "HFX_MEM_INFO| Total memory consumption ERI's disk [MB's]:       ",mem_eris_disk
 
-        WRITE (UNIT=iw,FMT="((T3,A,T60,F20.2),/)")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,F20.2))")&
                  "HFX_MEM_INFO| Total compression factor ERI's disk:             ",compression_factor_disk
+
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
+                 "HFX_MEM_INFO| Size of density matrix [MB's]:             ", mb_size_p
+
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
+                 "HFX_MEM_INFO| Size of fock matrix [MB's]:             ", mb_size_f
+       
+        IF( do_periodic) THEN
+          WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
+                 "HFX_MEM_INFO| Size of buffers [MB's]:             ", mb_size_buffers
+          WRITE (UNIT=iw,FMT="((T3,A,T60,I20),/)")&
+                 "HFX_MEM_INFO| Number of periodic image cells considered: ", SIZE(actual_x_data%neighbor_cells)
+        ELSE
+           WRITE (UNIT=iw,FMT="((T3,A,T60,I20),/)")&
+                 "HFX_MEM_INFO| Size of buffers [MB's]:             ", mb_size_buffers
+        END IF
 
       END IF
   
@@ -1578,7 +1655,7 @@ MODULE hfx_energy_potential
                       ncoa,ncob,ncoc,ncod,&
                       primitive_integrals,&
                       potential_parameter, eps_schwarz, max_contraction_val, &
-                      cartesian_estimate, i_thread)
+                      cartesian_estimate, i_thread, neris_tmp)
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     INTEGER, INTENT(IN)                      :: npgfa, ld_max, ld_min, &
@@ -1597,11 +1674,13 @@ MODULE hfx_energy_potential
                                                 max_contraction_val
     REAL(dp), INTENT(INOUT)                  :: cartesian_estimate
     INTEGER, INTENT(IN)                      :: i_thread
+    INTEGER(int_8)                           :: neris_tmp
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, lpgf, offset_a, offset_a1, &
       offset_b, offset_b1, offset_c, offset_c1, offset_d, offset_d1
     REAL(dp)                                 :: tmp_max
 
+    neris_tmp = 0
     primitive_integrals = 0.0_dp
     cartesian_estimate = 0.0_dp
     DO lpgf = 1,npgfd
@@ -1628,7 +1707,8 @@ MODULE hfx_energy_potential
                                           ncoa,ncob,ncoc,ncod,&
                                           offset_a,offset_b,offset_c,offset_d, &
                                           primitive_integrals, &
-                                          potential_parameter, max_contraction_val, tmp_max, eps_schwarz)
+                                          potential_parameter, max_contraction_val, tmp_max, eps_schwarz,&
+                                          neris_tmp)
                     cartesian_estimate = MAX(cartesian_estimate, tmp_max)                                     
                   END DO !la
                 END DO !ipgf
@@ -1648,7 +1728,6 @@ MODULE hfx_energy_potential
 !> \param l angular momentum
 !> \param npgf number of primitive cartesian gaussian in actual shell
 !> \param primitive_integrals array of primitive_integrals
-!> \param box_size , neighbor_cells: contains info for pbc
 !> \param potential_parameter contains info for libint 
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -1668,9 +1747,9 @@ MODULE hfx_energy_potential
                           npgfa, npgfb, npgfc, npgfd,&
                           ncoa,ncob,ncoc,ncod,&
                           primitive_integrals,&
-                          potential_parameter, box_size, box_size_inv, neighbor_cells, &
+                          potential_parameter, neighbor_cells, &
                           screen1, screen2, eps_schwarz, max_contraction_val, &
-                          cart_estimate, i_thread, error)
+                          cart_estimate, i_thread, cell, neris_tmp, error)
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     INTEGER, INTENT(IN)                      :: npgfa, ld_max, ld_min, &
@@ -1685,7 +1764,6 @@ MODULE hfx_energy_potential
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod)      :: primitive_integrals
     TYPE(hfx_potential_type)                 :: potential_parameter
-    REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
     TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
     REAL(dp), DIMENSION(:)                   :: screen1, screen2
@@ -1693,41 +1771,44 @@ MODULE hfx_energy_potential
                                                 max_contraction_val
     REAL(dp), INTENT(INOUT)                  :: cart_estimate
     INTEGER, INTENT(IN)                      :: i_thread
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER(int_8)                           :: neris_tmp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'coulomb4_per', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, ipgf, j, jpgf, kpgf, la, lb, lc, ld, lpgf, offset_a, &
+    INTEGER :: i, ipgf, j, jpgf, k, kpgf, la, lb, lc, ld, lpgf, offset_a, &
       offset_a1, offset_b, offset_b1, offset_c, offset_c1, offset_d, &
       offset_d1, stat
     LOGICAL                                  :: failure
     REAL(dp) :: B11(3), C11(3), D11(3), Eta, im_B(3), im_D(3), P(3), &
-      pbc_B(3), pbc_D(3), PQ(3), Q(3), shift(3), temp(3), tmp_D(3), tmp_max, &
-      Zeta1, Zeta_A, Zeta_B, Zeta_C, Zeta_D
+      pbc_B(3), pbc_D(3), PQ(3), Q(3), s(3), shift(3), temp(3), tmp_D(3), &
+      tmp_max, Zeta1, Zeta_A, Zeta_B, Zeta_C, Zeta_D
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: tmp_cart_estimate
 
     failure = .FALSE.
     cart_estimate = 0.0_dp
+    neris_tmp = 0
     ALLOCATE(tmp_cart_estimate(SIZE(neighbor_cells), SIZE(neighbor_cells)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     tmp_cart_estimate = 0.0_dp 
     primitive_integrals = 0.0_dp
     temp = rb -ra
-    CALL pbc(temp, box_size, box_size_inv, pbc_B)
+    pbc_B = pbc(temp,cell)
     B11 = ra + pbc_B
     temp = rd-rc
-    CALL pbc(temp, box_size, box_size_inv, pbc_D)
+    pbc_D = pbc(temp,cell)
     D11 = rc + pbc_D
     DO i = 1,SIZE(neighbor_cells)
-      im_B(1) = B11(1) + neighbor_cells(i)%cell(1) * box_size(1)
-      im_B(2) = B11(2) + neighbor_cells(i)%cell(2) * box_size(2)
-      im_B(3) = B11(3) + neighbor_cells(i)%cell(3) * box_size(3)
+      CALL real_to_scaled(s,B11,cell)
+      s = s + neighbor_cells(i)%cell
+      CALL scaled_to_real(im_B,s,cell)
       DO j = 1,SIZE(neighbor_cells)
         IF(screen1(i)*screen2(j)<eps_schwarz) CYCLE
-        im_D(1) = D11(1) + neighbor_cells(j)%cell(1) * box_size(1)
-        im_D(2) = D11(2) + neighbor_cells(j)%cell(2) * box_size(2)
-        im_D(3) = D11(3) + neighbor_cells(j)%cell(3) * box_size(3)
+        CALL real_to_scaled(s,D11,cell)
+        s = s + neighbor_cells(j)%cell
+        CALL scaled_to_real(im_D,s,cell)
         DO lpgf = 1,npgfd
           offset_d1 = (lpgf-1)*ncoset(ld_max)
           Zeta_D = zetd(lpgf)
@@ -1751,23 +1832,30 @@ MODULE hfx_energy_potential
                       Zeta1 = Zeta_A + Zeta_B
                       P = (Zeta_A*ra + Zeta_B*im_B)/Zeta1
                       temp = P-Q
-                      CALL pbc(temp,box_size,box_size_inv,PQ)
+                      PQ = pbc(temp,cell)
                       shift = -PQ + temp
-                      C11 = rc + shift
-                      tmp_D = im_D + shift
-                      DO la = la_min,la_max
-                        offset_a = offset_a1 + ncoset(la-1)
-                        !Build primitives
-                        tmp_max = 0.0_dp
-                        CALL evaluate_eri(lib(i_thread+1), ra, im_B, C11, tmp_D,&
-                                              zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
-                                              la, lb, lc ,ld,&
-                                              ncoa,ncob,ncoc,ncod,&
-                                              offset_a,offset_b,offset_c,offset_d, &
-                                              primitive_integrals, &
-                                              potential_parameter, max_contraction_val, tmp_max, eps_schwarz)
-                        tmp_cart_estimate(i,j) = MAX(tmp_cart_estimate(i,j),tmp_max)
-                      END DO !la
+                      DO k = 1,SIZE(neighbor_cells)
+                        CALL real_to_scaled(s,rc+shift,cell)
+                        s = s + neighbor_cells(k)%cell
+                        CALL scaled_to_real(C11,s,cell)
+                        CALL real_to_scaled(s,im_D+shift,cell)
+                        s = s + neighbor_cells(k)%cell
+                        CALL scaled_to_real(tmp_D,s,cell)
+                        DO la = la_min,la_max
+                          offset_a = offset_a1 + ncoset(la-1)
+                          !Build primitives
+                          tmp_max = 0.0_dp
+                          CALL evaluate_eri(lib(i_thread+1), ra, im_B, C11, tmp_D,&
+                                            zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
+                                            la, lb, lc ,ld,&
+                                            ncoa,ncob,ncoc,ncod,&
+                                            offset_a,offset_b,offset_c,offset_d, &
+                                            primitive_integrals, &
+                                            potential_parameter, max_contraction_val, tmp_max, eps_schwarz,&
+                                            neris_tmp)
+                          tmp_cart_estimate(i,j) = MAX(tmp_cart_estimate(i,j),tmp_max)
+                        END DO !la
+                      END DO !k-shell
                     END DO !ipgf
                   END DO !lb
                 END DO !jpgf
@@ -1775,8 +1863,8 @@ MODULE hfx_energy_potential
             END DO !kpgf
           END DO !ld
         END DO !lpgf
-     END DO
-   END DO
+      END DO !j-shell
+    END DO !i-shell
     DO i=1,SIZE(neighbor_cells)
       DO j=1,SIZE(neighbor_cells)
         cart_estimate = MAX(cart_estimate, tmp_cart_estimate(i,j))
@@ -1799,11 +1887,11 @@ MODULE hfx_energy_potential
                         la_min, la_max, lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, &
                         npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod, &
                         nsgfa, nsgfb, nsgfc, nsgfd, sgfa, sgfb, sgfc, sgfd, &
-                        primitive_integrals, potential_parameter, box_size, box_size_inv, screen_periodic, &
+                        primitive_integrals, potential_parameter, screen_periodic, &
                         eps_schwarz, sphi_a, sphi_b, sphi_c, sphi_d, T1,& 
                         full_ks, full_ks_beta, full_density, full_density_beta, fac, symm_fac, &
                         iset, jset, kset, lset, iatom, jatom, katom, latom, pa1, pb1, pc1, pd1, &
-                        nspins, max_contraction_val, actual_x_data, i_thread, error)
+                        nspins, max_contraction_val, actual_x_data, i_thread, cell, neris_tmp, error)
 
     LOGICAL, INTENT(IN)                      :: do_periodic
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
@@ -1817,7 +1905,6 @@ MODULE hfx_energy_potential
     INTEGER, INTENT(IN)                      :: sgfa, sgfb, sgfc, sgfd
     REAL(dp), DIMENSION(:)                   :: primitive_integrals
     TYPE(hfx_potential_type)                 :: potential_parameter
-    REAL(dp)                                 :: box_size(3), box_size_inv(3)
     REAL(dp), DIMENSION(:, :, :, :, :), &
       POINTER                                :: screen_periodic
     REAL(dp), INTENT(IN)                     :: eps_schwarz
@@ -1833,6 +1920,8 @@ MODULE hfx_energy_potential
     REAL(dp), INTENT(IN)                     :: max_contraction_val
     TYPE(hfx_type), POINTER                  :: actual_x_data
     INTEGER                                  :: i_thread
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER(int_8)                           :: neris_tmp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ma, mb, mc, md, p_index, pa, &
@@ -1849,7 +1938,7 @@ MODULE hfx_energy_potential
                     ncoa,ncob,ncoc,ncod,&
                     primitive_integrals,&
                     potential_parameter, eps_schwarz, max_contraction_val, &
-                    cartesian_estimate, i_thread)
+                    cartesian_estimate, i_thread, neris_tmp)
     ELSE
       CALL coulomb4_per(ra, rb, rc, rd,&
                         zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset), &
@@ -1859,10 +1948,11 @@ MODULE hfx_energy_potential
                         npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
                         ncoa,ncob,ncoc,ncod,&
                         primitive_integrals,&
-                        potential_parameter, box_size, box_size_inv, &
+                        potential_parameter, &
                         actual_x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
                         screen_periodic(:,kset,lset,katom,latom), eps_schwarz, &
-                        max_contraction_val, cartesian_estimate, i_thread, error)
+                        max_contraction_val, cartesian_estimate, i_thread, cell, neris_tmp,&
+                        error)
     END IF
 
     IF(cartesian_estimate < eps_schwarz) RETURN

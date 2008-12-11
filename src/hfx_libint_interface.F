@@ -21,24 +21,29 @@ MODULE hfx_libint_interface
                                              lib_deriv,&
                                              lib_int,&
                                              prim_data
-  USE hfx_types,                       ONLY: hfx_potential_type
+  USE hfx_types,                       ONLY: hfx_potential_type,&
+                                             mul_fact
   USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
                                              do_hfx_potential_gaussian,&
                                              do_hfx_potential_id,&
                                              do_hfx_potential_long,&
                                              do_hfx_potential_mix_cl,&
                                              do_hfx_potential_mix_lg,&
-                                             do_hfx_potential_short
-  USE kinds,                           ONLY: dp
+                                             do_hfx_potential_short,&
+                                             do_hfx_potential_truncated
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE mathconstants
   USE orbital_pointers
+  USE t_c_g0,                          ONLY: t_c_g0_n
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
   PUBLIC evaluate_eri,&
          evaluate_deriv_eri,&
-         evaluate_eri_screen, pbc
+         evaluate_eri_screen,&
+         set_eps_cutoff
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_interface'
 
@@ -54,6 +59,7 @@ MODULE hfx_libint_interface
   INTEGER                            :: global_m  = -HUGE(global_m)  
   REAL(KIND=dp), DIMENSION(17)       :: global_Fm = 0.0_dp
   REAL(KIND=dp)                      :: global_T  = 0.0_dp
+  REAL(KIND=dp), SAVE                :: eps_cutoff
 
 !***
 
@@ -70,7 +76,8 @@ MODULE hfx_libint_interface
                           n_a,n_b,n_c,n_d,&
                           ncoa,ncob,ncoc,ncod,&
                           offset_a,offset_b,offset_c,offset_d,&
-                          primitives,potential_parameter, max_contraction, tmp_max, eps_schwarz)
+                          primitives,potential_parameter, max_contraction, tmp_max, &
+                          eps_schwarz, neris)
     
     TYPE(lib_int)                            :: lib
     REAL(dp), INTENT(IN)                     :: A(3), B(3), C(3), D(3), &
@@ -83,10 +90,12 @@ MODULE hfx_libint_interface
     TYPE(hfx_potential_type)                 :: potential_parameter
     REAL(dp)                                 :: max_contraction, tmp_max, &
                                                 eps_schwarz
+    INTEGER(int_8)                           :: neris
 
     INTEGER                                  :: a_mysize(1), i, j, k, l, &
                                                 m_max, mysize, p1, p2, p3, &
                                                 perm_case
+    LOGICAL                                  :: do_it
     REAL(dp), DIMENSION(:), POINTER          :: p_work
     TYPE(prim_data), TARGET                  :: prim
 
@@ -113,7 +122,7 @@ MODULE hfx_libint_interface
     ALLOCATE(p_work(mysize))
 #endif
 #endif
-
+    do_it = .TRUE.
     IF(m_max/=0) THEN
       perm_case = 1
       IF(n_a<n_b) THEN
@@ -128,7 +137,8 @@ MODULE hfx_libint_interface
       SELECT CASE(perm_case)
         CASE(1)
           CALL build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_a+n_b, n_c+n_d)
+          IF( .NOT. do_it ) RETURN
           lib%AB=A-B
           lib%CD=C-D
           CALL get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
@@ -168,7 +178,8 @@ MODULE hfx_libint_interface
           END DO
         CASE(2)
           CALL build_quartet_data(B,A,C,D,Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_b+n_a, n_c+n_d)
+          IF( .NOT. do_it ) RETURN
           lib%AB=B-A
           lib%CD=C-D
           CALL get_eris(n_d, n_c, n_a, n_b, lib, prim, p_work, a_mysize)
@@ -208,7 +219,8 @@ MODULE hfx_libint_interface
           END DO
         CASE(3)
           CALL build_quartet_data(A,B,D,C,Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_a+n_b, n_d+n_c)
+          IF( .NOT. do_it ) RETURN
           lib%AB=A-B
           lib%CD=D-C
           CALL get_eris(n_c, n_d, n_b, n_a, lib, prim, p_work, a_mysize)
@@ -248,7 +260,8 @@ MODULE hfx_libint_interface
           END DO
         CASE(4)
           CALL build_quartet_data(B,A,D,C,Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_b+n_a, n_d+n_c)
+          IF( .NOT. do_it ) RETURN
           lib%AB=B-A
           lib%CD=D-C
           CALL get_eris(n_c, n_d, n_a, n_b, lib, prim, p_work, a_mysize)
@@ -288,7 +301,8 @@ MODULE hfx_libint_interface
           END DO
         CASE(5)
           CALL build_quartet_data(C,D,A,B,Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_c+n_d, n_a+n_b)
+          IF( .NOT. do_it ) RETURN
           lib%AB=C-D
           lib%CD=A-B
           CALL get_eris(n_b, n_a, n_d, n_c, lib, prim, p_work, a_mysize)
@@ -328,7 +342,8 @@ MODULE hfx_libint_interface
           END DO
         CASE(6)
           CALL build_quartet_data(C,D,B,A,Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_c+n_d, n_b+n_a)
+          IF( .NOT. do_it ) RETURN
           lib%AB=C-D
           lib%CD=B-A
           CALL get_eris(n_a, n_b, n_d, n_c, lib, prim, p_work, a_mysize)
@@ -368,7 +383,8 @@ MODULE hfx_libint_interface
           END DO
         CASE(7)
           CALL build_quartet_data(D,C,A,B,Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_d+n_c, n_a+n_b)
+          IF( .NOT. do_it ) RETURN
           lib%AB=D-C
           lib%CD=A-B
           CALL get_eris(n_b, n_a, n_c, n_d, lib, prim, p_work, a_mysize)
@@ -408,7 +424,8 @@ MODULE hfx_libint_interface
           END DO
         CASE(8)
           CALL build_quartet_data(D,C,B,A,Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_d+n_c, n_b+n_a)
+          IF( .NOT. do_it ) RETURN
           lib%AB=D-C
           lib%CD=B-A
           CALL get_eris(n_a, n_b, n_c, n_d, lib, prim, p_work, a_mysize)
@@ -449,11 +466,14 @@ MODULE hfx_libint_interface
       END SELECT
     ELSE
       CALL build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, 0, 0)
+      IF( .NOT. do_it ) RETURN
       primitives(offset_a+1,offset_b+1,offset_c+1,offset_d+1) = &
         primitives(offset_a+1,offset_b+1,offset_c+1,offset_d+1)+prim%F(1)
       tmp_max = max_contraction*ABS(prim%F(1))
     END IF
+
+    neris = neris + mysize
 
     !! IF we use a Compiler that does not support whether ISO_C_BINDING nor
     !! CRAY POINTERS, we have to DEALLOCATE work array here
@@ -484,18 +504,21 @@ MODULE hfx_libint_interface
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
-                              potential_parameter, prim)
+                              potential_parameter, prim, do_it, np, nq)
      
     REAL(KIND=dp)                            :: A(3), B(3), C(3), D(3)
     REAL(KIND=dp), INTENT(IN)                :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                      :: m_max
     TYPE(hfx_potential_type)                 :: potential_parameter
     TYPE(prim_data)                          :: prim
+    LOGICAL, INTENT(INOUT)                   :: do_it
+    INTEGER                                  :: np, nq
 
     INTEGER                                  :: i
+    LOGICAL                                  :: use_gamma
     REAL(KIND=dp) :: AB(3), AB2, CD(3), CD2, Eta, EtaInv, factor, omega2, &
-      omega_corr, omega_corr2, P(3), PQ(3), PQ2, Q(3), Rho, RhoInv, S1234, T, &
-      tmp, W(3), Zeta, ZetaInv, ZetapEtaInv
+      omega_corr, omega_corr2, P(3), PQ(3), PQ2, Q(3), R, R1, R2, Rho, &
+      RhoInv, S1234, T, tmp, W(3), Zeta, ZetaInv, ZetapEtaInv
     REAL(KIND=dp), DIMENSION(17)             :: Fm
 
     Zeta = Zeta_A + Zeta_B
@@ -523,7 +546,20 @@ MODULE hfx_libint_interface
     S1234= EXP((-Zeta_A*Zeta_B*ZetaInv*AB2)+(-Zeta_C*Zeta_D*EtaInv*CD2))
     T = Rho*PQ2
 
+    do_it = .TRUE.
+
     SELECT CASE(potential_parameter%potential_type)
+      CASE(do_hfx_potential_truncated)
+        R = potential_parameter%cutoff_radius * SQRT(rho)
+        R1 = 1.0_dp/SQRT(Zeta) * mul_fact(np) * eps_cutoff 
+        R2 = 1.0_dp/SQRT(Eta)  * mul_fact(nq) * eps_cutoff
+        IF( PQ2 > (R1+R2+potential_parameter%cutoff_radius)**2 ) THEN
+          do_it = .FALSE.
+          RETURN
+        END IF
+        CALL t_c_g0_n(prim%F,use_gamma,R,T,m_max)
+        IF( use_gamma ) CALL fgamma(m_max, T, prim%F)
+        factor = 2.0_dp * Pi * RhoInv
       CASE(do_hfx_potential_coulomb)
         CALL fgamma(m_max,T,prim%F)
         factor = 2.0_dp*Pi*RhoInv
@@ -634,18 +670,21 @@ MODULE hfx_libint_interface
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE build_deriv_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, np, nq)
      
     REAL(KIND=dp)                            :: A(3), B(3), C(3), D(3)
     REAL(KIND=dp), INTENT(IN)                :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                      :: m_max
     TYPE(hfx_potential_type)                 :: potential_parameter
     TYPE(prim_data)                          :: prim
+    LOGICAL                                  :: do_it
+    INTEGER                                  :: np, nq
 
     INTEGER                                  :: i
+    LOGICAL                                  :: use_gamma
     REAL(KIND=dp) :: AB(3), AB2, C1(3), CD(3), CD2, D1(3), Eta, EtaInv, &
-      factor, omega2, omega_corr, omega_corr2, P(3), PQ(3), PQ2, Q(3), Rho, &
-      RhoInv, S1234, T, tmp, W(3), Zeta, ZetaInv, ZetapEtaInv
+      factor, omega2, omega_corr, omega_corr2, P(3), PQ(3), PQ2, Q(3), R, R1, &
+      R2, Rho, RhoInv, S1234, T, tmp, W(3), Zeta, ZetaInv, ZetapEtaInv
     REAL(KIND=dp), DIMENSION(17)             :: Fm
 
     Zeta = Zeta_A + Zeta_B
@@ -675,7 +714,20 @@ MODULE hfx_libint_interface
     S1234= EXP((-Zeta_A*Zeta_B*ZetaInv*AB2)+(-Zeta_C*Zeta_D*EtaInv*CD2))
     T = Rho*PQ2
 
+    do_it = .TRUE.
+
     SELECT CASE(potential_parameter%potential_type)
+      CASE(do_hfx_potential_truncated)
+        R = potential_parameter%cutoff_radius * SQRT(rho)
+        R1 = 1.0_dp/SQRT(Zeta) * mul_fact(np) * eps_cutoff 
+        R2 = 1.0_dp/SQRT(Eta)  * mul_fact(nq) * eps_cutoff
+        IF( PQ2 > (R1+R2+potential_parameter%cutoff_radius)**2 ) THEN
+          do_it = .FALSE.
+          RETURN
+        END IF
+        CALL t_c_g0_n(prim%F,use_gamma,R,T,m_max)
+        IF( use_gamma ) CALL fgamma(m_max, T, prim%F)
+        factor = 2.0_dp * Pi * RhoInv
       CASE(do_hfx_potential_coulomb)
         CALL fgamma(m_max,T,prim%F)
         factor = 2.0_dp*Pi*RhoInv
@@ -814,6 +866,7 @@ MODULE hfx_libint_interface
     INTEGER                                  :: a_mysize(1), i, j, k, l, &
                                                 m_max, mysize, n, p1, p2, p3, &
                                                 perm_case
+    LOGICAL                                  :: do_it
     REAL(dp)                                 :: tmp_max
     TYPE(prim_data), TARGET                  :: prim
 
@@ -832,6 +885,7 @@ MODULE hfx_libint_interface
       perm_case = perm_case + 4
     END IF
 
+    do_it = .TRUE.
     m_max = n_a+n_b+n_c+n_d
     m_max = m_max + 1
     mysize = nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)
@@ -839,7 +893,8 @@ MODULE hfx_libint_interface
     SELECT CASE(perm_case)
       CASE(1)
         CALL build_deriv_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                          potential_parameter, prim)
+                          potential_parameter, prim, do_it, n_a+n_b, n_c+n_d)
+        IF( .NOT. do_it ) RETURN
         deriv%AB=A-B
         deriv%CD=C-D
         CALL get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
@@ -876,7 +931,8 @@ MODULE hfx_libint_interface
         END DO
       CASE(2)
         CALL build_deriv_data(B,A,C,D,Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max,&
-                           potential_parameter, prim)
+                           potential_parameter, prim, do_it, n_b+n_a, n_c+n_d)
+        IF( .NOT. do_it ) RETURN
         deriv%AB=B-A
         deriv%CD=C-D
         CALL get_derivs(n_d, n_c, n_a, n_b, deriv, prim, work_forces, a_mysize)
@@ -914,7 +970,8 @@ MODULE hfx_libint_interface
         END DO
      CASE(3)
         CALL build_deriv_data(A,B,D,C,Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max,&
-                          potential_parameter, prim)
+                          potential_parameter, prim, do_it, n_a+n_b, n_d+n_c)
+        IF( .NOT. do_it ) RETURN
         deriv%AB=A-B
         deriv%CD=D-C
         CALL get_derivs(n_c, n_d, n_b, n_a, deriv, prim, work_forces, a_mysize)
@@ -952,7 +1009,8 @@ MODULE hfx_libint_interface
         END DO
       CASE(4)
         CALL build_deriv_data(B,A,D,C,Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max,&
-                          potential_parameter, prim)
+                          potential_parameter, prim, do_it, n_b+n_a, n_d+n_c)
+        IF( .NOT. do_it ) RETURN
         deriv%AB=B-A
         deriv%CD=D-C
         CALL get_derivs(n_c, n_d, n_a, n_b, deriv, prim, work_forces, a_mysize)
@@ -990,7 +1048,8 @@ MODULE hfx_libint_interface
         END DO
       CASE(5)
         CALL build_deriv_data(C,D,A,B,Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max,&
-                          potential_parameter, prim)
+                          potential_parameter, prim, do_it, n_c+n_d, n_a+n_b)
+        IF( .NOT. do_it ) RETURN
         deriv%AB=C-D
         deriv%CD=A-B
         CALL get_derivs(n_b, n_a, n_d, n_c, deriv, prim, work_forces, a_mysize)
@@ -1028,7 +1087,8 @@ MODULE hfx_libint_interface
         END DO
       CASE(6)
         CALL build_deriv_data(C,D,B,A,Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max,&
-                          potential_parameter, prim)
+                          potential_parameter, prim, do_it, n_c+n_d, n_b+n_a)
+        IF( .NOT. do_it ) RETURN
         deriv%AB=C-D
         deriv%CD=B-A
         CALL get_derivs(n_a, n_b, n_d, n_c, deriv, prim, work_forces, a_mysize)
@@ -1066,7 +1126,8 @@ MODULE hfx_libint_interface
         END DO
       CASE(7)
         CALL build_deriv_data(D,C,A,B,Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max,&
-                          potential_parameter, prim)
+                          potential_parameter, prim, do_it, n_d+n_c, n_a+n_b)
+        IF( .NOT. do_it ) RETURN
         deriv%AB=D-C
         deriv%CD=A-B
         CALL get_derivs(n_b, n_a, n_c, n_d, deriv, prim, work_forces, a_mysize)
@@ -1104,7 +1165,8 @@ MODULE hfx_libint_interface
         END DO
       CASE(8)
         CALL build_deriv_data(D,C,B,A,Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max,&
-                          potential_parameter, prim)
+                          potential_parameter, prim, do_it, n_d+n_c,n_b+n_a)
+        IF( .NOT. do_it ) RETURN
         deriv%AB=D-C
         deriv%CD=B-A
         CALL get_derivs(n_a, n_b, n_c, n_d, deriv, prim, work_forces, a_mysize)
@@ -1163,6 +1225,7 @@ MODULE hfx_libint_interface
 
     INTEGER                                  :: a_mysize(1), i, m_max, &
                                                 mysize, perm_case
+    LOGICAL                                  :: do_it
     REAL(dp), DIMENSION(:), POINTER          :: p_work
     TYPE(prim_data), TARGET                  :: prim
 
@@ -1191,7 +1254,9 @@ MODULE hfx_libint_interface
     ALLOCATE(p_work(mysize))
 #endif
 #endif
-    
+   
+    do_it = .TRUE.
+ 
     IF(m_max/=0) THEN
       perm_case = 1
       IF(n_a<n_b) THEN
@@ -1207,7 +1272,7 @@ MODULE hfx_libint_interface
       SELECT CASE(perm_case)
         CASE(1)
           CALL build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_a+n_b, n_c+n_d)
           lib%AB=A-B
           lib%CD=C-D
           CALL get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
@@ -1216,7 +1281,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(2)
           CALL build_quartet_data(B,A,C,D,Zeta_B, Zeta_A, Zeta_C, Zeta_D, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_b+n_a, n_c+n_d)
           lib%AB=B-A
           lib%CD=C-D
           CALL get_eris(n_d, n_c, n_a, n_b, lib, prim, p_work, a_mysize)
@@ -1225,7 +1290,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(3)
           CALL build_quartet_data(A,B,D,C,Zeta_A, Zeta_B, Zeta_D, Zeta_C, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_a+n_b, n_d+n_c)
           lib%AB=A-B
           lib%CD=D-C
           CALL get_eris(n_c, n_d, n_b, n_a, lib, prim, p_work, a_mysize)
@@ -1234,7 +1299,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(4)
           CALL build_quartet_data(B,A,D,C,Zeta_B, Zeta_A, Zeta_D, Zeta_C, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_b+n_a, n_d+n_c)
           lib%AB=B-A
           lib%CD=D-C
           CALL get_eris(n_c, n_d, n_a, n_b, lib, prim, p_work, a_mysize)
@@ -1243,7 +1308,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(5)
           CALL build_quartet_data(C,D,A,B,Zeta_C, Zeta_D, Zeta_A, Zeta_B, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_c+n_d, n_a+n_b)
           lib%AB=C-D
           lib%CD=A-B
           CALL get_eris(n_b, n_a, n_d, n_c, lib, prim, p_work, a_mysize)
@@ -1252,7 +1317,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(6)
           CALL build_quartet_data(C,D,B,A,Zeta_C, Zeta_D, Zeta_B, Zeta_A, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_c+n_d, n_b+n_a)
           lib%AB=C-D
           lib%CD=B-A
           CALL get_eris(n_a, n_b, n_d, n_c, lib, prim, p_work, a_mysize)
@@ -1261,7 +1326,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(7)
           CALL build_quartet_data(D,C,A,B,Zeta_D, Zeta_C, Zeta_A, Zeta_B, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_d+n_c, n_a+n_b)
           lib%AB=D-C
           lib%CD=A-B
           CALL get_eris(n_b, n_a, n_c, n_d, lib, prim, p_work, a_mysize)
@@ -1270,7 +1335,7 @@ MODULE hfx_libint_interface
           END DO
         CASE(8)
           CALL build_quartet_data(D,C,B,A,Zeta_D, Zeta_C, Zeta_B, Zeta_A, m_max,&
-                            potential_parameter, prim)
+                            potential_parameter, prim, do_it, n_d+n_c, n_b+n_a)
           lib%AB=D-C
           lib%CD=B-A
           CALL get_eris(n_a, n_b, n_c, n_d, lib, prim, p_work, a_mysize)
@@ -1280,7 +1345,7 @@ MODULE hfx_libint_interface
       END SELECT
     ELSE
       CALL build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                              potential_parameter, prim)
+                              potential_parameter, prim, do_it, 0, 0)
       max_val = ABS(prim%F(1))
     END IF
 
@@ -1307,31 +1372,16 @@ MODULE hfx_libint_interface
   END SUBROUTINE evaluate_eri_screen
 
 ! *****************************************************************************
-!> \brief auxiliary function to apply minimum image convention
+!> \brief sets the threshold for truncated calculations
 !> \par History
-!>      06.2007 created [Manuel Guidon]
+!>      12.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE pbc(x, box_size, box_size_inv, retval)
-    REAL(dp), INTENT(IN)                     :: x(3), box_size(3), &
-                                                box_size_inv(3)
-    REAL(dp), INTENT(OUT)                    :: retval(3)
+  SUBROUTINE set_eps_cutoff(eps_schwarz)
+    REAL(dp), INTENT(IN)                     :: eps_schwarz
 
-    IF( 2.0_dp*ABS(x(1))<box_size(1)) THEN
-      retval(1) = x(1)
-    ELSE
-      retval(1)=x(1) - box_size(1)*ANINT(x(1)*box_size_inv(1))
-    END IF
-    IF( 2.0_dp*ABS(x(2))<box_size(2)) THEN
-      retval(2) = x(2)
-    ELSE
-      retval(2)=x(2) - box_size(2)*ANINT(x(2)*box_size_inv(2))
-    END IF
-    IF( 2.0_dp*ABS(x(3))<box_size(3)) THEN
-      retval(3) = x(3)
-    ELSE
-      retval(3)=x(3) - box_size(3)*ANINT(x(3)*box_size_inv(3))
-    END IF
-  END SUBROUTINE pbc
+    eps_cutoff = SQRT(-LOG(eps_schwarz))
+  END SUBROUTINE set_eps_cutoff
+
 
 END MODULE hfx_libint_interface

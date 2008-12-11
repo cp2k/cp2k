@@ -333,7 +333,7 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
 
       CALL hfx_create(qs_env%x_data, para_env, hfx_section,natom,max_set,atomic_kind_set, &
-                      qs_env%dft_control, error=error)
+                      qs_env%dft_control, qs_env%cell, error=error)
     END IF
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
                            "PROPERTIES%ET_COUPLING",error=error)

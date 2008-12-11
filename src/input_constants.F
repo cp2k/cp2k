@@ -652,7 +652,10 @@ MODULE input_constants
                                               do_hfx_potential_mix_cl=4,&
                                               do_hfx_potential_gaussian=5,&
                                               do_hfx_potential_mix_lg=6,&
-                                              do_hfx_potential_id=7
+                                              do_hfx_potential_id=7,&
+                                              do_hfx_potential_truncated=8
+  ! HFX periodic number of shells
+  INTEGER, PARAMETER, PUBLIC               :: do_hfx_auto_shells = -1
                                            
   ! adiabatic hybrid type                  
   INTEGER, PARAMETER, PUBLIC               :: do_adiabatic_hybrid_mcy3=1
