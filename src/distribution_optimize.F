@@ -20,6 +20,8 @@ MODULE distribution_optimize
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
+  USE input_constants,                 ONLY: opt_target_median,&
+                                             opt_target_minimum
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -71,13 +73,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_2d_monte_carlo', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(len=20)                        :: opt_target_used
     INTEGER :: best_cpu, best_iac, best_max_cost, cost_optimal, handle, i, &
       iac, icpu, iele, iswap, itmp, itries, iw, jswap, max_cost, ncycles, &
-      nmoves, nreduction, pos_max_cost, random_rowcol
+      nmoves, nreduction, opt_target, pos_max_cost, random_rowcol
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: max_cost_para
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: cost_cpu
     INTEGER :: local_rows_pos(nele), local_rows_best(nele), &
       local_cols_pos(nele), local_cols_best(nele)
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: random_move, &
                                                 reduction_factor, swap_prob, &
                                                 T, T_in, t_initial, tol
@@ -85,7 +89,7 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
     CALL timeset(routineN,handle)
-
+    failure=.FALSE.
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,mc_section,"PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
@@ -99,10 +103,22 @@ CONTAINS
     CALL section_vals_val_get(mc_section,"TEMPERATURE",r_val=T_in,error=error)
     CALL section_vals_val_get(mc_section,"TOLERANCE",r_val=tol,error=error)
     CALL section_vals_val_get(mc_section,"SWAP_PROBABILITY",r_val=swap_prob,error=error)
+    CALL section_vals_val_get(mc_section,"OPT_TARGET",i_val=opt_target,error=error)
+
+    SELECT CASE(opt_target)
+    CASE(opt_target_minimum)
+       opt_target_used = 'SMALLEST MAXIMUM'
+    CASE(opt_target_median)
+       opt_target_used = 'PERFECT BALANCE'
+    CASE DEFAULT
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
+
 
     ! the best possible cost is a perfectly equal load for each cpu 
     cost_optimal=(SUM(cost_ele_pair)+P*Q-1)/(P*Q)
 
+    
     IF (iw>0) THEN
        WRITE(iw,'(T2,A)') ""
        WRITE(iw,'(T2,A)') "2D_MC| Monte Carlo annealing to optimize the distribution_2d"
@@ -116,12 +132,12 @@ CONTAINS
        WRITE(iw,'(T2,A,T61,I20)') "2D_MC| Number of processor rows ",P
        WRITE(iw,'(T2,A,T61,I20)') "2D_MC| Number of processor cols ",Q
        WRITE(iw,'(T2,A,T61,I20)') "2D_MC| Number of elements ",nele
+       WRITE(iw,'(T2,A,T61,A20)') "2D_MC| What do we minimize ", opt_target_used
        WRITE(iw,'(T2,A,T61,I20)') "2D_MC| Cost of optimal distribution ",cost_optimal
     ENDIF
 
     ! adjust this to be in units of the maximum block cost
     T_in=T_in*MAXVAL(cost_ele_pair)
-
     ! allocate a cost per CPU structure
     ALLOCATE(cost_cpu(P,Q))
 
@@ -132,7 +148,13 @@ CONTAINS
         local_cols(i)=MOD(i-1,Q)+1
     ENDDO
     CALL compute_cost_cpu(cost_cpu,cost_ele_pair,P,Q,nele,local_rows,local_cols)
-    max_cost=MAXVAL(cost_cpu)
+    SELECT CASE(opt_target)
+    CASE(opt_target_minimum)
+      max_cost=MAXVAL(cost_cpu)
+    CASE(opt_target_median)
+      max_cost=deviance_cost_cpu(cost_cpu,P,Q)
+    END SELECT
+
 
     ! initialize the random number generators
     ! each CPU should have a different stream of random numbers
@@ -200,9 +222,15 @@ CONTAINS
        ! evaluate its cost
        iac = iac + 1
        CALL update_cost_cpu_diff(cost_cpu,cost_ele_pair,P,Q,nele,local_rows,local_cols,local_rows_pos,local_cols_pos)
-       max_cost=MAXVAL(cost_cpu)
 
-       ! accept / reject
+       SELECT CASE(opt_target)
+       CASE(opt_target_minimum)
+         max_cost=MAXVAL(cost_cpu)
+       CASE(opt_target_median)
+         max_cost=deviance_cost_cpu(cost_cpu,P,Q)
+       END SELECT
+
+        ! accept / reject
        random_move   = next_random_number(rng_stream,error=error)
        IF (max_cost < pos_max_cost .OR. (EXP( -(max_cost - pos_max_cost)/T) .GT. random_move )) THEN
           pos_max_cost   = max_cost
@@ -365,4 +393,31 @@ CONTAINS
     ENDDO
   END SUBROUTINE update_cost_cpu_diff
 
+! *****************************************************************************
+!> \brief Calculate the deviance (Sqrt(Var)) of the cost_cpu array
+!> \par History
+!>      12.2009 P. Manninen
+! *****************************************************************************
+  FUNCTION deviance_cost_cpu(cost_cpu,P,Q) RESULT(idev)
+    INTEGER, INTENT(IN)                      :: P, Q
+    INTEGER, INTENT(OUT)                     :: cost_cpu(P,Q)
+    INTEGER                                  :: idev
+
+    INTEGER                                  :: i, j
+    REAL                                     :: a, cost(P,Q), dev, mean, rpq
+
+    cost=REAL(cost_cpu)
+    rpq=REAL(P*Q)
+    mean=SUM(cost(:,:))/rpq
+    dev=0.0
+    DO j=1,Q
+      DO i=1,P
+        a=cost(i,j)-mean
+        dev=dev+a*a
+      END DO
+    END DO
+    dev=SQRT(dev/rpq)
+    idev=NINT(dev)    
+  END FUNCTION deviance_cost_cpu
 END MODULE distribution_optimize
+

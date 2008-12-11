@@ -641,6 +641,9 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: model_block_count=453, &
                                               model_block_surface=454, &
                                               model_block_lmax=455
+  ! optimization targets for distribution 2d
+  INTEGER, PARAMETER, PUBLIC               :: opt_target_minimum=456, &
+                                              opt_target_median=457
                                            
   ! HFX potential type                     
   INTEGER, PARAMETER, PUBLIC               :: do_hfx_potential_coulomb=1,&

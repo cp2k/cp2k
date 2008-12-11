@@ -180,6 +180,17 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword,name="OPT_TARGET",&
+            description="The aim of the MC optimization ",&
+            usage="OPT_TARGET PERFECT_BALANCE",&
+            enum_c_vals=s2a("SMALLEST_MAXIMUM","PERFECT_BALANCE"),&
+            enum_i_vals=(/opt_target_minimum, opt_target_median/),&
+            enum_desc=s2a("minimize the maximum cost",&
+                          "minimize the deviance from the average"), &
+            default_i_val=opt_target_minimum,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of basic information during the run", &
