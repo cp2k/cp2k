@@ -153,3 +153,9 @@ CH-hfx-pbc-md.inp
 CH-hfx-pbc-md.inp
 # more numerics ppnl
 CH-hfx-pbc-md.inp
+# new periodic module
+4H2O-disk.inp
+4H2O-mix-disk-ram.inp
+4H2O-mix-disk-ram-on-the-fly.inp
+CH-hfx-md.inp
+CH-hfx-md-2.inp
