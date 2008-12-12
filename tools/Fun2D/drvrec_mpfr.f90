@@ -136,7 +136,7 @@
          ! useful to investigate the error later on
          should_output=31
          IF (should_output>0) THEN
-           OPEN(should_output,FILE="history.dat",ACCESS="APPEND") 
+            OPEN(should_output,FILE="function_vals.dat")
          ENDIF
 
          ! input definition

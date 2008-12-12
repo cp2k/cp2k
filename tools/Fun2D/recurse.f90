@@ -52,10 +52,11 @@
     MODULE RECURSE      
       INTEGER, SAVE :: find_count=0
       INTEGER, PARAMETER :: dp=KIND(0.0D0)
+      REAL(KIND=dp) ERR
     CONTAINS
       SUBROUTINE GO()
          IMPLICIT NONE
-         REAL(KIND=dp) A1,B1,A2,B2,ERR
+         REAL(KIND=dp) A1,B1,A2,B2
          INTEGER :: DEG,LEVEL
          INTEGER :: nderiv
 
@@ -63,7 +64,8 @@
          COMMON/functiontype/functionid,digits
 
          ! these are the selected settings for CP2K
-         digits=1024
+         ! some initial guess for the needed number of digits
+         digits=128
          ! number of simultaneous function values to be evaluated for a given 2D point 
          nderiv=21
          ! degree of the interpolating polynomial
@@ -314,6 +316,9 @@
          ELSE
 
             ! decide in which dimension to bisection. 
+            ! the easiest and fastest way
+            ! DIRECTION=MOD(LEVEL,2)+1
+            ! The way leading to more efficient code
             ! using a section that minimizes the maximum error is slightly more
             ! efficient than alternating bisection.
             MIDDLE=(A1+B1)/2
@@ -347,49 +352,49 @@
 
       END SUBROUTINE FIND_DOMAINS
 
+      ! evaluates C0 coefs increasing the number of digits, till the result becomes independent
       SUBROUTINE drvrec_wrap(A1,B1,A2,B2,DEG,NDERIV,C0,ESTIMATED_ERR)
 
          REAL(KIND=dp) :: a1,b1,a2,b2,estimated_err,estimated_err2,estimated_err3,esterr
          INTEGER :: deg,nderiv
          REAL(KIND=dp) :: C0(0:DEG,0:DEG,0:NDERIV), C02(0:DEG,0:DEG,0:NDERIV)
-         integer :: functionid,digits
+         REAL(KIND=dp) :: R,T,vals(0:nderiv)
+         integer :: functionid,digits,digits_local
          COMMON/functiontype/functionid,digits
 
-         OPEN(UNIT=51,FILE="drvrec_mpfr.in")
-         WRITE(51,*) digits
-         WRITE(51,*) deg
-         WRITE(51,*) nderiv
-         WRITE(51,*) A1,B1
-         WRITE(51,*) A2,B2
-         WRITE(51,*) functionid
-         CLOSE(51)
-         CALL SYSTEM("./drvrec_mpfr.x")
-         OPEN(UNIT=51,FILE="drvrec_mpfr.out")
-         READ(51,*) ESTIMATED_ERR
-         READ(51,*) C0
-         CLOSE(51)
+         digits_local=digits
+         C02 = 0.0_dp
 
-         IF (.FALSE.) THEN
-            CALL drvrec(A1,B1,A2,B2,DEG,NDERIV,C02,ESTIMATED_ERR2)
+         DO
+            OPEN(UNIT=51,FILE="drvrec_mpfr.in")
+            WRITE(51,*) digits_local
+            WRITE(51,*) deg
+            WRITE(51,*) nderiv
+            WRITE(51,*) A1,B1
+            WRITE(51,*) A2,B2
+            WRITE(51,*) functionid
+            CLOSE(51)
+            CALL SYSTEM("./drvrec_mpfr.x")
+            OPEN(UNIT=51,FILE="drvrec_mpfr.out")
+            READ(51,*) ESTIMATED_ERR
+            READ(51,*) C0
+            CLOSE(51)
 
-            estimated_err3=0
-
-            DO K=0,NDERIV
-
-              ESTERR = 0.0D0
-              DO J = 0,2
-                 DO I = 0,DEG - J
-                    ESTERR = ESTERR + ABS(C0(I,DEG - I - J,K))
-                 ENDDO
-              ENDDO
-              ESTERR = ESTERR * 2
-
-            estimated_err3=MAX(ESTERR,estimated_err3)
-
-            ENDDO
-
-            write(100,*) A1,B1,A2,B2,estimated_err,estimated_err2,estimated_err3,MAXVAL(ABS(C0-C02))
-         ENDIF
+            !  do not allow for differences larger than ERR times a given factor
+            IF(MAXVAL(ABS(C0-C02))>ERR*1.0E-5) THEN
+               C02=C0
+               digits_local=digits_local*2
+            ELSE
+               OPEN(UNIT=97,FILE="function_vals.dat")
+               DO
+                 READ(97,*,END=999) R,T,vals
+                 WRITE(98,*) R,T,vals
+               ENDDO
+999            CONTINUE
+               CLOSE(97)
+               EXIT
+            ENDIF
+         ENDDO
 
       END SUBROUTINE
 END MODULE
@@ -399,5 +404,8 @@ END MODULE
 !
 
  USE RECURSE
+ OPEN(UNIT=98,FILE="history.dat")
  CALL GO()
+ CLOSE(98)
+
 END
