@@ -24,13 +24,22 @@
         INTEGER i,ntg1
 
         CALL pdpts(deg,pd1,pd2,wpd,npd)
-        
+
+!$OMP PARALLEL DO &
+!$OMP DEFAULT(NONE) &
+!$OMP PRIVATE(i,x1,x2,res) &
+!$OMP SHARED(npd,a1,b1,a2,b2,pd1,pd2,fpd,nderiv)
         DO i = 1,npd
            x1=((b1 - a1) * pd1(i) + (b1 + a1)) / 2
            x2=((b2 - a2) * pd2(i) + (b2 + a2)) / 2
            CALL f(res,nderiv,x1,x2)
            FPD(I,:) = RES(0:NDERIV)
         ENDDO
+
+!$OMP PARALLEL DO &
+!$OMP DEFAULT(NONE) &
+!$OMP PRIVATE(i,t1,t2) &
+!$OMP SHARED(npd,deg,pd1,pd2,wpd,fpd,c0,esterr)
         DO i=0,nderiv
            CALL padua2(deg,npd,pd1,pd2,wpd,fpd(:,i),t1,t2,c0(:,:,i),esterr(i))
         ENDDO
@@ -102,7 +111,9 @@
         res(0:nderiv)=dummy(0:nderiv)
 
         IF (should_output>0) THEN
+!$OMP CRITICAL
            WRITE(should_output,*) REAL(R),REAL(T),REAL(res)
+!$OMP END CRITICAL
         ENDIF
 
       END SUBROUTINE f
@@ -150,7 +161,9 @@
          CLOSE(17)
 
          precision = log(10.0)/log(2.0)*digits
+!$OMP PARALLEL DEFAULT(NONE) SHARED(precision)
          CALL mpfr_set_default_precision(precision)
+!$OMP END PARALLEL
 
          A1_mp=A1
          B1_mp=B1

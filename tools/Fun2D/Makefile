@@ -1,7 +1,10 @@
 #
 # requires a sufficiently recent gfortran and mpfr ....
 #
-FC       = gfortran-4.3 -ffree-line-length-512 -g
+# if the openmp version is to be used, mpfr needs to be thread safe
+# this requires an mpfr configured with './configure --enable-thread-safe ...'
+#
+FC       = gfortran-4.3 -ffree-line-length-512 -g -fopenmp
 FFLAGS   = -O3 -march=native -funroll-loops
 LIBSMPFR = -lmpfr -lgmp
 
