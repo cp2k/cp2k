@@ -67,3 +67,5 @@ nh3-meta-walks_1.inp      2
 nh3-meta-walks_2.inp      2
 nh3-meta-walks_1r.inp     2
 nh3-meta-walks_2r.inp     2
+#Combine_colvar
+H2O-meta-combine.inp      2

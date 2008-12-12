@@ -1,0 +1,82 @@
+
+&FORCE_EVAL
+   METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/water.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/water_1.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+    &COLVAR
+      &COMBINE_COLVAR
+        &COLVAR
+          &DISTANCE
+            ATOMS 1 2
+          &END 
+        &END 
+        &COLVAR
+          &DISTANCE
+            ATOMS 1 3
+          &END
+        &END 
+        FUNCTION (CV1^P+CV2^P)^(1./P)
+        PARAMETERS P
+        VALUES 4.0
+        VARIABLES CV1 CV2
+        ERROR_LIMIT 1.0E-9
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT water_1
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 100
+    TIMESTEP 2.5
+    TEMPERATURE 298
+  &END MD
+  &CONSTRAINT
+    &COLLECTIVE
+      MOLECULE 1
+      COLVAR 1
+      &RESTRAINT
+          K   [kcalmol*rad^-2]  55.0
+      &END
+    &END COLLECTIVE
+  &END CONSTRAINT
+  &PRINT
+    &RESTART
+      &EACH
+        MD 1
+      &END
+    &END
+  &END
+&END MOTION

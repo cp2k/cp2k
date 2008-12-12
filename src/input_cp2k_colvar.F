@@ -46,9 +46,9 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author teo
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE create_colvar_section(section,skip_reaction_path,error)
+  RECURSIVE SUBROUTINE create_colvar_section(section,skip_recursive_colvar,error)
     TYPE(section_type), POINTER              :: section
-    LOGICAL, OPTIONAL                        :: skip_reaction_path
+    LOGICAL, OPTIONAL                        :: skip_recursive_colvar
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_section', &
@@ -59,7 +59,7 @@ CONTAINS
 
     failure=.FALSE.
     skip=.FALSE.
-    IF(PRESENT(skip_reaction_path))skip=skip_reaction_path
+    IF(PRESENT(skip_recursive_colvar))skip=skip_recursive_colvar
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="COLVAR",&
@@ -69,7 +69,7 @@ CONTAINS
        NULLIFY(subsection, print_key)
 
        CALL create_colvar_var_section(subsection=subsection,&
-            section=section,skip_reaction_path=skip,error=error)
+            section=section,skip_recursive_colvar=skip,error=error)
 
        CALL section_create(subsection,name="PRINT",&
             description="Controls the printing of the colvar specifications",&
@@ -96,9 +96,9 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author teo
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE create_colvar_var_section(subsection, section, skip_reaction_path, error)
+  RECURSIVE SUBROUTINE create_colvar_var_section(subsection, section, skip_recursive_colvar, error)
     TYPE(section_type), POINTER              :: subsection, section
-    LOGICAL, INTENT(IN)                      :: skip_reaction_path
+    LOGICAL, INTENT(IN)                      :: skip_recursive_colvar
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_var_section', &
@@ -147,8 +147,12 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       IF(.NOT. skip_reaction_path)THEN
+       IF(.NOT. skip_recursive_colvar)THEN
           CALL create_colvar_rpath_section(subsection,error)
+          CALL section_add_subsection(section, subsection, error=error)
+          CALL section_release(subsection,error=error)
+
+          CALL create_colvar_comb_section(subsection,error)
           CALL section_add_subsection(section, subsection, error=error)
           CALL section_release(subsection,error=error)
        ENDIF
@@ -900,6 +904,7 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_colvar_hydronium_section
+
 ! *****************************************************************************
 !> \brief collective variables specifying the space orthogonal to the reaction path
 !>        in the space spanned by the involved collective coordinates
@@ -931,16 +936,16 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             citations=(/Branduardi2007/), &
             error=error)
-        
+
        NULLIFY(keyword, subsection,print_key)
-       CALL create_colvar_section(subsection,skip_reaction_path=.TRUE.,error=error)
+       CALL create_colvar_section(subsection,skip_recursive_colvar=.TRUE.,error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
        CALL keyword_create(keyword, name="FUNCTION",&
             description="Specifies the ith element of the vector valued function that defines the reaction path. "//&
-                        "This keyword needs to repeat exactly Q times, and the order must match the order of the colvars. "//&
-                        "The VARIABLE (e.g. T) which parametrises the curve can be used as the target of a constraint.",&
+            "This keyword needs to repeat exactly Q times, and the order must match the order of the colvars. "//&
+            "The VARIABLE (e.g. T) which parametrises the curve can be used as the target of a constraint.",&
             usage="FUNCTION (sin(T+2)+2*T)", type_of_var=lchar_t,&
             n_var=1, default_lc_val="0",repeats=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -956,9 +961,9 @@ CONTAINS
 
        CALL keyword_create(keyword, name="LAMBDA",&
             description="Specifies the exponent of the Gaussian used in the integral representation of the colvar."//&
-                        "The shape of the space orthogonal to the reaction path is defined by this choice. "//&
-                        "In the limit of large values, it is given by the plane orthogonal to the path."//&
-                        "In practice, modest values are required for stable numerical integration.",&
+            "The shape of the space orthogonal to the reaction path is defined by this choice. "//&
+            "In the limit of large values, it is given by the plane orthogonal to the path."//&
+            "In practice, modest values are required for stable numerical integration.",&
             usage="LAMBDA {real}",required=.TRUE.,&
             type_of_var=real_t,default_r_val=5.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -966,7 +971,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="STEP_SIZE",&
             description="Step size in the numerical integration, "//&
-                        "a few thousand points are common, and the proper number also depends on LAMBDA.",&
+            "a few thousand points are common, and the proper number also depends on LAMBDA.",&
             usage="STEP_SIZE {real}",required=.TRUE.,&
             type_of_var=real_t,default_r_val=0.01_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -1006,5 +1011,84 @@ CONTAINS
        CALL section_release(print_key,error=error)
     END IF
   END SUBROUTINE create_colvar_rpath_section
+
+! *****************************************************************************
+!> \brief Colvar allowing a combination of COLVARS
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] - 12.2008
+! *****************************************************************************
+  SUBROUTINE create_colvar_comb_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_comb_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="COMBINE_COLVAR",&
+            description="Allows the possibility to combine several COLVARs into one COLVAR "//&
+            "with a generic function.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword, subsection)
+       CALL create_colvar_section(subsection,skip_recursive_colvar=.TRUE.,error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL keyword_create(keyword, name="FUNCTION",&
+            description="Specifies the function used to combine different COLVARs into one.",&
+            usage="FUNCTION SQRT(CV1^2+CV2^2)", type_of_var=lchar_t,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="VARIABLES",&
+            description="Specifies the name of the variable that parametrises the FUNCTION "//&
+            "defining how COLVARS should be combined. The matching follows the same order of the "//&
+            "COLVARS definition in the input file.",&
+            usage="VARIABLE CV1 CV2 CV3", type_of_var=char_t,n_var=-1, repeats=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PARAMETERS",&
+            description="Defines the parameters of the functional form",&
+            usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
+            n_var=-1, repeats=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="VALUES",&
+            description="Defines the values of  parameter of the functional form",&
+            usage="VALUES ", required=.TRUE., type_of_var=real_t,&
+            n_var=-1, repeats=.TRUE., unit_str="internal_cp2k", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DX",&
+            description="Parameter used for computing the derivative of the combination "//&
+            "of COLVARs with the Ridders method.",&
+            usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ERROR_LIMIT",&
+            description="Checks that the error in computing the derivative is not larger than "//&
+            "the value set. In case prints a warning message.",&
+            usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_colvar_comb_section
 
 END MODULE input_cp2k_colvar

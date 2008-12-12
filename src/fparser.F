@@ -903,7 +903,8 @@ CONTAINS
 ! *****************************************************************************
   FUNCTION evalfd(id_fun,ipar,vals,h,err) RESULT(derivative)
     INTEGER, INTENT(IN)                      :: id_fun, ipar
-    REAL(KIND=rn), DIMENSION(:), POINTER     :: vals
+    REAL(KIND=rn), DIMENSION(:), &
+      INTENT(INOUT)                          :: vals
     REAL(KIND=rn), INTENT(IN)                :: h
     REAL(KIND=rn), INTENT(OUT)               :: err
     REAL(KIND=rn)                            :: derivative

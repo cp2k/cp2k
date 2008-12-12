@@ -15,8 +15,8 @@ MODULE colvar_methods
   USE cell_types,                      ONLY: cell_type
   USE colvar_types,                    ONLY: &
        angle_colvar_id, colvar_check_points, colvar_create, colvar_setup, &
-       colvar_type, coord_colvar_id, dfunct_colvar_id, dist_colvar_id, &
-       eval_point_der, eval_point_pos, hydronium_colvar_id, &
+       colvar_type, combine_colvar_id, coord_colvar_id, dfunct_colvar_id, &
+       dist_colvar_id, eval_point_der, eval_point_pos, hydronium_colvar_id, &
        plane_distance_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
        rotation_colvar_id, torsion_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
@@ -28,6 +28,7 @@ MODULE colvar_methods
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE fparser,                         ONLY: evalf,&
+                                             evalfd,&
                                              finalizef,&
                                              initf,&
                                              parsef
@@ -99,25 +100,26 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: tmpStr, tmpStr2
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: c_kinds, my_par
-    INTEGER                                  :: handle, i, iatm, iend, &
+    INTEGER                                  :: handle, i, iatm, iend, isize, &
                                                 istart, iw, iw1, j, k, kk, &
                                                 n_var, n_var_k, ncol, ndim, &
                                                 stat, v_count
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
     LOGICAL                                  :: check, failure
-    LOGICAL, DIMENSION(10)                   :: my_subsection
+    LOGICAL, DIMENSION(11)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
     REAL(KIND=dp)                            :: coeff
     REAL(KIND=dp), DIMENSION(1)              :: my_val
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g_range, grid_point, grid_sp, &
-                                                range
+                                                my_vals, range
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: angle_section, colvar_subsection, &
-      coordination_section, dfunct_section, distance_section, &
-      hydronium_section, plane_dist_section, point_section, qparm_section, &
-      reaction_path_section, rotation_section, torsion_section, wrk_section
+      combine_section, coordination_section, dfunct_section, &
+      distance_section, hydronium_section, plane_dist_section, point_section, &
+      qparm_section, reaction_path_section, rotation_section, &
+      torsion_section, wrk_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -137,6 +139,8 @@ CONTAINS
     hydronium_section    => section_vals_get_subs_vals(colvar_section,"HYDRONIUM",i_rep_section=icol,error=error)
     reaction_path_section=> section_vals_get_subs_vals(colvar_section,"REACTION_PATH",i_rep_section=icol,&
                             can_return_null=.TRUE.,error=error)
+    combine_section      => section_vals_get_subs_vals(colvar_section,"COMBINE_COLVAR",i_rep_section=icol,&
+                            can_return_null=.TRUE.,error=error)
 
     CALL section_vals_get(distance_section,     explicit=my_subsection( 1), error=error)
     CALL section_vals_get(angle_section,        explicit=my_subsection( 2), error=error)
@@ -147,9 +151,12 @@ CONTAINS
     CALL section_vals_get(dfunct_section,       explicit=my_subsection( 7), error=error)
     CALL section_vals_get(qparm_section,        explicit=my_subsection( 8), error=error)
     CALL section_vals_get(hydronium_section,    explicit=my_subsection( 9), error=error)
-    ! This is just a special case since it is not present in its own defition of COLVARS
+    ! These are just special cases since they are not present in their own defition of COLVARS
     IF (ASSOCIATED(reaction_path_section)) THEN
        CALL section_vals_get(reaction_path_section,explicit=my_subsection(10), error=error)
+    END IF
+    IF (ASSOCIATED(combine_section)) THEN
+       CALL section_vals_get(combine_section,explicit=my_subsection(11), error=error)
     END IF
 
     ! Only one colvar can be present
@@ -462,11 +469,70 @@ CONTAINS
           CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
           DEALLOCATE(grid_point,stat=stat)
           CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-
-
        END IF
        CALL cp_print_key_finished_output(iw1,logger,reaction_path_section,&
-            "MAP", error=error)   
+            "MAP", error=error)
+    ELSE IF(my_subsection(11))THEN
+       ! combine colvar
+       CALL colvar_create(colvar,combine_colvar_id, error)
+       colvar%use_points=.FALSE.
+       colvar_subsection => section_vals_get_subs_vals(combine_section,"COLVAR",error=error)
+       CALL section_vals_get(colvar_subsection,n_repetition=ncol,error=error)
+       ALLOCATE(colvar%combine_cvs_param%colvar_p(ncol),stat=stat)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+       ! In case we need to print some information..
+       iw = cp_print_key_unit_nr(logger,colvar_section,&
+            "PRINT%PROGRAM_RUN_INFO",extension=".colvarLog",error=error)
+       IF (iw>0) THEN
+          WRITE ( iw, '( A )')'          '//&
+               '**********************************************************************'
+          WRITE ( iw, '( A,I8)' )   ' COLVARS| COLVAR INPUT INDEX: ',icol
+          WRITE ( iw, '( A,T49,4I8)' )   ' COLVARS| COMBINATION OF THE FOLOWING COLVARS:'
+       END IF
+       CALL cp_print_key_finished_output(iw,logger,colvar_section,&
+            "PRINT%PROGRAM_RUN_INFO", error=error)
+       ! Parsing the real COLVARs
+       DO i= 1, ncol
+          NULLIFY(colvar%combine_cvs_param%colvar_p(i)%colvar)
+          CALL colvar_read(colvar%combine_cvs_param%colvar_p(i)%colvar,i,colvar_subsection, error=error)
+       END DO
+       ! Function definition
+       CALL section_vals_val_get(combine_section,"FUNCTION",c_val=colvar%combine_cvs_param%function,error=error)
+       CALL compress(colvar%combine_cvs_param%function, full=.TRUE.)
+       ! Variables
+       CALL section_vals_val_get(combine_section,"VARIABLES",c_vals=my_par,error=error)
+       ALLOCATE(colvar%combine_cvs_param%variables(SIZE(my_par)),stat=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+       colvar%combine_cvs_param%variables = my_par
+       ! Check that the number of COLVAR provided is equal to the number of variables..
+       CALL cp_assert(SIZE(my_par)==ncol,cp_fatal_level,cp_assertion_failed,routineP,&
+            "Number of defined COLVAR for COMBINE_COLVAR is different from the "//&
+            "number of variables! It is not possible to define COLVARs in a COMBINE_COLVAR "//&
+            "and avoid their usage in the combininig function!"//&
+CPSourceFileRef)
+       ! Parameters
+       ALLOCATE(colvar%combine_cvs_param%c_parameters(0),stat=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+       CALL section_vals_val_get(combine_section,"PARAMETERS",n_rep_val=ncol,error=error)
+       DO i = 1,ncol
+          isize = SIZE(colvar%combine_cvs_param%c_parameters)
+          CALL section_vals_val_get(combine_section,"PARAMETERS",c_vals=my_par,i_rep_val=i,error=error)
+          CALL reallocate(colvar%combine_cvs_param%c_parameters,1,isize+SIZE(my_par))
+          colvar%combine_cvs_param%c_parameters(isize+1:isize+SIZE(my_par)) = my_par
+       END DO
+       ALLOCATE(colvar%combine_cvs_param%v_parameters(0),stat=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+       CALL section_vals_val_get(combine_section,"VALUES",n_rep_val=ncol,error=error)
+       DO i = 1,ncol
+          isize = SIZE(colvar%combine_cvs_param%v_parameters)
+          CALL section_vals_val_get(combine_section,"VALUES",r_vals=my_vals,i_rep_val=i,error=error)
+          CALL reallocate(colvar%combine_cvs_param%v_parameters,1,isize+SIZE(my_vals))
+          colvar%combine_cvs_param%v_parameters(isize+1:isize+SIZE(my_vals)) = my_vals
+       END DO
+       ! Info on derivative evaluation
+       CALL section_vals_val_get(combine_section,"DX",r_val=colvar%combine_cvs_param%dx,error=error)
+       CALL section_vals_val_get(combine_section,"ERROR_LIMIT",r_val=colvar%combine_cvs_param%lerr,&
+            error=error)
     END IF
     CALL colvar_setup(colvar, error)
 
@@ -475,8 +541,13 @@ CONTAINS
     IF (iw>0) THEN
        tag = "ATOMS: "
        IF (colvar%use_points) tag = "POINTS:"
-       WRITE ( iw, '( A )')'          '//'----------------------------------------------------------------------'
-       WRITE ( iw, '( A,I8)' )   ' COLVARS| COLVAR INPUT INDEX: ',icol
+       ! Description header
+       IF (colvar%type_id/=combine_colvar_id) THEN
+          WRITE ( iw, '( A )')'          '//&
+               '----------------------------------------------------------------------'
+          WRITE ( iw, '( A,I8)' )   ' COLVARS| COLVAR INPUT INDEX: ',icol
+       END IF
+       ! Colvar Description
        SELECT CASE(colvar%type_id)
        CASE(angle_colvar_id)
           WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| ANGLE          >>> '//tag,&
@@ -553,6 +624,32 @@ CONTAINS
           WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| RCUT',colvar%qparm_param%rcut
           WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| ALPHA',colvar%qparm_param%alpha
           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| L',colvar%qparm_param%l
+       CASE(combine_colvar_id)
+          WRITE ( iw, '( A)' ) ' COLVARS| COMBINING FUNCTION : '//&
+               TRIM(colvar%combine_cvs_param%function)
+          WRITE ( iw, '( A)', ADVANCE="NO") ' COLVARS| VARIABLES : '
+          DO i = 1, SIZE(colvar%combine_cvs_param%variables)
+             WRITE ( iw, '( A)', ADVANCE="NO")&
+                  TRIM(colvar%combine_cvs_param%variables(i))//" "
+          END DO
+          WRITE ( iw, '(/)')
+          WRITE ( iw, '( A)' ) ' COLVARS| DEFINED PARAMETERS [label]  [value]:'
+          DO i = 1, SIZE(colvar%combine_cvs_param%c_parameters)
+             WRITE ( iw, '( A,A7,F9.3)' ) '                            ',&
+                  TRIM(colvar%combine_cvs_param%c_parameters(i)),colvar%combine_cvs_param%v_parameters(i)
+          END DO
+          WRITE ( iw, '( A,T71,G10.5)' ) ' COLVARS| ERROR ON DERIVATIVE EVALUATION',&
+               colvar%combine_cvs_param%lerr
+          WRITE ( iw, '( A,T71,G10.5)' ) ' COLVARS| DX',&
+               colvar%combine_cvs_param%dx
+       CASE(reaction_path_colvar_id)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Description header for REACTION_PATH COLVAR missing!!", &
+               error=error, error_level=cp_warning_level)
+       CASE(hydronium_colvar_id)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Description header for HYDRONIUM COLVAR missing!!", &
+               error=error, error_level=cp_warning_level)
        END SELECT
        IF (colvar%use_points) THEN
           WRITE ( iw, '( A)') ' COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS'
@@ -569,10 +666,17 @@ CONTAINS
              END IF
           END DO
        END IF
-       WRITE ( iw, '( A )')'          '//'----------------------------------------------------------------------'
+       ! Close the description layer
+       IF (colvar%type_id/=combine_colvar_id) THEN
+          WRITE ( iw, '( A )')'          '//&
+               '----------------------------------------------------------------------'
+       ELSE
+          WRITE ( iw, '( A )')'          '//&
+               '**********************************************************************'
+       END IF
     END IF
     CALL cp_print_key_finished_output(iw,logger,colvar_section,&
-         "PRINT%PROGRAM_RUN_INFO", error=error)    
+         "PRINT%PROGRAM_RUN_INFO", error=error)
 
     CALL timestop(handle)
   END SUBROUTINE colvar_read
@@ -636,7 +740,9 @@ CONTAINS
           CALL hydronium_colvar(colvar,cell,particles=particles, error=error)
        CASE (reaction_path_colvar_id)
           CALL reaction_path_colvar(colvar,cell,particles=particles, error=error)
-       CASE default
+       CASE (combine_colvar_id)
+          CALL combine_colvar(colvar,cell,particles=particles, error=error)
+       CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
        ! Check for fixed atom constraints
@@ -699,7 +805,9 @@ CONTAINS
           CALL hydronium_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (reaction_path_colvar_id)
           CALL reaction_path_colvar(colvar,cell,subsys=subsys, error=error)
-       CASE default
+       CASE (combine_colvar_id)
+          CALL combine_colvar(colvar,cell,subsys=subsys, error=error)
+       CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
        ! Check for fixed atom constraints
@@ -709,20 +817,20 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
-!>        for the specification of a reaction path
+!>        for the specification of a recursive colvar type
 !> \param colvar the collective variable to evaluate
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
 !> \author sfchiff
 ! *****************************************************************************
-  SUBROUTINE colvar_eval_r_path(colvar,cell,particles,error)
+  SUBROUTINE colvar_recursive_eval(colvar,cell,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_r_path', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'colvar_recursive_eval', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -753,12 +861,13 @@ CONTAINS
           CALL hydronium_colvar(colvar,cell,particles=particles, error=error)
        CASE (reaction_path_colvar_id)
           CALL reaction_path_colvar(colvar,cell,particles=particles, error=error)
-       CASE default
+       CASE (combine_colvar_id)
+          CALL combine_colvar(colvar,cell,particles=particles, error=error)
+       CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
-
     END IF
-  END SUBROUTINE colvar_eval_r_path
+  END SUBROUTINE colvar_recursive_eval
 
 ! *****************************************************************************
 !> \brief Get coordinates of atoms or of geoemtrical points
@@ -1824,6 +1933,114 @@ CONTAINS
   END SUBROUTINE coord_colvar
 
 ! *****************************************************************************
+!> \brief  evaluates function and forces due to a combination of COLVARs
+!> \author Teodoro Laino [tlaino] - 12.2008
+! *****************************************************************************
+  SUBROUTINE combine_colvar(colvar,cell,subsys,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'combine_colvar', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: def_error, this_error
+    CHARACTER(LEN=default_string_length), &
+      ALLOCATABLE, DIMENSION(:)              :: my_par
+    INTEGER                                  :: i, ii, j, ncolv, ndim, stat
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: err
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dss_vals, my_val, ss_vals
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: fi
+    REAL(dp), DIMENSION(3)                   :: ss
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+
+    failure=.FALSE.
+    CPPrecondition(colvar%type_id==combine_colvar_id,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+
+    ncolv=SIZE(colvar%combine_cvs_param%colvar_p)
+    ALLOCATE(ss_vals(ncolv),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(dss_vals(ncolv),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    
+    ! Evaluate the individual COLVARs
+    DO i=1,ncolv
+       CALL colvar_recursive_eval(colvar%combine_cvs_param%colvar_p(i)%colvar,cell,my_particles,error)
+       ss_vals(i)=colvar%combine_cvs_param%colvar_p(i)%colvar%ss
+    ENDDO
+
+    ! Evaluate the combination of the COLVARs
+    CALL initf(1)
+    ndim = SIZE(colvar%combine_cvs_param%c_parameters)+&
+           SIZE(colvar%combine_cvs_param%variables)
+    ALLOCATE(my_par(ndim),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure) 
+    my_par(1:SIZE(colvar%combine_cvs_param%variables)) =colvar%combine_cvs_param%variables
+    my_par(SIZE(colvar%combine_cvs_param%variables)+1:)=colvar%combine_cvs_param%c_parameters
+    ALLOCATE(my_val(ndim),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure) 
+    my_val(1:SIZE(colvar%combine_cvs_param%variables)) =ss_vals
+    my_val(SIZE(colvar%combine_cvs_param%variables)+1:)=colvar%combine_cvs_param%v_parameters
+    CALL parsef(1,TRIM(colvar%combine_cvs_param%function),my_par)
+    colvar%ss=evalf(1,my_val)
+    DO i = 1, ncolv
+       dss_vals(i) = evalfd(1,i,my_val,colvar%combine_cvs_param%dx, err)
+       IF ((ABS(err)>colvar%combine_cvs_param%lerr)) THEN
+          WRITE(this_error,"(A,G12.6,A)")"(",err,")"
+          WRITE(def_error,"(A,G12.6,A)")"(",colvar%combine_cvs_param%lerr,")"
+          CALL compress(this_error,.TRUE.)
+          CALL compress(def_error,.TRUE.)
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+               'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
+               ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
+               TRIM(def_error)//' . '//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+       END IF
+    END DO
+    DEALLOCATE(my_val,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(my_par,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    CALL finalizef()
+
+    ! Evaluate forces
+    ALLOCATE(fi(3,colvar%n_atom_s),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ii=0
+    DO i=1,ncolv
+       DO j=1,colvar%combine_cvs_param%colvar_p(i)%colvar%n_atom_s
+          ii=ii+1
+          fi(:,ii)=colvar%combine_cvs_param%colvar_p(i)%colvar%dsdr(:,j)*dss_vals(i)
+       END DO
+    END DO
+
+    DO i=1,colvar%n_atom_s
+       CALL put_derivative(colvar,i,fi(:,i))
+    END DO
+
+    DEALLOCATE(fi,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(ss_vals,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)  
+    DEALLOCATE(dss_vals,stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)  
+  END SUBROUTINE combine_colvar
+
+! *****************************************************************************
 !> \brief evaluates the force due (and on) reaction path collective variable
 !> \author fschiff
 !> \note the system is still able to move in the space spanned by the CV
@@ -1877,7 +2094,7 @@ CONTAINS
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)    
 
     DO i=1,ncolv
-       CALL colvar_eval_r_path(colvar%reaction_path_param%colvar_p(i)%colvar,cell,my_particles,error)
+       CALL colvar_recursive_eval(colvar%reaction_path_param%colvar_p(i)%colvar,cell,my_particles,error)
        ss_vals(i)=colvar%reaction_path_param%colvar_p(i)%colvar%ss
     ENDDO
 

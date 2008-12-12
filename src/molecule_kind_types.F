@@ -17,10 +17,10 @@ MODULE molecule_kind_types
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE colvar_types,                    ONLY: &
-       angle_colvar_id, colvar_counters, coord_colvar_id, dfunct_colvar_id, &
-       dist_colvar_id, hydronium_colvar_id, plane_distance_colvar_id, &
-       qparm_colvar_id, reaction_path_colvar_id, rotation_colvar_id, &
-       torsion_colvar_id
+       angle_colvar_id, colvar_counters, combine_colvar_id, coord_colvar_id, &
+       dfunct_colvar_id, dist_colvar_id, hydronium_colvar_id, &
+       plane_distance_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
+       rotation_colvar_id, torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE external_potential_types,        ONLY: all_potential_type,&
@@ -256,6 +256,7 @@ CONTAINS
     ncolv%nqparm         = 0
     ncolv%nhydronium     = 0
     ncolv%nreactionpath  = 0
+    ncolv%ncombinecvs    = 0
     ncolv%nrestraint     = 0
     IF (ASSOCIATED(colv_list)) THEN
        DO k = 1, SIZE(colv_list)
@@ -281,6 +282,8 @@ CONTAINS
              ncolv%nhydronium = ncolv%nhydronium + 1
           CASE(reaction_path_colvar_id)
              ncolv%nreactionpath = ncolv%nreactionpath + 1
+          CASE(combine_colvar_id)
+             ncolv%ncombinecvs = ncolv%ncombinecvs + 1
           CASE DEFAULT
              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
@@ -295,7 +298,8 @@ CONTAINS
                  ncolv%nrot         +&
                  ncolv%nqparm       +&
                  ncolv%nhydronium   +&
-                 ncolv%nreactionpath
+                 ncolv%nreactionpath+&
+                 ncolv%ncombinecvs
 
   END SUBROUTINE setup_colvar_counters
 

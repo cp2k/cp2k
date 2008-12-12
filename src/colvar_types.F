@@ -18,7 +18,8 @@ MODULE colvar_types
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
@@ -48,25 +49,27 @@ MODULE colvar_types
             dfunct_colvar_type,&
             qparm_colvar_type,&
             hydronium_colvar_type,&
-            point_type,&
             reaction_path_colvar_type,&
+            combine_colvar_type,&
+            point_type,&
             colvar_check_points,&
             eval_point_der,&
             eval_point_pos,&
             post_process_colvar,&
             diff_colvar
 
-  INTEGER, PARAMETER, PUBLIC :: no_colvar_id              =-2,&
-                                dist_colvar_id            = 1,&
-                                coord_colvar_id           = 2,&
-                                torsion_colvar_id         = 3,&
-                                angle_colvar_id           = 4,&
-                                plane_distance_colvar_id  = 5,&
-                                rotation_colvar_id        = 6,&
-                                dfunct_colvar_id           = 7,&
-                                qparm_colvar_id           = 8,&
-                                hydronium_colvar_id       = 9,&
-                                reaction_path_colvar_id   = 10
+  INTEGER, PARAMETER, PUBLIC :: no_colvar_id              = -2,&
+                                dist_colvar_id            =  1,&
+                                coord_colvar_id           =  2,&
+                                torsion_colvar_id         =  3,&
+                                angle_colvar_id           =  4,&
+                                plane_distance_colvar_id  =  5,&
+                                rotation_colvar_id        =  6,&
+                                dfunct_colvar_id          =  7,&
+                                qparm_colvar_id           =  8,&
+                                hydronium_colvar_id       =  9,&
+                                reaction_path_colvar_id   = 10,&
+                                combine_colvar_id            = 11
 
 ! *****************************************************************************
 !> \brief parameters for the distance collective variable
@@ -150,6 +153,35 @@ MODULE colvar_types
      REAL(KIND=dp)                   :: r_OO, r_OH, lambda,nh
   END TYPE hydronium_colvar_type
 
+! *****************************************************************************
+  TYPE reaction_path_colvar_type
+     INTEGER                                  :: type_id
+     TYPE(colvar_p_type),POINTER,DIMENSION(:) :: colvar_p
+     INTEGER                                  :: n_components
+     INTEGER,DIMENSION(2)                     :: function_bounds
+     REAL(KIND=dp), DIMENSION (:,:), POINTER  :: f_vals
+     REAL(KIND=dp)                            :: lambda
+     REAL(KIND=dp)                            :: step_size
+  END TYPE reaction_path_colvar_type
+
+! *****************************************************************************
+  TYPE combine_colvar_type
+     INTEGER                                  :: type_id
+     TYPE(colvar_p_type),POINTER,DIMENSION(:) :: colvar_p
+     REAL(KIND=dp)                            :: lerr, dx
+     CHARACTER(LEN=default_path_length)       :: FUNCTION
+     CHARACTER(LEN=default_string_length),&
+          DIMENSION(:), POINTER               :: c_parameters, variables
+     REAL(KIND=dp), DIMENSION(:), POINTER     :: v_parameters
+  END TYPE combine_colvar_type
+
+! *****************************************************************************
+  TYPE point_type
+     INTEGER :: type_id
+     INTEGER, DIMENSION (:), POINTER          :: atoms
+     REAL(KIND=dp), DIMENSION (:), POINTER    :: weights
+     REAL(KIND=dp), DIMENSION(3)              :: r
+  END TYPE point_type
 
 ! *****************************************************************************
 !> \brief parameters for a collective variable
@@ -162,6 +194,7 @@ MODULE colvar_types
      REAL(kind=dp), DIMENSION (:,:), POINTER  :: dsdr             ! Derivative of colvar (3,:)
      INTEGER, DIMENSION (:), POINTER          :: i_atom           ! Mapping of dsdr
      INTEGER                                  :: n_atom_s
+     ! Available COLVAR types
      TYPE(dist_colvar_type),POINTER           :: dist_param
      TYPE(coord_colvar_type),POINTER          :: coord_param
      TYPE(torsion_colvar_type),POINTER        :: torsion_param
@@ -171,30 +204,10 @@ MODULE colvar_types
      TYPE(dfunct_colvar_type), POINTER        :: dfunct_param
      TYPE(qparm_colvar_type), POINTER         :: qparm_param
      TYPE(hydronium_colvar_type), POINTER     :: hydronium_param
-     TYPE(point_type), DIMENSION(:), POINTER  :: points
      TYPE(reaction_path_colvar_type),POINTER  :: reaction_path_param
+     TYPE(combine_colvar_type), POINTER       :: combine_cvs_param
+     TYPE(point_type), DIMENSION(:), POINTER  :: points
   END TYPE colvar_type
-
-! *****************************************************************************
-  TYPE point_type
-     INTEGER :: type_id
-     INTEGER, DIMENSION (:), POINTER          :: atoms
-     REAL(KIND=dp), DIMENSION (:), POINTER          :: weights
-     REAL(KIND=dp), DIMENSION(3)              :: r
-  END TYPE point_type
-
-! *****************************************************************************
-  TYPE reaction_path_colvar_type
-     INTEGER :: type_id
-     TYPE(colvar_p_type),POINTER,DIMENSION(:) :: colvar_p
-     INTEGER                                  :: n_components
-     INTEGER,DIMENSION(2)                     :: function_bounds
-     REAL(KIND=dp), DIMENSION (:,:), POINTER    :: f_vals
-     REAL(KIND=dp)                            :: lambda
-     REAL(KIND=dp)                            :: step_size
-     
-  END TYPE reaction_path_colvar_type
-
 
 ! *****************************************************************************
   TYPE colvar_p_type
@@ -213,6 +226,7 @@ MODULE colvar_types
      INTEGER :: nqparm
      INTEGER :: nhydronium
      INTEGER :: nreactionpath
+     INTEGER :: ncombinecvs
      INTEGER :: nrestraint
      !
      INTEGER :: ntot
@@ -242,7 +256,7 @@ CONTAINS
     CPPostcondition(.NOT.ASSOCIATED(colvar),cp_warning_level,routineP,error,failure)
     ALLOCATE(colvar, stat=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-    !
+    ! Nullify all available COLVAR types
     NULLIFY(colvar%dist_param)
     NULLIFY(colvar%angle_param)
     NULLIFY(colvar%torsion_param)
@@ -252,10 +266,12 @@ CONTAINS
     NULLIFY(colvar%coord_param)
     NULLIFY(colvar%qparm_param)
     NULLIFY(colvar%hydronium_param)
-    NULLIFY(colvar%i_atom)
-    NULLIFY(colvar%dsdr)
-    NULLIFY(colvar%points)
     NULLIFY(colvar%reaction_path_param)
+    NULLIFY(colvar%combine_cvs_param)
+    ! More types to nullify
+    NULLIFY(colvar%points)
+    NULLIFY(colvar%dsdr)
+    NULLIFY(colvar%i_atom)
     IF (.NOT.failure) THEN
        colvar%type_id    = colvar_id
        colvar%use_points = .FALSE.
@@ -290,6 +306,9 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(reaction_path_colvar_id)
           ALLOCATE(colvar%reaction_path_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(combine_colvar_id)
+          ALLOCATE(colvar%combine_cvs_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(no_colvar_id)
           ! Do nothing
@@ -364,7 +383,8 @@ CONTAINS
              CALL section_vals_val_get(point_sections,"WEIGHTS",i_rep_section=i,n_rep_val=nrep,error=error)
              IF (nrep/=0) THEN
                 DO irep=1,nrep
-                   CALL section_vals_val_get(point_sections,"WEIGHTS",i_rep_section=i,i_rep_val=irep,r_vals=weights,error=error)
+                   CALL section_vals_val_get(point_sections,"WEIGHTS",i_rep_section=i,i_rep_val=irep,&
+                        r_vals=weights,error=error)
                    colvar%points(i)%weights(nweights+1:) = weights(:)
                    nweights = nweights + SIZE(weights)
                 END DO
@@ -377,7 +397,6 @@ CONTAINS
           END SELECT
        END DO
     END IF
-    
   END SUBROUTINE colvar_check_points
 
 ! *****************************************************************************
@@ -623,6 +642,19 @@ CONTAINS
                 list(idum)=colvar%reaction_path_param%colvar_p(ii)%colvar%i_atom(j)
              END DO
           END DO
+       CASE(combine_colvar_id)
+          colvar%n_atom_s=0
+          DO ii=1,SIZE(colvar%combine_cvs_param%colvar_p)
+             colvar%n_atom_s=colvar%n_atom_s+colvar%combine_cvs_param%colvar_p(ii)%colvar%n_atom_s
+          END DO
+          ALLOCATE(list(colvar%n_atom_s))
+          idum=0
+          DO ii=1,SIZE(colvar%combine_cvs_param%colvar_p)
+             DO j=1,colvar%combine_cvs_param%colvar_p(ii)%colvar%n_atom_s
+                idum=idum+1
+                list(idum)=colvar%combine_cvs_param%colvar_p(ii)%colvar%i_atom(j)
+             END DO
+          END DO
        END SELECT
        
        IF (ASSOCIATED(colvar%dsdr)) THEN
@@ -788,6 +820,20 @@ CONTAINS
        DEALLOCATE(colvar%reaction_path_param%f_vals, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        DEALLOCATE(colvar%reaction_path_param,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE (combine_colvar_id)
+       DO i=1,SIZE(colvar%combine_cvs_param%colvar_p)
+          CALL colvar_release(colvar%combine_cvs_param%colvar_p(i)%colvar,error)
+       END DO
+       DEALLOCATE(colvar%combine_cvs_param%colvar_p, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DEALLOCATE(colvar%combine_cvs_param%c_parameters, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DEALLOCATE(colvar%combine_cvs_param%v_parameters, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DEALLOCATE(colvar%combine_cvs_param%variables, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DEALLOCATE(colvar%combine_cvs_param,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(no_colvar_id)
        ! Do nothing
@@ -955,6 +1001,34 @@ CONTAINS
        colvar_out%reaction_path_param%f_vals           = colvar_in%reaction_path_param%f_vals 
        colvar_out%reaction_path_param%lambda           = colvar_in%reaction_path_param%lambda  
        colvar_out%reaction_path_param%step_size        = colvar_in%reaction_path_param%step_size
+    CASE(combine_colvar_id)
+       ndim=SIZE(colvar_in%combine_cvs_param%colvar_p)
+       ALLOCATE(colvar_out%combine_cvs_param%colvar_p(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)       
+       DO i=1,ndim
+          NULLIFY(colvar_out%combine_cvs_param%colvar_p(i)%colvar)
+          CALL colvar_clone(colvar_out%combine_cvs_param%colvar_p(i)%colvar,&
+                            colvar_in%combine_cvs_param%colvar_p(i)%colvar,&
+                            my_offset,error)
+       END DO
+       colvar_out%combine_cvs_param%lerr         = colvar_in%combine_cvs_param%lerr
+       colvar_out%combine_cvs_param%dx           = colvar_in%combine_cvs_param%dx
+       colvar_out%combine_cvs_param%function     = colvar_in%combine_cvs_param%function
+       !
+       ndim = SIZE(colvar_in%combine_cvs_param%c_parameters)
+       ALLOCATE(colvar_out%combine_cvs_param%c_parameters(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       colvar_out%combine_cvs_param%c_parameters = colvar_in%combine_cvs_param%c_parameters
+       !
+       ndim = SIZE(colvar_in%combine_cvs_param%v_parameters)
+       ALLOCATE(colvar_out%combine_cvs_param%v_parameters(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       colvar_out%combine_cvs_param%v_parameters = colvar_in%combine_cvs_param%v_parameters
+       !
+       ndim = SIZE(colvar_in%combine_cvs_param%variables)
+       ALLOCATE(colvar_out%combine_cvs_param%variables(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       colvar_out%combine_cvs_param%variables    = colvar_in%combine_cvs_param%variables
     END SELECT
     CALL colvar_setup(colvar_out, error) 
   END SUBROUTINE colvar_clone
