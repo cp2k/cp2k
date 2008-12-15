@@ -1606,7 +1606,11 @@ END SUBROUTINE qs_scf_print_summary
           IF (dft_control%restricted) THEN
               scf_env%qs_ot_env(1)%restricted=.TRUE.
               ! requires rotation
-              CPPrecondition(scf_env%qs_ot_env(1)%settings%do_rotation,cp_failure_level,routineP,error,failure)
+              CALL cp_assert(scf_env%qs_ot_env(1)%settings%do_rotation,cp_fatal_level,&
+                   cp_assertion_failed,routineP,&
+                   "Restricted calculation with OT requires orbital rotation. Please "//&
+                   "activate the OT%ROTATION keyword! "//&
+CPSourceFileRef)
           ELSE
               scf_env%qs_ot_env(:)%restricted=.FALSE.
           ENDIF
