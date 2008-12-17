@@ -1,5 +1,5 @@
 !
-! a simple interface to the cutoff_gamma, 
+! a simple interface to the various functions, useful for testing 
 ! reads from 'evalf.in' writes to 'evalf.out'
 !
 PROGRAM main

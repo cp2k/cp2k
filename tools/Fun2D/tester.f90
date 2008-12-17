@@ -1,4 +1,9 @@
+#if defined(__T_C_G0)
   USE T_C_G0
+#endif
+#if defined(__YUKAWA)
+  USE yukawa
+#endif
   IMPLICIT NONE
   INTEGER :: Nder
   REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: ref
@@ -7,9 +12,15 @@
   INTEGER :: I,J,Nline
   LOGICAL :: use_gamma
 
-  Nder=MIN(9,nderiv_max)
 
+#if defined(__T_C_G0)
   OPEN(12,FILE="T_C_G.dat")
+#endif
+#if defined(__YUKAWA)
+  OPEN(12,FILE="yukawa.dat")
+#endif
+
+  Nder=MIN(9,nderiv_max)
   CALL INIT(Nder,12)
   CLOSE(12)
   ALLOCATE(RES(0:Nder),MAXERR(0:Nder))
@@ -32,13 +43,14 @@
   write(6,'(A)')       "List of points with largest errors so far"
   write(6,'(A)')       "-----------------------------------------"
   CALL CPU_TIME(T1)
-  ! reference points can be outside the expected domain due to 
-  ! the fact that they are rounded from arbitrary precision to 
-  ! double precision
   DO I=1,Nline
    R=ref(-2,I)
    T=ref(-1,I)
+#if defined(__T_C_G0)
    CALL T_C_G0_n(RES,use_gamma,R,T,Nder)
+   ! reference points can be outside the expected domain due to 
+   ! the fact that they are rounded from arbitrary precision to 
+   ! double precision
    IF (.NOT.use_gamma) THEN
      IF (ANY(RES.NE.0)) THEN
        IF (ANY((abs(RES-REF(0:Nder,I)))>(maxerr))) THEN
@@ -49,6 +61,14 @@
    ELSE
      ! write(6,*) "oops",R,T,R**2-11*R-T
    ENDIF
+#endif
+#if defined(__YUKAWA)
+   CALL yukawa_n(RES,R,T,Nder)
+   IF (ANY((abs(RES-REF(0:Nder,I)))>(maxerr))) THEN
+     maxerr=MAX(maxerr,abs(RES-REF(0:Nder,I)))
+     write(6,*) R,T,RES(0:Nder),REF(0:Nder,I)
+   ENDIF
+#endif
   ENDDO
   CALL CPU_TIME(T2)
   write(6,'(A)')       "Summary of generation"

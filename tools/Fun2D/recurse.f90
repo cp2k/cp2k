@@ -1,3 +1,4 @@
+!====================================================================================================================
 ! * Copyright (c) 2008, Joost VandeVondele and Manuel Guidon
 ! * All rights reserved.
 ! *
@@ -22,12 +23,37 @@
 !
 !   Joost VandeVondele and Manuel Guidon, Nov 2008.
 !
-
 !   recursively bisect the rectangular domain of a bivariate function
 !   till the lagrange interpolation of specified degree through
 !   the Padua points for it converges to a preset threshold
 !   generate a Fortran module for the efficient evaluation
-!  
+!   This program requires the auxiliary program drvrec_mpfr.x
+!
+!====================================================================================================================
+    MODULE RECURSE      
+      USE function_types, ONLY: fun_trunc_coulomb_farfield,fun_trunc_coulomb_nearfield,fun_yukawa
+
+      IMPLICIT NONE
+      INTEGER, SAVE :: find_count=0
+      INTEGER, PARAMETER :: dp=KIND(0.0D0)
+      REAL(KIND=dp) ERR
+      integer :: functionid,digits
+    CONTAINS
+
+!====================================================================================================================
+!
+!     The GO_XXXX are function specific wrapper routines to the bisection routines.
+!
+!     they must open a unit 13 (the coefficients of the interpolation)
+!     they must open a unit 17 (some info on the bisected domains )
+!
+!     they must match the function definitions / domains in functions.f90
+!
+!====================================================================================================================
+!====================================================================================================================
+!
+!   GO_truncated
+!
 !   This version computes the basic integrals for the
 !   truncated coulomb operator
 !
@@ -38,33 +64,18 @@
 !   (-1)**n d^n/dT^n G_0(R,T)
 !
 !
+!   This version basically splits the full interval (R>=0 T>=0) in 4 domains
 !   The function is only computed for values of R,T which fulfil
 !
 !   R**2 - 11.0_dp*R + 0.0_dp < T < R**2 + 11.0_dp*R + 50.0_dp
-!   where R>=0 T>=0
-! 
-!   for T larger than the upper bound, 0 is returned
-!   (which is accurate at least up to 1.0E-16)
-!   while for T smaller than the lower bound, the caller is instructed 
-!   to use the gamma function instead
-!   This program requires the auxiliary program drvrec_mpfr.x
 !
-    MODULE RECURSE      
-      INTEGER, SAVE :: find_count=0
-      INTEGER, PARAMETER :: dp=KIND(0.0D0)
-      REAL(KIND=dp) ERR
-      integer :: functionid,digits
-    CONTAINS
-
-!====================================================================================================================
-!
-!     a function specific wrapper to the bisection routines
-!
-!     this function must open a unit 13 (the coefficients of the interpolation)
-!     this function must open a unit 17 (some info on the bisected domains )
+!   1) for T larger than the upper bound, 0 is returned, which is accurate at least up to 1.0E-16
+!   2) for T smaller than the lower bound, the caller is instructed to use the gamma function instead
+!   3) for R>11 (farfield), one rectangular domain is bisected 
+!   4) for R<11 (nearfield), another rectangle domain is bisected
 !
 !====================================================================================================================
-      SUBROUTINE GO()
+      SUBROUTINE GO_truncated()
          IMPLICIT NONE
          REAL(KIND=dp) A1,B1,A2,B2
          INTEGER :: DEG,LEVEL
@@ -133,14 +144,14 @@
          WRITE(6,'(A)')      "  lower=0.0_dp"
          WRITE(6,'(A)')      "  X1=(T-lower)/(upper-lower)"
 
-             functionid=2
-             open(UNIT=17,FILE="nearfield_domains.dat")
-             A1=0.0D0
-             B1=1.0D0
-             A2=0.0D0
-             B2=1.0D0
-             CALL FIND_DOMAINS(A1,B1,A2,B2,DEG,NDERIV,ERR,LEVEL)
-             close(17)
+         functionid=fun_trunc_coulomb_nearfield
+         open(UNIT=17,FILE="nearfield_domains.dat")
+         A1=0.0D0
+         B1=1.0D0
+         A2=0.0D0
+         B2=1.0D0
+         CALL FIND_DOMAINS(A1,B1,A2,B2,DEG,NDERIV,ERR,LEVEL)
+         close(17)
 
          WRITE(6,'(A)') " ELSE"
 
@@ -151,14 +162,14 @@
          WRITE(6,'(A)') "  X2=11.0_dp/R"
          WRITE(6,'(A)') "  X1=(T-lower)/(upper-lower)"
 
-             functionid=1
-             open(UNIT=17,FILE="farfield_domains.dat")
-             A1=0.0D0
-             B1=1.0D0
-             A2=0.0D0
-             B2=1.0D0
-             CALL FIND_DOMAINS(A1,B1,A2,B2,DEG,NDERIV,ERR,LEVEL)
-             close(17)
+         functionid=fun_trunc_coulomb_farfield
+         open(UNIT=17,FILE="farfield_domains.dat")
+         A1=0.0D0
+         B1=1.0D0
+         A2=0.0D0
+         B2=1.0D0
+         CALL FIND_DOMAINS(A1,B1,A2,B2,DEG,NDERIV,ERR,LEVEL)
+         close(17)
 
          WRITE(6,'(A)') " ENDIF"
 
@@ -166,13 +177,77 @@
            
          CLOSE(UNIT=13)
 
-         CALL WRITE_INIT()
+         CALL WRITE_MODULE_TAIL("T_C_G0",deg)
 
-         CALL WRITE_PD2VAL(DEG)
+      END SUBROUTINE GO_truncated
+!====================================================================================================================
+!
+!   GO_yukawa
+!
+!   This version computes the basic integrals for the
+!   yukawa coulomb operator (G_0 from S. Ten-no, JCP 126, 014108 (2007), Eq. 49)
+!
+!   G_0(R,T)= exp(-T)/4 * sqrt(Pi/T) * [ exp(kappa**2)*erfc(kappa)-exp(lambda**2)*erfc(lambda)]
+!
+!   kappa=-sqrt(T)+sqrt(R)
+!   lambda=sqrt(T)+sqrt(R)
+!
+!   and up to 21 derivatives with respect to T
+!
+!   (-1)**n d^n/dT^n G_0(R,T)
+!
+!   This version uses a single domain R,T>=0
+!
+!====================================================================================================================
+      SUBROUTINE GO_yukawa()
+         IMPLICIT NONE
+         REAL(KIND=dp) A1,B1,A2,B2,ERR
+         INTEGER :: DEG,LEVEL
+         INTEGER :: nderiv
 
-         WRITE(6,'(A)') "END MODULE T_C_G0"
+         ! these are the selected settings for CP2K
+         digits=128
+         ! number of simultaneous function values to be evaluated for a given 2D point
+         nderiv=21
+         ! degree of the interpolating polynomial
+         DEG=13
+         ! target error
+         ERR=1.0E-9
 
-      END SUBROUTINE GO
+         IF (DEG<3) STOP "Not supported"
+         OPEN(UNIT=13,FILE="yukawa.dat")
+         LEVEL=0
+
+         CALL WRITE_COPY_RIGHT() 
+
+         CALL WRITE_MODULE_HEAD("yukawa",DEG,nderiv,err)
+
+         WRITE(6,'(A,I0,A)') "SUBROUTINE yukawa_n(RES,R,T,NDERIV)"
+         WRITE(6,'(A)') " IMPLICIT NONE"
+         WRITE(6,'(A)') " REAL(KIND=dp), INTENT(OUT) :: RES(*)"
+         WRITE(6,'(A)') " REAL(KIND=dp),INTENT(IN) :: R,T"
+         WRITE(6,'(A)') " INTEGER, INTENT(IN)      :: NDERIV"
+         WRITE(6,'(A)') " REAL(KIND=dp)            :: upper,lower,X1,X2,TG1,TG2"
+
+         WRITE(6,'(A)') "  X2=1/(1+sqrt(R))"
+         WRITE(6,'(A)') "  X1=1/(1+sqrt(T))"
+
+         functionid=fun_yukawa
+         open(UNIT=17,FILE="farfield_domains.dat")
+         A1=0.00D0
+         B1=1.00D0
+         A2=0.00D0
+         B2=1.00D0
+
+         CALL FIND_DOMAINS(A1,B1,A2,B2,DEG,NDERIV,ERR,LEVEL)
+
+         WRITE(6,'(A,I0,A)') "END SUBROUTINE yukawa_n"
+
+         CLOSE(UNIT=13)
+
+         CALL WRITE_MODULE_TAIL("yukawa",deg)
+
+      END SUBROUTINE GO_yukawa
 !====================================================================================================================
 !
 !     write the top of the module 
@@ -195,6 +270,20 @@
          WRITE(6,'(A)')      "CONTAINS"
 
       END SUBROUTINE WRITE_MODULE_HEAD
+!====================================================================================================================
+!
+!     write the tail of the module 
+!
+!====================================================================================================================
+      SUBROUTINE WRITE_MODULE_TAIL(mod_name,DEG)
+         CHARACTER(LEN=*) :: mod_name
+         INTEGER          :: deg
+
+         CALL WRITE_INIT()
+         CALL WRITE_PD2VAL(DEG)
+         WRITE(6,'(A,A)') "END MODULE ", mod_name
+
+      END SUBROUTINE WRITE_MODULE_TAIL
 !====================================================================================================================
 !
 !     writes a BSD style copy right header
@@ -458,7 +547,14 @@ PROGRAM Fun2D
  USE Recurse
 
  OPEN(UNIT=98,FILE="history.dat")
- CALL GO()
+
+#if defined(__T_C_G0)
+    CALL GO_truncated()
+#endif
+#if defined(__YUKAWA)
+    CALL GO_yukawa()
+#endif
+
  CLOSE(98)
 
 END PROGRAM Fun2D

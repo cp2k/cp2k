@@ -9,6 +9,7 @@
 
       SUBROUTINE drvrec(a1,b1,a2,b2,deg,nderiv,c0,esterr_out)
         USE padua2_mpfr
+        USE functions, ONLY: evalf=>f
         IMPLICIT NONE
 
         INTEGER deg,npd,nderiV
@@ -32,7 +33,7 @@
         DO i = 1,npd
            x1=((b1 - a1) * pd1(i) + (b1 + a1)) / 2
            x2=((b2 - a2) * pd2(i) + (b2 + a2)) / 2
-           CALL f(res,nderiv,x1,x2)
+           CALL evalf(res,nderiv,x1,x2)
            FPD(I,:) = RES(0:NDERIV)
         ENDDO
 
@@ -58,66 +59,6 @@
 
       END SUBROUTINE drvrec
 
-      ! evaluate the function, + nderiv other functions in the point X1,X2
-      ! write additionally to a file 'history.res' for later checking the quality of the interpolation
-      SUBROUTINE f(res,nderiv,x1,x2)
-        USE mpfr
-        USE mpfr_ops
-        USE mpfr_cutoff_gamma
-        IMPLICIT NONE
-        INTEGER         :: nderiv
-        TYPE(mpfr_type) :: x1,x2
-        TYPE(mpfr_type) :: res(0:nderiv)
-
-        TYPE(mpfr_type) :: T,r,upper,lower,zero
-        TYPE(mpfr_type) :: dummy(0:21)
-        INTEGER          :: i
-
-        INTEGER :: functionid,should_output
-        COMMON/functiontype/functionid,should_output
-
-        zero=.CONVERT."0"
-
-        ! functionid in this case just selects a different
-        ! domain of the same function
-        ! 1 = farfield  (R>11)
-        ! 2 = nearfield (R<11)
-        SELECT CASE(functionid)
-        CASE (1)
-          ! if R=+Infinity the result is zero
-          IF (mpfr_cmp(x2,zero)<=0) THEN
-             res=.CONVERT."0"
-             return
-          ENDIF
-          r=11/x2
-          upper=r**2 + 11*r + 50
-          lower=r**2 - 11*r 
-        CASE (2)
-          R=x2*11
-          upper=r**2 + 11*r + 50
-          lower=.CONVERT."0"
-        CASE DEFAULT
-          STOP "Function ID not implemented"
-        END SELECT 
-
-        t=lower+x1*(upper-lower)
-
-        !t is zero, return the limiting expansion
-        IF (mpfr_cmp(t,zero)<=0) THEN
-           CALL cutoff_gamma_T0(21,R,dummy)
-        ELSE
-           CALL cutoff_gamma(21,t,r,dummy)
-        END IF
-        res(0:nderiv)=dummy(0:nderiv)
-
-        IF (should_output>0) THEN
-!$OMP CRITICAL
-           WRITE(should_output,*) REAL(R),REAL(T),REAL(res)
-!$OMP END CRITICAL
-        ENDIF
-
-      END SUBROUTINE f
-
       !
       ! this program is a simple interface to obtain the C0 coefficients
       ! with high accuracy (i.e. all digits & correctly rounded),
@@ -130,6 +71,7 @@
          USE mpfr
          USE mpfr_ops
          USE padua2_mpfr, ONLY: pd2val_mp=>pd2val
+         USE functions, ONLY: functionid,should_output
          IMPLICIT NONE
          INTEGER :: deg,nderiv,i,j,digits,deg_ref,k,l
          INTEGER*2 :: precision
@@ -139,9 +81,6 @@
 
          TYPE(mpfr_type) ::  A1_mp,B1_mp,A2_mp,B2_mp,esterr_mp
          TYPE(mpfr_type), DIMENSION(:,:,:), ALLOCATABLE :: c0_mp
-
-         integer :: functionid,should_output
-         COMMON/functiontype/functionid,should_output
 
          ! keeps a history of evaluated function values. 
          ! useful to investigate the error later on
