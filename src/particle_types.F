@@ -477,7 +477,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
     INTEGER                                  :: iatom, natom, stat
     LOGICAL                                  :: dummy, failure
-    REAL(KIND=dp)                            :: alpha, beta, factor, gamma
+    REAL(KIND=dp)                            :: angle_alpha, angle_beta, &
+                                                angle_gamma, factor
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: arr
     REAL(KIND=dp), DIMENSION(3)              :: abc, f, r, v
@@ -575,8 +576,9 @@ CONTAINS
        NULLIFY(x4,y4,z4)
        ALLOCATE(x4(natom),y4(natom),z4(natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL get_cell(cell, alpha=alpha, beta=beta, gamma=gamma, abc=abc)
-       WRITE(iunit) abc(1)*factor, gamma, abc(2)*factor, beta, alpha, abc(3)*factor
+       CALL get_cell(cell, alpha=angle_alpha, beta=angle_beta, gamma=angle_gamma, abc=abc)
+       WRITE(iunit) abc(1)*factor, angle_gamma, abc(2)*factor,&
+                    angle_beta, angle_alpha, abc(3)*factor
        SELECT CASE (TRIM(content))
        CASE ("POS")
           IF (PRESENT(array)) THEN
