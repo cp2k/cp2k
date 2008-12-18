@@ -148,18 +148,18 @@ CONTAINS
 
     ! Write Centers and Spreads on std out
     IF(output_unit > 0) THEN
-      DO ispin = 1,nspins
-        WRITE (UNIT=output_unit,FMT="(/,T2,A,I2)")&
-           "WANNIER CENTERS for spin ",ispin
-        WRITE (UNIT=output_unit,FMT="(/,T18,A,3X,A)")&
-           "--------------- Centers --------------- ",&
-           "--------------- Spreads --------------- "
-        DO istate = 1,SIZE(localized_wfn_control%centers_set(ispin)%array,2)
-          WRITE(UNIT=output_unit,FMT="(T5,A6,I6,2X,3f12.6,5X,3f12.6)")&
-           'state ', istate,localized_wfn_control%centers_set(ispin)%array(1:3,istate),&
-            localized_wfn_control%centers_set(ispin)%array(4:6,istate)
-        END DO
-      END DO
+       DO ispin = 1,nspins
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,I2)")&
+               "WANNIER CENTERS for spin ",ispin
+          WRITE (UNIT=output_unit,FMT="(/,T18,A,3X,A)")&
+               "--------------- Centers --------------- ",&
+               "--------------- Spreads --------------- "
+          DO istate = 1,SIZE(localized_wfn_control%centers_set(ispin)%array,2)
+             WRITE(UNIT=output_unit,FMT="(T5,A6,I6,2X,3f12.6,5X,3f12.6)")&
+                  'state ', istate,localized_wfn_control%centers_set(ispin)%array(1:3,istate),&
+                  localized_wfn_control%centers_set(ispin)%array(4:6,istate)
+          END DO
+       END DO
     END IF
 
   END SUBROUTINE linres_localize
@@ -749,6 +749,7 @@ CONTAINS
          c = p_env%ls_energy(1)
          b = p_env%ls_grad(1)
          a = (p_env%ls_energy(2)-b*x1-c)/(x1*x1)
+
          IF(a .LE. 0.0_dp) a = 1.E-15_dp
          pos = -b/(2.0_dp*a)
          val = a*pos*pos+b*pos+c

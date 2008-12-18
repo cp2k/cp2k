@@ -100,13 +100,9 @@ MODULE qs_collocate_density
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
-  USE qs_modify_pab_block,             ONLY: FUNC_AB,&
-                                             FUNC_ADBmDAB,&
-                                             FUNC_ARDBmDARB,&
-                                             FUNC_DADB,&
-                                             prepare_adb_m_dab,&
-                                             prepare_ardb_m_darb,&
-                                             prepare_dadb
+  USE qs_modify_pab_block,             ONLY: &
+       FUNC_AB, FUNC_ADBmDAB, FUNC_ARB, FUNC_ARDBmDARB, FUNC_DADB, &
+       prepare_adb_m_dab, prepare_arb, prepare_ardb_m_darb, prepare_dadb
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
@@ -1159,7 +1155,8 @@ CONTAINS
                                           lgrid,ithread,&
                                           map_consistent,&
                                           collocate_rho0,&
-                                          rpgf0_s,idir,ir,use_subpatch,subpatch_pattern,error)
+                                          rpgf0_s,idir,ir,rsgauge,&
+                                          use_subpatch,subpatch_pattern,error)
 
       INTEGER, INTENT(IN)                      :: la_max
       REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1180,6 +1177,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent, collocate_rho0
       REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
       INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
+      TYPE(realspace_grid_type), POINTER, OPTIONAL :: rsgauge
       LOGICAL, OPTIONAL                        :: use_subpatch
       INTEGER(KIND=int_8), OPTIONAL, INTENT(IN):: subpatch_pattern
       TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1215,6 +1213,10 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_y
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
       REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
+
+      REAL(kind=dp), POINTER, DIMENSION(:,:,:) :: gauge_on_grid, grid_tmp,gauge
+
+      NULLIFY(gauge_on_grid, grid_tmp)
 
     failure = .FALSE.
 
@@ -1374,6 +1376,33 @@ CONTAINS
         END DO
         o1_local=0
         o2_local=0
+    CASE(FUNC_ARB)
+        CPPrecondition(PRESENT(ir),cp_failure_level,routineP,error,failure)
+        la_max_local=la_max
+        la_min_local=la_min
+        lb_max_local=lb_max+1
+        lb_min_local=lb_min
+        ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
+        ! is equivalent to mapping pab with
+        ! pgf_a (r-Rb)_{ir} pgf_b = pgf_a * pgf_{b+1ir}
+        ALLOCATE(pab_local(ncoset(la_max_local),ncoset(lb_max_local)))
+        pab_local = 0.0_dp
+        DO lxa=0,la_max
+        DO lxb=0,lb_max
+           DO lya=0,la_max-lxa
+           DO lyb=0,lb_max-lxb
+              DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+              DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+                 ! this element of pab results in 4 elements of pab_local
+                 CALL prepare_arb(pab_local,pab,ir,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
+              END DO
+              END DO
+           END DO
+           END DO
+        END DO
+        END DO
+        o1_local=0
+        o2_local=0
     CASE(FUNC_AB)
         la_max_local=la_max
         la_min_local=la_min
@@ -1394,6 +1423,16 @@ CONTAINS
     gridbounds(2,2)=UBOUND(GRID,2)
     gridbounds(1,3)=LBOUND(GRID,3)
     gridbounds(2,3)=UBOUND(GRID,3)
+
+
+    IF(PRESENT(ir).AND.PRESENT(rsgauge)) THEN
+       ALLOCATE(gauge_on_grid(gridbounds(1,1):gridbounds(2,1),&
+            &                 gridbounds(1,2):gridbounds(2,2),&
+            &                 gridbounds(1,3):gridbounds(2,3)))
+       grid => gauge_on_grid(:,:,:)
+       grid_tmp => rsgrid%r(:,:,:)
+       gauge => rsgauge%r(:,:,:)
+    ENDIF
 
 !   *** initialise the coefficient matrix, we transform the sum
 !
@@ -1525,6 +1564,10 @@ CONTAINS
     DEALLOCATE(coef_xyt)
     DEALLOCATE(coef_xyz)
 
+    IF(PRESENT(ir).AND.PRESENT(rsgauge)) THEN
+       DEALLOCATE(gauge_on_grid)
+    ENDIF
+
   CONTAINS
 
     !
@@ -1586,16 +1629,19 @@ CONTAINS
     ALLOCATE(pol_y(1:2,0:lp,-cmax:0))
     ALLOCATE(pol_x(0:lp,-cmax:cmax))
 
+    IF(PRESENT(ir).AND.PRESENT(rsgauge)) CALL collocate_ortho_set_to_0()
+    
 #include "prep.f90"
 
     IF ( PRESENT ( lgrid ) ) THEN
        ig = lgrid%ldim * ithread_l + 1
 #include "call_collocate_omp.f90"
     ELSE
-
 #include "call_collocate.f90"
-
     END IF
+
+    IF(PRESENT(ir).AND.PRESENT(rsgauge)) CALL collocate_gauge_ortho()
+
     ! deallocation needed to pass around a pgi bug..
     DEALLOCATE(pol_z)
     DEALLOCATE(pol_y)
@@ -1603,6 +1649,99 @@ CONTAINS
     DEALLOCATE(map)
 
     END SUBROUTINE collocate_ortho
+
+    SUBROUTINE collocate_gauge_ortho()
+    INTEGER                                  :: i, igmax, igmin, j, j2, jg, &
+                                                jg2, jgmin, k, k2, kg, kg2, &
+                                                kgmin, sci
+    REAL(KIND=dp)                            :: point(3,4), res(4), x, y, y2, &
+                                                z, z2
+
+! notice we're in the ortho case
+
+      dr(1) = rsgrid%dh(1,1)
+      dr(2) = rsgrid%dh(2,2)
+      dr(3) = rsgrid%dh(3,3)
+      !
+      sci=1
+      kgmin=sphere_bounds(sci)
+      sci=sci+1
+      DO kg=kgmin,0
+         kg2=1-kg
+         k=map(kg,3)
+         k2=map(kg2,3)
+         jgmin=sphere_bounds(sci)
+         sci=sci+1
+         z  = (REAL( kg,dp)+REAL(cubecenter(3),dp))*dr(3)
+         z2 = (REAL(kg2,dp)+REAL(cubecenter(3),dp))*dr(3)
+         DO jg=jgmin,0
+            jg2=1-jg
+            j=map(jg,2)
+            j2=map(jg2,2)
+            igmin=sphere_bounds(sci)
+            sci=sci+1
+            igmax=1-igmin
+            y  = (REAL( jg,dp)+REAL(cubecenter(2),dp))*dr(2)
+            y2 = (REAL(jg2,dp)+REAL(cubecenter(2),dp))*dr(2)
+            DO ig=igmin,igmax
+               i=map(ig,1)
+               x = (REAL(ig,dp)+REAL(cubecenter(1),dp))*dr(1)
+               point(1,1) = x;point(2,1) = y ;point(3,1) = z
+               point(1,2) = x;point(2,2) = y2;point(3,2) = z
+               point(1,3) = x;point(2,3) = y ;point(3,3) = z2
+               point(1,4) = x;point(2,4) = y2;point(3,4) = z2
+               !
+               res(1) = ( point(ir,1) - rb(ir) ) - gauge(i, j, k)
+               res(2) = ( point(ir,2) - rb(ir) ) - gauge(i,j2, k)
+               res(3) = ( point(ir,3) - rb(ir) ) - gauge(i, j,k2)
+               res(4) = ( point(ir,4) - rb(ir) ) - gauge(i,j2,k2)
+               !
+               grid_tmp(i, j, k) = grid_tmp(i, j, k) + grid(i, j, k) * res(1)
+               grid_tmp(i,j2, k) = grid_tmp(i,j2, k) + grid(i,j2, k) * res(2)
+               grid_tmp(i, j,k2) = grid_tmp(i, j,k2) + grid(i, j,k2) * res(3)
+               grid_tmp(i,j2,k2) = grid_tmp(i,j2,k2) + grid(i,j2,k2) * res(4)
+            ENDDO
+         ENDDO
+      ENDDO
+    END SUBROUTINE collocate_gauge_ortho
+
+    SUBROUTINE collocate_ortho_set_to_0()
+    INTEGER                                  :: i, igmax, igmin, j, j2, jg, &
+                                                jg2, jgmin, k, k2, kg, kg2, &
+                                                kgmin, sci
+
+!
+
+      dr(1) = rsgrid%dh(1,1)
+      dr(2) = rsgrid%dh(2,2)
+      dr(3) = rsgrid%dh(3,3)
+      !
+      sci=1
+      kgmin=sphere_bounds(sci)
+      sci=sci+1
+      DO kg=kgmin,0
+         kg2=1-kg
+         k=map(kg,3)
+         k2=map(kg2,3)
+         jgmin=sphere_bounds(sci)
+         sci=sci+1
+         DO jg=jgmin,0
+            jg2=1-jg
+            j=map(jg,2)
+            j2=map(jg2,2)
+            igmin=sphere_bounds(sci)
+            sci=sci+1
+            igmax=1-igmin
+            DO ig=igmin,igmax
+               i=map(ig,1)
+               grid(i, j, k) = 0.0_dp
+               grid(i,j2, k) = 0.0_dp
+               grid(i, j,k2) = 0.0_dp
+               grid(i,j2,k2) = 0.0_dp
+            ENDDO
+         ENDDO
+      ENDDO
+    END SUBROUTINE collocate_ortho_set_to_0
 
 !
 !   this is a general 'optimized' routine to do the collocation
@@ -1873,6 +2012,7 @@ CONTAINS
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
  
     END SUBROUTINE
+
 !
 !   this is a general 'reference' routine to do the collocation
 !

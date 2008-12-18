@@ -5855,12 +5855,23 @@ CONTAINS
             description="The gauge used to compute the induced current within GAPW.",&
             usage="GAUGE R",&
             default_i_val=current_gauge_r_and_step_func,&
-            enum_c_vals=s2a("R", "R_AND_BADER", "R_AND_STEP_FUNCTION"),&
+            enum_c_vals=s2a("R", "R_AND_BADER", "R_AND_STEP_FUNCTION", "ATOM"),&
             enum_desc=s2a("Position gauge (doesnt work well).",&
                           "Position and Bader gauges for the soft and the local parts, respectively.",&
-                          "Position and step function for the soft and the local parts, respectively."),&
-            enum_i_vals=(/current_gauge_r,current_gauge_r_and_Bader,current_gauge_r_and_step_func/),&
+                          "Position and step function for the soft and the local parts, respectively.",&
+                          "Atoms."),&
+            enum_i_vals=(/current_gauge_r,current_gauge_r_and_Bader,&
+                          current_gauge_r_and_step_func,current_gauge_atom/),&
             error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="GAUGE_ATOM_RADIUS",&
+            description="Build the gauge=atom using only the atoms within this radius.", &
+            usage="GAUGE_ATOM_RADIUS 10.0",&
+            type_of_var=real_t,&
+            default_r_val=cp_unit_to_cp2k(value=4.0_dp,unit_str="angstrom",error=error),&
+            unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5988,7 +5999,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="nmr",&
-            description="The chemical shift is calculated by DFPT. This feature is not operative yet, DO NOT USE IT ",&
+            description="The chemical shift is calculated by DFPT.",&
             n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
@@ -6016,9 +6027,19 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTART_NMR",&
-            description="Restart the NMR calculation from a previous run (NOT WORKING)",&
+            description="Restart the NMR calculation from a previous run (NOT WORKING YET)",&
             usage="RESTART_NMR",default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SHIFT_GAPW_RADIUS",&
+            description="While computing the local part of the shift (GAPW), "//&
+            "the integration is restricted to nuclei that are within this radius.", &
+            usage="SHIFT_GAPW_RADIUS 20.0",&
+            type_of_var=real_t,&
+            default_r_val=cp_unit_to_cp2k(value=60.0_dp,unit_str="angstrom",error=error),&
+            unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

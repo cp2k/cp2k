@@ -260,15 +260,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, ia, iat, iatom, idir2, idir3, ikind, ir, ispin, istat, &
-      jatom, mepos, n_nics, na, natom, natom_tot, nkind, nr, nspins, num_pe, &
-      output_unit
+      j, jatom, mepos, n_nics, na, natom, natom_local, natom_tot, nkind, nr, &
+      nspins, num_pe, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: list_j
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, jatomisneighbor, &
                                                 paw_atom
-    REAL(dp) :: ddiff, distance, itegrated_jrho, jrho1_tot, r_iatom(3), &
-      r_jatom(3), rdiff(3), rij(3), rvec(3), scale_fac, threshold
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: chemical_shift_loc_tmp
+    REAL(dp) :: ddiff, dist, itegrated_jrho, jrho1_tot, r_iatom(3), &
+      r_jatom(3), rdiff(3), rij(3), rvec(3), scale_fac, shift_gapw_radius
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: chemical_shift_loc_tmp, &
+                                                dist_ij
     REAL(dp), DIMENSION(:, :), POINTER       :: jrho_h_grid, jrho_s_grid, &
                                                 r_nics
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift_loc, &
@@ -310,6 +312,7 @@ CONTAINS
     CALL get_nmr_env(nmr_env=nmr_env,&
          &           chemical_shift_loc=chemical_shift_loc,&
          &           chemical_shift_nics_loc=chemical_shift_nics_loc,&
+         &           shift_gapw_radius=shift_gapw_radius,&
          &           n_nics=n_nics,&
          &           r_nics=r_nics,&
          &           error=error)
@@ -323,7 +326,8 @@ CONTAINS
     nspins = dft_control%nspins
     itegrated_jrho = 0.0_dp
     !
-    ALLOCATE(chemical_shift_loc_tmp(3,natom_tot),STAT=istat)
+    ALLOCATE(chemical_shift_loc_tmp(3,natom_tot),list_j(natom_tot),&
+         &   dist_ij(3,natom_tot),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     chemical_shift_loc_tmp = 0.0_dp
     !
@@ -355,6 +359,18 @@ CONTAINS
           iatom = atom_list(iat)
           r_iatom(1:3) = pbc(particle_set(iatom)%r,cell)
           !
+          ! find all the atoms within the radius
+          natom_local = 0
+          DO jatom = 1,natom_tot
+             rij(:) = pbc(particle_set(iatom)%r,particle_set(jatom)%r,cell)
+             dist = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+             IF(dist.LE.shift_gapw_radius) THEN
+                natom_local = natom_local + 1
+                list_j(natom_local) = jatom
+                dist_ij(:,natom_local) = rij(:)
+             ENDIF
+          ENDDO
+          !
           NULLIFY(jrho1_atom,jrho_h_grid,jrho_s_grid)
           jrho1_atom => jrho1_atom_set(iatom)
           !
@@ -368,19 +384,16 @@ CONTAINS
              DO ia = 1,na
                 DO ir = 1,nr
                    !
-                   rvec(1) = grid_atom%rad(ir)*harmonics%a(1,ia)
-                   rvec(2) = grid_atom%rad(ir)*harmonics%a(2,ia)
-                   rvec(3) = grid_atom%rad(ir)*harmonics%a(3,ia)
+                   rvec(:) = grid_atom%rad(ir)*harmonics%a(:,ia)
                    !
-                   !vw Can we compute that in calculate_jrho_atom_ang? wv!
-                   jrho1_tot = (jrho_h_grid(ir,ia)-jrho_s_grid(ir,ia)) * grid_atom%weight(ia,ir)
-                   itegrated_jrho = itegrated_jrho+jrho1_tot
+                   jrho1_tot = (jrho_h_grid(ir,ia) - jrho_s_grid(ir,ia)) * grid_atom%weight(ia,ir)
+                   itegrated_jrho = itegrated_jrho + jrho1_tot
                    !
                    ! local contribution to chi (NEEDS SOME MODIFICATIONS FOR PBC)
                    DO idir2 = 1,3
                       IF(idir2/=idir) THEN
                          CALL set_vecp_rev(idir,idir2,idir3)
-                         scale_fac=fac_vecp(idir3,idir2,idir)
+                         scale_fac = fac_vecp(idir3,idir2,idir)
                          !nmr_env%chi_tensor_loc(idir3,iB)=nmr_env%chi_tensor_loc(idir3,iB)+&
                          !     & scale_fac*(jrho1_tot)*nmr_env%chi_factor*&
                          !     & (rvec(idir2)+particle_set(iatom)%r(idir2))
@@ -388,64 +401,41 @@ CONTAINS
                    ENDDO
                    !
                    !
-                   DO jatom = 1,natom_tot
-                      ! be sure you take the minimum image
-                      rij(1:3) = pbc(particle_set(iatom)%r,particle_set(jatom)%r,cell)
-                      distance = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
-                      ! the right thing to do is to build a list of neighbors, but for the time being
-                      ! let's simply use a cutoff here
-
-! my_minimum_image = .FALSE.
-! IF(PRESENT(minimum_image)) THEN
-!    my_minimum_image=minimum_image
-!    Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
-!    Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
-!    Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
-! END IF
-!         IF(my_minimum_image) THEN
-!           IF(ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) THEN
-!             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-!             CYCLE
-!           END IF
-!         END IF
-
-                      !threshold = 60.0_dp
-                      jatomisneighbor = .TRUE. !(distance .LE. threshold)
-                      IF(jatomisneighbor) THEN
-
-                         rdiff(1) = rij(1) - rvec(1)
-                         rdiff(2) = rij(2) - rvec(2)
-                         rdiff(3) = rij(3) - rvec(3)
-                         ddiff = SQRT( rdiff(1)*rdiff(1)+ rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3))
+                   DO j = 1,natom_local
+                      jatom = list_j(j)
+                      rij(:) = dist_ij(:,j)
+!DO jatom = 1,natom_tot
+!rij(1:3) = pbc(particle_set(iatom)%r,particle_set(jatom)%r,cell)
+!dist = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+!jatomisneighbor = .TRUE.
+!IF(jatomisneighbor) THEN
+                      rdiff(:) = rij(:) - rvec(:)
+                      ddiff = SQRT( rdiff(1)*rdiff(1) + rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3) )
+                      IF(ddiff.GT.1.0E-12_dp) THEN
+                         !
                          ! the component idir of J contributes to the components idir2/=idir of the shift
                          DO idir2 = 1,3
-
+                            !
                             IF(idir2/=idir) THEN
                                CALL set_vecp_rev(idir,idir2,idir3)
-                               scale_fac=fac_vecp(idir3,idir2,idir)
-
-                               IF(ddiff.GT.1.0E-12_dp) THEN
-                                  chemical_shift_loc_tmp(idir3,jatom) = &
-                                       chemical_shift_loc_tmp(idir3,jatom) + &
-                                       scale_fac*rdiff(idir2) * jrho1_tot/(ddiff*ddiff*ddiff)
-                               ENDIF
-
+                               scale_fac = fac_vecp(idir3,idir2,idir)
+                               chemical_shift_loc_tmp(idir3,jatom) = &
+                                    chemical_shift_loc_tmp(idir3,jatom) + &
+                                    scale_fac * rdiff(idir2) * jrho1_tot / (ddiff*ddiff*ddiff)
                             ENDIF
                          ENDDO ! idir2
-                         
-                      ENDIF
-
-                   ENDDO ! jatom
+                      ENDIF ! ddiff
+!ENDIF
+                   ENDDO ! j
 
                    IF(nmr_env%do_nics) THEN
-
                       DO jatom = 1,n_nics
                          r_jatom(1:3) = r_nics(1:3,jatom)
                          rij(1:3) = pbc(particle_set(iatom)%r,r_jatom,cell)
 
-                         distance = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
-                         jatomisneighbor = (distance .LE. threshold)
+                         dist = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
 
+                         jatomisneighbor = .TRUE.
                          IF(jatomisneighbor) THEN
 
                             rdiff(1) = rij(1) - rvec(1)
@@ -467,11 +457,8 @@ CONTAINS
 
                                ENDIF
                             ENDDO ! idir2
-                            
                          ENDIF
-
                       ENDDO ! jatom
-
                    ENDIF ! do_nics
                 ENDDO ! ir
              ENDDO ! ia
@@ -489,13 +476,20 @@ CONTAINS
     CALL mp_sum(chemical_shift_loc_tmp,para_env%group)
     chemical_shift_loc(:,iB,:) = chemical_shift_loc(:,iB,:) &
          & - nmr_env%shift_factor_gapw * chemical_shift_loc_tmp(:,:) / 2.0_dp
+
+    !DO ia=1,SIZE(chemical_shift_loc_tmp,1)
+    !DO ir=1,SIZE(chemical_shift_loc_tmp,2)
+    !WRITE(*,'(I3,I3,2E18.8)') ia,ir,chemical_shift_loc(ia,iB,ir)&
+    !     ,-nmr_env%shift_factor_gapw * chemical_shift_loc_tmp(ia,ir) / 2.0_dp
+    !ENDDO
+    !ENDDO
     IF(nmr_env%do_nics) THEN
        !here need a chemical_shift_nics_loc_tmp... also for chi_loc
        CALL stop_program(routineP,"local nics needs some more work")
        CALL mp_sum(chemical_shift_nics_loc,para_env%group)
     ENDIF
     !
-    DEALLOCATE(chemical_shift_loc_tmp,STAT=istat)
+    DEALLOCATE(chemical_shift_loc_tmp,list_j,dist_ij,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !
     CALL timestop(handle)
@@ -666,6 +660,7 @@ CONTAINS
        DO iat = 1,natom
           iatom = cs_atom_list(iat)
           R_iatom = pbc(particle_set(iatom)%r,cell)
+          !write(*,*) iatom,'new',nmr_env%shift_factor * twopi**2 * REAL(gsumr(R_iatom,shift_pw_gspace%pw),dp)
           chemical_shift(idir,i_B,iatom)= chemical_shift(idir,i_B,iatom)+&
                & nmr_env%shift_factor * twopi**2 * REAL(gsumr(R_iatom,shift_pw_gspace%pw),dp)
        ENDDO

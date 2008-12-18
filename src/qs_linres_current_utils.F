@@ -47,9 +47,12 @@ MODULE qs_linres_current_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
+                                             rs_pools_give_back_rs_vect
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE f77_blas
-  USE input_constants,                 ONLY: current_gauge_r,&
+  USE input_constants,                 ONLY: current_gauge_atom,&
+                                             current_gauge_r,&
                                              current_gauge_r_and_Bader,&
                                              current_gauge_r_and_step_func,&
                                              current_orb_center_atom,&
@@ -262,6 +265,7 @@ CONTAINS
           current_env%simple_converged(idir) = linres_control%converged
           !CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir,error=error)
        ENDIF
+
     ENDDO ! idir
     !
     ! operator rxp
@@ -490,6 +494,7 @@ CONTAINS
        ENDDO
        DEALLOCATE(fm_work_ii,fm_work_iii,dkl_vec_ii,dkl_vec_iii,vecbuf_dklxp0,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     ENDIF
     !
     ! clean up
@@ -560,7 +565,7 @@ CONTAINS
          &                             extension=".linresLog",error=error)
     
     IF(current_env%ref_count /= 0) THEN
-       CALL current_env_cleanup(current_env,error=error)
+       CALL current_env_cleanup(current_env,qs_env,error=error)
     END IF
 
     IF(output_unit>0) THEN
@@ -576,6 +581,8 @@ CONTAINS
     ! If current_density or full_nmr different allocations are required
     current_section => section_vals_get_subs_vals(qs_env%input, &
          &         "PROPERTIES%LINRES%CURRENT",error=error)
+    !
+    ! Select the gauge
     CALL section_vals_val_get(current_section,"GAUGE",i_val=current_env%gauge,error=error)
     SELECT CASE(current_env%gauge)
     CASE(current_gauge_r)
@@ -584,10 +591,17 @@ CONTAINS
        current_env%gauge_name="R_AND_BADER"
     CASE(current_gauge_r_and_step_func)
        current_env%gauge_name="R_AND_STEP_FUNCTION"
+    CASE(current_gauge_atom)
+       current_env%gauge_name="ATOM"
     CASE DEFAULT
+       WRITE(*,*) 'qs_linres_current_utils.F current_env_init: current_env%gauge=',current_env%gauge
        CALL stop_program("current_env_init","unknown gauge, try again...")
     END SELECT
-
+    !
+    ! maximal radius to build the atom gauge
+    CALL section_vals_val_get(current_section,"GAUGE_ATOM_RADIUS",&
+         r_val=current_env%gauge_atom_radius,error=error)
+    !
     ! no need of this guy anymore
     !CALL section_vals_val_get(current_section,"FULL",l_val=current_env%full,error=error)
     current_env%full=.TRUE.
@@ -739,7 +753,7 @@ CONTAINS
              ENDDO
              IF(.NOT.is0) THEN
                 IF(output_unit>0) THEN
-                   WRITE(output_unit,'(A,I6,A,I6)') 'clustering ',j,' center(s) on atom ',iatom
+                   WRITE(output_unit,'(T2,A,I6,A,I6)') 'clustering ',j,' center(s) on atom ',iatom
                 ENDIF
                 current_env%center_list(ispin)%array(1,ii+1) = &
                      & current_env%center_list(ispin)%array(1,ii) + j
@@ -803,7 +817,7 @@ CONTAINS
              ENDDO
              IF(.NOT.is0) THEN
                 IF(output_unit>0) THEN
-                   WRITE(output_unit,'(A,I6,A,I6)') 'clustering ',j,' center(s) on box ',ibox
+                   WRITE(output_unit,'(T2,A,I6,A,I6)') 'clustering ',j,' center(s) on box ',ibox
                 ENDIF
                 current_env%center_list(ispin)%array(1,ii+1) = &
                   & current_env%center_list(ispin)%array(1,ii) + j
@@ -917,12 +931,21 @@ CONTAINS
     !
     IF(output_unit>0) THEN
        WRITE(output_unit,"(T2,A)") "CURRENT| Gauge used "//TRIM(current_env%gauge_name)
+       IF(current_env%gauge.EQ.current_gauge_atom) THEN
+          WRITE(output_unit,"(T2,A,E12.6)") "CURRENT| radius for building the gauge ",&
+               & current_env%gauge_atom_radius
+       ENDIF
        WRITE(output_unit,"(T2,A)") "CURRENT| Orbital center used "//TRIM(current_env%orb_center_name)
+       DO ispin = 1,nspins       
+          WRITE(output_unit,'(T2,A,I6,A,I2)') 'CURRENT| There is a total of ', &
+               & current_env%nbr_center(ispin),' (clustered) center(s) for spin ',ispin
+       ENDDO
        IF(current_env%orb_center.EQ.current_orb_center_common) THEN
           WRITE(output_unit,"(T2,A,3F10.6)") "CURRENT| Common center ",common_center(1:3)
        ELSEIF(current_env%orb_center.EQ.current_orb_center_box) THEN
           WRITE(output_unit,"(T2,A,3I5)") "CURRENT| nbr boxes in each direction ",nbox(1:3)
        ENDIF
+       WRITE(output_unit,"(T2,A)") "CURRENT| Orbital center used "//TRIM(current_env%orb_center_name)
     ENDIF
 
     IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
@@ -970,7 +993,8 @@ CONTAINS
          &    "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
     ENDIF
 
-    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=current_env%ao_mo_fm_pools, error=error)
+    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=current_env%ao_mo_fm_pools, &
+         &          mo_mo_fm_pools=current_env%mo_mo_fm_pools, error=error)
     ! for the chemical shift we need 6 psi1, i.e. 6 optimization procedures
     ! They become 9 if full nmr is calculated, i.e. with the correction term too
     ! All of them are required at the end of the optimization procedure
@@ -1054,6 +1078,17 @@ CONTAINS
        CALL set_matrix(current_env%op_rmd_ao(idir)%matrix,0.0_dp)
     ENDDO
     !
+    !
+    ALLOCATE(current_env%dip(nspins,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ispin = 1,nspins
+       DO idir = 1,3
+          NULLIFY(current_env%dip(ispin,idir)%matrix)
+          CALL fm_pool_create_fm(current_env%mo_mo_fm_pools(ispin)%pool,&
+               &                 current_env%dip(ispin,idir)%matrix,error=error)
+       ENDDO
+    ENDDO
+    !
     ! If the current density on the grid needs to be stored
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
     ALLOCATE(current_env%jrho1_set(3),STAT=istat)
@@ -1126,9 +1161,10 @@ CONTAINS
   END SUBROUTINE current_env_init
 
 
-  SUBROUTINE current_env_cleanup(current_env,error)
+  SUBROUTINE current_env_cleanup(current_env,qs_env,error)
 
     TYPE(current_env_type)                   :: current_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_env_cleanup', &
@@ -1136,8 +1172,13 @@ CONTAINS
 
     INTEGER                                  :: i, idir, ispin, istat
     LOGICAL                                  :: failure
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+      POINTER                                :: rs_pools
+    TYPE(pw_env_type), POINTER               :: pw_env
 
     failure=.FALSE.
+
+    NULLIFY(pw_env,rs_pools)
 
     IF(.NOT. failure) THEN
        current_env%ref_count = current_env%ref_count - 1
@@ -1150,7 +1191,18 @@ CONTAINS
                         current_env%psi1_p(ispin,idir)%matrix,error=error)
                 END DO
              END DO
-             DEALLOCATE(current_env%psi1_p, STAT=istat)
+             DEALLOCATE(current_env%psi1_p,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          !dip
+          IF(ASSOCIATED(current_env%dip)) THEN
+             DO idir = 1,SIZE(current_env%dip,2)
+                DO ispin = 1,SIZE(current_env%dip,1)
+                   CALL fm_pool_give_back_fm(current_env%mo_mo_fm_pools(ispin)%pool,&
+                        current_env%dip(ispin,idir)%matrix,error=error)
+                END DO
+             END DO
+             DEALLOCATE(current_env%dip,STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           END IF
           !psi1_rxp
@@ -1265,6 +1317,15 @@ CONTAINS
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           END IF
 
+          ! give back the gauge
+          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+          CALL pw_env_get(pw_env,rs_pools=rs_pools,error=error)
+          DO idir=1,3
+             IF(ASSOCIATED(current_env%rs_gauge(idir)%rs)) THEN
+                CALL rs_pools_give_back_rs_vect(rs_pools,current_env%rs_gauge(idir)%rs,error=error)
+             ENDIF
+          ENDDO
+          
        END IF  ! ref count
     END IF ! failure
 

@@ -36,7 +36,8 @@ MODULE qs_linres_module
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_linres_current,               ONLY: current_build_chi,&
-                                             current_build_current
+                                             current_build_current,&
+                                             current_set_gauge
   USE qs_linres_current_utils,         ONLY: current_env_cleanup,&
                                              current_env_init,&
                                              current_response
@@ -201,6 +202,9 @@ CONTAINS
              CALL epr_nablavks(epr_env,qs_env,error=error)
           ENDIF
           !
+          ! Build the rs_gauge if needed
+          CALL current_set_gauge(current_env,qs_env,error=error)
+          !
           ! Loop over field direction
           DO iB = 1,3
              !
@@ -234,7 +238,7 @@ CONTAINS
           ENDIF
           !
           ! Finalized the current environment
-          CALL current_env_cleanup(current_env,error=error)
+          CALL current_env_cleanup(current_env,qs_env,error=error)
        ENDIF
        
        ! Other possible LR calculations can be introduced here
@@ -367,39 +371,39 @@ CONTAINS
          IF(linres_control%localized_psi0) WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
             "LINRES|","LOCALIZED PSI0"
          IF(linres_control%opt_method==lr_cg) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|     Optimization algorithm","Conjugate Gradients"
+            "LINRES|   Optimization algorithm","Conjugate Gradients"
          IF(linres_control%opt_method==lr_sd) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|     Optimization algorithm","    Steepnd Descent"
+            "LINRES|   Optimization algorithm","    Steepnd Descent"
          IF(linres_control%opt_method==lr_diis) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|     Optimization algorithm","               DIIS"
+            "LINRES|   Optimization algorithm","               DIIS"
          IF(linres_control%ls_method==ls_none) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|                Line Search","               NONE"
+            "LINRES|              Line Search","               NONE"
          IF(linres_control%ls_method==ls_2pnt) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|                Line Search","               2pnt"
+            "LINRES|              Line Search","               2pnt"
          IF(linres_control%ls_method==ls_3pnt) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|                Line Search","               3pnt"
+            "LINRES|              Line Search","               3pnt"
          IF(linres_control%ls_method==ls_gold) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|                Line Search","               gold"
+            "LINRES|              Line Search","               gold"
          IF(linres_control%preconditioner_type==lr_precond_none) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|             Preconditioner","               NONE"
+            "LINRES|           Preconditioner","               NONE"
          IF(linres_control%preconditioner_type==lr_precond_single) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|             Preconditioner","        FULL SINGLE"
+            "LINRES|           Preconditioner","        FULL SINGLE"
          IF(linres_control%preconditioner_type==lr_precond_s_inverse) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|             Preconditioner","     FULL S_INVERSE"
+            "LINRES|           Preconditioner","     FULL S_INVERSE"
          IF(linres_control%preconditioner_type==lr_precond_full_all) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|             Preconditioner","           FULL ALL"
+            "LINRES|           Preconditioner","           FULL ALL"
          WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,ES8.1)")&
-            "LINRES|                    EPS_SCF",linres_control%eps_scf
+            "LINRES|                  EPS_SCF",linres_control%eps_scf
          WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,I8)")&
-            "LINRES|    Max number of iterations per SCF cycle",linres_control%max_scf
+            "LINRES|  Max number of iterations per SCF cycle",linres_control%max_scf
        END IF
 
       !------------------!

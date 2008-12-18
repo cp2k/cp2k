@@ -23,12 +23,13 @@ MODULE  qs_modify_pab_block
 
 ! *** Public subroutines ***
 
-  PUBLIC :: prepare_dadb,prepare_adb_m_dab,prepare_ardb_m_darb
-  PUBLIC :: FUNC_AB, FUNC_DADB, FUNC_ADBmDAB, FUNC_ARDBmDARB
+  PUBLIC :: prepare_dadb,prepare_adb_m_dab,prepare_ardb_m_darb,prepare_arb
+  PUBLIC :: FUNC_AB, FUNC_ARB, FUNC_DADB, FUNC_ADBmDAB, FUNC_ARDBmDARB
 
   ! Flags for the type of function to be collocated
   INTEGER, PARAMETER :: FUNC_AB = 401, FUNC_DADB = 402
   INTEGER, PARAMETER :: FUNC_ADBmDAB = 403, FUNC_ARDBmDARB = 404
+  INTEGER, PARAMETER :: FUNC_ARB = 405
 
 CONTAINS
 
@@ -355,6 +356,47 @@ CONTAINS
      END IF
 
   END SUBROUTINE prepare_ardb_m_darb
+
+! *****************************************************************************
+!> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
+!>    pgf_a (r-Rb)_{ir} pgf_b = pgf_a * pgf_b{+1ir}
+! *****************************************************************************
+  SUBROUTINE prepare_arb(pab_local,pab,ir,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
+
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: pab_local
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
+    INTEGER, INTENT(IN)                      :: ir, lxa, lya, lza, lxb, lyb, &
+                                                lzb, o1, o2
+    REAL(dp), INTENT(IN)                     :: zeta, zetb
+
+    INTEGER                                  :: ico, ico_l, jco, jco_l
+
+    ico=coset(lxa,lya,lza)
+    jco=coset(lxb,lyb,lzb)
+
+    IF( ir == 1 ) THEN
+
+       ico_l=coset(lxa,lya,lza)
+       jco_l=coset((lxb + 1),lyb,lzb)
+       pab_local(ico_l,jco_l) = pab_local(ico_l,jco_l) + pab(o1+ico,o2+jco)
+
+    ELSEIF( ir == 2 ) THEN
+
+       ico_l=coset(lxa,lya,lza)
+       jco_l=coset(lxb,(lyb + 1),lzb)
+       pab_local(ico_l,jco_l) = pab_local(ico_l,jco_l) + pab(o1+ico,o2+jco)
+
+    ELSEIF( ir == 3 ) THEN
+
+       ico_l=coset(lxa,lya,lza)
+       jco_l=coset(lxb,lyb,(lzb + 1))
+       pab_local(ico_l,jco_l) = pab_local(ico_l,jco_l) + pab(o1+ico,o2+jco)
+
+    END IF
+
+  END SUBROUTINE prepare_arb
+
+
 
 END MODULE qs_modify_pab_block
 

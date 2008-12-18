@@ -122,7 +122,6 @@ CONTAINS
     nmoloc = 0
 
     logger => cp_error_get_logger(error)
-    !ionode = logger%para_env%mepos==logger%para_env%source
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -142,6 +141,7 @@ CONTAINS
     ! If surrent_density or full_nmr different allocations are required
     nmr_section => section_vals_get_subs_vals(qs_env%input, &
          &                                    "PROPERTIES%LINRES%NMR",error=error)
+    CALL section_vals_val_get(nmr_section,"SHIFT_GAPW_RADIUS",r_val=nmr_env%shift_gapw_radius,error=error)
     CALL section_vals_val_get(nmr_section,"NICS",l_val=nmr_env%do_nics,error=error)
     IF(nmr_env%do_nics) THEN
        CALL section_vals_val_get(nmr_section,"NICS_FILE_NAME",&
@@ -209,6 +209,8 @@ CONTAINS
        (cp_unit_from_cp2k(cell%deth,"angstrom^3",error=error)*1.0E-30_dp) * 1.0E+6_dp
 
     IF(output_unit>0) THEN
+       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
+            & "  NMR|  shift gapw radius (a.u.) ",nmr_env%shift_gapw_radius
        IF(nmr_env%do_nics) THEN
           WRITE(output_unit,"(T2,A,T50,I5,A)")&
                & "  NMR|   NICS computed in ",nmr_env%n_nics," additional points"

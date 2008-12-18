@@ -53,6 +53,7 @@ MODULE realspace_grid_types
             rs_grid_release,&
             rs_grid_print, &
             rs_grid_locate_rank, &
+            rs_grid_mult_and_add,&
             init_input_type
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
@@ -1596,6 +1597,36 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE rs_grid_zero
+
+! *****************************************************************************
+!> \brief rs1(i) = rs1(i) + rs2(i)*rs3(i)
+!> \par History
+!>      none
+!> \author 
+! *****************************************************************************
+SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3 )
+
+    TYPE(realspace_grid_type), POINTER       :: rs1, rs2, rs3
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_mult_and_add', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, j, k, l(3), u(3)
+
+!-----------------------------------------------------------------------------!
+
+   CALL timeset(routineN,handle)
+   l(1) = LBOUND( rs1 % r, 1 );l(2) = LBOUND( rs1 % r, 2 );l(3) = LBOUND( rs1 % r, 3 )
+   u(1) = UBOUND( rs1 % r, 1 );u(2) = UBOUND( rs1 % r, 2 );u(3) = UBOUND( rs1 % r, 3 )
+   DO k = l(3),u(3)
+   DO j = l(2),u(2)
+   DO i = l(1),u(1)
+      rs1 % r ( i, j, k ) = rs1 % r ( i, j, k ) + rs2 % r ( i, j, k ) * rs3 % r ( i, j, k )
+   ENDDO
+   ENDDO
+   ENDDO
+   CALL timestop(handle)
+ END SUBROUTINE rs_grid_mult_and_add
 
 ! *****************************************************************************
 !> \brief Set box matrix info for real space grid
