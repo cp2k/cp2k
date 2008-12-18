@@ -1256,8 +1256,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE check_subsys_element(element_in, atom_name_in, element_out, subsys_section, error)
-    CHARACTER(len=*), INTENT(IN)             :: element_in
-    CHARACTER(len=default_string_length)     :: atom_name_in
+    CHARACTER(len=*), INTENT(IN)             :: element_in, atom_name_in
     CHARACTER(len=default_string_length), &
       INTENT(OUT)                            :: element_out
     TYPE(section_vals_type), POINTER         :: subsys_section
