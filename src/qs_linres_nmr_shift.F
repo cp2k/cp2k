@@ -625,6 +625,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gsum_shift_pwgrid', &
       routineP = moduleN//':'//routineN
 
+    COMPLEX(dp)                              :: cplx
     INTEGER                                  :: handle, iat, iatom, n_nics, &
                                                 natom
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
@@ -633,7 +634,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
                                                 chemical_shift_nics
-    COMPLEX(dp)                              :: cplx
 
 !
 
