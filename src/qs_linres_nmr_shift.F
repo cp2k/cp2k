@@ -633,8 +633,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
                                                 chemical_shift_nics
+    COMPLEX(dp)                              :: cplx
 
-!
 !
 
     failure = .FALSE.
@@ -660,17 +660,18 @@ CONTAINS
        DO iat = 1,natom
           iatom = cs_atom_list(iat)
           R_iatom = pbc(particle_set(iatom)%r,cell)
-          !write(*,*) iatom,'new',nmr_env%shift_factor * twopi**2 * REAL(gsumr(R_iatom,shift_pw_gspace%pw),dp)
+          CALL gsumr(R_iatom,shift_pw_gspace%pw,cplx)
           chemical_shift(idir,i_B,iatom)= chemical_shift(idir,i_B,iatom)+&
-               & nmr_env%shift_factor * twopi**2 * REAL(gsumr(R_iatom,shift_pw_gspace%pw),dp)
+               & nmr_env%shift_factor * twopi**2 * REAL(cplx,dp)
        ENDDO
        !
        ! compute nics
        IF(nmr_env%do_nics) THEN
           DO iat = 1,n_nics
              ra = pbc(r_nics(:,iat),cell)
+             CALL gsumr(ra,shift_pw_gspace%pw,cplx)
              chemical_shift_nics(idir,i_B,iat)= chemical_shift_nics(idir,i_B,iat)+&
-                  & nmr_env%shift_factor * twopi**2 * REAL(gsumr(ra,shift_pw_gspace%pw),dp)
+                  & nmr_env%shift_factor * twopi**2 * REAL(cplx,dp)
           ENDDO
        ENDIF
     ENDIF
@@ -680,24 +681,24 @@ CONTAINS
   END SUBROUTINE gsum_shift_pwgrid
 
 ! *****************************************************************************
-  FUNCTION gsumr(r,pw)
+  SUBROUTINE gsumr(r,pw,cplx)
     REAL(dp), INTENT(IN)                     :: r(3)
     TYPE(pw_type), POINTER                   :: pw
-    COMPLEX(dp)                              :: gsumr
+    COMPLEX(dp)                              :: cplx
 
     COMPLEX(dp)                              :: rg
     INTEGER                                  :: ig
     TYPE(pw_grid_type), POINTER              :: grid
 
     grid => pw%pw_grid
-    gsumr = CMPLX(0.0_dp,0.0_dp,KIND=dp)
+    cplx = CMPLX(0.0_dp,0.0_dp,KIND=dp)
     DO ig = grid%first_gne0,grid%ngpts_cut_local
        rg = ( grid%g(1,ig)*r(1) + grid%g(2,ig)*r(2) + grid%g(3,ig)*r(3) ) * gaussi
-       gsumr = gsumr + pw%cc(ig)*EXP(rg)
+       cplx = cplx + pw%cc(ig)*EXP(rg)
     ENDDO
-    IF(grid%have_g0) gsumr = gsumr + pw%cc(1)
-    CALL mp_sum(gsumr,grid%para%group)
-  END FUNCTION gsumr
+    IF(grid%have_g0) cplx = cplx + pw%cc(1)
+    CALL mp_sum(cplx,grid%para%group)
+  END SUBROUTINE gsumr
 
 ! *****************************************************************************
 !> \brief Shielding tensor and Chi are printed into a file

@@ -1776,10 +1776,10 @@ CONTAINS
     gapw = dft_control%qs_control%gapw
     IF (output_unit>0) THEN
        WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-       WRITE(output_unit,*) 'chi_analytic: gapw=',gapw,' reset to .false.'
+       WRITE(output_unit,*) 'chi_analytic: gapw=',gapw!,' reset to .false.'
        WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
     END IF
-    gapw=.FALSE.
+    !gapw=.FALSE.
 
     CALL get_current_env(current_env=current_env,&
          &               nao=nao,&
@@ -1871,12 +1871,12 @@ CONTAINS
        DO icenter = 1,nbr_center(ispin)
           !
           ! Get the Wannier center of the istate-th ground state orbital
-          dk(1:3) = centers_set(ispin)%array(1:3,icenter) !pbc(centers_set(ispin)%array(1:3,icenter),cell)
+          dk(1:3) = centers_set(ispin)%array(1:3,icenter)
           !
           ! Compute the multipole integrals for the state istate,
           ! using as reference center the corresponding Wannier center
           DO idir = 1,9
-             CALL set_matrix(op_mom_ao(idir)%matrix, 0.0_dp)
+             CALL set_matrix(op_mom_ao(idir)%matrix,0.0_dp)
              DO idir2 = 1,3
                 CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix, 0.0_dp)
              ENDDO
@@ -1886,10 +1886,8 @@ CONTAINS
           CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
                &              minimum_image=.FALSE.,soft=gapw,error=error)
 
-
           DO j = center_list(ispin)%array(1,icenter),center_list(ispin)%array(1,icenter+1)-1
              istate = center_list(ispin)%array(2,j)
-
              !
              ! EXTRACT from the ground state full MOS matrix the coefficients of istate
              CALL cp_fm_get_submatrix(mo_coeff,vecbuf_0,1,istate,nao,1,&
@@ -1920,8 +1918,8 @@ CONTAINS
              CALL cp_fm_set_submatrix(psi_p1_istate,vecbuf_1_p(iiB)%array,1,1,&
                   &                   nao,1,transpose=.TRUE.,error=error)
              CALL cp_fm_get_submatrix(psi1_p(ispin,iiiB)%matrix,&
-               &                   vecbuf_1_p(iiiB)%array,1,istate,nao,1,&
-               &                   transpose=.TRUE.,error=error)
+                  &                   vecbuf_1_p(iiiB)%array,1,istate,nao,1,&
+                  &                   transpose=.TRUE.,error=error)
              CALL cp_fm_set_submatrix(psi_p2_istate,vecbuf_1_p(iiiB)%array,1,1,&
                   &                   nao,1,transpose=.TRUE.,error=error)
              !
@@ -1945,14 +1943,12 @@ CONTAINS
                      &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                 CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
                 chi_tmp = chi_tmp + 2.0_dp * contrib
-!if(istate==4)write(*,*) 'contrib1',+ 2.0_dp * contrib
                 !
                 contrib = 0.0_dp
                 CALL cp_sm_fm_multiply(op_mom_der_ao(iii,ii)%matrix,psi_rxp_istate,&
                      &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                 CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
                 chi_tmp = chi_tmp - 2.0_dp *contrib
-!if(istate==4)write(*,*) 'contrib2',- 2.0_dp *contrib
                 !
                 ! correction: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
                 ! factor 2 not included in the matrix elements
@@ -1961,7 +1957,6 @@ CONTAINS
                      &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                 CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
                 chi_tmp = chi_tmp + 2.0_dp*dk(ii)*contrib
-!if(istate==4)write(*,*) 'contrib3',+ 2.0_dp*dk(ii)*contrib
                 int_current_tmp = int_current_tmp + 2.0_dp*contrib
                 !
                 contrib2 = 0.0_dp
@@ -1969,7 +1964,6 @@ CONTAINS
                      &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                 CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
                 chi_tmp = chi_tmp - 2.0_dp*dk(iii)*contrib2
-!if(istate==4)write(*,*) 'contrib4',- 2.0_dp*dk(iii)*contrib2
                 !
                 ! term: -2[C0| (r-dk)_ii  (r-dk)_iiB | d_iii(C1(piiiB))] \
                 !       +2[C0| (r-dk)_iii (r-dk)_iiB | d_ii(C1(piiiB))]
@@ -1980,14 +1974,12 @@ CONTAINS
                      &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                 CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
                 chi_tmp = chi_tmp - 2.0_dp * contrib
-!if(istate==4)write(*,*) 'contrib5',- 2.0_dp * contrib
                 contrib2 = 0.0_dp
                 IF(iiB==iii) THEN
                    CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p2_istate,&
                         &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                    CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
                    chi_tmp = chi_tmp - contrib2
-!if(istate==4)write(*,*) 'contrib6',- contrib2
                 ENDIF
 
                 contrib = 0.0_dp
@@ -1996,14 +1988,12 @@ CONTAINS
                      &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                 CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
                 chi_tmp = chi_tmp + 2.0_dp * contrib
-!if(istate==4)write(*,*) 'contrib7',+ 2.0_dp * contrib
                 contrib2 = 0.0_dp
                 IF(iiB==ii) THEN
                    CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p2_istate,&
                         &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                    CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
                    chi_tmp = chi_tmp + contrib2
-!if(istate==4)write(*,*) 'contrib8',+ contrib2
                 ENDIF
                 !
                 ! correction: -dk_ii * 2[C0|(r-dk)_iiB | d_iii(C1(piiiB))] \
@@ -2016,14 +2006,12 @@ CONTAINS
                 CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
                 chi_tmp = chi_tmp - 2.0_dp*dk(ii)*contrib
                 int_current_tmp = int_current_tmp - 2.0_dp*contrib
-!if(istate==4)write(*,*) 'contrib9',- 2.0_dp*dk(ii)*contrib
                 !
                 contrib2 = 0.0_dp
                 CALL cp_sm_fm_multiply(op_mom_der_ao(iiB,ii)%matrix,psi_p2_istate,&
                      &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                 CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
                 chi_tmp = chi_tmp + 2.0_dp*dk(iii)*contrib2
-!if(istate==4)write(*,*) 'contrib10',+ 2.0_dp*dk(iii)*contrib2
                 !
                 ! term: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] \
                 !       -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))]
@@ -2034,14 +2022,12 @@ CONTAINS
                      &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                 CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
                 chi_tmp = chi_tmp + 2.0_dp*contrib
-!if(istate==4)write(*,*) 'contrib11',+ 2.0_dp*contrib
                 contrib2 = 0.0_dp
                 IF(iiiB==iii) THEN
                    CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p1_istate,&
                         &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                    CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
                    chi_tmp = chi_tmp + contrib2
-!if(istate==4)write(*,*) 'contrib12',+ contrib2
                 ENDIF
              
                 contrib = 0.0_dp
@@ -2050,14 +2036,12 @@ CONTAINS
                      &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                 CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
                 chi_tmp = chi_tmp - 2.0_dp * contrib
-!if(istate==4)write(*,*) 'contrib13',- 2.0_dp * contrib
                 contrib2 = 0.0_dp
                 IF(iiiB==ii) THEN
                    CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p1_istate,&
                         &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                    CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
                    chi_tmp = chi_tmp - contrib2
-!if(istate==4)write(*,*) 'contrib14',- contrib2
                 ENDIF
                 !
                 ! correction: +dk_ii * 2[C0|(r-dk)_iiiB | d_iii(C1(piiB))] +\
@@ -2069,14 +2053,12 @@ CONTAINS
                 CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
                 chi_tmp = chi_tmp + 2.0_dp*dk(ii)*contrib
                 int_current_tmp = int_current_tmp + 2.0_dp*contrib
-!if(istate==4)write(*,*) 'contrib15',+ 2.0_dp*dk(ii)*contrib
                 !
                 contrib2 = 0.0_dp
                 CALL cp_sm_fm_multiply(op_mom_der_ao(iiiB,ii)%matrix,psi_p1_istate,&
                      &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
                 CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
                 chi_tmp = chi_tmp - 2.0_dp*dk(iii)*contrib2
-!if(istate==4)write(*,*) 'contrib16',- 2.0_dp*dk(iii)*contrib2
                 chi(idir) = chi(idir) + chi_tmp
                 int_current(iii) = int_current(iii) + int_current_tmp
              ENDDO  ! idir
