@@ -27,7 +27,8 @@ MODULE mode_selective
   USE input_constants
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_get
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -61,6 +62,7 @@ MODULE mode_selective
      REAL(KIND=dp),POINTER,DIMENSION(:, :)    :: ms_force
      REAL(KIND=dp), DIMENSION(:), POINTER     :: eig_bfgs
      REAL(KIND=dp), DIMENSION(:), POINTER     :: f_range
+     REAL(KIND=dp), DIMENSION(:), POINTER     :: inv_range
      REAL(KIND=dp), POINTER, DIMENSION(:)     :: step_b
      REAL(KIND=dp), POINTER, DIMENSION(:)     :: step_r
      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b_mat
@@ -280,14 +282,14 @@ CONTAINS
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: map_atoms
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure, ionode,do_involved_atoms
     REAL(KIND=dp)                            :: my_val, norm
-    TYPE(section_vals_type), POINTER         :: ms_vib_section
+    TYPE(section_vals_type), POINTER         :: ms_vib_section,involved_at_section
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
     IF (.NOT. failure) THEN
-       NULLIFY(ms_vib%eig_bfgs,ms_vib%f_range,ms_vib%hes_bfgs)
+       NULLIFY(ms_vib%eig_bfgs,ms_vib%f_range,ms_vib%hes_bfgs,ms_vib%inv_range)
        ms_vib_section => section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS%MODE_SELECTIVE", error=error)
        CALL section_vals_val_get(ms_vib_section,"INITIAL_GUESS",i_val=guess,error=error)
        CALL section_vals_val_get(ms_vib_section,"EPS_MAX_VAL",r_val=ms_vib%eps(1), error=error)
@@ -305,30 +307,44 @@ CONTAINS
        END IF     
        CALL section_vals_val_get(ms_vib_section,"FREQUENCY",r_val=ms_vib%sel_freq, error=error)
        IF(ms_vib%sel_freq.gt.0._dp)ms_vib%select_id=1
-       CALL section_vals_val_get(ms_vib_section,"INVOLVED_ATOMS",n_rep_val=n_rep_val,error=error)
-       jj = 0
-       DO k = 1,n_rep_val
-          CALL section_vals_val_get(ms_vib_section,"INVOLVED_ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-          DO  j = 1,SIZE(tmplist)
-             jj = jj+1
-          END DO
-       END DO
-       IF (jj.GE.1)THEN
-          natoms=jj
-          ALLOCATE(ms_vib%inv_atoms(natoms),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       involved_at_section=>section_vals_get_subs_vals(ms_vib_section,"INVOLVED_ATOMS",&
+            error=error)
+       CALL section_vals_get(involved_at_section,explicit=do_involved_atoms, error=error)
+       IF(do_involved_atoms)THEN
+          CALL section_vals_val_get(involved_at_section,"INVOLVED_ATOMS",n_rep_val=n_rep_val,error=error)
           jj = 0
-          DO m=1,n_rep_val
-             CALL section_vals_val_get(ms_vib_section,"INVOLVED_ATOMS",i_rep_val=m,i_vals=tmplist, error=error)
+          DO k = 1,n_rep_val
+             CALL section_vals_val_get(involved_at_section,"INVOLVED_ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
              DO  j = 1,SIZE(tmplist)
-                ms_vib%inv_atoms (j) = tmplist(j)
+                jj = jj+1
              END DO
           END DO
-          ms_vib%select_id=3
+          IF (jj.GE.1)THEN
+             natoms=jj
+             ALLOCATE(ms_vib%inv_atoms(natoms),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             jj = 0
+             DO m=1,n_rep_val
+                CALL section_vals_val_get(involved_at_section,"INVOLVED_ATOMS",i_rep_val=m,i_vals=tmplist, error=error)
+                DO  j = 1,SIZE(tmplist)
+                   ms_vib%inv_atoms (j) = tmplist(j)
+                END DO
+             END DO
+             ms_vib%select_id=3
+          END IF
+          CALL section_vals_val_get(involved_at_section,"RANGE",n_rep_val=n_rep_val,error=error)
+          IF(n_rep_val.NE.0)THEN
+             CALL section_vals_val_get(involved_at_section,"RANGE",r_vals=ms_vib%inv_range,error=error)
+             IF(ms_vib%inv_range(1).GT.ms_vib%inv_range(2))THEN
+                ms_vib%inv_range(2)=my_val
+                ms_vib%inv_range(2)=ms_vib%inv_range(1)
+                ms_vib%inv_range(1)=my_val
+             END IF
+          END IF
        END IF
        IF(ms_vib%select_id==0)&
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"no frequency or range specified ",&
+            routineP,"no frequency, range or involved atoms specified ",&
             error=error,failure=failure)
        ionode=para_env%mepos==para_env%source
        SELECT CASE(guess)
@@ -901,7 +917,7 @@ CONTAINS
     ALLOCATE(eigenval(ms_vib%mat_size),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
-    !!!!!!!!!!!!  calculate the new derivativand the approximate hessian
+    !!!!!!!!!!!!  calculate the new derivativ and the approximate hessian
 
     DO i=1,nrep
        DO j=1,3*natoms
@@ -1076,7 +1092,12 @@ CONTAINS
                 tmp(i)=tmp(i)+SQRT(tmp_b(jj,i)**2)
              END DO
           END DO
-          IF((SIGN(1._dp,eigenval(i))*SQRT(ABS(eigenval(i))*massunit)*vibfac).LE.400._dp)tmp(i)=0._dp
+          IF(.NOT.ASSOCIATED(ms_vib%inv_range))THEN
+             IF((SIGN(1._dp,eigenval(i))*SQRT(ABS(eigenval(i))*massunit)*vibfac).LE.400._dp)tmp(i)=0._dp
+          ELSE
+             IF((SIGN(1._dp,eigenval(i))*SQRT(ABS(eigenval(i))*massunit)*vibfac).LE.ms_vib%inv_range(1))tmp(i)=0._dp
+             IF((SIGN(1._dp,eigenval(i))*SQRT(ABS(eigenval(i))*massunit)*vibfac).GE.ms_vib%inv_range(2))tmp(i)=0._dp
+          END IF
        END DO
        tmp=-tmp
        CALL sort(tmp,(ms_vib%mat_size),ind)

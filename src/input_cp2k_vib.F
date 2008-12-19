@@ -179,15 +179,16 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
-    NULLIFY(keyword)
+    NULLIFY(keyword,subsection)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="MODE_SELECTIVE",&
             description="All parameters needed for to run a mode selective vibrational analysis",&
-            n_keywords=0, n_subsections=5, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        CALL keyword_create(keyword,name="FREQUENCY",&
@@ -209,14 +210,6 @@ CONTAINS
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the list of atoms which should be displaced for the Initial guess",&
-            usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
-            n_var=-1, type_of_var=integer_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="INVOLVED_ATOMS",&
-            description="Specifies the list of atoms on which the tracked eigenvector should have the highest value "//&
-            "similar to looking for the vibration of a set of atoms",&
             usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -261,8 +254,61 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL create_involved_atoms_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
 
     END IF
   END SUBROUTINE create_mode_selective_section
 
+! *****************************************************************************
+!> \brief Create the input section for Ivolved_atoms keyword in mode selective
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fschiff
+! *****************************************************************************
+  SUBROUTINE create_involved_atoms_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_involved_atoms_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="INVOLVED_ATOMS",&
+            description="All parameters needed for the tracking of modes dominated by the motion of selected atoms ",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword,name="RANGE",&
+            description=" Specifies the range of wavenumbers in which the modes related to the ATOMS have to be tracked. "//&
+            " If not specified frequencies >400cm-1 will be used to avoid tracking of translational or rotational modes",&
+            usage="RANGE <REAL> <REAL>",&
+            n_var=-1,type_of_var=real_t,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="INVOLVED_ATOMS",&
+            description="Specifies the list of atoms on which the tracked eigenvector should have the highest value "//&
+            "similar to looking for the vibration of a set of atoms",&
+            usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+
+    END IF
+  END SUBROUTINE create_involved_atoms_section
 END MODULE input_cp2k_vib
