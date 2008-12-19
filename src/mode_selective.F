@@ -25,10 +25,10 @@ MODULE mode_selective
   USE cp_result_methods,               ONLY: get_results
   USE global_types,                    ONLY: global_environment_type
   USE input_constants
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -282,9 +282,11 @@ CONTAINS
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: map_atoms
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: failure, ionode,do_involved_atoms
+    LOGICAL                                  :: do_involved_atoms, failure, &
+                                                ionode
     REAL(KIND=dp)                            :: my_val, norm
-    TYPE(section_vals_type), POINTER         :: ms_vib_section,involved_at_section
+    TYPE(section_vals_type), POINTER         :: involved_at_section, &
+                                                ms_vib_section
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
