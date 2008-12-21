@@ -202,7 +202,8 @@ MODULE input_constants
                                               do_method_pdg=12,&
                                               do_method_rm1=13,&
                                               do_method_dftb=14,&
-                                              do_method_pchg=15
+                                              do_method_pchg=15,&
+                                              do_method_pnnl=16
 
   INTEGER, PARAMETER, PUBLIC               :: rsgrid_distributed=0,&
                                               rsgrid_replicated=1,&

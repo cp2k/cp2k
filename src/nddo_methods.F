@@ -33,14 +33,10 @@ MODULE nddo_methods
   USE f77_blas
   USE fist_neighbor_list_control,      ONLY: list_control
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
-  USE input_constants,                 ONLY: do_ewald_ewald,&
-                                             do_method_am1,&
-                                             do_method_mndo,&
-                                             do_method_mndod,&
-                                             do_method_pdg,&
-                                             do_method_pm3,&
-                                             do_method_pm6,&
-                                             do_method_rm1
+  USE input_constants,                 ONLY: &
+       do_ewald_ewald, do_method_am1, do_method_mndo, do_method_mndod, &
+       do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
+       do_method_rm1
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -406,7 +402,7 @@ CONTAINS
                    IF ( dr1 > rij_threshold ) THEN
                       SELECT CASE (dft_control%qs_control%method_id)
                       CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,&
-                           do_method_rm1,do_method_mndod)
+                           do_method_rm1,do_method_mndod,do_method_pnnl)
                          
                          ! Core-Core energy term
                          CALL corecore (se_kind_a,se_kind_b,rij,enuc=enuc,itype=itype,anag=anag,&
@@ -698,7 +694,7 @@ CONTAINS
  
                       SELECT CASE (dft_control%qs_control%method_id)
                       CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
-                            do_method_rm1, do_method_mndod)
+                            do_method_rm1, do_method_mndod, do_method_pnnl)
 
                          ! Two-centers One-electron terms
                          IF      ( nspins == 1 ) THEN
@@ -946,7 +942,7 @@ CONTAINS
        ! Check for implemented SE methods
        SELECT CASE (dft_control%qs_control%method_id)
        CASE(do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
-            do_method_rm1, do_method_mndod)
+            do_method_rm1, do_method_mndod, do_method_pnnl)
           itype    = get_se_type(dft_control%qs_control%method_id)
        CASE DEFAULT
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)

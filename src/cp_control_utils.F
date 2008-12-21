@@ -9,8 +9,8 @@
 MODULE cp_control_utils
   USE bibliography,                    ONLY: &
        Dewar1977, Dewar1985, Elstner1998, Hu2007, Krack2000, Lippert1997, &
-       Lippert1999, Porezag1995, Repasky2002, Rocha2006, Seifert1996, &
-       Stewart1989, Stewart2007, Thiel1992, VandeVondele2005a, &
+       Lippert1999, Porezag1995, Repasky2002, Rocha2006, Schenter2008, &
+       Seifert1996, Stewart1989, Stewart2007, Thiel1992, VandeVondele2005a, &
        VandeVondele2005b, Zhechkov2005, cite_reference
   USE cp_control_types,                ONLY: &
        ddapc_control_create, ddapc_restraint_type, dft_control_create, &
@@ -92,7 +92,7 @@ CONTAINS
     not_SE = .TRUE.
     CALL section_vals_val_get(dft_section,"QS%METHOD",i_val=method_id,error=error)
     SELECT CASE (method_id)
-    CASE (do_method_dftb,do_method_mndo,do_method_am1,do_method_pm3,&
+    CASE (do_method_dftb,do_method_mndo,do_method_am1,do_method_pm3, do_method_pnnl,&
           do_method_pm6,do_method_pdg,do_method_rm1,do_method_mndod)
        not_SE = .FALSE.
     END SELECT
@@ -517,6 +517,9 @@ CPSourceFileRef,&
     CASE (do_method_pm3)
        CALL cite_reference(Stewart1989)
        qs_control%semi_empirical = .TRUE.
+    CASE (do_method_pnnl)
+       CALL cite_reference(Schenter2008)
+       qs_control%semi_empirical = .TRUE.
     CASE (do_method_pm6)
        CALL cite_reference(Stewart2007)
        qs_control%semi_empirical = .TRUE.
@@ -607,6 +610,7 @@ CPSourceFileRef,&
             qs_control %method_id == do_method_pdg  .OR. &
             qs_control %method_id == do_method_pm3  .OR. &
             qs_control %method_id == do_method_pm6  .OR. &
+            qs_control %method_id == do_method_pnnl  .OR. &
             qs_control %method_id == do_method_rm1  ) THEN
           qs_control%se_control%orthogonal_basis=.TRUE.
        END IF

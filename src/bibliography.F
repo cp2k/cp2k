@@ -53,7 +53,7 @@ MODULE bibliography
              Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003,Guidon2008,&
              Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
-             Grimme2006,Branduardi2007
+             Grimme2006,Branduardi2007,Schenter2008
 
 CONTAINS
 
@@ -1545,6 +1545,22 @@ CONTAINS
           "UT ISI:000244044600009",&
           "ER"),&
           DOI="10.1063/1.2432340")
+      CALL add_reference(key=Schenter2008,ISI_record=s2a(&
+          "PT J",& 
+          "AU Chang, DT",&
+          "   Schenter, GK",&
+          "   Garrett, BC ",&
+          "TI Self-consistent polarization neglect of diatomic differential overlap: Applications to water clusters",&
+          "SO JOURNAL OF CHEMICAL PHYSICS",&
+          "SN 0021-9606",&
+          "PD APR 28",&
+          "PY 2008",&
+          "VL 128",&
+          "IS 16",&
+          "AR 164111",&
+          "DI 10.1063/1.2905230",&
+          "ER"),&
+          DOI="10.1063/1.2905230")
 
    END SUBROUTINE add_all_references
 

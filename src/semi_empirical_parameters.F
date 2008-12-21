@@ -44,6 +44,7 @@ MODULE semi_empirical_parameters
                                              do_method_pdg,&
                                              do_method_pm3,&
                                              do_method_pm6,&
+                                             do_method_pnnl,&
                                              do_method_rm1
   USE kinds,                           ONLY: dp
   USE periodic_table,                  ONLY: nelem,&
@@ -72,7 +73,8 @@ MODULE semi_empirical_parameters
             pdg_default_parameter,&
             pm3_default_parameter,&
             pm6_default_parameter,&
-            pcharge_default_parameter
+            pcharge_default_parameter,&
+            pnnl_default_parameter
 
 CONTAINS
 
@@ -690,6 +692,83 @@ CONTAINS
     CALL convert_param_to_cp2k(sep,error)
     
   END SUBROUTINE mndo_default_parameter
+
+
+! *****************************************************************************
+!> \brief Default parameter sets for semi empirical models developed at PNNL
+! *****************************************************************************
+  SUBROUTINE pnnl_default_parameter ( sep, z, error)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    INTEGER, INTENT(IN)                      :: z
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pnnl_default_parameter', &
+      routineP = moduleN//':'//routineN
+
+    sep%typ    = do_method_pnnl
+    sep%name   = ptable(z)%name
+    sep%eheat  = ptable(z)%heat_of_formation / kcalmol
+    sep%z      = z
+
+    SELECT CASE (z)
+    CASE DEFAULT
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "invalid atomic number")
+    CASE (0)
+       sep%defined          = .TRUE.
+    CASE (1)
+       !Hydrogen
+       sep%defined          = .TRUE.
+       sep%alp              =   3.32315003_dp
+       sep%beta(0)          =  -6.0701386_dp
+       sep%beta(1)          =   0.0_dp
+       sep%sto_exponents(0) =   1.22064396_dp
+       sep%sto_exponents(1) =   1.351278_dp
+       sep%uss              =  -11.185667_dp
+       sep%upp              =   1000000.0_dp
+       sep%gss              =   14.794208_dp
+       sep%gsp              =   0.0_dp
+       sep%gpp              =   0.0_dp
+       sep%gp2              =   0.0_dp
+       sep%hsp              =   0.0_dp
+       sep%ass              =   1.0e-16_dp
+       sep%asp              =   3.35579263_dp
+       sep%app              =   0.03941681_dp
+       sep%de               =   20.064114_dp/27.21_dp
+       sep%nr               =   1
+       sep%acoul            =   16.273685_dp/27.21_dp
+       ! This parameterization explicitly supports 
+       ! p-orbitals for H. So by default we turn them
+       ! on for this element.
+       sep%p_orbitals_on_h  = .TRUE.
+    CASE (8)
+       !Oxygen
+       sep%defined          = .TRUE.
+       sep%uss              = -79.081852_dp
+       sep%upp              = -72.59032_dp
+       sep%beta(0)          = -40.626544_dp
+       sep%beta(1)          = -28.39468_dp
+       sep%sto_exponents(0) =   3.81465098_dp
+       sep%sto_exponents(1) =   2.44649724_dp
+       sep%alp              =   2.98004291_dp
+       sep%gss              =  15.75576_dp
+       sep%gsp              =  10.62116_dp
+       sep%gpp              =  13.654016_dp
+       sep%gp2              =  12.406095_dp
+       sep%hsp              =   0.593883_dp
+       sep%ass              =  1.0e-16_dp
+       sep%asp              =  3.58355448_dp
+       sep%app              =  0.000860052_dp
+       sep%de               =  7.159002_dp/27.21_dp
+       sep%nr               =  2
+       sep%acoul            =  16.223618_dp/27.21_dp
+    END SELECT
+    ! Finalize parameters for the element
+    CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
+    CALL calpar(z,sep,error)
+    CALL convert_param_to_cp2k(sep,error)
+    
+  END SUBROUTINE pnnl_default_parameter
 
 ! *****************************************************************************
 !> \brief Additional default parameter sets for semi empirical models: MNDO-d

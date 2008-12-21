@@ -13,14 +13,10 @@ MODULE semi_empirical_utils
                                              gto_basis_set_type,&
                                              set_sto_basis_set
   USE f77_blas
-  USE input_constants,                 ONLY: do_method_am1,&
-                                             do_method_mndo,&
-                                             do_method_mndod,&
-                                             do_method_pchg,&
-                                             do_method_pdg,&
-                                             do_method_pm3,&
-                                             do_method_pm6,&
-                                             do_method_rm1
+  USE input_constants,                 ONLY: &
+       do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, &
+       do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
+       do_method_rm1
   USE kinds,                           ONLY: dp
   USE semi_empirical_mpole_methods,    ONLY: semi_empirical_mpole_p_setup
   USE semi_empirical_par_utils,        ONLY: get_se_basis,&
@@ -31,6 +27,7 @@ MODULE semi_empirical_utils
                                              pdg_default_parameter,&
                                              pm3_default_parameter,&
                                              pm6_default_parameter,&
+                                             pnnl_default_parameter,&
                                              rm1_default_parameter
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE termination,                     ONLY: stop_program
@@ -147,6 +144,12 @@ CONTAINS
           CALL mndo_default_parameter(sep,z,do_method_mndo, error)
        CASE (do_method_mndod)
           CALL mndo_default_parameter(sep,z,do_method_mndod,error)
+       CASE (do_method_pnnl)
+          CALL pnnl_default_parameter(sep,z,error)
+          ! Not yet implemented..
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="PNNL SE type not yet fully implemented !!", &
+               error=error, error_level=cp_fatal_level)
        CASE (do_method_pchg)
           CALL pcharge_default_parameter(sep,z,error)
        CASE DEFAULT

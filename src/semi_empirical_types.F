@@ -21,6 +21,7 @@ MODULE semi_empirical_types
                                              do_method_pdg,&
                                              do_method_pm3,&
                                              do_method_pm6,&
+                                             do_method_pnnl,&
                                              do_method_rm1
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -47,6 +48,7 @@ MODULE semi_empirical_types
 ! *****************************************************************************
   TYPE semi_empirical_type
     INTEGER                                :: typ
+    INTEGER                                :: nr
     INTEGER                                :: core_size, atm_int_size
     CHARACTER(LEN=default_string_length)   :: name
     LOGICAL                                :: defined, dorb, extended_basis_set
@@ -63,7 +65,7 @@ MODULE semi_empirical_types
     REAL(KIND = dp)                        :: uss,upp,udd,uff
     REAL(KIND = dp)                        :: alp
     REAL(KIND = dp)                        :: eisol
-    REAL(KIND = dp)                        :: ass,asp,app
+    REAL(KIND = dp)                        :: ass,asp,app,de,acoul
     REAL(KIND = dp)                        :: gss,gsp,gpp,gp2
     REAL(KIND = dp)                        :: gsd,gpd,gdd
     REAL(KIND = dp)                        :: hsp
@@ -248,6 +250,9 @@ CONTAINS
     sep%uff    = 0.0_dp
     sep%alp    = 0.0_dp
     sep%eisol  = 0.0_dp
+    sep%nr    = 1
+    sep%acoul = 0.0_dp
+    sep%de    = 0.0_dp
     sep%ass    = 0.0_dp
     sep%asp    = 0.0_dp
     sep%app    = 0.0_dp
@@ -302,7 +307,7 @@ CONTAINS
 ! ***************************************************************************** 
   SUBROUTINE get_se_param(sep,name,typ,defined,z,zeff,natorb,eheat,&
        beta,sto_exponents,uss,upp,udd,uff,alp,eisol,gss,gsp,gpp,gp2,&
-       ass,asp,app,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
+       acoul,nr,de,ass,asp,app,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
 
     TYPE(semi_empirical_type), POINTER       :: sep
     CHARACTER(LEN=default_string_length), &
@@ -317,8 +322,10 @@ CONTAINS
       POINTER                                :: beta, sto_exponents
     REAL(KIND=dp), OPTIONAL                  :: uss, upp, udd, uff, alp, &
                                                 eisol, gss, gsp, gpp, gp2, &
-                                                ass, asp, app, hsp, gsd, gpd, &
-                                                gdd
+                                                acoul
+    INTEGER, INTENT(OUT), OPTIONAL           :: nr
+    REAL(KIND=dp), OPTIONAL                  :: de, ass, asp, app, hsp, gsd, &
+                                                gpd, gdd
     REAL(KIND=dp), DIMENSION(2), OPTIONAL    :: ppddg, dpddg
     INTEGER, INTENT(OUT), OPTIONAL           :: ngauss
 
@@ -342,6 +349,9 @@ CONTAINS
        IF (PRESENT(uff)) uff = sep%uff
        IF (PRESENT(alp)) alp = sep%alp
        IF (PRESENT(eisol)) eisol = sep%eisol
+       IF (PRESENT(nr)) nr = sep%nr
+       IF (PRESENT(acoul)) acoul = sep%acoul
+       IF (PRESENT(de)) de = sep%de
        IF (PRESENT(ass)) ass = sep%ass
        IF (PRESENT(asp)) asp = sep%asp
        IF (PRESENT(app)) app = sep%app
@@ -367,7 +377,7 @@ CONTAINS
 ! ***************************************************************************** 
   SUBROUTINE set_se_param(sep,name,typ,defined,z,zeff,natorb,eheat,&
        beta,sto_exponents,uss,upp,udd,uff,alp,eisol,gss,gsp,gpp,gp2,&
-       ass,asp,app,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
+       acoul,nr,de,ass,asp,app,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
 
     TYPE(semi_empirical_type), POINTER       :: sep
     CHARACTER(LEN=default_string_length), &
@@ -382,8 +392,10 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: sto_exponents
     REAL(KIND=dp), OPTIONAL                  :: uss, upp, udd, uff, alp, &
                                                 eisol, gss, gsp, gpp, gp2, &
-                                                ass, asp, app, hsp, gsd, gpd, &
-                                                gdd
+                                                acoul
+    INTEGER, INTENT(IN), OPTIONAL            :: nr
+    REAL(KIND=dp), OPTIONAL                  :: de, ass, asp, app, hsp, gsd, &
+                                                gpd, gdd
     REAL(dp), DIMENSION(2), OPTIONAL         :: ppddg, dpddg
     INTEGER, INTENT(IN), OPTIONAL            :: ngauss
 
@@ -407,6 +419,9 @@ CONTAINS
        IF (PRESENT(uff)) sep%uff = uff
        IF (PRESENT(alp)) sep%alp = alp
        IF (PRESENT(eisol)) sep%eisol = eisol
+       IF (PRESENT(acoul)) sep%acoul = acoul
+       IF (PRESENT(nr)) sep%nr = nr
+       IF (PRESENT(de)) sep%de = de
        IF (PRESENT(ass)) sep%ass = ass
        IF (PRESENT(asp)) sep%asp = asp
        IF (PRESENT(app)) sep%app = app
@@ -503,12 +518,13 @@ CONTAINS
     CHARACTER(LEN=5), DIMENSION(0:3), PARAMETER :: &
       beta_lab = (/"BETAS","BETAP","BETAD","BETAF"/)
     CHARACTER(LEN=default_string_length)     :: i_string, name
-    INTEGER                                  :: i, l, natorb, ngauss, &
+    INTEGER                                  :: i, l, natorb, ngauss, nr, &
                                                 output_unit, typ, z
     LOGICAL                                  :: defined
-    REAL(KIND=dp)                            :: alp, app, asp, ass, eheat, &
-                                                eisol, gp2, gpp, gsp, gss, &
-                                                hsp, udd, uff, upp, uss, zeff
+    REAL(KIND=dp)                            :: acoul, alp, app, asp, ass, &
+                                                de, eheat, eisol, gp2, gpp, &
+                                                gsp, gss, hsp, udd, uff, upp, &
+                                                uss, zeff
     CHARACTER(LEN=3), DIMENSION(0:3), PARAMETER :: &
       u_lab = (/"USS","UPP","UDD","UFF"/)
 
@@ -530,7 +546,8 @@ CONTAINS
                z=z,zeff=zeff,natorb=natorb,eheat=eheat,beta=beta,&
                sto_exponents=sexp,uss=uss,upp=upp,udd=udd,uff=uff,&
                alp=alp,eisol=eisol,gss=gss,gsp=gsp,gpp=gpp,gp2=gp2,&
-               ass=ass,asp=asp,app=app,hsp=hsp,ppddg=ppddg,dpddg=dpddg,ngauss=ngauss)
+               de=de,ass=ass,asp=asp,app=app,hsp=hsp,ppddg=ppddg, &
+               acoul=acoul,nr=nr,dpddg=dpddg,ngauss=ngauss)
 
           u(0) = uss
           u(1) = upp
@@ -549,6 +566,9 @@ CONTAINS
           CASE (do_method_pm3)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","Parametric Method 3 (PM3) ",TRIM(name)
+          CASE (do_method_pnnl)
+             WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+                  " Semi empirical parameters: ","PNNL method ",TRIM(name)
           CASE (do_method_pm6)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","Parametric Method 6 (PM6) ",TRIM(name)
@@ -657,8 +677,21 @@ CONTAINS
              WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
                    ADJUSTR("PO9"),"- "//"Klopman-Ohno term, CORE     [bohr]: ",sep%ko(9)
              SELECT CASE (typ)
-             CASE (do_method_am1, do_method_rm1, do_method_pm3, do_method_pdg)
-                IF((typ == do_method_am1 .OR. typ == do_method_rm1) .AND. sep%z == 5) THEN
+             CASE (do_method_am1, do_method_rm1, do_method_pm3, do_method_pdg, do_method_pnnl)
+                IF(typ == do_method_pnnl) THEN
+                   WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                         ADJUSTR("ASS"),"- "//" SS polarization [au]: ",sep%ass
+                   WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                         ADJUSTR("ASP"),"- "//" SP polarization [au]: ",sep%asp
+                   WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                         ADJUSTR("APP"),"- "//" PP polarization[au]: ",sep%app
+                   WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                         ADJUSTR("DE"),"- "//" Dispersion Parameter [eV]: ",sep%de*evolt
+                   WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                         ADJUSTR("ACOUL"),"- "//" Slater parameter: ",sep%acoul
+                   WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,I12)")&
+                         ADJUSTR("NR"),"- "//" Slater parameter: ",sep%nr
+                ELSEIF((typ == do_method_am1 .OR. typ == do_method_rm1) .AND. sep%z == 5) THEN
                    ! Standard case
                    DO i = 1, SIZE(sep%bfn1,1)
                       i_string = cp_to_string(i)

@@ -22,9 +22,9 @@ MODULE qmmm_se_energy
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, &
-       do_method_pdg, do_method_pm3, do_method_pm6, do_method_rm1, &
-       do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_none, do_qmmm_swave, &
-       use_orb_basis_set
+       do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
+       do_method_rm1, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_none, &
+       do_qmmm_swave, use_orb_basis_set
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -129,7 +129,7 @@ CONTAINS
 
     SELECT CASE (dft_control%qs_control%method_id)
     CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
-          do_method_pm3,do_method_pm6,do_method_mndod)
+          do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
        ! Go on with the calculation.. 
     CASE DEFAULT
        ! Otherwise stop..
