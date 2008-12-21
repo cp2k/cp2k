@@ -1168,6 +1168,13 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        ! Logicals
+       CALL keyword_create(keyword, name="SE_P_ORBITALS_ON_H",&
+          description="Forces the usage of p-orbitals on H for SEMI-EMPIRICAL calculations. "//&
+          " This keyword applies only when the KIND is specifying an Hydrogen element. In all "//&
+          " other cases is simply ignored. ",&
+          usage="SE_P_ORBITALS_ON_H",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="GPW_TYPE",&
           description="Force one type to be treated by the GPW scheme,"//&

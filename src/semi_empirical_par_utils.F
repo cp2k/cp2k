@@ -215,33 +215,44 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: natorb, z
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check, failure, use_p_orbitals
     REAL(KIND=dp)                            :: zeff
 
-    failure = .FALSE.
-    z       = sep%z
+    failure        = .FALSE.
+    use_p_orbitals = .TRUE.
+    z              = sep%z
     CPPostcondition(z>=0, cp_failure_level, routineP, error, failure)
-    ! Determine the Z eff
-    zeff = REAL(zval(z),KIND=dp)
+    ! Special case for Hydrogen.. If requested allow p-orbitals on it..
+    SELECT CASE (z)
+    CASE (0,2)
+       use_p_orbitals = .FALSE.
+    CASE (1)
+       use_p_orbitals = sep%p_orbitals_on_h
+    CASE DEFAULT
+       ! Nothing to do..
+    END SELECT
     ! Determine the number of atomic orbitals
     natorb = 0
-    IF(nqs(z)>0)                                        natorb = natorb+1
-    IF(nqp(z)>0)                                        natorb = natorb+3
-    IF(extended_basis_set.AND.element_has_d(sep,error)) natorb = natorb+5
-    IF(extended_basis_set.AND.element_has_f(sep,error)) natorb = natorb+7
+    IF (nqs(z)>0)                                        natorb = natorb+1
+    IF((nqp(z)>0).OR.use_p_orbitals)                     natorb = natorb+3
+    IF (extended_basis_set.AND.element_has_d(sep,error)) natorb = natorb+5
+    IF (extended_basis_set.AND.element_has_f(sep,error)) natorb = natorb+7
     ! Check and assignemnt
     check = (natorb<=4).OR.(extended_basis_set)
     CPPostcondition(check, cp_failure_level, routineP, error, failure)
-    sep%zeff               = zeff
     sep%natorb             = natorb
     sep%extended_basis_set = extended_basis_set
+    ! Determine the Z eff
+    zeff = REAL(zval(z),KIND=dp)
+    sep%zeff               = zeff
   END SUBROUTINE valence_electrons
 
 ! *****************************************************************************
 !> \brief  Gives back the number of basis function for each l
 ! *****************************************************************************
-  FUNCTION get_se_basis(z,l,error) RESULT(n)
-    INTEGER, INTENT(IN)                      :: z, l
+  FUNCTION get_se_basis(sep,l,error) RESULT(n)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    INTEGER, INTENT(IN)                      :: l
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: n
 
@@ -251,22 +262,27 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF ( z < 0 .OR. z > nelem ) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"invalid atomic number")
+    IF ( sep%z < 0 .OR. sep%z > nelem ) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,"Invalid atomic number !")
     ELSE
        IF     ( l==0 ) THEN
-          n = nqs(z)
+          n = nqs(sep%z)
        ELSEIF ( l==1 ) THEN
-          n = nqp(z)
+          ! Special case for Hydrogen.. If requested allow p-orbitals on it..
+          IF ((sep%z==1).AND.sep%p_orbitals_on_h) THEN
+             n = 1
+          ELSE
+             n = nqp(sep%z)
+          END IF
        ELSEIF ( l==2 ) THEN
-          n = nqd(z)
+          n = nqd(sep%z)
        ELSEIF ( l==3 ) THEN
-          n = nqf(z)
+          n = nqf(sep%z)
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,"invalid l quantum number")
+          CALL stop_program(routineN,moduleN,__LINE__,"Invalid l quantum number !")
        END IF
        IF ( n < 0 ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,"invalid n quantum number")
+          CALL stop_program(routineN,moduleN,__LINE__,"Invalid n quantum number !")
        END IF
     END IF
   END FUNCTION get_se_basis

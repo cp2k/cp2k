@@ -50,6 +50,7 @@ MODULE semi_empirical_types
     INTEGER                                :: core_size, atm_int_size
     CHARACTER(LEN=default_string_length)   :: name
     LOGICAL                                :: defined, dorb, extended_basis_set
+    LOGICAL                                :: p_orbitals_on_h
     INTEGER                                :: z
     REAL(KIND=dp)                          :: zeff
     INTEGER                                :: natorb
@@ -226,6 +227,7 @@ CONTAINS
     sep%defined            = .FALSE.
     sep%dorb               = .FALSE.
     sep%extended_basis_set = .FALSE.
+    sep%p_orbitals_on_h    = .FALSE.
     sep%name          = ""
     sep%typ           = HUGE(0)
     sep%core_size     = HUGE(0)

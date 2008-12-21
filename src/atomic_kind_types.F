@@ -1641,7 +1641,6 @@ CONTAINS
     atomic_kind%mass = atomic_kind%mass*massunit
 
     ! Allocate and initialise the orbital basis set data set structure
-
     CALL init_orbital_pointers(5) ! debug the SUN optimizer
 
     ! BASIS  and POTENTIAL read only when strictly necessary otherwise, even if not used
@@ -1691,6 +1690,17 @@ CONTAINS
           check = .NOT.ASSOCIATED(atomic_kind%se_parameter)
           CPPostcondition(check, cp_failure_level, routineP, error, failure)
           CALL semi_empirical_create(atomic_kind%se_parameter,error)
+          ! Check if we allow p-orbitals on H
+          SELECT CASE(z)
+          CASE (1)
+             IF (k_rep>0) THEN
+                CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+                     keyword_name="SE_P_ORBITALS_ON_H",l_val=atomic_kind%se_parameter%p_orbitals_on_h,&
+                     error=error)
+             END IF
+          CASE DEFAULT
+             ! No special cases for other elements..
+          END SELECT
           ! Set default parameters
           CALL section_vals_val_get(dft_section,"QS%SE%STO_NG",i_val=ngauss,error=error)          
           CALL se_param_set_default(atomic_kind%se_parameter,z,method_id,error)

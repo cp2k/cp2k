@@ -50,7 +50,6 @@ CONTAINS
 !> \brief Initialize semi_empirical type
 ! *****************************************************************************
   SUBROUTINE init_se_param(sep,orb_basis_set,ngauss,error)
-
     TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     INTEGER, INTENT(IN)                      :: ngauss
@@ -72,7 +71,6 @@ CONTAINS
        IF (sep%natorb ==  1) nshell=1
        IF (sep%natorb ==  4) nshell=2
        IF (sep%natorb ==  9) nshell=3
-       IF (sep%natorb == 16) nshell=4
        ALLOCATE (nq(0:3),lq(0:3),zet(0:3),STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -84,13 +82,12 @@ CONTAINS
        lq=0
        zet=0._dp
        DO l=0,nshell-1
-          nq(l)=get_se_basis(sep%z,l,error)
+          nq(l)=get_se_basis(sep,l,error)
           lq(l)=l
           zet(l)=sep%sto_exponents(l)
           IF(l==0) WRITE(symbol(0),'(I1,A1)') nq(l),"S"
           IF(l==1) WRITE(symbol(1),'(I1,A1)') nq(l),"P"
           IF(l==2) WRITE(symbol(2),'(I1,A1)') nq(l),"D"
-          IF(l==3) WRITE(symbol(3),'(I1,A1)') nq(l),"F"
        END DO
 
        IF (nshell > 0) THEN
@@ -100,9 +97,12 @@ CONTAINS
           CALL create_gto_from_sto_basis(sep%basis,orb_basis_set,sep%ngauss,error=error)
        END IF
 
-       DEALLOCATE (nq,lq,zet,STAT=stat)
+       DEALLOCATE (nq,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
+       DEALLOCATE (lq,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (zet,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (symbol,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
