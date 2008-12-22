@@ -14,7 +14,9 @@ MODULE atom_utils
   USE atom_types,                      ONLY: CGTO_BASIS,&
                                              GTO_BASIS,&
                                              atom_basis_type,&
+                                             atom_state,&
                                              eri
+  USE basis_set_types,                 ONLY: srules
   USE erf_fn,                          ONLY: erf
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
@@ -41,6 +43,7 @@ MODULE atom_utils
   PUBLIC :: prune_grid, integrate_grid, atom_trace, atom_solve
   PUBLIC :: coulomb_potential_numeric, coulomb_potential_analytic
   PUBLIC :: numpot_matrix, ceri_contract, eeri_contract, err_matrix
+  PUBLIC :: slater_density, wigner_slater_functional
 
 !-----------------------------------------------------------------------------!
 
@@ -297,7 +300,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: a
 
-    CPPrecondition(ALL(n >= nv),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ALL(nb >= nv),cp_failure_level,routineP,error,failure)
 
     orb = 0._dp
     DO l=0,maxl
@@ -322,7 +325,6 @@ CONTAINS
 
   END SUBROUTINE atom_solve
 ! *****************************************************************************
-
   FUNCTION prune_grid ( fun, deps ) RESULT(nc)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fun
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: deps
@@ -779,6 +781,61 @@ CONTAINS
     demax = MAXVAL(ABS(emat))
 
   END SUBROUTINE err_matrix
+! *****************************************************************************
+  SUBROUTINE slater_density(density,zcore,state,grid,error)
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: density
+    INTEGER, INTENT(IN)                      :: zcore
+    TYPE(atom_state), INTENT(IN)             :: state
+    TYPE(grid_atom_type), INTENT(IN)         :: grid
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'slater_density', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, l, n
+    INTEGER, DIMENSION(4, 7)                 :: ne
+    REAL(KIND=dp)                            :: a, pf
+
+    density = 0._dp
+    ne(1:4,1:7) = state%core(0:3,1:7) + state%occ(0:3,1:7)
+    DO l=0,state%maxl_occ
+      DO i=1,SIZE(state%occ,2)
+        IF ( state%occ(l,i) > 0._dp ) THEN
+          n = i+l
+          a = srules(zcore,ne,n,l)
+          pf = 1._dp/SQRT(fac(2*n)) * (2._dp*a)**(n+0.5_dp)
+          density(:) = density(:)+state%occ(l,i)*(grid%rad(:)**(n-1)*EXP(-a*grid%rad(:))*pf)**2
+        END IF
+      END DO
+    END DO
+    density(:) = density(:)/fourpi
+
+  END SUBROUTINE slater_density
+! *****************************************************************************
+  SUBROUTINE wigner_slater_functional(rho,vxc,error)
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: vxc
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wigner_slater_functional', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: ec, ex, rs, vc, vx
+
+    vxc = 0._dp
+    DO i=1,SIZE(rho)
+      IF ( rho(i) > 1.e-20_dp ) THEN
+         ex = -0.7385588_dp * rho(i)**0.333333333_dp
+         vx = 1.333333333_dp * ex
+         rs = (3._dp/fourpi/rho(i))**0.333333333_dp
+         ec = -0.88_dp/(rs+7.8_dp)
+         vc = ec*(1._dp + rs/(3._dp*(rs+7.8_dp)))
+         vxc(i) = vx + vc
+      END IF
+    END DO
+
+  END SUBROUTINE wigner_slater_functional
 ! *****************************************************************************
 
 END MODULE atom_utils

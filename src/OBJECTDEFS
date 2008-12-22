@@ -13,6 +13,7 @@ OBJECTS_GENERIC =\
  atomic_kind_list_types.o\
  atomic_kind_types.o\
  atoms_input.o\
+ atom_electronic_structure.o\
  atom_fit.o\
  atom_operators.o\
  atom_optimization.o\

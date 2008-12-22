@@ -129,7 +129,6 @@ MODULE atom_types
     INTEGER                                       :: zorastat=0
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: tzora
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: hdkh
-    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: dpot
   END TYPE atom_integrals
 
 !> Holds atomic orbitals and energies
@@ -170,20 +169,34 @@ MODULE atom_types
     REAL(KIND=dp)                                 :: econfinement
   END TYPE atom_energy_type
 
+!> Information on optimization procedure
+! *****************************************************************************
+  TYPE atom_optimization_type
+    REAL(KIND=dp)                                 :: damping
+    REAL(KIND=dp)                                 :: eps_scf
+    REAL(KIND=dp)                                 :: eps_diis
+    INTEGER                                       :: max_iter
+    INTEGER                                       :: n_diis
+  END TYPE atom_optimization_type
+
 !> Provides all information about an atomic kind
 ! *****************************************************************************
   TYPE atom_type
     INTEGER                                       :: z
     INTEGER                                       :: zcore
     LOGICAL                                       :: pp_calc
+    INTEGER                                       :: method_type
+    INTEGER                                       :: relativistic
+    INTEGER                                       :: coulomb_integral_type
+    INTEGER                                       :: exchange_integral_type
     TYPE(atom_basis_type), POINTER                :: basis
     TYPE(atom_potential_type), POINTER            :: potential
     TYPE(atom_state), POINTER                     :: state
     TYPE(atom_integrals), POINTER                 :: integrals
     TYPE(atom_orbitals), POINTER                  :: orbitals
     TYPE(atom_energy_type)                        :: energy
-    TYPE(section_vals_type), POINTER              :: method_section
-    INTEGER                                       :: method_section_number
+    TYPE(atom_optimization_type)                  :: optimization
+    TYPE(section_vals_type), POINTER              :: xc_section
   END TYPE atom_type
 ! *****************************************************************************
   TYPE atom_p_type
@@ -192,10 +205,12 @@ MODULE atom_types
 
   PUBLIC :: atom_p_type, atom_type, atom_basis_type, atom_state, atom_integrals
   PUBLIC :: atom_orbitals, atom_energy_type, eri, atom_potential_type, atom_gthpot_type
+  PUBLIC :: atom_optimization_type
   PUBLIC :: create_atom_type, release_atom_type, set_atom
   PUBLIC :: create_atom_orbs, release_atom_orbs
   PUBLIC :: init_atom_basis, release_atom_basis
   PUBLIC :: init_atom_potential, release_atom_potential
+  PUBLIC :: read_atom_opt_section
   PUBLIC :: GTO_BASIS, CGTO_BASIS, STO_BASIS, NUM_BASIS
   PUBLIC :: opmat_type, create_opmat, release_opmat
   PUBLIC :: opgrid_type, create_opgrid, release_opgrid
@@ -286,13 +301,13 @@ CONTAINS
            ! use default basis
            IF ( btyp == "AE" ) THEN
              nu = nua
-           ELSEIF ( btyp == "AE" ) THEN
+           ELSEIF ( btyp == "PP" ) THEN
              nu = nup
            ELSE
              nu = nua
            ENDIF
-           basis % nbas = nu
-           basis % nprim = 0
+           basis%nbas = nu
+           basis%nprim = nu
            ALLOCATE (basis%am(nu,0:3),STAT=ierr)
            CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
            basis%am(1:nu,0) = ugbs(1:nu)
@@ -300,11 +315,11 @@ CONTAINS
            basis%am(1:nu,2) = ugbs(1:nu)
            basis%am(1:nu,3) = ugbs(1:nu)
          ELSE
-           basis % nbas = 0
-           basis % nprim = 0
+           basis%nbas = 0
            DO i=1,SIZE(num_gto)
-             basis % nbas(i-1) = num_gto(i)
+             basis%nbas(i-1) = num_gto(i)
            END DO
+           basis%nprim = basis%nbas
            m  = MAXVAL(basis%nbas)
            ALLOCATE (basis%am(m,0:3),STAT=ierr)
            CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
@@ -370,11 +385,11 @@ CONTAINS
            ! use the Clementi extra large basis
            CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
          ELSE
-           basis % nbas = 0
-           basis % nprim = 0
+           basis%nbas = 0
            DO i=1,SIZE(num_gto)
-             basis % nbas(i-1) = num_gto(i)
+             basis%nbas(i-1) = num_gto(i)
            END DO
+           basis%nprim = basis%nbas
            NULLIFY(sindex)
            CALL section_vals_val_get(basis_section,"START_INDEX",i_vals=sindex,error=error)
            starti = 0
@@ -511,8 +526,7 @@ CONTAINS
     ALLOCATE(atom,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
-    NULLIFY(atom%method_section)
-    atom%method_section_number = 1
+    NULLIFY(atom%xc_section)
 
   END SUBROUTINE create_atom_type
 
@@ -547,20 +561,24 @@ CONTAINS
   
   END SUBROUTINE release_atom_type
 
-  SUBROUTINE set_atom(atom,basis,state,integrals,orbitals,potential,zcore,pp_calc,error)
+  SUBROUTINE set_atom(atom,basis,state,integrals,orbitals,potential,zcore,pp_calc,&
+    method_type,relativistic,coulomb_integral_type,exchange_integral_type,error)
     TYPE(atom_type), POINTER                 :: atom
     TYPE(atom_basis_type), INTENT(IN), &
-      OPTIONAL, TARGET                       :: basis
+      OPTIONAL, POINTER                      :: basis
     TYPE(atom_state), INTENT(IN), OPTIONAL, &
       TARGET                                 :: state
     TYPE(atom_integrals), INTENT(IN), &
-      OPTIONAL, TARGET                       :: integrals
+      OPTIONAL, POINTER                      :: integrals
     TYPE(atom_orbitals), INTENT(IN), &
-      OPTIONAL, TARGET                       :: orbitals
+      OPTIONAL, POINTER                      :: orbitals
     TYPE(atom_potential_type), INTENT(IN), &
-      OPTIONAL, TARGET                       :: potential
+      OPTIONAL, POINTER                      :: potential
     INTEGER, INTENT(IN), OPTIONAL            :: zcore
     LOGICAL, INTENT(IN), OPTIONAL            :: pp_calc
+    INTEGER, INTENT(IN), OPTIONAL            :: method_type, relativistic, &
+                                                coulomb_integral_type, &
+                                                exchange_integral_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_atom', &
@@ -580,6 +598,10 @@ CONTAINS
       IF(PRESENT(potential)) atom%potential => potential
       IF(PRESENT(zcore)) atom%zcore = zcore
       IF(PRESENT(pp_calc)) atom%pp_calc = pp_calc
+      IF(PRESENT(method_type)) atom%method_type = method_type
+      IF(PRESENT(relativistic)) atom%relativistic = relativistic
+      IF(PRESENT(coulomb_integral_type)) atom%coulomb_integral_type = coulomb_integral_type
+      IF(PRESENT(exchange_integral_type)) atom%exchange_integral_type = exchange_integral_type
     END IF
 
   END SUBROUTINE set_atom
@@ -1719,6 +1741,32 @@ CONTAINS
 
   END SUBROUTINE read_basis_set
 
+! *****************************************************************************
+  SUBROUTINE read_atom_opt_section(optimization,opt_section,error)
+    TYPE(atom_optimization_type), &
+      INTENT(INOUT)                          :: optimization
+    TYPE(section_vals_type), POINTER         :: opt_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_atom_opt_section', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: miter, ndiis
+    REAL(KIND=dp)                            :: damp, eps_diis, eps_scf
+
+    CALL section_vals_val_get(opt_section,"MAX_ITER",i_val=miter,error=error)
+    CALL section_vals_val_get(opt_section,"EPS_SCF",r_val=eps_scf,error=error)
+    CALL section_vals_val_get(opt_section,"N_DIIS",i_val=ndiis,error=error)
+    CALL section_vals_val_get(opt_section,"EPS_DIIS",r_val=eps_diis,error=error)
+    CALL section_vals_val_get(opt_section,"DAMPING",r_val=damp,error=error)
+
+    optimization%max_iter = miter
+    optimization%eps_scf  = eps_scf 
+    optimization%n_diis   = ndiis  
+    optimization%eps_diis = eps_diis
+    optimization%damping  = damp
+
+  END SUBROUTINE read_atom_opt_section
 ! *****************************************************************************
   SUBROUTINE init_atom_potential(potential,potential_section,zval,error)
     TYPE(atom_potential_type), INTENT(INOUT) :: potential

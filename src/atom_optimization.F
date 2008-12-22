@@ -8,9 +8,8 @@
 !>      for the atomic code
 ! *****************************************************************************
 MODULE atom_optimization
+  USE atom_types,                      ONLY: atom_optimization_type
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgesv
 #include "cp_common_uses.h"
@@ -44,9 +43,9 @@ MODULE atom_optimization
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE atom_history_init (history,optimization_section,matrix,error)
+  SUBROUTINE atom_history_init (history,optimization,matrix,error)
     TYPE(atom_history_type), INTENT(INOUT)   :: history
-    TYPE(section_vals_type), POINTER         :: optimization_section
+    TYPE(atom_optimization_type), INTENT(IN) :: optimization
     REAL(dp), DIMENSION(:, :, :), INTENT(IN) :: matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -57,9 +56,9 @@ CONTAINS
     LOGICAL                                  :: failure = .FALSE.
     REAL(dp)                                 :: damp, eps
 
-    CALL section_vals_val_get(optimization_section,"N_DIIS",i_val=ndiis,error=error)
-    CALL section_vals_val_get(optimization_section,"EPS_DIIS",r_val=eps,error=error)
-    CALL section_vals_val_get(optimization_section,"DAMPING",r_val=damp,error=error)
+    ndiis = optimization%n_diis
+    eps   = optimization%eps_diis
+    damp  = optimization%damping
 
     CALL atom_history_release (history,error)
 

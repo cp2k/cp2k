@@ -16,8 +16,12 @@ MODULE atom_operators
        sg_kinnuc, sg_nuclear, sg_overlap, sg_proj_ol
   USE atom_types,                      ONLY: &
        CGTO_BASIS, GTH_PSEUDO, GTO_BASIS, NO_PSEUDO, NUM_BASIS, STO_BASIS, &
-       atom_basis_type, atom_integrals, atom_potential_type
-  USE atom_utils,                      ONLY: numpot_matrix
+       atom_basis_type, atom_integrals, atom_potential_type, atom_state
+  USE atom_utils,                      ONLY: coulomb_potential_numeric,&
+                                             numpot_matrix,&
+                                             slater_density,&
+                                             wigner_slater_functional
+!deb  USE dkh_main,                        ONLY: dkh_transformation
   USE f77_blas
   USE input_constants,                 ONLY: do_dkh0_atom,&
                                              do_dkh1_atom,&
@@ -27,12 +31,12 @@ MODULE atom_operators
                                              do_dkh5_atom,&
                                              do_nonrel_atom,&
                                              do_zoramp_atom
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgesv,&
                                              lapack_ssyev
+  USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: a_fine
+  USE qs_grid_atom,                    ONLY: grid_atom_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -117,6 +121,7 @@ CONTAINS
         IF ( potential%confinement ) THEN
           ALLOCATE (integrals%conf(n,n,0:3),STAT=ierr)
           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+          integrals%conf = 0._dp
         END IF
       END IF
 
@@ -454,12 +459,10 @@ CONTAINS
 
   END SUBROUTINE atom_ppint_setup
 ! *****************************************************************************
-  SUBROUTINE atom_relint_setup(integrals,basis,method_section,irep,modpot,zcore,error)
+  SUBROUTINE atom_relint_setup(integrals,basis,reltyp,zcore,error)
     TYPE(atom_integrals), INTENT(INOUT)      :: integrals
     TYPE(atom_basis_type), INTENT(INOUT)     :: basis
-    TYPE(section_vals_type), POINTER         :: method_section
-    INTEGER, INTENT(IN)                      :: irep
-    REAL(dp), DIMENSION(:), OPTIONAL         :: modpot
+    INTEGER, INTENT(IN)                      :: reltyp
     REAL(dp), OPTIONAL                       :: zcore
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -467,22 +470,21 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dkhorder, handle, ierr, l, m, &
-                                                n, reltyp
+                                                n
     LOGICAL                                  :: failure
     REAL(dp)                                 :: cspeed
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: cpot
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: modpot
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: omat
+      DIMENSION(:, :, :)                     :: pvp, sp, tp, vp
 
     failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
-    NULLIFY (integrals%tzora,integrals%hdkh,integrals%dpot)
+    NULLIFY (integrals%tzora,integrals%hdkh)
 
     cspeed = 1._dp/a_fine
-
-    CALL section_vals_val_get(method_section,"RELATIVISTIC",i_val=reltyp,i_rep_section=irep,error=error)
 
     SELECT CASE (reltyp)
       CASE DEFAULT
@@ -515,25 +517,22 @@ CONTAINS
           ALLOCATE (integrals%tzora(n,n,0:3),STAT=ierr)
           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
           integrals%tzora = 0._dp
-          IF (PRESENT(modpot)) THEN
-            m = MIN ( SIZE(modpot), basis%grid%nr )
-            ALLOCATE (cpot(1:m),STAT=ierr)
-            CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-            ! Zora potential / r^2 
-            cpot(1:m) = modpot(1:m)/basis%grid%rad2(1:m)/(4._dp*cspeed - 2._dp*modpot(1:m))
-            CALL numpot_matrix(integrals%tzora,cpot,basis,0,error)
-            DO l=0,3
-              integrals%tzora(:,:,l) = REAL(l*(l+1),dp) * integrals%tzora(:,:,l)
-            END DO
-            !
-            cpot(1:m) = modpot(1:m)/(4._dp*cspeed - 2._dp*modpot(1:m))
-            CALL numpot_matrix(integrals%tzora,cpot,basis,2,error)
-            !
-            DEALLOCATE (cpot,STAT=ierr)
-            CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-          ELSE
-            CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
-          END IF
+          m = basis%grid%nr
+          ALLOCATE (modpot(1:m),cpot(1:m),STAT=ierr)
+          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+          CALL calculate_model_potential(modpot,basis%grid,zcore,error)
+          ! Zora potential 
+          cpot(1:m) = modpot(1:m)/(4._dp*cspeed*cspeed - 2._dp*modpot(1:m))
+          cpot(1:m) = cpot(1:m)/basis%grid%rad2(1:m)
+          CALL numpot_matrix(integrals%tzora,cpot,basis,0,error)
+          DO l=0,3
+            integrals%tzora(:,:,l) = REAL(l*(l+1),dp) * integrals%tzora(:,:,l)
+          END DO
+          cpot(1:m) = cpot(1:m)*basis%grid%rad2(1:m)
+          CALL numpot_matrix(integrals%tzora,cpot,basis,2,error)
+          !
+          DEALLOCATE (modpot,cpot,STAT=ierr)
+          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
           integrals%zorastat = 1
 
@@ -544,42 +543,32 @@ CONTAINS
         CPPostcondition(PRESENT(zcore), cp_failure_level, routineP, error, failure)
         IF ( integrals%dkhstat == 0 ) THEN
           n = MAXVAL(basis%nbas)
-          NULLIFY (integrals%hdkh,integrals%dpot)
-          ALLOCATE (integrals%hdkh(n,n,0:3),integrals%dpot(n,n,0:3),STAT=ierr)
+          ALLOCATE (integrals%hdkh(n,n,0:3),STAT=ierr)
           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
           integrals%hdkh = 0._dp
-          integrals%dpot = 0._dp
+
+          m = MAXVAL(basis%nprim)
+          ALLOCATE (tp(m,m,0:3),sp(m,m,0:3),vp(m,m,0:3),pvp(m,m,0:3),STAT=ierr)
+          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+          tp = 0._dp
+          sp = 0._dp
+          vp = 0._dp
+          pvp = 0._dp
 
           SELECT CASE (basis%basis_type)
             CASE DEFAULT
               CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-            CASE (GTO_BASIS)
+            CASE (GTO_BASIS, CGTO_BASIS)
 
               DO l=0,3
-                n = integrals%n(l)
-                IF ( n > 0 ) THEN
-                  CALL sg_kinnuc ( integrals%dpot(1:n,1:n,l), l, basis%am(1:n,l), basis%am(1:n,l) )
-                  integrals%dpot(1:n,1:n,l) = -zcore*integrals%dpot(1:n,1:n,l)
-                  integrals%core(1:n,1:n,l) = -zcore*integrals%core(1:n,1:n,l)
-                END IF
-              END DO
-
-            CASE (CGTO_BASIS)
-    
-              DO l=0,3
-                n = integrals%n(l)
-                IF ( n > 0 ) THEN
-                  m = basis%nprim(l)
-                  ALLOCATE (omat(m,m),STAT=ierr)
-                  CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-  
-                  CALL sg_kinnuc ( omat(1:m,1:m), l, basis%am(1:m,l), basis%am(1:m,l) )
-                  CALL contract2(integrals%dpot(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
-                  integrals%dpot(1:n,1:n,l) = -zcore*integrals%dpot(1:n,1:n,l)
-                  integrals%core(1:n,1:n,l) = -zcore*integrals%core(1:n,1:n,l)
-  
-                  DEALLOCATE (omat,STAT=ierr)
-                  CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+                m = basis%nprim(l)
+                IF ( m > 0 ) THEN
+                  CALL sg_kinetic ( tp(1:m,1:m,l), l, basis%am(1:m,l), basis%am(1:m,l) )
+                  CALL sg_overlap ( sp(1:m,1:m,l), l, basis%am(1:m,l), basis%am(1:m,l) )
+                  CALL sg_nuclear ( vp(1:m,1:m,l), l, basis%am(1:m,l), basis%am(1:m,l) )
+                  CALL sg_kinnuc ( pvp(1:m,1:m,l), l, basis%am(1:m,l), basis%am(1:m,l) )
+                  vp(1:m,1:m,l) = -zcore*vp(1:m,1:m,l)
+                  pvp(1:m,1:m,l) = -zcore*pvp(1:m,1:m,l)
                 END IF
               END DO
 
@@ -589,16 +578,12 @@ CONTAINS
               CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
 
-          CALL dkh_integrals(integrals,basis,dkhorder,error)
-
-          DO l=0,3
-            n = integrals%n(l)
-            IF ( n > 0 ) THEN
-              integrals%core(1:n,1:n,l) = -integrals%core(1:n,1:n,l)/zcore
-            END IF
-          END DO
+          CALL dkh_integrals(integrals,basis,dkhorder,sp,tp,vp,pvp,error)
 
           integrals%dkhstat = 1
+
+          DEALLOCATE (tp,sp,vp,pvp,STAT=ierr)
+          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
         END IF
 
@@ -608,90 +593,48 @@ CONTAINS
 
   END SUBROUTINE atom_relint_setup
 ! *****************************************************************************
-  SUBROUTINE dkh_integrals(integrals,basis,order,error)
+  SUBROUTINE dkh_integrals(integrals,basis,order,sp,tp,vp,pvp,error)
     TYPE(atom_integrals), INTENT(INOUT)      :: integrals
     TYPE(atom_basis_type), INTENT(INOUT)     :: basis
     INTEGER, INTENT(IN)                      :: order
+    REAL(dp), DIMENSION(:, :, 0:)            :: sp, tp, vp, pvp
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dkh_integrals', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, info, j, l, lwork, n
+    INTEGER                                  :: l, m, n
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: cspeed
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: amat, emat, rmat, teig, work
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: omat, pvpmat, vmat
-    REAL(dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: etrans
-    REAL(dp), DIMENSION(:, :, :), POINTER    :: core, dpot, hdkh, kin
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: hdkh
 
     failure = .FALSE.
     CPPrecondition(order>=0, cp_failure_level, routineP, error, failure)
 
-    cspeed = 1._dp/a_fine
-
-    kin => integrals%kin
-    core => integrals%core
-    dpot => integrals%dpot
     hdkh => integrals%hdkh
 
-    n = SIZE(kin,1)
-    lwork = 10*n
-    ALLOCATE (omat(n,n),vmat(n,n),pvpmat(n,n),teig(n),emat(n),amat(n),&
-              rmat(n),work(lwork),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-    ALLOCATE (etrans(n,n,0:order),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-    ! Diagonalize kinetic energy integral matrix
     DO l=0,3
-      etrans = 0._dp
       n = integrals%n(l)
+      m = basis%nprim(l)
       IF ( n > 0 ) THEN
-        omat = 0._dp
-        omat(1:n,1:n) = kin(1:n,1:n,l)
-        CALL lapack_ssyev ( "V", "U", n, omat(1:n,1:n), n, teig(1:n), work, lwork, info )
-        CPPostcondition(info==0, cp_failure_level, routineP, error, failure)
-        DO i=1,n
-          emat(i) = SQRT(2._dp*teig(i)*cspeed**2 + cspeed**4)
-          amat(i) = SQRT((emat(i)+cspeed**2)/(2._dp*emat(i)))
-          rmat(i) = cspeed/(emat(i)+cspeed**2)
-          etrans(i,i,0) = emat(i) - cspeed**2
-        END DO
-        IF (order > 0) THEN
-          vmat(1:n,1:n) = MATMUL(TRANSPOSE(omat(1:n,1:n)),MATMUL(core(1:n,1:n,l),omat(1:n,1:n)))
-          pvpmat(1:n,1:n) = MATMUL(TRANSPOSE(omat(1:n,1:n)),MATMUL(dpot(1:n,1:n,l),omat(1:n,1:n)))
-          DO i=1,n
-            DO j=1,n
-              etrans(j,i,1) = amat(j)*vmat(j,i)*amat(i) + amat(j)*rmat(j)*pvpmat(j,i)*rmat(i)*amat(i)
-            END DO
-          END DO
-        END IF
-        IF (order > 1) THEN
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
-        END IF
-        IF (order > 2) THEN
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
-        END IF
-        IF (order > 3) THEN
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
-        END IF
-        IF (order > 4) THEN
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
-        END IF
-
-      ! Backtransformation
-        DO i=1,order
-          etrans(1:n,1:n,0) = etrans(1:n,1:n,0) + etrans(1:n,1:n,i)
-        END DO
-        integrals%hdkh(1:n,1:n,l) = MATMUL(omat(1:n,1:n),MATMUL(etrans(1:n,1:n,0),TRANSPOSE(omat(1:n,1:n))))
+!deb        CALL dkh_transformation(sp(1:m,1:m,l),vp(1:m,1:m,l),tp(1:m,1:m,l),pvp(1:m,1:m,l),m,order)
+        SELECT CASE (basis%basis_type)
+          CASE DEFAULT
+            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          CASE (GTO_BASIS)
+            CPAssert(n==m,cp_failure_level,routineP,error,failure)
+            integrals%hdkh(1:n,1:n,l) = tp(1:n,1:n,l) + vp(1:n,1:n,l)
+          CASE (CGTO_BASIS)
+            CALL contract2(integrals%hdkh(1:n,1:n,l),tp(1:m,1:m,l),basis%cm(1:m,1:n,l), error)
+            CALL contract2add(integrals%hdkh(1:n,1:n,l),vp(1:m,1:m,l),basis%cm(1:m,1:n,l), error)
+          CASE (STO_BASIS)
+            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          CASE (NUM_BASIS)
+            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END SELECT
       ELSE
         integrals%hdkh(1:n,1:n,l) = 0._dp
       END IF
     END DO
-
-    DEALLOCATE (omat,vmat,pvpmat,teig,emat,amat,work,etrans,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
   END SUBROUTINE dkh_integrals
 ! *****************************************************************************
@@ -787,15 +730,65 @@ CONTAINS
       DEALLOCATE (integrals%hdkh,STAT=ierr)
       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     END IF
-    IF ( ASSOCIATED(integrals%dpot) ) THEN
-      DEALLOCATE (integrals%dpot,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-    END IF
 
     integrals%zorastat = 0
     integrals%dkhstat = 0
 
   END SUBROUTINE atom_relint_release
+! *****************************************************************************
+  SUBROUTINE calculate_model_potential(modpot,grid,zcore,error)
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: modpot
+    TYPE(grid_atom_type), INTENT(IN)         :: grid
+    REAL(dp), INTENT(IN)                     :: zcore
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_model_potential', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ierr, ii, l, ll, n, z
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pot, rho
+    TYPE(atom_state)                         :: state
+
+    n = SIZE(modpot)
+    ALLOCATE(rho(n),pot(n),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+    ! fill default occupation
+    state%core = 0._dp
+    state%occ = 0._dp
+    z = NINT(zcore)
+    DO l=0,3
+      IF ( ptable(z)%e_conv(l) /= 0 ) THEN
+        state%maxl_occ = l
+        ll = 2*(2*l+1)
+        DO i=1,SIZE(state%occ,2)
+          ii = ptable(z)%e_conv(l) - (i-1)*ll
+          IF ( ii <= ll ) THEN
+            state%occ(l,i) = ii
+            EXIT
+          ELSE
+            state%occ(l,i) = ll
+          END IF
+        END DO
+      END IF 
+    END DO
+
+    modpot = -zcore/grid%rad(:)
+
+    ! Coulomb potential
+    CALL slater_density(rho,NINT(zcore),state,grid,error)
+    CALL coulomb_potential_numeric(pot,rho,grid,error)
+    modpot = modpot + pot
+
+    ! XC potential
+    CALL wigner_slater_functional(rho,pot,error)
+    modpot = modpot + pot
+
+    DEALLOCATE(rho,pot,STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+  END SUBROUTINE calculate_model_potential
 ! *****************************************************************************
   SUBROUTINE contract2 ( int, omat, cm, error )
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: int

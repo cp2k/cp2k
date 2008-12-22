@@ -47,7 +47,7 @@ CONTAINS
     CASE (1,2)
        CALL newuoa (n, x, optstate)
     CASE (3)
-       WRITE(optstate%unit,*) " POWELL| Too many steps"
+       WRITE(optstate%unit,*) "POWELL| Too many steps"
        optstate%state = -1
     CASE (4)
        WRITE(optstate%unit,*) " POWELL| Error in trust region"

@@ -544,6 +544,20 @@ CONTAINS
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
+       CALL keyword_create(keyword, name="MAX_ITER",&
+            description="Maximum number of iterations for optimization",&
+            usage="MAX_ITER  50", default_i_val=200,&
+            supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_SCF",&
+            description="Convergence criterion for SCF",&
+            usage="EPS_SCF 1.e-8", default_r_val=1.e-8_dp,&
+            supported_feature=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="DAMPING",&
             description="Damping parameter for extrapolation method",&
             usage="DAMPING 0.4", default_r_val=0.4_dp,&
@@ -553,7 +567,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="EPS_DIIS",&
             description="Starting DIIS method at convergence to EPS_DIIS",&
-            usage="EPS_DIIS  0.01", default_r_val=0.1_dp,&
+            usage="EPS_DIIS  0.01", default_r_val=10000._dp,&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

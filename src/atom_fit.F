@@ -65,7 +65,7 @@ CONTAINS
     density%op = fourpi*density%op
 
     ostate%nvar = 2
-    x(1) = 0.10_dp     !starting point of geometric series
+    x(1) = 0.10_dp      !starting point of geometric series
     x(2) = 2.00_dp      !factor of series
     ostate%rhobeg = 0.005_dp
     ostate%rhoend = 0.000000001_dp
@@ -90,7 +90,7 @@ CONTAINS
       CALL powell_optimize (ostate%nvar, x, ostate)
 
       IF ( MOD(ostate%nf,n10) == 0 .AND. iunit > 0 ) THEN
-        WRITE(iunit,'(/," POWELL| Reached",i4,"% of maximal function calls")') ostate%nf/n10*10
+        WRITE(iunit,'(" POWELL| Reached",i4,"% of maximal function calls")') ostate%nf/n10*10
       END IF
 
     END DO

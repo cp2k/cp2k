@@ -211,19 +211,16 @@ CONTAINS
 
     CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
-    INTEGER                                  :: ifun, il, irep, meth, myfun, &
-                                                reltyp
+    INTEGER                                  :: ifun, il, meth, myfun, reltyp
     LOGICAL                                  :: failure = .FALSE., lsd
-    TYPE(section_vals_type), POINTER         :: method_section, xc_fun, &
-                                                xc_fun_section, xc_section
+    TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section, &
+                                                xc_section
 
     NULLIFY(xc_fun,xc_fun_section,xc_section)
 
-    method_section => atom%method_section
-    irep = atom%method_section_number
-    CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=meth,i_rep_val=irep,error=error)
+    meth = atom%method_type
 
-    xc_section => section_vals_get_subs_vals(method_section,"XC",i_rep_section=irep,error=error)
+    xc_section => atom%xc_section
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
     CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun,error=error)
 
@@ -246,7 +243,7 @@ CONTAINS
     IF (atom%pp_calc) THEN
       IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Nonrelativistic Calculation')")
     ELSE
-      CALL section_vals_val_get(method_section,"RELATIVISTIC",i_val=reltyp,i_rep_val=irep,error=error)
+      reltyp = atom%relativistic
 
       SELECT CASE (reltyp)
         CASE DEFAULT
