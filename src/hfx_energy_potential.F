@@ -1416,12 +1416,20 @@ MODULE hfx_energy_potential
    
     mb_size_p = SIZE(full_density,1)**2/1024/128
     mb_size_f = SIZE(full_ks,1)**2/1024/128
-    !! size of primitive_integrals and T1 buffer
-    mb_size_buffers = 2*nco_max**4/1024/128
     IF( nspins == 2) THEN
       mb_size_f = mb_size_f * 2
       mb_size_p = mb_size_p * 2
     END IF
+    !! size of primitive_integrals and T1 buffer
+    mb_size_buffers = 2*INT(nco_max,int_8)**4
+    !! screening buffers
+    IF( do_periodic ) THEN
+      mb_size_buffers = mb_size_buffers + SIZE(actual_x_data%neighbor_cells)*INT(max_set,int_8)**2*INT(natom,int_8)**2
+    ENDIF
+    !! non periodic screening buffers
+    mb_size_buffers = mb_size_buffers + INT(max_set,int_8)**2*INT(natom,int_8)**2 + INT(natom,int_8)**2
+    !! mb
+    mb_size_buffers = mb_size_buffers /1024/128
 
     DO pa=1,SIZE(full_ks,1)
       DO pd=pa,SIZE(full_ks,2)
