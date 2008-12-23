@@ -470,3 +470,41 @@ hcn_meta_coord.inp
 hcn_ts.inp
 # more numerics ppnl
 hcn_ts_r.inp
+# ASPC reset 
+H2-vib.inp
+# ASPC reset 
+H2O-2.inp
+# ASPC reset 
+H2O-3.inp
+# ASPC reset 
+H2O-4.inp
+# ASPC reset 
+H2O-meta_kinds.inp
+# ASPC reset 
+H2O-meta.inp
+# ASPC reset 
+H2O-meta_res0.inp
+# ASPC reset 
+H2O-meta_res1.inp
+# ASPC reset 
+H2O-meta_res2.inp
+# ASPC reset 
+H2O-meta_res3.inp
+# ASPC reset 
+H2O-meta_coord.inp
+# ASPC reset 
+H2O-meta_coord_1.inp
+# ASPC reset 
+H2O-meta_coord_2.inp
+# ASPC reset 
+hcn_ts.inp
+# ASPC reset 
+hcn_ts_r.inp
+# ASPC reset 
+hcn_md.inp
+# ASPC reset 
+hcn_meta_coord.inp
+# ASPC reset 
+hcn_meta_chaincoord.inp
+# ASPC reset 
+hcn_meta_chaincoord_kind.inp

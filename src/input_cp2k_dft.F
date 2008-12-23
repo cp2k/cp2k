@@ -1909,7 +1909,7 @@ CONTAINS
             wfi_ps_method_nr,&
             wfi_frozen_method_nr,&
             wfi_aspc_nr/),&
-            default_i_val=wfi_ps_method_nr, error=error)
+            default_i_val=wfi_aspc_nr, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -590,3 +590,13 @@ rsgrid-dist-1.inp
 H2O-solv.inp
 # numerics
 H2O-ata.inp
+# ASPC reset 
+H2O-langevin-1.inp
+# ASPC reset 
+H2O-langevin-2.inp
+# ASPC reset 
+H2O-ata.inp
+# ASPC reset 
+H2O-xc_none.inp
+# ASPC reset 
+rsgrid-dist-2.inp

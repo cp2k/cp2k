@@ -7,3 +7,11 @@ H2O-3.inp
 O2.inp
 # index bug fix
 N3-rp_colvar.inp
+# ASPC reset 
+H2O-MNDO.inp
+# ASPC reset 
+O2.inp
+# ASPC reset 
+H2O-3.inp
+# ASPC reset 
+N3-rp_colvar.inp

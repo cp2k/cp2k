@@ -124,3 +124,11 @@ h2o-2.inp
 h2o-3.inp
 h2o-4.inp
 h2o-5.inp
+# ASPC reset 
+ch2o-1.inp
+# ASPC reset 
+ch2o-3.inp
+# ASPC reset 
+ch2o-5.inp
+# ASPC reset 
+h2o_hb_corr.inp

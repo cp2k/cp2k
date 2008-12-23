@@ -102,3 +102,25 @@ mol_CSVR_gen2.inp
 mol_CSVR_gen3.inp
 mol.inp
 mol_sph_cut.inp
+# ASPC reset 
+water_3.inp
+# ASPC reset 
+mol.inp
+# ASPC reset 
+water_3_full.inp
+# ASPC reset 
+water_3_full_num.inp
+# ASPC reset 
+water_3_NOwalls.inp
+# ASPC reset 
+water_3_walls.inp
+# ASPC reset 
+water_3_walls_q.inp
+# ASPC reset 
+mol_CSVR_gen1.inp
+# ASPC reset 
+mol_CSVR_gen2.inp
+# ASPC reset 
+mol_CSVR_gen3.inp
+# ASPC reset 
+mol_sph_cut.inp

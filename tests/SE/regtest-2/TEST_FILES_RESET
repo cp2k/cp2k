@@ -141,3 +141,39 @@ scan_zn_1w_cp2k.inp
 hcl_ot.inp
 # numerics
 hcl_ot.inp
+# ASPC reset 
+h2o.inp
+# ASPC reset 
+h2o_lsd.inp
+# ASPC reset 
+hf.inp
+# ASPC reset 
+nh4.inp
+# ASPC reset 
+st.inp
+# ASPC reset 
+O2-ROKS.inp
+# ASPC reset 
+hf_z.inp
+# ASPC reset 
+h2o_meta.inp
+# ASPC reset 
+b2h6_pm6.inp
+# ASPC reset 
+ch2o_pm6.inp
+# ASPC reset 
+hcn_pm6.inp
+# ASPC reset 
+O2-ROKS-PM6.inp
+# ASPC reset 
+hcl.inp
+# ASPC reset 
+hcl_ot.inp
+# ASPC reset 
+hcl_z.inp
+# ASPC reset 
+CH3Cl2.inp
+# ASPC reset 
+c2h5cl.inp
+# ASPC reset 
+sio2.inp

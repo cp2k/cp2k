@@ -97,3 +97,15 @@ water_fixd_excl_qm.inp
 water_g3x3_excl_qm.inp
 # numerics
 Si_tersoff_qmmm.inp
+# ASPC reset 
+nh3_g4x6_excl_mm.inp
+# ASPC reset 
+nh3_g4x6_excl_qm.inp
+# ASPC reset 
+water_colv_excl_mm.inp
+# ASPC reset 
+water_colv_excl_qm.inp
+# ASPC reset 
+water_fixd_excl_qm.inp
+# ASPC reset 
+water_g3x3_excl_mm.inp

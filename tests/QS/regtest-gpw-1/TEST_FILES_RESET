@@ -372,3 +372,5 @@ Ar-5.inp
 K2.inp
 # numerics
 pyridine.inp
+# ASPC reset 
+H2O-MD-harris.inp

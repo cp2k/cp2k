@@ -416,3 +416,17 @@ C4H10-qmmm-gauss-0.inp
 # numerics
 constr_hb_mm.inp
 constr_hb_qm.inp
+# ASPC reset 
+C4H10-qmmm-gauss-3.inp
+# ASPC reset 
+C4H10-qmmm-gauss-4.inp
+# ASPC reset 
+C4H10-qmmm-gauss-5.inp
+# ASPC reset 
+C4H10-qmmm-gauss-6.inp
+# ASPC reset 
+C4H10-qmmm-gauss-7.inp
+# ASPC reset 
+C4H10-qmmm-gauss-12.inp
+# ASPC reset 
+water_3_dist.inp

@@ -488,3 +488,21 @@ H2-2.inp
 H2-3.inp
 # numerics
 vib-int-mixed.inp
+# ASPC reset 
+H2O.inp
+# ASPC reset 
+H2O-OT-1.inp
+# ASPC reset 
+H2O-OT-2.inp
+# ASPC reset 
+H2O-OT-3.inp
+# ASPC reset 
+H2O-OT-4.inp
+# ASPC reset 
+H2O-OT-5.inp
+# ASPC reset 
+H2O-bs_input.inp
+# ASPC reset 
+H2O-VIB-MS-INT-1.inp
+# ASPC reset 
+H2O-VIB-MS-INT-2.inp

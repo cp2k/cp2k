@@ -511,3 +511,5 @@ N3-9.inp
 N3-10.inp
 # unified cube_center 
 C_fermi.inp
+# ASPC reset 
+Al_fermi.inp
