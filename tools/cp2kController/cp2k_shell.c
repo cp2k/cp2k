@@ -7,7 +7,7 @@
  *  
  * \note this file is available also with a BSD style license
  *
- * \copyright (C) 2008  CP2K developers group
+ * \copyright (C) 2008, 2009  CP2K developers group
  * \author Fawzi Mohamed
  */
 

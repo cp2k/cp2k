@@ -8,7 +8,7 @@
  *
  * \author fawzi
  *
- * Copyright (C) 2008  CP2K developers group
+ * Copyright (C) 2008, 2009  CP2K developers group
  */
 
 int main (int argc, const char * argv[]) {
