@@ -47,7 +47,8 @@ MODULE cp_parser_types
 
   PRIVATE
 
-  PUBLIC :: cp_parser_type, parser_release, parser_retain, parser_create
+  PUBLIC :: cp_parser_type, parser_release, parser_retain, parser_create,&
+            parser_reset
 
 ! *** Private parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_types'
@@ -246,5 +247,44 @@ CONTAINS
        CALL create_status_type(parser%status, error)
     END IF
   END SUBROUTINE parser_create
+
+! *****************************************************************************
+!> \brief   Resets the parser: rewinding the unit and re-initializing all 
+!>          parser structures
+!> \author  Teodoro Laino [tlaino]
+!> \date    12.2008
+! *****************************************************************************
+  SUBROUTINE parser_reset(parser, error)
+    TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_reset', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       ! Rewind units
+       REWIND(parser%input_unit) 
+       ! Restore initial settings
+       parser%input_line_number = 0
+       parser%icol=0
+       parser%icol1=0
+       parser%icol2=0
+       parser%first_separator=.TRUE.
+       ! Release substructures
+       CALL release_inpp_type(parser%inpp, error)
+       CALL release_ilist_type(parser%ilist, error)
+       CALL release_buffer_type(parser%buffer, error)
+       CALL release_status_type(parser%status, error)
+       ! Reallocate substructures
+       CALL create_inpp_type(parser%inpp, error)
+       CALL create_ilist_type(parser%ilist, error)
+       CALL create_buffer_type(parser%buffer, error)
+       CALL create_status_type(parser%status, error)
+    END IF
+  END SUBROUTINE parser_reset
 
 END MODULE cp_parser_types

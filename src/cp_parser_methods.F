@@ -26,7 +26,8 @@ MODULE cp_parser_methods
   USE cp_parser_inpp_methods,          ONLY: inpp_end_include,&
                                              inpp_expand_variables,&
                                              inpp_process_directive
-  USE cp_parser_types,                 ONLY: cp_parser_type
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                             parser_reset
   USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -771,13 +772,15 @@ CONTAINS
 !> \date    05.10.1999
 !> \History 08.2008 [tlaino] - Teodoro Laino UZH : updated for buffer
 ! *****************************************************************************
-  SUBROUTINE parser_search_string(parser,string,ignore_case,found,line,begin_line,error)
+  SUBROUTINE parser_search_string(parser,string,ignore_case,found,line,begin_line,&
+             search_from_begin_of_file,error)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(IN)             :: string
     LOGICAL, INTENT(IN)                      :: ignore_case
     LOGICAL, INTENT(OUT)                     :: found
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: line
-    LOGICAL, INTENT(IN), OPTIONAL            :: begin_line
+    LOGICAL, INTENT(IN), OPTIONAL            :: begin_line, &
+                                                search_from_begin_of_file
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_search_string', &
@@ -786,13 +789,15 @@ CONTAINS
     CHARACTER(LEN=LEN(string))               :: pattern
     CHARACTER(LEN=max_line_length+1)         :: current_line
     INTEGER                                  :: ipattern
-    LOGICAL                                  :: at_end, begin, failure
+    LOGICAL                                  :: at_end, begin, do_reset, &
+                                                failure
 
     found   = .FALSE.
     failure = .FALSE.
     begin   = .FALSE.
+    do_reset= .FALSE.
     IF (PRESENT(begin_line)) begin=begin_line
-
+    IF (PRESENT(search_from_begin_of_file)) do_reset = search_from_begin_of_file
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -801,6 +806,7 @@ CONTAINS
        !   *** Search for string pattern ***
        pattern = string
        IF (ignore_case) CALL uppercase(pattern)
+       IF (do_reset)    CALL parser_reset(parser,error)
        DO
           ! This call is buffered.. so should not represent any bottleneck
           CALL parser_get_next_line(parser,1,at_end=at_end,error=error)
