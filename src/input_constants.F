@@ -268,11 +268,12 @@ MODULE input_constants
                                               do_conn_g87=6,&
                                               do_conn_g96=7,&
                                               do_conn_amb7=8,&
-                                              do_coord_pdb=0,&
-                                              do_coord_xyz=1,&
-                                              do_coord_g96=2,&
-                                              do_coord_crd=3,&
-                                              do_coord_off=4
+                                              do_coord_off=0,&
+                                              do_coord_pdb=1,&
+                                              do_coord_xyz=2,&
+                                              do_coord_g96=3,&
+                                              do_coord_crd=4,&
+                                              do_coord_cif=5
                                            
   INTEGER, PARAMETER, PUBLIC               :: do_ff_undef=0,&
                                               do_ff_quartic=1,&

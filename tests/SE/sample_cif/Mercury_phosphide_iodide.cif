@@ -1,0 +1,105 @@
+data_1001418
+_chemical_name_systematic 'Mercury phosphide iodide (9/5/6)'
+_chemical_formula_structural 'Hg9 P5 I6'
+_chemical_formula_sum 'Hg9 I6 P5'
+_publ_section_title
+
+;
+Hg~9~P~5~I~6~: a new mercury(I,II) structural determination
+;
+loop_
+_publ_author_name
+'Ledesert, M'
+'Rebbah, A'
+'Labbe, P'
+_journal_name_full 
+;
+Zeitschrift fuer Kristallographie (149,1979-)
+;
+_journal_coden_astm ZEKRDZ
+_journal_volume 192
+_journal_year 1990
+_journal_page_first 223
+_journal_page_last 231
+_cell_length_a 13.112(5)
+_cell_length_b 12.486(2)
+_cell_length_c 17.031(3)
+_cell_angle_alpha 90
+_cell_angle_beta 119.90(2)
+_cell_angle_gamma 90
+_cell_volume 2417.1
+_cell_formula_units_z 4
+_symmetry_space_group_name_h-m 'P 1 21/c 1'
+_symmetry_int_tables_number 14
+_symmetry_cell_setting monoclinic
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+-x,1/2+y,1/2-z
+-x,-y,-z
+x,1/2-y,1/2+z
+loop_
+_atom_type_symbol
+_atom_type_oxidation_number
+Hg2+ 2.000
+Hg1+ 1.000
+I1- -1.000
+P3- -3.000
+P2- -2.000
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_symmetry_multiplicity
+_atom_site_Wyckoff_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_attached_hydrogens
+_atom_site_calc_flag
+Hg1 Hg2+ 2 a 0. 0. 0. 1. 0 d
+Hg2 Hg2+ 2 d 0.5 0.5 0. 1. 0 d
+Hg3 Hg2+ 4 e 0.0986(3) 0.1764(3) 0.8115(2) 1. 0 d
+Hg4 Hg2+ 4 e 0.6452(3) -0.1819(3) 0.7207(2) 1. 0 d
+Hg5 Hg2+ 4 e 0.2114(3) -0.2700(4) 0.5343(2) 1. 0 d
+Hg6 Hg2+ 4 e 0.4446(3) 0.0579(3) 0.6981(2) 1. 0 d
+Hg7 Hg2+ 4 e 0.1250(3) -0.0990(3) 0.7113(2) 1. 0 d
+Hg8 Hg2+ 4 e 0.2411(3) -0.3971(3) 0.7642(2) 1. 0 d
+Hg9 Hg2+ 4 e 0.1239(4) 0.3140(4) 0.0549(3) 1. 0 d
+Hg10 Hg1+ 4 e 0.4005(3) 0.4768(4) 0.4324(3) 1. 0 d
+I1 I1- 4 e 0.6122(4) 0.1899(5) 0.2724(4) 1. 0 d
+I2 I1- 4 e 0.3115(5) 0.2860(5) -0.0247(4) 1. 0 d
+I3 I1- 4 e 0.3449(5) -0.2509(6) 0.9575(4) 1. 0 d
+I4 I1- 4 e -0.0471(4) -0.1122(5) 0.8060(3) 1. 0 d
+I5 I1- 4 e 0.0936(6) -0.0285(6) 0.4404(5) 1. 0 d
+I6 I1- 4 e 0.7068(4) 0.5153(5) 0.4114(4) 1. 0 d
+P1 P3- 4 e 0.584(1) 0.505(2) 0.160(1) 1. 0 d
+P2 P2- 4 e 0.928(2) 0.289(2) 0.325(1) 1. 0 d
+P3 P2- 4 e 0.291(2) 0.355(2) 0.208(1) 1. 0 d
+P4 P2- 4 e 0.965(2) 0.307(2) 0.459(1) 1. 0 d
+P5 P2- 4 e 0.226(1) 0.437(2) 0.286(1) 1. 0 d
+loop_
+_atom_site_aniso_label
+_atom_site_aniso_U_11
+_atom_site_aniso_U_12
+_atom_site_aniso_U_13
+_atom_site_aniso_U_22
+_atom_site_aniso_U_23
+_atom_site_aniso_U_33
+Hg1 0.050(2) 0.011(3) 0.027(2) 0.014(3) 0.010(3) 0.034(2)
+Hg2 0.028(2) 0.010(3) 0.010(1) 0.041(4) 0.006(3) 0.019(2)
+Hg3 0.032(1) 0.012(2) 0.0319(9) 0.032(2) 0.005(2) 0.046(1)
+Hg4 0.039(1) 0.006(2) 0.030(1) 0.015(2) 0.007(2) 0.058(2)
+Hg5 0.043(1) -0.014(2) 0.0447(9) 0.052(3) -0.007(2) 0.062(2)
+Hg6 0.030(1) 0.005(2) 0.0331(9) 0.025(2) -0.004(2) 0.055(2)
+Hg7 0.049(2) -0.013(2) 0.032(1) 0.021(2) -0.016(2) 0.043(2)
+Hg8 0.022(1) 0.004(2) 0.015(1) 0.031(2) 0.005(2) 0.039(2)
+Hg9 0.060(2) -0.043(3) 0.021(2) 0.083(3) -0.037(3) 0.044(2)
+Hg10 0.024(2) -0.001(2) 0.007(1) 0.058(3) -0.026(2) 0.042(2)
+I1 0.017(2) .000(3) 0.019(1) 0.018(3) .000(3) 0.043(3)
+I2 0.033(2) -0.010(3) 0.026(2) 0.031(4) -0.002(3) 0.048(3)
+I3 0.053(2) -0.001(3) 0.046(2) 0.036(4) -0.006(3) 0.058(3)
+I4 0.033(2) 0.005(3) 0.021(1) 0.018(3) 0.001(3) 0.026(2)
+I5 0.049(4) 0.005(4) 0.014(3) 0.032(5) 0.015(4) 0.076(5)
+I6 0.043(2) 0.013(3) 0.034(2) 0.029(4) 0.008(3) 0.049(3)
+_refine_ls_r_factor_all 0.046

@@ -333,38 +333,43 @@ CONTAINS
             "controls the printing of information in the topology settings", &
             print_level=high_print_level,filename="__STD_OUT__",&
             error=error)
+       CALL keyword_create(keyword,"cif_info",&
+            description="if the printkey is active prints information when parsing CIF files.",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"pdb_info",&
-            description="if the printkey is active prints information regarding PDB",&
+            description="if the printkey is active prints information when parsing PDB files.",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"xyz_info",&
-            description="if the printkey is active prints information regarding XYZ",&
+            description="if the printkey is active prints information when parsing XYZ files.",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"psf_info",&
-            description="if the printkey is active prints information regarding PSF",&
+            description="if the printkey is active prints information when parsing PSF files.",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"amber_info",&
-            description="if the printkey is active prints information regarding ABER topology file",&
+            description="if the printkey is active prints information when parsing ABER topology files.",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"g96_info",&
-            description="if the printkey is active prints information regarding G96",&
+            description="if the printkey is active prints information when parsing G96 files.",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"crd_info",&
-            description="if the printkey is active prints information regarding CRD",&
+            description="if the printkey is active prints information when parsing CRD files.",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"gtop_info",&
-            description="if the printkey is active prints information regarding GROMOS Topology",&
+            description="if the printkey is active prints information when parsing GROMOS topology files.",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1301,14 +1306,17 @@ CONTAINS
        CALL keyword_create(keyword, name="COORD_FILE_FORMAT",&
             variants=s2a("COORDINATE"),&
             description="Set up the way in which coordinates will be read.",&
-            usage="COORD_FILE_FORMAT (PDB|XYZ|G96|CRD|OFF)", &
-            enum_c_vals=s2a( "PDB","XYZ","G96","CRD","OFF"),&
-            enum_i_vals=(/do_coord_pdb, do_coord_xyz, do_coord_g96, do_coord_crd, do_coord_off/),&
-            enum_desc=s2a("Coordinates provided through a PDB file format",&
-                          "Coordinates provided through an XYZ file format",&
-                          "Coordinates provided through a GROMOS96 file format",&
-                          "Coordinates provided through an AMBER file format",&
-                          "Coordinates read in the &COORD section of the input file"),&
+            usage="COORD_FILE_FORMAT (OFF|PDB|XYZ|G96|CRD|CIF)", &
+            enum_c_vals=s2a( "OFF","PDB","XYZ","G96","CRD","CIF"),&
+            enum_i_vals=(/do_coord_off, do_coord_pdb, do_coord_xyz, do_coord_g96, do_coord_crd,&
+            do_coord_cif/),&
+            enum_desc=s2a(&
+            "Coordinates read in the &COORD section of the input file",&
+            "Coordinates provided through a PDB file format",&
+            "Coordinates provided through an XYZ file format",&
+            "Coordinates provided through a GROMOS96 file format",&
+            "Coordinates provided through an AMBER file format",&
+            "Coordinates provided through a CIF (Crystallographic Information File) file format"),&
             default_i_val=do_coord_off,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

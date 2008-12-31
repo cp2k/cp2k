@@ -21,7 +21,8 @@ MODULE topology
   USE input_constants,                 ONLY: &
        do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
        do_conn_mol_set, do_conn_off, do_conn_psf, do_conn_psf_u, &
-       do_coord_crd, do_coord_g96, do_coord_pdb, do_coord_xyz
+       do_coord_cif, do_coord_crd, do_coord_g96, do_coord_off, do_coord_pdb, &
+       do_coord_xyz
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -42,6 +43,7 @@ MODULE topology
                                              timestop
   USE topology_amber,                  ONLY: read_connectivity_amber,&
                                              read_coordinate_crd
+  USE topology_cif,                    ONLY: read_coordinate_cif
   USE topology_connectivity_util,      ONLY: topology_connectivity_pack
   USE topology_constraint_util,        ONLY: topology_constraint_pack
   USE topology_coordinate_util,        ONLY: topology_coordinate_pack
@@ -510,30 +512,31 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//"_READ_COORDINATE",handle2)
     SELECT CASE (topology%coord_type)
+    CASE (do_coord_off)
+       ! Do nothing.. we will parse later from the &COORD section..
     CASE (do_coord_g96)
        CALL read_coordinate_g96 (topology,para_env,subsys_section,error)
-       CALL read_atoms_input ( topology, overwrite=.TRUE.,&
-                               subsys_section=subsys_section,save_mem=save_mem,error=error)
     CASE (do_coord_crd)
        CALL read_coordinate_crd (topology,para_env,subsys_section,error)
-       CALL read_atoms_input ( topology, overwrite=.TRUE.,&
-                               subsys_section=subsys_section,save_mem=save_mem,error=error)
     CASE (do_coord_pdb)
        CALL read_coordinate_pdb (topology,para_env,subsys_section,error)
-       CALL read_atoms_input ( topology, overwrite=.TRUE.,&
-                               subsys_section=subsys_section,save_mem=save_mem,error=error)
     CASE (do_coord_xyz)
        CALL read_coordinate_xyz (topology,para_env,subsys_section,error)
-       CALL read_atoms_input ( topology, overwrite=.TRUE.,&
-                               subsys_section=subsys_section,save_mem=save_mem,error=error)
+    CASE (do_coord_cif)
+       CALL read_coordinate_cif (topology,para_env,subsys_section,error)
     CASE DEFAULT
-       CALL read_atoms_input ( topology, subsys_section=subsys_section,&
-            save_mem=save_mem,error=error)
+       ! We should never reach this point..
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)   
     END SELECT
+    ! Parse &COORD section and in case overwrite..
+    CALL read_atoms_input ( topology, overwrite=(topology%coord_type/=do_coord_off),&
+         subsys_section=subsys_section,save_mem=save_mem,error=error)
     CALL timestop(handle2)
-    IF (topology%natoms.LE.0) THEN
-       CALL stop_program ("coordinate_control","No atomic coordinates have been found")
-    END IF
+    ! Check on atom numbers
+    CALL cp_assert(topology%natoms>0,cp_fatal_level,cp_assertion_failed,routineP,&
+         "No atomic coordinates have been found! "//&
+CPSourceFileRef,&
+         error,failure)
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO",error=error)

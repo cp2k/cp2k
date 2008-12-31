@@ -73,7 +73,6 @@ CONTAINS
     Frames: DO
        ! Atom numbers
        CALL parser_get_object  (parser,natom,error=error)
-       topology%natoms = natom
        frame = frame + 1
        IF (frame == 1) THEN
           CALL reallocate(atom_info%label_molname, 1,    natom)
@@ -92,7 +91,6 @@ CONTAINS
        END IF
        ! Dummy line
        CALL parser_get_next_line(parser,2,error=error)
-       topology%molname_generated = .TRUE.
        DO j = 1, natom
           ! Atom coordinates
           READ(parser%input_line,*)atom_info%label_atmname(j),&
@@ -131,8 +129,8 @@ CPSourceFileRef,&
     END DO Frames
     CALL parser_release(parser,error=error)
 
-    IF(.NOT.topology%para_res) atom_info%label_resid(:) = 1
-    topology%natoms = natom
+    topology%natoms            = natom
+    topology%molname_generated = .TRUE.
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/XYZ_INFO",error=error)
