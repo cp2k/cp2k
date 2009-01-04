@@ -132,7 +132,7 @@ CONTAINS
          '  #### #  #####  #       #     # ######  ######   #####  ', &
          '                                                         ', &
          '                   University of Zurich                  ', &
-         '                       2005 -- 2008                      ', &
+         '                       2005 -- 2009                      ', &
          '                                                         ', &
          '                       Version 1.0                       ', &
          '                                                         '
@@ -161,7 +161,7 @@ CONTAINS
          "**                                                                           **",&
          "**                                                ... make the atoms dance   **",&
          "**                                                                           **",&
-         "**            Copyright (C) by CP2K Developers Group (2000 - 2008)           **",&
+         "**            Copyright (C) by CP2K Developers Group (2000 - 2009)           **",&
          "**                                                                           **",&
          "*******************************************************************************"
   END SUBROUTINE qs_header
@@ -200,7 +200,7 @@ CONTAINS
          ' **  **   **    ****  **  **  ', &
          '                              ', &
          '    University of Zurich      ', &
-         '           2008               ', &
+         '           2009               ', &
          '                              ', &
          '        Version 0.0           ', &
          '                                          '
