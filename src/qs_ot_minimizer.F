@@ -677,6 +677,7 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
    ENDIF
 
    k=0
+   n=0
    nscp=0
    nener=0
    IF ( do_ks ) THEN
@@ -859,6 +860,7 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
    ENDIF
 
    k=0
+   n=0
    nscp=0
    nener=0
    IF ( do_ks ) THEN
