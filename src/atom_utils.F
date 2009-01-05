@@ -22,7 +22,8 @@ MODULE atom_utils
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE lapack
-  USE mathconstants,                   ONLY: fac,&
+  USE mathconstants,                   ONLY: dfac,&
+                                             fac,&
                                              fourpi,&
                                              maxfac,&
                                              rootpi
@@ -42,6 +43,7 @@ MODULE atom_utils
   PUBLIC :: atom_denmat, atom_density
   PUBLIC :: prune_grid, integrate_grid, atom_trace, atom_solve
   PUBLIC :: coulomb_potential_numeric, coulomb_potential_analytic
+  PUBLIC :: exchange_numeric, exchange_semi_analytic
   PUBLIC :: numpot_matrix, ceri_contract, eeri_contract, err_matrix
   PUBLIC :: slater_density, wigner_slater_functional
 
@@ -523,6 +525,396 @@ CONTAINS
 
   END SUBROUTINE coulomb_potential_analytic
 
+! *****************************************************************************
+
+  SUBROUTINE exchange_numeric ( kmat, state, wfn, basis, error )
+    REAL(KIND=dp), DIMENSION(:, :, 0:), &
+      INTENT(INOUT)                          :: kmat
+    TYPE(atom_state), INTENT(IN)             :: state
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: wfn
+    TYPE(atom_basis_type), INTENT(IN)        :: basis
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'exchange_numeric', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ia, ib, ierr, k, lad, lbc, &
+                                                lh, ll, nbas, norb, nr, nu
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: almn
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cpot, nai, nbi
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: orb
+    REAL(KIND=dp), DIMENSION(0:maxfac)       :: arho
+
+    arho = 0._dp
+    DO ll=0,maxfac,2
+      lh=ll/2
+      arho(ll)=fac(ll)/fac(lh)**2
+    END DO
+
+    kmat = 0._dp
+
+    nr = basis%grid%nr
+    ALLOCATE ( nai(nr), nbi(nr), cpot(nr), STAT=ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+    DO lad = 0, state%maxl_calc
+      DO lbc = 0 , state%maxl_occ
+        norb = state%maxn_occ(lbc)
+        nbas = basis%nbas(lbc)
+        ! calculate orbitals for angmom lbc
+        ALLOCATE ( orb(nr,norb), STAT=ierr )
+        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        orb = 0._dp
+        DO i=1,norb
+          DO k=1,nbas
+            orb(:,i) = orb(:,i) + wfn(k,i,lbc)*basis%bf(:,k,lbc)
+          END DO
+        END DO
+        DO nu = ABS(lad-lbc),lad+lbc,2
+          almn = arho(-lad+lbc+nu)*arho(lad-lbc+nu)*arho(lad+lbc-nu)/(REAL(lad+lbc+nu+1,dp)*arho(lad+lbc+nu))
+          almn = -0.5_dp*almn
+
+          DO ia=1,basis%nbas(lad)
+            DO i=1,norb
+              nai(:) = orb(:,i)*basis%bf(:,ia,lad)
+              CALL potential_numeric(cpot,nai,nu,basis%grid,error)
+              DO ib=1,basis%nbas(lad)
+                kmat(ia,ib,lad) = kmat(ia,ib,lad) + almn*state%occ(lbc,i)* &
+                  integrate_grid(cpot,orb(:,i),basis%bf(:,ib,lad),basis%grid)
+              END DO
+            END DO
+          END DO
+
+        END DO
+        DEALLOCATE ( orb, STAT=ierr )
+        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      END DO
+    END DO
+
+    DEALLOCATE ( nai, nbi, cpot, STAT=ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE exchange_numeric
+
+! *****************************************************************************
+
+  SUBROUTINE exchange_semi_analytic ( kmat, state, wfn, basis, error )
+    REAL(KIND=dp), DIMENSION(:, :, 0:), &
+      INTENT(INOUT)                          :: kmat
+    TYPE(atom_state), INTENT(IN)             :: state
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: wfn
+    TYPE(atom_basis_type), INTENT(IN)        :: basis
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'exchange_semi_analytic', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ia, ib, ierr, k, lad, lbc, &
+                                                lh, ll, nbas, norb, nr, nu
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: almn
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cpot, nai, nbi
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: orb
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: pot
+    REAL(KIND=dp), DIMENSION(0:maxfac)       :: arho
+
+    arho = 0._dp
+    DO ll=0,maxfac,2
+      lh=ll/2
+      arho(ll)=fac(ll)/fac(lh)**2
+    END DO
+
+    kmat = 0._dp
+
+    nr = basis%grid%nr
+    nbas = MAXVAL(basis%nbas)
+    ALLOCATE ( pot(nr,nbas,nbas), STAT=ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( nai(nr), nbi(nr), cpot(nr), STAT=ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+    DO lad = 0, state%maxl_calc
+      DO lbc = 0 , state%maxl_occ
+        norb = state%maxn_occ(lbc)
+        nbas = basis%nbas(lbc)
+        ! calculate orbitals for angmom lbc
+        ALLOCATE ( orb(nr,norb), STAT=ierr )
+        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        orb = 0._dp
+        DO i=1,norb
+          DO k=1,nbas
+            orb(:,i) = orb(:,i) + wfn(k,i,lbc)*basis%bf(:,k,lbc)
+          END DO
+        END DO
+        DO nu = ABS(lad-lbc),lad+lbc,2
+          almn = arho(-lad+lbc+nu)*arho(lad-lbc+nu)*arho(lad+lbc-nu)/(REAL(lad+lbc+nu+1,dp)*arho(lad+lbc+nu))
+          almn = -0.5_dp*almn
+          ! calculate potential for basis function pair (lad,lbc)
+          pot = 0._dp
+          CALL potential_analytic ( pot, lad, lbc, nu, basis, error )
+          DO ia=1,basis%nbas(lad)
+            DO i=1,norb
+              cpot = 0._dp
+              DO k=1,nbas
+                cpot(:) = cpot(:) + pot(:,ia,k)*wfn(k,i,lbc)
+              END DO
+              DO ib=1,basis%nbas(lad)
+                kmat(ia,ib,lad) = kmat(ia,ib,lad) + almn*state%occ(lbc,i)* &
+                  integrate_grid(cpot,orb(:,i),basis%bf(:,ib,lad),basis%grid)
+              END DO
+            END DO
+          END DO
+        END DO
+        DEALLOCATE ( orb, STAT=ierr )
+        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      END DO
+    END DO
+
+    DEALLOCATE ( pot, STAT=ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE ( nai, nbi, cpot, STAT=ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE exchange_semi_analytic
+
+! *****************************************************************************
+  SUBROUTINE potential_numeric ( cpot, density, nu, grid, error )
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: cpot
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: density
+    INTEGER, INTENT(IN)                      :: nu
+    TYPE(grid_atom_type), INTENT(IN)         :: grid
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'potential_numeric', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, nc
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(dp)                                 :: int1, int2
+    REAL(dp), DIMENSION(:), POINTER          :: r, wr
+
+    nc = MIN(SIZE(cpot),SIZE(density))
+    r => grid%rad
+    wr => grid%wr
+
+    int1 = integrate_grid ( density, r**nu, grid )
+    int2 = 0._dp
+    cpot(nc:) = int1/r(nc:)**(nu+1)
+
+    ! test that grid is decreasing
+    CPPostcondition(r(1)>r(nc),cp_failure_level,routineP,error,failure)
+    DO i = 1, nc
+      cpot(i) = int1/r(i)**(nu+1) + int2*r(i)**nu
+      int1 = int1 - r(i)**(nu)*density(i)*wr(i)
+      int2 = int2 + density(i)*wr(i)/r(i)**(nu+1)
+    END DO
+
+  END SUBROUTINE potential_numeric
+! *****************************************************************************
+  SUBROUTINE potential_analytic ( cpot, la, lb, nu, basis, error )
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: cpot
+    INTEGER, INTENT(IN)                      :: la, lb, nu
+    TYPE(atom_basis_type), INTENT(IN)        :: basis
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'potential_analytic', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ierr, j, k, l, ll, m
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: a, b, oab, sab
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erfa, expa, z
+
+    m = SIZE(cpot,1)
+    ALLOCATE ( erfa(1:m), expa(1:m), z(1:m), STAT=ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+    ll = la+lb
+
+    cpot = 0._dp
+
+    SELECT CASE ( basis%basis_type )
+      CASE DEFAULT
+        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CASE ( GTO_BASIS )
+        DO i = 1, basis%nbas(la)
+          DO j = 1, basis%nbas(lb)
+            a = basis%am(i,la)
+            b = basis%am(j,lb)
+            sab = SQRT(a+b)
+            oab = dfac(ll+nu+1)*rootpi/(sab**(ll+2))/(2._dp**((ll+nu)/2+2))
+            z(:) = sab*basis%grid%rad(:)
+            DO k=1,SIZE(erfa)
+              erfa(k)= oab*erf(z(k))/z(k)**(nu+1)
+            END DO
+            cpot(:,i,j) = erfa(:)
+            expa(:)= EXP(-z(:)**2)/(sab**(ll+2))/(2._dp**((ll+nu)/2+2))
+            SELECT CASE (ll)
+              CASE DEFAULT
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+              CASE (0)
+                CPPostcondition(nu==0,cp_failure_level,routineP,error,failure)
+              CASE (1)
+                CPPostcondition(nu==1,cp_failure_level,routineP,error,failure)
+                cpot(:,i,j) = cpot(:,i,j)-6._dp*expa(:)/z(:)
+              CASE (2)
+                SELECT CASE (nu)
+                  CASE DEFAULT
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                  CASE (0)
+                    cpot(:,i,j) = cpot(:,i,j)-2._dp*expa(:)
+                  CASE (2)
+                    cpot(:,i,j) = cpot(:,i,j)-expa(:)*(20._dp+30._dp/z(:)**2)
+                END SELECT
+              CASE (3)
+                SELECT CASE (nu)
+                  CASE DEFAULT
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                  CASE (1)
+                    cpot(:,i,j) = cpot(:,i,j)-expa(:)*(12._dp*z(:)+30._dp/z(:))
+                  CASE (3)
+                    cpot(:,i,j) = cpot(:,i,j)-expa(:)*(56._dp*z(:)+140._dp/z(:)+210._dp*z(:)**3)
+                END SELECT
+              CASE (4)
+                SELECT CASE (nu)
+                  CASE DEFAULT
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                  CASE (0)
+                    cpot(:,i,j) = cpot(:,i,j)-expa(:)*(4._dp*z(:)**2+14._dp)
+                  CASE (2)
+                    cpot(:,i,j) = cpot(:,i,j)-expa(:)*(40._dp*z(:)**2+140._dp+210._dp/z(:)**2)
+                  CASE (4)
+                    cpot(:,i,j) = cpot(:,i,j)-expa(:)*(144._dp*z(:)**2+504._dp+1260._dp/z(:)**2+1890._dp/z(:)**4)
+                END SELECT
+              CASE (5)
+                SELECT CASE (nu)
+                  CASE DEFAULT
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                  CASE (1)
+                    cpot(:,i,j) = cpot(:,i,j)-expa(:)*(24._dp*z(:)**3+108._dp*z(:)+210._dp/z(:))
+                  CASE (3)
+                    cpot(:,i,j) = cpot(:,i,j)-expa(:)*(112._dp*z(:)**3+504._dp*z(:)+1260._dp/z(:)+1890._dp/z(:)**3)
+                  CASE (5)
+                    cpot(:,i,j) = cpot(:,i,j)-expa(:)*(352._dp*z(:)**3+1584._dp*z(:)+5544._dp/z(:)+&
+                                  13860._dp/z(:)**3+20790._dp/z(:)**5)
+                END SELECT
+              CASE (6)
+                SELECT CASE (nu)
+                  CASE DEFAULT
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                  CASE (0)
+                    cpot(:,i,j) = cpot(:,i,j)-expa(:)*(8._dp*z(:)**4+44._dp*z(:)**2+114._dp)
+                  CASE (2)
+                    cpot(:,i,j) = cpot(:,i,j)-expa(:)*(80._dp*z(:)**4+440._dp*z(:)**2+1260._dp+1896._dp/z(:)**2)
+                  CASE (4)
+                    cpot(:,i,j) = cpot(:,i,j)-expa(:)*(288._dp*z(:)**4+1584._dp*z(:)**2+5544._dp+&
+                                  13860._dp/z(:)**2+20790._dp/z(:)**4)
+                  CASE (6)
+                    cpot(:,i,j) = cpot(:,i,j)-expa(:)*(832._dp*z(:)**4+4576._dp*z(:)**2+20592._dp+&
+                                  72072._dp/z(:)**2+180180._dp/z(:)**4+270270._dp/z(:)**6)
+                END SELECT
+            END SELECT
+          END DO
+        END DO
+      CASE ( CGTO_BASIS )
+        DO i = 1, basis%nprim(la)
+          DO j = 1, basis%nprim(lb)
+            a = basis%am(i,la)
+            b = basis%am(j,lb)
+            sab = SQRT(a+b)
+            oab = dfac(ll+nu+1)*rootpi/sab**(ll+2)/2._dp**((ll+nu)/2+2)
+            z(:) = sab*basis%grid%rad(:)
+            DO k=1,SIZE(erfa)
+              erfa(k)= oab*erf(z(k))/z(k)**(nu+1)
+            END DO
+            expa(:)= EXP(-z(:)**2)/sab**(ll+2)/2._dp**((ll+nu)/2+2)
+            SELECT CASE (ll)
+              CASE DEFAULT
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+              CASE (0)
+                CPPostcondition(nu==0,cp_failure_level,routineP,error,failure)
+              CASE (1)
+                CPPostcondition(nu==1,cp_failure_level,routineP,error,failure)
+                erfa(:) = erfa(:)-6._dp*expa(:)/z(:)
+              CASE (2)
+                SELECT CASE (nu)
+                  CASE DEFAULT
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                  CASE (0)
+                    erfa(:) = erfa(:)-2._dp*expa(:)
+                  CASE (2)
+                    erfa(:) = erfa(:)-expa(:)*(20._dp+30._dp/z(:)**2)
+                END SELECT
+              CASE (3)
+                SELECT CASE (nu)
+                  CASE DEFAULT
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                  CASE (1)
+                    erfa(:) = erfa(:)-expa(:)*(12._dp*z(:)+30._dp/z(:))
+                  CASE (3)
+                    erfa(:) = erfa(:)-expa(:)*(56._dp*z(:)+140._dp/z(:)+210._dp*z(:)**3)
+                END SELECT
+              CASE (4)
+                SELECT CASE (nu)
+                  CASE DEFAULT
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                  CASE (0)
+                    erfa(:) = erfa(:)-expa(:)*(4._dp*z(:)**2+14._dp)
+                  CASE (2)
+                    erfa(:) = erfa(:)-expa(:)*(40._dp*z(:)**2+140._dp+210._dp/z(:)**2)
+                  CASE (4)
+                    erfa(:) = erfa(:)-expa(:)*(144._dp*z(:)**2+504._dp+1260._dp/z(:)**2+1890._dp/z(:)**4)
+                END SELECT
+              CASE (5)
+                SELECT CASE (nu)
+                  CASE DEFAULT
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                  CASE (1)
+                    erfa(:) = erfa(:)-expa(:)*(24._dp*z(:)**3+108._dp*z(:)+210._dp/z(:))
+                  CASE (3)
+                    erfa(:) = erfa(:)-expa(:)*(112._dp*z(:)**3+504._dp*z(:)+1260._dp/z(:)+1890._dp/z(:)**3)
+                  CASE (5)
+                    erfa(:) = erfa(:)-expa(:)*(352._dp*z(:)**3+1584._dp*z(:)+5544._dp/z(:)+&
+                                  13860._dp/z(:)**3+20790._dp/z(:)**5)
+                END SELECT
+              CASE (6)
+                SELECT CASE (nu)
+                  CASE DEFAULT
+                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                  CASE (0)
+                    erfa(:) = erfa(:)-expa(:)*(8._dp*z(:)**4+44._dp*z(:)**2+114._dp)
+                  CASE (2)
+                    erfa(:) = erfa(:)-expa(:)*(80._dp*z(:)**4+440._dp*z(:)**2+1260._dp+1896._dp/z(:)**2)
+                  CASE (4)
+                    erfa(:) = erfa(:)-expa(:)*(288._dp*z(:)**4+1584._dp*z(:)**2+5544._dp+&
+                                  13860._dp/z(:)**2+20790._dp/z(:)**4)
+                  CASE (6)
+                    erfa(:) = erfa(:)-expa(:)*(832._dp*z(:)**4+4576._dp*z(:)**2+20592._dp+&
+                                  72072._dp/z(:)**2+180180._dp/z(:)**4+270270._dp/z(:)**6)
+                END SELECT
+            END SELECT
+            DO k = 1, basis%nbas(la)
+              DO l = 1, basis%nbas(lb)
+                cpot(:,k,l) = cpot(:,k,l) + erfa(:)*basis%cm(i,k,la)*basis%cm(j,l,lb)
+              END DO
+            END DO
+          END DO
+        END DO
+
+    END SELECT
+
+    DEALLOCATE ( erfa, expa, z, STAT=ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE potential_analytic
 ! *****************************************************************************
 
   FUNCTION atom_trace(opmat,pmat,error) RESULT(trace)

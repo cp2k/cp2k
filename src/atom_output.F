@@ -222,8 +222,20 @@ CONTAINS
 
     xc_section => atom%xc_section
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
-    CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun,error=error)
-
+    SELECT CASE (meth)
+      CASE DEFAULT
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+      CASE (do_rks_atom)
+        CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun,error=error)
+      CASE (do_uks_atom)
+        CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun,error=error)
+      CASE (do_rhf_atom)
+        myfun = xc_none
+      CASE (do_uhf_atom)
+        myfun = xc_none
+      CASE (do_rohf_atom)
+        myfun = xc_none
+    END SELECT
 
     SELECT CASE (meth)
       CASE DEFAULT

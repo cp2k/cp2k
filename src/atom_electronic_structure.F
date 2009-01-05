@@ -19,7 +19,8 @@ MODULE atom_electronic_structure
   USE atom_utils,                      ONLY: &
        atom_denmat, atom_density, atom_solve, atom_trace, ceri_contract, &
        coulomb_potential_analytic, coulomb_potential_numeric, eeri_contract, &
-       err_matrix, numpot_matrix, slater_density, wigner_slater_functional
+       err_matrix, exchange_numeric, exchange_semi_analytic, numpot_matrix, &
+       slater_density, wigner_slater_functional
   USE atom_xc,                         ONLY: calculate_atom_vxc
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -232,9 +233,9 @@ CONTAINS
           CASE (do_analytic)
             CALL eeri_contract(kmat%op,atom%integrals%eeri,atom%orbitals%pmat,atom%integrals%n,error=error)
           CASE (do_semi_analytic)
-            WRITE(6,*) "Exchange semi-analytic"
+            CALL exchange_semi_analytic(kmat%op,atom%state,atom%orbitals%wfn,atom%basis,error=error)
           CASE (do_numeric)
-            WRITE(6,*) "Exchange numeric"
+            CALL exchange_numeric(kmat%op,atom%state,atom%orbitals%wfn,atom%basis,error=error)
         END SELECT
         atom%energy%eexchange = hf_frac * 0.5_dp * atom_trace(kmat%op,atom%orbitals%pmat,error)
         kmat%op = hf_frac*kmat%op
