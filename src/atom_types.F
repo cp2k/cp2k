@@ -569,8 +569,8 @@ CONTAINS
       TARGET                                 :: state
     TYPE(atom_integrals), OPTIONAL, POINTER  :: integrals
     TYPE(atom_orbitals), OPTIONAL, POINTER   :: orbitals
-    TYPE(atom_potential_type), &
-      OPTIONAL, POINTER                      :: potential
+    TYPE(atom_potential_type), OPTIONAL, &
+      POINTER                                :: potential
     INTEGER, INTENT(IN), OPTIONAL            :: zcore
     LOGICAL, INTENT(IN), OPTIONAL            :: pp_calc
     INTEGER, INTENT(IN), OPTIONAL            :: method_type, relativistic, &
