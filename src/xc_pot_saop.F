@@ -514,13 +514,14 @@ CONTAINS
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, lsd, paw_atom
+    REAL(dp), DIMENSION(:, :), POINTER       :: tau
     REAL(KIND=dp)                            :: density_cut, efac, exc, &
                                                 gradient_cut, tau_cut, &
                                                 we_GLLB, we_LB
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coeff_col
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho_h, rho_s, weight
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: dummy, e_uniform, &
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: dummy, e_uniform, vtau, &
       vxc_GLLB_h, vxc_GLLB_s, vxc_LB_h, vxc_LB_s, vxc_SAOP_h, vxc_SAOP_s, &
       vxc_tmp_h, vxc_tmp_s
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
@@ -560,12 +561,15 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(weight, rho_h, rho_s, vxc_LB_h, vxc_LB_s, vxc_GLLB_h, vxc_GLLB_s, &
-            vxc_tmp_h, vxc_tmp_s, dummy, e_uniform, drho_h, drho_s, vxg, atom_list, &
+            vxc_tmp_h, vxc_tmp_s, vtau, dummy, e_uniform, drho_h, drho_s, vxg, atom_list, &
             atom_kind, atomic_kind_set,  deriv_set, deriv, atomic_grid, &
             harmonics, molecular_orbitals, rho_structure, r_h, r_s, dr_h, dr_s, &
             r_h_d, r_s_d, rho_atom_set, rho_atom, rho_set_h, rho_set_s, &
             mo_coeff, single_mo_coeff, mo_eigenvalues, local_rho_set, &
             orbital_density_matrix, orb_rho_set_h, orb_rho_set_s, vxc_SAOP_h, vxc_SAOP_s)
+
+    ! tau is needed for fill_rho_set, but should never be used
+    NULLIFY(tau)
 
     CALL get_qs_env(qs_env, input=input, &
                             rho=rho_structure, &
@@ -699,8 +703,8 @@ CONTAINS
              CALL calc_rho_angular(atomic_grid, harmonics, nspins, .TRUE., &
                                    ir, r_h, r_s, rho_h, rho_s, &
                                    dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, error)
-             CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error)
-             CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error)
+             CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,tau,na,ir,error)
+             CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,tau,na,ir,error)
              DO ia=1, na
                 weight(ia,ir) = atomic_grid%wr(ir)*atomic_grid%wa(ia)
              END DO
@@ -725,10 +729,10 @@ CONTAINS
           !---------------------!
           CALL xc_dset_zero_all(deriv_set, error)
           CALL vxc_of_r_new(xc_fun_section_tmp, rho_set_h, deriv_set, 1, needs,&
-                            weight, lsd, na, nr, exc, vxc_tmp_h, vxg, error=error)
+                            weight, lsd, na, nr, exc, vxc_tmp_h, vxg, vtau, error=error)
           CALL xc_dset_zero_all(deriv_set, error)
           CALL vxc_of_r_new(xc_fun_section_tmp, rho_set_s, deriv_set, 1, needs,&
-                            weight, lsd, na, nr, exc, vxc_tmp_s, vxg, error=error)
+                            weight, lsd, na, nr, exc, vxc_tmp_s, vxg, vtau, error=error)
 
           !-------------------------------------------!
           ! 2. PZ correlation for LB94 and ec_uniform !
@@ -743,7 +747,7 @@ CONTAINS
           !------!
           CALL xc_dset_zero_all(deriv_set, error)
           CALL vxc_of_r_new(xc_fun_section_tmp, rho_set_h, deriv_set, 1, needs,&
-                            weight, lsd, na, nr, exc, vxc_LB_h, vxg, error=error)
+                            weight, lsd, na, nr, exc, vxc_LB_h, vxg, vtau, error=error)
           vxc_LB_h = vxc_LB_h + alpha*vxc_tmp_h
           DO ispin=1, nspins
              dummy => vxc_tmp_h(:,:,ispin:ispin)
@@ -768,7 +772,7 @@ CONTAINS
           !------!
           CALL xc_dset_zero_all(deriv_set, error)
           CALL vxc_of_r_new(xc_fun_section_tmp, rho_set_s, deriv_set, 1, needs,&
-                            weight, lsd, na, nr, exc, vxc_LB_s, vxg, error=error)
+                            weight, lsd, na, nr, exc, vxc_LB_s, vxg, vtau, error=error)
 
           vxc_LB_s = vxc_LB_s + alpha*vxc_tmp_s
           DO ispin=1, nspins
@@ -835,8 +839,8 @@ CONTAINS
                    CALL calc_rho_angular(atomic_grid, harmonics, nspins, .FALSE., &
                                          ir, r_h, r_s, rho_h, rho_s, &
                                          dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, error)
-                   CALL fill_rho_set(orb_rho_set_h,lsd,nspins,needs_orbs,rho_h,drho_h,na,ir,error=error)
-                   CALL fill_rho_set(orb_rho_set_s,lsd,nspins,needs_orbs,rho_s,drho_s,na,ir,error=error)
+                   CALL fill_rho_set(orb_rho_set_h,lsd,nspins,needs_orbs,rho_h,drho_h,tau,na,ir,error=error)
+                   CALL fill_rho_set(orb_rho_set_s,lsd,nspins,needs_orbs,rho_s,drho_s,tau,na,ir,error=error)
                 END DO
 
                 IF (lsd) THEN
@@ -938,8 +942,8 @@ CONTAINS
                    CALL calc_rho_angular(atomic_grid, harmonics, nspins, .FALSE., &
                                          ir, r_h, r_s, rho_h, rho_s, &
                                          dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, error)
-                   CALL fill_rho_set(orb_rho_set_h,lsd,nspins,needs_orbs,rho_h,drho_h,na,ir,error=error)
-                   CALL fill_rho_set(orb_rho_set_s,lsd,nspins,needs_orbs,rho_s,drho_s,na,ir,error=error)
+                   CALL fill_rho_set(orb_rho_set_h,lsd,nspins,needs_orbs,rho_h,drho_h,tau,na,ir,error=error)
+                   CALL fill_rho_set(orb_rho_set_s,lsd,nspins,needs_orbs,rho_s,drho_s,tau,na,ir,error=error)
                 END DO
 
                 IF (lsd) THEN

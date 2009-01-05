@@ -86,14 +86,15 @@ CONTAINS
       mepos, myfun, na, natom, nkind, nr, nspins, num_pe
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: epr_xc, gradient_f, lsd, &
-                                                paw_atom
+    LOGICAL                                  :: epr_xc, failure, gradient_f, &
+                                                lsd, paw_atom, tau_f
     REAL(dp)                                 :: density_cut, exc_h, exc_s, &
                                                 gradient_cut, &
                                                 my_adiabatic_rescale_factor, &
                                                 tau_cut
-    REAL(dp), DIMENSION(:, :), POINTER       :: rho_h, rho_s, weight
-    REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc_h, vxc_s
+    REAL(dp), DIMENSION(:, :), POINTER       :: rho_h, rho_s, tau_h, tau_s, &
+                                                weight
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: vtau_h, vtau_s, vxc_h, vxc_s
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho_h, drho_s, vxg_h, vxg_s
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -106,7 +107,7 @@ CONTAINS
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: dr_h, dr_s, r_h, r_s
     TYPE(rho_atom_coeff), DIMENSION(:, :), &
-      POINTER                                :: r_h_d, r_s_d
+      POINTER                                :: r_h_d, r_s_d, trho_h, trho_s
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
@@ -119,6 +120,8 @@ CONTAINS
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
+
+    failure = .FALSE.
 
     NULLIFY (atom_kind)
     NULLIFY (atom_list)
@@ -187,17 +190,18 @@ CONTAINS
       IF(epr_xc) needs%drho_spin = .TRUE.
 
       gradient_f = (needs%drho.OR.needs%drho_spin)
+      tau_f = (needs%tau.OR.needs%tau_spin)
 
       nkind = SIZE(atomic_kind_set)
 
-      ! Put to 0 the energy contribution from the one center XC terms
-
+      ! Initialize energy contribution from the one center XC terms to zero
       energy%exc1 = 0.0_dp
 
       ! Nullify some pointers for work-arrays
-
       NULLIFY (rho_h,drho_h,rho_s,drho_s,weight)
       NULLIFY (vxc_h,vxc_s,vxg_h,vxg_s)
+      NULLIFY (tau_h,tau_s)
+      NULLIFY (vtau_h,vtau_s)
   
       ! Here starts the loop over all the atoms
   
@@ -249,6 +253,13 @@ CONTAINS
           CALL reallocate(vxg_s,1,3,1,na,1,nr,1,nspins)
         END IF
 
+        IF (tau_f) THEN
+          CALL reallocate(tau_h,1,na,1,nspins)
+          CALL reallocate(tau_s,1,na,1,nspins)
+          CALL reallocate(vtau_h,1,na,1,nr,1,nspins)
+          CALL reallocate(vtau_s,1,na,1,nr,1,nspins)
+        END IF
+
         ! Distribute the atoms of this kind
 
         num_pe = para_env%num_pe
@@ -272,16 +283,23 @@ CONTAINS
             drho_s = 0.0_dp
           ELSE
             NULLIFY(r_h,r_s)
-            CALL get_rho_atom(rho_atom=rho_atom,rho_rad_h=r_h,&
-                              rho_rad_s=r_s)
+            CALL get_rho_atom(rho_atom=rho_atom,rho_rad_h=r_h,rho_rad_s=r_s)
+          END IF
+          IF (tau_f) THEN
+            NULLIFY(trho_h,trho_s)
+            CALL get_rho_atom(rho_atom=rho_atom,trho_rad_h=trho_h,trho_rad_s=trho_s)
           END IF
 
           DO ir = 1,nr
             CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_f,&
                                   ir, r_h, r_s, rho_h, rho_s, dr_h, dr_s, &
                                   r_h_d, r_s_d, drho_h, drho_s, error=error)
-            CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error=error)
-            CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error=error)
+            IF (tau_f) THEN
+              CALL calc_tau_angular(grid_atom, harmonics, nspins, ir, &
+                                  trho_h, trho_s, tau_h, tau_s, error=error)
+            END IF
+            CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,tau_h,na,ir,error=error)
+            CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,tau_s,na,ir,error=error)
           END DO
 
           !-------------------!
@@ -289,7 +307,7 @@ CONTAINS
           !-------------------!
           CALL xc_dset_zero_all(deriv_set, error)
           CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight, &
-                            lsd, na, nr, exc_h, vxc_h, vxg_h,energy_only=energy_only, &
+                            lsd, na, nr, exc_h, vxc_h, vxg_h, vtau_h, energy_only=energy_only, &
                             epr_xc=epr_xc, adiabatic_rescale_factor=my_adiabatic_rescale_factor, error=error)
           rho_atom%exc_h = rho_atom%exc_h + exc_h
 
@@ -298,7 +316,7 @@ CONTAINS
           !-------------------!
           CALL xc_dset_zero_all(deriv_set, error)
           CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight, &
-                            lsd, na, nr, exc_s, vxc_s, vxg_s, energy_only=energy_only, &
+                            lsd, na, nr, exc_s, vxc_s, vxg_s,  vtau_s, energy_only=energy_only, &
                             epr_xc=epr_xc, adiabatic_rescale_factor=my_adiabatic_rescale_factor, error=error)
           rho_atom%exc_s = rho_atom%exc_s + exc_s
 
@@ -335,6 +353,9 @@ CONTAINS
             ELSE
               CALL gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins,error=error)
             END IF
+            IF (tau_f) THEN
+              CALL dgaVtaudgb(vtau_h,vtau_s,atom_kind,rho_atom,nspins,error=error)
+            END IF
           END IF  ! energy_only
           NULLIFY (r_h,r_s,dr_h,dr_s)
         END DO ! iat
@@ -350,52 +371,68 @@ CONTAINS
 
       IF (ASSOCIATED(rho_h)) THEN
         DEALLOCATE (rho_h,STAT=istat)
-        IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                          "rho_h")
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(rho_s)) THEN
         DEALLOCATE (rho_s,STAT=istat)
-        IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                          "rho_s")
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(vxc_h)) THEN
         DEALLOCATE (vxc_h,STAT=istat)
-        IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "vxc_h")
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(vxc_s)) THEN
         DEALLOCATE (vxc_s,STAT=istat)
-        IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                          "vxc_s")
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (gradient_f) THEN
 
         IF (ASSOCIATED(drho_h)) THEN
           DEALLOCATE (drho_h,STAT=istat)
-          IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                            "drho_h")
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
 
         IF (ASSOCIATED(drho_s)) THEN
           DEALLOCATE (drho_s,STAT=istat)
-          IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                            "drho_s")
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
 
         IF (ASSOCIATED(vxg_h)) THEN
           DEALLOCATE (vxg_h,STAT=istat)
-          IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                            "vxg_h")
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
 
         IF (ASSOCIATED(vxg_s)) THEN
           DEALLOCATE (vxg_s,STAT=istat)
-          IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                            "vxg_s")
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+
+      END IF
+
+      IF (tau_f) THEN
+
+        IF (ASSOCIATED(tau_h)) THEN
+          DEALLOCATE (tau_h,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+
+        IF (ASSOCIATED(tau_s)) THEN
+          DEALLOCATE (tau_s,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+
+        IF (ASSOCIATED(vtau_h)) THEN
+          DEALLOCATE (vtau_h,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+
+        IF (ASSOCIATED(vtau_s)) THEN
+          DEALLOCATE (vtau_s,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
 
       END IF
@@ -424,10 +461,12 @@ CONTAINS
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, gradient_functional, &
-                                                lsd, lsd_singlets, paw_atom
+                                                lsd, lsd_singlets, paw_atom, &
+                                                tau_f
     REAL(KIND=dp)                            :: density_cut, exc, &
                                                 gradient_cut, rtot, tau_cut
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho1_h, rho1_s, rho_h, rho_s, &
+                                                tau1_h, tau1_s, tau_h, tau_s, &
                                                 weight
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: vxc_h, vxc_s
@@ -463,6 +502,7 @@ CONTAINS
    NULLIFY(rho_h, rho_s, drho_h, drho_s, weight)
    NULLIFY(rho1_h, rho1_s, drho1_h, drho1_s)
    NULLIFY(vxc_h, vxc_s, vxg_h, vxg_s)
+   NULLIFY(tau_h, tau_s, tau1_h, tau1_s)
    CALL get_qs_env(qs_env=qs_env,&
                    para_env=para_env,&
                    energy=energy,&
@@ -494,6 +534,13 @@ CONTAINS
     needs=xc_functionals_get_needs(xc_fun_section,lsd=lsd,&
          add_basic_components=.TRUE., error=error)
     gradient_functional = needs%drho .OR. needs%drho_spin
+    tau_f = (needs%tau.OR.needs%tau_spin)
+    IF ( tau_f ) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+              message="Tau functionals not implemented for GAPW 2nd derivatives", &
+              error=error, error_level=cp_failure_level)
+    END IF
+
 
   IF (excitations==tddfpt_excitations) THEN
       IF (nspins == 1 .AND. (lsd_singlets .OR. &
@@ -619,10 +666,10 @@ CONTAINS
                                   ir, r1_h, r1_s, rho1_h, rho1_s, dr1_h, dr1_s, r1_h_d, r1_s_d, &
                                   drho1_h, drho1_s, error)
 
-            CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error)
-            CALL fill_rho_set(rho1_set_h,lsd,nspins,needs,rho1_h,drho1_h,na,ir,error)
-            CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error)
-            CALL fill_rho_set(rho1_set_s,lsd,nspins,needs,rho1_s,drho1_s,na,ir,error)
+            CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,tau_h,na,ir,error)
+            CALL fill_rho_set(rho1_set_h,lsd,nspins,needs,rho1_h,drho1_h,tau1_h,na,ir,error)
+            CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,tau_s,na,ir,error)
+            CALL fill_rho_set(rho1_set_s,lsd,nspins,needs,rho1_s,drho1_s,tau1_s,na,ir,error)
 
          END DO
 
@@ -790,6 +837,60 @@ CONTAINS
    END IF
 
  END SUBROUTINE calc_rho_angular
+! *****************************************************************************
+  SUBROUTINE calc_tau_angular(grid_atom, harmonics, nspins, ir, &
+                              trho_h, trho_s, tau_h, tau_s, error)
+
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    INTEGER, INTENT(IN)                      :: nspins, ir
+    TYPE(rho_atom_coeff), DIMENSION(:, :), &
+      POINTER                                :: trho_h, trho_s
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tau_h, tau_s
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_tau_angular', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ia, iso, ispin, na
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPostcondition(ASSOCIATED(trho_h),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(trho_s),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(tau_h),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(tau_s),cp_failure_level,routineP,error,failure)
+
+    IF (failure) RETURN
+
+    na = grid_atom%ng_sphere
+    tau_h = 0.0_dp 
+    tau_s = 0.0_dp
+
+    DO ispin = 1,nspins
+      DO iso = 1,harmonics%max_iso_not0
+        DO ia = 1,na
+          tau_h(ia,ispin) = tau_h(ia,ispin) + &
+                            trho_h(1,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)
+          tau_h(ia,ispin) = tau_h(ia,ispin) + &
+            trho_h(3,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)*grid_atom%usin_theta(ia)**2
+          tau_s(ia,ispin) = tau_s(ia,ispin) + &
+                            trho_s(1,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)
+          tau_s(ia,ispin) = tau_s(ia,ispin) + &
+            trho_s(3,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)*grid_atom%usin_theta(ia)**2
+        END DO  ! ia
+      END DO  ! iso
+      DO iso = 1,harmonics%dmax_iso_not0
+        DO ia = 1,na
+          tau_h(ia,ispin) = tau_h(ia,ispin) + &
+                            trho_h(2,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)
+          tau_s(ia,ispin) = tau_s(ia,ispin) + &
+                            trho_s(2,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)
+       END DO  ! ia
+     END DO  ! iso
+   END DO  ! ispin
+
+  END SUBROUTINE calc_tau_angular
 
 ! *****************************************************************************
   SUBROUTINE  gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins,error)
@@ -1222,5 +1323,170 @@ CONTAINS
                      "g1,g2,gg,matso_h,matso_s,gVXCg_s,gVXCg_h,gVXGg_h,gVXGg_s")
 
   END SUBROUTINE gaVxcgb_GC
+
+  SUBROUTINE  dgaVtaudgb(vtau_h,vtau_s,atom_kind,rho_atom,nspins,error)
+
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: vtau_h, vtau_s
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(rho_atom_type), POINTER             :: rho_atom
+    INTEGER, INTENT(IN)                      :: nspins
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dgaVtaudgb', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: dmax_iso_not0, ic, icg, ipgf1, ipgf2, iset1, iset2, iso, iso1, &
+      iso2, ispin, istat, l1, l2, lmax12, lmax_expansion, lmin12, m1, m2, &
+      max_iso_not0, maxl, maxso, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, &
+      size1
+    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
+    LOGICAL                                  :: failure
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dd, g1, g2, gg, gr, ww
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: matso_h, matso_s
+    REAL(dp), DIMENSION(:, :), POINTER       :: zet
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG, my_dCG
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: int_hh, int_ss
+
+!    REAL(dp)                                 :: rad, urad
+! -------------------------------------------------------------------------
+
+    failure = .FALSE.
+
+    NULLIFY(harmonics,grid_atom)
+    CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis,&
+                         harmonics=harmonics,grid_atom=grid_atom)
+
+    NULLIFY(lmin,lmax,npgf,zet)
+    CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
+                           maxso=maxso,maxl=maxl,npgf=npgf,&
+                           nset=nset,zet=zet)
+
+    my_CG => harmonics%my_CG
+    my_dCG => harmonics%my_dCG
+    max_iso_not0 = harmonics%max_iso_not0
+    lmax_expansion = indso(1,max_iso_not0)
+
+    nr = grid_atom%nr
+    na = grid_atom%ng_sphere
+    ALLOCATE(g1(nr),g2(nr),gg(nr),dd(nr),gr(nr),ww(na),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(matso_h(nsoset(maxl),nsoset(maxl)),&
+             matso_s(nsoset(maxl),nsoset(maxl)),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    NULLIFY(int_hh,int_ss)
+    CALL get_rho_atom(rho_atom=rho_atom,ga_Vlocal_gb_h=int_hh,ga_Vlocal_gb_s=int_ss)
+
+    vtau_h = 0.5_dp*vtau_h
+    vtau_s = 0.5_dp*vtau_s
+
+    DO ispin=1,nspins
+      m1 = 0
+      DO iset1 = 1,nset
+        n1 = nsoset(lmax(iset1))
+        m2 = 0
+        DO iset2 = 1,nset
+          n2 = nsoset(lmax(iset2))
+          DO ipgf1  = 1,npgf(iset1)
+            ngau1  = n1*(ipgf1-1)+m1
+            size1  = nsoset(lmax(iset1))-nsoset(lmin(iset1)-1)
+            nngau1 = nsoset(lmin(iset1)-1)+ngau1
+            g1(1:nr) = EXP(-zet(ipgf1,iset1)*grid_atom%rad2(1:nr))
+            DO ipgf2 = 1,npgf(iset2)
+              ngau2 = n2*(ipgf2-1)+m2
+              g2(1:nr) = EXP(-zet(ipgf2,iset2)*grid_atom%rad2(1:nr))
+              lmin12 = lmin(iset1)+lmin(iset2)
+              lmax12 = lmax(iset1)+lmax(iset2)
+ 
+              matso_h = 0.0_dp
+              matso_s = 0.0_dp
+              IF(lmin12 .LE. lmax_expansion) THEN
+                DO iso = 1,harmonics%max_iso_not0
+                  DO icg = 1,harmonics%ncg(iso,iset1,iset2)
+                    iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
+                    iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
+                    l1 = indso(1,iso1)
+                    l2 = indso(1,iso2)
+                    m1 = indso(2,iso1)
+                    m2 = indso(2,iso2)
+                    IF (l1+l2 > 0) THEN
+                      gg(1:nr) = g1(1:nr)*g2(1:nr) * grid_atom%rad2l(1:nr,l1+l2)
+                    ELSE
+                      gg(1:nr) = g1(1:nr)*g2(1:nr)
+                    END IF
+                    ! dr
+                    dd(1:nr) = REAL(l1*l2,dp)/grid_atom%rad2(1:nr) - &
+                               2._dp*REAL(l1,dp)*zet(ipgf2,iset2) - &
+                               2._dp*REAL(l2,dp)*zet(ipgf1,iset1) + &
+                               4._dp*zet(ipgf1,iset1)*zet(ipgf2,iset2)*grid_atom%rad2(1:nr)
+                    gr(1:nr) = dd(1:nr) * gg(1:nr)
+                    ww(1:na) = harmonics%slm(1:na,iso)
+                    matso_h(iso1,iso2) = matso_h(iso1,iso2) + my_CG(iso1,iso2,iso)*&
+                       DOT_PRODUCT(ww(1:na),MATMUL(vtau_h(1:na,1:nr,ispin),gr(1:nr)))
+                    matso_s(iso1,iso2) = matso_s(iso1,iso2) + my_CG(iso1,iso2,iso)*&
+                       DOT_PRODUCT(ww(1:na),MATMUL(vtau_s(1:na,1:nr,ispin),gr(1:nr)))
+                    ! dphi
+                    gr(1:nr) = gg(1:nr)/grid_atom%rad2(1:nr)
+                    ww(1:na) = harmonics%slm(1:na,iso)*grid_atom%usin_theta(1:na)**2
+                    matso_h(iso1,iso2) = matso_h(iso1,iso2) + REAL(m1*m2,dp)*my_CG(iso1,iso2,iso)*&
+                       DOT_PRODUCT(ww(1:na),MATMUL(vtau_h(1:na,1:nr,ispin),gr(1:nr)))
+                    matso_s(iso1,iso2) = matso_s(iso1,iso2) + REAL(m1*m2,dp)*my_CG(iso1,iso2,iso)*&
+                       DOT_PRODUCT(ww(1:na),MATMUL(vtau_s(1:na,1:nr,ispin),gr(1:nr)))
+                  END DO
+                END DO
+              END IF
+              ! dtheta
+              DO iso = 1,harmonics%dmax_iso_not0
+                DO icg = 1,harmonics%ndcg(iso,iset1,iset2)
+                  iso1 = harmonics%ind_dcg_a(icg,iso,iset1,iset2)
+                  iso2 = harmonics%ind_dcg_b(icg,iso,iset1,iset2)
+                  l1 = indso(1,iso1)
+                  l2 = indso(1,iso2)
+                  IF (l1+l2 > 0) THEN
+                    gg(1:nr) = g1(1:nr)*g2(1:nr) * grid_atom%rad2l(1:nr,l1+l2)
+                  ELSE
+                    gg(1:nr) = g1(1:nr)*g2(1:nr)
+                  END IF
+                  gr(1:nr) = gg(1:nr)/grid_atom%rad2(1:nr)
+                  ww(1:na) = harmonics%slm(1:na,iso)
+                  matso_h(iso1,iso2) = matso_h(iso1,iso2) + my_dCG(iso1,iso2,iso)*&
+                     DOT_PRODUCT(ww(1:na),MATMUL(vtau_h(1:na,1:nr,ispin),gr(1:nr)))
+                  matso_s(iso1,iso2) = matso_s(iso1,iso2) + my_dCG(iso1,iso2,iso)*&
+                     DOT_PRODUCT(ww(1:na),MATMUL(vtau_s(1:na,1:nr,ispin),gr(1:nr)))
+                END DO
+              END DO
+
+              ! Write in the global matrix
+              DO ic = nsoset(lmin(iset2)-1)+1,nsoset(lmax(iset2))
+                iso1 = nsoset(lmin(iset1)-1)+1
+                iso2 = ngau2+ic
+                CALL daxpy(size1,1.0_dp,matso_h(iso1,ic),1,&
+                           int_hh(ispin)%r_coef(nngau1+1,iso2),1)
+                CALL daxpy(size1,1.0_dp,matso_s(iso1,ic),1,&
+                           int_ss(ispin)%r_coef(nngau1+1,iso2),1)
+              END DO
+
+            END DO ! ipfg2
+          END DO ! ipfg1
+          m2 = m2 + maxso
+        END DO ! iset2
+        m1 = m1 + maxso
+      END DO  ! iset1
+    END DO ! ispin
+ 
+    DEALLOCATE(matso_h,matso_s,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(g1,g2,gg,dd,gr,ww,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    vtau_h = 2._dp*vtau_h
+    vtau_s = 2._dp*vtau_s
+
+  END SUBROUTINE dgaVtaudgb
 
 END MODULE qs_vxc_atom

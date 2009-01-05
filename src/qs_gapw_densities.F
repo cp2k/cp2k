@@ -132,6 +132,7 @@ CONTAINS
 
     DO ikind = 1,nkind
       atom_kind => atomic_kind_set(ikind)
+      NULLIFY(grid_atom,harmonics)
       CALL get_atomic_kind(atomic_kind=atom_kind, atom_list=atom_list,&
                            grid_atom=grid_atom,natom=natom,&
                            paw_atom=paw_atom, harmonics=harmonics)

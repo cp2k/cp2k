@@ -35,15 +35,17 @@ MODULE qs_harmonics_atom
   TYPE harmonics_atom_type
      INTEGER                                :: max_s_harm, &
                                                max_iso_not0, &
-                                               maxcg, maxcg_d,&
+                                               dmax_iso_not0, &
+                                               maxcg, dmaxcg, maxcg_d,&
                                                maxcg_da, ngrid
-     INTEGER, DIMENSION(:,:,:), POINTER     :: ncg, ncg_dxyz,ncg_dxyz_asym
+     INTEGER, DIMENSION(:,:,:), POINTER     :: ncg,ndcg,ncg_dxyz,ncg_dxyz_asym
      INTEGER, DIMENSION(:,:,:,:), POINTER   :: ind_cg_a,ind_cg_b
+     INTEGER, DIMENSION(:,:,:,:), POINTER   :: ind_dcg_a,ind_dcg_b
      INTEGER, DIMENSION(:,:,:,:), POINTER   :: ind_cg_a_dxyz,ind_cg_b_dxyz
      INTEGER, DIMENSION(:,:,:,:), POINTER   :: ind_cg_a_dxyz_asym,ind_cg_b_dxyz_asym
      REAL(dp), DIMENSION(:,:),    POINTER   :: a, slm
      REAL(dp), DIMENSION(:,:,:),  POINTER   :: dslm, dslm_dxyz
-     REAL(dp), DIMENSION(:,:,:),  POINTER   :: my_CG
+     REAL(dp), DIMENSION(:,:,:),  POINTER   :: my_CG, my_dCG
      REAL(dp), DIMENSION(:,:,:,:),  POINTER :: my_CG_dxyz
      REAL(dp), DIMENSION(:,:,:,:),  POINTER :: my_CG_dxyz_asym
      REAL(dp), DIMENSION(:), POINTER        :: slm_int
@@ -85,13 +87,17 @@ CONTAINS
 
     harmonics%max_s_harm=0
     harmonics%max_iso_not0=0
+    harmonics%dmax_iso_not0=0
     harmonics%maxcg=0
+    harmonics%dmaxcg=0
     harmonics%maxcg_d=0
     harmonics%maxcg_da=0
     harmonics%ngrid=0
 
     NULLIFY(harmonics%ind_cg_a)
     NULLIFY(harmonics%ind_cg_b)
+    NULLIFY(harmonics%ind_dcg_a)
+    NULLIFY(harmonics%ind_dcg_b)
     NULLIFY(harmonics%ind_cg_a_dxyz)
     NULLIFY(harmonics%ind_cg_b_dxyz)
     NULLIFY(harmonics%slm)
@@ -99,8 +105,10 @@ CONTAINS
     NULLIFY(harmonics%dslm_dxyz)
     NULLIFY(harmonics%slm_int)
     NULLIFY(harmonics%ncg)
+    NULLIFY(harmonics%ndcg)
     NULLIFY(harmonics%ncg_dxyz)
     NULLIFY(harmonics%my_CG)
+    NULLIFY(harmonics%my_dCG)
     NULLIFY(harmonics%my_CG_dxyz)
     NULLIFY(harmonics%my_CG_dxyz_asym)
     NULLIFY(harmonics%ncg_dxyz_asym)
@@ -138,6 +146,16 @@ CONTAINS
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDIF
 
+       IF(ASSOCIATED(harmonics%ind_dcg_a)) THEN
+          DEALLOCATE (harmonics%ind_dcg_a,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+
+       IF(ASSOCIATED(harmonics%ind_dcg_b)) THEN
+          DEALLOCATE (harmonics%ind_dcg_b,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+
        IF(ASSOCIATED(harmonics%ind_cg_a_dxyz)) THEN
           DEALLOCATE (harmonics%ind_cg_a_dxyz,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -172,6 +190,10 @@ CONTAINS
           DEALLOCATE (harmonics%ncg,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDIF
+       IF(ASSOCIATED(harmonics%ndcg)) THEN
+          DEALLOCATE (harmonics%ndcg,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
        IF(ASSOCIATED(harmonics%ncg_dxyz)) THEN
           DEALLOCATE (harmonics%ncg_dxyz,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -179,6 +201,11 @@ CONTAINS
 
        IF(ASSOCIATED(harmonics%my_CG)) THEN
           DEALLOCATE (harmonics%my_CG,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+
+       IF(ASSOCIATED(harmonics%my_dCG)) THEN
+          DEALLOCATE (harmonics%my_dCG,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDIF
 
@@ -233,12 +260,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_harmonics_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, ia, ic, incg, incg_d, incg_da, is, is1, is2, iso, iso1, &
-      iso2, iso_mm, iso_mm1, iso_mp1, l, l1, l2, lx, ly, lz, m, max_iso_not0, &
-      maxcg, maxcg_d, maxcg_da, maxl, maxs, mm, n, nset
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ind_cg_a, ind_cg_a_d, &
-                                                ind_cg_a_da, ind_cg_b, &
-                                                ind_cg_b_d, ind_cg_b_da
+    INTEGER :: dmax_iso_not0, dmaxcg, i, ia, ic, incg, incg_d, incg_da, &
+      indcg, is, is1, is2, iso, iso1, iso2, iso_mm, iso_mm1, iso_mp1, l, l1, &
+      l2, lx, ly, lz, m, m1, m2, max_iso_not0, maxcg, maxcg_d, maxcg_da, &
+      maxl, maxs, mm, n, nset
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: ind_cg_a, ind_cg_a_d, ind_cg_a_da, &
+      ind_cg_b, ind_cg_b_d, ind_cg_b_da, ind_dcg_a, ind_dcg_b
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin
     REAL(dp)                                 :: abs_m, cosmp1, drx, dry, drz, &
                                                 int1, int2, int3, l_r, m_r, &
@@ -275,6 +302,7 @@ CONTAINS
        CALL reallocate(harmonics%dslm,1,2,1,na,1,max_s_harm)
        CALL reallocate(harmonics%dslm_dxyz,1,3,1,na,1,max_s_harm)
        CALL reallocate(harmonics%ncg,1,max_s_harm,1,nset,1,nset)
+       CALL reallocate(harmonics%ndcg,1,max_s_harm,1,nset,1,nset)
        CALL reallocate(harmonics%ncg_dxyz,1,max_s_harm,1,nset,1,nset)
        IF(do_dxyz_asym) THEN
           CALL reallocate(harmonics%ncg_dxyz_asym,1,max_s_harm,1,nset,1,nset)
@@ -536,41 +564,62 @@ CONTAINS
        !        END DO 
        !      END DO
 
+       ! expansion coefficients of product of theta derivatives (dslm(1...)) in
+       ! spherical harmonics (used for tau functionals)
+       CALL reallocate(harmonics%my_dCG,1,maxs,1,maxs,1,max_s_harm)
+       DO is1=1,maxs
+         l1 = indso(1,is1)
+         m1 = indso(2,is1)
+         DO is2=1,maxs
+           l2 = indso(1,is2)
+           m2 = indso(2,is2)
+           DO iso=1,max_s_harm
+             l = indso(1,iso)
+             m = indso(2,iso)
+             CALL y_lm(lebedev_grid(ll)%r,y,l,m)
+             y(1:na) = y(1:na)*lebedev_grid(ll)%w(1:na)*harmonics%dslm(1,1:na,is1)*harmonics%dslm(1,1:na,is2)
+             harmonics%my_dCG(is1,is2,iso) = SUM(y(1:na))
+           END DO
+         END DO
+       END DO
+
        !   *** Assign indexes for the non null CG coefficients ***      
        mm = nsoset(maxl)*nsoset(maxl)
-       ALLOCATE (ind_cg_a(mm),ind_cg_a_d(mm),ind_cg_a_da(mm))
-       ALLOCATE (ind_cg_b(mm),ind_cg_b_d(mm),ind_cg_b_da(mm))
+       ALLOCATE (ind_cg_a(mm),ind_dcg_a(mm),ind_cg_a_d(mm),ind_cg_a_da(mm))
+       ALLOCATE (ind_cg_b(mm),ind_dcg_b(mm),ind_cg_b_d(mm),ind_cg_b_da(mm))
 
        NULLIFY(harmonics%ind_cg_a,harmonics%ind_cg_b)
+       NULLIFY(harmonics%ind_dcg_a,harmonics%ind_dcg_b)
        NULLIFY(harmonics%ind_cg_a_dxyz,harmonics%ind_cg_b_dxyz)
        NULLIFY(harmonics%ind_cg_a_dxyz_asym,harmonics%ind_cg_b_dxyz_asym)
-       CALL reallocate(harmonics%ind_cg_a,&
-            1,mm,1,max_s_harm,1,nset,1,nset)
-       CALL reallocate(harmonics%ind_cg_b,&
-            1,mm,1,max_s_harm,1,nset,1,nset)
-       CALL reallocate(harmonics%ind_cg_a_dxyz,&
-            1,mm,1,max_s_harm,1,nset,1,nset)
-       CALL reallocate(harmonics%ind_cg_b_dxyz,&
-            1,mm,1,max_s_harm,1,nset,1,nset)
+       CALL reallocate(harmonics%ind_cg_a,1,mm,1,max_s_harm,1,nset,1,nset)
+       CALL reallocate(harmonics%ind_cg_b,1,mm,1,max_s_harm,1,nset,1,nset)
+       CALL reallocate(harmonics%ind_dcg_a,1,mm,1,max_s_harm,1,nset,1,nset)
+       CALL reallocate(harmonics%ind_dcg_b,1,mm,1,max_s_harm,1,nset,1,nset)
+       CALL reallocate(harmonics%ind_cg_a_dxyz,1,mm,1,max_s_harm,1,nset,1,nset)
+       CALL reallocate(harmonics%ind_cg_b_dxyz,1,mm,1,max_s_harm,1,nset,1,nset)
        IF(do_dxyz_asym) THEN
-          CALL reallocate(harmonics%ind_cg_a_dxyz_asym,&
-               1,mm,1,max_s_harm,1,nset,1,nset)
-          CALL reallocate(harmonics%ind_cg_b_dxyz_asym,&
-               1,mm,1,max_s_harm,1,nset,1,nset)
+          CALL reallocate(harmonics%ind_cg_a_dxyz_asym,1,mm,1,max_s_harm,1,nset,1,nset)
+          CALL reallocate(harmonics%ind_cg_b_dxyz_asym,1,mm,1,max_s_harm,1,nset,1,nset)
        END IF
 
        maxcg = 0
+       dmaxcg = 0
        maxcg_d = 0
        maxcg_da = 0
        max_iso_not0 = 0
+       dmax_iso_not0 = 0
        DO is1 = 1,nset
           DO is2 = 1,nset
              DO iso = 1,max_s_harm
                 incg = 0
+                indcg = 0
                 incg_d = 0
                 incg_da = 0
                 ind_cg_a = 0
                 ind_cg_b = 0
+                ind_dcg_a = 0
+                ind_dcg_b = 0
                 ind_cg_a_d = 0
                 ind_cg_b_d = 0
                 ind_cg_a_da = 0
@@ -585,6 +634,12 @@ CONTAINS
                                ind_cg_a(incg) = iso1
                                ind_cg_b(incg) = iso2
                                max_iso_not0 = MAX(max_iso_not0,iso)
+                            END IF
+                            IF(ABS(harmonics%my_dCG(iso1,iso2,iso)) > 1.E-8_dp) THEN
+                               indcg = indcg + 1
+                               ind_dcg_a(indcg) = iso1
+                               ind_dcg_b(indcg) = iso2
+                               dmax_iso_not0 = MAX(dmax_iso_not0,iso)
                             END IF
                             rx = ABS(harmonics%my_CG_dxyz(1,iso1,iso2,iso))+&
                                  ABS(harmonics%my_CG_dxyz(2,iso1,iso2,iso))+&
@@ -609,20 +664,22 @@ CONTAINS
                    END DO
                 END DO
                 maxcg = MAX(maxcg,incg)
+                dmaxcg = MAX(dmaxcg,indcg)
                 maxcg_d = MAX(maxcg_d,incg_d)
                 maxcg_da = MAX(maxcg_da,incg_da)
 
-                harmonics%ind_cg_a(1:incg,iso,is1,is2) = &
-                     ind_cg_a(1:incg)
-                harmonics%ind_cg_b(1:incg,iso,is1,is2) = &
-                     ind_cg_b(1:incg)
+                harmonics%ind_cg_a(1:incg,iso,is1,is2) = ind_cg_a(1:incg)
+                harmonics%ind_cg_b(1:incg,iso,is1,is2) = ind_cg_b(1:incg)
                 harmonics%ncg(iso,is1,is2) = incg 
 
-                harmonics%ind_cg_a_dxyz(1:incg_d,iso,is1,is2) = &
-                     ind_cg_a_d(1:incg_d)
-                harmonics%ind_cg_b_dxyz(1:incg_d,iso,is1,is2) = &
-                     ind_cg_b_d(1:incg_d)
+                harmonics%ind_dcg_a(1:indcg,iso,is1,is2) = ind_dcg_a(1:indcg)
+                harmonics%ind_dcg_b(1:indcg,iso,is1,is2) = ind_dcg_b(1:indcg)
+                harmonics%ndcg(iso,is1,is2) = indcg 
+
+                harmonics%ind_cg_a_dxyz(1:incg_d,iso,is1,is2) = ind_cg_a_d(1:incg_d)
+                harmonics%ind_cg_b_dxyz(1:incg_d,iso,is1,is2) = ind_cg_b_d(1:incg_d)
                 harmonics%ncg_dxyz(iso,is1,is2) = incg_d
+
                 IF(do_dxyz_asym) THEN
                    harmonics%ind_cg_a_dxyz_asym(1:incg_da,iso,is1,is2) = &
                         ind_cg_a_da(1:incg_da)
@@ -635,11 +692,15 @@ CONTAINS
           END DO ! is2
        END DO ! is1
        harmonics%maxcg =  maxcg
+       harmonics%dmaxcg =  dmaxcg
        harmonics%maxcg_d =  maxcg_d
        harmonics%maxcg_da =  maxcg_da
        harmonics%max_iso_not0 = max_iso_not0
+       harmonics%dmax_iso_not0 = dmax_iso_not0
        DEALLOCATE(ind_cg_a)
        DEALLOCATE(ind_cg_b)
+       DEALLOCATE(ind_dcg_a)
+       DEALLOCATE(ind_dcg_b)
        DEALLOCATE(ind_cg_a_d)
        DEALLOCATE(ind_cg_b_d)
        DEALLOCATE(ind_cg_a_da)

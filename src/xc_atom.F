@@ -14,7 +14,6 @@ MODULE xc_atom
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE pw_types,                        ONLY: pw_p_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: divide_by_norm_drho,&
@@ -41,7 +40,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE vxc_of_r_new(xc_fun_section,rho_set,deriv_set,deriv_order,needs,w,&
-                          lsd,na,nr,exc,vxc,vxg,energy_only,epr_xc,adiabatic_rescale_factor,error)
+                          lsd,na,nr,exc,vxc,vxg,vtau,energy_only,epr_xc,adiabatic_rescale_factor,error)
 
 ! This routine updates rho_set by giving to it the rho and drho that are needed.
 ! Since for the local densities rho1_h and rho1_s local grids are used it is not possible
@@ -64,6 +63,7 @@ CONTAINS
     REAL(dp)                                 :: exc
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: vtau
     LOGICAL, INTENT(IN), OPTIONAL            :: energy_only, epr_xc
     REAL(dp), INTENT(IN), OPTIONAL           :: adiabatic_rescale_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -273,6 +273,28 @@ CONTAINS
             END DO
          END DO
          NULLIFY (deriv_data)
+      END IF
+   END IF  ! lsd
+!  Derivative with respect to tau
+   IF (lsd) THEN
+      deriv_att => xc_dset_get_derivative(deriv_set,"(taua)",error=error)
+      IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+        vtau(:,:,1) = deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
+        NULLIFY (deriv_data)
+      END IF
+      deriv_att => xc_dset_get_derivative(deriv_set,"(taub)",error=error)
+      IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+        vtau(:,:,2) = deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
+        NULLIFY (deriv_data)
+      END IF
+   ELSE
+      deriv_att => xc_dset_get_derivative(deriv_set,"(tau)",error=error)
+      IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
+        vtau(:,:,1) = deriv_data(:,:,1)*w(:,:) * my_adiabatic_rescale_factor
+        NULLIFY (deriv_data)
       END IF
    END IF  ! lsd
    END IF  ! only_energy
@@ -518,7 +540,7 @@ CONTAINS
   END SUBROUTINE xc_rho_set_atom_update
 
 ! *****************************************************************************
-  SUBROUTINE fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,na,ir,error)
+  SUBROUTINE fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,tau,na,ir,error)
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     LOGICAL, INTENT(IN)                      :: lsd
@@ -526,6 +548,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
     REAL(dp), DIMENSION(:, :), POINTER       :: rho
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho
+    REAL(dp), DIMENSION(:, :), POINTER       :: tau
     INTEGER, INTENT(IN)                      :: na, ir
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -536,9 +559,7 @@ CONTAINS
     INTEGER                                  :: ia, idir, my_nspins
     LOGICAL                                  :: failure, gradient_f, &
                                                 tddft_split
-    REAL(dp), DIMENSION(:, :, :), POINTER    :: tau
 
-    NULLIFY(tau)
     failure = .FALSE.
     my_nspins = nspins
     tddft_split = .FALSE.
@@ -766,21 +787,19 @@ CONTAINS
 
     ! tau part
     IF (needs%tau.OR.needs%tau_spin) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "GAPW + metafunctionals not implemented yet")
        CPPrecondition(ASSOCIATED(tau),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(tau,2)==my_nspins,cp_failure_level,routineP,error,failure)
     END IF
     IF (needs%tau) THEN
        IF (my_nspins==2) THEN
           DO ia = 1,na
-             rho_set%tau(ia,ir,1) = tau(ia,ir,1)+tau(ia,ir,2)
+             rho_set%tau(ia,ir,1) = tau(ia,1)+tau(ia,2)
           END DO
           rho_set%owns%tau=.TRUE.
           rho_set%has%tau=.TRUE.
        ELSE
           DO ia = 1,na
-             rho_set%tau(ia,ir,1) = tau(ia,ir,1)
+             rho_set%tau(ia,ir,1) = tau(ia,1)
           END DO
           rho_set%owns%tau=.TRUE.
           rho_set%has%tau=.TRUE.
@@ -788,8 +807,8 @@ CONTAINS
     END IF
     IF (needs%tau_spin) THEN
        DO ia = 1,na
-          rho_set%tau_a(ia,ir,1) = tau(ia,ir,1)
-          rho_set%tau_b(ia,ir,1) = tau(ia,ir,2)
+          rho_set%tau_a(ia,ir,1) = tau(ia,1)
+          rho_set%tau_b(ia,ir,1) = tau(ia,2)
        END DO
        rho_set%owns%tau_spin=.TRUE.
        rho_set%has%tau_spin=.TRUE.

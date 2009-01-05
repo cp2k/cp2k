@@ -349,7 +349,7 @@ CONTAINS
             error=error)
        needs=xc_functionals_get_needs(xc_fun_section,lsd,.TRUE.,error)
 
-       ! calculate the agruments needed by the functionals
+       ! calculate the arguments needed by the functionals
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,&
                              section_get_ival(xc_section,"XC_GRID%XC_DERIV",error=error),&
                              section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error=error),&
