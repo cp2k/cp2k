@@ -1387,6 +1387,7 @@ CONTAINS
           END IF
 
           ! grid_atom and harmonics are allocated even if NOT PAW_ATOM
+          NULLIFY(atomic_kind%grid_atom,atomic_kind%harmonics)
           CALL allocate_grid_atom(atomic_kind%grid_atom,error)
           CALL allocate_harmonics_atom(atomic_kind%harmonics,error)
        END DO

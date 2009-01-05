@@ -564,15 +564,12 @@ CONTAINS
   SUBROUTINE set_atom(atom,basis,state,integrals,orbitals,potential,zcore,pp_calc,&
     method_type,relativistic,coulomb_integral_type,exchange_integral_type,error)
     TYPE(atom_type), POINTER                 :: atom
-    TYPE(atom_basis_type), INTENT(IN), &
-      OPTIONAL, POINTER                      :: basis
+    TYPE(atom_basis_type), OPTIONAL, POINTER :: basis
     TYPE(atom_state), INTENT(IN), OPTIONAL, &
       TARGET                                 :: state
-    TYPE(atom_integrals), INTENT(IN), &
-      OPTIONAL, POINTER                      :: integrals
-    TYPE(atom_orbitals), INTENT(IN), &
-      OPTIONAL, POINTER                      :: orbitals
-    TYPE(atom_potential_type), INTENT(IN), &
+    TYPE(atom_integrals), OPTIONAL, POINTER  :: integrals
+    TYPE(atom_orbitals), OPTIONAL, POINTER   :: orbitals
+    TYPE(atom_potential_type), &
       OPTIONAL, POINTER                      :: potential
     INTEGER, INTENT(IN), OPTIONAL            :: zcore
     LOGICAL, INTENT(IN), OPTIONAL            :: pp_calc
