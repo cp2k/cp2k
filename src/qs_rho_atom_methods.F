@@ -90,7 +90,7 @@ MODULE qs_rho_atom_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dlmax_expansion, dmax_iso_not0, handle, i, i1, i2, iat, iatom, &
+    INTEGER :: dmax_iso_not0, handle, i, i1, i2, iat, iatom, &
       icg, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, iso1_first, iso1_last, &
       iso2, iso2_first, iso2_last, istat, j, l, l1, l2, l_iso, l_sub, l_sum, &
       lmax12, lmax_expansion, lmin12, m1, m1s, m2, m2s, max_iso_not0, maxl, &
@@ -131,7 +131,6 @@ MODULE qs_rho_atom_methods
     dmax_iso_not0 = harmonics%dmax_iso_not0
     nr           = grid_atom%nr
     lmax_expansion = indso(1,max_iso_not0)
-    dlmax_expansion = indso(1,dmax_iso_not0)
 !   Distribute the atoms of this kind
     num_pe = para_env%num_pe
     mepos  = para_env%mepos
@@ -363,7 +362,7 @@ MODULE qs_rho_atom_methods
                     iso1 = harmonics%ind_dcg_a(icg,iso,iset1,iset2)
                     iso2 = harmonics%ind_dcg_b(icg,iso,iset1,iset2)
                     l = indso(1,iso1) + indso(1,iso2)
-                    CPPrecondition(l<=dlmax_expansion,cp_failure_level,routineP,error,failure)
+                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
                     IF(.NOT.failure) THEN
                       rho_atom_set(iatom)%trho_rad_h(2,i)%r_coef(1:nr,iso) =&
                         rho_atom_set(iatom)%trho_rad_h(2,i)%r_coef(1:nr,iso) +&
