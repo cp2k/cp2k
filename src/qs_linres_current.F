@@ -1494,6 +1494,8 @@ CONTAINS
       dbox(3) = cell%hmat(3,3) / REAL(nbox(3),dp)
       !write(*,*) 'dbox',dbox
       ALLOCATE(box_ptr(0:nbox(1),0:nbox(2)-1,0:nbox(3)-1),box_data(3,natms))
+      box_data(:,:) = HUGE(0.0_dp)
+      box_ptr(:,:,:) = HUGE(0)
       !
       offset(1) = cell%hmat(1,1)*0.5_dp
       offset(2) = cell%hmat(2,2)*0.5_dp
