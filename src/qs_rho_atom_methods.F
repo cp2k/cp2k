@@ -90,9 +90,9 @@ MODULE qs_rho_atom_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dmax_iso_not0, handle, i, i1, i2, iat, iatom, &
-      icg, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, iso1_first, iso1_last, &
-      iso2, iso2_first, iso2_last, istat, j, l, l1, l2, l_iso, l_sub, l_sum, &
+    INTEGER :: dmax_iso_not0, handle, i, i1, i2, iat, iatom, icg, ipgf1, &
+      ipgf2, ir, iset1, iset2, iso, iso1, iso1_first, iso1_last, iso2, &
+      iso2_first, iso2_last, istat, j, l, l1, l2, l_iso, l_sub, l_sum, &
       lmax12, lmax_expansion, lmin12, m1, m1s, m2, m2s, max_iso_not0, maxl, &
       maxso, mepos, n1s, n2s, nr, nset, num_pe, size1, size2
     INTEGER, DIMENSION(2)                    :: bo
