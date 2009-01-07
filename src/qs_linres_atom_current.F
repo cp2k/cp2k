@@ -360,8 +360,6 @@ CONTAINS
                       !
                       ! Compute the modified Qai matrix as
                       DO ispin = 1,nspins
-                         jp_RARnu(ispin)%r_coef =HUGE(0.0_dp) ! not needed
-                         jp2_RARnu(ispin)%r_coef=HUGE(0.0_dp) ! not needed
                       DO isgfb = 1,nsgfb
                       DO isgfa = 1,nsgfa
                          ! mQai_\mu\nu = Qai_\mu\nu - Qbi_\mu\nu * (R_A-R_\nu)_ii
