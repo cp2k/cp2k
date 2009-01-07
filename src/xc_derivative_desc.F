@@ -32,7 +32,7 @@ MODULE xc_derivative_desc
   PRIVATE
 
   INTEGER, PARAMETER :: &
-       MAX_LABEL_LENGTH           = 10, &
+       MAX_LABEL_LENGTH           = 12, &
        MAX_DERIVATIVE             = 4,  &
        MAX_DERIVATIVE_DESC_LENGTH = (MAX_LABEL_LENGTH+2)*MAX_DERIVATIVE
 

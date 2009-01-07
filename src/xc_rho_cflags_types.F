@@ -44,12 +44,13 @@ MODULE xc_rho_cflags_types
 !>      low_level type without retain/release
 !> \par History
 !>      11.2003 created [fawzi]
+!>      12.2008 added laplace parts [mguidon]
 !> \author fawzi
 ! *****************************************************************************
   TYPE xc_rho_cflags_type
      LOGICAL :: rho, rho_spin, drho, drho_spin,&
           norm_drho, norm_drho_spin, drhoa_drhob,&
-          rho_1_3,rho_spin_1_3, tau, tau_spin
+          rho_1_3,rho_spin_1_3, tau, tau_spin, laplace_rho, laplace_rho_spin
   END TYPE xc_rho_cflags_type
 
 CONTAINS
@@ -83,6 +84,8 @@ CONTAINS
     cflags%rho_spin_1_3=value
     cflags%tau=value
     cflags%tau_spin=value
+    cflags%laplace_rho=value
+    cflags%laplace_rho_spin=value
   END SUBROUTINE xc_rho_cflags_setall
 
 ! *****************************************************************************
@@ -115,6 +118,9 @@ CONTAINS
     cflags1%rho_spin_1_3=cflags1%rho_spin_1_3.OR.cflags2%rho_spin_1_3
     cflags1%tau=cflags1%tau.OR.cflags2%tau
     cflags1%tau_spin=cflags1%tau_spin.OR.cflags2%tau_spin
+    cflags1%laplace_rho=cflags1%laplace_rho.OR.cflags2%laplace_rho
+    cflags1%laplace_rho_spin=cflags1%laplace_rho_spin.OR.cflags2%laplace_rho_spin
+
 
   END SUBROUTINE xc_rho_cflags_or
 
@@ -148,6 +154,8 @@ CONTAINS
     cflags1%rho_spin_1_3=cflags1%rho_spin_1_3.AND.cflags2%rho_spin_1_3
     cflags1%tau=cflags1%tau.AND.cflags2%tau
     cflags1%tau_spin=cflags1%tau_spin.AND.cflags2%tau_spin
+    cflags1%laplace_rho=cflags1%laplace_rho.AND.cflags2%laplace_rho
+    cflags1%laplace_rho_spin=cflags1%laplace_rho_spin.AND.cflags2%laplace_rho_spin
 
   END SUBROUTINE xc_rho_cflags_and
 
@@ -180,7 +188,9 @@ CONTAINS
          (cflags1%rho_1_3.EQV.cflags2%rho_1_3).AND.&
          (cflags1%rho_spin_1_3.EQV.cflags2%rho_spin_1_3).AND.&
          (cflags1%tau.EQV.cflags2%tau).AND.&
-         (cflags1%tau_spin.EQV.cflags2%tau_spin))
+         (cflags1%tau_spin.EQV.cflags2%tau_spin).AND.&
+         (cflags1%laplace_rho.EQV.cflags2%laplace_rho).AND.&
+         (cflags1%laplace_rho_spin.EQV.cflags2%laplace_rho_spin))
 
   END FUNCTION xc_rho_cflags_equal
 
@@ -215,7 +225,9 @@ CONTAINS
          (cflags1%rho_1_3.OR..NOT.cflags2%rho_1_3).AND.&
          (cflags1%rho_spin_1_3.OR..NOT.cflags2%rho_spin_1_3).AND.&
          (cflags1%tau.OR..NOT.cflags2%tau).AND.&
-         (cflags1%tau_spin.OR..NOT.cflags2%tau_spin))
+         (cflags1%tau_spin.OR..NOT.cflags2%tau_spin).AND.&
+         (cflags1%laplace_rho.OR..NOT.cflags2%laplace_rho).AND.&
+         (cflags1%laplace_rho_spin.OR..NOT.cflags2%laplace_rho_spin))
 
   END FUNCTION xc_rho_cflags_contain
 
@@ -249,6 +261,8 @@ CONTAINS
     WRITE(unit=unit_nr,fmt="('   rho_spin_1_3=',l1,',')") cflags%rho_spin_1_3
     WRITE(unit=unit_nr,fmt="('   tau=',l1,',')") cflags%tau
     WRITE(unit=unit_nr,fmt="('   tau_spin=',l1)") cflags%tau_spin
+    WRITE(unit=unit_nr,fmt="('   laplace_rho=',l1)") cflags%laplace_rho
+    WRITE(unit=unit_nr,fmt="('   laplace_rho_spin=',l1)") cflags%laplace_rho_spin
     WRITE(unit=unit_nr,fmt="(' }')")
 
   END SUBROUTINE xc_rho_cflags_write

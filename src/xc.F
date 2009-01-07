@@ -1126,6 +1126,7 @@ END SUBROUTINE smooth_cutoff
 !>      Fawzi (11.2003): version using the new xc interface
 !>      Fawzi (03.2004): fft free for smoothed density and derivs, gga lsd
 !>      Fawzi (04.2004): metafunctionals
+!>      mguidon (12.2008) : laplace functionals
 !> \author fawzi; based LDA version of JGH, based on earlier version of apsi
 ! *****************************************************************************
 SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
@@ -1149,10 +1150,10 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
     INTEGER :: handle, i, idir, ispin, j, jdir, k, n_deriv, npoints, nspins, &
       order, stat, xc_deriv_method_id, xc_rho_smooth_id
     INTEGER, DIMENSION(2, 3)                 :: bo
-    INTEGER, DIMENSION(3, 3)                 :: nd
+    INTEGER, DIMENSION(3, 3)                 :: nd, nd_laplace
     LOGICAL                                  :: dealloc_pw_to_deriv, failure, &
-                                                has_tau, lsd, use_virial, &
-                                                zero_result
+                                                has_laplace, has_tau, lsd, &
+                                                use_virial, zero_result
     REAL(KIND=dp)                            :: density_smooth_cut_range, &
                                                 drho_cutoff, my_rho, ndr, &
                                                 rho_cutoff
@@ -1230,6 +1231,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
              drho_cutoff=drho_cutoff, error=error)
 
      has_tau=.FALSE.
+     has_laplace = .FALSE.
      ! check for unknown derivatives
      n_deriv=0
      pos => deriv_set%derivs
@@ -1246,6 +1248,9 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
               CASE("(tau)","(tau_a)","(tau_b)")
                  has_tau=.TRUE.
                  n_deriv=n_deriv+1
+              CASE("(laplace_rhoa)","(laplace_rhob)")
+                 has_laplace = .TRUE.
+                 n_deriv = n_deriv + 1
               CASE default
                  !FM if you are looking at this error probably you are missing the
                  !FM cross term (drhoa_drhob), I never got round to implement it,
@@ -1265,6 +1270,9 @@ CPSourceFileRef,&
               CASE("(tau)")
                  has_tau=.TRUE.
                  n_deriv=n_deriv+1
+              CASE("(laplace_rho)")
+                 has_laplace = .TRUE.
+                 n_deriv = n_deriv + 1
               CASE default
                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                       "unknown functional derivative (LDA): '"//&
@@ -1711,6 +1719,70 @@ CPSourceFileRef,&
               NULLIFY(tmp_r)
            END IF
         END IF
+        
+        ! ** Add laplace part to vxc_rho
+        IF( has_laplace ) THEN
+          nd_laplace = RESHAPE((/2,0,0,0,2,0,0,0,2/),(/3,3/))
+          IF(lsd) THEN
+            IF( ispin == 1) THEN
+              deriv_att => xc_dset_get_derivative(deriv_set, "(laplace_rhoa)", error=error)
+              CPPrecondition(ASSOCIATED(deriv_att),cp_failure_level,routineP,error,failure)
+              CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
+                                     error=error)
+            ELSE
+              deriv_att => xc_dset_get_derivative(deriv_set, "(laplace_rhob)", error=error)
+              CPPrecondition(ASSOCIATED(deriv_att),cp_failure_level,routineP,error,failure)
+              CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
+                                     error=error)
+            END IF
+
+          ELSE
+            deriv_att => xc_dset_get_derivative(deriv_set, "(laplace_rho)", error=error)
+            CPPrecondition(ASSOCIATED(deriv_att),cp_failure_level,routineP,error,failure)
+            CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
+                                   error=error)
+          END IF
+          DO idir=1,3
+            CALL pw_pool_create_pw(pw_pool,pw_to_deriv(idir)%pw,&
+                                   use_data=REALDATA3D,in_space=REALSPACE,&
+                                   error=error)
+            CALL pw_zero(pw_to_deriv(idir)%pw)
+            !$omp parallel do default(none) shared(bo,deriv_data,&
+            !$omp                pw_to_deriv,idir)&
+            !$omp             private(k,j,i)
+            DO k = bo(1,3), bo(2,3)
+              DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
+                  pw_to_deriv(idir)%pw%cr3d(i,j,k)=deriv_data(i,j,k)
+                END DO
+              END DO
+            END DO
+            CALL pw_pool_create_pw(pw_pool,tmp_g,&
+                                   use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                                   error=error)
+            CALL pw_zero(tmp_g)
+            CALL pw_transfer ( pw_to_deriv(idir)%pw, tmp_g )
+
+            SELECT CASE(xc_deriv_method_id)
+              CASE (xc_deriv_pw)
+                CALL pw_derive ( tmp_g, nd_laplace(:,idir) )
+              CASE default
+                CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+            END SELECT
+            ! Add this to the potential
+            CALL pw_pool_create_pw(pw_pool, tmp_r,&
+                                   use_data=REALDATA3D, in_space=REALSPACE,&
+                                   error=error)
+            CALL pw_zero(tmp_r)
+            CALL pw_transfer ( tmp_g, tmp_r )
+
+            CALL pw_axpy ( tmp_r, vxc_rho(ispin)%pw )
+            CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
+            CALL pw_pool_give_back_pw(pw_pool,pw_to_deriv(idir)%pw,error=error)
+            CALL pw_pool_give_back_pw(pw_pool,tmp_g,error=error)
+          END DO
+        END IF
+
 
         IF (pw_grid%spherical) THEN
            ! filter vxc

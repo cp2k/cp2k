@@ -11,13 +11,13 @@
 ! *****************************************************************************
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
-       Avezac2005, Becke1988, Dewar1977, Dewar1985, Elstner1998, &
-       Goedecker1996, Grimme2006, Heyd2004, Hu2007, Hunt2003, Iannuzzi2005, &
-       Iannuzzi2006, Iannuzzi2007, Krack2000, Krack2002, Lee1988, &
-       Lippert1997, Lippert1999, Ortiz1994, Perdew1981, Perdew1996, &
-       Porezag1995, Repasky2002, Rocha2006, Schenter2008, Seifert1996, &
-       Stewart1982, Stewart1989, Stewart2007, Tao2003, Thiel1992, &
-       VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
+       Avezac2005, Becke1988, BeckeRoussel1989, Dewar1977, Dewar1985, &
+       Elstner1998, Goedecker1996, Grimme2006, Heyd2004, Hu2007, Hunt2003, &
+       Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Krack2000, Krack2002, &
+       Lee1988, Lippert1997, Lippert1999, Ortiz1994, Perdew1981, Perdew1996, &
+       Porezag1995, Proynov2007, Repasky2002, Rocha2006, Schenter2008, &
+       Seifert1996, Stewart1982, Stewart1989, Stewart2007, Tao2003, &
+       Thiel1992, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
        VandeVondele2006, Vosko1980, Weber2008, Zhang1998, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
@@ -3211,6 +3211,38 @@ CONTAINS
             default_r_val=1._dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_create(subsection,name="BECKE_ROUSSEL",&
+            description="Becke Roussel exchange hole model. Can be used"//&
+            "as long range correction with a truncated coulomb potential",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/BeckeRoussel1989,Proynov2007/),&
+            error=error)
+       CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+            description="activates the functional",&
+            lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"scale_x",&
+            description="scales the exchange part of the functional",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"CUTOFF_RADIUS",&
+            description="Defines the cutoff radius for the truncation. "//&
+            "If put to zero, the standard full range potential will be used",&
+            usage="CUTOFF_RADIUS 2.0",default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"GAMMA",&
+            description="Parameter in the exchange hole. "//&
+            "Usually this is put to 1.0 or 0.8",&
+            usage="GAMMA 0.8",default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 

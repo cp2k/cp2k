@@ -652,5 +652,6 @@ OBJECTS_GENERIC =\
  xc_xbecke88.o\
  xc_xbecke88_long_range.o\
  xc_xbecke88_lr_adiabatic.o\
+ xc_xbecke_roussel.o\
  xc_xwpbe.o\
  xray_diffraction.o

@@ -85,6 +85,10 @@ MODULE xc_derivatives
                                              xb88_lr_adiabatic_lda_info,&
                                              xb88_lr_adiabatic_lsd_eval,&
                                              xb88_lr_adiabatic_lsd_info
+  USE xc_xbecke_roussel,               ONLY: xbecke_roussel_lda_eval,&
+                                             xbecke_roussel_lda_info,&
+                                             xbecke_roussel_lsd_eval,&
+                                             xbecke_roussel_lsd_info
   USE xc_xwpbe,                        ONLY: xwpbe_lda_eval,&
                                              xwpbe_lda_info,&
                                              xwpbe_lsd_eval,&
@@ -267,7 +271,14 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
            CALL xwpbe_lda_info(reference,shortform,needs,max_deriv,&
                 error=error)
         END IF
-
+     CASE("BECKE_ROUSSEL")
+        IF (lsd) THEN
+          CALL xbecke_roussel_lsd_info(functional,reference,shortform,needs,max_deriv,&
+               error=error)
+        ELSE
+           CALL xbecke_roussel_lda_info(functional,reference,shortform,needs,max_deriv,&
+                error=error)
+        END IF
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
              message="unknown functional '"//TRIM(functional%section%name)//&
@@ -465,7 +476,12 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         ELSE
            CALL xwpbe_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         END IF
-
+     CASE("BECKE_ROUSSEL")
+        IF (lsd) THEN
+           CALL xbecke_roussel_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        ELSE
+           CALL xbecke_roussel_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        END IF
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
              message="unknown functional '"//TRIM(functional%section%name)//&

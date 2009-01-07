@@ -53,7 +53,7 @@ MODULE bibliography
              Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008,Hunt2003,Guidon2008,&
              Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
-             Grimme2006,Branduardi2007,Schenter2008
+             Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007
 
 CONTAINS
 
@@ -68,6 +68,7 @@ CONTAINS
 !>      08.2007 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE add_all_references()
+
 
     CALL add_reference(key=Hu2007, ISI_record=s2a(&
          "AU Hu, H",&
@@ -1369,198 +1370,247 @@ CONTAINS
          "ER"),&
          DOI="10.1080/13642819708202343")
 
-     CALL add_reference(key=Dudarev1998,ISI_record=s2a(&
-          "PT J",&
-          "AU Dudarev, SL",&
-          "   Botton, GA",&
-          "   Savrasov, SY",&
-          "   Humphreys, CJ",&
-          "   Sutton, AP",&
-          "TI Electron-energy-loss spectra and the structural stability of",&
-          "   nickel oxide: An LSDA+U study",&
-          "SO PHYSICAL REVIEW B",&
-          "SN 0163-1829",&
-          "PD JAN 15",&
-          "PY 1998",&
-          "VL 57",&
-          "IS 3",&
-          "BP 1505",&
-          "EP 1509",&
-          "UT ISI:000071716800040",&
-          "ER"),&
-          DOI="10.1103/PhysRevB.57.1505")
+    CALL add_reference(key=Dudarev1998,ISI_record=s2a(&
+         "PT J",&
+         "AU Dudarev, SL",&
+         "   Botton, GA",&
+         "   Savrasov, SY",&
+         "   Humphreys, CJ",&
+         "   Sutton, AP",&
+         "TI Electron-energy-loss spectra and the structural stability of",&
+         "   nickel oxide: An LSDA+U study",&
+         "SO PHYSICAL REVIEW B",&
+         "SN 0163-1829",&
+         "PD JAN 15",&
+         "PY 1998",&
+         "VL 57",&
+         "IS 3",&
+         "BP 1505",&
+         "EP 1509",&
+         "UT ISI:000071716800040",&
+         "ER"),&
+         DOI="10.1103/PhysRevB.57.1505")
 
-     CALL add_reference(key=Hunt2003,ISI_record=s2a(&
-          "PT J",&
-          "AU Hunt, P",&
-          "   Sprik, M",&
-          "   Vuilleumier, R",&
-          "TI Thermal versus electronic broadening in the density of states of liquid",&
-          "   water",&
-          "SO CHEMICAL PHYSICS LETTERS",&
-          "SN 0009-2614",&
-          "PD JUL 17",&
-          "PY 2003",&
-          "VL 376",&
-          "IS 1-2",&
-          "BP 68",&
-          "EP 74",&
-          "UT ISI:000184315600011",&
-          "ER"),&
-          DOI="10.1016/S0009-2614(03)00954-0")
+    CALL add_reference(key=Hunt2003,ISI_record=s2a(&
+         "PT J",&
+         "AU Hunt, P",&
+         "   Sprik, M",&
+         "   Vuilleumier, R",&
+         "TI Thermal versus electronic broadening in the density of states of liquid",&
+         "   water",&
+         "SO CHEMICAL PHYSICS LETTERS",&
+         "SN 0009-2614",&
+         "PD JUL 17",&
+         "PY 2003",&
+         "VL 376",&
+         "IS 1-2",&
+         "BP 68",&
+         "EP 74",&
+         "UT ISI:000184315600011",&
+         "ER"),&
+         DOI="10.1016/S0009-2614(03)00954-0")
 
-     CALL add_reference(key=Guidon2008,ISI_record=s2a(&
-          "PT J",&
-          "AU Guidon, M",&
-          "   Schiffmann, F",&
-          "   Hutter, J",&
-          "   VandeVondele, J",&
-          "AF Guidon, Manuel",&
-          "   Schiffmann, Florian",&
-          "   Hutter, Juerg",&
-          "   VandeVondele, Joost",&
-          "TI Ab initio molecular dynamics using hybrid density functionals",&
-          "SO JOURNAL OF CHEMICAL PHYSICS",&
-          "SN 0021-9606",&
-          "PD JUN 7",&
-          "PY 2008",&
-          "VL 128",&
-          "IS 21",&
-          "AR 214104",&
-          "DI ARTN 214104",&
-          "UT ISI:000256527500005",&
-          "ER"),&
-          DOI="10.1063/1.2931945")
+    CALL add_reference(key=Guidon2008,ISI_record=s2a(&
+         "PT J",&
+         "AU Guidon, M",&
+         "   Schiffmann, F",&
+         "   Hutter, J",&
+         "   VandeVondele, J",&
+         "AF Guidon, Manuel",&
+         "   Schiffmann, Florian",&
+         "   Hutter, Juerg",&
+         "   VandeVondele, Joost",&
+         "TI Ab initio molecular dynamics using hybrid density functionals",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD JUN 7",&
+         "PY 2008",&
+         "VL 128",&
+         "IS 21",&
+         "AR 214104",&
+         "DI ARTN 214104",&
+         "UT ISI:000256527500005",&
+         "ER"),&
+         DOI="10.1063/1.2931945")
 
-     CALL add_reference(key=Stewart1982,ISI_record=s2a(&
-          "PT J",&
-          "AU Stewart, JJP",&
-          "   Csaszar, P",&
-          "   Pulay, P",&
-          "TI Fast semi-empirical calculations",&
-          "SO JOURNAL OF COMPUTATIONAL CHEMISTRY",&
-          "SN 0192-8651",&
-          "PY 1982",&
-          "VL 3",&
-          "IS 2",&
-          "BP 227",&
-          "EP 228",&
-          "UT ISI:A1982NN22800013",&
-          "ER"),&
-          DOI="10.1002/jcc.540030214")
+    CALL add_reference(key=Stewart1982,ISI_record=s2a(&
+         "PT J",&
+         "AU Stewart, JJP",&
+         "   Csaszar, P",&
+         "   Pulay, P",&
+         "TI Fast semi-empirical calculations",&
+         "SO JOURNAL OF COMPUTATIONAL CHEMISTRY",&
+         "SN 0192-8651",&
+         "PY 1982",&
+         "VL 3",&
+         "IS 2",&
+         "BP 227",&
+         "EP 228",&
+         "UT ISI:A1982NN22800013",&
+         "ER"),&
+         DOI="10.1002/jcc.540030214")
 
-     CALL add_reference(key=Tao2003,ISI_record=s2a(&
-          "PT J",&
-          "AU Tao, JM",&
-          "   Perdew, JP",&
-          "   Staroverov, VN",&
-          "   Scuseria, GE",&
-          "TI Climbing the density functional ladder: Nonempirical meta-generalized",&
-          "   gradient approximation designed for molecules and solids",&
-          "SO PHYSICAL REVIEW LETTERS",&
-          "PD OCT 3",&
-          "PY 2003",&
-          "VL 91",&
-          "IS 14",&
-          "AR 146401",&
-          "DI 10.1103/PhysRevLett.91.146401",&
-          "UT ISI:000185719500032",&
-          "ER"),&
-          DOI="10.1103/PhysRevLett.91.146401")
+    CALL add_reference(key=Tao2003,ISI_record=s2a(&
+         "PT J",&
+         "AU Tao, JM",&
+         "   Perdew, JP",&
+         "   Staroverov, VN",&
+         "   Scuseria, GE",&
+         "TI Climbing the density functional ladder: Nonempirical meta-generalized",&
+         "   gradient approximation designed for molecules and solids",&
+         "SO PHYSICAL REVIEW LETTERS",&
+         "PD OCT 3",&
+         "PY 2003",&
+         "VL 91",&
+         "IS 14",&
+         "AR 146401",&
+         "DI 10.1103/PhysRevLett.91.146401",&
+         "UT ISI:000185719500032",&
+         "ER"),&
+         DOI="10.1103/PhysRevLett.91.146401")
 
-     CALL add_reference(key=VandeVondele2006,ISI_record=s2a(&
-          "PT C",&
-          "AU VandeVondele, J",&
-          "   Iannuzzi, M",&
-          "   Hutter, J",&
-          "ED Ferrario, M; Ciccotti, G; Binder, K",&
-          "TI Large scale condensed matter calculations using the gaussian and",&
-          "   augmented plane waves method",&
-          "SO Computer Simulations in Condensed Matter Systems: From Materials to",&
-          "   Chemical Biology, Vol 1",&
-          "SE LECTURE NOTES IN PHYSICS",&
-          "LA English",&
-          "DT Proceedings Paper",&
-          "CT Conference on Computer Simulations in Condensed Matter Systems",&
-          "CY JUL, 2005",&
-          "CL Erice, ITALY",&
-          "SP Ctr Sci Culture",&
-          "HO Ettore Majorana Fdn",&
-          "NR 35",&
-          "TC 2",&
-          "PU SPRINGER",&
-          "PI NEW YORK",&
-          "PA 233 SPRING STREET, NEW YORK, NY 10013, UNITED STATES",&
-          "SN 0075-8450",&
-          "BN 978-3-540-35270-9",&
-          "J9 LECT NOTES PHYS",&
-          "PY 2006",&
-          "VL 703",&
-          "BP 287",&
-          "EP 314",&
-          "DI 10.1007/3-540-35273-2_8",&
-          "PG 28",&
-          "SC Physics, Multidisciplinary",&
-          "GA BFQ13",&
-          "UT ISI:000243725000009",&
-          "ER"),& 
-          DOI="10.1007/3-540-35273-2_8")
+    CALL add_reference(key=VandeVondele2006,ISI_record=s2a(&
+         "PT C",&
+         "AU VandeVondele, J",&
+         "   Iannuzzi, M",&
+         "   Hutter, J",&
+         "ED Ferrario, M; Ciccotti, G; Binder, K",&
+         "TI Large scale condensed matter calculations using the gaussian and",&
+         "   augmented plane waves method",&
+         "SO Computer Simulations in Condensed Matter Systems: From Materials to",&
+         "   Chemical Biology, Vol 1",&
+         "SE LECTURE NOTES IN PHYSICS",&
+         "LA English",&
+         "DT Proceedings Paper",&
+         "CT Conference on Computer Simulations in Condensed Matter Systems",&
+         "CY JUL, 2005",&
+         "CL Erice, ITALY",&
+         "SP Ctr Sci Culture",&
+         "HO Ettore Majorana Fdn",&
+         "NR 35",&
+         "TC 2",&
+         "PU SPRINGER",&
+         "PI NEW YORK",&
+         "PA 233 SPRING STREET, NEW YORK, NY 10013, UNITED STATES",&
+         "SN 0075-8450",&
+         "BN 978-3-540-35270-9",&
+         "J9 LECT NOTES PHYS",&
+         "PY 2006",&
+         "VL 703",&
+         "BP 287",&
+         "EP 314",&
+         "DI 10.1007/3-540-35273-2_8",&
+         "PG 28",&
+         "SC Physics, Multidisciplinary",&
+         "GA BFQ13",&
+         "UT ISI:000243725000009",&
+         "ER"),& 
+         DOI="10.1007/3-540-35273-2_8")
 
-     CALL add_reference(key=Grimme2006,ISI_record=s2a(&
-          "PT J",&
-          "AU Grimme, S",&
-          "AF Grimme, Stefan",&
-          "TI Semiempirical GGA-type density functional constructed with a long-range",&
-          "   dispersion correction",&
-          "SO JOURNAL OF COMPUTATIONAL CHEMISTRY",&
-          "SN 0192-8651",&
-          "PD NOV 30",&
-          "PY 2006",&
-          "VL 27",&
-          "IS 15",&
-          "BP 1787",&
-          "EP 1799",&
-          "DI 10.1002/jcc.20495",&
-          "UT ISI:000241477200003",&
-          "ER"),&
-          DOI="10.1002/jcc.20495")
+    CALL add_reference(key=Grimme2006,ISI_record=s2a(&
+         "PT J",&
+         "AU Grimme, S",&
+         "AF Grimme, Stefan",&
+         "TI Semiempirical GGA-type density functional constructed with a long-range",&
+         "   dispersion correction",&
+         "SO JOURNAL OF COMPUTATIONAL CHEMISTRY",&
+         "SN 0192-8651",&
+         "PD NOV 30",&
+         "PY 2006",&
+         "VL 27",&
+         "IS 15",&
+         "BP 1787",&
+         "EP 1799",&
+         "DI 10.1002/jcc.20495",&
+         "UT ISI:000241477200003",&
+         "ER"),&
+         DOI="10.1002/jcc.20495")
 
-      CALL add_reference(key=Branduardi2007,ISI_record=s2a(&
-          "PT J",& 
-          "AU Branduardi, D",&
-          "   Gervasio, FL",&
-          "   Parrinello, M",&
-          "AF Branduardi, Davide",&
-          "   Gervasio, Francesco Luigi",&
-          "   Parrinello, Michele",&
-          "TI From A to B in free energy space",&
-          "SO JOURNAL OF CHEMICAL PHYSICS",&
-          "SN 0021-9606",&
-          "PD FEB 7",&
-          "PY 2007",&
-          "VL 126",&
-          "IS 5",&
-          "AR 054103",&
-          "DI 10.1063/1.2432340",&
-          "UT ISI:000244044600009",&
-          "ER"),&
-          DOI="10.1063/1.2432340")
-      CALL add_reference(key=Schenter2008,ISI_record=s2a(&
-          "PT J",& 
-          "AU Chang, DT",&
-          "   Schenter, GK",&
-          "   Garrett, BC ",&
-          "TI Self-consistent polarization neglect of diatomic differential overlap: Applications to water clusters",&
-          "SO JOURNAL OF CHEMICAL PHYSICS",&
-          "SN 0021-9606",&
-          "PD APR 28",&
-          "PY 2008",&
-          "VL 128",&
-          "IS 16",&
-          "AR 164111",&
-          "DI 10.1063/1.2905230",&
-          "ER"),&
-          DOI="10.1063/1.2905230")
+    CALL add_reference(key=Branduardi2007,ISI_record=s2a(&
+         "PT J",& 
+         "AU Branduardi, D",&
+         "   Gervasio, FL",&
+         "   Parrinello, M",&
+         "AF Branduardi, Davide",&
+         "   Gervasio, Francesco Luigi",&
+         "   Parrinello, Michele",&
+         "TI From A to B in free energy space",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD FEB 7",&
+         "PY 2007",&
+         "VL 126",&
+         "IS 5",&
+         "AR 054103",&
+         "DI 10.1063/1.2432340",&
+         "UT ISI:000244044600009",&
+         "ER"),&
+         DOI="10.1063/1.2432340")
+    CALL add_reference(key=Schenter2008,ISI_record=s2a(&
+         "PT J",& 
+         "AU Chang, DT",&
+         "   Schenter, GK",&
+         "   Garrett, BC ",&
+         "TI Self-consistent polarization neglect of diatomic differential overlap: Applications to water clusters",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD APR 28",&
+         "PY 2008",&
+         "VL 128",&
+         "IS 16",&
+         "AR 164111",&
+         "DI 10.1063/1.2905230",&
+         "ER"),&
+         DOI="10.1063/1.2905230")
+
+    CALL add_reference(key=Proynov2007, ISI_record=s2a(&
+         "AU Proynov, E",&
+         "   Gan, Z",&
+         "   Kong, J",&
+         "AF Proynov, Emil",&
+         "   Gan, Zhenting",&
+         "   Kong, Jing",&
+         "TI Analytical representation of the Becke-Roussel exchange functional",&
+         "SO CHEMICAL PHYSICS LETTERS",&
+         "SN 0009-2614",&
+         "PD MAR 31",&
+         "PY 2008",&
+         "VL 455",&
+         "IS 1-3",&
+         "BP 103",&
+         "EP 109",&
+         "DI 10.1016/j.cplett.2008.02.039",&
+         "UT ISI:000254425400020",&
+         "ER"),&
+         DOI="10.1016/j.cplett.2008.02.039")
+
+    CALL add_reference(key=BeckeRoussel1989, ISI_record=s2a(&
+         "AU BECKE, AD",&
+         "   ROUSSEL, MR",&
+         "TI EXCHANGE HOLES IN INHOMOGENEOUS SYSTEMS - A COORDINATE-SPACE MODEL",&
+         "SO PHYSICAL REVIEW A",&
+         "DT Article",&
+         "RP BECKE, AD, QUEENS UNIV,DEPT CHEM,KINGSTON K7L 3N6,ONTARIO,CANADA.",&
+         "NR 17",&
+         "TC 114",&
+         "PU AMERICAN PHYSICAL SOC",&
+         "PI COLLEGE PK",&
+         "PA ONE PHYSICS ELLIPSE, COLLEGE PK, MD 20740-3844 USA",&
+         "SN 1050-2947",&
+         "J9 PHYS REV A",&
+         "JI Phys. Rev. A",&
+         "PD APR 15",&
+         "PY 1989",&
+         "VL 39",&
+         "IS 8",&
+         "BP 3761",&
+         "EP 3767",&
+         "PG 7",&
+         "SC Optics; Physics, Atomic, Molecular & Chemical",&
+         "GA U3175",&
+         "UT ISI:A1989U317500001",&
+         "ER"),&
+         DOI="10.1103/PhysRevA.39.3761")
 
    END SUBROUTINE add_all_references
 
