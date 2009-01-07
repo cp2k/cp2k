@@ -967,8 +967,9 @@ MODULE hfx_derivatives
       offset_d1, stat
     LOGICAL                                  :: failure
     REAL(dp) :: B11(3), C11(3), D11(3), Eta, im_B(3), im_D(3), P(3), &
-      pbc_B(3), pbc_D(3), PQ(3), Q(3), s(3), shift(3), temp(3), tmp_D(3), &
-      tmp_max_all, Zeta1, Zeta_A, Zeta_B, Zeta_C, Zeta_D
+      pbc_B(3), pbc_D(3), PQ(3), Q(3), s(3), s1(3), s2(3), s3(3), s4(3), &
+      shift(3), temp(3), tmp_D(3), tmp_max_all, Zeta1, Zeta_A, Zeta_B, &
+      Zeta_C, Zeta_D
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: tmp_cart_estimate
 
     failure = .FALSE.
@@ -981,17 +982,17 @@ MODULE hfx_derivatives
     temp = rb -ra
     pbc_B = pbc(temp, cell)
     B11 = ra + pbc_B
+    CALL real_to_scaled(s1,B11,cell)
     temp = rd-rc
     pbc_D = pbc(temp,cell)
     D11 = rc + pbc_D
+    CALL real_to_scaled(s2,D11,cell)
     DO i = 1,SIZE(neighbor_cells)
-      CALL real_to_scaled(s,B11,cell)
-      s = s + neighbor_cells(i)%cell
+      s = s1 + neighbor_cells(i)%cell
       CALL scaled_to_real(im_B,s,cell)
       DO j = 1,SIZE(neighbor_cells)
         IF(screen1(i)*screen2(j)<eps_schwarz) CYCLE
-        CALL real_to_scaled(s,D11,cell)
-        s = s + neighbor_cells(j)%cell
+        s = s2 + neighbor_cells(j)%cell
         CALL scaled_to_real(im_D,s,cell)
         DO lpgf = 1,npgfd
           offset_d1 = (lpgf-1)*ncoset(ld_max)
@@ -1018,12 +1019,14 @@ MODULE hfx_derivatives
                       temp = P-Q
                       PQ = pbc(temp, cell)
                       shift = -PQ + temp
+                      temp = rc+shift
+                      CALL real_to_scaled(s3,temp,cell)
+                      temp = im_D+shift
+                      CALL real_to_scaled(s4,temp,cell)
                       DO k=1,SIZE(neighbor_cells)
-                        CALL real_to_scaled(s,rc+shift,cell)
-                        s = s + neighbor_cells(k)%cell
+                        s = s3 + neighbor_cells(k)%cell
                         CALL scaled_to_real(C11,s,cell)
-                        CALL real_to_scaled(s,im_D+shift,cell)
-                        s = s + neighbor_cells(k)%cell
+                        s = s4 + neighbor_cells(k)%cell
                         CALL scaled_to_real(tmp_D,s,cell)
                         DO la = la_min,la_max
                           offset_a = offset_a1 + ncoset(la-1)

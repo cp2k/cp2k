@@ -438,7 +438,7 @@ MODULE hfx_screening_methods
       nsetb = basis_parameter(jkind)%nset
       zetb => basis_parameter(jkind)%zet
       rb=particle_set(jatom)%r(:)
-      DO katom = jatom,natom
+      DO katom = 1,natom!jatom,natom
         kkind = kind_of(katom)
         lc_max => basis_parameter(kkind)%lmax
         lc_min => basis_parameter(kkind)%lmin
@@ -470,16 +470,17 @@ MODULE hfx_screening_methods
       END DO
     END DO
     !! Symmetrize it
-    DO jatom=1,natom
-      DO katom=jatom,natom
-        screen_atom(katom,jatom) = screen_atom(jatom,katom)
-        DO jset=1,max_set
-          DO kset=1,max_set
-            screen_set(kset,jset,katom,jatom) = screen_set(jset,kset,jatom,katom)
-          END DO
-        END DO
-      END DO
-    END DO
+    !! temporarily disable this
+!    DO jatom=1,natom
+!      DO katom=jatom,natom
+!        screen_atom(katom,jatom) = screen_atom(jatom,katom)
+!        DO jset=1,max_set
+!          DO kset=1,max_set
+!            screen_set(kset,jset,katom,jatom) = screen_set(jset,kset,jatom,katom)
+!          END DO
+!        END DO
+!      END DO
+!    END DO
 
     screen_max=MAXVAL(screen_atom)
     DEALLOCATE(contraction_max,max_val, STAT=stat)

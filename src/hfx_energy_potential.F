@@ -1758,7 +1758,7 @@ MODULE hfx_energy_potential
                           potential_parameter, neighbor_cells, &
                           screen1, screen2, eps_schwarz, max_contraction_val, &
                           cart_estimate, i_thread, cell, neris_tmp, error)
-  
+
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     INTEGER, INTENT(IN)                      :: npgfa, ld_max, ld_min, &
                                                 lc_max, lc_min, lb_max, &
@@ -1791,8 +1791,9 @@ MODULE hfx_energy_potential
       offset_d1, stat
     LOGICAL                                  :: failure
     REAL(dp) :: B11(3), C11(3), D11(3), Eta, im_B(3), im_D(3), P(3), &
-      pbc_B(3), pbc_D(3), PQ(3), Q(3), s(3), shift(3), temp(3), tmp_D(3), &
-      tmp_max, Zeta1, Zeta_A, Zeta_B, Zeta_C, Zeta_D
+      pbc_B(3), pbc_D(3), PQ(3), Q(3), s(3), s1(3), s2(3), s3(3), s4(3), &
+      shift(3), temp(3), tmp_D(3), tmp_max, Zeta1, Zeta_A, Zeta_B, Zeta_C, &
+      Zeta_D
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: tmp_cart_estimate
 
     failure = .FALSE.
@@ -1800,22 +1801,22 @@ MODULE hfx_energy_potential
     neris_tmp = 0
     ALLOCATE(tmp_cart_estimate(SIZE(neighbor_cells), SIZE(neighbor_cells)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    tmp_cart_estimate = 0.0_dp 
+    tmp_cart_estimate = 0.0_dp
     primitive_integrals = 0.0_dp
     temp = rb -ra
     pbc_B = pbc(temp,cell)
     B11 = ra + pbc_B
+    CALL real_to_scaled(s1,B11,cell)
     temp = rd-rc
     pbc_D = pbc(temp,cell)
     D11 = rc + pbc_D
+    CALL real_to_scaled(s2,D11,cell)
     DO i = 1,SIZE(neighbor_cells)
-      CALL real_to_scaled(s,B11,cell)
-      s = s + neighbor_cells(i)%cell
+      s = s1 + neighbor_cells(i)%cell
       CALL scaled_to_real(im_B,s,cell)
       DO j = 1,SIZE(neighbor_cells)
         IF(screen1(i)*screen2(j)<eps_schwarz) CYCLE
-        CALL real_to_scaled(s,D11,cell)
-        s = s + neighbor_cells(j)%cell
+        s = s2 + neighbor_cells(j)%cell
         CALL scaled_to_real(im_D,s,cell)
         DO lpgf = 1,npgfd
           offset_d1 = (lpgf-1)*ncoset(ld_max)
@@ -1842,12 +1843,14 @@ MODULE hfx_energy_potential
                       temp = P-Q
                       PQ = pbc(temp,cell)
                       shift = -PQ + temp
+                      temp = rc+shift
+                      CALL real_to_scaled(s3,temp,cell)
+                      temp = im_D+shift
+                      CALL real_to_scaled(s4,temp,cell)
                       DO k = 1,SIZE(neighbor_cells)
-                        CALL real_to_scaled(s,rc+shift,cell)
-                        s = s + neighbor_cells(k)%cell
+                        s = s3 + neighbor_cells(k)%cell
                         CALL scaled_to_real(C11,s,cell)
-                        CALL real_to_scaled(s,im_D+shift,cell)
-                        s = s + neighbor_cells(k)%cell
+                        s = s4 + neighbor_cells(k)%cell
                         CALL scaled_to_real(tmp_D,s,cell)
                         DO la = la_min,la_max
                           offset_a = offset_a1 + ncoset(la-1)
