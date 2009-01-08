@@ -943,7 +943,7 @@ MODULE hfx_types
       IF(x_data%periodic_parameter%number_of_shells == do_hfx_auto_shells ) THEN 
         ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        x_data%neighbor_cells(1:total_number_of_cells) = tmp_neighbor_cells
+        x_data%neighbor_cells(1:total_number_of_cells) = tmp_neighbor_cells(1:total_number_of_cells)
         pbc_shells = nshells - 1
       ELSE
         IF( x_data%periodic_parameter%number_of_shells < nshells - 1) THEN
