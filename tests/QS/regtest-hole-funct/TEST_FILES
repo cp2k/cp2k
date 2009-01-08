@@ -1,0 +1,13 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+CH_BeckeRoussel_R_0.0.inp     1
+CH_BeckeRoussel_R_1.0.inp     1
+H2O_BeckeRoussel_R_0.0.inp    1
+H2O_BeckeRoussel_R_1.0.inp    1
+H2O_LDA_HOLE_T_C_LR_1.0.inp   1
+CH_LDA_HOLE_T_C_LR_1.0.inp    1
+H2O_PBE_HOLE_T_C_LR_1.0.inp   1
+CH_PBE_HOLE_T_C_LR_1.0.inp    1
+CH_GV09_1.0.inp               1
+H2O_GV09_1.0.inp              1
