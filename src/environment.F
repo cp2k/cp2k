@@ -139,8 +139,11 @@ CONTAINS
 #include "f_hpm.h"
 #endif
 
+    pid = 0
     CALL m_getpid(pid)
+    user_name = ""
     CALL m_getlog(user_name)
+    host_name = ""
     CALL m_hostnm(host_name)
 
     ! create a timer_env
@@ -841,10 +844,15 @@ CONTAINS
        iw=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
             extension=".log",error=error)
 
+       datx = ""
        CALL m_datum(datx)
+       cwd = ""
        CALL m_getcwd(cwd)
+       user_name = ""
        CALL m_getlog(user_name)
+       pid = 0
        CALL m_getpid(pid)
+       host_name = ""
        CALL m_hostnm(host_name)
 
        ! Deleting (if existing) the external EXIT files
