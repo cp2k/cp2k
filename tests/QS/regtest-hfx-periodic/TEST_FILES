@@ -1,0 +1,11 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+H2O-trunc-2.inp               1
+H2O-trunc-auto.inp            1
+H2O-coul-0.inp                1
+H2O-trunc-auto-md.inp         2
+CH3-trunc-auto.inp            1
+CH3-trunc-1.inp               1
+CH3-trunc-auto-md.inp         2
+CH3-coul-0.inp                1

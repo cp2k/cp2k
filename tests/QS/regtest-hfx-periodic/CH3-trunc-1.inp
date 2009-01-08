@@ -1,0 +1,67 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    LSD
+    BASIS_SET_FILE_NAME ../EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    &MGRID
+      CUTOFF 200
+      REL_CUTOFF 50
+    &END MGRID
+    &QS
+      METHOD GAPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC
+      MAX_SCF 50
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE 
+      &END XC_FUNCTIONAL
+      &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-7
+          EPS_BOX 1.0E-8
+          SCREEN_ON_INITIAL_P FALSE
+        &END
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS 2.0
+          T_C_G_DATA ../t_c_g.dat
+        &END
+        &MEMORY
+          MAX_MEMORY 10
+        &END
+        &PERIODIC
+          NUMBER_OF_SHELLS 1
+        &END 
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+    C   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    H   0.757136    0.520545    0.000000
+    &END COORD
+    &KIND H
+      BASIS_SET 6-31Gxx
+      POTENTIAL ALL
+    &END KIND
+    &KIND C
+      BASIS_SET 6-31Gxx
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT CH3_trunc_1
+  PRINT_LEVEL MEDIUM 
+  RUN_TYPE ENERGY
+&END GLOBAL
