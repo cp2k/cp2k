@@ -1720,7 +1720,8 @@ CONTAINS
 
     INTEGER :: handle, icenter, idir, idir2, ii, iiB, iii, iiiB, ispin, &
       istat, istate, j, nao, nbr_center(2), nspins, output_unit
-    LOGICAL                                  :: failure, gapw, ionode
+    LOGICAL                                  :: add_center_shift, failure, &
+                                                gapw, ionode
     REAL(dp)                                 :: chi(3), chi_tmp, contrib, &
                                                 contrib2, dk(3), &
                                                 int_current(3), &
@@ -1734,8 +1735,11 @@ CONTAINS
     TYPE(cp_2d_r_p_type)                     :: vecbuf_1_p(3)
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: centers_set
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: p_rxp, r_p1, r_p2
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: psi1_D, psi1_p, psi1_rxp
+      POINTER                                :: psi1_D, psi1_p, psi1_rxp, &
+                                                rr_p1, rr_p2, rr_rxp
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff, momxpsi_istate, &
                                                 psi0_istate, psi_p1_istate, &
@@ -1751,13 +1755,14 @@ CONTAINS
       DIMENSION(:, :), POINTER               :: op_mom_der_ao
 
     failure = .FALSE.
+    add_center_shift = .TRUE.
     !
     CALL timeset(routineN,handle)
     !
     NULLIFY(dft_control,matrix_s,mos,para_env,mo_coeff,occupation,op_mom_ao,&
          &  op_mom_der_ao,center_list,centers_set,psi0_istate,psi_rxp_istate,&
-         &  psi_p1_istate,psi_p2_istate,momxpsi_istate,op_p_ao,psi1_p,psi1_rxp,&
-         &  psi1_D,cell)
+         &  psi_p1_istate,psi_p2_istate,op_p_ao,psi1_p,psi1_rxp,&
+         &  psi1_D,p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2,cell)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -1836,12 +1841,29 @@ CONTAINS
          &                   ncol_global=1,para_env=para_env,&
          &                   context=mo_coeff%matrix_struct%context,&
          &                   error=error)
-    CALL cp_fm_create(psi0_istate, tmp_fm_struct ,error=error)
-    CALL cp_fm_create(psi_rxp_istate, tmp_fm_struct ,error=error)
-    CALL cp_fm_create(psi_p1_istate, tmp_fm_struct ,error=error)
-    CALL cp_fm_create(psi_p2_istate, tmp_fm_struct ,error=error)
-    CALL cp_fm_create(momxpsi_istate, tmp_fm_struct ,error=error)
-    CALL cp_fm_struct_release( tmp_fm_struct ,error=error)
+    CALL cp_fm_create(psi0_istate,tmp_fm_struct,error=error)
+    CALL cp_fm_create(psi_rxp_istate,tmp_fm_struct,error=error)
+    CALL cp_fm_create(psi_p1_istate,tmp_fm_struct,error=error)
+    CALL cp_fm_create(psi_p2_istate,tmp_fm_struct,error=error)
+    CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+    !
+    ALLOCATE(p_rxp(3),r_p1(3),r_p2(3),rr_rxp(9,3),rr_p1(9,3),rr_p2(9,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+         &                   ncol_global=1,para_env=para_env,&!ncol_global=max_states
+         &                   context=mo_coeff%matrix_struct%context,&
+         &                   error=error)
+    DO idir = 1,3
+       CALL cp_fm_create(p_rxp(idir)%matrix,tmp_fm_struct,error=error)
+       CALL cp_fm_create(r_p1(idir)%matrix,tmp_fm_struct,error=error)
+       CALL cp_fm_create(r_p2(idir)%matrix,tmp_fm_struct,error=error)
+       DO idir2 = 1,9
+          CALL cp_fm_create(rr_rxp(idir2,idir)%matrix,tmp_fm_struct,error=error)
+          CALL cp_fm_create(rr_p1(idir2,idir)%matrix,tmp_fm_struct,error=error)
+          CALL cp_fm_create(rr_p2(idir2,idir)%matrix,tmp_fm_struct,error=error)
+       ENDDO
+    ENDDO
+    CALL cp_fm_struct_release(tmp_fm_struct,error=error)
     !
     ! Allocate buffer vectors
     NULLIFY(vecbuf_0,vecbuf_1_rxp,vecbuf_1_d)
@@ -1880,14 +1902,12 @@ CONTAINS
           DO idir = 1,9
              CALL set_matrix(op_mom_ao(idir)%matrix,0.0_dp)
              DO idir2 = 1,3
-                CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix, 0.0_dp)
+                CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix,0.0_dp)
              ENDDO
           ENDDO
-          !
-          !WRITE(*,*) ' state ', istate, dk(1:3)
           CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
                &              minimum_image=.FALSE.,soft=gapw,error=error)
-
+          !
           DO j = center_list(ispin)%array(1,icenter),center_list(ispin)%array(1,icenter+1)-1
              istate = center_list(ispin)%array(2,j)
              !
@@ -1925,6 +1945,29 @@ CONTAINS
              CALL cp_fm_set_submatrix(psi_p2_istate,vecbuf_1_p(iiiB)%array,1,1,&
                   &                   nao,1,transpose=.TRUE.,error=error)
              !
+             !
+             DO idir = 1,3
+                CALL set_vecp(idir,ii,iii)
+                CALL cp_sm_fm_multiply(op_p_ao(idir)%matrix,psi_rxp_istate,&
+                     &                 p_rxp(idir)%matrix,ncol=1,alpha=1.e0_dp,error=error)
+                IF(iiiB==iii.OR.iiiB==ii) THEN
+                   CALL cp_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p1_istate,&
+                        &                 r_p1(idir)%matrix,ncol=1,alpha=1.e0_dp,error=error)
+                ENDIF
+                IF(iiB==iii.OR.iiB==ii) THEN
+                   CALL cp_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p2_istate,&
+                        &                 r_p2(idir)%matrix,ncol=1,alpha=1.e0_dp,error=error)
+                ENDIF
+                DO idir2 = 1,9
+                   CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_rxp_istate,&
+                        &                 rr_rxp(idir2,idir)%matrix,ncol=1,alpha=1.e0_dp,error=error)
+                   CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p1_istate,&
+                        &                 rr_p1(idir2,idir)%matrix,ncol=1,alpha=1.e0_dp,error=error)
+                   CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p2_istate,&
+                        &                 rr_p2(idir2,idir)%matrix,ncol=1,alpha=1.e0_dp,error=error)
+                ENDDO
+             ENDDO
+             !
              ! Multuply left and right by the appropriate coefficients and sum into the
              ! correct component of the chi tensor using the appropriate multiplicative factor
              ! (don't forget the occupation number)
@@ -1941,60 +1984,44 @@ CONTAINS
                 ! term: 2[C0| (r-dk)_ii |d_iii(C1(rxp-D))]-2[C0| (r-dk)_iii |d_ii(C1(rxp-D))]
                 ! the factor 2 should be already included in the matrix elements
                 contrib = 0.0_dp
-                CALL cp_sm_fm_multiply(op_mom_der_ao(ii,iii)%matrix,psi_rxp_istate,&
-                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+                CALL cp_fm_trace(psi0_istate,rr_rxp(ii,iii)%matrix,contrib,error=error)
                 chi_tmp = chi_tmp + 2.0_dp * contrib
                 !
                 contrib = 0.0_dp
-                CALL cp_sm_fm_multiply(op_mom_der_ao(iii,ii)%matrix,psi_rxp_istate,&
-                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+                CALL cp_fm_trace(psi0_istate,rr_rxp(iii,ii)%matrix,contrib,error=error)
                 chi_tmp = chi_tmp - 2.0_dp *contrib
                 !
                 ! correction: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
                 ! factor 2 not included in the matrix elements
                 contrib = 0.0_dp
-                CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,psi_rxp_istate,&
-                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
-                chi_tmp = chi_tmp + 2.0_dp*dk(ii)*contrib
+                CALL cp_fm_trace(psi0_istate,p_rxp(iii)%matrix,contrib,error=error)
+                IF(add_center_shift) chi_tmp = chi_tmp + 2.0_dp*dk(ii)*contrib
                 int_current_tmp = int_current_tmp + 2.0_dp*contrib
                 !
                 contrib2 = 0.0_dp
-                CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,psi_rxp_istate,&
-                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
-                chi_tmp = chi_tmp - 2.0_dp*dk(iii)*contrib2
+                CALL cp_fm_trace(psi0_istate,p_rxp(ii)%matrix,contrib2,error=error)
+                IF(add_center_shift) chi_tmp = chi_tmp - 2.0_dp*dk(iii)*contrib2
                 !
                 ! term: -2[C0| (r-dk)_ii  (r-dk)_iiB | d_iii(C1(piiiB))] \
                 !       +2[C0| (r-dk)_iii (r-dk)_iiB | d_ii(C1(piiiB))]
                 ! the factor 2 should be already included in the matrix elements
                 contrib = 0.0_dp
                 idir2 = ind_m2(ii,iiB)
-                CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p2_istate,&
-                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+                CALL cp_fm_trace(psi0_istate,rr_p2(idir2,iii)%matrix,contrib,error=error)
                 chi_tmp = chi_tmp - 2.0_dp * contrib
                 contrib2 = 0.0_dp
                 IF(iiB==iii) THEN
-                   CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p2_istate,&
-                        &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                   CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
+                   CALL cp_fm_trace(psi0_istate,r_p2(ii)%matrix,contrib2,error=error)
                    chi_tmp = chi_tmp - contrib2
                 ENDIF
-
+                !
                 contrib = 0.0_dp
                 idir2 = ind_m2(iii,iiB)
-                CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p2_istate,&
-                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+                CALL cp_fm_trace(psi0_istate,rr_p2(idir2,ii)%matrix,contrib,error=error)
                 chi_tmp = chi_tmp + 2.0_dp * contrib
                 contrib2 = 0.0_dp
                 IF(iiB==ii) THEN
-                   CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p2_istate,&
-                        &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                   CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
+                   CALL cp_fm_trace(psi0_istate,r_p2(iii)%matrix,contrib2,error=error)
                    chi_tmp = chi_tmp + contrib2
                 ENDIF
                 !
@@ -2003,46 +2030,34 @@ CONTAINS
                 ! the factor 2 should be already included in the matrix elements
                 ! no additional correction terms because of the orthogonality between C0 and C1
                 contrib = 0.0_dp
-                CALL cp_sm_fm_multiply(op_mom_der_ao(iiB,iii)%matrix,psi_p2_istate,&
-                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
-                chi_tmp = chi_tmp - 2.0_dp*dk(ii)*contrib
+                CALL cp_fm_trace(psi0_istate,rr_p2(iiB,iii)%matrix,contrib,error=error)
+                IF(add_center_shift) chi_tmp = chi_tmp - 2.0_dp*dk(ii)*contrib
                 int_current_tmp = int_current_tmp - 2.0_dp*contrib
                 !
                 contrib2 = 0.0_dp
-                CALL cp_sm_fm_multiply(op_mom_der_ao(iiB,ii)%matrix,psi_p2_istate,&
-                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
-                chi_tmp = chi_tmp + 2.0_dp*dk(iii)*contrib2
+                CALL cp_fm_trace(psi0_istate,rr_p2(iiB,ii)%matrix,contrib2,error=error)
+                IF(add_center_shift) chi_tmp = chi_tmp + 2.0_dp*dk(iii)*contrib2
                 !
                 ! term: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] \
                 !       -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))]
                 ! the factor 2 should be already included in the matrix elements
                 contrib = 0.0_dp
                 idir2 = ind_m2(ii,iiiB)
-                CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p1_istate,&
-                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+                CALL cp_fm_trace(psi0_istate,rr_p1(idir2,iii)%matrix,contrib,error=error)
                 chi_tmp = chi_tmp + 2.0_dp*contrib
                 contrib2 = 0.0_dp
                 IF(iiiB==iii) THEN
-                   CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p1_istate,&
-                        &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                   CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
+                   CALL cp_fm_trace(psi0_istate,r_p1(ii)%matrix,contrib2,error=error)
                    chi_tmp = chi_tmp + contrib2
                 ENDIF
-             
+                !
                 contrib = 0.0_dp
                 idir2 = ind_m2(iii,iiiB)
-                CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p1_istate,&
-                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+                CALL cp_fm_trace(psi0_istate,rr_p1(idir2,ii)%matrix,contrib,error=error)
                 chi_tmp = chi_tmp - 2.0_dp * contrib
                 contrib2 = 0.0_dp
                 IF(iiiB==ii) THEN
-                   CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p1_istate,&
-                        &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                   CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
+                   CALL cp_fm_trace(psi0_istate,r_p1(iii)%matrix,contrib2,error=error)
                    chi_tmp = chi_tmp - contrib2
                 ENDIF
                 !
@@ -2050,17 +2065,15 @@ CONTAINS
                 !             -dk_iii * 2[C0|(r-dk)_iiiB | d_ii(C1(piiB))]
                 ! the factor 2 should be already included in the matrix elements
                 contrib = 0.0_dp
-                CALL cp_sm_fm_multiply(op_mom_der_ao(iiiB,iii)%matrix,psi_p1_istate,&
-                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
-                chi_tmp = chi_tmp + 2.0_dp*dk(ii)*contrib
+                CALL cp_fm_trace(psi0_istate,rr_p1(iiiB,iii)%matrix,contrib,error=error)
+                IF(add_center_shift) chi_tmp = chi_tmp + 2.0_dp*dk(ii)*contrib
                 int_current_tmp = int_current_tmp + 2.0_dp*contrib
                 !
                 contrib2 = 0.0_dp
-                CALL cp_sm_fm_multiply(op_mom_der_ao(iiiB,ii)%matrix,psi_p1_istate,&
-                     &                 momxpsi_istate,ncol=1,alpha=1.e0_dp,error=error)
-                CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
-                chi_tmp = chi_tmp - 2.0_dp*dk(iii)*contrib2
+                CALL cp_fm_trace(psi0_istate,rr_p1(iiiB,ii)%matrix,contrib2,error=error)
+                IF(add_center_shift) chi_tmp = chi_tmp - 2.0_dp*dk(iii)*contrib2
+                !
+                ! accumulate
                 chi(idir) = chi(idir) + chi_tmp
                 int_current(iii) = int_current(iii) + int_current_tmp
              ENDDO  ! idir
@@ -2083,12 +2096,22 @@ CONTAINS
     ! deallocate the sparse matrices
     CALL deallocate_matrix_set(op_mom_ao,error=error)
     CALL deallocate_matrix_set(op_mom_der_ao,error=error)
-    CALL cp_fm_release (psi0_istate, error=error )
-    CALL cp_fm_release (psi_rxp_istate, error=error )
-    CALL cp_fm_release (psi_p1_istate, error=error )
-    CALL cp_fm_release (psi_p2_istate, error=error )
-    CALL cp_fm_release (momxpsi_istate, error=error )
-    DEALLOCATE(vecbuf_0,vecbuf_1_rxp,vecbuf_1_d,STAT=istat)
+    CALL cp_fm_release(psi0_istate,error=error)
+    CALL cp_fm_release(psi_rxp_istate,error=error)
+    CALL cp_fm_release(psi_p1_istate,error=error)
+    CALL cp_fm_release(psi_p2_istate,error=error)
+    DO idir = 1,3
+       CALL cp_fm_release(p_rxp(idir)%matrix,error=error)
+       CALL cp_fm_release(r_p1(idir)%matrix,error=error)
+       CALL cp_fm_release(r_p2(idir)%matrix,error=error)
+       DO idir2 = 1,9
+          CALL cp_fm_release(rr_rxp(idir2,idir)%matrix,error=error)
+          CALL cp_fm_release(rr_p1(idir2,idir)%matrix,error=error)
+          CALL cp_fm_release(rr_p2(idir2,idir)%matrix,error=error)
+       ENDDO
+    ENDDO
+    DEALLOCATE(vecbuf_0,vecbuf_1_rxp,vecbuf_1_d,p_rxp,r_p1,r_p2,&
+         &     rr_rxp,rr_p1,rr_p2,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO idir = 1,3
        DEALLOCATE(vecbuf_1_p(idir)%array,STAT=istat)
