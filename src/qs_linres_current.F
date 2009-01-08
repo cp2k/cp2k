@@ -1741,9 +1741,9 @@ CONTAINS
       POINTER                                :: psi1_D, psi1_p, psi1_rxp, &
                                                 rr_p1, rr_p2, rr_rxp
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, momxpsi_istate, &
-                                                psi0_istate, psi_p1_istate, &
-                                                psi_p2_istate, psi_rxp_istate
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, psi0_istate, &
+                                                psi_p1_istate, psi_p2_istate, &
+                                                psi_rxp_istate
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
