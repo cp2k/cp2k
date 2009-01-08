@@ -89,6 +89,18 @@ MODULE xc_derivatives
                                              xbecke_roussel_lda_info,&
                                              xbecke_roussel_lsd_eval,&
                                              xbecke_roussel_lsd_info
+  USE xc_xbr_pbe_lda_hole_t_c_lr,      ONLY: xbr_pbe_lda_hole_tc_lr_lda_eval,&
+                                             xbr_pbe_lda_hole_tc_lr_lda_info,&
+                                             xbr_pbe_lda_hole_tc_lr_lsd_eval,&
+                                             xbr_pbe_lda_hole_tc_lr_lsd_info
+  USE xc_xlda_hole_t_c_lr,             ONLY: xlda_hole_t_c_lr_lda_eval,&
+                                             xlda_hole_t_c_lr_lda_info,&
+                                             xlda_hole_t_c_lr_lsd_eval,&
+                                             xlda_hole_t_c_lr_lsd_info
+  USE xc_xpbe_hole_t_c_lr,             ONLY: xpbe_hole_t_c_lr_lda_eval,&
+                                             xpbe_hole_t_c_lr_lda_info,&
+                                             xpbe_hole_t_c_lr_lsd_eval,&
+                                             xpbe_hole_t_c_lr_lsd_info
   USE xc_xwpbe,                        ONLY: xwpbe_lda_eval,&
                                              xwpbe_lda_info,&
                                              xwpbe_lsd_eval,&
@@ -276,7 +288,31 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
           CALL xbecke_roussel_lsd_info(functional,reference,shortform,needs,max_deriv,&
                error=error)
         ELSE
-           CALL xbecke_roussel_lda_info(functional,reference,shortform,needs,max_deriv,&
+          CALL xbecke_roussel_lda_info(functional,reference,shortform,needs,max_deriv,&
+               error=error)
+        END IF
+     CASE("LDA_HOLE_T_C_LR")
+        IF (lsd) THEN
+          CALL xlda_hole_t_c_lr_lsd_info(functional,reference,shortform,needs,max_deriv,&
+               error=error)
+        ELSE
+          CALL xlda_hole_t_c_lr_lda_info(functional,reference,shortform,needs,max_deriv,&
+               error=error)
+        END IF
+     CASE("PBE_HOLE_T_C_LR")
+        IF (lsd) THEN
+          CALL xpbe_hole_t_c_lr_lsd_info(reference,shortform,needs,max_deriv,&
+               error=error)
+        ELSE
+          CALL xpbe_hole_t_c_lr_lda_info(reference,shortform,needs,max_deriv,&
+               error=error)
+        END IF
+     CASE("GV09")
+       IF (lsd) THEN
+          CALL xbr_pbe_lda_hole_tc_lr_lsd_info(reference,shortform,needs,max_deriv,&
+               error=error)
+        ELSE
+          CALL xbr_pbe_lda_hole_tc_lr_lda_info(reference,shortform,needs,max_deriv,&
                 error=error)
         END IF
      CASE default
@@ -481,6 +517,26 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
            CALL xbecke_roussel_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         ELSE
            CALL xbecke_roussel_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        END IF
+     CASE("LDA_HOLE_T_C_LR")
+        IF (lsd) THEN
+          CALL xlda_hole_t_c_lr_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        ELSE
+           CALL xlda_hole_t_c_lr_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        END IF
+     CASE("PBE_HOLE_T_C_LR")
+        IF (lsd) THEN
+          CALL xpbe_hole_t_c_lr_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        ELSE
+           CALL xpbe_hole_t_c_lr_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        END IF
+     CASE("GV09")
+       IF (lsd) THEN
+          CALL xbr_pbe_lda_hole_tc_lr_lsd_eval(rho_set,deriv_set,deriv_order, &
+                                                functional,error=error)
+        ELSE
+          CALL xbr_pbe_lda_hole_tc_lr_lda_eval(rho_set,deriv_set,deriv_order, &
+                                                functional,error=error)
         END IF
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&

@@ -3242,10 +3242,79 @@ CONTAINS
             usage="GAMMA 0.8",default_r_val=1.0_dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL section_create(subsection,name="LDA_HOLE_T_C_LR",&
+            description="LDA exchange hole model in truncated coulomb potential",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+            description="activates the functional",&
+            lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"SCALE_X",&
+            description="scales the exchange part of the functional",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"CUTOFF_RADIUS",&
+            description="Defines cutoff for lower integration boundary",&
+            default_r_val=0.0_dp,unit_str="angstrom", error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_create(subsection,name="PBE_HOLE_T_C_LR",&
+            description="PBE exchange hole model in trucanted coulomb potential",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+            description="activates the functional",&
+            lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"SCALE_X",&
+            description="scales the exchange part of the functional",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"CUTOFF_RADIUS",&
+            description="Defines cutoff for lower integration boundary",&
+            default_r_val=1.0_dp,unit_str="angstrom", error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_create(subsection,name="GV09",&
+            description="Combination of three different exchange hole models",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+            description="activates the functional",&
+            lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"SCALE_X",&
+            description="scales the exchange part of the functional",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"CUTOFF_RADIUS",&
+            description="Defines cutoff for lower integration boundary",&
+            default_r_val=0.0_dp,unit_str="angstrom", error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"GAMMA",&
+            description="Parameter for Becke Roussel hole",&
+            default_r_val=1.0_dp, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
     END IF
   END SUBROUTINE create_xc_fun_section
 
