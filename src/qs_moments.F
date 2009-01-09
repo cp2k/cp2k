@@ -60,14 +60,10 @@ MODULE qs_moments
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             cp_sm_sm_trace,&
-                                             deallocate_matrix,&
-                                             deallocate_matrix_set,&
-                                             get_block_node,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix
+  USE sparse_matrix_types,             ONLY: &
+       allocate_matrix_set, cp_sm_sm_trace, deallocate_matrix, &
+       deallocate_matrix_set, get_block_node, real_matrix_p_type, &
+       real_matrix_type, replicate_matrix, set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -386,8 +382,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
-      istat, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, ldwork, natom, &
-      ncoa, ncob, nkind, nlist, nnode, nseta, nsetb, sgfa, sgfb
+      istat, jatom, jkind, jset, ldab, ldsa, ldsb, ldwork, natom, ncoa, ncob, &
+      nkind, nlist, nnode, nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -434,6 +430,9 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
+
+    CALL set_matrix(cosmat,0.0_dp)
+    CALL set_matrix(sinmat,0.0_dp)
 
     DO ikind=1,nkind
 
@@ -496,23 +495,14 @@ CONTAINS
                                  atom=iatom,&
                                  nnode=nnode)
 
-          last_jatom = 0
-
           neighbor_node => first_node(neighbor_list)
 
+          ! berry phase should be treated fully periodic
           DO inode=1,nnode
 
             CALL get_neighbor_node(neighbor_node=neighbor_node,&
-                                   neighbor=jatom)
-
-            ! this guarentees minimum image convention
-            ! anything else would not make sense
-            IF (jatom == last_jatom) THEN
-              neighbor_node => next(neighbor_node)
-              CYCLE
-            END IF
-
-            last_jatom = jatom
+                                   neighbor=jatom,&
+                                   r=rab(:))
 
             IF (iatom <= jatom) THEN
               irow = iatom
@@ -527,18 +517,14 @@ CONTAINS
                                 block_row=irow,&
                                 block_col=icol,&
                                 BLOCK=cblock)
-            cblock = 0._dp
             NULLIFY (sblock)
             CALL get_block_node(matrix=sinmat,&
                                 block_row=irow,&
                                 block_col=icol,&
                                 BLOCK=sblock)
-            sblock = 0._dp
 
             ra(:) = pbc(particle_set(iatom)%r(:),cell)
-            rb(:) = pbc(particle_set(jatom)%r(:),cell)
-            rab(:) = ra(:) - rb(:)
-            rab(:) = pbc(rab,cell)
+            rb(:) = ra+rab
             dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
 
             DO iset=1,nseta
@@ -645,6 +631,9 @@ CONTAINS
        nmom = MIN(nmoments,2)
 
        nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
+       ! rmom(:,1)=electronic
+       ! rmom(:,2)=nuclear
+       ! rmom(:,1)=total
        ALLOCATE (rmom(nm+1,3),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE (rlab(nm+1),STAT=istat)
@@ -932,7 +921,7 @@ CONTAINS
        CALL cp_results_erase(results=qs_env%results,description=description,error=error)
        CALL put_results(results=qs_env%results,description=description,&
                         values=rmom(2:4,3),error=error)
-       CALL print_moments(unit_number,nmom,rmom,rlab,rcc)
+       CALL print_moments(unit_number,nmom,rmom,rlab,rcc,periodic=.TRUE.)
 
        DEALLOCATE (rmom,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1101,8 +1090,7 @@ CONTAINS
        CALL cp_results_erase(results=qs_env%results,description=description,error=error)
        CALL put_results(results=qs_env%results,description=description,&
                         values=rmom(2:4,3),error=error)
-       CALL print_moments(unit_number,nmom,rmom,rlab,rcc)
-       CALL print_moments(unit_number,nmom,rmom,rlab,rcc)
+       CALL print_moments(unit_number,nmom,rmom,rlab,rcc,periodic=.FALSE.)
 
        DEALLOCATE (rmom,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1136,11 +1124,12 @@ CONTAINS
   END SUBROUTINE set_label
 
 ! *****************************************************************************
-  SUBROUTINE print_moments(unit_number,nmom,rmom,rlab,rcc)
+  SUBROUTINE print_moments(unit_number,nmom,rmom,rlab,rcc,periodic)
     INTEGER, INTENT(IN)                      :: unit_number, nmom
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: rmom
     CHARACTER(LEN=8), DIMENSION(:)           :: rlab
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rcc
+    LOGICAL                                  :: periodic
 
     INTEGER                                  :: i, i0, i1, j, l
     REAL(dp)                                 :: dd
@@ -1154,6 +1143,12 @@ CONTAINS
             WRITE(unit_number,"(T5,A,T18,F12.4,T36,A,T42,F12.4,T60,A,T68,F12.4)") &
              "Electronic=",rmom(1,1),"Core=",rmom(1,2),"Total=",rmom(1,3)
           CASE (1)
+            IF (periodic) THEN
+                WRITE(unit_number,"(T3,A)") "Dipoles are based on the periodic (Berry phase) operator."
+                WRITE(unit_number,"(T3,A)") "The dipole is only defined modulo vectors related to the lattice."
+            ELSE
+                WRITE(unit_number,"(T3,A)") "Dipoles are based on the traditional operator."
+            ENDIF
             dd=SQRT(SUM(rmom(2:4,3)**2))*debye
             WRITE(unit_number,"(T3,A)") "Dipole moment [Debye]"
             WRITE(unit_number,"(T5,3(A,A,F12.4,4X),T60,A,T68,F12.5)") &

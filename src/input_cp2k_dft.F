@@ -1550,14 +1550,16 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL cp_print_key_section_create(print_key_section=print_key,name=TRIM(label),&
-            description="Section controlling the calculation of "//TRIM(label)//&
-            " calculated from the Wannier centers.",&
+            description="Section controlling the calculation of "//TRIM(label)//"."//&
+            " Note that the result in the periodic case might be defined modulo a certain period,"//&
+            " determined by the lattice vectors. During MD, this can lead to jumps.",&
             print_level=debug_print_level+1,filename="__STD_OUT__",error=error)
 
        NULLIFY(keyword)
        CALL keyword_create(keyword=keyword,&
             name="PERIODIC",&
-            description="Use Berry phase formula (PERIODIC=T) or simple operator (PERIODIC=F)",&
+            description="Use Berry phase formula (PERIODIC=T) or simple operator (PERIODIC=F). "//&
+                        "The latter normally requires that the CELL is periodic NONE.",&
             usage="PERIODIC {logical}",&
             repeats=.FALSE.,&
             required=.FALSE.,&
