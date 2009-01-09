@@ -4,7 +4,7 @@
 #
 # 2SP, 3SP, 4SP basis sets for GTH pseudos (with 3SP being the author's recommendation).
 # 
-# These basis sets trade are targeted at very fast calculations (trading some accuracy for speed). 
+# These basis sets are targeted at very fast calculations (trading some accuracy for speed). 
 #
 H 2SP-GTH
    2
