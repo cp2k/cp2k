@@ -645,10 +645,9 @@ CONTAINS
           END SELECT
 
           t2 = m_walltime()
-
           IF ((output_unit>0).AND.scf_env%print_iter_line) THEN
              WRITE (UNIT=output_unit,&
-                  FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
+                  FMT="(T2,I5,2X,A,T22,E10.2,T33,F10.3,T43,F17.10,F20.10)")&
                   scf_env%iter_count,TRIM(scf_env%iter_method),&
                   scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total
           END IF
