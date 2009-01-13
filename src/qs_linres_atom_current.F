@@ -27,7 +27,6 @@ MODULE qs_linres_atom_current
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: current_gauge_atom,&
                                              current_gauge_r,&
-                                             current_gauge_r_and_Bader,&
                                              current_gauge_r_and_step_func
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
@@ -616,7 +615,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
     LOGICAL                                  :: failure, paw_atom
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: is_set_to_0
-    REAL(dp)                                 :: alpha, hard_radius
+    REAL(dp)                                 :: hard_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2, gauge_h, gauge_s
     REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: cjc0_h_block, cjc0_s_block, &
       cjc_h_block, cjc_ii_h_block, cjc_ii_s_block, cjc_iii_h_block, &
@@ -722,12 +721,6 @@ CONTAINS
           ! d(r)=r
           gauge_h(1:nr) = grid_atom%rad(1:nr)
           gauge_s(1:nr) = grid_atom%rad(1:nr)
-       CASE(current_gauge_r_and_bader)
-          ! d_h(r)=r*(1-exp(-alpha*r**4)))
-          ! d_s(r)=r*   exp(-alpha*r**4)
-          alpha = LOG(2.0_dp*hard_radius)/hard_radius**4
-          gauge_h(1:nr) = grid_atom%rad(1:nr)*(1.0_dp-EXP(-alpha*grid_atom%rad2(1:nr)*grid_atom%rad2(1:nr)))
-          gauge_s(1:nr) = grid_atom%rad(1:nr)*        EXP(-alpha*grid_atom%rad2(1:nr)*grid_atom%rad2(1:nr))
        CASE(current_gauge_r_and_step_func)
           ! step function
           gauge_h(1:nr) = 0e0_dp
@@ -927,11 +920,11 @@ CONTAINS
                                   ! Hard term
                                   Fr_h(1:nr,iso) = Fr_h(1:nr,iso) + &
                                        &           gg(1:nr,l)*cjc0_h_block(iso1,iso2)*&
-                                       &           my_CG(iso1,iso2,iso) !*(grid_atom%rad(1:nr)-gauge_h(1:nr))
+                                       &           my_CG(iso1,iso2,iso)
                                   ! Soft term
                                   Fr_s(1:nr,iso) = Fr_s(1:nr,iso) + &
                                        &           gg(1:nr,l)*cjc0_s_block(iso1,iso2)*&
-                                       &           my_CG(iso1,iso2,iso) !*(grid_atom%rad(1:nr)-gauge_s(1:nr))
+                                       &           my_CG(iso1,iso2,iso)
                                ELSE
                                   ! Hard term
                                   Fr_h(1:nr,iso) = Fr_h(1:nr,iso) + &
@@ -960,12 +953,12 @@ CONTAINS
                                IF(current_env%gauge.EQ.current_gauge_atom) THEN
                                   ! Hard term
                                   Fr_a_h_ii(1:nr,iso) = Fr_a_h_ii(1:nr,iso) + &
-                                       &                dgg_1(1:nr,l)* &!gauge_h(1:nr)* &
+                                       &                dgg_1(1:nr,l)* &
                                        &                cjc_ii_h_block(iso1,iso2)* &
                                        &                my_CG(iso1,iso2,iso)
                                   ! Soft term
                                   Fr_a_s_ii(1:nr,iso) = Fr_a_s_ii(1:nr,iso) + &
-                                       &                dgg_1(1:nr,l)* &!gauge_s(1:nr)* &
+                                       &                dgg_1(1:nr,l)* &
                                        &                cjc_ii_s_block(iso1,iso2)* &
                                        &                my_CG(iso1,iso2,iso)
                                ELSE
@@ -986,12 +979,12 @@ CONTAINS
                                IF(current_env%gauge.EQ.current_gauge_atom) THEN
                                   ! Hard term
                                   Fr_a_h_iii(1:nr,iso) = Fr_a_h_iii(1:nr,iso) + &
-                                       &                 dgg_1(1:nr,l)* &!gauge_h(1:nr)* &
+                                       &                 dgg_1(1:nr,l)* &
                                        &                 cjc_iii_h_block(iso1,iso2)* &
                                        &                 my_CG(iso1,iso2,iso)
                                   ! Soft term
                                   Fr_a_s_iii(1:nr,iso) = Fr_a_s_iii(1:nr,iso) + &
-                                       &                 dgg_1(1:nr,l)* &!gauge_s(1:nr)* &
+                                       &                 dgg_1(1:nr,l)* &
                                        &                 cjc_iii_s_block(iso1,iso2)* &
                                        &                 my_CG(iso1,iso2,iso)
                                ELSE
@@ -1056,12 +1049,12 @@ CONTAINS
                                IF(current_env%gauge.EQ.current_gauge_atom) THEN
                                   ! Hard term
                                   Fr_b_h_ii(1:nr,iso) = Fr_b_h_ii(1:nr,iso) + &
-                                       &                gg_lm1(1:nr,l)* &!gauge_h(1:nr)* &
+                                       &                gg_lm1(1:nr,l)* &
                                        &                cjc_ii_h_block(iso1,iso2)* &
                                        &                my_CG_dxyz_asym(idir,iso1,iso2,iso)
                                   ! Soft term
                                   Fr_b_s_ii(1:nr,iso) = Fr_b_s_ii(1:nr,iso) + &
-                                       &                gg_lm1(1:nr,l)* &!gauge_s(1:nr)* &
+                                       &                gg_lm1(1:nr,l)* &
                                        &                cjc_ii_s_block(iso1,iso2)* &
                                        &                my_CG_dxyz_asym(idir,iso1,iso2,iso)
                                ELSE
@@ -1082,12 +1075,12 @@ CONTAINS
                                IF(current_env%gauge.EQ.current_gauge_atom) THEN
                                   ! Hard term
                                   Fr_b_h_iii(1:nr,iso) = Fr_b_h_iii(1:nr,iso) + &
-                                       &                 gg_lm1(1:nr,l)* &!gauge_h(1:nr)* &
+                                       &                 gg_lm1(1:nr,l)* &
                                        &                 cjc_iii_h_block(iso1,iso2)* &
                                        &                 my_CG_dxyz_asym(idir,iso1,iso2,iso)
                                   ! Soft term
                                   Fr_b_s_iii(1:nr,iso) = Fr_b_s_iii(1:nr,iso) + &
-                                       &                 gg_lm1(1:nr,l)* &!gauge_s(1:nr)* &
+                                       &                 gg_lm1(1:nr,l)* &
                                        &                 cjc_iii_s_block(iso1,iso2)* &
                                        &                 my_CG_dxyz_asym(idir,iso1,iso2,iso)
                                ELSE
@@ -1150,7 +1143,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, idir2, iiB, iiiB, ir, &
-                                                iso, max_iso_not0, na, nr
+                                                iso, max_iso_not0, na, nr, istat
     LOGICAL                                  :: failure
     REAL(dp)                                 :: rad_part, scale
     REAL(dp), DIMENSION(:, :), POINTER :: a, Fr_a_h, Fr_a_h_ii, Fr_a_h_iii, &
@@ -1198,7 +1191,8 @@ CONTAINS
     nr = grid_atom%nr
     na = grid_atom%ng_sphere
     max_iso_not0 = harmonics%max_iso_not0
-    ALLOCATE(g(3,nr,na))
+    ALLOCATE(g(3,nr,na),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !------------------------------------------------------------------
     !
     Fr_h => jrho1_atom%jrho_h(ispin)%r_coef
@@ -1291,7 +1285,8 @@ CONTAINS
        ENDDO ! iso
     ENDDO ! ir
     !
-    DEALLOCATE(g)
+    DEALLOCATE(g,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !
   CONTAINS
     !
@@ -1353,11 +1348,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, iatom, ikind, ispin, &
-                                                jatom, natm_gauge, natm_tot, &
-                                                natom, nkind, nspins
+                                                istat, jatom, natm_gauge, &
+                                                natm_tot, natom, nkind, nspins
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: do_igaim, gapw, paw_atom
+    LOGICAL                                  :: do_igaim, failure, gapw, &
+                                                paw_atom
     REAL(dp)                                 :: hard_radius, r(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ratom
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1374,15 +1370,11 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
+    failure = .FALSE.
+
     NULLIFY(para_env, dft_control)
     NULLIFY(jrho1_atom_set, grid_atom, harmonics)
     NULLIFY(atomic_kind_set, atom_kind, atom_list)
-
-    !logger => cp_error_get_logger(error)
-    !lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
-
-    !output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-    !     extension=".linresLog",error=error)
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
@@ -1402,7 +1394,8 @@ CONTAINS
     nspins = dft_control%nspins
 
     natm_tot = SIZE(particle_set)
-    ALLOCATE(ratom(3,natm_tot))
+    ALLOCATE(ratom(3,natm_tot),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF (gapw) THEN
        DO ikind = 1,nkind
@@ -1446,9 +1439,8 @@ CONTAINS
        END DO !ikind
     END IF
 
-!    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-!         "PRINT%PROGRAM_RUN_INFO",error=error)
-    DEALLOCATE(ratom)
+    DEALLOCATE(ratom,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE calculate_jrho_atom 
 

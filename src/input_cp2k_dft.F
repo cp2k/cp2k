@@ -5959,13 +5959,11 @@ CONTAINS
             description="The gauge used to compute the induced current within GAPW.",&
             usage="GAUGE R",&
             default_i_val=current_gauge_r_and_step_func,&
-            enum_c_vals=s2a("R", "R_AND_BADER", "R_AND_STEP_FUNCTION", "ATOM"),&
+            enum_c_vals=s2a("R", "R_AND_STEP_FUNCTION", "ATOM"),&
             enum_desc=s2a("Position gauge (doesnt work well).",&
-                          "Position and Bader gauges for the soft and the local parts, respectively.",&
                           "Position and step function for the soft and the local parts, respectively.",&
                           "Atoms."),&
-            enum_i_vals=(/current_gauge_r,current_gauge_r_and_Bader,&
-                          current_gauge_r_and_step_func,current_gauge_atom/),&
+            enum_i_vals=(/current_gauge_r,current_gauge_r_and_step_func,current_gauge_atom/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

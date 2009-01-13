@@ -53,7 +53,6 @@ MODULE qs_linres_current_utils
   USE f77_blas
   USE input_constants,                 ONLY: current_gauge_atom,&
                                              current_gauge_r,&
-                                             current_gauge_r_and_Bader,&
                                              current_gauge_r_and_step_func,&
                                              current_orb_center_atom,&
                                              current_orb_center_box,&
@@ -587,8 +586,6 @@ CONTAINS
     SELECT CASE(current_env%gauge)
     CASE(current_gauge_r)
        current_env%gauge_name="R"
-    CASE(current_gauge_r_and_Bader)
-       current_env%gauge_name="R_AND_BADER"
     CASE(current_gauge_r_and_step_func)
        current_env%gauge_name="R_AND_STEP_FUNCTION"
     CASE(current_gauge_atom)

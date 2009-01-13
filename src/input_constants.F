@@ -324,9 +324,8 @@ MODULE input_constants
                                               use_mom_ref_zero=3
                                            
   INTEGER, PARAMETER, PUBLIC               :: current_gauge_r=1,&
-                                              current_gauge_r_and_Bader=2,&
-                                              current_gauge_r_and_step_func=3,&
-                                              current_gauge_atom=4,&
+                                              current_gauge_r_and_step_func=2,&
+                                              current_gauge_atom=3,&
                                               current_orb_center_wannier=1,&
                                               current_orb_center_common=2,&
                                               current_orb_center_atom=3,&

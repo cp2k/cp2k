@@ -1964,34 +1964,34 @@ CONTAINS
           DO idir = 1,3
              CALL set_vecp(idir,ii,iii)
              CALL cp_sm_fm_multiply(op_p_ao(idir)%matrix,psi_rxp,&
-                  &                 p_rxp(idir)%matrix,ncol=nstate,alpha=1.e0_dp,&!nstate
+                  &                 p_rxp(idir)%matrix,ncol=nstate,alpha=1.e0_dp,&
                   &                 error=error)
              IF(iiiB.EQ.iii.OR.iiiB.EQ.ii) THEN
                 CALL cp_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p1,&
-                     &                 r_p1(idir)%matrix,ncol=nstate,alpha=1.e0_dp,&!nstate
+                     &                 r_p1(idir)%matrix,ncol=nstate,alpha=1.e0_dp,&
                      &                 error=error)
              ENDIF
              IF(iiB.EQ.iii.OR.iiB.EQ.ii) THEN
                 CALL cp_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p2,&
-                     &                 r_p2(idir)%matrix,ncol=nstate,alpha=1.e0_dp,&!nstate
+                     &                 r_p2(idir)%matrix,ncol=nstate,alpha=1.e0_dp,&
                      &                 error=error)
              ENDIF
              DO idir2 = 1,9
                 IF(idir2.EQ.ii.OR.idir2.EQ.iii) THEN
                    CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_rxp,&
-                        &                 rr_rxp(idir2,idir)%matrix,ncol=nstate,alpha=1.e0_dp,&!nstate
+                        &                 rr_rxp(idir2,idir)%matrix,ncol=nstate,alpha=1.e0_dp,&
                         &                 error=error)
                 ENDIF
                 !
                 IF(idir2.EQ.ind_m2(ii,iiiB).OR.idir2.EQ.ind_m2(iii,iiiB).OR.idir2.EQ.iiiB) THEN
                    CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p1,&
-                        &                 rr_p1(idir2,idir)%matrix,ncol=nstate,alpha=1.e0_dp,&!nstate
+                        &                 rr_p1(idir2,idir)%matrix,ncol=nstate,alpha=1.e0_dp,&
                         &                 error=error)
                 ENDIF
                 !
                 IF(idir2.EQ.ind_m2(ii,iiB).OR.idir2.EQ.ind_m2(iii,iiB).OR.idir2.EQ.iiB) THEN
                    CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p2,&
-                        &                 rr_p2(idir2,idir)%matrix,ncol=nstate,alpha=1.e0_dp,&!nstate
+                        &                 rr_p2(idir2,idir)%matrix,ncol=nstate,alpha=1.e0_dp,&
                         &                 error=error)
                 ENDIF
              ENDDO
