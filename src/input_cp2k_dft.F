@@ -658,8 +658,12 @@ CONTAINS
        CALL keyword_create(keyword,name="METHOD",&
             description="Method of optimization if any",&
             usage="METHOD (JACOBI|CRAZY|DIRECT|L1SD|NONE)",&
-            enum_c_vals=s2a("NONE","JACOBI","CRAZY","DIRECT","L1SD"),&
-            enum_i_vals=(/do_loc_none, do_loc_jacobi, do_loc_crazy, do_loc_direct,do_loc_l1_norm_sd/),&
+            enum_c_vals=s2a("NONE","JACOBI","CRAZY","L1SD","DIRECT"),&
+            enum_i_vals=(/do_loc_none, &
+                          do_loc_jacobi, &
+                          do_loc_crazy, &
+                          do_loc_l1_norm_sd, &
+                          do_loc_direct/),&
             enum_desc=s2a("No localization is applied",&
             "Using 2 x 2 rotations of the orbitals, slow but robust",&
             "A new fast method is applied, might be slightly less robust than jacobi, but usually much faster",&
