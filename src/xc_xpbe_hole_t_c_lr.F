@@ -608,19 +608,19 @@ MODULE xc_xpbe_hole_t_c_lr
       t61 = D ** 2
       t64 = D * t21
       t65 = t34 * B
-      t69 = dsqrt(pi)
+      t69 = SQRT(pi)
       t71 = F1 * t21
       t73 = t71 * t34 + F2
       t77 = C * (1 + t73 * t12 * t13)
       t85 = t69 * (15 * E + 6 * t77 * t51 + 4 * B * t56 + 8 * A * t57)
-      t86 = dsqrt(t51)
+      t86 = SQRT(t51)
       t87 = t86 * t57
       t88 = 0.1e1_dp / t87
-      t91 = dsqrt(A)
+      t91 = SQRT(A)
       t92 = pi * t91
-      t93 = dexp(p)
+      t93 = EXP(p)
       t94 = t11 * sscale
-      t95 = dsqrt(t42)
+      t95 = SQRT(t42)
       t98 = erf(0.3e1_dp / 0.2e1_dp * t94 * t95)
       t99 = 1 - t98
       t103 = 0.3e1_dp / 0.4e1_dp * pi + t85 * t88 / 0.16e2_dp - 0.3e1_dp / 0.4e1_dp * t92  &
@@ -631,7 +631,7 @@ MODULE xc_xpbe_hole_t_c_lr
       t107 = 0.1e1_dp / t13
       t108 = t106 * t107
       t109 = t108 * t87
-      t113 = t40 * C + DBLE(2 * t64 * t65) - 0.32e2_dp / 0.15e2_dp * t105 * t109  &
+      t113 = t40 * C + REAL(2 * t64 * t65,KIND=dp) - 0.32e2_dp / 0.15e2_dp * t105 * t109  &
       + t60 * t73
       t115 = t17 * t19
       t116 = t21 ** 2
@@ -645,14 +645,14 @@ MODULE xc_xpbe_hole_t_c_lr
       t129 = E * t21
       t133 = D * t103 * t104
       t136 = t34 * C
-      t140 = DBLE(2 * t129 * t34) - 0.32e2_dp / 0.15e2_dp * t133 * t109 + DBLE(2  &
-      * t64 * t136) + t126 * t73
+      t140 = REAL(2 * t129 * t34,KIND=dp) - 0.32e2_dp / 0.15e2_dp * t133 * t109 + REAL(2  &
+      * t64 * t136,KIND=dp) + t126 * t73
       t142 = t105 * t106
       t143 = t107 * t87
       t144 = t143 * t40
       t147 = t136 * t73
       t150 = C * t116
-      t152 = -0.32e2_dp / 0.15e2_dp * t142 * t144 + DBLE(2 * t64 * t147) + t150  &
+      t152 = -0.32e2_dp / 0.15e2_dp * t142 * t144 + REAL(2 * t64 * t147,KIND=dp) + t150  &
       * t118
       t155 = t29 * t31 * C
       t156 = t73 * t116
@@ -663,7 +663,7 @@ MODULE xc_xpbe_hole_t_c_lr
       t164 = t6 * t5
       t167 = t61 * t103 * t104
       t170 = t34 * E
-      t173 = -0.16e2_dp / 0.15e2_dp * t167 * t109 + DBLE(2 * t64 * t170)
+      t173 = -0.16e2_dp / 0.15e2_dp * t167 * t109 + REAL(2 * t64 * t170,KIND=dp)
       t175 = t34 * t103
       t176 = t64 * t175
       t177 = t104 * t106
@@ -677,7 +677,7 @@ MODULE xc_xpbe_hole_t_c_lr
       * t159 + 3 * t163 * t164 * t190
       t195 = t58 * t194
       t196 = D * t35
-      t199 = dexp(-t196 * t38 - q)
+      t199 = EXP(-t196 * t38 - q)
       t202 = -0.4e1_dp / 0.9e1_dp * A * t46 + 0.4e1_dp / 0.9e1_dp * A * t48 - 0.4e1_dp /  &
       0.9e1_dp * A * t54 - 0.4e1_dp / 0.9e1_dp * t195 * t199
       e_0 = e_0 + (t45 * t202 * Clda) * sx
@@ -727,14 +727,14 @@ MODULE xc_xpbe_hole_t_c_lr
       qndrho = 2 * t217 * t125 * t37 * t269 + t14 * t279 * t39 - t236 * t125  &
       * t37 * t292
       t308 = dexeirho(P,Q,Prho,Qrho)
-      t312 = dexp(-q)
+      t312 = EXP(-q)
       t314 = t312 * t106 * t107
       t318 = 0.1e1_dp / t35
       t320 = 0.1e1_dp / t37
       t322 = 0.1e1_dp / t21 * t33 * t318 * t1 * t320
       t331 = 2 * t216 * t40 * t218 + t14 * t261 - t14 * t235 * t248
       t334 = t214 * t4
-      t339 = dexp(-t53)
+      t339 = EXP(-t53)
       t341 = 0.1e1_dp / t51
       t347 = t56 ** 2
       t349 = 0.1e1_dp / t347 * t194
@@ -747,13 +747,14 @@ MODULE xc_xpbe_hole_t_c_lr
       t385 = A * t56
       t393 = 0.1e1_dp / t86 / t347
       t401 = t92 * t93
-      t402 = dsqrt(0.31415926535897932385e1_dp)
-      t404 = dexp(-p)
+      t402 = SQRT(0.31415926535897932385e1_dp)
+      t404 = EXP(-p)
       t405 = 0.1e1_dp / t402 * t404
       t409 = 0.1e1_dp / t95
-      t420 = DBLE(t69 * (6 * C * (t370 * t12 * t13 + 2 * t373 * t224) * t51  &
-      + 6 * t77 * t331 + 8 * t382 * t331 + 24 * t385 * t331) * t88) /  &
-      0.16e2_dp - 0.7e1_dp / 0.32e2_dp * DBLE(t85) * DBLE(t393) * DBLE(t331) - 0.3e1_dp  &
+      t420 = REAL(t69 * (6 * C * (t370 * t12 * t13 + 2 * t373 * t224) * t51  &
+      + 6 * t77 * t331 + 8 * t382 * t331 + 24 * t385 * t331) * t88,KIND=dp) /  &
+      0.16e2_dp - 0.7e1_dp / 0.32e2_dp * REAL(t85,KIND=dp) * REAL(t393,KIND=dp) *&
+      REAL(t331,KIND=dp) - 0.3e1_dp  &
       / 0.4e1_dp * t92 * prho * t93 * t99 + 0.3e1_dp / 0.2e1_dp * t401 * t405  &
       * (0.3e1_dp / 0.2e1_dp * t218 * sscale * t95 + 0.3e1_dp / 0.4e1_dp * t94 * t409  &
       * (t262 - t235 * t41 * t248))
@@ -794,38 +795,38 @@ MODULE xc_xpbe_hole_t_c_lr
       A * t308 - 0.4e1_dp / 0.27e2_dp * A * qrho * t314 * t322 + 0.4e1_dp / 0.27e2_dp  &
       * A * (t331 * t35 * t38 + 0.2e1_dp / 0.3e1_dp * t52 * t334) * t339 * t341  &
       * t318 * t1 * t320 + 0.4e1_dp / 0.3e1_dp * t349 * t199 * t331 - 0.4e1_dp  &
-      / 0.9e1_dp * t58 * (DBLE(2 * t216 * t113 * t218) + t14 * (t261 * C  &
-      - t235 * C * DBLE(t248) + DBLE(2 * t359 * t65) - DBLE(2 * t64 * t362  &
-      * t248) - 0.32e2_dp / 0.15e2_dp * t421 * t109 + 0.64e2_dp / 0.15e2_dp * t425  &
-      * t426 - 0.112e3_dp / 0.15e2_dp * t142 * t431 + t60 * t370) + DBLE(4 *  &
-      t437 * t123 * t218) + t115 * (0.2e1_dp * t235 * B * t232 - 0.2e1_dp * t446  &
-      * B * DBLE(t248) + t261 * t121 - t235 * t451 + t40 * C * t370)  &
-      + 0.2e1_dp / 0.3e1_dp * t125 * t7 * t159 * t4 + t125 * t37 * (DBLE(2 *  &
-      t216 * t140 * t218) + t14 * (0.2e1_dp * E * t232 * t34 - DBLE(2 * t129  &
-      * t368) - 0.32e2_dp / 0.15e2_dp * D * t420 * t104 * t109 + 0.64e2_dp / 0.15e2_dp  &
-      * t133 * t475 - 0.112e3_dp / 0.15e2_dp * t133 * t479 + DBLE(2 * t359  &
-      * t136) - DBLE(2 * t64 * t484 * t248) + t126 * t370) + DBLE(4 *  &
-      t437 * t152 * t218) + t115 * (-0.32e2_dp / 0.15e2_dp * t421 * t106 * t144  &
-      + 0.64e2_dp / 0.15e2_dp * t497 * t498 * t34 * DBLE(t218) - 0.112e3_dp / 0.15e2_dp  &
+      / 0.9e1_dp * t58 * (REAL(2 * t216 * t113 * t218,KIND=dp) + t14 * (t261 * C  &
+      - t235 * C * REAL(t248,KIND=dp) + REAL(2 * t359 * t65,KIND=dp) - REAL(2 * t64 * t362  &
+      * t248,KIND=dp) - 0.32e2_dp / 0.15e2_dp * t421 * t109 + 0.64e2_dp / 0.15e2_dp * t425  &
+      * t426 - 0.112e3_dp / 0.15e2_dp * t142 * t431 + t60 * t370) + REAL(4 *  &
+      t437 * t123 * t218,KIND=dp) + t115 * (0.2e1_dp * t235 * B * t232 - 0.2e1_dp * t446  &
+      * B * REAL(t248,KIND=dp) + t261 * t121 - t235 * t451 + t40 * C * t370)  &
+      + 0.2e1_dp / 0.3e1_dp * t125 * t7 * t159 * t4 + t125 * t37 * (REAL(2 *  &
+      t216 * t140 * t218,KIND=dp) + t14 * (0.2e1_dp * E * t232 * t34 - REAL(2 * t129  &
+      * t368,KIND=dp) - 0.32e2_dp / 0.15e2_dp * D * t420 * t104 * t109 + 0.64e2_dp / 0.15e2_dp  &
+      * t133 * t475 - 0.112e3_dp / 0.15e2_dp * t133 * t479 + REAL(2 * t359  &
+      * t136,KIND=dp) - REAL(2 * t64 * t484 * t248,KIND=dp) + t126 * t370) + REAL(4 *  &
+      t437 * t152 * t218,KIND=dp) + t115 * (-0.32e2_dp / 0.15e2_dp * t421 * t106 * t144  &
+      + 0.64e2_dp / 0.15e2_dp * t497 * t498 * t34 * REAL(t218,KIND=dp) - 0.112e3_dp / 0.15e2_dp  &
       * t503 * t504 * t34 * t331 - 0.32e2_dp / 0.15e2_dp * t142 * t143 *  &
-      t261 + 0.32e2_dp / 0.15e2_dp * t503 * t498 * DBLE(t368) + DBLE(2 * t359  &
-      * t147) - 0.2e1_dp * t517 * t451 + 0.2e1_dp * DBLE(t64) * DBLE(t136) *  &
-      t370 + DBLE(2 * t523 * t524) - DBLE(2 * t150 * t527)) + DBLE(6 * t533  &
-      * t156 * t534) + t155 * t370 * t116 * t118 + 0.2e1_dp * t155 * t541  &
-      * DBLE(t524) - 0.2e1_dp * t155 * DBLE(t156) * DBLE(t527)) + 0.4e1_dp  &
-      * t163 * t6 * t190 * t4 + 0.3e1_dp * t163 * t164 * (DBLE(2 * t216 * t173  &
-      * t218) + t14 * (-0.16e2_dp / 0.15e2_dp * t61 * t420 * t104 * t109 +  &
-      0.32e2_dp / 0.15e2_dp * t167 * t475 - 0.56e2_dp / 0.15e2_dp * t167 * t479 + DBLE(2  &
-      * t359 * t170) - DBLE(2 * t64 * t568 * t248)) + DBLE(4 * t437  &
-      * t183 * t218) + t115 * (-0.32e2_dp / 0.15e2_dp * DBLE(t359) * DBLE(t175)  &
-      * DBLE(t178) + 0.32e2_dp / 0.15e2_dp * t581 * t177 * t143 * DBLE(t248)  &
-      - 0.32e2_dp / 0.15e2_dp * DBLE(t64) * t34 * t420 * DBLE(t178) + 0.64e2_dp  &
+      t261 + 0.32e2_dp / 0.15e2_dp * t503 * t498 * REAL(t368,KIND=dp) + REAL(2 * t359  &
+      * t147,KIND=dp) - 0.2e1_dp * t517 * t451 + 0.2e1_dp * REAL(t64,KIND=dp) * REAL(t136,KIND=dp) *  &
+      t370 + REAL(2 * t523 * t524,KIND=dp) - REAL(2 * t150 * t527,KIND=dp)) + REAL(6 * t533  &
+      * t156 * t534,KIND=dp) + t155 * t370 * t116 * t118 + 0.2e1_dp * t155 * t541  &
+      * REAL(t524,KIND=dp) - 0.2e1_dp * t155 * REAL(t156,KIND=dp) * REAL(t527,KIND=dp)) + 0.4e1_dp  &
+      * t163 * t6 * t190 * t4 + 0.3e1_dp * t163 * t164 * (REAL(2 * t216 * t173  &
+      * t218,KIND=dp) + t14 * (-0.16e2_dp / 0.15e2_dp * t61 * t420 * t104 * t109 +  &
+      0.32e2_dp / 0.15e2_dp * t167 * t475 - 0.56e2_dp / 0.15e2_dp * t167 * t479 + REAL(2  &
+      * t359 * t170,KIND=dp) - REAL(2 * t64 * t568 * t248,KIND=dp)) + REAL(4 * t437  &
+      * t183 * t218,KIND=dp) + t115 * (-0.32e2_dp / 0.15e2_dp * REAL(t359,KIND=dp) * REAL(t175,KIND=dp)  &
+      * REAL(t178,KIND=dp) + 0.32e2_dp / 0.15e2_dp * t581 * t177 * t143 * REAL(t248,KIND=dp)  &
+      - 0.32e2_dp / 0.15e2_dp * REAL(t64,KIND=dp) * t34 * t420 * REAL(t178,KIND=dp) + 0.64e2_dp  &
       / 0.15e2_dp * t176 * t590 * t426 - 0.112e3_dp / 0.15e2_dp * t176 * t177 *  &
-      t431 + DBLE(2 * t129 * t524) - DBLE(2 * t181 * t527)) - 0.64e2_dp /  &
-      0.15e2_dp * DBLE(t603) * DBLE(t604) * DBLE(t534) - 0.16e2_dp / 0.15e2_dp *  &
+      t431 + REAL(2 * t129 * t524,KIND=dp) - REAL(2 * t181 * t527,KIND=dp)) - 0.64e2_dp /  &
+      0.15e2_dp * REAL(t603,KIND=dp) * REAL(t604,KIND=dp) * REAL(t534,KIND=dp) - 0.16e2_dp / 0.15e2_dp *  &
       t115 * t420 * t187 - 0.56e2_dp / 0.15e2_dp * t611 * t612 * t118 * t331 -  &
-      0.32e2_dp / 0.15e2_dp * t611 * t498 * DBLE(t524) + 0.32e2_dp / 0.15e2_dp * t611  &
-      * DBLE(t604) * DBLE(t527))) * t199 - 0.4e1_dp / 0.9e1_dp * t195 * (-0.2e1_dp  &
+      0.32e2_dp / 0.15e2_dp * t611 * t498 * REAL(t524,KIND=dp) + 0.32e2_dp / 0.15e2_dp * t611  &
+      * REAL(t604,KIND=dp) * REAL(t527,KIND=dp))) * t199 - 0.4e1_dp / 0.9e1_dp * t195 * (-0.2e1_dp  &
       / 0.3e1_dp * t196 * t334 - t222 - t234 + t251 - t255) * t199) *  &
       Clda ) * sx
       t640 = dexeindrho(P,Q,Pndrho,Qndrho)
@@ -833,9 +834,10 @@ MODULE xc_xpbe_hole_t_c_lr
       t667 = D * t279
       t675 = t118 * t292
       t677 = F1 * t279 * t34 - t71 * t675
-      t716 = DBLE(t69 * (6 * C * (t677 * t12 * t13 + 2 * t373 * t273) * t51  &
-      + 6 * t77 * t653 + 8 * t382 * t653 + 24 * t385 * t653) * t88) /  &
-      0.16e2_dp - 0.7e1_dp / 0.32e2_dp * DBLE(t85) * DBLE(t393) * DBLE(t653) - 0.3e1_dp  &
+      t716 = REAL(t69 * (6 * C * (t677 * t12 * t13 + 2 * t373 * t273) * t51  &
+      + 6 * t77 * t653 + 8 * t382 * t653 + 24 * t385 * t653) * t88,KIND=dp) /  &
+      0.16e2_dp - 0.7e1_dp / 0.32e2_dp * REAL(t85,KIND=dp) * REAL(t393,KIND=dp) * &
+      REAL(t653,KIND=dp) - 0.3e1_dp  &
       / 0.4e1_dp * t92 * pndrho * t93 * t99 + 0.3e1_dp / 0.2e1_dp * t401 * t405  &
       * (0.3e1_dp / 0.2e1_dp * t269 * sscale * t95 + 0.3e1_dp / 0.4e1_dp * t94 *  &
       t409 * (t281 - t235 * t41 * t292))
@@ -850,37 +852,37 @@ MODULE xc_xpbe_hole_t_c_lr
       t808 = t118 * t269
       e_ndrho = e_ndrho + (t45 * (-0.4e1_dp / 0.9e1_dp * A * t640 - 0.4e1_dp / 0.27e2_dp * A * qndrho  &
       * t314 * t322 + 0.4e1_dp / 0.9e1_dp * A * t653 * t339 * t341 + 0.4e1_dp  &
-      / 0.3e1_dp * t349 * t199 * t653 - 0.4e1_dp / 0.9e1_dp * t58 * (DBLE(2 * t216  &
-      * t113 * t269) + t14 * (t280 * C - t235 * C * DBLE(t292) + DBLE(2  &
-      * t667 * t65) - DBLE(2 * t64 * t362 * t292) - 0.32e2_dp / 0.15e2_dp  &
+      / 0.3e1_dp * t349 * t199 * t653 - 0.4e1_dp / 0.9e1_dp * t58 * (REAL(2 * t216  &
+      * t113 * t269,KIND=dp) + t14 * (t280 * C - t235 * C * REAL(t292,KIND=dp) + REAL(2  &
+      * t667 * t65,KIND=dp) - REAL(2 * t64 * t362 * t292,KIND=dp) - 0.32e2_dp / 0.15e2_dp  &
       * t717 * t109 + 0.64e2_dp / 0.15e2_dp * t425 * t720 - 0.112e3_dp / 0.15e2_dp *  &
-      t142 * t723 + t60 * t677) + DBLE(4 * t437 * t123 * t269) + t115 *  &
-      (0.2e1_dp * t235 * B * t279 - 0.2e1_dp * t446 * B * DBLE(t292) + t280 *  &
-      t121 - t235 * t739 + t40 * C * t677) + t125 * t37 * (DBLE(2 * t216  &
-      * t140 * t269) + t14 * (0.2e1_dp * E * t279 * t34 - DBLE(2 * t129 *  &
-      t675) - 0.32e2_dp / 0.15e2_dp * D * t716 * t104 * t109 + 0.64e2_dp / 0.15e2_dp  &
-      * t133 * t758 - 0.112e3_dp / 0.15e2_dp * t133 * t762 + DBLE(2 * t667 *  &
-      t136) - DBLE(2 * t64 * t484 * t292) + t126 * t677) + DBLE(4 * t437  &
-      * t152 * t269) + t115 * (-0.32e2_dp / 0.15e2_dp * t717 * t106 * t144 +  &
-      0.64e2_dp / 0.15e2_dp * t497 * t498 * t34 * DBLE(t269) - 0.112e3_dp / 0.15e2_dp  &
+      t142 * t723 + t60 * t677) + REAL(4 * t437 * t123 * t269,KIND=dp) + t115 *  &
+      (0.2e1_dp * t235 * B * t279 - 0.2e1_dp * t446 * B * REAL(t292,KIND=dp) + t280 *  &
+      t121 - t235 * t739 + t40 * C * t677) + t125 * t37 * (REAL(2 * t216  &
+      * t140 * t269,KIND=dp) + t14 * (0.2e1_dp * E * t279 * t34 - REAL(2 * t129 *  &
+      t675,KIND=dp) - 0.32e2_dp / 0.15e2_dp * D * t716 * t104 * t109 + 0.64e2_dp / 0.15e2_dp  &
+      * t133 * t758 - 0.112e3_dp / 0.15e2_dp * t133 * t762 + REAL(2 * t667 *  &
+      t136,KIND=dp) - REAL(2 * t64 * t484 * t292,KIND=dp) + t126 * t677) + REAL(4 * t437  &
+      * t152 * t269,KIND=dp) + t115 * (-0.32e2_dp / 0.15e2_dp * t717 * t106 * t144 +  &
+      0.64e2_dp / 0.15e2_dp * t497 * t498 * t34 * REAL(t269,KIND=dp) - 0.112e3_dp / 0.15e2_dp  &
       * t503 * t504 * t34 * t653 - 0.32e2_dp / 0.15e2_dp * t142 * t143 * t280  &
-      + 0.32e2_dp / 0.15e2_dp * t503 * t498 * DBLE(t675) + DBLE(2 * t667 *  &
-      t147) - 0.2e1_dp * t517 * t739 + 0.2e1_dp * DBLE(t64) * DBLE(t136) * t677  &
-      + DBLE(2 * t523 * t800) - DBLE(2 * t150 * t803)) + DBLE(6 * t533  &
-      * t156 * t808) + t155 * t677 * t116 * t118 + 0.2e1_dp * t155 * t541  &
-      * DBLE(t800) - 0.2e1_dp * t155 * DBLE(t156) * DBLE(t803)) + 0.3e1_dp * t163  &
-      * t164 * (DBLE(2 * t216 * t173 * t269) + t14 * (-0.16e2_dp / 0.15e2_dp  &
+      + 0.32e2_dp / 0.15e2_dp * t503 * t498 * REAL(t675,KIND=dp) + REAL(2 * t667 *  &
+      t147,KIND=dp) - 0.2e1_dp * t517 * t739 + 0.2e1_dp * REAL(t64,KIND=dp) * REAL(t136,KIND=dp) * t677  &
+      + REAL(2 * t523 * t800,KIND=dp) - REAL(2 * t150 * t803,KIND=dp)) + REAL(6 * t533  &
+      * t156 * t808,KIND=dp) + t155 * t677 * t116 * t118 + 0.2e1_dp * t155 * t541  &
+      * REAL(t800,KIND=dp) - 0.2e1_dp * t155 * REAL(t156,KIND=dp) * REAL(t803,KIND=dp)) + 0.3e1_dp * t163  &
+      * t164 * (REAL(2 * t216 * t173 * t269,KIND=dp) + t14 * (-0.16e2_dp / 0.15e2_dp  &
       * t61 * t716 * t104 * t109 + 0.32e2_dp / 0.15e2_dp * t167 * t758 - 0.56e2_dp  &
-      / 0.15e2_dp * t167 * t762 + DBLE(2 * t667 * t170) - DBLE(2 * t64  &
-      * t568 * t292)) + DBLE(4 * t437 * t183 * t269) + t115 * (-0.32e2_dp  &
-      / 0.15e2_dp * DBLE(t667) * DBLE(t175) * DBLE(t178) + 0.32e2_dp / 0.15e2_dp  &
-      * t581 * t177 * t143 * DBLE(t292) - 0.32e2_dp / 0.15e2_dp * DBLE(t64) *  &
-      t34 * t716 * DBLE(t178) + 0.64e2_dp / 0.15e2_dp * t176 * t590 * t720 - 0.112e3_dp  &
-      / 0.15e2_dp * t176 * t177 * t723 + DBLE(2 * t129 * t800) - DBLE(2  &
-      * t181 * t803)) - 0.64e2_dp / 0.15e2_dp * DBLE(t603) * DBLE(t604) *  &
-      DBLE(t808) - 0.16e2_dp / 0.15e2_dp * t115 * t716 * t187 - 0.56e2_dp / 0.15e2_dp  &
-      * t611 * t612 * t118 * t653 - 0.32e2_dp / 0.15e2_dp * t611 * t498 * DBLE(t800)  &
-      + 0.32e2_dp / 0.15e2_dp * t611 * DBLE(t604) * DBLE(t803))) * t199  &
+      / 0.15e2_dp * t167 * t762 + REAL(2 * t667 * t170,KIND=dp) - REAL(2 * t64  &
+      * t568 * t292,KIND=dp)) + REAL(4 * t437 * t183 * t269,KIND=dp) + t115 * (-0.32e2_dp  &
+      / 0.15e2_dp * REAL(t667,KIND=dp) * REAL(t175,KIND=dp) * REAL(t178,KIND=dp) + 0.32e2_dp / 0.15e2_dp  &
+      * t581 * t177 * t143 * REAL(t292,KIND=dp) - 0.32e2_dp / 0.15e2_dp * REAL(t64,KIND=dp) *  &
+      t34 * t716 * REAL(t178,KIND=dp) + 0.64e2_dp / 0.15e2_dp * t176 * t590 * t720 - 0.112e3_dp  &
+      / 0.15e2_dp * t176 * t177 * t723 + REAL(2 * t129 * t800,KIND=dp) - REAL(2  &
+      * t181 * t803,KIND=dp)) - 0.64e2_dp / 0.15e2_dp * REAL(t603,KIND=dp) * REAL(t604,KIND=dp) *  &
+      REAL(t808,KIND=dp) - 0.16e2_dp / 0.15e2_dp * t115 * t716 * t187 - 0.56e2_dp / 0.15e2_dp  &
+      * t611 * t612 * t118 * t653 - 0.32e2_dp / 0.15e2_dp * t611 * t498 * REAL(t800,KIND=dp)  &
+      + 0.32e2_dp / 0.15e2_dp * t611 * REAL(t604,KIND=dp) * REAL(t803,KIND=dp))) * t199  &
       + 0.4e1_dp / 0.9e1_dp * t195 * qndrho * t199) * Clda ) * sx
     END IF
 
@@ -1009,7 +1011,7 @@ MODULE xc_xpbe_hole_t_c_lr
       t122 + 3 * t126 * t127 * t146
       t151 = t58 * t150
       t152 = D * t35
-      t155 = dexp(-t152 * t38 - q)
+      t155 = EXP(-t152 * t38 - q)
       t158 = -0.4e1_dp / 0.9e1_dp * A * t46 + 0.4e1_dp / 0.9e1_dp * A * t48 - 0.4e1_dp /  &
       0.9e1_dp * A * t54 - 0.4e1_dp / 0.9e1_dp * t151 * t155
       e_0 = e_0  + (t45 * t158 * Clda)* sx
@@ -1058,7 +1060,7 @@ MODULE xc_xpbe_hole_t_c_lr
       qndrho = 2 * t173 * t93 * t37 * t225 + t14 * t235 * t39 - t192 * t93  &
       * t37 * t248
       t264 = dexeirho(P,Q,Prho,Qrho)
-      t268 = dexp(-q)
+      t268 = EXP(-q)
       t272 = t268 / t12 / t13
       t276 = 0.1e1_dp / t35
       t278 = 0.1e1_dp / t37
@@ -1066,7 +1068,7 @@ MODULE xc_xpbe_hole_t_c_lr
       t287 = t191 * t204
       t289 = 2 * t172 * t40 * t174 + t14 * t217 - t14 * t287
       t292 = t170 * t4
-      t297 = dexp(-t53)
+      t297 = EXP(-t53)
       t299 = 0.1e1_dp / t51
       t305 = t56 ** 2
       t307 = 0.1e1_dp / t305 * t150
@@ -1099,24 +1101,24 @@ MODULE xc_xpbe_hole_t_c_lr
       A * t264 - 0.4e1_dp / 0.27e2_dp * A * qrho * t272 * t280 + 0.4e1_dp / 0.27e2_dp  &
       * A * (t289 * t35 * t38 + 0.2e1_dp / 0.3e1_dp * t52 * t292) * t297 * t299  &
       * t276 * t1 * t278 + 0.4e1_dp / 0.3e1_dp * t307 * t155 * t289 - 0.4e1_dp  &
-      / 0.9e1_dp * t58 * (DBLE(2 * t172 * t81 * t174) + DBLE(t14 * (t217  &
+      / 0.9e1_dp * t58 * (REAL(2 * t172 * t81 * t174,KIND=dp) + REAL(t14 * (t217  &
       * C - t191 * C * t204 + 2 * t317 * t65 - 2 * t64 * t320 * t204 + 2  &
-      * t334 + t60 * t340)) + DBLE(4 * t344 * t91 * t174) + DBLE(t83 *  &
+      * t334 + t60 * t340),KIND=dp) + REAL(4 * t344 * t91 * t174,KIND=dp) + REAL(t83 *  &
       (2 * t191 * B * t188 - 2 * t353 * B * t204 + t217 * t89 - t191 * t358  &
-      + t40 * C * t340)) + 0.2e1_dp / 0.3e1_dp * t93 * t7 * t122 * t4 + t93  &
-      * t37 * DBLE(2 * t172 * t106 * t174 + t14 * (2 * E * t188 * t34  &
+      + t40 * C * t340),KIND=dp) + 0.2e1_dp / 0.3e1_dp * t93 * t7 * t122 * t4 + t93  &
+      * t37 * REAL(2 * t172 * t106 * t174 + t14 * (2 * E * t188 * t34  &
       - 2 * t97 * t338 + 2 * t95 * t333 + 2 * t317 * t102 - 2 * t64 * t380  &
       * t204 + t94 * t340) + 4 * t344 * t115 * t174 + t83 * (2 * t334  &
       * t40 + 2 * t75 * t217 - 2 * t75 * t287 + 2 * t317 * t110 - 2 * t394  &
       * t358 + 2 * t64 * t102 * t340 + 2 * t398 * t399 - 2 * t113 *  &
       t401) + 6 * t407 * t119 * t408 + t118 * t340 * t84 * t86 + 2 * t118  &
-      * t415 * t399 - 2 * t118 * t119 * t401) + 0.4e1_dp * t126 * t6 * t146  &
-      * t4 + 0.3e1_dp * t126 * t127 * DBLE(2 * t172 * t133 * t174 + t14  &
+      * t415 * t399 - 2 * t118 * t119 * t401,KIND=dp) + 0.4e1_dp * t126 * t6 * t146  &
+      * t4 + 0.3e1_dp * t126 * t127 * REAL(2 * t172 * t133 * t174 + t14  &
       * (t128 * t333 + 2 * t317 * t130 - 2 * t64 * t435 * t204) + 4 * t344  &
       * t140 * t174 + t83 * (2 * t317 * t135 - 2 * t394 * t75 * t204  &
       + 2 * t64 * t130 * t333 + 2 * t97 * t399 - 2 * t138 * t401) + 6 *  &
       t454 * t143 * t408 + t142 * t333 * t84 * t86 + 2 * t142 * t461 * t399  &
-      - 2 * t142 * t143 * t401)) * t155 - 0.4e1_dp / 0.9e1_dp * t151 * (-0.2e1_dp  &
+      - 2 * t142 * t143 * t401,KIND=dp)) * t155 - 0.4e1_dp / 0.9e1_dp * t151 * (-0.2e1_dp  &
       / 0.3e1_dp * t152 * t292 - t178 - t190 + t207 - t211) * t155) *  &
       Clda ) * sx
       t485 = dexeindrho(P,Q,Pndrho,Qndrho)
@@ -1133,7 +1135,7 @@ MODULE xc_xpbe_hole_t_c_lr
       t586 = t86 * t225
       e_ndrho = e_ndrho + (t45 * (-0.4e1_dp / 0.9e1_dp * A * t485 - 0.4e1_dp / 0.27e2_dp * A * qndrho  &
       * t272 * t280 + 0.4e1_dp / 0.9e1_dp * A * t498 * t297 * t299 + 0.4e1_dp  &
-      / 0.3e1_dp * t307 * t155 * t498 - 0.4e1_dp / 0.9e1_dp * t58 * DBLE(2 * t172  &
+      / 0.3e1_dp * t307 * t155 * t498 - 0.4e1_dp / 0.9e1_dp * t58 * REAL(2 * t172  &
       * t81 * t225 + t14 * (t236 * C - t191 * C * t248 + 2 * t512 * t65  &
       - 2 * t64 * t320 * t248 + 2 * t525 + t60 * t531) + 4 * t344 * t91  &
       * t225 + t83 * (2 * t191 * B * t235 - 2 * t353 * B * t248 + t236  &
@@ -1149,7 +1151,7 @@ MODULE xc_xpbe_hole_t_c_lr
       * t140 * t225 + t83 * (2 * t512 * t135 - 2 * t394 * t75 * t248  &
       + 2 * t64 * t130 * t524 + 2 * t97 * t579 - 2 * t138 * t581) + 6 *  &
       t454 * t143 * t586 + t142 * t524 * t84 * t86 + 2 * t142 * t461 * t579  &
-      - 2 * t142 * t143 * t581)) * t155 + 0.4e1_dp / 0.9e1_dp * t151 * qndrho  &
+      - 2 * t142 * t143 * t581),KIND=dp) * t155 + 0.4e1_dp / 0.9e1_dp * t151 * qndrho  &
       * t155) * Clda ) * sx
     END IF
 

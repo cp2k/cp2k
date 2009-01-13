@@ -286,21 +286,21 @@ MODULE xc_xlda_hole_t_c_lr
       t6 = t5 ** (0.1e1_dp / 0.3e1_dp)
       t7 = t6 ** 2
       t9 = t3 / t7
-      t12 = dlog(R * t3 * t6)
+      t12 = LOG(R * t3 * t6)
       t14 = R ** 2
       t15 = t14 ** 2
       t19 = 0.1e1_dp / D
       t22 = t3 ** 2
       t23 = t22 * t7
       t24 = D * t14 * t23
-      t25 = dexp(-t24)
+      t25 = EXP(-t24)
       t32 = 9 + 4 * A * t14 * t23
-      t33 = dlog(t32)
+      t33 = LOG(t32)
       t36 = D ** 2
       t41 = expint(1, t24)
       t46 = 0.1e1_dp / t36
-      t62 = dlog(0.2e1_dp)
-      t64 = dlog(A)
+      t62 = LOG(0.2e1_dp)
+      t64 = LOG(A)
       t67 = A * t12 + 0.3e1_dp / 0.2e1_dp * E * t15 * t3 * t6 * t5 * t19 * t25  &
       - A * t33 / 0.2e1_dp + E / t36 / D * t25 + A * t41 / 0.2e1_dp + E * t14  &
       * t22 * t7 * t46 * t25 + B * t19 * t25 / 0.2e1_dp + C * t46 * t25 / 0.2e1_dp  &

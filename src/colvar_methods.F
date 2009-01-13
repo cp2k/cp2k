@@ -1688,7 +1688,7 @@ CPSourceFileRef)
              ENDIF
              pre_fac = bond*SQRT(((2*l+1)*lmm)/(4*pi*lpm))
              IF (plm < 0.0_dp) THEN
-                dylm = -pre_fac*dplm !*plm/dabs(plm)
+                dylm = -pre_fac*dplm 
              ELSE
                 dylm = pre_fac*dplm
              ENDIF
