@@ -1000,7 +1000,7 @@ MODULE hfx_types
     IF (iw>0) THEN
       WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I5))")&
             "HFX_INFO| Number of periodic shells considered:     ",pbc_shells
-      WRITE (UNIT=iw,FMT="((T3,A,T60,I5)),/")&
+      WRITE (UNIT=iw,FMT="((T3,A,T60,I5),/)")&
             "HFX_INFO| Number of periodic cells considered:     ",SIZE(x_data%neighbor_cells)
     END IF
     CALL cp_print_key_finished_output(iw,logger,hfx_section,&

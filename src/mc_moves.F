@@ -839,7 +839,7 @@ END SUBROUTINE mc_conformation_change
       CALL mp_bcast(rand,source,group)
       dgamma=rmrot(molecule_type)*(rand-0.5E0_dp)*2.0E0_dp
 
-! *** set up the rotation marix ***
+! *** set up the rotation matrix ***
 
       cosdg = COS( dgamma )
       sindg = SIN( dgamma )
