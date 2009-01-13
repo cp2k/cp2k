@@ -39,3 +39,5 @@ hcn_md.inp               1
 hcn_meta_coord.inp       1
 hcn_meta_chaincoord.inp  1
 hcn_meta_chaincoord_kind.inp 1
+# Population colvar
+H2O_meta_pop.inp         1

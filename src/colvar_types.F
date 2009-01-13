@@ -7,6 +7,7 @@
 !> \brief Initialize the collective variables types
 !> \par History
 !>      5.2004 created [fawzi and alessandro]
+!>      1.2009 Fabio Sterpone : added the population COLVAR
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE colvar_types
@@ -51,6 +52,7 @@ MODULE colvar_types
             hydronium_colvar_type,&
             reaction_path_colvar_type,&
             combine_colvar_type,&
+            population_colvar_type,&
             point_type,&
             colvar_check_points,&
             eval_point_der,&
@@ -69,7 +71,9 @@ MODULE colvar_types
                                 qparm_colvar_id           =  8,&
                                 hydronium_colvar_id       =  9,&
                                 reaction_path_colvar_id   = 10,&
-                                combine_colvar_id            = 11
+                                combine_colvar_id         = 11,&
+                                population_colvar_id      = 12
+
 
 ! *****************************************************************************
 !> \brief parameters for the distance collective variable
@@ -100,6 +104,21 @@ MODULE colvar_types
                                                                     c_kinds_to_b
      REAL(KIND=dp)                   :: r_0, r_0_b
   END TYPE coord_colvar_type
+
+! *****************************************************************************
+ TYPE population_colvar_type
+     LOGICAL                         :: use_kinds_from, use_kinds_to
+     INTEGER                         :: n_atoms_to,&
+                                        n_atoms_from,&
+                                        nncrd,&
+                                        ndcrd,&
+                                        n0
+     INTEGER, POINTER, DIMENSION (:) :: i_at_from,&
+                                        i_at_to
+     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: c_kinds_from,&
+                                                                    c_kinds_to
+     REAL(KIND=dp)                   :: r_0,sigma
+  END TYPE population_colvar_type
 
 ! *****************************************************************************
   TYPE torsion_colvar_type
@@ -197,6 +216,7 @@ MODULE colvar_types
      ! Available COLVAR types
      TYPE(dist_colvar_type),POINTER           :: dist_param
      TYPE(coord_colvar_type),POINTER          :: coord_param
+     TYPE(population_colvar_type),POINTER     :: population_param
      TYPE(torsion_colvar_type),POINTER        :: torsion_param
      TYPE(angle_colvar_type),POINTER          :: angle_param
      TYPE(plane_distance_colvar_type),POINTER :: plane_distance_param
@@ -228,7 +248,7 @@ MODULE colvar_types
      INTEGER :: nreactionpath
      INTEGER :: ncombinecvs
      INTEGER :: nrestraint
-     !
+     INTEGER :: npopulation
      INTEGER :: ntot
   END TYPE colvar_counters
 
@@ -264,6 +284,7 @@ CONTAINS
     NULLIFY(colvar%rotation_param)
     NULLIFY(colvar%dfunct_param)
     NULLIFY(colvar%coord_param)
+    NULLIFY(colvar%population_param)
     NULLIFY(colvar%qparm_param)
     NULLIFY(colvar%hydronium_param)
     NULLIFY(colvar%reaction_path_param)
@@ -282,6 +303,9 @@ CONTAINS
           colvar%dist_param%axis_id = do_clv_xyz
        CASE(coord_colvar_id)
           ALLOCATE(colvar%coord_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(population_colvar_id)
+          ALLOCATE(colvar%population_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(angle_colvar_id)
           ALLOCATE(colvar%angle_param, stat=stat)
@@ -474,6 +498,33 @@ CONTAINS
                list(idum) = i
             ENDDO
           END IF
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CASE(population_colvar_id)
+          np = colvar%population_param%n_atoms_from+colvar%population_param%n_atoms_to
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s=0
+          DO ii=1,colvar%population_param%n_atoms_from
+             i = colvar%population_param%i_at_from(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          DO ii=1,colvar%population_param%n_atoms_to
+             i = colvar%population_param%i_at_to(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          DO ii=1,colvar%population_param%n_atoms_from
+             idum = idum + 1
+             i = colvar%population_param%i_at_from(ii)
+             list(idum) = i
+          ENDDO
+          DO ii=1,colvar%population_param%n_atoms_to
+             idum = idum + 1
+             i = colvar%population_param%i_at_to(ii)
+             list(idum) = i
+          ENDDO
           CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
        CASE(angle_colvar_id)
           np = 3
@@ -782,6 +833,25 @@ CONTAINS
        END IF
        DEALLOCATE(colvar%coord_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE (population_colvar_id)
+       IF (ASSOCIATED(colvar%population_param%i_at_from)) THEN
+          DEALLOCATE(colvar%population_param%i_at_from, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       END IF
+       IF (ASSOCIATED(colvar%population_param%i_at_to)) THEN
+          DEALLOCATE(colvar%population_param%i_at_to,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(colvar%population_param%c_kinds_from)) THEN
+          DEALLOCATE(colvar%population_param%c_kinds_from, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       END IF
+       IF (ASSOCIATED(colvar%population_param%c_kinds_to)) THEN
+          DEALLOCATE(colvar%population_param%c_kinds_to,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END IF
+       DEALLOCATE(colvar%population_param, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(angle_colvar_id)
        DEALLOCATE(colvar%angle_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)     
@@ -932,6 +1002,46 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           colvar_out%coord_param%i_at_to_b      = colvar_in%coord_param%i_at_to_b + my_offset
        END IF
+
+
+     CASE(population_colvar_id)
+       colvar_out%population_param%n_atoms_to   = colvar_in%population_param%n_atoms_to  
+       colvar_out%population_param%n_atoms_from = colvar_in%population_param%n_atoms_from
+       colvar_out%population_param%nncrd        = colvar_in%population_param%nncrd       
+       colvar_out%population_param%ndcrd        = colvar_in%population_param%ndcrd       
+       colvar_out%population_param%r_0          = colvar_in%population_param%r_0
+       colvar_out%population_param%use_kinds_from  = colvar_in%population_param%use_kinds_from
+       colvar_out%population_param%use_kinds_to    = colvar_in%population_param%use_kinds_to
+       NULLIFY(colvar_out%population_param%c_kinds_from, colvar_out%population_param%i_at_from)
+       NULLIFY(colvar_out%population_param%c_kinds_to, colvar_out%population_param%i_at_to)
+       IF(colvar_in%population_param%use_kinds_from) THEN
+          ! KINDS
+          ndim = SIZE(colvar_in%population_param%c_kinds_from)
+          ALLOCATE(colvar_out%population_param%c_kinds_from(ndim),stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          colvar_out%population_param%c_kinds_from    = colvar_in%population_param%c_kinds_from
+       ELSE
+          ! INDEX
+          ndim = SIZE(colvar_in%population_param%i_at_from)
+          ALLOCATE(colvar_out%population_param%i_at_from(ndim),stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          colvar_out%population_param%i_at_from    = colvar_in%population_param%i_at_from + my_offset
+       END IF
+       IF(colvar_in%population_param%use_kinds_to) THEN
+          ! KINDS
+          ndim = SIZE(colvar_in%population_param%c_kinds_to)
+          ALLOCATE(colvar_out%population_param%c_kinds_to(ndim),stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          colvar_out%population_param%c_kinds_to    = colvar_in%population_param%c_kinds_to
+       ELSE
+          ! INDEX
+          ndim = SIZE(colvar_in%population_param%i_at_to)
+          ALLOCATE(colvar_out%population_param%i_at_to(ndim),stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          colvar_out%population_param%i_at_to      = colvar_in%population_param%i_at_to + my_offset
+       END IF
+
+
     CASE(angle_colvar_id)
        colvar_out%angle_param%i_at_angle   = colvar_in%angle_param%i_at_angle + my_offset
     CASE(torsion_colvar_id)
@@ -1210,6 +1320,8 @@ CONTAINS
 !> \brief Complete the description of the COORDINATION colvar when
 !>      defined using KINDS
 !> \author Teodoro Laino - 07.2007
+!> \par History
+!>      1.2009 Fabio Sterpone : Added a part for population 
 ! *****************************************************************************
   SUBROUTINE post_process_colvar(colvar, particles, error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -1280,8 +1392,50 @@ CONTAINS
           CALL colvar_setup(colvar, error)
        END IF
     END IF
-  END SUBROUTINE post_process_colvar
 
+
+    IF (colvar%type_id == population_colvar_id) THEN
+
+       IF (colvar%population_param%use_kinds_from.OR.colvar%population_param%use_kinds_to) THEN
+          ! Atoms from
+          IF (colvar%population_param%use_kinds_from) THEN
+             colvar%population_param%use_kinds_from = .FALSE.
+             nkinds = SIZE(colvar%population_param%c_kinds_from)
+             DO i = 1, natoms
+                DO j = 1 , nkinds
+                   IF (TRIM(colvar%population_param%c_kinds_from(j))==TRIM(particles(i)%atomic_kind%name)) THEN
+                      CALL reallocate(colvar%population_param%i_at_from, 1, colvar%population_param%n_atoms_from+1)
+                      colvar%population_param%n_atoms_from = colvar%population_param%n_atoms_from + 1
+                      colvar%population_param%i_at_from(colvar%population_param%n_atoms_from) = i
+                   END IF
+                END DO
+             END DO
+             stat=colvar%population_param%n_atoms_from
+             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+          END IF
+          ! Atoms to
+          IF (colvar%population_param%use_kinds_to) THEN
+             colvar%population_param%use_kinds_to = .FALSE.
+             nkinds = SIZE(colvar%population_param%c_kinds_to)
+             DO i = 1, natoms
+                DO j = 1 , nkinds
+                   IF (TRIM(colvar%population_param%c_kinds_to(j))==TRIM(particles(i)%atomic_kind%name)) THEN
+                      CALL reallocate(colvar%population_param%i_at_to, 1, colvar%population_param%n_atoms_to+1)
+                      colvar%population_param%n_atoms_to = colvar%population_param%n_atoms_to + 1
+                      colvar%population_param%i_at_to(colvar%population_param%n_atoms_to) = i
+                   END IF
+                END DO
+             END DO
+             stat=colvar%population_param%n_atoms_to
+             CPPostcondition(stat/=0,cp_failure_level,routineP,error,failure)
+          END IF
+          ! Setup the colvar
+          CALL colvar_setup(colvar, error)
+       END IF
+
+    END IF
+  END SUBROUTINE post_process_colvar
+      
 ! *****************************************************************************
 !> \brief subtract b from the ss value of a colvar: general function for handling
 !>        periodic/non-periodic colvar

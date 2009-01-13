@@ -17,8 +17,8 @@ MODULE colvar_methods
        angle_colvar_id, colvar_check_points, colvar_create, colvar_setup, &
        colvar_type, combine_colvar_id, coord_colvar_id, dfunct_colvar_id, &
        dist_colvar_id, eval_point_der, eval_point_pos, hydronium_colvar_id, &
-       plane_distance_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
-       rotation_colvar_id, torsion_colvar_id
+       plane_distance_colvar_id, population_colvar_id, qparm_colvar_id, &
+       reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -107,7 +107,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
     LOGICAL                                  :: check, failure
-    LOGICAL, DIMENSION(11)                   :: my_subsection
+    LOGICAL, DIMENSION(12)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
     REAL(KIND=dp)                            :: coeff
@@ -118,8 +118,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: angle_section, colvar_subsection, &
       combine_section, coordination_section, dfunct_section, &
       distance_section, hydronium_section, plane_dist_section, point_section, &
-      qparm_section, reaction_path_section, rotation_section, &
-      torsion_section, wrk_section
+      population_section, qparm_section, reaction_path_section, &
+      rotation_section, torsion_section, wrk_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -158,6 +158,12 @@ CONTAINS
     IF (ASSOCIATED(combine_section)) THEN
        CALL section_vals_get(combine_section,explicit=my_subsection(11), error=error)
     END IF
+
+
+
+    population_section    => section_vals_get_subs_vals(colvar_section,"POPULATION",i_rep_section=icol,error=error)
+    CALL section_vals_get(population_section,   explicit=my_subsection(12),error=error)
+
 
     ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
@@ -472,6 +478,8 @@ CONTAINS
        END IF
        CALL cp_print_key_finished_output(iw1,logger,reaction_path_section,&
             "MAP", error=error)
+
+
     ELSE IF(my_subsection(11))THEN
        ! combine colvar
        CALL colvar_create(colvar,combine_colvar_id, error)
@@ -533,6 +541,84 @@ CPSourceFileRef)
        CALL section_vals_val_get(combine_section,"DX",r_val=colvar%combine_cvs_param%dx,error=error)
        CALL section_vals_val_get(combine_section,"ERROR_LIMIT",r_val=colvar%combine_cvs_param%lerr,&
             error=error)
+    ELSE IF (my_subsection(12)) THEN
+       ! Population
+       wrk_section => population_section
+       CALL colvar_create(colvar, population_colvar_id, error)
+       CALL colvar_check_points(colvar, population_section, error)
+
+       NULLIFY(colvar%population_param%i_at_from, colvar%population_param%c_kinds_from)
+       NULLIFY(colvar%population_param%i_at_to, colvar%population_param%c_kinds_to)
+       ! This section can be repeated
+
+       CALL section_vals_val_get(population_section,"ATOMS_FROM",n_rep_val=n_var,error=error)
+       ndim = 0
+       IF (n_var /= 0) THEN
+          ! INDEX LIST
+          DO k = 1, n_var
+             CALL section_vals_val_get(population_section,"ATOMS_FROM",i_rep_val=k,i_vals=iatms,error=error)
+             CALL reallocate(colvar%population_param%i_at_from,1, ndim+SIZE(iatms))
+             colvar%population_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms 
+             ndim = ndim + SIZE(iatms)
+          END DO
+          colvar%population_param%n_atoms_from = ndim
+          colvar%population_param%use_kinds_from = .FALSE.
+       ELSE
+          ! KINDS
+          CALL section_vals_val_get(population_section,"KINDS_FROM",n_rep_val=n_var,error=error)
+          CPPostcondition(n_var>0,cp_failure_level,routinep,error,failure)
+          DO k = 1, n_var
+             CALL section_vals_val_get(population_section,"KINDS_FROM",i_rep_val=k,c_vals=c_kinds,error=error)
+             CALL reallocate(colvar%population_param%c_kinds_from,1, ndim+SIZE(c_kinds))
+             colvar%population_param%c_kinds_from(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
+             ndim = ndim + SIZE(c_kinds)
+          END DO
+          colvar%population_param%n_atoms_from = 0
+          colvar%population_param%use_kinds_from = .TRUE.
+          ! Uppercase the label
+          DO k = 1, ndim
+             CALL uppercase(colvar%population_param%c_kinds_from(k))
+          END DO
+       END IF
+       ! This section can be repeated
+       CALL section_vals_val_get(population_section,"ATOMS_TO",n_rep_val=n_var,error=error)
+       ndim = 0
+       IF (n_var /= 0) THEN
+          ! INDEX LIST
+          DO k = 1, n_var
+             CALL section_vals_val_get(population_section,"ATOMS_TO",i_rep_val=k,i_vals=iatms,error=error)
+             CALL reallocate(colvar%population_param%i_at_to,1, ndim+SIZE(iatms))
+             colvar%population_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms 
+             ndim = ndim + SIZE(iatms)
+          END DO
+          colvar%population_param%n_atoms_to = ndim
+          colvar%population_param%use_kinds_to = .FALSE.
+       ELSE
+          ! KINDS
+          CALL section_vals_val_get(population_section,"KINDS_TO",n_rep_val=n_var,error=error)
+          CPPostcondition(n_var>0,cp_failure_level,routinep,error,failure)
+          DO k = 1, n_var
+             CALL section_vals_val_get(population_section,"KINDS_TO",i_rep_val=k,c_vals=c_kinds,error=error)
+             CALL reallocate(colvar%population_param%c_kinds_to,1, ndim+SIZE(c_kinds))
+             colvar%population_param%c_kinds_to(ndim+1:ndim+SIZE(c_kinds)) = c_kinds
+             ndim = ndim + SIZE(c_kinds)
+          END DO
+          colvar%population_param%n_atoms_to = 0
+          colvar%population_param%use_kinds_to = .TRUE.
+          ! Uppercase the label
+          DO k = 1, ndim
+             CALL uppercase(colvar%population_param%c_kinds_to(k))
+          END DO
+       END IF
+       ! Let's finish reading the other parameters
+
+       CALL section_vals_val_get(population_section,"R0",r_val=colvar%population_param%r_0,error=error)
+       CALL section_vals_val_get(population_section,"NN",i_val=colvar%population_param%nncrd,error=error)
+       CALL section_vals_val_get(population_section,"ND",i_val=colvar%population_param%ndcrd,error=error)
+
+       CALL section_vals_val_get(population_section,"N0",i_val=colvar%population_param%n0,error=error)
+
+       CALL section_vals_val_get(population_section,"SIGMA",r_val=colvar%population_param%sigma,error=error)
     END IF
     CALL colvar_setup(colvar, error)
 
@@ -605,6 +691,30 @@ CPSourceFileRef)
              WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN B',colvar%coord_param%nncrd_b
              WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND B',colvar%coord_param%ndcrd_b
           END IF
+       CASE(population_colvar_id)
+          IF (colvar%population_param%use_kinds_from) THEN
+             WRITE ( iw, '( A,T71,A10)' )  (' COLVARS| POPULATION based on coordination >>> FROM KINDS',&
+                  ADJUSTR(colvar%population_param%c_kinds_from(kk)(1:10)),&
+                  kk=1,SIZE(colvar%population_param%c_kinds_from))
+          ELSE
+             WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| POPULATION based on coordination >>> FROM '//tag,&
+                  colvar%population_param%i_at_from(kk),&
+                  kk=1,SIZE(colvar%population_param%i_at_from))
+          END IF
+          IF (colvar%population_param%use_kinds_to) THEN
+             WRITE ( iw, '( A,T71,A10)' )  (' COLVARS| POPULATION based on coordination >>>   TO KINDS',&
+                  ADJUSTR(colvar%population_param%c_kinds_to(kk)(1:10)),&
+                  kk=1,SIZE(colvar%population_param%c_kinds_to))
+          ELSE
+             WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| POPULATION based on coordination   >>>   TO '//tag,&
+                  colvar%population_param%i_at_to(kk),&
+                  kk=1,SIZE(colvar%population_param%i_at_to))
+          END IF
+          WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| R0',colvar%population_param%r_0
+          WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN',colvar%population_param%nncrd
+          WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND',colvar%population_param%ndcrd
+          WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| N0',colvar%population_param%n0
+          WRITE ( iw, '( A,T71,F10.5)' )   ' COLVARS| SIGMA',colvar%population_param%sigma
        CASE(rotation_colvar_id)
           WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 1 LINE 1  >>> '//tag,&
                colvar%rotation_param%i_at1_bond1
@@ -724,6 +834,8 @@ CPSourceFileRef)
           CALL dist_colvar(colvar,cell,particles=particles,error=error)
        CASE (coord_colvar_id)
           CALL coord_colvar(colvar,cell,particles=particles, error=error)
+       CASE (population_colvar_id)
+          CALL population_colvar(colvar,cell,particles=particles, error=error)
        CASE (torsion_colvar_id)
           CALL torsion_colvar(colvar, cell, particles=particles, error=error)
        CASE (angle_colvar_id)
@@ -789,6 +901,8 @@ CPSourceFileRef)
           CALL dist_colvar(colvar,cell,subsys=subsys,error=error)
        CASE (coord_colvar_id)
           CALL coord_colvar(colvar,cell,subsys=subsys, error=error)
+       CASE (population_colvar_id)
+          CALL population_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (torsion_colvar_id)
           CALL torsion_colvar(colvar,cell,subsys=subsys, no_riemann_sheet_op=.TRUE.,error=error)
        CASE (angle_colvar_id)
@@ -2155,6 +2269,110 @@ CPSourceFileRef,&
     DEALLOCATE(ds1,stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
   END SUBROUTINE reaction_path_colvar
+
+! *****************************************************************************
+!> \brief evaluates the force due to population colvar
+!> \author fsterpone
+!> \date  01.2009 
+! *****************************************************************************
+  SUBROUTINE population_colvar(colvar,cell,subsys,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'population_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, jj, n_atoms_from, &
+                                                n_atoms_to, ndcrd, nncrd
+    LOGICAL                                  :: failure
+    REAL(dp) :: dfunc, dfunc_coord, ftmp(3), func, func_coord, &
+      inv_n_atoms_from, invden, n_0, ncoord, norm, num, population, r12, r_0, &
+      rdist, sigma, ss(3), xij(3)
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ftmp_coord
+    REAL(dp), DIMENSION(3)                   :: xpi, xpj
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+
+    failure=.FALSE.
+    ! If we defined the coordination number with KINDS then we have still
+    ! to fill few missing informations...
+    NULLIFY(particles_i)
+    CPPrecondition(colvar%type_id==population_colvar_id,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+    n_atoms_to=colvar%population_param%n_atoms_to
+    n_atoms_from=colvar%population_param%n_atoms_from
+    nncrd=colvar%population_param%nncrd
+    ndcrd=colvar%population_param%ndcrd
+    r_0=colvar%population_param%r_0
+    n_0=colvar%population_param%n0  
+    sigma=colvar%population_param%sigma
+
+    ALLOCATE(ftmp_coord(3,n_atoms_to))
+    ftmp_coord=0.0_dp
+      
+    ncoord=0.0_dp
+    population=0.0_dp
+
+    colvar%dsdr=0.0_dp
+    inv_n_atoms_from=1.0_dp/REAL(n_atoms_from)
+
+    norm=dsqrt(pi*2.0_dp)*sigma
+    norm=1/norm
+
+    DO ii=1,n_atoms_from
+       i=colvar%population_param%i_at_from(ii)
+       CALL get_coordinates(colvar, i, xpi, my_particles)
+       DO jj=1,n_atoms_to
+          i=colvar%population_param%i_at_to(jj)
+          CALL get_coordinates(colvar, i, xpj, my_particles)       
+          ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
+          ss=ss-NINT(ss)
+          xij=MATMUL(cell%hmat,ss)
+          r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+          IF(r12 < 1.0e-8_dp)CYCLE
+          rdist = r12/r_0
+          num=(1.0_dp-rdist**nncrd)
+          invden=1.0_dp/(1.0_dp-rdist**ndcrd)
+          func_coord=num*invden
+          dfunc_coord= (- nncrd*rdist **(nncrd-1) *invden  &
+               + num*(invden)**2 * ndcrd *rdist **(ndcrd-1))/(r12*r_0)
+               
+          ncoord=ncoord+func_coord
+          ftmp_coord(1,jj) = dfunc_coord*xij(1)
+          ftmp_coord(2,jj) = dfunc_coord*xij(2)
+          ftmp_coord(3,jj) = dfunc_coord*xij(3)
+       END DO
+              
+       func=EXP(-(ncoord-n_0)**2/(2.0_dp*sigma*sigma))
+       dfunc=-func*(ncoord-n_0)/(sigma*sigma)
+
+       population=population+norm*func
+       DO jj=1,n_atoms_to
+          ftmp(1)=ftmp_coord(1,jj)*dfunc
+          ftmp(2)=ftmp_coord(2,jj)*dfunc
+          ftmp(3)=ftmp_coord(3,jj)*dfunc
+          CALL put_derivative(colvar, ii, ftmp)
+          ftmp(1)=-ftmp_coord(1,jj)*dfunc
+          ftmp(2)=-ftmp_coord(2,jj)*dfunc
+          ftmp(3)=-ftmp_coord(3,jj)*dfunc
+          CALL put_derivative(colvar, n_atoms_from+jj, ftmp)
+       ENDDO
+       ncoord=0.0_dp
+    ENDDO
+    colvar%ss=population
+  END SUBROUTINE population_colvar
+
 
 ! *****************************************************************************
 !> \brief used to print reaction_path function values on an arbitrary dimensional grid

@@ -19,8 +19,8 @@ MODULE molecule_kind_types
   USE colvar_types,                    ONLY: &
        angle_colvar_id, colvar_counters, combine_colvar_id, coord_colvar_id, &
        dfunct_colvar_id, dist_colvar_id, hydronium_colvar_id, &
-       plane_distance_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
-       rotation_colvar_id, torsion_colvar_id
+       plane_distance_colvar_id, population_colvar_id, qparm_colvar_id, &
+       reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE external_potential_types,        ONLY: all_potential_type,&
@@ -258,6 +258,8 @@ CONTAINS
     ncolv%nreactionpath  = 0
     ncolv%ncombinecvs    = 0
     ncolv%nrestraint     = 0
+    ncolv%npopulation    = 0
+
     IF (ASSOCIATED(colv_list)) THEN
        DO k = 1, SIZE(colv_list)
           IF (colv_list(k)%restraint%active) ncolv%nrestraint  = ncolv%nrestraint + 1
@@ -266,6 +268,8 @@ CONTAINS
              ncolv%nangle = ncolv%nangle + 1
           CASE(coord_colvar_id)
              ncolv%ncoord = ncolv%ncoord + 1
+          CASE(population_colvar_id)
+             ncolv%npopulation = ncolv%npopulation + 1
           CASE(rotation_colvar_id)
              ncolv%nrot = ncolv%nrot + 1
           CASE(dist_colvar_id)
@@ -299,7 +303,9 @@ CONTAINS
                  ncolv%nqparm       +&
                  ncolv%nhydronium   +&
                  ncolv%nreactionpath+&
-                 ncolv%ncombinecvs
+                 ncolv%ncombinecvs  +&
+                 ncolv%npopulation
+
 
   END SUBROUTINE setup_colvar_counters
 

@@ -127,6 +127,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_colvar_pop_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_colvar_d_pl_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -299,6 +303,115 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_colvar_coord_section
+! *****************************************************************************
+!> \brief collective variables specifying population of a specie based on coordination
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Fabio Sterpone
+!> \date  01.2009
+! *****************************************************************************
+  SUBROUTINE create_colvar_pop_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_pop_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="population",&
+            description="Section to define the population of specie as a collective variable.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(subsection, keyword)
+
+       CALL keyword_create(keyword, name="ATOMS_FROM",&
+            variants=(/"POINTS_FROM"/),&
+            description="Specify indexes of atoms/points building the coordination variable. ",&
+            usage="ATOMS_FROM {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOMS_TO",&
+            variants=(/"POINTS_TO"/),&
+            description="Specify indexes of atoms/points building the coordination variable. ",&
+            usage="ATOMS_TO {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="KINDS_FROM",&
+            description="Specify alternatively kinds of atoms building the coordination variable.",&
+            usage="KINDS_FROM {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=char_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="KINDS_TO",&
+            description="Specify alternatively kinds of atoms building the coordination variable.",&
+            usage="KINDS_TO {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=char_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL keyword_create(keyword, name="R0",&
+            variants=(/"R_0"/),&
+            description="Specify the R0 parameter in the coordination function.",&
+            usage="R0 {real}",default_r_val=3.0_dp,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NN",&
+            variants=(/"EXPON_NUMERATOR"/),&
+            description="Sets the value of the numerator of the exponential factor"//&
+            "in the coordination FUNCTION.",&
+            usage="NN {integer}",default_i_val=6,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ND",&
+            variants=(/"EXPON_DENOMINATOR"/),&
+            description="Sets the value of the denominator of the exponential factor"//&
+            "in the coordination FUNCTION.",&
+            usage="ND {integer}",default_i_val=12,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+ 
+       CALL keyword_create(keyword, name="n0",&
+            variants=(/"n_0"/),&
+            description="Specify the n0 parameter that sets the coordination of the species.",&
+            usage="n0 {integer}",default_i_val=4,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="SIGMA",&
+            description="Specify the gaussian width of used to build the population istogram.",&
+            usage="SIGMA {real}",default_r_val=0.5_dp,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+
+  END SUBROUTINE create_colvar_pop_section
 
 ! *****************************************************************************
 !> \brief collective variables specifying torsion
