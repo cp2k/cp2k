@@ -32,7 +32,6 @@
        PRECONDITIONER FULL_H0
        &CURRENT
           GAUGE R_AND_STEP_FUNCTION
-          FULL T
        &END CURRENT
        &NMR
        &END

@@ -33,7 +33,6 @@
        MAX_SCF 10
        &CURRENT
           GAUGE R_AND_STEP_FUNCTION
-          FULL T
        &END CURRENT
        &NMR
           &PRINT

@@ -5982,12 +5982,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="FULL",&
-            description="Calculate the orbital dependent correction "//&
-            " to get the induced current density", usage="FULL",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+!       CALL keyword_create(keyword, name="FULL",&
+!            description="Calculate the orbital dependent correction "//&
+!            " to get the induced current density", usage="FULL",&
+!            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+!       CALL section_add_keyword(section,keyword,error=error)
+!       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="ORBITAL_CENTER",&
             description="The orbital center.",&

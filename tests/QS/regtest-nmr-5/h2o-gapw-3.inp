@@ -33,7 +33,6 @@
        PRECONDITIONER FULL_ALL
        &CURRENT
           GAUGE R
-          FULL T
        &END CURRENT
        &NMR
           &PRINT

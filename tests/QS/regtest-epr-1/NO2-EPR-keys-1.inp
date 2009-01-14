@@ -36,7 +36,6 @@
        &END LOCALIZE
        &CURRENT
           GAUGE R_AND_STEP_FUNCTION
-          FULL F
        &END CURRENT
        &EPR
          &PRINT
