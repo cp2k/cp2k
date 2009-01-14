@@ -39,10 +39,11 @@ MODULE pw_env_methods
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
   USE input_constants,                 ONLY: &
-       use_mt, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
-       xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
-       xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, &
-       xc_rho_spline2_smooth, xc_rho_spline3_smooth
+       use_mt, xc_deriv_collocate, xc_deriv_nn10_smooth, &
+       xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
+       xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
+       xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
+       xc_rho_spline3_smooth
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -335,7 +336,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      xc_smooth_method_id=section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error)
      splines_required=.FALSE.
      SELECT CASE(xc_deriv_method_id)
-     CASE(xc_deriv_pw)
+     CASE(xc_deriv_pw,xc_deriv_collocate)
          splines_required=splines_required.OR..FALSE.
      CASE(xc_deriv_spline2,xc_deriv_spline3,xc_deriv_spline2_smooth, &
           xc_deriv_spline3_smooth,xc_deriv_nn10_smooth,xc_deriv_nn50_smooth)
@@ -351,7 +352,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CASE DEFAULT
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
-     ! EPR, NMR, EFG can require splines. If the linres/EFG section is present we assume it could be on and splines might be used 
+     ! EPR, NMR, EFG can require splines. If the linres/EFG section is present we assume 
+     ! it could be on and splines might be used 
      linres_section => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="PROPERTIES%LINRES",&
                    error=error)

@@ -101,8 +101,9 @@ MODULE qs_collocate_density
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE qs_modify_pab_block,             ONLY: &
-       FUNC_AB, FUNC_ADBmDAB, FUNC_ARB, FUNC_ARDBmDARB, FUNC_DADB, &
-       prepare_adb_m_dab, prepare_arb, prepare_ardb_m_darb, prepare_dadb
+       FUNC_AB, FUNC_ADBmDAB, FUNC_ARB, FUNC_ARDBmDARB, FUNC_DABpADB, &
+       FUNC_DADB, prepare_adb_m_dab, prepare_arb, prepare_ardb_m_darb, &
+       prepare_dadb
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
@@ -132,6 +133,7 @@ MODULE qs_collocate_density
 
   PUBLIC :: calculate_rho_core,&
             calculate_rho_elec,&
+            calculate_drho_elec,&
             calculate_wavefunction,&
             collocate_pgf_product_gspace,&
             collocate_pgf_product_rspace,&
@@ -903,6 +905,416 @@ CONTAINS
   END SUBROUTINE calculate_rho_elec
 
 ! *****************************************************************************
+!> \brief computes the gradient of the density corresponding to a given 
+!>        density matrix on the grid
+!> \note  this is an alternative to calculate the gradient through FFTs
+! *****************************************************************************
+  SUBROUTINE calculate_drho_elec(matrix_p,drho,drho_gspace,qs_env,&
+             soft_valid,basis_set_id,error)
+
+    TYPE(real_matrix_type), POINTER          :: matrix_p
+    TYPE(pw_p_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: drho
+    TYPE(pw_p_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: drho_gspace
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_drho_elec', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: add_tasks = 1000, &
+                                                max_tasks = 2000
+    REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
+
+    INTEGER :: bcol, brow, handle, iatom, iatom_old, idir, igrid_level, &
+      ikind, ikind_old, ipgf, iset, iset_old, istat, itask, ithread, jatom, &
+      jatom_old, jkind, jkind_old, jpgf, jset, jset_old, maxco, maxpgf, &
+      maxset, maxsgf, maxsgf_set, my_basis_set_id, n, na1, na2, natoms, nb1, &
+      nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat
+    INTEGER(kind=int_8), DIMENSION(:), &
+      POINTER                                :: atom_pair_recv, atom_pair_send
+    INTEGER(kind=int_8), DIMENSION(:, :), &
+      POINTER                                :: tasks
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, &
+      map_consistent, my_soft, use_subpatch
+    REAL(KIND=dp)                            :: eps_rho_rspace, &
+                                                kind_radius_b, rab2, scale, &
+                                                zetp
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rab_inv, rb
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab, p_block, pab, rpgfa, &
+                                                rpgfb, sphi_a, sphi_b, work, &
+                                                zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: pabt, workt
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+      POINTER                                :: rs_pools
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(real_matrix_type), POINTER          :: deltap
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_rho
+    TYPE(section_vals_type), POINTER         :: input, interp_section
+    TYPE(task_list_type), POINTER            :: task_list, task_list_soft
+
+    failure=.FALSE.
+    NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, deltap, &
+         atomic_kind_set, sab_orb, particle_set, rs_rho, pw_env, rs_pools, &
+         para_env, dist_ab, set_radius_a, set_radius_b, la_max, la_min, &
+         lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, rpgfa, rpgfb, &
+         sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, &
+         workt)
+
+    debug_count=debug_count+1
+
+    ! by default, the full density is calculated
+    my_soft=.FALSE.
+    IF (PRESENT(soft_valid)) my_soft = soft_valid
+
+    CALL timeset(routineN,handle)
+    !
+    IF( PRESENT(basis_set_id) ) THEN
+      my_basis_set_id = basis_set_id
+    ELSE
+      my_basis_set_id = use_orb_basis_set
+    END IF
+   
+    SELECT CASE (my_basis_set_id)
+    CASE (use_orb_basis_set) 
+      CALL get_qs_env(qs_env=qs_env,&
+           atomic_kind_set=atomic_kind_set,&
+           cell=cell,&
+           dft_control=dft_control,&
+           particle_set=particle_set,&
+           sab_orb=sab_orb,&
+           para_env=para_env,&
+           task_list=task_list,&
+           task_list_soft=task_list_soft,&
+           input=input,&
+           pw_env=pw_env,error=error)
+    CASE (use_aux_fit_basis_set)
+      CALL get_qs_env(qs_env=qs_env,&
+           atomic_kind_set=atomic_kind_set,&
+           cell=cell,&
+           dft_control=dft_control,&
+           particle_set=particle_set,&
+           sab_aux_fit=sab_orb,&
+           para_env=para_env,&
+           task_list_aux_fit=task_list,&
+           task_list_soft=task_list_soft,&
+           input=input,&
+           pw_env=pw_env,error=error)
+    END SELECT
+
+    ! *** assign from pw_env
+    gridlevel_info=>pw_env%gridlevel_info
+    cube_info=>pw_env%cube_info
+
+    !   *** Allocate work storage ***
+    nthread = 1
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+         maxco=maxco,&
+         maxsgf=maxsgf,&
+         maxsgf_set=maxsgf_set,&
+         basis_set_id=my_basis_set_id)
+    nkind = SIZE(atomic_kind_set)
+    CALL reallocate(pabt,1,maxco,1,maxco,0,nthread-1)
+    CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
+
+    ! find maximum numbers
+    nkind = SIZE(atomic_kind_set)
+    natoms = SIZE( particle_set )
+    maxset=0
+    maxpgf=0
+    DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       SELECT CASE( my_basis_set_id)
+       CASE (use_orb_basis_set)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              softb = my_soft, &
+              orb_basis_set=orb_basis_set)
+       CASE (use_aux_fit_basis_set)
+           CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              softb = my_soft, &
+              aux_fit_basis_set=orb_basis_set,&
+              basis_set_id=my_basis_set_id)
+       END SELECT
+
+       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+            npgf=npgfa, nset=nseta )
+
+       maxset=MAX(nseta,maxset)
+       maxpgf=MAX(MAXVAL(npgfa),maxpgf)
+    END DO
+
+    ! get the task lists
+    IF (my_soft) task_list=>task_list_soft
+    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routineP,error,failure)
+    tasks  =>task_list%tasks
+    dist_ab=>task_list%dist_ab
+    atom_pair_send=>task_list%atom_pair_send
+    atom_pair_recv=>task_list%atom_pair_recv
+    ntasks=task_list%ntasks
+    
+    ! *** set up the rs multi-grids
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+      distributed_rs_grids=rs_rho(igrid_level)%rs_grid%distributed
+    END DO
+
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+    map_consistent = dft_control%qs_control%map_consistent
+    !   *** Initialize working density matrix ***
+    ! distributed rs grids require a matrix that will be changed 
+    ! whereas this is not the case for replicated grids
+    IF (distributed_rs_grids) THEN
+       NULLIFY(deltap)
+       CALL replicate_matrix(matrix_p,deltap,target_name="DeltaP",error=error)
+       ! this matrix has no strict sparsity pattern in parallel
+       deltap%sparsity_id=-1
+       CALL distribution_2d_release(deltap%distribution_2d,error=error)
+    ELSE
+       deltap=>matrix_p
+    ENDIF
+
+    ! distribute the matrix
+    IF (distributed_rs_grids) THEN
+       CALL distribute_matrix (rs_rho(1)%rs_grid, deltap, atom_pair_send, atom_pair_recv, &
+                               natoms, scatter=.TRUE., error=error)
+    ENDIF
+
+    ! map all tasks on the grids
+
+    ithread = 0
+    pab => pabt(:,:,ithread)
+    work => workt(:,:,ithread)
+
+    loop_xyz: DO idir=1,3
+
+      DO igrid_level=1,gridlevel_info%ngrid_levels
+         CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+      END DO
+
+      iatom_old = -1 ; jatom_old = -1 ; iset_old = -1 ; jset_old = -1 
+      ikind_old = -1 ; jkind_old = -1
+      loop_tasks: DO itask=1,ntasks
+
+        !decode the atom pair and basis info
+        CALL int2pair(tasks(3,itask),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+        ikind = particle_set(iatom)%atomic_kind%kind_number
+        jkind = particle_set(jatom)%atomic_kind%kind_number
+
+        IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN 
+
+          IF (iatom .NE. iatom_old) ra(:) = pbc(particle_set(iatom)%r,cell)
+
+          IF (iatom <= jatom) THEN
+             brow = iatom
+             bcol = jatom
+          ELSE
+             brow = jatom
+             bcol = iatom
+          END IF
+
+          IF(ikind .NE. ikind_old ) THEN
+             SELECT CASE (my_basis_set_id)
+               CASE (use_orb_basis_set)
+                 CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                    softb = my_soft, &
+                    orb_basis_set=orb_basis_set)
+               CASE (use_aux_fit_basis_set)
+                 CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                    softb = my_soft, &
+                    aux_fit_basis_set=orb_basis_set,&
+                    basis_set_id=my_basis_set_id)
+             END SELECT
+             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                  first_sgf=first_sgfa,&
+                  lmax=la_max,&
+                  lmin=la_min,&
+                  npgf=npgfa,&
+                  nset=nseta,&
+                  nsgf_set=nsgfa,&
+                  pgf_radius=rpgfa,&
+                  set_radius=set_radius_a,&
+                  sphi=sphi_a,&
+                  zet=zeta)
+          ENDIF
+
+          IF (jkind .NE. jkind_old ) THEN
+             SELECT CASE (my_basis_set_id)
+             CASE (use_orb_basis_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
+                    softb = my_soft, &
+                    orb_basis_set=orb_basis_set)
+             CASE (use_aux_fit_basis_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
+                    softb = my_soft, &
+                    aux_fit_basis_set=orb_basis_set,&
+                    basis_set_id=my_basis_set_id)
+             END SELECT
+             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                  first_sgf=first_sgfb,&
+                  kind_radius=kind_radius_b,&
+                  lmax=lb_max,&
+                  lmin=lb_min,&
+                  npgf=npgfb,&
+                  nset=nsetb,&
+                  nsgf_set=nsgfb,&
+                  pgf_radius=rpgfb,&
+                  set_radius=set_radius_b,&
+                  sphi=sphi_b,&
+                  zet=zetb)          
+          ENDIF
+
+          CALL get_block_node(matrix=deltap,&
+               block_row=brow,&
+               block_col=bcol,&
+               BLOCK=p_block)
+          IF (.NOT.ASSOCIATED(p_block)) &
+               CALL stop_program(routineP,"p_block not associated in deltap")
+
+          iatom_old = iatom
+          jatom_old = jatom
+          ikind_old = ikind
+          jkind_old = jkind
+          atom_pair_changed = .TRUE.
+
+        ELSE
+
+          atom_pair_changed = .FALSE.
+
+        ENDIF
+ 
+        IF (atom_pair_changed .OR. iset_old .NE. iset .OR. jset_old .NE. jset) THEN
+
+          ncoa = npgfa(iset)*ncoset(la_max(iset))
+          sgfa = first_sgfa(1,iset)
+          ncob = npgfb(jset)*ncoset(lb_max(jset))
+          sgfb = first_sgfb(1,jset)
+
+          IF (iatom <= jatom) THEN
+             CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
+                  1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                  p_block(sgfa,sgfb),SIZE(p_block,1),&
+                  0.0_dp,work(1,1),maxco)
+             CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
+                  1.0_dp,work(1,1),maxco,&
+                  sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                  0.0_dp,pab(1,1),maxco)
+          ELSE
+             CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
+                  1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                  p_block(sgfb,sgfa),SIZE(p_block,1),&
+                  0.0_dp,work(1,1),maxco)
+             CALL dgemm("N","T",ncob,ncoa,nsgfa(iset),&
+                  1.0_dp,work(1,1),maxco,&
+                  sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                  0.0_dp,pab(1,1),maxco)
+          END IF
+
+          iset_old = iset
+          jset_old = jset
+
+        ENDIF
+
+        rab(:) = dist_ab (:,itask)
+        rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+        rb(:) = ra(:) + rab(:)
+        zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
+ 
+        na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
+        na2 = ipgf*ncoset(la_max(iset))
+        nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
+        nb2 = jpgf*ncoset(lb_max(jset))
+
+        ! takes the density matrix symmetry in account, i.e. off-diagonal blocks need to be mapped 'twice'
+        IF (iatom == jatom) THEN
+          scale = 1.0_dp
+        ELSE
+          scale = 2.0_dp
+        END IF
+ 
+        ! check whether we need to use fawzi's generalised collocation scheme
+        IF(rs_rho(igrid_level)%rs_grid%distributed)THEN
+          !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
+          IF (tasks(4,itask) .EQ. 2 ) THEN
+             use_subpatch = .TRUE.
+          ELSE
+             use_subpatch = .FALSE.
+          ENDIF
+        ELSE
+          use_subpatch = .FALSE.
+        ENDIF 
+        IF (iatom <= jatom) THEN
+          CALL collocate_pgf_product_rspace(&
+               la_max(iset),zeta(ipgf,iset),la_min(iset),&
+               lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+               ra,rab,rab2,scale,pab,na1-1,nb1-1,&
+               rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
+               eps_rho_rspace,&
+               ga_gb_function=FUNC_DABpADB, &
+               idir=idir, &
+               map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
+        ELSE
+          rab_inv=-rab
+          CALL collocate_pgf_product_rspace(&
+               lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+               la_max(iset),zeta(ipgf,iset),la_min(iset),&
+               rb,rab_inv,rab2,scale,pab,nb1-1,na1-1,&
+               rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
+               eps_rho_rspace,&
+               ga_gb_function=FUNC_DABpADB, &
+               idir=idir, &
+               map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
+        END IF
+
+      END DO loop_tasks
+
+      interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",error=error)
+      CALL density_rs2pw_basic(pw_env,rs_rho,drho(idir),drho_gspace(idir),&
+           interp_section=interp_section,error=error)
+
+    END DO loop_xyz
+
+    !   *** Release work storage ***
+    CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
+
+    IF (distributed_rs_grids) THEN
+      CALL deallocate_matrix ( deltap ,error=error)
+    ENDIF
+
+    DEALLOCATE (pabt,workt,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"pabt,workt")
+
+    CALL timestop(handle)
+
+  END SUBROUTINE calculate_drho_elec
+
+! *****************************************************************************
 !> \brief maps a given wavefunction on the grid
 !> \note
 !>      modified calculate_rho_elec, should write the wavefunction represented by
@@ -1322,6 +1734,38 @@ CONTAINS
         ! ( pgf_a ) (ddx pgf_b) - (ddx pgf_a)( pgf_b ) =
         !          pgf_a *(lbx pgf_{b-1x} - 2*zetb*pgf_{b+1x}) -
         !                   (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_b
+
+        ALLOCATE(pab_local(ncoset(la_max_local),ncoset(lb_max_local)))
+        pab_local = 0.0_dp
+        DO lxa=0,la_max
+        DO lxb=0,lb_max
+           DO lya=0,la_max-lxa
+           DO lyb=0,lb_max-lxb
+              DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+              DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+                 ! this element of pab results in 4 elements of pab_local
+                 CALL prepare_adb_m_dab(pab_local,pab,idir,&
+                      lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
+              END DO
+              END DO
+           END DO
+           END DO
+        END DO
+        END DO
+        o1_local=0
+        o2_local=0
+    CASE(FUNC_DABpADB)
+        CPPrecondition(PRESENT(idir),cp_failure_level,routineP,error,failure)
+        la_max_local=la_max+1
+        la_min_local=MAX(la_min-1,0)
+        lb_max_local=lb_max+1
+        lb_min_local=MAX(lb_min-1,0)
+        ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
+        ! is equivalent to mapping pab with
+        !    pgf_a (nabla_{idir} pgf_b) + (nabla_{idir} pgf_a) pgf_b
+        ! ( pgf_a ) (ddx pgf_b) + (ddx pgf_a)( pgf_b ) =
+        !          pgf_a *(lbx pgf_{b-1x} + 2*zetb*pgf_{b+1x}) +
+        !                   (lax pgf_{a-1x} + 2*zeta*pgf_{a+1x}) pgf_b
 
         ALLOCATE(pab_local(ncoset(la_max_local),ncoset(lb_max_local)))
         pab_local = 0.0_dp
@@ -2393,5 +2837,99 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE density_rs2pw
+
+! *****************************************************************************
+!> \brief given partial densities on the realspace multigrids,
+!>      computes the full density on the plane wave grids
+!> \note
+!>      should contain the all communication in the collocation of the density
+!>      in the case of replicated grids
+! *****************************************************************************
+  SUBROUTINE density_rs2pw_basic(pw_env,rs_rho,rho,rho_gspace,interp_section,error)
+
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_rho
+    TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: interp_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'density_rs2pw_basic', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, igrid_level, &
+                                                interp_kind
+    LOGICAL                                  :: failure
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+      POINTER                                :: rs_pools
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+    NULLIFY(gridlevel_info, mgrid_gspace, mgrid_rspace, rs_pools, pw_pools)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+
+
+    gridlevel_info=>pw_env%gridlevel_info
+    IF(PRESENT(interp_section)) THEN
+      CALL section_vals_val_get(interp_section,"KIND",i_val=interp_kind,error=error)
+    ELSE
+      interp_kind = pw_interp
+    END IF
+
+    CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
+                              use_data = REALDATA3D,&
+                              in_space = REALSPACE, error=error)
+
+    CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
+                              use_data = COMPLEXDATA1D,&
+                              in_space = RECIPROCALSPACE, error=error)
+
+    IF (gridlevel_info%ngrid_levels==1) THEN
+       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw,error=error)
+       CALL pw_transfer(rho%pw,rho_gspace%pw)
+    ELSE
+       DO igrid_level=1,gridlevel_info%ngrid_levels
+         CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
+               mgrid_rspace(igrid_level)%pw,rs2pw,error=error)
+       ENDDO
+
+       ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
+       SELECT CASE(interp_kind)
+       CASE(pw_interp)
+          DO igrid_level=1,gridlevel_info%ngrid_levels
+             CALL pw_transfer(mgrid_rspace(igrid_level)%pw,&
+                  mgrid_gspace(igrid_level)%pw)
+             IF (igrid_level/=1) THEN
+               CALL pw_axpy(mgrid_gspace(igrid_level)%pw,mgrid_gspace(1)%pw)
+             END IF
+          END DO
+          CALL pw_transfer(mgrid_gspace(1)%pw,rho%pw)
+          CALL pw_transfer(mgrid_rspace(1)%pw,rho_gspace%pw)
+       CASE(spline3_pbc_interp)
+          DO igrid_level=gridlevel_info%ngrid_levels,2,-1
+             CALL pw_prolongate_s3(mgrid_rspace(igrid_level)%pw,&
+                  mgrid_rspace(igrid_level-1)%pw,pw_pools(igrid_level)%pool,&
+                  interp_section,error=error)
+          END DO
+          CALL pw_copy(mgrid_rspace(1)%pw,rho%pw)
+          CALL pw_transfer(rho%pw,rho_gspace%pw)
+       CASE default
+          CALL cp_unimplemented_error(routineN,"interpolator "//&
+               cp_to_string(interp_kind),error=error)
+       END SELECT
+    END IF
+
+    ! *** give back the pw multi-grids
+    CALL pw_pools_give_back_pws(pw_pools,mgrid_gspace,error=error)
+    CALL pw_pools_give_back_pws(pw_pools,mgrid_rspace,error=error)
+    CALL timestop(handle)
+
+  END SUBROUTINE density_rs2pw_basic
 
 END MODULE qs_collocate_density

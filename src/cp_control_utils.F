@@ -31,7 +31,7 @@ MODULE cp_control_utils
   USE input_section_types,             ONLY: &
        section_get_keyword, section_release, section_type, section_vals_get, &
        section_vals_get_subs_vals, section_vals_get_subs_vals2, &
-       section_vals_type, section_vals_val_get, section_vals_val_set
+       section_vals_type, section_vals_val_get, section_vals_val_set, section_get_ival
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -72,7 +72,7 @@ CONTAINS
 
     CHARACTER(len=default_path_length)       :: basis_set_file_name, &
                                                 potential_file_name
-    INTEGER                                  :: excitations, method_id
+    INTEGER                                  :: excitations, method_id, xc_deriv_method_id
     LOGICAL                                  :: failure, is_present, l_param, &
                                                 not_SE, was_present
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
@@ -149,6 +149,14 @@ CPSourceFileRef,&
                                     add_basic_components=.TRUE.,&
                                     error=error)
     dft_control%use_kinetic_energy_density = (needs%tau_spin.OR.needs%tau)
+
+    xc_deriv_method_id=section_get_ival(xc_section,"XC_GRID%XC_DERIV",error)
+    dft_control%drho_by_collocation = (needs%norm_drho .AND. (xc_deriv_method_id==xc_deriv_collocate) )
+    IF (dft_control%drho_by_collocation) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+           message="derivatives by collocation not implemented", &
+           error=error, error_level=cp_failure_level)
+    END IF
 
     !! check if we do wavefunction fitting
     tmp_section => section_vals_get_subs_vals(dft_section,"WFN_FITTING",error=error)

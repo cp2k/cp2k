@@ -395,7 +395,8 @@ MODULE input_constants
                                               xc_deriv_spline2_smooth=3,&
                                               xc_deriv_spline3_smooth=4,&
                                               xc_deriv_nn10_smooth=5,&
-                                              xc_deriv_nn50_smooth=6
+                                              xc_deriv_nn50_smooth=6,&
+                                              xc_deriv_collocate=7
   INTEGER, PARAMETER, PUBLIC               :: xc_old_f_routine=0,&
                                               xc_new_f_routine=1,&
                                               xc_test_lsd_f_routine=3,&

@@ -3719,10 +3719,11 @@ CONTAINS
             description="The method used to compute the derivatives",&
             usage="xc_deriv NN10_SMOOTH", default_i_val=xc_deriv_pw,&
             enum_c_vals=s2a("PW","SPLINE3","SPLINE2","NN50_SMOOTH","NN10_SMOOTH",&
-            "SPLINE2_SMOOTH", "NN6_SMOOTH", "SPLINE3_SMOOTH", "NN4_SMOOTH"),&
+            "SPLINE2_SMOOTH", "NN6_SMOOTH", "SPLINE3_SMOOTH", "NN4_SMOOTH", "COLLOCATE"),&
             enum_i_vals=(/xc_deriv_pw, xc_deriv_spline3, xc_deriv_spline2,&
             xc_deriv_nn50_smooth, xc_deriv_nn10_smooth, xc_deriv_spline2_smooth,&
-            xc_deriv_spline2_smooth, xc_deriv_spline3_smooth, xc_deriv_spline3_smooth/),&
+            xc_deriv_spline2_smooth, xc_deriv_spline3_smooth, xc_deriv_spline3_smooth,&
+            xc_deriv_collocate/),&
             error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)

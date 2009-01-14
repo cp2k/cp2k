@@ -13,7 +13,13 @@ MODULE qs_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE f77_blas
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
-                                             use_orb_basis_set
+                                             use_orb_basis_set,&
+                                             xc_deriv_collocate
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -24,7 +30,8 @@ MODULE qs_rho_methods
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_release
-  USE qs_collocate_density,            ONLY: calculate_rho_elec
+  USE qs_collocate_density,            ONLY: calculate_rho_elec, &
+                                             calculate_drho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
@@ -86,7 +93,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, my_basis_set_id, &
-                                                nspins, stat
+                                                nspins, stat, xc_deriv_method_id
     LOGICAL                                  :: failure, my_gapw_xc, &
                                                 my_rebuild_ao, &
                                                 my_rebuild_grids
@@ -95,6 +102,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
+    TYPE(section_vals_type), POINTER         :: input
 
     NULLIFY(pw_env,auxbas_pw_pool,matrix_s,dft_control)
     CALL timeset(routineN,handle)
@@ -132,13 +140,16 @@ CONTAINS
           rho%ref_count=1
           rho%rho_g_valid=.FALSE.
           rho%rho_r_valid=.FALSE.
+          rho%drho_g_valid=.FALSE.
+          rho%drho_r_valid=.FALSE.
           rho%tau_g_valid=.FALSE.
           rho%tau_r_valid=.FALSE.
           rho%soft_valid = .FALSE.
           last_rho_id_nr=last_rho_id_nr+1
           rho%id_nr=last_rho_id_nr
           rho%rebuild_each=5
-          NULLIFY(rho%rho_r, rho%rho_g, rho%rho_ao, rho%tot_rho_r, rho%tot_rho_g, rho%tau_r, rho%tau_g)
+          NULLIFY(rho%rho_r, rho%rho_g, rho%drho_r, rho%drho_g, rho%rho_ao, &
+                  rho%tot_rho_r, rho%tot_rho_g, rho%tau_r, rho%tau_g)
           ALLOCATE(rho%tot_rho_r(nspins),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF (.not.failure) rho%tot_rho_r=0.0_dp
@@ -205,6 +216,50 @@ CONTAINS
        END IF
     END IF
   
+    ! allocate drho_r and drho_g if xc_deriv_collocate
+    IF (dft_control%drho_by_collocation) THEN
+       ! drho_r
+       IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%drho_r)) THEN
+          IF (.NOT.failure) THEN
+             IF (ASSOCIATED(rho%drho_r)) THEN
+                DO i=1,SIZE(rho%drho_r)
+                   CALL pw_release(rho%drho_r(i)%pw,error=error)
+                END DO
+                DEALLOCATE(rho%drho_r,stat=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END IF
+             ALLOCATE(rho%drho_r(3*nspins),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (.NOT.failure) THEN
+             DO i=1,3*nspins
+                CALL pw_pool_create_pw(auxbas_pw_pool,rho%drho_r(i)%pw,&
+                     use_data=REALDATA3D,in_space=REALSPACE,error=error)
+             END DO
+          END IF
+       END IF
+       ! drho_g
+       IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%drho_g)) THEN
+          IF (.NOT.failure) THEN
+             IF (ASSOCIATED(rho%drho_g)) THEN
+                DO i=1,SIZE(rho%drho_g)
+                   CALL pw_release(rho%drho_g(i)%pw,error=error)
+                END DO
+                DEALLOCATE(rho%drho_g,stat=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END IF
+             ALLOCATE(rho%drho_g(3*nspins),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (.NOT.failure) THEN
+             DO i=1,3*nspins
+                CALL pw_pool_create_pw(auxbas_pw_pool,rho%drho_g(i)%pw,&
+                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+             END DO
+          END IF
+       END IF
+    END IF
+
     ! allocate tau_r and tau_g if use_kinetic_energy_density
     IF (dft_control%use_kinetic_energy_density) THEN
        ! tau_r
@@ -312,6 +367,18 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
       rho_struct%rho_r_valid=.TRUE.
       rho_struct%rho_g_valid=.TRUE.
 
+      ! if needed compute also the gradient of the density
+      IF (dft_control%drho_by_collocation) THEN
+         DO ispin=1,nspins
+           CALL calculate_drho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&
+             drho=rho_struct%drho_r(3*(ispin-1)+1:3*ispin),&
+             drho_gspace=rho_struct%drho_g(3*(ispin-1)+1:3*ispin),&
+             qs_env=qs_env,soft_valid=gapw,error=error)
+         END DO
+         rho_struct%drho_r_valid=.TRUE.
+         rho_struct%drho_g_valid=.TRUE.
+      ENDIF
+
       ! if needed compute also the kinetic energy density
       IF (dft_control%use_kinetic_energy_density) THEN
          DO ispin=1,nspins
@@ -325,10 +392,6 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
          rho_struct%tau_r_valid=.TRUE.
          rho_struct%tau_g_valid=.TRUE.
       ENDIF
-!FM      call cp_sm_write(matrix=rho_struct%rho_ao(1)%matrix, unit_nr=122, &
-!FM           long_description=.TRUE., local=.true., error=error)
-!FM      WRITE (123,"(5F30.20)") rho_struct%rho_r(1)%pw%cr3d
-!FM      stop "pippo"
 
      ! GAPW o GAPW_XC require the calculation of hard and soft local densities
       IF(gapw ) THEN
@@ -346,6 +409,17 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
          END DO
          rho_xc%rho_r_valid=.TRUE.
          rho_xc%rho_g_valid=.TRUE.
+         ! if needed compute also the gradient of the density
+         IF (dft_control%drho_by_collocation) THEN
+            DO ispin=1,nspins
+              CALL calculate_drho_elec(matrix_p=rho_xc%rho_ao(ispin)%matrix,&
+                drho=rho_xc%drho_r(3*(ispin-1)+1:3*ispin),&
+                drho_gspace=rho_xc%drho_g(3*(ispin-1)+1:3*ispin),&
+                qs_env=qs_env,soft_valid=gapw_xc,error=error)
+            END DO
+            rho_xc%drho_r_valid=.TRUE.
+            rho_xc%drho_g_valid=.TRUE.
+         ENDIF
          ! if needed compute also the kinetic energy density
          IF (dft_control%use_kinetic_energy_density) THEN
            DO ispin=1,nspins
@@ -422,6 +496,7 @@ END SUBROUTINE qs_rho_update_rho
 
     IF (.NOT. failure) THEN
       NULLIFY(rho_output%rho_ao, rho_output%rho_g, rho_output%rho_r, &
+              rho_output%drho_g, rho_output%drho_r, &
               rho_output%tau_g, rho_output%tau_r, rho_output%tot_rho_r, &
               rho_output%tot_rho_g)
 
@@ -472,6 +547,39 @@ END SUBROUTINE qs_rho_update_rho
       END IF
     END IF
 
+    ! drho_r and drho_g are only needed if calculated by collocation
+    IF (.NOT.failure) THEN
+      IF (dft_control%drho_by_collocation) THEN
+        ! drho_r
+        IF (ASSOCIATED(rho_input%drho_r)) THEN
+          ALLOCATE(rho_output%drho_r(3*nspins), stat=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          IF (.NOT. failure) THEN
+            DO i = 1, 3*nspins
+              CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%drho_r(i)%pw, &
+                                      use_data=REALDATA3D, in_space=REALSPACE, &
+                                      error=error)
+              rho_output%drho_r(i)%pw%cr3d(:,:,:) = rho_input%drho_r(i)%pw%cr3d(:,:,:)
+            END DO
+          END IF
+        END IF
+
+        ! drho_g
+        IF (ASSOCIATED(rho_input%drho_g)) THEN
+          ALLOCATE(rho_output%drho_g(3*nspins), stat=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          IF (.NOT. failure) THEN
+            DO i = 1, 3*nspins
+              CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%drho_g(i)%pw, &
+                                      use_data=COMPLEXDATA1D, &
+                                      in_space=RECIPROCALSPACE, error=error)
+              rho_output%drho_g(i)%pw%cc(:) = rho_input%drho_g(i)%pw%cc(:)
+            END DO
+          END IF
+        END IF
+      END IF
+    END IF
+
     ! tau_r and tau_g are only needed in the case of Meta-GGA XC-functionals
     ! are used. Therefore they are only allocated if
     ! dft_control%use_kinetic_energy_density is true
@@ -508,6 +616,8 @@ END SUBROUTINE qs_rho_update_rho
 
       rho_output%rho_g_valid = rho_input%rho_g_valid
       rho_output%rho_r_valid = rho_input%rho_r_valid
+      rho_output%drho_g_valid = rho_input%drho_g_valid
+      rho_output%drho_r_valid = rho_input%drho_r_valid
       rho_output%tau_r_valid = rho_input%tau_r_valid
       rho_output%tau_g_valid = rho_input%tau_g_valid
       rho_output%soft_valid  = rho_input%soft_valid
@@ -622,6 +732,7 @@ END SUBROUTINE qs_rho_update_rho
 
     IF (.NOT. failure) THEN
       NULLIFY(rho_output%rho_ao, rho_output%rho_g, rho_output%rho_r, &
+              rho_output%drho_g, rho_output%drho_r, &
               rho_output%tau_g, rho_output%tau_r, rho_output%tot_rho_r, &
               rho_output%tot_rho_g)
 
@@ -677,6 +788,41 @@ END SUBROUTINE qs_rho_update_rho
       END IF
     END IF
 
+    ! drho_r and drho_g are only needed if calculated by collocation
+    IF (.NOT.failure) THEN
+      IF (dft_control%drho_by_collocation) THEN
+        ! drho_r
+        IF (ASSOCIATED(rho_input1%drho_r) .AND. ASSOCIATED(rho_input2%drho_r)) THEN
+          ALLOCATE(rho_output%drho_r(3*nspins), stat=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          IF (.NOT. failure) THEN
+            DO i = 1, 3*nspins
+              CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%drho_r(i)%pw, &
+                                      use_data=REALDATA3D, in_space=REALSPACE, &
+                                      error=error)
+              rho_output%drho_r(i)%pw%cr3d(:,:,:) = a*rho_input1%drho_r(i)%pw%cr3d(:,:,:) - &
+                                                   b*rho_input2%drho_r(i)%pw%cr3d(:,:,:)
+            END DO
+          END IF
+        END IF
+
+        ! drho_g
+        IF (ASSOCIATED(rho_input1%drho_g) .AND. ASSOCIATED(rho_input2%drho_g)) THEN
+          ALLOCATE(rho_output%drho_g(3*nspins), stat=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          IF (.NOT. failure) THEN
+            DO i = 1, 3*nspins
+              CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%drho_g(i)%pw, &
+                                      use_data=COMPLEXDATA1D, &
+                                      in_space=RECIPROCALSPACE, error=error)
+              rho_output%drho_g(i)%pw%cc(:) = a*rho_input1%drho_g(i)%pw%cc(:) - &
+                                             b*rho_input2%drho_g(i)%pw%cc(:)
+            END DO
+          END IF
+        END IF
+      END IF
+    END IF
+
     ! tau_r and tau_g are only needed in the case of Meta-GGA XC-functionals
     ! are used. Therefore they are only allocated if
     ! dft_control%use_kinetic_energy_density is true
@@ -715,6 +861,8 @@ END SUBROUTINE qs_rho_update_rho
 
       rho_output%rho_g_valid = rho_input1%rho_g_valid
       rho_output%rho_r_valid = rho_input1%rho_r_valid
+      rho_output%drho_g_valid = rho_input1%drho_g_valid
+      rho_output%drho_r_valid = rho_input1%drho_r_valid
       rho_output%tau_r_valid = rho_input1%tau_r_valid
       rho_output%tau_g_valid = rho_input1%tau_g_valid
       rho_output%soft_valid  = rho_input1%soft_valid
@@ -865,9 +1013,54 @@ END SUBROUTINE qs_rho_update_rho
                                       in_space=RECIPROCALSPACE, error=error)
               rho_output%rho_g(i)%pw%cc(:)      = rho_input%rho_g(i)%pw%cc(:)
             END DO
+          END IF
+        ELSE
+          DO i = 1,nspins
+            rho_output%rho_g(i)%pw%cc(:)      = rho_input%rho_g(i)%pw%cc(:)
+          END DO
+        END IF
+      END IF
+    END IF
+
+    ! drho_r and drho_g are only needed if calculated by collocation
+    IF (.NOT.failure) THEN
+      IF (dft_control%drho_by_collocation) THEN
+        ! drho_r
+        IF (ASSOCIATED(rho_input%drho_r)) THEN
+          IF (.NOT. ASSOCIATED(rho_output%drho_r)) THEN
+            ALLOCATE(rho_output%drho_r(3*nspins), stat=stat)
+            CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+            IF (.NOT. failure) THEN
+              DO i = 1, 3*nspins
+                CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%drho_r(i)%pw, &
+                                        use_data=REALDATA3D, in_space=REALSPACE, &
+                                        error=error)
+                rho_output%drho_r(i)%pw%cr3d(:,:,:) = rho_input%drho_r(i)%pw%cr3d(:,:,:)
+              END DO
+            END IF
           ELSE
-            DO i = 1,nspins
-              rho_output%rho_g(i)%pw%cc(:)      = rho_input%rho_g(i)%pw%cc(:)
+            DO i = 1, 3*nspins
+              rho_output%drho_r(i)%pw%cr3d(:,:,:) = rho_input%drho_r(i)%pw%cr3d(:,:,:)
+            END DO
+          END IF
+        END IF
+
+        ! drho_g
+        IF (ASSOCIATED(rho_input%drho_g)) THEN
+          IF (.NOT. ASSOCIATED(rho_output%drho_g)) THEN
+            ALLOCATE(rho_output%drho_g(3*nspins), stat=stat)
+            CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+            IF (.NOT. failure) THEN
+              DO i = 1, 3*nspins
+                CALL pw_pool_create_pw(auxbas_pw_pool, rho_output%drho_g(i)%pw, &
+                                        use_data=COMPLEXDATA1D, &
+                                        in_space=RECIPROCALSPACE, error=error)
+                rho_output%drho_g(i)%pw%cc(:) = rho_input%drho_g(i)%pw%cc(:)
+              END DO
+            END IF
+          ELSE
+            DO i = 1, 3*nspins
+              rho_output%drho_g(i)%pw%cc(:) = rho_input%drho_g(i)%pw%cc(:)
             END DO
           END IF
         END IF
@@ -891,11 +1084,11 @@ END SUBROUTINE qs_rho_update_rho
                                         error=error)
                 rho_output%tau_r(i)%pw%cr3d(:,:,:) = rho_input%tau_r(i)%pw%cr3d(:,:,:)
               END DO
-            ELSE
-              DO i = 1,nspins
-                rho_output%rho_g(i)%pw%cc(:)      = rho_input%rho_g(i)%pw%cc(:)
-              END DO
             END IF
+          ELSE
+            DO i = 1,nspins
+              rho_output%tau_r(i)%pw%cr3d(:,:,:) = rho_input%tau_r(i)%pw%cr3d(:,:,:)
+            END DO
           END IF
         END IF
 
@@ -911,17 +1104,19 @@ END SUBROUTINE qs_rho_update_rho
                                         in_space=RECIPROCALSPACE, error=error)
                 rho_output%tau_g(i)%pw%cc(:) = rho_input%tau_g(i)%pw%cc(:)
               END DO
-            ELSE
-              DO i = 1,nspins
-                rho_output%rho_g(i)%pw%cc(:)      = rho_input%rho_g(i)%pw%cc(:)
-              END DO
             END IF
+          ELSE
+            DO i = 1,nspins
+              rho_output%tau_g(i)%pw%cc(:) = rho_input%tau_g(i)%pw%cc(:)
+            END DO
           END IF
         END IF
       END IF
 
       rho_output%rho_g_valid = rho_input%rho_g_valid
       rho_output%rho_r_valid = rho_input%rho_r_valid
+      rho_output%drho_g_valid = rho_input%drho_g_valid
+      rho_output%drho_r_valid = rho_input%drho_r_valid
       rho_output%tau_r_valid = rho_input%tau_r_valid
       rho_output%tau_g_valid = rho_input%tau_g_valid
       rho_output%soft_valid  = rho_input%soft_valid

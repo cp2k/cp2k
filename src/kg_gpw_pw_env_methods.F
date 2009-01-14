@@ -962,6 +962,8 @@ CONTAINS
                  rho_mol%ref_count=1
                  rho_mol%rho_g_valid=.FALSE.
                  rho_mol%rho_r_valid=.FALSE.
+                 rho_mol%drho_g_valid=.FALSE.
+                 rho_mol%drho_r_valid=.FALSE.
                  rho_mol%tau_g_valid=.FALSE.
                  rho_mol%tau_r_valid=.FALSE.
                  rho_mol%soft_valid = .FALSE.
@@ -969,6 +971,7 @@ CONTAINS
                  rho_mol%id_nr=last_rho_id_nr
                  rho_mol%rebuild_each=5
                  NULLIFY(rho_mol%rho_r, rho_mol%rho_g, rho_mol%rho_ao, &
+                         rho_mol%drho_r, rho_mol%drho_g,&
                          rho_mol%tot_rho_r, rho_mol%tot_rho_g, rho_mol%tau_r, rho_mol%tau_g)
                  ALLOCATE(rho_mol%tot_rho_r(nspins),stat=istat)
                  CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

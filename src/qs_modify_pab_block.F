@@ -24,12 +24,12 @@ MODULE  qs_modify_pab_block
 ! *** Public subroutines ***
 
   PUBLIC :: prepare_dadb,prepare_adb_m_dab,prepare_ardb_m_darb,prepare_arb
-  PUBLIC :: FUNC_AB, FUNC_ARB, FUNC_DADB, FUNC_ADBmDAB, FUNC_ARDBmDARB
+  PUBLIC :: FUNC_AB, FUNC_ARB, FUNC_DADB, FUNC_ADBmDAB, FUNC_ARDBmDARB, FUNC_DABpADB
 
   ! Flags for the type of function to be collocated
   INTEGER, PARAMETER :: FUNC_AB = 401, FUNC_DADB = 402
   INTEGER, PARAMETER :: FUNC_ADBmDAB = 403, FUNC_ARDBmDARB = 404
-  INTEGER, PARAMETER :: FUNC_ARB = 405
+  INTEGER, PARAMETER :: FUNC_DABpADB = 405, FUNC_ARB = 406
 
 CONTAINS
 
@@ -166,6 +166,71 @@ CONTAINS
      END IF
 
   END SUBROUTINE prepare_adb_m_dab
+
+!
+! *****************************************************************************
+!> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
+!>      is equivalent to mapping pab with  pgf_a (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) pgf_b
+!>      ( pgf_a ) (ddx pgf_b) - (ddx pgf_a)( pgf_b ) = 
+!>              pgf_a *(lbx pgf_{b-1x} - 2*zetb*pgf_{b+1x}) - (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_b
+! *****************************************************************************
+  SUBROUTINE prepare_dab_p_adb(pab_local,pab,idir,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
+
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: pab_local
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
+    INTEGER, INTENT(IN)                      :: idir, lxa, lya, lza, lxb, &
+                                                lyb, lzb, o1, o2
+    REAL(dp), INTENT(IN)                     :: zeta, zetb
+
+    INTEGER                                  :: ico, ico_l, jco, jco_l
+
+! this element of pab results in 4 elements of pab_local
+
+     ico=coset(lxa,lya,lza)
+     jco=coset(lxb,lyb,lzb)
+
+     IF(idir==1) THEN  ! x
+        ico_l=coset(lxa,lya,lza)
+        jco_l=coset(MAX(lxb-1,0),lyb,lzb)
+        pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+        lxb*pab(o1+ico,o2+jco)
+        ico_l=coset(lxa,lya,lza)
+        jco_l=coset((lxb+1),lyb,lzb)
+        pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+2.0_dp*zetb*pab(o1+ico,o2+jco)
+        ico_l=coset(MAX(lxa-1,0),lya,lza)
+        jco_l=coset(lxb,lyb,lzb)
+        pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+        lxa*pab(o1+ico,o2+jco)
+        ico_l=coset((lxa+1),lya,lza)
+        jco_l=coset(lxb,lyb,lzb)
+        pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+2.0_dp*zeta*pab(o1+ico,o2+jco)
+     ELSEIF(idir==2) THEN ! y
+        ico_l=coset(lxa,lya,lza)
+        jco_l=coset(lxb,MAX(lyb-1,0),lzb)
+        pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+        lyb*pab(o1+ico,o2+jco)
+        ico_l=coset(lxa,lya,lza)
+        jco_l=coset(lxb,(lyb+1),lzb)
+        pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+2.0_dp*zetb*pab(o1+ico,o2+jco)
+        ico_l=coset(lxa,MAX(lya-1,0),lza)
+        jco_l=coset(lxb,lyb,lzb)
+        pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+        lya*pab(o1+ico,o2+jco)
+        ico_l=coset(lxa,(lya+1),lza)
+        jco_l=coset(lxb,lyb,lzb)
+        pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+2.0_dp*zeta*pab(o1+ico,o2+jco)
+     ELSE  ! z
+        ico_l=coset(lxa,lya,lza)
+        jco_l=coset(lxb,lyb,MAX(lzb-1,0))
+        pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+        lzb*pab(o1+ico,o2+jco)
+        ico_l=coset(lxa,lya,lza)
+        jco_l=coset(lxb,lyb,   (lzb+1  ))
+        pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+2.0_dp*zetb*pab(o1+ico,o2+jco)
+        ico_l=coset(lxa,lya,MAX(lza-1,0))
+        jco_l=coset(lxb,lyb,lzb)
+        pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+        lza*pab(o1+ico,o2+jco)
+        ico_l=coset(lxa,lya,   (lza+1  ))
+        jco_l=coset(lxb,lyb,lzb)
+        pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+2.0_dp*zeta*pab(o1+ico,o2+jco)
+     END IF
+
+  END SUBROUTINE prepare_dab_p_adb
 
 !
 
