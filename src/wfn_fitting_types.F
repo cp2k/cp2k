@@ -331,8 +331,6 @@ MODULE wfn_fitting_types
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(wfn_fitting_env%work_nmo_nmo2,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(wfn_fitting_env%eigvals_lambda,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(wfn_fitting_env%work_aux_nmo,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(wfn_fitting_env%work_aux_nmo2,STAT=istat)
