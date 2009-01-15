@@ -13,13 +13,7 @@ MODULE qs_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE f77_blas
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
-                                             use_orb_basis_set,&
-                                             xc_deriv_collocate
-  USE input_section_types,             ONLY: section_get_ival,&
-                                             section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+                                             use_orb_basis_set
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -30,8 +24,8 @@ MODULE qs_rho_methods
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_release
-  USE qs_collocate_density,            ONLY: calculate_rho_elec, &
-                                             calculate_drho_elec
+  USE qs_collocate_density,            ONLY: calculate_drho_elec,&
+                                             calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
@@ -93,7 +87,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, my_basis_set_id, &
-                                                nspins, stat, xc_deriv_method_id
+                                                nspins, stat
     LOGICAL                                  :: failure, my_gapw_xc, &
                                                 my_rebuild_ao, &
                                                 my_rebuild_grids
@@ -102,7 +96,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(section_vals_type), POINTER         :: input
 
     NULLIFY(pw_env,auxbas_pw_pool,matrix_s,dft_control)
     CALL timeset(routineN,handle)

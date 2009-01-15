@@ -212,8 +212,8 @@ CONTAINS
        rho_g_valid, drho_g_valid, tau_g_valid, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     LOGICAL, INTENT(in), OPTIONAL            :: rho_r_valid, drho_r_valid, &
-                                                rho_g_valid, drho_g_valid, &
-                                                tau_r_valid, tau_g_valid
+                                                tau_r_valid, rho_g_valid, &
+                                                drho_g_valid, tau_g_valid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_did_change', &

@@ -914,9 +914,7 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER          :: matrix_p
     TYPE(pw_p_type), DIMENSION(:), &
-      INTENT(INOUT)                          :: drho
-    TYPE(pw_p_type), DIMENSION(:), &
-      INTENT(INOUT)                          :: drho_gspace
+      INTENT(INOUT)                          :: drho, drho_gspace
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id

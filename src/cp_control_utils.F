@@ -29,9 +29,10 @@ MODULE cp_control_utils
   USE input_keyword_types,             ONLY: keyword_get,&
                                              keyword_type
   USE input_section_types,             ONLY: &
-       section_get_keyword, section_release, section_type, section_vals_get, &
-       section_vals_get_subs_vals, section_vals_get_subs_vals2, &
-       section_vals_type, section_vals_val_get, section_vals_val_set, section_get_ival
+       section_get_ival, section_get_keyword, section_release, section_type, &
+       section_vals_get, section_vals_get_subs_vals, &
+       section_vals_get_subs_vals2, section_vals_type, section_vals_val_get, &
+       section_vals_val_set
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -72,7 +73,8 @@ CONTAINS
 
     CHARACTER(len=default_path_length)       :: basis_set_file_name, &
                                                 potential_file_name
-    INTEGER                                  :: excitations, method_id, xc_deriv_method_id
+    INTEGER                                  :: excitations, method_id, &
+                                                xc_deriv_method_id
     LOGICAL                                  :: failure, is_present, l_param, &
                                                 not_SE, was_present
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &

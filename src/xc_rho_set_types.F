@@ -14,11 +14,10 @@ MODULE xc_rho_set_types
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE f77_blas
   USE input_constants,                 ONLY: &
-       xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
-       xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
-       xc_deriv_spline3_smooth, xc_deriv_collocate, xc_rho_nn10, &
-       xc_rho_nn50, xc_rho_no_smooth, &
-       xc_rho_spline2_smooth, xc_rho_spline3_smooth
+       xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
+       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
+       xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, &
+       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
   USE kinds,                           ONLY: dp
   USE pw_methods,                      ONLY: pw_copy,&
                                              pw_derive,&
@@ -818,12 +817,12 @@ CONTAINS
                 END DO
              CASE (xc_deriv_collocate)
 !deb
-write(6,*) "PW"
+WRITE(6,*) "PW"
                 DO idir=1,3
                    CALL pw_copy ( my_rho_g, tmp_g )
                    CALL pw_derive ( tmp_g, nd(:,idir) )
                    CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
-write(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
+WRITE(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
                 END DO
 !deb
                CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -869,12 +868,12 @@ write(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
                 END DO
              CASE (xc_deriv_collocate)
 !deb
-write(6,*) "PW"
+WRITE(6,*) "PW"
                 DO idir=1,3
                    CALL pw_copy ( my_rho_g, tmp_g )
                    CALL pw_derive ( tmp_g, nd(:,idir) )
                    CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
-write(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
+WRITE(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
                 END DO
 !deb
                CALL cp_unimplemented_error(fromWhere=routineP, &
