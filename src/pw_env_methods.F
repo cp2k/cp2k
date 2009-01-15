@@ -154,9 +154,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.01
 
     INTEGER :: blocked_id, blocked_id_input, grid_span, handle, i, &
-      igrid_level, igrid_zet0_s, ikind, iounit, ipgf, iset, ishell, jkind, &
-      jpgf, jset, jshell, la, lb, lgrid_level, ncommensurate, ngrid_level, &
-      nkind, nseta, nsetb, nsmax, stat, xc_deriv_method_id, &
+      ibasis_set_type, igrid_level, igrid_zet0_s, ikind, iounit, ipgf, iset, &
+      ishell, jkind, jpgf, jset, jshell, la, lb, lgrid_level, ncommensurate, &
+      ngrid_level, nkind, nseta, nsetb, nsmax, stat, xc_deriv_method_id, &
       xc_smooth_method_id
     INTEGER, DIMENSION(2)                    :: distribution_layout
     INTEGER, DIMENSION(3)                    :: higher_grid_layout
@@ -180,7 +180,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: aux_fit_basis_set, &
+                                                orb_basis_set, &
+                                                orb_basis_set_main
     TYPE(pw_grid_type), POINTER              :: mt_super_ref_grid, &
                                                 old_pw_grid, pw_grid, &
                                                 super_ref_grid, &
@@ -506,7 +508,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,error=error)
      nkind=SIZE(atomic_kind_set)
 
-     ! XXXXXXXXXXXXXX this duplicates the functionality of get_subgrid_size  XXXXXXXXXXXXXXXXXX
      ! try to predict the maximum radius of the gaussians to be mapped on the grid
      ! up to now, it is not yet very good
      maxradius=0.0_dp
@@ -517,19 +518,23 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         IF(qs_env%dft_control%qs_control%gapw) THEN
            IF(igrid_zet0_s == igrid_level ) maxradius=MAX(maxradius,max_rpgf0_s)
         END IF
-
+      
+        ! ibasis set type loops over the needed kinds of basis sets. Right now this is
+        ! the orb_basis_set and the aux_fit_basis_set.
+        ! Seemingly others (e.g. gapw soft basis set) are not needed?
+        DO ibasis_set_type=1,2
         DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
 
           IF (qs_env%dft_control%qs_control%dftb) CYCLE
 
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               orb_basis_set=orb_basis_set,&
-                               alpha_core_charge=alpha,ccore_charge=core_charge)
            ! this is to be sure that the core charge is mapped ok
            ! right now, the core is mapped on the auxiliary basis,
            ! this should, at a give point be changed
            ! so that also for the core a multigrid is used
+           CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               alpha_core_charge=alpha,ccore_charge=core_charge)
+
            IF (alpha > 0.0_dp .AND. core_charge.NE.0.0_dp) THEN
              maxradius=MAX(maxradius,exp_radius( 0, alpha, &
                            dft_control%qs_control%eps_rho_rspace, core_charge))
@@ -537,12 +542,34 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
              maxradius=MAX(maxradius,exp_radius( 1, alpha, &
                            dft_control%qs_control%eps_rho_rspace, core_charge))
            ENDIF
+
+           !
+           ! now for the basis sets
+           ! 
+           CALL get_atomic_kind(atomic_kind=atomic_kind, orb_basis_set=orb_basis_set_main, &
+                                aux_fit_basis_set=aux_fit_basis_set)
+           SELECT CASE(ibasis_set_type)
+           CASE(1)
+              orb_basis_set=>orb_basis_set_main
+           CASE(2)
+              orb_basis_set=>aux_fit_basis_set
+           END SELECT
+           IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                   npgf=npgfa, nset=nseta, zet=zeta,l=lshella,nshell=nshella)
 
            DO jkind=1,nkind
               atomic_kind => atomic_kind_set(jkind)
-              CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set_main, &
+                                   aux_fit_basis_set=aux_fit_basis_set)
+              SELECT CASE(ibasis_set_type)
+              CASE(1)
+                 orb_basis_set=>orb_basis_set_main
+              CASE(2)
+                 orb_basis_set=>aux_fit_basis_set
+              END SELECT
+              IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
               CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                      npgf=npgfb, nset=nsetb, zet=zetb, l=lshellb, nshell=nshellb)
               DO iset=1,nseta
@@ -588,8 +615,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
               ENDDO
               ENDDO
               ENDDO
-         ENDDO
-        ENDDO
+           ENDDO ! jkind
+        ENDDO ! ikind
+        ENDDO ! ibasis_set_type
+
         ! this is a bit of hack, but takes into account numerics and rounding
         maxradius = maxradius * safety_factor
         radius(igrid_level)=maxradius
