@@ -296,7 +296,7 @@ MODULE hfx_types
 !> \brief - This routine allocates and initializes all types in hfx_data
 !> \param x_data contains all relevant data structures for hfx runs
 !> \param hfx_section input section
-!> \param natom , max_set: quantities that define some array sizes
+!> \param natom  quantities that define some array sizes
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \note
@@ -306,12 +306,12 @@ MODULE hfx_types
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,max_set,atomic_kind_set, &
+  SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,atomic_kind_set, &
                         dft_control, cell, error)
     TYPE(hfx_type), DIMENSION(:, :), POINTER :: x_data
     TYPE(cp_para_env_type)                   :: para_env
     TYPE(section_vals_type), POINTER         :: hfx_section
-    INTEGER, INTENT(IN)                      :: natom, max_set
+    INTEGER, INTENT(IN)                      :: natom
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -323,10 +323,8 @@ MODULE hfx_types
 
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=default_path_length)       :: char_val, filename
-    INTEGER                                  :: i, i_thread, ikind, int_val, &
-                                                irep, n_rep_hf, n_threads, &
-                                                nkind, pbc_shells, stat, &
-                                                storage_id
+    INTEGER :: i, i_thread, ikind, int_val, irep, max_set, n_rep_hf, &
+      n_threads, nkind, pbc_shells, stat, storage_id
     LOGICAL                                  :: do_periodic, exist, failure, &
                                                 logic_val
     REAL(dp)                                 :: omega, real_val
@@ -448,6 +446,7 @@ MODULE hfx_types
         nkind = SIZE(atomic_kind_set,1)
         ALLOCATE(actual_x_data%basis_parameter(nkind), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        max_set=0
         DO ikind = 1,nkind
             NULLIFY(atom_kind)
             atom_kind => atomic_kind_set(ikind)
@@ -467,7 +466,8 @@ MODULE hfx_types
                                        maxnset=actual_x_data%basis_info%max_set,&
                                        maxlgto=actual_x_data%basis_info%max_am,&
                                        basis_set_id=use_aux_fit_basis_set)
-            END IF
+            END IF 
+            max_set=MAX(max_set,actual_x_data%basis_info%max_set)
             CALL get_gto_basis_set(gto_basis_set=orb_basis_a, &
                                    lmax=actual_x_data%basis_parameter(ikind)%lmax, &
                                    lmin=actual_x_data%basis_parameter(ikind)%lmin, &

@@ -207,7 +207,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: max_set, method_id, natom
+    INTEGER                                  :: method_id, natom
     LOGICAL                                  :: do_et, do_hfx, harris_flag, &
                                                 my_qmmm, my_qmmm_periodic, &
                                                 use_ref_cell
@@ -330,9 +330,7 @@ CONTAINS
     CALL section_vals_get(hfx_section,explicit=do_hfx,error=error)
     IF (do_hfx) THEN
       natom=SIZE(particle_set)
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
-
-      CALL hfx_create(qs_env%x_data, para_env, hfx_section,natom,max_set,atomic_kind_set, &
+      CALL hfx_create(qs_env%x_data, para_env, hfx_section,natom,atomic_kind_set, &
                       qs_env%dft_control, qs_env%cell, error=error)
     END IF
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
