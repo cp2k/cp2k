@@ -679,7 +679,8 @@ CONTAINS
     DO ispin = 1,nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=n_mo(ispin),homo=homo)
        nmoloc = SIZE(linres_control%localized_wfn_control%centers_set(ispin)%array,2)
-       CPPrecondition(nmoloc==homo,cp_warning_level,routineP,error,failure)
+       IF(nmoloc.NE.homo) CALL stop_program("current_env_init","The nbr of localized functions"//&
+            &                                " is not equal to the nbr of states.")
        current_env%nstates(ispin) = homo
        max_states = MAX(max_states,homo)
        !
