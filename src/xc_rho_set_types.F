@@ -938,7 +938,7 @@ WRITE(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
        IF (needs%laplace_rho) THEN
           CALL pw_pool_create_cr3d(pw_pool, rho_set%laplace_rho, &
                error=error)
-          !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,laplace_rho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
@@ -1086,7 +1086,7 @@ WRITE(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
        IF (needs%laplace_rho_spin) THEN
           CALL pw_pool_create_cr3d(pw_pool, rho_set%laplace_rhoa, &
                error=error)
-          !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,laplace_rho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
@@ -1101,7 +1101,7 @@ WRITE(6,*) "PW  ",SUM(ABS(drho_r(idir,ispin)%pw%cr3d))
           CALL pw_pool_create_cr3d(pw_pool, rho_set%laplace_rhob, &
                error=error)
           rho_set%owns%laplace_rho_spin=.TRUE.
-          !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,laplace_rho_r)
           DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
