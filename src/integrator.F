@@ -67,11 +67,8 @@ MODULE integrator
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
                                              set_md_env
-  USE metadynamics,                    ONLY: metadyn_forces,&
-                                             metadyn_forces_NEW,&
-                                             metadyn_position_NEW,&
-                                             metadyn_velocities_NEW,&
-                                             metadyn_write_NEW
+  USE metadynamics,                    ONLY: metadyn_integrator,&
+                                             metadyn_velocities_colvar
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -261,7 +258,9 @@ CONTAINS
 
     ! Update forces
     CALL force_env_calc_energy_force(force_env,error=error)
-    CALL metadyn_forces(force_env, vel, error=error)
+
+    ! Metadynamics
+    CALL metadyn_integrator(force_env, vel, error=error)
 
     ! Update Verlet (second part)
     DO iparticle_kind=1,nparticle_kind
@@ -446,7 +445,9 @@ CONTAINS
     
     ! Update forces
     CALL force_env_calc_energy_force(force_env,error=error)
-    CALL metadyn_forces(force_env, tmp%vel, error=error)
+
+    ! Metadynamics
+    CALL metadyn_integrator(force_env, tmp%vel, error=error)
 
     ! Velocity Verlet (second part)
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -599,7 +600,9 @@ CONTAINS
          core_particle_set, para_env, shell_adiabatic, pos=.TRUE.,  error=error )
 
     CALL force_env_calc_energy_force(force_env,error=error)
-    CALL metadyn_forces(force_env, tmp%vel, error=error)
+
+    ! Metadynamics
+    CALL metadyn_integrator(force_env, tmp%vel, error=error)
 
     ! compute s,ds
     CALL get_s_ds(tmp, nparticle_kind, atomic_kind_set,  local_particles, particle_set,&
@@ -642,7 +645,7 @@ CONTAINS
                                                 shell_check_distance, &
                                                 shell_present
     REAL(KIND=dp)                            :: dt
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rand
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rand
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -678,7 +681,7 @@ CONTAINS
 
     NULLIFY(gci, force_env, dyn_coeff_set, thermostat_coeff, tmp, &
          thermostat_part, thermostat_shell, cell, shell_particles, &
-         shell_particle_set, core_particles, core_particle_set)
+         shell_particle_set, core_particles, core_particle_set, rand)
     NULLIFY(para_env, subsys, local_molecules, local_particles, molecule_kinds,&
          molecules, molecule_kind_set, molecule_set, atomic_kinds,particles)
     NULLIFY(simpar, thermostat_coeff, thermostat_part, thermostat_shell)
@@ -759,7 +762,7 @@ CONTAINS
              rng_stream => force_env%meta_env%rng(ivar)%stream
              rand(ivar)=next_random_number(rng_stream,error=error)
           ENDDO
-          CALL metadyn_velocities_NEW(force_env,rand,error=error)
+          CALL metadyn_velocities_colvar(force_env,rand,error=error)
        ENDIF
     ENDIF
 
@@ -797,21 +800,8 @@ CONTAINS
     ! Update forces
     CALL force_env_calc_energy_force(force_env,error=error)
 
-    ! Langevin Thermostat on COLVARS
-    IF (ASSOCIATED(force_env%meta_env)) THEN
-       IF(force_env%meta_env%langevin) THEN
-          !    *** Velocity Verlet for Langevin S(t)->S(t+1) 
-          CALL metadyn_position_NEW(force_env, error=error)
-          !    *** Forces from Vs and  S(X(t+1))
-          CALL metadyn_forces_NEW(force_env, error=error)
-          !    *** Velocity Verlet for Langeving *** v(t+1/2)--> v(t)
-          CALL metadyn_velocities_NEW(force_env, rand,error=error)
-          !    *** Write down COVAR informations
-          CALL metadyn_write_NEW(force_env, error=error)
-       ELSE
-          CALL metadyn_forces(force_env, tmp%vel,error=error)
-       ENDIF
-    ENDIF
+    ! Metadynamics
+    CALL metadyn_integrator(force_env, tmp%vel, rand=rand, error=error)
 
     ! Velocity Verlet (second part)
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -890,9 +880,9 @@ CONTAINS
                                                 shell_present
     REAL(KIND=dp)                            :: dt, infree, kin, roll_tol, &
                                                 roll_tol_thrs
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rand
     REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rand
     REAL(KIND=dp), SAVE                      :: eps_0
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -933,7 +923,7 @@ CONTAINS
     NULLIFY(molecule_kinds,molecules,molecule_kind_set,npt)
     NULLIFY(core_particles,particles,shell_particles, tmp, old)
     NULLIFY(core_particle_set,particle_set,shell_particle_set)
-    NULLIFY(simpar,virial)
+    NULLIFY(simpar,virial,rand)
    
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
          thermostat_part=thermostat_part, thermostat_baro=thermostat_baro,&
@@ -1044,7 +1034,7 @@ CONTAINS
              rng_stream => force_env%meta_env%rng(ivar)%stream
              rand(ivar)=next_random_number(rng_stream,error=error)
           ENDDO
-          CALL metadyn_velocities_NEW(force_env,rand,error=error)
+          CALL metadyn_velocities_colvar(force_env,rand,error=error)
        ENDIF
     ENDIF
 
@@ -1118,20 +1108,8 @@ CONTAINS
     CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env,error=error)
 
-    IF (ASSOCIATED(force_env%meta_env)) THEN
-       IF(force_env%meta_env%langevin) THEN
-          !    *** Velocity Verlet for Langevin S(t)->S(t+1) 
-          CALL metadyn_position_NEW(force_env, error=error)
-          !    *** Forces from Vs and  S(X(t+1))
-          CALL metadyn_forces_NEW(force_env, error=error)
-          !    *** Velocity Verlet for Langeving *** v(t+1/2)--> v(t)
-          CALL metadyn_velocities_NEW(force_env, rand,error=error)
-          !    *** Write down COLVAR informations
-          CALL metadyn_write_NEW(force_env, error=error)
-       ELSE
-          CALL metadyn_forces(force_env, tmp%vel,error=error)
-       ENDIF
-    ENDIF
+    ! Metadynamics
+    CALL metadyn_integrator(force_env, tmp%vel, rand=rand, error=error)
 
     ! Velocity Verlet (second part)
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -1159,7 +1137,6 @@ CONTAINS
             local_molecules, molecule_set, molecule_kind_set, &
             local_particles, kin, pv_kin, virial, para_env%group )
        CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
-
     END DO RR
 
     ! Apply Thermostat over the full set of particles
@@ -1357,8 +1334,10 @@ CPSourceFileRef,&
     ! Task to perform on the reference trajectory
     ! Compute energy and forces
     CALL force_env_calc_energy_force(force_env,eval_energy_forces=reftraj_env%info%eval_EF,error=error)
-    CALL metadyn_forces(force_env, error=error)
-    
+
+    ! Metadynamics
+    CALL metadyn_integrator(force_env, error=error)
+
     ! Compute MSD with respect to a reference configuration
     IF(reftraj_env%info%msd) THEN
        CALL compute_msd_reftraj(reftraj_env,md_env, particle_set,error=error)
@@ -1574,7 +1553,9 @@ CPSourceFileRef,&
     ! Update forces (and stress)
     CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env, error=error)
-    CALL metadyn_forces(force_env, tmp%vel, error=error)
+
+    ! Metadynamics
+    CALL metadyn_integrator(force_env, tmp%vel, error=error)
 
     ! Velocity Verlet (second part)
      CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -1834,12 +1815,14 @@ CPSourceFileRef,&
     ! Update forces
     CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env, error=error)
-    CALL metadyn_forces(force_env, tmp%vel, error=error)
+
+    ! Metadynamics
+    CALL metadyn_integrator(force_env, tmp%vel, error=error)
 
     ! Velocity Verlet (second part)
-     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
-          core_particle_set, shell_particle_set, nparticle_kind,&
-          shell_adiabatic, dt, error=error )
+    CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
+         core_particle_set, shell_particle_set, nparticle_kind,&
+         shell_adiabatic, dt, error=error )
 
     IF (simpar%constraint) THEN
        roll_tol_thrs = simpar%roll_tol
@@ -2126,7 +2109,9 @@ CPSourceFileRef,&
     ! Update forces
     CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env,error=error)
-    CALL metadyn_forces(force_env, tmp%vel, error=error)
+
+    ! Metadynamics
+    CALL metadyn_integrator(force_env, tmp%vel, error=error)
 
     ! Velocity Verlet (second part)
     CALL vv_second (tmp, atomic_kind_set, local_particles, particle_set,&
@@ -2348,7 +2333,9 @@ CPSourceFileRef,&
 
        ! Update forces
        CALL force_env_calc_energy_force(force_env%sub_force_env(1)%force_env,error=error)
-       CALL metadyn_forces(force_env, vel, error=error)
+
+       ! Metadynamics
+       CALL metadyn_integrator(force_env, vel, error=error)
 
        ! Velocity Verlet (second part)
        DO iparticle_kind=1,nparticle_kind
@@ -2384,7 +2371,9 @@ CPSourceFileRef,&
     ! Multiple time step (second part)
     ! Compute forces for respa force_env
     CALL force_env_calc_energy_force(force_env,error=error)
-    CALL metadyn_forces(force_env, vel, error=error)
+
+    ! Metadynamics
+    CALL metadyn_integrator(force_env, vel, error=error)
 
     DO iparticle_kind=1,nparticle_kind
        atomic_kind => atomic_kind_set(iparticle_kind)

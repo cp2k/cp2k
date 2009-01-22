@@ -69,7 +69,7 @@ MODULE md_run
                                              setup_velocities,&
                                              temperature_control
   USE metadynamics,                    ONLY: metadyn_forces,&
-                                             metadyn_forces_NEW
+                                             metadyn_write_colvar
   USE metadynamics_types,              ONLY: set_meta_env
   USE particle_list_types,             ONLY: particle_list_type
   USE reftraj_types,                   ONLY: create_reftraj,&
@@ -341,10 +341,9 @@ CONTAINS
        IF (ASSOCIATED(force_env%meta_env)) THEN
           IF(force_env%meta_env%langevin) THEN
              CALL create_wiener_process_cv(force_env%meta_env, error=error)
-             CALL metadyn_forces_NEW(force_env, error=error)
-          ELSE
-             CALL metadyn_forces(force_env,error=error)
           ENDIF
+          CALL metadyn_forces(force_env,error=error)
+          CALL metadyn_write_colvar(force_env,error=error)
        ENDIF
 
        IF (simpar%do_respa)THEN
