@@ -9,6 +9,7 @@
 !> \author teo & fawzi
 ! *****************************************************************************
 MODULE input_cp2k_free_energy
+  USE bibliography,                    ONLY: VandenCic2006
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -129,7 +130,7 @@ CONTAINS
        CALL section_create(section,name="metadyn",&
             description="This section sets parameters to set up a calculation of metadynamics.",&
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            citations=(/VandenCic2006/),error=error)
         
        NULLIFY(subsection,keyword,print_key)
 
@@ -150,6 +151,15 @@ CONTAINS
             description="If a Lagrangian scheme is used the temperature tolerance for the collective "//&
             "variables is specified.",usage="TEMP_TOL <REAL>",&
             unit_str='K',default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="LANGEVIN",&
+            description="If a Lagrangian scheme is used the eq. motion of the COLVARS are integrated "//&
+            "with a LANGEVIN scheme.",&
+            usage="LANGEVIN {logical}",&
+            citations=(/VandenCic2006/),&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -544,6 +554,14 @@ CONTAINS
        CALL keyword_create(keyword, name="MASS",&
             description="Specifies the mass parameter of the collective variable in the"//&
             " extended lagrangian scheme.",usage="MASS <REAL>",unit_str='amu',type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="GAMMA",&
+            description="Specifies the friction term in Langevin integration of the collective variable in the"//&
+            " extended lagrangian scheme.",&
+            citations=(/VandenCic2006/),&
+            usage="GAMMA {real}",type_of_var=real_t,unit_str="fs^-1",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -10,6 +10,7 @@
 !>      11.2007 Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
 MODULE metadynamics
+  USE bibliography,                    ONLY: VandenCic2006
   USE colvar_methods,                  ONLY: colvar_eval_glob_f
   USE colvar_types,                    ONLY: colvar_p_type,&
                                              torsion_colvar_id
@@ -43,7 +44,11 @@ MODULE metadynamics
                                              synchronize_multiple_walkers
   USE parallel_rng_types,              ONLY: next_random_number
   USE particle_list_types,             ONLY: particle_list_type
-  USE physcon,                         ONLY: femtoseconds
+  USE physcon,                         ONLY: boltzmann,&
+                                             femtoseconds,&
+                                             joule,&
+                                             kelvin
+  USE reference_manager,               ONLY: cite_reference
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -55,7 +60,11 @@ MODULE metadynamics
 
   INTEGER, SAVE, PRIVATE :: last_meta_env_id=0
 
+
   PUBLIC :: metadyn_forces
+  PUBLIC :: metadyn_forces_NEW, metadyn_velocities_NEW, metadyn_position_NEW,&
+            metadyn_write_NEW
+
 
 CONTAINS
 
@@ -325,6 +334,334 @@ CONTAINS
          "PRINT%COLVAR", error=error)
     CALL timestop(handle)
   END SUBROUTINE metadyn_forces
+
+
+
+
+
+
+  ! DUPLICATION ROUTINE!! REQUIRES MERGING!! Teodoro Laino 01.2009
+  SUBROUTINE metadyn_forces_NEW(force_env,error)
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_forces_NEW', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, i_c, icolvar, ii
+    LOGICAL                                  :: explicit, failure
+    REAL(kind=dp)                            :: dt, ekin_w, fac_t, rval
+    TYPE(colvar_p_type), DIMENSION(:), &
+      POINTER                                :: colvar_p
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(meta_env_type), POINTER             :: meta_env
+    TYPE(metavar_type), POINTER              :: cv
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(section_vals_type), POINTER         :: ss0_section, vvp_section
+
+    failure=.FALSE.
+    NULLIFY(logger,meta_env)
+    meta_env => force_env%meta_env
+    IF (.NOT.ASSOCIATED(meta_env)) RETURN
+ 
+    CALL timeset(routineN,handle)
+    logger => cp_error_get_logger(error)
+    NULLIFY(colvar_p,subsys,cv,ss0_section, vvp_section)
+
+!*************
+! force_env_get serve solo ad aggiornare E e K ? se si lo faccio in write_NEW
+! altrimenti devo verificare
+    CALL force_env_get(force_env, subsys=subsys, error=error)
+!*************
+    dt = meta_env%dt
+
+
+    ! Initialize velocity
+    IF (meta_env%restart.AND.meta_env%extended_lagrange) THEN
+       meta_env%ekin_s = 0.0_dp
+       DO i_c=1,meta_env%n_colvar
+          cv => meta_env%metavar(i_c)
+          cv%vvp = next_random_number(force_env%globenv%gaussian_rng_stream,error=error)
+          meta_env%ekin_s = meta_env%ekin_s + 0.5E0_dp*cv%mass*cv%vvp**2
+       END DO
+       ekin_w = 0.5_dp*meta_env%temp_wanted*REAL(meta_env%n_colvar,KIND=dp)
+       fac_t  = SQRT(ekin_w/MAX(meta_env%ekin_s,1.0E-8_dp))
+       DO i_c = 1, meta_env%n_colvar
+          cv     => meta_env%metavar(i_c)
+          cv%vvp = cv%vvp*fac_t
+       ENDDO
+       meta_env%ekin_s = 0.0_dp
+    END IF
+
+    ! compute ss and the derivative of ss with respect to the atomic positions
+    DO i_c=1,meta_env%n_colvar
+       cv => meta_env%metavar(i_c)
+       icolvar = cv%icolvar
+       CALL colvar_eval_glob_f(icolvar,force_env,error=error)
+       cv%ss       = subsys%colvar_p(icolvar)%colvar%ss
+
+       ! Setup the periodic flag if the COLVAR is (-pi,pi] periodic
+       cv%periodic = (subsys%colvar_p(icolvar)%colvar%type_id==torsion_colvar_id)
+
+       ! Restart for Extended Lagrangian Metadynamics
+       IF (meta_env%restart) THEN
+          ! Initialize the position of the collective variable in the extended lagrange
+          ss0_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_SS0",error=error)
+          CALL section_vals_get(ss0_section, explicit=explicit, error=error)
+          IF (explicit) THEN
+             CALL section_vals_val_get(ss0_section,"_DEFAULT_KEYWORD_",&
+                  i_rep_val=i_c, r_val=rval, error=error)
+             cv%ss0 = rval
+          ELSE
+             cv%ss0 = cv%ss
+          END IF
+          vvp_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_VVP",error=error)
+          CALL section_vals_get(vvp_section, explicit=explicit, error=error)
+          IF (explicit) THEN
+             CALL section_vals_val_get(vvp_section,"_DEFAULT_KEYWORD_",&
+                  i_rep_val=i_c, r_val=rval, error=error)
+             cv%vvp = rval
+          END IF
+       END IF
+       !
+       IF(.NOT.meta_env%extended_lagrange) THEN 
+          cv%ss0 = cv%ss
+          cv%vvp = 0.0_dp
+       END IF
+    ENDDO
+
+    ! History dependent forces (evaluated at s0)
+    IF(meta_env%do_hills) CALL  hills(meta_env,error)
+
+! For including WALL ask teodoro !!! 
+!    ! Apply walls to the colvars
+!    CALL walls(meta_env, error)
+
+
+
+    meta_env%restart = .FALSE.
+
+
+    IF(.NOT. meta_env%extended_lagrange)THEN
+       meta_env%ekin_s    = 0.0_dp
+       meta_env%cv_energy = 0.0_dp
+       DO i_c = 1, meta_env%n_colvar
+          cv => meta_env%metavar(i_c)
+          cv%cv_energy = 0.0_dp
+          cv%ff_s      = 0.0_dp
+          icolvar=cv%icolvar
+          NULLIFY(particles)
+          CALL cp_subsys_get(subsys, colvar_p=colvar_p, &
+               particles=particles,error=error)
+          DO ii=1,colvar_p(icolvar)%colvar%n_atom_s
+             i=colvar_p(icolvar)%colvar%i_atom(ii)
+             particles%els(i)%f=particles%els(i)%f+cv%ff_hills*colvar_p(icolvar)%colvar%dsdr(:,ii)
+          ENDDO
+       ENDDO
+    ELSE
+       meta_env%ekin_s = 0.0_dp
+       meta_env%cv_energy = 0.0_dp
+       DO i_c= 1, meta_env%n_colvar
+          cv => meta_env%metavar(i_c)
+          cv%cv_energy = 0.5_dp*cv%lambda*(cv%ss-cv%ss0)**2.0_dp
+          cv%ff_s      = cv%lambda*(cv%ss-cv%ss0)
+          icolvar      = cv%icolvar
+
+
+          ! forces on the atoms
+          NULLIFY(particles)
+          CALL cp_subsys_get(subsys, colvar_p=colvar_p, &
+               particles=particles,error=error)
+
+!##################################################################################
+! THIS IS THE PART FROM THE COLLECTVIE VARIABLES (teta(x)-za)*d teta/d x)
+! cf%ff_s = k(teta(x)-za) is the harmonic term
+!##################################################################################
+
+           DO ii=1,colvar_p(icolvar)%colvar%n_atom_s
+              i=colvar_p(icolvar)%colvar%i_atom(ii)
+              particles%els(i)%f=particles%els(i)%f- cv%ff_s*colvar_p(icolvar)%colvar%dsdr(:,ii)
+           ENDDO
+       ENDDO
+    ENDIF
+
+
+    CALL timestop(handle)
+  END SUBROUTINE metadyn_forces_NEW
+
+
+
+
+
+
+
+! *****************************************************************************
+!> \brief Evolves velocities COLVAR according to 
+!>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
+!> \author Fabio Sterpone and Teodoro Laino
+!> \date  01.2009
+! *****************************************************************************
+  SUBROUTINE metadyn_velocities_NEW(force_env,rand,error)
+    TYPE(force_env_type), POINTER            :: force_env
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT), OPTIONAL                :: rand
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_velocities_NEW', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i_c
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: dt, fft, sigma
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(meta_env_type), POINTER             :: meta_env
+    TYPE(metavar_type), POINTER              :: cv
+
+    failure=.FALSE.
+    NULLIFY(logger,meta_env,cv)
+    meta_env => force_env%meta_env
+    IF (.NOT.ASSOCIATED(meta_env)) RETURN
+
+    CALL timeset(routineN,handle)
+    logger => cp_error_get_logger(error)
+    ! Add citation
+    IF (meta_env%langevin) CALL cite_reference(VandenCic2006)
+
+    dt = meta_env%dt
+    ! History dependent forces (evaluated at s0)
+    IF(meta_env%do_hills) CALL  hills(meta_env,error)
+
+    ! Evolve Velocities
+    DO i_c= 1, meta_env%n_colvar
+       cv => meta_env%metavar(i_c)
+       cv%cv_energy = 0.5_dp*cv%lambda*(cv%ss-cv%ss0)**2.0_dp
+       cv%ff_s      = cv%lambda*(cv%ss-cv%ss0)
+       
+       fft    = cv%ff_s+cv%ff_hills
+       sigma  = SQRT((meta_env%temp_wanted*kelvin)*2.0_dp*(boltzmann/joule)*cv%gamma/cv%mass)
+       cv%vvp = cv%vvp+0.5_dp*dt*fft/cv%mass-0.5_dp*dt*cv%gamma*cv%vvp+0.5_dp*SQRT(dt)*sigma*rand(i_c)
+    ENDDO
+    CALL timestop(handle)
+
+  END SUBROUTINE metadyn_velocities_NEW
+
+! *****************************************************************************
+!> \brief Evolves COLVAR position
+!>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
+!> \author Fabio Sterpone and Teodoro Laino
+!> \date  01.2009
+! *****************************************************************************
+  SUBROUTINE metadyn_position_NEW(force_env,error)
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_position_NEW', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i_c
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: dt
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(meta_env_type), POINTER             :: meta_env
+    TYPE(metavar_type), POINTER              :: cv
+
+    failure=.FALSE.
+    NULLIFY(logger,meta_env,cv)
+    meta_env => force_env%meta_env
+    IF (.NOT.ASSOCIATED(meta_env)) RETURN
+
+    CALL timeset(routineN,handle)
+    logger => cp_error_get_logger(error)
+
+    ! Add citation
+    IF (meta_env%langevin) CALL cite_reference(VandenCic2006)
+    dt = meta_env%dt
+
+    ! Update of ss0
+    DO i_c = 1, meta_env%n_colvar
+       cv => meta_env%metavar(i_c)             
+       cv%ss0 =cv%ss0 +dt*cv%vvp
+    ENDDO
+    CALL timestop(handle)
+
+  END SUBROUTINE metadyn_position_NEW
+
+! *****************************************************************************
+!> \brief Write down COLVAR information evolved  according to 
+!>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
+!> \author Fabio Sterpone and Teodoro Laino
+!> \date  01.2009
+! *****************************************************************************
+  SUBROUTINE metadyn_write_NEW(force_env,error)
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_write_NEW', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, i_c, icolvar, iw
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: dt
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(meta_env_type), POINTER             :: meta_env
+    TYPE(metavar_type), POINTER              :: cv
+
+    failure=.FALSE.
+    NULLIFY(logger,meta_env)
+    meta_env => force_env%meta_env
+    IF (.NOT.ASSOCIATED(meta_env)) RETURN
+    dt = meta_env%dt
+
+    CALL timeset(routineN,handle)
+    logger => cp_error_get_logger(error)
+    NULLIFY(cv)
+
+    IF (.NOT.meta_env%restart) meta_env%n_steps=meta_env%n_steps+1
+    meta_env%ekin_s = 0.0_dp
+    meta_env%cv_energy = 0.0_dp
+    DO i_c= 1, meta_env%n_colvar
+       cv => meta_env%metavar(i_c)
+       cv%cv_energy = 0.5_dp*cv%lambda*(cv%ss-cv%ss0)**2.0_dp
+       cv%ff_s      = cv%lambda*(cv%ss-cv%ss0)
+       icolvar      = cv%icolvar
+
+       meta_env%cv_energy = meta_env%cv_energy + cv%cv_energy
+       meta_env%ekin_s = meta_env%ekin_s + 0.5E0_dp*cv%mass*cv%vvp**2
+    ENDDO
+
+    ! write COLVAR file
+    iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
+         "PRINT%COLVAR",extension=".metadynLog",error=error)
+    IF (iw>0) THEN
+       WRITE(iw,'(f12.1,70f15.8)')dt*meta_env%n_steps, &
+            (meta_env%metavar(i)%ss0,i=1,meta_env%n_colvar), &
+            (meta_env%metavar(i)%ss,i=1,meta_env%n_colvar), &
+            (meta_env%metavar(i)%ff_s,i=1,meta_env%n_colvar), &
+            (meta_env%metavar(i)%ff_hills,i=1,meta_env%n_colvar), &
+            (meta_env%metavar(i)%vvp,i=1,meta_env%n_colvar), &
+            (meta_env%ekin_s)*2.0_dp/(REAL(meta_env%n_colvar,KIND=dp))*kelvin
+
+
+       CALL m_flush(iw)       
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
+         "PRINT%COLVAR", error=error)
+
+    iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
+         "PRINT%PROGRAM_RUN_INFO",extension=".metadynLog",error=error)
+    IF (iw > 0) THEN
+       WRITE ( iw, '(T2,79("-"))')
+       WRITE (iw,'( A,T71,f10.2)' )     ' METAVAR TEMP ',&
+            meta_env%ekin_s*2.0_dp/(REAL(meta_env%n_colvar,KIND=dp))*kelvin
+       WRITE ( iw, '(T2,79("-"))')
+    ENDIF
+    CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
+         "PRINT%PROGRAM_RUN_INFO", error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE metadyn_write_NEW
 
 ! *****************************************************************************
 !> \brief Major driver for adding hills and computing forces due to the history

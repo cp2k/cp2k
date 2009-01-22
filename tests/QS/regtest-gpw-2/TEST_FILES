@@ -41,3 +41,5 @@ hcn_meta_chaincoord.inp  1
 hcn_meta_chaincoord_kind.inp 1
 # Population colvar
 H2O_meta_pop.inp         1
+# Metadynamics with langevin on COLVAR
+H2O_meta_langevin.inp    1

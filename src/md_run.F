@@ -68,7 +68,8 @@ MODULE md_run
   USE md_vel_utils,                    ONLY: comvel_control,&
                                              setup_velocities,&
                                              temperature_control
-  USE metadynamics,                    ONLY: metadyn_forces
+  USE metadynamics,                    ONLY: metadyn_forces,&
+                                             metadyn_forces_NEW
   USE metadynamics_types,              ONLY: set_meta_env
   USE particle_list_types,             ONLY: particle_list_type
   USE reftraj_types,                   ONLY: create_reftraj,&
@@ -91,7 +92,8 @@ MODULE md_run
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
   USE virial_methods,                  ONLY: virial_evaluate
-  USE wiener_process,                  ONLY: create_wiener_process
+  USE wiener_process,                  ONLY: create_wiener_process,&
+                                             create_wiener_process_cv
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -333,8 +335,17 @@ CONTAINS
           CALL section_vals_remove_values(work_section, error)
        END IF
        
-       CALL force_env_calc_energy_force (force_env, calc_force=.TRUE., error=error)
-       CALL metadyn_forces(force_env, error=error)
+
+       CALL force_env_calc_energy_force (force_env, calc_force=.TRUE.,error=error)
+       ! Warm-up engines for metadynamics
+       IF (ASSOCIATED(force_env%meta_env)) THEN
+          IF(force_env%meta_env%langevin) THEN
+             CALL create_wiener_process_cv(force_env%meta_env, error=error)
+             CALL metadyn_forces_NEW(force_env, error=error)
+          ELSE
+             CALL metadyn_forces(force_env,error=error)
+          ENDIF
+       ENDIF
 
        IF (simpar%do_respa)THEN
           CALL force_env_calc_energy_force (force_env%sub_force_env(1)%force_env,&

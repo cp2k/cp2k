@@ -67,7 +67,11 @@ MODULE integrator
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
                                              set_md_env
-  USE metadynamics,                    ONLY: metadyn_forces
+  USE metadynamics,                    ONLY: metadyn_forces,&
+                                             metadyn_forces_NEW,&
+                                             metadyn_position_NEW,&
+                                             metadyn_velocities_NEW,&
+                                             metadyn_write_NEW
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -632,12 +636,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nvt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nparticle, nparticle_kind, &
-                                                nshell
+    INTEGER                                  :: istat, ivar, nparticle, &
+                                                nparticle_kind, nshell
     LOGICAL                                  :: failure, shell_adiabatic, &
                                                 shell_check_distance, &
                                                 shell_present
     REAL(KIND=dp)                            :: dt
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rand
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -661,6 +666,7 @@ CONTAINS
       POINTER                                :: core_particle_set, &
                                                 particle_set, &
                                                 shell_particle_set
+    TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
                                                 thermostat_part, &
@@ -705,6 +711,15 @@ CONTAINS
          shell_present=shell_present,shell_adiabatic=shell_adiabatic,&
          shell_check_distance=shell_check_distance)
 
+    IF (ASSOCIATED(force_env%meta_env)) THEN
+       ! Allocate random number for Langevin Thermostat acting on COLVARS
+       IF(force_env%meta_env%langevin) THEN
+          ALLOCATE (rand(force_env%meta_env%n_colvar),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          rand(:) = 0.0_dp
+       ENDIF
+    ENDIF
+
     !  Allocate work storage for positions and velocities
     IF(shell_present) THEN
        CALL cp_subsys_get(subsys=subsys,shell_particles=shell_particles,&
@@ -736,6 +751,17 @@ CONTAINS
 
     IF (simpar%constraint) CALL getold( gci, local_molecules, molecule_set,  &
          molecule_kind_set, particle_set, cell, error)
+
+    !    *** Velocity Verlet for Langeving *** v(t)--> v(t+1/2)
+    IF (ASSOCIATED(force_env%meta_env)) THEN
+       IF(force_env%meta_env%langevin) THEN
+          DO ivar = 1 , force_env%meta_env%n_colvar
+             rng_stream => force_env%meta_env%rng(ivar)%stream
+             rand(ivar)=next_random_number(rng_stream,error=error)
+          ENDDO
+          CALL metadyn_velocities_NEW(force_env,rand,error=error)
+       ENDIF
+    ENDIF
 
    ! Velocity Verlet (first part)
     CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -770,7 +796,22 @@ CONTAINS
 
     ! Update forces
     CALL force_env_calc_energy_force(force_env,error=error)
-    CALL metadyn_forces(force_env, tmp%vel, error=error)
+
+    ! Langevin Thermostat on COLVARS
+    IF (ASSOCIATED(force_env%meta_env)) THEN
+       IF(force_env%meta_env%langevin) THEN
+          !    *** Velocity Verlet for Langevin S(t)->S(t+1) 
+          CALL metadyn_position_NEW(force_env, error=error)
+          !    *** Forces from Vs and  S(X(t+1))
+          CALL metadyn_forces_NEW(force_env, error=error)
+          !    *** Velocity Verlet for Langeving *** v(t+1/2)--> v(t)
+          CALL metadyn_velocities_NEW(force_env, rand,error=error)
+          !    *** Write down COVAR informations
+          CALL metadyn_write_NEW(force_env, error=error)
+       ELSE
+          CALL metadyn_forces(force_env, tmp%vel,error=error)
+       ENDIF
+    ENDIF
 
     ! Velocity Verlet (second part)
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -799,6 +840,12 @@ CONTAINS
     CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
          core_particle_set, para_env, shell_adiabatic, vel=.TRUE.,  error=error )
 
+    IF (ASSOCIATED(force_env%meta_env)) THEN
+       IF(force_env%meta_env%langevin) THEN
+          DEALLOCATE(rand,STAT=istat)    
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+    ENDIF
 
     ! Update constraint virial
     IF ( simpar%constraint ) CALL pv_constraint ( gci, local_molecules, &
@@ -834,14 +881,16 @@ CONTAINS
                                                 e6 = e4/42.0_dp, &
                                                 e8 = e6/72.0_dp
 
-    INTEGER                                  :: iroll, nparticle, &
-                                                nparticle_kind, nshell
+    INTEGER                                  :: iroll, istat, ivar, &
+                                                nparticle, nparticle_kind, &
+                                                nshell
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, &
                                                 shell_check_distance, &
                                                 shell_present
     REAL(KIND=dp)                            :: dt, infree, kin, roll_tol, &
                                                 roll_tol_thrs
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rand
     REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
     REAL(KIND=dp), SAVE                      :: eps_0
@@ -869,6 +918,7 @@ CONTAINS
       POINTER                                :: core_particle_set, &
                                                 particle_set, &
                                                 shell_particle_set
+    TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostat_type), POINTER           :: thermostat_baro, &
                                                 thermostat_part, &
@@ -921,6 +971,15 @@ CONTAINS
 
     ! Allocate work storage for positions and velocities
     CALL allocate_old ( old, particle_set, npt, error=error )
+
+    IF (ASSOCIATED(force_env%meta_env)) THEN
+       ! Allocate random number for Langevin Thermostat acting on COLVARS
+       IF(force_env%meta_env%langevin) THEN
+          ALLOCATE (rand(force_env%meta_env%n_colvar),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          rand(:) = 0.0_dp
+       ENDIF
+    ENDIF
 
     IF(shell_present) THEN
        CALL cp_subsys_get(subsys=subsys,&
@@ -977,6 +1036,17 @@ CONTAINS
        roll_tol_thrs = EPSILON(0.0_dp)
     ENDIF
     roll_tol = -roll_tol_thrs
+
+    !    *** Velocity Verlet for Langeving *** v(t)--> v(t+1/2)
+    IF (ASSOCIATED(force_env%meta_env)) THEN
+       IF(force_env%meta_env%langevin) THEN
+          DO ivar = 1 , force_env%meta_env%n_colvar
+             rng_stream => force_env%meta_env%rng(ivar)%stream
+             rand(ivar)=next_random_number(rng_stream,error=error)
+          ENDDO
+          CALL metadyn_velocities_NEW(force_env,rand,error=error)
+       ENDIF
+    ENDIF
 
     SR: DO WHILE (ABS(roll_tol)>=roll_tol_thrs) ! SHAKE-ROLL LOOP
 
@@ -1047,7 +1117,21 @@ CONTAINS
     ! Update forces
     CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env,error=error)
-    CALL metadyn_forces(force_env, tmp%vel, error=error)
+
+    IF (ASSOCIATED(force_env%meta_env)) THEN
+       IF(force_env%meta_env%langevin) THEN
+          !    *** Velocity Verlet for Langevin S(t)->S(t+1) 
+          CALL metadyn_position_NEW(force_env, error=error)
+          !    *** Forces from Vs and  S(X(t+1))
+          CALL metadyn_forces_NEW(force_env, error=error)
+          !    *** Velocity Verlet for Langeving *** v(t+1/2)--> v(t)
+          CALL metadyn_velocities_NEW(force_env, rand,error=error)
+          !    *** Write down COLVAR informations
+          CALL metadyn_write_NEW(force_env, error=error)
+       ELSE
+          CALL metadyn_forces(force_env, tmp%vel,error=error)
+       ENDIF
+    ENDIF
 
     ! Velocity Verlet (second part)
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -1128,6 +1212,13 @@ CONTAINS
 
     ! Deallocate old variables
     CALL deallocate_old (old, error=error )
+
+    IF (ASSOCIATED(force_env%meta_env)) THEN
+       IF(force_env%meta_env%langevin) THEN
+          DEALLOCATE(rand,STAT=istat)    
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+    ENDIF
 
     IF (first_time) THEN
        first_time = .FALSE.

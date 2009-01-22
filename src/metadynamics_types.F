@@ -17,6 +17,8 @@ MODULE metadynamics_types
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              dp
+  USE parallel_rng_types,              ONLY: delete_rng_stream,&
+                                             rng_stream_p_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -64,6 +66,7 @@ MODULE metadynamics_types
      INTEGER                                   :: icolvar
      LOGICAL                                   :: do_wall, periodic
      REAL(KIND=dp)                             :: mass, lambda, vvp
+     REAL(KIND=dp)                             :: gamma
      REAL(KIND=dp)                             :: cv_energy, delta_s
      REAL(KIND=dp)                             :: ss, ss0, ff_s, ff_hills
      TYPE(wall_type), DIMENSION(:), POINTER    :: walls
@@ -89,6 +92,7 @@ MODULE metadynamics_types
      INTEGER                                   :: ref_count, id_nr
      LOGICAL                                   :: do_hills, do_multiple_walkers
      LOGICAL                                   :: extended_lagrange
+     LOGICAL                                   :: langevin
      INTEGER                                   :: n_colvar
      REAL(KIND=dp)                             :: ekin_s,cv_energy, dt
      LOGICAL                                   :: tempcontrol, restart
@@ -103,6 +107,8 @@ MODULE metadynamics_types
      TYPE(multiple_walkers_type), POINTER      :: multiple_walkers
      TYPE(cp_para_env_type), POINTER           :: para_env
      TYPE(section_vals_type), POINTER          :: metadyn_section
+     TYPE(rng_stream_p_type), DIMENSION(:),&
+                                       POINTER :: rng
   END TYPE meta_env_type
 
 CONTAINS
@@ -136,7 +142,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: do_langevin, failure
 
     failure=.FALSE.
 
@@ -147,6 +153,7 @@ CONTAINS
        NULLIFY(meta_env%multiple_walkers,&
                meta_env%metadyn_section,&
                meta_env%time,&
+               meta_env%rng,&
                meta_env%hills_env)
 
        meta_env%metadyn_section => metadyn_section
@@ -183,6 +190,7 @@ CONTAINS
           NULLIFY(meta_env%metavar(i)%walls)
           meta_env%metavar(i)%mass      = -HUGE(0.0_dp)
           meta_env%metavar(i)%lambda    = -HUGE(0.0_dp)
+          meta_env%metavar(i)%gamma     = 0.0_dp
           meta_env%metavar(i)%ss        = 0.0_dp
           meta_env%metavar(i)%ss0       = 0.0_dp
           meta_env%metavar(i)%ff_s      = 0.0_dp
@@ -207,6 +215,12 @@ CONTAINS
                   meta_env%multiple_walkers%walkers_file_name)
           meta_env%multiple_walkers%n_hills_local = 0
        END IF
+       
+       CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=do_langevin,error=error)
+       IF (do_langevin) THEN
+          ALLOCATE (meta_env%rng(meta_env%n_colvar),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
     END IF
   END SUBROUTINE metadyn_create
 
@@ -305,6 +319,14 @@ CONTAINS
              DEALLOCATE(meta_env%multiple_walkers,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
+          ! Langevin on COLVARS
+          IF (meta_env%langevin) THEN
+             DO i = 1, SIZE(meta_env%rng)
+                CALL delete_rng_stream(meta_env%rng(i)%stream,error=error)
+             END DO
+             DEALLOCATE (meta_env%rng,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
           NULLIFY(meta_env%time)
           NULLIFY(meta_env%metadyn_section)
           DEALLOCATE(meta_env, stat=stat)

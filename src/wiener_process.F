@@ -27,6 +27,7 @@ MODULE wiener_process
   USE kinds,                           ONLY: dp
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
+  USE metadynamics_types,              ONLY: meta_env_type
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                              create_rng_stream,&
                                              next_rng_seed
@@ -40,12 +41,10 @@ MODULE wiener_process
   PRIVATE
 
   ! Global parameters in this module
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'wiener_process'
 
   ! Public subroutines
-
-  PUBLIC :: create_wiener_process
+  PUBLIC :: create_wiener_process, create_wiener_process_cv
 
 CONTAINS
 
@@ -65,8 +64,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=40)                        :: name
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, nparticle, &
-      nparticle_kind, nparticle_local
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, nparticle, &
+      nparticle_kind, nparticle_local, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
@@ -107,13 +106,13 @@ CONTAINS
 
        ! Allocate the (local) data structures for the Wiener process
 
-       ALLOCATE(local_particles%local_particle_set(nparticle_kind),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(local_particles%local_particle_set(nparticle_kind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        DO iparticle_kind=1,nparticle_kind
           nparticle_local = local_particles%n_el(iparticle_kind)
-          ALLOCATE (local_particles%local_particle_set(iparticle_kind)%rng(nparticle_local),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE (local_particles%local_particle_set(iparticle_kind)%rng(nparticle_local),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DO iparticle_local=1,nparticle_local
              NULLIFY (local_particles%local_particle_set(iparticle_kind)%rng(iparticle_local)%stream)
           END DO
@@ -122,8 +121,8 @@ CONTAINS
        ! Each process generates all seeds. The seed generation should be
        ! quite fast and in this way a broadcast is avoided.
 
-       ALLOCATE (seed(3,2,nparticle),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (seed(3,2,nparticle),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        seed(:,:,1) = initial_seed
        DO iparticle=2,nparticle
@@ -148,8 +147,8 @@ CONTAINS
           END DO
        END DO
 
-       DEALLOCATE (seed,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (seed,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! Possibly restart Wiener process
        NULLIFY (work_section)
@@ -161,5 +160,63 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_wiener_process
+
+! *****************************************************************************
+!> \brief Create a Wiener process for Langevin dynamics used for
+!>        metadynamics and initialize an
+!>        independent random number generator for each COLVAR.
+!> \author Fabio Sterpone
+!> \date   01.2009
+!>      
+! *****************************************************************************
+  SUBROUTINE create_wiener_process_cv(meta_env,error)
+
+    TYPE(meta_env_type), POINTER             :: meta_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_wiener_process_cv', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=40)                        :: name
+    INTEGER                                  :: i_c, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: seed
+    REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
+
+    failure=.FALSE.
+    IF (.NOT.ASSOCIATED(meta_env)) RETURN
+ 
+    initial_seed = next_rng_seed(error=error)
+ 
+    DO i_c=1,meta_env%n_colvar
+       NULLIFY (meta_env%rng(i_c)%stream)
+    END DO
+
+    ! Each process generates all seeds. The seed generation should be
+    ! quite fast and in this way a broadcast is avoided.
+
+    ALLOCATE (seed(3,2,meta_env%n_colvar),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    seed(:,:,1) = initial_seed
+    DO i_c=2,meta_env%n_colvar
+       seed(:,:,i_c) = next_rng_seed(seed(:,:,i_c-1),error=error)
+    END DO
+    
+    ! Update initial seed
+    initial_seed = next_rng_seed(seed(:,:,meta_env%n_colvar),error=error)
+    
+    ! Create a random number stream (Wiener process) for each particle
+    DO i_c=1,meta_env%n_colvar
+       WRITE (UNIT=name,FMT="(A,I8)") "Wiener process for COLVAR",i_c
+       CALL compress(name)
+       CALL create_rng_stream(rng_stream=meta_env%rng(i_c)%stream,name=name,distribution_type=GAUSSIAN,&
+            extended_precision=.TRUE., seed=seed(:,:,i_c),error=error)
+    END DO
+    DEALLOCATE (seed,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE create_wiener_process_cv
 
 END MODULE wiener_process

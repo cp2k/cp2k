@@ -45,6 +45,7 @@ MODULE metadynamics_utils
                                              metadyn_create,&
                                              metavar_type,&
                                              multiple_walkers_type
+  USE physcon,                         ONLY: kelvin
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -119,12 +120,14 @@ CONTAINS
        CALL section_vals_val_get(metadyn_section,"NHILLS_START_VAL",&
             i_val=meta_env%hills_env%n_hills,error=error)
        CALL section_vals_val_get(metadyn_section,"TEMPERATURE",r_val=meta_env%temp_wanted,error=error)
+       CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=meta_env%langevin,error=error)      
        CALL section_vals_val_get(metadyn_section,"TEMP_TOL",explicit=meta_env%tempcontrol,&
             r_val=meta_env%toll_temp,error=error)
 
        ! Parsing Metavar Section
        DO i= 1, n_colvar
-          CALL metavar_read(meta_env%metavar(i), meta_env%extended_lagrange,i, metavar_section,error=error)
+          CALL metavar_read(meta_env%metavar(i), meta_env%extended_lagrange, &
+               meta_env%langevin, i, metavar_section,error=error)
           check=(meta_env%metavar(i)%icolvar<=number_allocated_colvars)
           CALL cp_assert(check,cp_fatal_level,cp_assertion_failed,routineP,&
                "An error occured in the specification of COLVAR for METAVAR. "//&
@@ -232,6 +235,11 @@ CPSourceFileRef,&
           WRITE (iw,'( A )')        ' METADYN| Extended Lagrangian Scheme '
           IF (meta_env%tempcontrol) WRITE (iw,'( A,T71,F10.2)')&
                ' METADYN| Collective Variables Temperature control',meta_env%toll_temp
+          IF (meta_env%langevin) THEN
+               WRITE( iw, '(A,T71)') ' METADYN| Langevin Thermostat in use for COLVAR '  
+               WRITE( iw, '(A,T71,F10.4)') ' METADYN| Langevin Thermostat. Target Temperature = ',&
+                    meta_env%temp_wanted*kelvin
+          ENDIF
        END IF
 
        IF (meta_env%do_hills) THEN 
@@ -269,6 +277,8 @@ CPSourceFileRef,&
              WRITE (iw,'( A,T66,F15.6)')    ' METAVARS| Collective Variable Mass',meta_env%metavar(i)%mass
           END IF
           WRITE (iw,'( A,T71,F10.6)')    ' METAVARS| Scaling factor',meta_env%metavar(i)%delta_s
+          IF (meta_env%langevin)  WRITE ( iw, '( A,T71,F10.6)' )  ' METAVARS| Friction for Langevin Thermostat',&
+                                  meta_env%metavar(i)%gamma
           IF (meta_env%metavar(i)%do_wall) THEN
              WRITE (iw,'( A,T71,I10)')    ' METAVARS| Number of Walls present',SIZE(meta_env%metavar(i)%walls)
              DO j = 1, SIZE(meta_env%metavar(i)%walls)
@@ -320,9 +330,9 @@ CPSourceFileRef,&
 !> \author alessandro laio and fawzi mohamed
 !>      Teodoro Laino [tlaino] - University of Zurich. 11.2007
 ! *****************************************************************************
-  SUBROUTINE metavar_read(metavar,extended_lagrange,icol,metavar_section,error)
+  SUBROUTINE metavar_read(metavar,extended_lagrange,langevin,icol,metavar_section,error)
     TYPE(metavar_type), INTENT(INOUT)        :: metavar
-    LOGICAL                                  :: extended_lagrange
+    LOGICAL, INTENT(IN)                      :: extended_lagrange, langevin
     INTEGER, INTENT(IN)                      :: icol
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: metavar_section
@@ -370,6 +380,9 @@ CPSourceFileRef,&
     IF(extended_lagrange)THEN
        CALL section_vals_val_get(metavar_section,"MASS",i_rep_section=icol,r_val=metavar%mass,error=error)
        CALL section_vals_val_get(metavar_section,"LAMBDA",i_rep_section=icol,r_val=metavar%lambda,error=error)
+       IF (langevin) THEN
+          CALL section_vals_val_get(metavar_section,"GAMMA",i_rep_section=icol,r_val=metavar%gamma,error=error)
+       END IF
     ENDIF
 
   END SUBROUTINE metavar_read
