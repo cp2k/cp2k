@@ -389,3 +389,8 @@ He2_ddapc_constraint-3.inp
 Ar-14.inp 
 Ar-15.inp 
 Ar-16.inp 
+# more numerics after NLPP
+H2O-geo-ot-mols.inp
+# more numerics after NLPP
+sic_ddapc_rt.inp
+sic_energy.inp

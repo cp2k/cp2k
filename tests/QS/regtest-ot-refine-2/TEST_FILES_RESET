@@ -169,3 +169,6 @@ o2_ot_lwdn_diis_1.inp
 o2_ot_sparse_kinetic_1.inp 
 h2o_ot_lwdn_on_the_fly_l1.inp 
 h2o_ot_poly_on_the_fly_l1.inp 
+# more numerics after NLPP
+h2o_ot_chol_1.inp
+h2o_ot_chol_diis_1.inp

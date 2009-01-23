@@ -537,3 +537,7 @@ N3-9.inp
 H2O-geo-ot-mols.inp 
 h2o_ot_chol_1.inp 
 h2o_ot_chol_diis_1.inp 
+# more numerics after NLPP
+Al_fermi.inp
+C_fermi.inp
+C_ot.inp

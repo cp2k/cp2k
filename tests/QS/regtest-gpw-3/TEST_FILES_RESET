@@ -614,3 +614,5 @@ H2O-ref-2.inp
 OH-H2O-bsse.inp 
 rsgrid-dist-1.inp 
 rsgrid-dist-3.inp 
+# more numerics after NLPP
+H2O-solv.inp
