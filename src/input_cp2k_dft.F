@@ -911,19 +911,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
-            name="sac_ppnl",&
-            description="Activates the printing of the orbital(a) "//&
-            "GTH-PPNL neighbor lists (non-local part of the"//&
-            "Goedecker-Teter-Hutter pseudo potentials)",&
-            default_l_val=.FALSE.,&
-            lone_keyword_l_val=.TRUE.,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword=keyword,&
-            name="sbc_ppnl",&
-            description="Activates the printing of the orbital(b) "//&
+            name="sap_ppnl",&
+            description="Activates the printing of the orbital "//&
             "GTH-PPNL neighbor lists (non-local part of the"//&
             "Goedecker-Teter-Hutter pseudo potentials)",&
             default_l_val=.FALSE.,&

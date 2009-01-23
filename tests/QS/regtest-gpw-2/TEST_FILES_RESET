@@ -508,3 +508,19 @@ hcn_meta_coord.inp
 hcn_meta_chaincoord.inp
 # ASPC reset 
 hcn_meta_chaincoord_kind.inp
+#NL PP rewrite 
+Ar-12.inp 
+Ar-13.inp 
+H2O-meta_coord_1.inp 
+H2O-meta.inp 
+H2O-meta_kinds.inp 
+H2O_meta_langevin.inp 
+H2O_meta_pop.inp 
+H2O-meta_res0.inp 
+H2O-meta_res1.inp 
+H2O-meta_res2.inp 
+H2O-meta_res3.inp 
+H2O-tpss.inp 
+H2O-tpss_new.inp 
+hcn_ts_r.inp 
+ZrO.inp 

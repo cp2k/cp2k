@@ -195,8 +195,8 @@ CONTAINS
       epr_calculation, failure, gth_potential_present, harris_flag, &
       new_atom_b, oce_present, ppl_present, return_s_derivatives, &
       return_t_derivatives, rho0_present, use_virial, xas_calculation
-    REAL(KIND=dp)                            :: dab, dac, dbc, f, f0, rab2, &
-                                                rac2, rbc2
+    REAL(KIND=dp)                            :: dab, dac, dbc, eps_ppnl, f, &
+                                                f0, rab2, rac2, rbc2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: ai_work
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, rab, rac, &
@@ -230,8 +230,8 @@ CONTAINS
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb, sac_3c, sac_oce, &
-                                                sac_ppl, sac_ppnl, sbc_3c, &
-                                                sbc_oce, sbc_ppnl
+                                                sac_ppl, sap_ppnl, sbc_3c, &
+                                                sbc_oce
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
                                                 sab_orb_neighbor_list_local, &
                                                 sac_ppl_neighbor_list
@@ -286,8 +286,7 @@ CONTAINS
     NULLIFY (sab_orb)
     NULLIFY (sabt)
     NULLIFY (sac_ppl)
-    NULLIFY (sac_ppnl)
-    NULLIFY (sbc_ppnl)
+    NULLIFY (sap_ppnl)
     NULLIFY (sac_oce)
     NULLIFY (sbc_oce)
     NULLIFY (sac_3c)
@@ -320,8 +319,7 @@ CONTAINS
                     matrix_s=matrix_s,&
                     sab_orb=sab_orb,&
                     sac_ppl=sac_ppl,&
-                    sac_ppnl=sac_ppnl,&
-                    sbc_ppnl=sbc_ppnl,&
+                    sap_ppnl=sap_ppnl,&
                     sac_oce=sac_oce,&
                     sbc_oce=sbc_oce,&
                     VH_3c_list=VH_3c_list,&
@@ -1204,9 +1202,10 @@ CONTAINS
        END IF
     END IF
 
+    eps_ppnl = qs_env%dft_control%qs_control%eps_ppnl
     ! *** compute the ppnl contribution to the core hamiltonian ***
     CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    atomic_kind_set, particle_set, sab_orb, sac_ppnl, sbc_ppnl, error)
+                    atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***
     CALL set_qs_env(qs_env=qs_env,&

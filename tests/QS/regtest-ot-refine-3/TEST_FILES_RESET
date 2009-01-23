@@ -85,3 +85,12 @@ o2_ot_poly_on_the_fly_l1.inp
 h2o_ot_refine_3.inp
 # unified cube_center 
 o2_ot_refine_3.inp
+#NL PP rewrite 
+h2o_ot_refine_3.inp 
+h2o_ot_refine_4.inp 
+o2_ot_lwdn_on_the_fly_l1.inp 
+o2_ot_poly_on_the_fly_l1.inp 
+o2_ot_refine_3.inp 
+o2_ot_refine_4.inp 
+sic_ddapc_rt.inp 
+sic_energy.inp 

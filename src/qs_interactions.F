@@ -271,7 +271,7 @@ CONTAINS
             lprj_ppnl = l + 2*(iprj_ppnl - 1)
             ppnl_radius = MAX(ppnl_radius,&
                               exp_radius(lprj_ppnl,alpha_ppnl(l),&
-                                         qs_control%eps_ppnl,&
+                                         qs_control%eps_pgf_orb,&
                                          cprj_ppnl(iprj_ppnl,l)))
           END DO
         END DO

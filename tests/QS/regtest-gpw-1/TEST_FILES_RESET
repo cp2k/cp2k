@@ -374,3 +374,18 @@ K2.inp
 pyridine.inp
 # ASPC reset 
 H2O-MD-harris.inp
+#NL PP rewrite 
+Ar-10.inp 
+Ar-11.inp 
+Ar-12.inp 
+Ar-6.inp 
+Ar-7.inp 
+Ar-8.inp 
+Ar-9.inp 
+H2O-Harris-Debug-NoSCF.inp 
+H2O-Harris-Debug-SCF.inp 
+H2O-MD-harris.inp 
+H2O-tddfpt-saop.inp 
+K2.inp 
+NO2_lsd.inp 
+pyridine.inp 

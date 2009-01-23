@@ -186,3 +186,6 @@ w2_qmmm-1.inp
 w2_qmmm-2.inp
 # ASPC reset 
 w2_qmmm-3.inp
+#NL PP rewrite 
+ch4-gapw-gpw-1.inp 
+no-gapw-gpw-1.inp 

@@ -149,3 +149,6 @@ acn-conn-1.inp
 acn-conn-1.inp
 # numerics
 acn-conn-1.inp
+#NL PP rewrite 
+acn-conn-1.inp 
+acn-qmmm-re.inp 

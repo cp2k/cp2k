@@ -50,3 +50,7 @@ Ar2.inp
 Ar-ep.inp
 # unified cube_center 
 Ar2.inp
+#NL PP rewrite 
+3H2O-ep.inp 
+Ar2.inp 
+Ar-ep.inp 

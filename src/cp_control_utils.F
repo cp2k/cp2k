@@ -391,7 +391,7 @@ CPSourceFileRef,&
     ! Can be significantly in error if not... requires fully new screening/pairlist procedures
     qs_control%eps_pgf_orb     = tmpsqrt
     ! consistent since also a kind of overlap
-    qs_control%eps_ppnl        = qs_control%eps_pgf_orb
+    qs_control%eps_ppnl        = qs_control%eps_pgf_orb/100.0_dp
     ! accuracy is basically set by the overlap, this sets an empirical shift
     qs_control%eps_ppl         = 1.0E-2_dp
     ! expexted error in the density 

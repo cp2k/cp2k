@@ -385,3 +385,7 @@ sic_ddapc_rt.inp
 H2O-geo-ot-pdos.inp
 # numerics
 He2_ddapc_constraint-3.inp
+#NL PP rewrite 
+Ar-14.inp 
+Ar-15.inp 
+Ar-16.inp 

@@ -535,3 +535,15 @@ H2O-7.inp
 basis_none_1.inp
 # ASPC reset 
 basis_none_2.inp
+#NL PP rewrite 
+Cu.inp 
+H2O-debug-1.inp 
+H2O-debug-2.inp 
+H2O-debug-3.inp 
+H2O-debug-4.inp 
+H2O-meta_g.inp 
+H2O-meta_hydro.inp 
+h2o-otdiag.inp 
+h2o-otdiag-lsd.inp 
+NO2-EFG-1.inp 
+test-pdb.inp 
