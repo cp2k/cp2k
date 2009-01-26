@@ -320,7 +320,8 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, iab, iatom, ikind, ilist, inode, &
       istat, jatom, jkind, natom, nkind, nlist, nnode
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: defined, failure, use_virial
+    LOGICAL                                  :: defined, failure, ghost_a, &
+                                                ghost_b, use_virial
     REAL(KIND=dp)                            :: c6, c6a, c6b, dd, devdw, &
                                                 dfdmp, dr, er, evdw, fdmp, &
                                                 rc, rc_a, rc_b, s6, xp
@@ -381,9 +382,9 @@ CONTAINS
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               natom=natom, dispersion=disp_a)
+               natom=natom, dispersion=disp_a, ghost=ghost_a)
 
-          IF (.NOT.disp_a%defined) CYCLE
+          IF (.NOT.disp_a%defined .OR. ghost_a) CYCLE
           IF ( disp_a%type == grimme_pp ) THEN
              c6a = disp_a%c6
              rc_a = disp_a%vdw_radii
@@ -391,9 +392,9 @@ CONTAINS
 
           DO jkind=1,nkind
              atomic_kind => atomic_kind_set(jkind)
-             CALL get_atomic_kind(atomic_kind=atomic_kind, dispersion=disp_b)
+             CALL get_atomic_kind(atomic_kind=atomic_kind, dispersion=disp_b, ghost=ghost_b)
 
-             IF (.NOT.disp_a%defined) CYCLE
+             IF (.NOT.disp_a%defined .OR. ghost_b) CYCLE
 
              CPPrecondition(disp_a%type==disp_b%type,cp_failure_level,routineP,error,failure)
 
