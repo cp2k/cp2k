@@ -416,9 +416,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: lmax, npgf_set
     LOGICAL                                  :: softb_local
 
-!JTs
-!JTe
-
     IF( PRESENT(basis_set_id) ) THEN
       my_basis_set_id = basis_set_id
     ELSE
@@ -1762,43 +1759,33 @@ CONTAINS
        END IF
 
 
-       ! Allocate and initialise the potential data set structure
-       IF ((potential_name /= '').OR.explicit_potential) THEN
-          ipos = INDEX(potential_name,"-")
-          IF (ipos > 1) THEN
-             potential_type = potential_name(:ipos-1)
-          ELSE
-             potential_type = potential_name
-          END IF
-          CALL uppercase(potential_type)
-
-          SELECT CASE (TRIM(potential_type))
-          CASE ("ALL")
-             CALL allocate_potential(atomic_kind%all_potential,error)
-             CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                  atomic_kind%all_potential,zeff_correction,para_env,&
-                  dft_section,potential_section,error)
-             CALL set_potential(atomic_kind%all_potential,z=z)
-             CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
-             IF (.NOT.ASSOCIATED(elec_conf)) THEN
-                CALL get_potential(potential=atomic_kind%all_potential,elec_conf=elec_conf)
-                CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
-             END IF
-             IF (atomic_kind%ghost) THEN
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     elec_conf=elec_conf)
-                elec_conf(:) = 0
-                CALL get_potential(potential=atomic_kind%all_potential,&
-                     elec_conf=elec_conf)
-                elec_conf(:) = 0
-                CALL set_potential(potential=atomic_kind%all_potential,&
-                     zeff=0.0_dp,&
-                     zeff_correction=0.0_dp)
-             END IF
-          CASE ("GTH")
-             IF (atomic_kind%ghost) THEN
-                IF (ASSOCIATED(atomic_kind%elec_conf)) atomic_kind%elec_conf = 0
+       ! If Ghost atom we don't need to allocate/initialize anything connected to POTENTIAL
+       IF (atomic_kind%ghost) THEN
+          IF (ASSOCIATED(atomic_kind%elec_conf)) atomic_kind%elec_conf = 0
+       ELSE
+          ! Allocate and initialise the potential data set structure
+          IF ((potential_name /= '').OR.explicit_potential) THEN
+             ipos = INDEX(potential_name,"-")
+             IF (ipos > 1) THEN
+                potential_type = potential_name(:ipos-1)
              ELSE
+                potential_type = potential_name
+             END IF
+             CALL uppercase(potential_type)
+             
+             SELECT CASE (TRIM(potential_type))
+             CASE ("ALL")
+                CALL allocate_potential(atomic_kind%all_potential,error)
+                CALL read_potential(atomic_kind%element_symbol,potential_name,&
+                     atomic_kind%all_potential,zeff_correction,para_env,&
+                     dft_section,potential_section,error)
+                CALL set_potential(atomic_kind%all_potential,z=z)
+                CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
+                IF (.NOT.ASSOCIATED(elec_conf)) THEN
+                   CALL get_potential(potential=atomic_kind%all_potential,elec_conf=elec_conf)
+                   CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
+                END IF
+             CASE ("GTH")
                 CALL allocate_potential(atomic_kind%gth_potential,error)
                 CALL read_potential(atomic_kind%element_symbol,potential_name,&
                      atomic_kind%gth_potential,zeff_correction,para_env,&
@@ -1809,23 +1796,23 @@ CONTAINS
                    CALL get_potential(potential=atomic_kind%gth_potential,elec_conf=elec_conf)
                    CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
                 END IF
-             END IF
-          CASE ("ELP")
-             CALL allocate_potential(atomic_kind%elp_potential,error)
-             CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                  atomic_kind%elp_potential,para_env,&
-                  dft_section,potential_section,error)
-          CASE DEFAULT
+             CASE ("ELP")
+                CALL allocate_potential(atomic_kind%elp_potential,error)
+                CALL read_potential(atomic_kind%element_symbol,potential_name,&
+                     atomic_kind%elp_potential,para_env,&
+                     dft_section,potential_section,error)
+             CASE DEFAULT
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                     "An invalid potential type <"//&
+                     TRIM(potential_name)//"> was specified "//&
+                     "for the atomic kind <"//&
+                     TRIM(atomic_kind%name),para_env)
+             END SELECT
+          ELSE
              CALL stop_program(routineN,moduleN,__LINE__,&
-                  "An invalid potential type <"//&
-                  TRIM(potential_name)//"> was specified "//&
-                  "for the atomic kind <"//&
-                  TRIM(atomic_kind%name),para_env)
-          END SELECT
-       ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "No potential type was defined for the "//&
-               "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
+                  "No potential type was defined for the "//&
+                  "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
+          END IF
        END IF
     END SELECT
 

@@ -37,12 +37,10 @@
     &END COORD
     &KIND H_ghost
       BASIS_SET SZV-GTH-PADE
-      POTENTIAL GTH-PADE-q1
       GHOST
     &END KIND
     &KIND O_ghost
       BASIS_SET SZV-GTH-PADE
-      POTENTIAL GTH-PADE-q6
       GHOST
     &END KIND
     &KIND H

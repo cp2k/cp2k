@@ -32,7 +32,6 @@
     &KIND Ne
       GHOST
       BASIS_SET NONE
-      POTENTIAL GTH-BLYP-q8
     &END KIND
     &KIND H
       BASIS_SET DZVP-GTH-BLYP
