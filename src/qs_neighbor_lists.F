@@ -2582,7 +2582,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
       iatom_subcell, icell, ikind, j, jcell, k, katom, kcell, kkind, natom_c, &
-      natom_local_a, natom_local_b, nkind, nlist, stat
+      nkind, nlist, stat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
     INTEGER, DIMENSION(:), POINTER           :: local_list
@@ -2634,20 +2634,8 @@ CONTAINS
     DO ikind=1,nkind
       IF (.NOT.present_a(ikind)) CYCLE
 
-      IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
-        natom_local_a = SIZE(atom(ikind)%list_local_a_index)
-      ELSE
-        natom_local_a = 0
-      END IF
-
-      IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
-        natom_local_b = SIZE(atom(ikind)%list_local_b_index)
-      ELSE
-        natom_local_b = 0
-      END IF
       NULLIFY(local_list)
-      CALL combine_lists(local_list,nlist,atom(ikind)%list_local_a_index,natom_local_a,&
-                         atom(ikind)%list_local_b_index,natom_local_b,error)
+      CALL combine_lists(local_list,nlist,ikind,atom,error)
 
       DO kkind=1,nkind
         IF (.NOT.present_c(kkind)) CYCLE
@@ -2881,36 +2869,53 @@ CONTAINS
 
   END SUBROUTINE build_projector_neighbor_lists
 
-  SUBROUTINE combine_lists(list,n,lista,na,listb,nb,error)
+  SUBROUTINE combine_lists(list,n,ikind,atom,error)
     INTEGER, DIMENSION(:), POINTER           :: list
     INTEGER, INTENT(OUT)                     :: n
-    INTEGER, DIMENSION(:), INTENT(IN)        :: lista
-    INTEGER, INTENT(IN)                      :: na
-    INTEGER, DIMENSION(:), INTENT(IN)        :: listb
-    INTEGER, INTENT(IN)                      :: nb
+    INTEGER, INTENT(IN)                      :: ikind
+    TYPE(local_atoms_type), DIMENSION(:), &
+      INTENT(IN)                             :: atom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'combine_lists', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ib, ierr
+    INTEGER                                  :: i, ib, ierr, na, nb
+    INTEGER, DIMENSION(:), POINTER           :: lista, listb
     LOGICAL                                  :: failure = .FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(list),cp_failure_level,routineP,error,failure)
+
+
+    lista => atom(ikind)%list_local_a_index
+    listb => atom(ikind)%list_local_b_index
+
+    IF (ASSOCIATED(lista)) THEN
+       na = SIZE(lista)
+    ELSE
+       na = 0
+    END IF
+
+    IF (ASSOCIATED(listb)) THEN
+       nb = SIZE(listb)
+    ELSE
+       nb = 0
+    END IF
 
     ALLOCATE(list(na+nb),STAT=ierr)
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
     n = na
-    list(1:na) = lista(1:na)
-    loopb: DO ib = 1, nb
-      DO i = 1, na
-        IF(listb(ib) == list(i)) CYCLE loopb
-      END DO
-      n = n+1
-      list(n) = listb(ib)
-    END DO loopb
-
+    IF(na.GT.0) list(1:na) = lista(1:na)
+    IF(nb.GT.0) THEN
+       loopb: DO ib = 1, nb
+          DO i = 1, na
+             IF(listb(ib) == list(i)) CYCLE loopb
+          END DO
+          n = n+1
+          list(n) = listb(ib)
+       END DO loopb
+    ENDIF
   END SUBROUTINE combine_lists
 
 ! *****************************************************************************

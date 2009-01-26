@@ -956,10 +956,8 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     TYPE(cp_fm_type), POINTER                :: matrixa
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: scaling
 
-    INTEGER                                  :: i, icol_global, icol_local, &
-                                                ipcol, iprow, irow_local, k, &
-                                                mypcol, myprow, n, npcol, &
-                                                nprow
+    INTEGER :: i, icol_global, icol_local, ipcol, iprow, irow_local, k, &
+      mypcol, myprow, n, ncol_global, npcol, nprow
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
 
     myprow=matrixa%matrix_struct%context%mepos(1)
@@ -967,9 +965,11 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     nprow=matrixa%matrix_struct%context%num_pe(1)
     npcol=matrixa%matrix_struct%context%num_pe(2)
 
+    ncol_global =matrixa%matrix_struct%ncol_global
+
     a => matrixa%local_data
     n =  SIZE(a,1)
-    k =  SIZE(scaling)
+    k =  MIN(SIZE(scaling),ncol_global)
 
 #if defined(__SCALAPACK)
 

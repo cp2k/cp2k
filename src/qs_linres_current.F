@@ -1719,7 +1719,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, icenter, idir, idir2, ii, iiB, iii, iiiB, ispin, &
-      istat, istate, j, jstate, max_states, nao, nbr_center(2), nspins, &
+      istat, istate, j, jstate, max_states, nao, nbr_center(2), nmo, nspins, &
       nstate, output_unit
     LOGICAL                                  :: add_center_shift, failure, &
                                                 gapw, ionode
@@ -1727,13 +1727,10 @@ CONTAINS
                                                 contrib2, dk(3), &
                                                 int_current(3), &
                                                 int_current_tmp
-    REAL(dp), DIMENSION(:), POINTER          :: occupation
-    REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_0, vecbuf_1_d, &
-                                                vecbuf_1_rxp
+    REAL(dp), DIMENSION(:), POINTER          :: occ_ordered, occupation
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_i_p_type), DIMENSION(:), &
       POINTER                                :: center_list
-    TYPE(cp_2d_r_p_type)                     :: vecbuf_1_p(3)
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: centers_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -1742,8 +1739,8 @@ CONTAINS
       POINTER                                :: psi1_D, psi1_p, psi1_rxp, &
                                                 rr_p1, rr_p2, rr_rxp
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, psi0, psi_p1, &
-                                                psi_p2, psi_rxp
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, psi0, psi_D, &
+                                                psi_p1, psi_p2, psi_rxp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1760,9 +1757,9 @@ CONTAINS
     CALL timeset(routineN,handle)
     !
     NULLIFY(dft_control,matrix_s,mos,para_env,mo_coeff,occupation,op_mom_ao,&
-         &  op_mom_der_ao,center_list,centers_set,psi0,psi_rxp,psi_p1,psi_p2,&
+         &  op_mom_der_ao,center_list,centers_set,psi0,psi_rxp,psi_D,psi_p1,psi_p2,&
          &  op_p_ao,psi1_p,psi1_rxp,psi1_D,p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2,&
-         &  cell)
+         &  cell,occ_ordered)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -1851,6 +1848,7 @@ CONTAINS
          &                   context=mo_coeff%matrix_struct%context,&
          &                   error=error)
     CALL cp_fm_create(psi0,tmp_fm_struct,error=error)
+    CALL cp_fm_create(psi_D,tmp_fm_struct,error=error)
     CALL cp_fm_create(psi_rxp,tmp_fm_struct,error=error)
     CALL cp_fm_create(psi_p1,tmp_fm_struct,error=error)
     CALL cp_fm_create(psi_p2,tmp_fm_struct,error=error)
@@ -1874,23 +1872,15 @@ CONTAINS
     ENDDO
     CALL cp_fm_struct_release(tmp_fm_struct,error=error)
     !
-    ! Allocate buffer vectors
-    NULLIFY(vecbuf_0,vecbuf_1_rxp,vecbuf_1_d)
-    ALLOCATE(vecbuf_0(1,nao),vecbuf_1_rxp(1,nao),vecbuf_1_d(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DO idir=1,3
-       NULLIFY(vecbuf_1_p(idir)%array)
-       ALLOCATE(vecbuf_1_p(idir)%array(1,nao),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ENDDO
-    !
     ! get iiB and iiiB
     CALL set_vecp(iB,iiB,iiiB)
     DO ispin = 1,nspins
        !
        ! get ground state MOS
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
-            &          occupation_numbers=occupation)
+            &          occupation_numbers=occupation,nmo=nmo)
+       ALLOCATE(occ_ordered(nmo),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        !
        ! Initialize the temporary vector chi
        chi = 0.0_dp
@@ -1916,50 +1906,31 @@ CONTAINS
           ! collecte the states that belong to a given center
           CALL cp_fm_set_all(psi0,0.0_dp,error=error)
           CALL cp_fm_set_all(psi_rxp,0.0_dp,error=error)
+          CALL cp_fm_set_all(psi_D,0.0_dp,error=error)
           CALL cp_fm_set_all(psi_p1,0.0_dp,error=error)
           CALL cp_fm_set_all(psi_p2,0.0_dp,error=error)
           nstate = center_list(ispin)%array(1,icenter+1)-center_list(ispin)%array(1,icenter)
+          occ_ordered(:) = 0.0_dp
           jstate = 1
           DO j = center_list(ispin)%array(1,icenter),center_list(ispin)%array(1,icenter+1)-1
              istate = center_list(ispin)%array(2,j)
              !
              ! EXTRACT from the ground state full MOS matrix the coefficients of istate
-             CALL cp_fm_get_submatrix(mo_coeff,vecbuf_0,1,istate,nao,1,&
-                  &                   transpose=.TRUE.,error=error)
-             vecbuf_0(1,1:nao) = vecbuf_0(1,1:nao) * occupation(istate)
-             CALL cp_fm_set_submatrix(psi0,vecbuf_0,1,jstate,nao,1,&
-                  &                   transpose=.TRUE.,error=error)
+             occ_ordered(jstate) = occupation(istate)
+             CALL cp_fm_to_fm(mo_coeff,psi0,1,istate,jstate)
              !
-             ! Extract from the full MOS matrices of the response functions the coefficients
-             ! referring to istate
-             ! psi1_rxp_iB_istate
-             CALL cp_fm_get_submatrix(psi1_rxp(ispin,iB)%matrix,vecbuf_1_rxp,1,&
-                  &                   istate,nao,1,transpose=.TRUE.,error=error)
-             !
-             IF(current_env%full) THEN
-                ! psi1_d_iB_istate
-                CALL cp_fm_get_submatrix(psi1_D(ispin,iB)%matrix,vecbuf_1_d,1,istate,&
-                     &                   nao,1,transpose=.TRUE.,error=error)
-                vecbuf_1_rxp(1,1:nao) = vecbuf_1_rxp(1,1:nao) - vecbuf_1_d(1,1:nao)
-             ENDIF
-             CALL cp_fm_set_submatrix(psi_rxp,vecbuf_1_rxp,1,jstate,nao,1,&
-                  &                   transpose=.TRUE.,error=error)
+             CALL cp_fm_to_fm(psi1_rxp(ispin,iB)%matrix,psi_rxp,1,istate,jstate)
+             IF(current_env%full) CALL cp_fm_to_fm(psi1_D(ispin,iB)%matrix,psi_D,1,istate,jstate)
              !
              ! psi1_p_iiB_istate and psi1_p_iiiB_istate
-             CALL cp_fm_get_submatrix(psi1_p(ispin,iiB)%matrix,&
-                  &                   vecbuf_1_p(iiB)%array,1,istate,nao,1,&
-                  &                   transpose=.TRUE.,error=error)
-             CALL cp_fm_set_submatrix(psi_p1,vecbuf_1_p(iiB)%array,1,jstate,&
-                  &                   nao,1,transpose=.TRUE.,error=error)
-             CALL cp_fm_get_submatrix(psi1_p(ispin,iiiB)%matrix,&
-                  &                   vecbuf_1_p(iiiB)%array,1,istate,nao,1,&
-                  &                   transpose=.TRUE.,error=error)
-             CALL cp_fm_set_submatrix(psi_p2,vecbuf_1_p(iiiB)%array,1,jstate,&
-                  &                   nao,1,transpose=.TRUE.,error=error)
-             !
+             CALL cp_fm_to_fm(psi1_p(ispin, iiB)%matrix,psi_p1,1,istate,jstate)
+             CALL cp_fm_to_fm(psi1_p(ispin,iiiB)%matrix,psi_p2,1,istate,jstate)
              jstate = jstate+1
           ENDDO ! istate
           !
+          ! scale the ordered mos
+          CALL cp_fm_column_scale(psi0,occ_ordered)
+          IF(current_env%full) CALL cp_fm_scale_and_add(1.0_dp,psi_rxp,-1.0_dp,psi_D,error=error)
           !
           DO idir = 1,3
              CALL set_vecp(idir,ii,iii)
@@ -2117,6 +2088,10 @@ CONTAINS
                   &                         '(r) d^3r = ',int_current(idir)
           ENDIF
        ENDDO
+       !
+       DEALLOCATE(occ_ordered,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       !
     ENDDO ! ispin
     !
     ! deallocate the sparse matrices
@@ -2124,6 +2099,7 @@ CONTAINS
     CALL deallocate_matrix_set(op_mom_der_ao,error=error)
     CALL cp_fm_release(psi0,error=error)
     CALL cp_fm_release(psi_rxp,error=error)
+    CALL cp_fm_release(psi_D,error=error)
     CALL cp_fm_release(psi_p1,error=error)
     CALL cp_fm_release(psi_p2,error=error)
     DO idir = 1,3
@@ -2136,17 +2112,11 @@ CONTAINS
           CALL cp_fm_release(rr_p2(idir2,idir)%matrix,error=error)
        ENDDO
     ENDDO
-    DEALLOCATE(vecbuf_0,vecbuf_1_rxp,vecbuf_1_d,p_rxp,r_p1,r_p2,&
-         &     rr_rxp,rr_p1,rr_p2,STAT=istat)
+    DEALLOCATE(p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DO idir = 1,3
-       DEALLOCATE(vecbuf_1_p(idir)%array,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ENDDO
 
     CALL timestop(handle)
 
   END SUBROUTINE current_build_chi
 
 END MODULE qs_linres_current
-

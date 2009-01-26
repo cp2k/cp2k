@@ -35,11 +35,9 @@ MODULE qs_linres_current_utils
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_submatrix,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
-                                             cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -460,12 +458,7 @@ CONTAINS
                    istate = center_list(ispin)%array(2,i)
                    !
                    ! the optimized wfns are copied in the fm
-                   CALL cp_fm_get_submatrix(psi1(ispin)%matrix,vecbuf_dklxp0 ,&
-                        &                   1,istate,nao,1,transpose=.TRUE.,&
-                        &                   error=error)
-                   CALL cp_fm_set_submatrix(psi1_D(ispin,idir)%matrix,vecbuf_dklxp0,&
-                        &                   1,istate,nao,1,transpose=.TRUE.,&
-                        &                   error=error)
+                   CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_D(ispin,idir)%matrix,1,istate,istate)
                 ENDDO
                 current_env%full_done(idir*ispin,icenter) = .TRUE.
              ENDDO ! ispin

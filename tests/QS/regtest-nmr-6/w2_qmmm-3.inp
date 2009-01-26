@@ -35,7 +35,7 @@
        MAX_SCF 5
        &CURRENT
          ORBITAL_CENTER COMMON
-         COMMON_CENTER 4.7243 4.7243 4.7243
+         COMMON_CENTER [bohr] 4.7243 4.7243 4.7243
        &END CURRENT
        &NMR
        &END

@@ -108,10 +108,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: bo(2), handle, iab, iat, iatom, idir2, ii, iii, ikind, ilist, &
-      inode, isgfa, isgfb, ispin, istat, jatom, jkind, katom, kkind, &
-      kneighbor, last_jatom, last_katom, max_gau, max_nsgf, maxso, maxsoc, &
-      mepos, nat, natom, nkind, nlist, nnode, nnode_c, nset, nsetc, nsgfa, &
-      nsgfb, nsoctot, nspins, num_pe
+      inode, ispin, istat, jatom, jkind, katom, kkind, kneighbor, last_jatom, &
+      last_katom, max_gau, max_nsgf, maxso, maxsoc, mepos, nat, natom, nkind, &
+      nlist, nnode, nnode_c, nset, nsetc, nsgfa, nsgfb, nsoctot, nspins, &
+      num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, is_not_associated, &
                                                 new_atom_b, new_atom_c, &
@@ -358,17 +358,15 @@ CONTAINS
                       ENDIF
                       !
                       ! Compute the modified Qai matrix as
+                      ! mQai_\mu\nu = Qai_\mu\nu - Qbi_\mu\nu * (R_A-R_\nu)_ii
+                      !             + Qci_\mu\nu * (R_A-R_\nu)_iii
                       DO ispin = 1,nspins
-                      DO isgfb = 1,nsgfb
-                      DO isgfa = 1,nsgfa
-                         ! mQai_\mu\nu = Qai_\mu\nu - Qbi_\mu\nu * (R_A-R_\nu)_ii
-                         !             + Qci_\mu\nu * (R_A-R_\nu)_iii
-                         jp_RARnu(ispin)%r_coef(isgfa,isgfb) =  &
-                              &  b_block(ispin)%r_coef(isgfa,isgfb) &
-                              & -d_block(ispin)%r_coef(isgfa,isgfb)*rbc(ii) &
-                              & +c_block(ispin)%r_coef(isgfa,isgfb)*rbc(iii)
-                      ENDDO
-                      ENDDO
+                         CALL DCOPY(nsgfa*nsgfb,b_block(ispin)%r_coef(1,1),1,&
+                              &     jp_RARnu(ispin)%r_coef(1,1),1)
+                         CALL DAXPY(nsgfa*nsgfb,-rbc(ii),d_block(ispin)%r_coef(1,1),1,&
+                              &     jp_RARnu(ispin)%r_coef(1,1),1)
+                         CALL DAXPY(nsgfa*nsgfb,rbc(iii),c_block(ispin)%r_coef(1,1),1,&
+                              &     jp_RARnu(ispin)%r_coef(1,1),1)
                       ENDDO
                       !
                       ! Get the d_A's for the hard and soft densities.

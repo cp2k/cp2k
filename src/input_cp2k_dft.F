@@ -5798,7 +5798,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="linres",&
             description="The linear response is used to calculate one of the "//&
-            " following properties: chemicalshift, ...(to be implemented) ",&
+            " following properties: chemicalshift, ... ",&
             n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
@@ -5990,7 +5990,7 @@ CONTAINS
        CALL keyword_create(keyword, name="COMMON_CENTER",&
             description="The common center ", usage="COMMON_CENTER 0.0 1.0 0.0",&
             n_var=3,default_r_vals=(/0.0_dp,0.0_dp,0.0_dp/),type_of_var=real_t,&
-            error=error)
+            unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

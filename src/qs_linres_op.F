@@ -180,9 +180,9 @@ CONTAINS
     !
     chk(:) = 0.0_dp
     DO ispin = 1,nspins
-       p_psi0(ispin,1)%matrix%local_data=0e0_dp
-       p_psi0(ispin,2)%matrix%local_data=0e0_dp
-       p_psi0(ispin,3)%matrix%local_data=0e0_dp
+       CALL cp_fm_set_all(p_psi0(ispin,1)%matrix,0.0_dp,error=error)
+       CALL cp_fm_set_all(p_psi0(ispin,2)%matrix,0.0_dp,error=error)
+       CALL cp_fm_set_all(p_psi0(ispin,3)%matrix,0.0_dp,error=error)
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
        DO icenter = 1,nbr_center(ispin)
           CALL set_matrix(op_rmd_ao(1)%matrix,0.0_dp)
