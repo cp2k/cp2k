@@ -97,13 +97,16 @@ END SUBROUTINE m_datum
   SUBROUTINE m_mov(source,TARGET)
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
+    INTEGER :: stat
 
-    CHARACTER(LEN=2*default_string_length+4) :: cmd
 
-    cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
-    CALL system(cmd)
-
-  END SUBROUTINE m_mov
+    stat=rename(source,target)
+    IF (stat .NE. 0) THEN
+      write(6,*) "Trying to move "//TRIM(source)//" to "//TRIM(target)//"."
+      write(6,*) "rename returned status: ",stat
+      STOP "Problem moving file"
+    ENDIF
+END SUBROUTINE m_mov
 
 ! *****************************************************************************
 SUBROUTINE m_hostnm(hname)
