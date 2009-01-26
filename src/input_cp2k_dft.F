@@ -1909,8 +1909,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EXTRAPOLATION_ORDER",&
-            description="Order for the PS extrapolation (typically 2-4). "//&
-                        "higher order might bring more accuracy, but comes, "//&
+            description="Order for the PS or ASPC extrapolation (typically 2-4). "//&
+                        "Higher order might bring more accuracy, but comes, "//&
                         "for large systems, also at some cost. "//&
                         "In some cases, a high order extrapolation is not stable,"//&
                         " and the order needs to be reduced.",&
@@ -3461,9 +3461,10 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        ! parameter specification atom by atom
        CALL keyword_create(keyword, name="ATOMPARM",&
-            description="Specifies parameters for atom types (in atomic units)",&
-            usage="ATOMPARM <ELEMENT> <C6_parameter> <vdw_radii>", required=.TRUE., &
-            repeats=.TRUE., n_var=-1,type_of_var=char_t, error=error)
+            description="Specifies parameters for atom types (in atomic units). If "//&
+            "not provided default parameters are used (GRIMME).",&
+            usage="ATOMPARM <ELEMENT> <C6_parameter> <vdw_radii>", required=.FALSE., &
+            repeats=.TRUE., n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
