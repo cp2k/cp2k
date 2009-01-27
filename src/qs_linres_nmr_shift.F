@@ -71,7 +71,6 @@ MODULE qs_linres_nmr_shift
                                              get_nmr_env,&
                                              jrho_atom_type,&
                                              nmr_env_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
@@ -269,20 +268,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nmr_shift_gapw', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, ia, iat, iatom, idir2, idir2_1, idir3, idir3_1, ikind, &
-      ir, ira, ispin, istat, j, jatom, mepos, n_nics, na, natom, natom_local, &
-      natom_tot, nkind, nr, nra, nspins, num_pe, output_unit
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: list_j
+    INTEGER :: handle, ia, iat, iatom, idir2_1, idir3_1, ikind, ir, ira, &
+      ispin, istat, j, jatom, mepos, n_nics, na, natom, natom_local, &
+      natom_tot, nkind, nnics_local, nr, nra, nspins, num_pe, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: list_j, list_nics_j
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: do_nics, failure, &
-                                                jatomisneighbor, paw_atom
-    REAL(dp) :: ddiff, dist, dum, itegrated_jrho, jrho1_tot, r_iatom(3), &
-      r_jatom(3), rdiff(3), rij(3), rvec(3), s_1, s_2, scale_fac, &
-      scale_fac_1, shift_gapw_radius
+    LOGICAL                                  :: do_nics, failure, paw_atom
+    REAL(dp) :: ddiff, dist, dum, itegrated_jrho, r_jatom(3), rdiff(3), &
+      rij(3), s_1, s_2, scale_fac_1, shift_gapw_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: j_grid
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: chemical_shift_loc_tmp, &
-                                                dist_ij, r_grid
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: cs_loc_tmp, cs_nics_loc_tmp, &
+                                                dist_ij, dist_nics_ij, r_grid
     REAL(dp), DIMENSION(:, :), POINTER       :: jrho_h_grid, jrho_s_grid, &
                                                 r_nics
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift_loc, &
@@ -343,10 +340,16 @@ CONTAINS
     idir3_1 = MODULO(idir+1,3)+1
     scale_fac_1 = fac_vecp(idir3_1,idir2_1,idir)
     !
-    ALLOCATE(chemical_shift_loc_tmp(3,natom_tot),list_j(natom_tot),&
+    ALLOCATE(cs_loc_tmp(3,natom_tot),list_j(natom_tot),&
          &   dist_ij(3,natom_tot),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    chemical_shift_loc_tmp = 0.0_dp
+    cs_loc_tmp = 0.0_dp
+    IF(do_nics) THEN
+       ALLOCATE(cs_nics_loc_tmp(3,n_nics),list_nics_j(n_nics),&
+            &   dist_nics_ij(3,n_nics),STAT=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       cs_nics_loc_tmp = 0.0_dp
+    ENDIF
     !
     ! Loop over atoms to collocate the current on each atomic grid, JA
     ! Per each JA, loop over the points where the shift needs to be computed
@@ -368,9 +371,7 @@ CONTAINS
        ira = 1
        DO ia = 1,na
           DO ir = 1,nr
-             r_grid(1,ira) = grid_atom%rad(ir)*harmonics%a(1,ia)
-             r_grid(2,ira) = grid_atom%rad(ir)*harmonics%a(2,ia)
-             r_grid(3,ira) = grid_atom%rad(ir)*harmonics%a(3,ia)
+             r_grid(:,ira) = grid_atom%rad(ir)*harmonics%a(:,ia)
              ira = ira  + 1
           ENDDO
        ENDDO
@@ -385,7 +386,6 @@ CONTAINS
           !
           DO iat = bo(1),bo(2)
              iatom = atom_list(iat)
-             r_iatom(1:3) = pbc(particle_set(iatom)%r,cell)
              !
              ! find all the atoms within the radius
              natom_local = 0
@@ -398,6 +398,21 @@ CONTAINS
                    dist_ij(:,natom_local) = rij(:)
                 ENDIF
              ENDDO
+             !
+             ! ... also for nics
+             IF(do_nics) THEN
+                nnics_local = 0
+                DO jatom = 1,n_nics
+                   r_jatom(:) = r_nics(:,jatom)
+                   rij(:) = pbc(particle_set(iatom)%r,r_jatom,cell)
+                   dist = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+                   IF(dist.LE.shift_gapw_radius) THEN
+                      nnics_local = nnics_local + 1
+                      list_nics_j(nnics_local) = jatom
+                      dist_nics_ij(:,nnics_local) = rij(:)
+                   ENDIF
+                ENDDO
+             ENDIF
              !
              NULLIFY(jrho1_atom,jrho_h_grid,jrho_s_grid)
              jrho1_atom => jrho1_atom_set(iatom)
@@ -426,9 +441,7 @@ CONTAINS
                    s_2 = 0.0_dp
                    DO ira = 1,nra
                       !
-                      rdiff(1) = rij(1) - r_grid(1,ira)
-                      rdiff(2) = rij(2) - r_grid(2,ira)
-                      rdiff(3) = rij(3) - r_grid(3,ira)
+                      rdiff(:) = rij(:) - r_grid(:,ira)
                       ddiff = SQRT( rdiff(1)*rdiff(1) + rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3) )
                       IF(ddiff.GT.1.0E-12_dp) THEN
                          dum = scale_fac_1 * j_grid(ira) / (ddiff*ddiff*ddiff)
@@ -436,52 +449,30 @@ CONTAINS
                          s_2 = s_2 + rdiff(idir3_1) * dum
                       ENDIF ! ddiff
                    ENDDO ! ira
-                   chemical_shift_loc_tmp(idir3_1,jatom) = chemical_shift_loc_tmp(idir3_1,jatom) + s_1
-                   chemical_shift_loc_tmp(idir2_1,jatom) = chemical_shift_loc_tmp(idir2_1,jatom) - s_2
+                   cs_loc_tmp(idir3_1,jatom) = cs_loc_tmp(idir3_1,jatom) + s_1
+                   cs_loc_tmp(idir2_1,jatom) = cs_loc_tmp(idir2_1,jatom) - s_2
                 ENDDO ! j
                 !
-                !
                 IF(do_nics) THEN
-                   DO ia = 1,na
-                      DO ir = 1,nr
+                   DO j = 1,nnics_local
+                      jatom = list_nics_j(j)
+                      rij(:) = dist_nics_ij(:,j)
+                      !
+                      s_1 = 0.0_dp
+                      s_2 = 0.0_dp
+                      DO ira = 1,nra
                          !
-                         rvec(:) = grid_atom%rad(ir)*harmonics%a(:,ia)
-                         !
-                         jrho1_tot = (jrho_h_grid(ir,ia) - jrho_s_grid(ir,ia)) * grid_atom%weight(ia,ir)
-                         itegrated_jrho = itegrated_jrho + jrho1_tot
-
-                         DO jatom = 1,n_nics
-                            r_jatom(1:3) = r_nics(1:3,jatom)
-                            rij(1:3) = pbc(particle_set(iatom)%r,r_jatom,cell)
-
-                            dist = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
-
-                            jatomisneighbor = .TRUE.
-                            IF(jatomisneighbor) THEN
-
-                               rdiff(1) = rij(1) - rvec(1)
-                               rdiff(2) = rij(2) - rvec(2)
-                               rdiff(3) = rij(3) - rvec(3)
-                               ddiff = SQRT( rdiff(1)*rdiff(1)+ rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3))
-                               ! the component idir of J contributes to the components idir2/=idir of the shift
-                               DO idir2 = 1,3
-
-                                  IF(idir2/=idir) THEN
-                                     CALL set_vecp_rev(idir,idir2,idir3)
-                                     scale_fac=fac_vecp(idir3,idir2,idir)
-
-                                     IF(ddiff .GT. EPSILON(0.0_dp)) THEN
-                                        chemical_shift_nics_loc(idir3,iB,jatom) = &
-                                             chemical_shift_nics_loc(idir3,iB,jatom) + &
-                                             scale_fac*rdiff(idir2)*jrho1_tot/(ddiff*ddiff*ddiff)
-                                     ENDIF
-
-                                  ENDIF
-                               ENDDO ! idir2
-                            ENDIF
-                         ENDDO ! jatom
-                      ENDDO ! ir
-                   ENDDO ! ia
+                         rdiff(:) = rij(:) - r_grid(:,ira)
+                         ddiff = SQRT( rdiff(1)*rdiff(1) + rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3) )
+                         IF(ddiff.GT.1.0E-12_dp) THEN
+                            dum = scale_fac_1 * j_grid(ira) / (ddiff*ddiff*ddiff)
+                            s_1 = s_1 + rdiff(idir2_1) * dum
+                            s_2 = s_2 + rdiff(idir3_1) * dum
+                         ENDIF ! ddiff
+                      ENDDO ! ira
+                      cs_nics_loc_tmp(idir3_1,jatom) = cs_nics_loc_tmp(idir3_1,jatom) + s_1
+                      cs_nics_loc_tmp(idir2_1,jatom) = cs_nics_loc_tmp(idir2_1,jatom) - s_2
+                   ENDDO ! j
                 ENDIF ! do_nics
              ENDDO ! ispin
           ENDDO ! iat
@@ -496,18 +487,21 @@ CONTAINS
             &//ACHAR(idir+119)//ACHAR(iB+119)//'(r)=',itegrated_jrho
     ENDIF
     !
-    CALL mp_sum(chemical_shift_loc_tmp,para_env%group)
+    CALL mp_sum(cs_loc_tmp,para_env%group)
     chemical_shift_loc(:,iB,:) = chemical_shift_loc(:,iB,:) &
-         & - nmr_env%shift_factor_gapw * chemical_shift_loc_tmp(:,:) / 2.0_dp
-
-    IF(do_nics) THEN
-       !here need a chemical_shift_nics_loc_tmp... also for chi_loc
-       CALL stop_program(routineP,"local nics needs some more work")
-       CALL mp_sum(chemical_shift_nics_loc,para_env%group)
-    ENDIF
+         & - nmr_env%shift_factor_gapw * cs_loc_tmp(:,:) / 2.0_dp
     !
-    DEALLOCATE(chemical_shift_loc_tmp,list_j,dist_ij,STAT=istat)
+    DEALLOCATE(cs_loc_tmp,list_j,dist_ij,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    !
+    IF(do_nics) THEN
+       CALL mp_sum(cs_nics_loc_tmp,para_env%group)
+       chemical_shift_nics_loc(:,iB,:) = chemical_shift_nics_loc(:,iB,:) &
+            & - nmr_env%shift_factor_gapw * cs_nics_loc_tmp(:,:) / 2.0_dp
+       !
+       DEALLOCATE(cs_nics_loc_tmp,list_nics_j,dist_nics_ij,STAT=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
     !
     CALL timestop(handle)
     !
@@ -612,11 +606,11 @@ CONTAINS
 
       IF(do_nics) THEN
          DO iatom = 1,n_nics
-            ra(1:3) = r_nics(1:3,iatom)
+            ra(:) = r_nics(:,iatom)
             R_iatom = pbc(ra,cell)
             shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error)
             chemical_shift_nics(idir,i_B,iatom)= chemical_shift_nics(idir,i_B,iatom)+&
-                                               nmr_env%shift_factor * twopi**2 * shift_val
+                                                 nmr_env%shift_factor * twopi**2 * shift_val
          END DO
       END IF
 
@@ -745,9 +739,9 @@ CONTAINS
       chi_tmp(3,3), eig(3), rpos(3), shift_aniso, shift_iso, &
       shift_sym_tot(3,3)
     REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
-    REAL(dp), DIMENSION(:, :, :), POINTER :: chemical_shift, &
-      chemical_shift_loc, chemical_shift_nics, chemical_shift_nics_loc, &
-      chemical_shift_nics_tot, chemical_shift_tot
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: cs, cs_loc, cs_nics, &
+                                                cs_nics_loc, cs_nics_tot, &
+                                                cs_tot
     REAL(dp), EXTERNAL                       :: DDOT
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_logger_type), POINTER            :: logger
@@ -758,8 +752,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(chemical_shift, chemical_shift_nics, r_nics, chemical_shift_loc, &
-         &  chemical_shift_nics_loc, logger, particle_set,atom_kind,dft_control)
+    NULLIFY(cs,cs_nics,r_nics,cs_loc,cs_nics_loc,logger,particle_set,atom_kind,dft_control)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -769,10 +762,10 @@ CONTAINS
                                                  "PROPERTIES%LINRES%NMR",error=error)
 
     CALL get_nmr_env(nmr_env=nmr_env, &
-         &           chemical_shift=chemical_shift, &
-         &           chemical_shift_nics=chemical_shift_nics, &
-         &           chemical_shift_loc=chemical_shift_loc, &
-         &           chemical_shift_nics_loc=chemical_shift_nics_loc, &
+         &           chemical_shift=cs, &
+         &           chemical_shift_nics=cs_nics, &
+         &           chemical_shift_loc=cs_loc, &
+         &           chemical_shift_nics_loc=cs_nics_loc, &
          &           cs_atom_list=cs_atom_list, &
          &           n_nics=n_nics, &
          &           r_nics=r_nics, &
@@ -799,10 +792,10 @@ CONTAINS
     gapw = dft_control%qs_control%gapw
     nat_print=SIZE(cs_atom_list,1)
 
-    ALLOCATE(chemical_shift_tot(3,3,nat_print),STAT=istat)
+    ALLOCATE(cs_tot(3,3,nat_print),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     IF(do_nics) THEN
-       ALLOCATE(chemical_shift_nics_tot(3,3,n_nics),STAT=istat)
+       ALLOCATE(cs_nics_tot(3,3,n_nics),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDIF
     ! Finalize Chi calculation
@@ -889,20 +882,18 @@ CONTAINS
     ENDIF ! print chi
     !
     ! Add the chi part to the shifts
-    chemical_shift_tot(:,:,:) = 0.0_dp
+    cs_tot(:,:,:) = 0.0_dp
     DO ir = 1,nat_print
        iatom = cs_atom_list(ir)
        rpos(1:3) = particle_set(iatom)%r(1:3)
        atom_kind => particle_set(iatom)%atomic_kind
        CALL get_atomic_kind(atom_kind,name=name,element_symbol=element_symbol)
-       chemical_shift_tot(:,:,ir) = chi_tensor_tmp(:,:) * nmr_env%chi_SI2shiftppm &
-            & + chemical_shift(:,:,iatom)
-       IF(gapw) chemical_shift_tot(:,:,ir) = chemical_shift_tot(:,:,ir) + chemical_shift_loc(:,:,iatom)
-    END DO  ! ir
+       cs_tot(:,:,ir) = chi_tensor_tmp(:,:) * nmr_env%chi_SI2shiftppm + cs(:,:,iatom)
+       IF(gapw) cs_tot(:,:,ir) = cs_tot(:,:,ir) + cs_loc(:,:,iatom)
+    ENDDO  ! ir
     IF(output_unit > 0) THEN
        WRITE(output_unit,'(T2,A,E24.16)') 'CheckSum Shifts =',&
-            & SQRT(DDOT(9*SIZE(chemical_shift_tot,3),chemical_shift_tot(1,1,1),1,&
-            &           chemical_shift_tot(1,1,1),1))
+            & SQRT(DDOT(9*SIZE(cs_tot,3),cs_tot(1,1,1),1,cs_tot(1,1,1),1))
     ENDIF
     !
     ! print shifts
@@ -922,45 +913,45 @@ CONTAINS
              rpos(1:3) = particle_set(iatom)%r(1:3)
              atom_kind => particle_set(iatom)%atomic_kind
              CALL get_atomic_kind(atom_kind,name=name,element_symbol=element_symbol)
-             shift_sym_tot(:,:) = 0.5_dp * (chemical_shift_tot(:,:,ir) + TRANSPOSE(chemical_shift_tot(:,:,ir)))
+             shift_sym_tot(:,:) = 0.5_dp * (cs_tot(:,:,ir) + TRANSPOSE(cs_tot(:,:,ir)))
              CALL  diamat_all(shift_sym_tot,eig,error=error)
              shift_iso   = (eig(1) + eig(2) + eig(3)) / 3.0_dp
-             shift_aniso =  eig(3)-(eig(2)+eig(1))/2.0_dp
-
+             shift_aniso =  eig(3) - (eig(2) + eig(1)) / 2.0_dp
+             !
              WRITE(unit_atoms,'(T2,I5,A,2X,A2,2X,3f15.6)') iatom,TRIM(name),element_symbol,rpos(1:3)
              !
              IF(gapw) THEN
                 WRITE(unit_atoms,'(T1,A)') " SIGMA from SOFT J"
-                WRITE(unit_atoms,'(3(A,f10.4))') '  XX = ',chemical_shift(1,1,iatom),&
-                     &                           '  XY = ',chemical_shift(1,2,iatom),&
-                     &                           '  XZ = ',chemical_shift(1,3,iatom)
-                WRITE(unit_atoms,'(3(A,f10.4))') '  YX = ',chemical_shift(2,1,iatom),&
-                     &                           '  YY = ',chemical_shift(2,2,iatom),&
-                     &                           '  YZ = ',chemical_shift(2,3,iatom)
-                WRITE(unit_atoms,'(3(A,f10.4))') '  ZX = ',chemical_shift(3,1,iatom),&
-                     &                           '  ZY = ',chemical_shift(3,2,iatom),&
-                     &                           '  ZZ = ',chemical_shift(3,3,iatom)
+                WRITE(unit_atoms,'(3(A,f10.4))') '  XX = ',cs(1,1,iatom),&
+                     &                           '  XY = ',cs(1,2,iatom),&
+                     &                           '  XZ = ',cs(1,3,iatom)
+                WRITE(unit_atoms,'(3(A,f10.4))') '  YX = ',cs(2,1,iatom),&
+                     &                           '  YY = ',cs(2,2,iatom),&
+                     &                           '  YZ = ',cs(2,3,iatom)
+                WRITE(unit_atoms,'(3(A,f10.4))') '  ZX = ',cs(3,1,iatom),&
+                     &                           '  ZY = ',cs(3,2,iatom),&
+                     &                           '  ZZ = ',cs(3,3,iatom)
                 WRITE(unit_atoms,'(T1,A)') " SIGMA from LOCAL J"
-                WRITE(unit_atoms,'(3(A,f10.4))') '  XX = ',chemical_shift_loc(1,1,iatom),&
-                     &                           '  XY = ',chemical_shift_loc(1,2,iatom),&
-                     &                           '  XZ = ',chemical_shift_loc(1,3,iatom)
-                WRITE(unit_atoms,'(3(A,f10.4))') '  YX = ',chemical_shift_loc(2,1,iatom),&
-                     &                           '  YY = ',chemical_shift_loc(2,2,iatom),&
-                     &                           '  YZ = ',chemical_shift_loc(2,3,iatom)
-                WRITE(unit_atoms,'(3(A,f10.4))') '  ZX = ',chemical_shift_loc(3,1,iatom),&
-                     &                           '  ZY = ',chemical_shift_loc(3,2,iatom),&
-                     &                           '  ZZ = ',chemical_shift_loc(3,3,iatom)
+                WRITE(unit_atoms,'(3(A,f10.4))') '  XX = ',cs_loc(1,1,iatom),&
+                     &                           '  XY = ',cs_loc(1,2,iatom),&
+                     &                           '  XZ = ',cs_loc(1,3,iatom)
+                WRITE(unit_atoms,'(3(A,f10.4))') '  YX = ',cs_loc(2,1,iatom),&
+                     &                           '  YY = ',cs_loc(2,2,iatom),&
+                     &                           '  YZ = ',cs_loc(2,3,iatom)
+                WRITE(unit_atoms,'(3(A,f10.4))') '  ZX = ',cs_loc(3,1,iatom),&
+                     &                           '  ZY = ',cs_loc(3,2,iatom),&
+                     &                           '  ZZ = ',cs_loc(3,3,iatom)
              ENDIF
              WRITE(unit_atoms,'(T1,A)') " SIGMA TOTAL"
-             WRITE(unit_atoms,'(3(A,f10.4))') '  XX = ',chemical_shift_tot(1,1,ir),&
-                  &                           '  XY = ',chemical_shift_tot(1,2,ir),&
-                  &                           '  XZ = ',chemical_shift_tot(1,3,ir)
-             WRITE(unit_atoms,'(3(A,f10.4))') '  YX = ',chemical_shift_tot(2,1,ir),&
-                  &                           '  YY = ',chemical_shift_tot(2,2,ir),&
-                  &                           '  YZ = ',chemical_shift_tot(2,3,ir)
-             WRITE(unit_atoms,'(3(A,f10.4))') '  ZX = ',chemical_shift_tot(3,1,ir),&
-                  &                           '  ZY = ',chemical_shift_tot(3,2,ir),&
-                  &                           '  ZZ = ',chemical_shift_tot(3,3,ir)
+             WRITE(unit_atoms,'(3(A,f10.4))') '  XX = ',cs_tot(1,1,ir),&
+                  &                           '  XY = ',cs_tot(1,2,ir),&
+                  &                           '  XZ = ',cs_tot(1,3,ir)
+             WRITE(unit_atoms,'(3(A,f10.4))') '  YX = ',cs_tot(2,1,ir),&
+                  &                           '  YY = ',cs_tot(2,2,ir),&
+                  &                           '  YZ = ',cs_tot(2,3,ir)
+             WRITE(unit_atoms,'(3(A,f10.4))') '  ZX = ',cs_tot(3,1,ir),&
+                  &                           '  ZY = ',cs_tot(3,2,ir),&
+                  &                           '  ZZ = ',cs_tot(3,3,ir)
              WRITE(unit_atoms,'(T1,2(A,f12.4))') '  ISOTROPY = ',shift_iso,&
                   &                            '  ANISOTROPY = ',shift_aniso
           ENDDO ! ir
@@ -971,54 +962,86 @@ CONTAINS
        IF(do_nics) THEN
           !
           ! Add the chi part to the nics
-          chemical_shift_nics_tot(:,:,:) = 0.0_dp
+          cs_nics_tot(:,:,:) = 0.0_dp
           DO ir = 1,n_nics
-             chemical_shift_nics_tot(:,:,ir) = chi_tensor_tmp(:,:) * nmr_env%chi_SI2shiftppm &
-                  &                          + chemical_shift_nics(:,:,ir)
-             IF(gapw) CALL stop_program(routineP,"GAPW and NICS doesnt work yet.")
-          END DO  ! ir
+             cs_nics_tot(:,:,ir) = chi_tensor_tmp(:,:) * nmr_env%chi_SI2shiftppm + cs_nics(:,:,ir)
+             IF(gapw) cs_nics_tot(:,:,ir) = cs_nics_tot(:,:,ir) + cs_nics_loc(:,:,ir)
+          ENDDO  ! ir
           IF(output_unit > 0) THEN
              WRITE(output_unit,'(T2,A,E24.16)') 'CheckSum NICS =',&
-                  & SQRT(DDOT(9*SIZE(chemical_shift_nics_tot,3),chemical_shift_nics_tot(1,1,1),&
-                  &           1,chemical_shift_nics_tot(1,1,1),1))
+                  & SQRT(DDOT(9*SIZE(cs_nics_tot,3),cs_nics_tot(1,1,1),1,cs_nics_tot(1,1,1),1))
           ENDIF
           !
           unit_nics=cp_print_key_unit_nr(logger,nmr_section,"PRINT%SHIELDING_TENSOR",&
                &                         extension=".data",middle_name="NICS",&
                &                         log_filename=.FALSE.,error=error)
           IF(unit_nics > 0) THEN
-             WRITE(title,'(A,1X,I5)') "Shielding atom at atomic positions. # tensors printed ", n_nics
+             WRITE(title,'(A,1X,I5)') "Shielding at nics positions. # tensors printed ", n_nics
              WRITE(unit_nics,'(T2,A)') title
              DO ir = 1,n_nics
+                shift_sym_tot(:,:) = 0.5_dp * (cs_nics_tot(:,:,ir) + TRANSPOSE(cs_nics_tot(:,:,ir)))
+                CALL  diamat_all(shift_sym_tot,eig,error=error)
+                shift_iso   = (eig(1) + eig(2) + eig(3)) / 3.0_dp
+                shift_aniso =  eig(3) - (eig(2) + eig(1)) / 2.0_dp
+                !
                 WRITE(unit_nics,'(T2,I5,2X,3f15.6)') ir,r_nics(1:3,ir)
+                !
                 IF(gapw) THEN
-                   CALL stop_program(routineP,"GAPW and NICS doesnt work yet.")
-                ELSE
-                   WRITE(unit_nics,'(3(A,f10.4))') '  XX = ',chemical_shift_nics_tot(1,1,ir),&
-                        &                          '  XY = ',chemical_shift_nics_tot(1,2,ir),&
-                        &                          '  XZ = ',chemical_shift_nics_tot(1,3,ir)
-                   WRITE(unit_nics,'(3(A,f10.4))') '  YX = ',chemical_shift_nics_tot(2,1,ir),&
-                        &                          '  YY = ',chemical_shift_nics_tot(2,2,ir),&
-                        &                          '  YZ = ',chemical_shift_nics_tot(2,3,ir)
-                   WRITE(unit_nics,'(3(A,f10.4))') '  ZX = ',chemical_shift_nics_tot(3,1,ir),&
-                        &                          '  ZY = ',chemical_shift_nics_tot(3,2,ir),&
-                        &                          '  ZZ = ',chemical_shift_nics_tot(3,3,ir)
+                   WRITE(unit_nics,'(T1,A)') " SIGMA from SOFT J"
+                   WRITE(unit_nics,'(3(A,f10.4))') '  XX = ',cs_nics(1,1,ir),&
+                        &                          '  XY = ',cs_nics(1,2,ir),&
+                        &                          '  XZ = ',cs_nics(1,3,ir)
+                   WRITE(unit_nics,'(3(A,f10.4))') '  YX = ',cs_nics(2,1,ir),&
+                        &                          '  YY = ',cs_nics(2,2,ir),&
+                        &                          '  YZ = ',cs_nics(2,3,ir)
+                   WRITE(unit_nics,'(3(A,f10.4))') '  ZX = ',cs_nics(3,1,ir),&
+                        &                          '  ZY = ',cs_nics(3,2,ir),&
+                        &                          '  ZZ = ',cs_nics(3,3,ir)
+                   WRITE(unit_nics,'(T1,A)') " SIGMA from LOCAL J"
+                   WRITE(unit_nics,'(3(A,f10.4))') '  XX = ',cs_nics_loc(1,1,ir),&
+                        &                          '  XY = ',cs_nics_loc(1,2,ir),&
+                        &                          '  XZ = ',cs_nics_loc(1,3,ir)
+                   WRITE(unit_nics,'(3(A,f10.4))') '  YX = ',cs_nics_loc(2,1,ir),&
+                        &                          '  YY = ',cs_nics_loc(2,2,ir),&
+                        &                          '  YZ = ',cs_nics_loc(2,3,ir)
+                   WRITE(unit_nics,'(3(A,f10.4))') '  ZX = ',cs_nics_loc(3,1,ir),&
+                        &                          '  ZY = ',cs_nics_loc(3,2,ir),&
+                        &                          '  ZZ = ',cs_nics_loc(3,3,ir)
                 ENDIF
+                WRITE(unit_nics,'(T1,A)') " SIGMA TOTAL"
+                WRITE(unit_nics,'(3(A,f10.4))') '  XX = ',cs_nics_tot(1,1,ir),&
+                     &                          '  XY = ',cs_nics_tot(1,2,ir),&
+                     &                          '  XZ = ',cs_nics_tot(1,3,ir)
+                WRITE(unit_nics,'(3(A,f10.4))') '  YX = ',cs_nics_tot(2,1,ir),&
+                     &                          '  YY = ',cs_nics_tot(2,2,ir),&
+                     &                          '  YZ = ',cs_nics_tot(2,3,ir)
+                WRITE(unit_nics,'(3(A,f10.4))') '  ZX = ',cs_nics_tot(3,1,ir),&
+                     &                          '  ZY = ',cs_nics_tot(3,2,ir),&
+                     &                          '  ZZ = ',cs_nics_tot(3,3,ir)
+                WRITE(unit_nics,'(T1,2(A,f12.4))') '  ISOTROPY = ',shift_iso,&
+                     &                           '  ANISOTROPY = ',shift_aniso
              ENDDO
           ENDIF
           CALL cp_print_key_finished_output(unit_nics,logger,nmr_section,&
                &                            "PRINT%SHIELDING_TENSOR",error=error)
        ENDIF
-    ENDIF  ! print shift
+    ENDIF ! print shift
     !
     ! clean up
-    DEALLOCATE(chemical_shift_tot, STAT=istat)
+    DEALLOCATE(cs_tot,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     IF(do_nics) THEN
-       DEALLOCATE(chemical_shift_nics_tot,STAT=istat)
+       DEALLOCATE(cs_nics_tot,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDIF
     !
+!100 FORMAT(A,1X,I5)
+!101 FORMAT(T2,A)
+!102 FORMAT(T2,I5,A,2X,A2,2X,3f15.6)
+!103 FORMAT(T2,I5,2X,3f15.6)
+!104 FORMAT(T1,A)
+!105 FORMAT(3(A,f10.4))
+!106 FORMAT(T1,2(A,f12.4))
   END SUBROUTINE nmr_shift_print
 
 END MODULE qs_linres_nmr_shift
