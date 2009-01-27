@@ -182,9 +182,8 @@ CONTAINS
 
     INTEGER :: handle, homo, ispin, n, n_mo(2), nao, nelectron, nhomo, nlumo, &
       nlumos, nmo, nmoloc(2), nmos, output_unit
-    LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, explicit, failure, &
-      has_homo, has_lumo, ionode, my_localized_wfn, p_loc, p_molstates, &
-      uniform_occ
+    LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, failure, has_homo, &
+      has_lumo, ionode, my_localized_wfn, p_loc, uniform_occ
     REAL(KIND=dp)                            :: gap, homo_lumo(2,2), maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, stm_biases
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
@@ -265,6 +264,8 @@ CONTAINS
        ! Determine if we need to computer properties using the localized centers
        localization_section => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
        localize_section     => section_vals_get_subs_vals(dft_section,"LOCALIZE",error=error)
+
+       ! Print_keys controlled by localization
        print_key => section_vals_get_subs_vals(localization_section,"MOLECULAR_DIPOLES",error=error)
        p_loc=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
        print_key => section_vals_get_subs_vals(localization_section,"TOTAL_DIPOLE",error=error)
@@ -275,14 +276,10 @@ CONTAINS
        p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
        print_key => section_vals_get_subs_vals(localization_section,"WANNIER_CUBES",error=error)
        p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
-       CALL section_vals_val_get(localize_section,"_SECTION_PARAMETERS_",l_val=explicit,error=error)
-       p_loc=p_loc.OR.explicit
-
-       ! Print Molecular States
        print_key => section_vals_get_subs_vals(localization_section,"MOLECULAR_STATES",error=error)
-       p_molstates=BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
-       p_loc=p_loc.OR.p_molstates
+       p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
 
+       ! Control for STM_BIAS
        CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%STM_BIAS",r_vals=stm_biases,error=error)
        do_stm=ASSOCIATED(stm_biases)
 
@@ -452,13 +449,16 @@ CPSourceFileRef,&
                         myspin=ispin,ext_mo_coeff=mo_localized,error=error)
 
                    ! maps wfc to molecules, and compute the molecular dipoles if required
-                   IF (BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
-                       "MOLECULAR_DIPOLES",error=error),cp_p_file) .OR. p_molstates) THEN
+                   IF ( BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
+                        "MOLECULAR_DIPOLES",error=error),cp_p_file) .OR. &
+                        BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
+                        "MOLECULAR_STATES",error=error),cp_p_file) ) THEN
                       CALL wfc_to_molecule(qs_loc_env, localization_section, scenter, molecule_set, error)
                    END IF
 
                    ! Compute the molecular states
-                   IF ( p_molstates ) THEN
+                   IF ( BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
+                        "MOLECULAR_STATES",error=error),cp_p_file) ) THEN
                       CALL construct_molecular_states(molecule_set, mo_localized, mo_coeff, mo_eigenvalues,&
                            ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, wf_r, wf_g, &
                            localization_section=localization_section, particles=particles, error=error)

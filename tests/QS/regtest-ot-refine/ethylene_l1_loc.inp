@@ -22,6 +22,8 @@
     &END
     &PRINT
       &LOCALIZATION
+        &WANNIER_CENTERS
+        &END
       &END LOCALIZATION
     &END PRINT
   &END DFT

@@ -32,6 +32,8 @@
     &END
     &PRINT
       &LOCALIZATION
+        &WANNIER_CENTERS
+        &END
       &END
     &END
   &END DFT
