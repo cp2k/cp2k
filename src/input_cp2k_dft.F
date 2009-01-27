@@ -6102,6 +6102,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="INTERPOLATE_SHIFT",&
+            description="Calculate the soft part of the chemical shift by interpolation ",&
+            usage="INTERPOLATE_SHIFT T",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="NICS",&
             description="Calculate the chemical shift in a set of points  "//&
             " given from an external file", usage="NICS",&

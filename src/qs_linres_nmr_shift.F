@@ -38,6 +38,7 @@ MODULE qs_linres_nmr_shift
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_methods,                      ONLY: pw_axpy,&
                                              pw_scale,&
+                                             pw_transfer,&
                                              pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
@@ -81,7 +82,7 @@ MODULE qs_linres_nmr_shift
   PRIVATE
 
   ! *** Public subroutines ***
-  PUBLIC :: interpolate_shift_pwgrid, gsum_shift_pwgrid, nmr_shift_print,&
+  PUBLIC :: nmr_shift_print,&
        &    nmr_shift
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_shift'
@@ -104,7 +105,8 @@ CONTAINS
     INTEGER                                  :: handle, idir, idir2, idir3, &
                                                 iiB, iiiB, ispin, istat, &
                                                 natom, nspins
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: failure, gapw, &
+                                                interpolate_shift
     REAL(dp)                                 :: scale_fac
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
                                                 chemical_shift_loc, &
@@ -120,16 +122,17 @@ CONTAINS
                                                 shift_pw_rspace
     TYPE(pw_p_type), DIMENSION(:, :), &
       POINTER                                :: shift_pw_gspace
-    TYPE(pw_p_type), POINTER                 :: rho_gspace, rho_rspace
+    TYPE(pw_p_type), POINTER                 :: rho_gspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(section_vals_type), POINTER         :: nmr_section
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(chemical_shift,chemical_shift_loc,chemical_shift_nics,chemical_shift_nics_loc,&
-         &  cell,dft_control,pw_env,auxbas_rs_pool,auxbas_pw_pool,rho_gspace,rho_rspace,&
+         &  cell,dft_control,pw_env,auxbas_rs_pool,auxbas_pw_pool,rho_gspace,&
          &  pw_pools,particle_set)
 
     CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
@@ -143,15 +146,17 @@ CONTAINS
                      chemical_shift_loc=chemical_shift_loc,&
                      chemical_shift_nics=chemical_shift_nics,&
                      chemical_shift_nics_loc=chemical_shift_nics_loc,&
+                     interpolate_shift=interpolate_shift,&
                      error=error)
-
-    CALL get_current_env(current_env=current_env,&
-                         error=error)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
     CALL pw_env_get(pw_env,auxbas_rs_pool=auxbas_rs_pool,&
          &          auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
          &          error=error)
+    !
+    !
+    nmr_section => section_vals_get_subs_vals(qs_env%input, &
+         & "PROPERTIES%LINRES%NMR",error=error)
     !
     ! Initialize
     ! Allocate grids for the calculation of jrho and the shift
@@ -160,23 +165,19 @@ CONTAINS
     DO ispin = 1,nspins
        DO idir = 1,3
           CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
-               &                  use_data=COMPLEXDATA1D,&
-               &                  in_space=RECIPROCALSPACE,error=error)
+               &                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+               &                 error=error)
           CALL pw_zero(shift_pw_gspace(idir,ispin)%pw)
        ENDDO
     ENDDO
-    CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_rspace%pw,&
-         &                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
-    CALL pw_zero(shift_pw_rspace%pw)
-    CALL pw_pool_create_pw(auxbas_pw_pool,pw_gspace_work%pw,&
-            &              use_data=COMPLEXDATA1D,&
-            &              in_space=RECIPROCALSPACE,error=error)
-
-    CALL pw_zero(pw_gspace_work%pw)
     !
     !
     CALL set_vecp(iB,iiB,iiiB)
     !
+    CALL pw_pool_create_pw(auxbas_pw_pool,pw_gspace_work%pw,&
+            &              use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+            &              error=error)
+    CALL pw_zero(pw_gspace_work%pw)
     DO ispin = 1,nspins
        !
        DO idir3=1,3
@@ -185,7 +186,6 @@ CONTAINS
        ENDDO
        !
        DO idir = 1,3
-          rho_rspace => current_env%jrho1_set(idir)%rho%rho_r(ispin)
           rho_gspace => current_env%jrho1_set(idir)%rho%rho_g(ispin)
           ! Field gradient
           ! loop over the Gvec  components: x,y,z
@@ -206,21 +206,33 @@ CONTAINS
        ENDDO ! idir
     ENDDO ! ispin
     !
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,pw_gspace_work%pw,error=error)
+    !
     ! compute shildings
-    DO ispin = 1,nspins
-       DO idir = 1,3
-          ! Here the shifts are computed from summation of the coeff on the G-grip .
-          CALL gsum_shift_pwgrid(nmr_env,pw_env,particle_set,cell,&
-               &                 shift_pw_gspace(idir,ispin),iB,idir,&
-               &                 error=error)
-          ! Here first G->R and then interpolation to get the shifts.
-          ! The interpolation doesnt work in parallel yet.
-          ! The choice between both methods should be left to the user.
-          !CALL pw_transfer(shift_pw_gspace(idir)%pw,shift_pw_rspace%pw)
-          !CALL interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
-             !             i_B,idir,nmr_section,error=error)
+    IF(interpolate_shift) THEN
+       CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_rspace%pw,&
+            &                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
+       DO ispin = 1,nspins
+          DO idir = 1,3
+             ! Here first G->R and then interpolation to get the shifts.
+             ! The interpolation doesnt work in parallel yet.
+             ! The choice between both methods should be left to the user.
+             CALL pw_transfer(shift_pw_gspace(idir,ispin)%pw,shift_pw_rspace%pw)
+             CALL interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
+                  &                        iB,idir,nmr_section,error=error)
+          ENDDO
        ENDDO
-    ENDDO
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_rspace%pw,error=error)
+    ELSE
+       DO ispin = 1,nspins
+          DO idir = 1,3
+             ! Here the shifts are computed from summation of the coeff on the G-grip .
+             CALL gsum_shift_pwgrid(nmr_env,particle_set,cell,&
+                  &                 shift_pw_gspace(idir,ispin),iB,idir,&
+                  &                 error=error)
+          ENDDO
+       ENDDO
+    ENDIF
     !
     IF(gapw) THEN
        DO idir = 1,3
@@ -232,15 +244,13 @@ CONTAINS
     ENDIF
     !
     ! Dellocate grids for the calculation of jrho and the shift
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,pw_gspace_work%pw,error=error)
-    DO ispin = 1,dft_control%nspins
+    DO ispin = 1,nspins
        DO idir = 1,3
           CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,error=error)
        ENDDO
     ENDDO
     DEALLOCATE(shift_pw_gspace,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_rspace%pw,error=error)
     !
     ! Finalize
     CALL timestop(handle)
@@ -265,8 +275,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: list_j
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, jatomisneighbor, &
-                                                paw_atom
+    LOGICAL                                  :: do_nics, failure, &
+                                                jatomisneighbor, paw_atom
     REAL(dp) :: ddiff, dist, dum, itegrated_jrho, jrho1_tot, r_iatom(3), &
       r_jatom(3), rdiff(3), rij(3), rvec(3), s_1, s_2, scale_fac, &
       scale_fac_1, shift_gapw_radius
@@ -317,6 +327,7 @@ CONTAINS
          &           shift_gapw_radius=shift_gapw_radius,&
          &           n_nics=n_nics,&
          &           r_nics=r_nics,&
+         &           do_nics=do_nics,&
          &           error=error)
 
     CALL get_current_env(current_env=current_env,&
@@ -430,7 +441,7 @@ CONTAINS
                 ENDDO ! j
                 !
                 !
-                IF(nmr_env%do_nics) THEN
+                IF(do_nics) THEN
                    DO ia = 1,na
                       DO ir = 1,nr
                          !
@@ -489,7 +500,7 @@ CONTAINS
     chemical_shift_loc(:,iB,:) = chemical_shift_loc(:,iB,:) &
          & - nmr_env%shift_factor_gapw * chemical_shift_loc_tmp(:,:) / 2.0_dp
 
-    IF(nmr_env%do_nics) THEN
+    IF(do_nics) THEN
        !here need a chemical_shift_nics_loc_tmp... also for chi_loc
        CALL stop_program(routineP,"local nics needs some more work")
        CALL mp_sum(chemical_shift_nics_loc,para_env%group)
@@ -533,7 +544,7 @@ CONTAINS
                                                 max_iter, n_nics, natom, &
                                                 precond_kind
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
-    LOGICAL                                  :: failure, success
+    LOGICAL                                  :: do_nics, failure, success
     REAL(dp)                                 :: eps_r, eps_x, R_iatom(3), &
                                                 ra(3), shift_val
     REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
@@ -545,9 +556,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: interp_section
 
     failure = .FALSE.
-#ifdef __parallel
-    CALL stop_program(routineP,"Doesnt support parallel yet.")
-#endif
+
     NULLIFY (interp_section)
     NULLIFY (auxbas_pw_pool,precond)
     NULLIFY (cs_atom_list,chemical_shift,chemical_shift_nics,r_nics)
@@ -584,7 +593,8 @@ CONTAINS
       CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list,&
            chemical_shift=chemical_shift,&
            chemical_shift_nics=chemical_shift_nics,&
-           n_nics=n_nics,r_nics=r_nics,error=error)
+           n_nics=n_nics,r_nics=r_nics,&
+           do_nics=do_nics,error=error)
 
       IF(ASSOCIATED(cs_atom_list)) THEN
         natom = SIZE(cs_atom_list,1)
@@ -600,14 +610,14 @@ CONTAINS
                                          nmr_env%shift_factor * twopi**2 * shift_val
       END DO
 
-      IF(nmr_env%do_nics) THEN
-        DO iatom = 1,n_nics
-          ra(1:3) = r_nics(1:3,iatom)
-          R_iatom = pbc(ra,cell)
-          shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error)
-          chemical_shift_nics(idir,i_B,iatom)= chemical_shift_nics(idir,i_B,iatom)+&
+      IF(do_nics) THEN
+         DO iatom = 1,n_nics
+            ra(1:3) = r_nics(1:3,iatom)
+            R_iatom = pbc(ra,cell)
+            shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error)
+            chemical_shift_nics(idir,i_B,iatom)= chemical_shift_nics(idir,i_B,iatom)+&
                                                nmr_env%shift_factor * twopi**2 * shift_val
-        END DO
+         END DO
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool,shiftspl%pw,error=error)
@@ -617,10 +627,9 @@ CONTAINS
   END SUBROUTINE interpolate_shift_pwgrid
 
 ! *****************************************************************************
-  SUBROUTINE gsum_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_gspace,&
+  SUBROUTINE gsum_shift_pwgrid(nmr_env,particle_set,cell,shift_pw_gspace,&
        &                       i_B,idir,error)
     TYPE(nmr_env_type)                       :: nmr_env
-    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
@@ -635,7 +644,7 @@ CONTAINS
     INTEGER                                  :: handle, iat, iatom, n_nics, &
                                                 natom
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: do_nics, failure
     REAL(dp)                                 :: R_iatom(3), ra(3)
     REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
@@ -654,7 +663,8 @@ CONTAINS
        CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list,&
             &           chemical_shift=chemical_shift,&
             &           chemical_shift_nics=chemical_shift_nics,&
-            &           n_nics=n_nics,r_nics=r_nics,error=error)
+            &           n_nics=n_nics,r_nics=r_nics,do_nics=do_nics,&
+            &           error=error)
        !
        IF(ASSOCIATED(cs_atom_list)) THEN
           natom = SIZE(cs_atom_list,1)
@@ -672,7 +682,7 @@ CONTAINS
        ENDDO
        !
        ! compute nics
-       IF(nmr_env%do_nics) THEN
+       IF(do_nics) THEN
           DO iat = 1,n_nics
              ra = pbc(r_nics(:,iat),cell)
              CALL gsumr(ra,shift_pw_gspace%pw,cplx)
@@ -724,12 +734,12 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length)     :: name, title
-    INTEGER                                  :: iatom, ir, istat, j, n_nics, &
+    INTEGER                                  :: iatom, ir, istat, n_nics, &
                                                 nat_print, natom, &
                                                 output_unit, unit_atoms, &
                                                 unit_nics
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
-    LOGICAL                                  :: failure, gapw, ionode
+    LOGICAL                                  :: do_nics, failure, gapw, ionode
     REAL(dp) :: chi_aniso, chi_iso, chi_sym_tot(3,3), chi_tensor(3,3,2), &
       chi_tensor_loc(3,3,2), chi_tensor_loc_tmp(3,3), chi_tensor_tmp(3,3), &
       chi_tmp(3,3), eig(3), rpos(3), shift_aniso, shift_iso, &
@@ -744,7 +754,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: lr_section, nmr_section
+    TYPE(section_vals_type), POINTER         :: nmr_section
 
     failure = .FALSE.
 
@@ -755,7 +765,6 @@ CONTAINS
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit= cp_logger_get_default_unit_nr(logger)
 
-    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
     nmr_section => section_vals_get_subs_vals(qs_env%input, &
                                                  "PROPERTIES%LINRES%NMR",error=error)
 
@@ -767,6 +776,7 @@ CONTAINS
          &           cs_atom_list=cs_atom_list, &
          &           n_nics=n_nics, &
          &           r_nics=r_nics, &
+         &           do_nics=do_nics, &
          &           error=error)
     !
     CALL get_current_env(current_env=current_env,&
@@ -791,7 +801,7 @@ CONTAINS
 
     ALLOCATE(chemical_shift_tot(3,3,nat_print),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    IF(nmr_env%do_nics) THEN
+    IF(do_nics) THEN
        ALLOCATE(chemical_shift_nics_tot(3,3,n_nics),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDIF
@@ -958,7 +968,7 @@ CONTAINS
        CALL cp_print_key_finished_output(unit_atoms,logger,nmr_section,&
             &                            "PRINT%SHIELDING_TENSOR",error=error)
 
-       IF(nmr_env%do_nics) THEN
+       IF(do_nics) THEN
           !
           ! Add the chi part to the nics
           chemical_shift_nics_tot(:,:,:) = 0.0_dp
@@ -1004,7 +1014,7 @@ CONTAINS
     ! clean up
     DEALLOCATE(chemical_shift_tot, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    IF(nmr_env%do_nics) THEN
+    IF(do_nics) THEN
        DEALLOCATE(chemical_shift_nics_tot,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDIF

@@ -20,8 +20,7 @@
 MODULE qs_linres_nmr_utils
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
+  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -141,6 +140,7 @@ CONTAINS
     ! If surrent_density or full_nmr different allocations are required
     nmr_section => section_vals_get_subs_vals(qs_env%input, &
          &                                    "PROPERTIES%LINRES%NMR",error=error)
+    CALL section_vals_val_get(nmr_section,"INTERPOLATE_SHIFT",l_val=nmr_env%interpolate_shift,error=error)
     CALL section_vals_val_get(nmr_section,"SHIFT_GAPW_RADIUS",r_val=nmr_env%shift_gapw_radius,error=error)
     CALL section_vals_val_get(nmr_section,"NICS",l_val=nmr_env%do_nics,error=error)
     IF(nmr_env%do_nics) THEN

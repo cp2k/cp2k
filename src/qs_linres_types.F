@@ -125,7 +125,7 @@ MODULE qs_linres_types
      INTEGER                             :: ref_count, n_nics
      INTEGER, DIMENSION(:), POINTER      :: cs_atom_list
      INTEGER, DIMENSION(:), POINTER      :: do_calc_cs_atom
-     LOGICAL                             :: do_nics
+     LOGICAL                             :: do_nics,interpolate_shift
      REAL(dp)                            :: shift_gapw_radius,shift_factor, shift_factor_gapw, chi_factor, &
           &                                 chi_SI2shiftppm, chi_SI2ppmcgs
      REAL(dp), DIMENSION(:,:  ), POINTER :: r_nics
@@ -466,7 +466,7 @@ CONTAINS
   SUBROUTINE get_nmr_env(nmr_env, n_nics, cs_atom_list, do_calc_cs_atom, &
                          r_nics, chemical_shift,chemical_shift_loc, &
                          chemical_shift_nics_loc, chemical_shift_nics, &
-                         shift_gapw_radius, error)
+                         shift_gapw_radius,do_nics,interpolate_shift,error)
 
     TYPE(nmr_env_type)                       :: nmr_env
     INTEGER, INTENT(OUT), OPTIONAL           :: n_nics
@@ -479,6 +479,7 @@ CONTAINS
                                                 chemical_shift_nics_loc, &
                                                 chemical_shift_nics
     REAL(dp), INTENT(OUT), OPTIONAL          :: shift_gapw_radius
+    LOGICAL, INTENT(OUT), OPTIONAL           :: do_nics, interpolate_shift
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nmr_env', &
@@ -499,6 +500,8 @@ CONTAINS
     IF(PRESENT(r_nics             )) r_nics              => nmr_env%r_nics
     IF(PRESENT(chemical_shift_nics_loc)) chemical_shift_nics_loc => nmr_env%chemical_shift_nics_loc
     IF(PRESENT(shift_gapw_radius  )) shift_gapw_radius   =  nmr_env%shift_gapw_radius
+    IF(PRESENT(do_nics            )) do_nics             =  nmr_env%do_nics
+    IF(PRESENT(interpolate_shift  )) interpolate_shift   =  nmr_env%interpolate_shift
 
   END SUBROUTINE get_nmr_env
 

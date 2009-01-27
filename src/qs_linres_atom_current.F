@@ -90,17 +90,14 @@ CONTAINS
 !>      07.2006 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE calculate_jrho_atom_coeff(qs_env,current_env,mat_d0,mat_jp,mat_d1,mat_jp_rii,&
+  SUBROUTINE calculate_jrho_atom_coeff(qs_env,current_env,mat_d0,mat_jp,mat_jp_rii,&
        &                               mat_jp_riii,iB,idir,error)
     !
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(current_env_type)                   :: current_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: mat_d0, mat_jp
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), POINTER               :: mat_d1
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: mat_jp_rii, mat_jp_riii
+      POINTER                                :: mat_d0, mat_jp, mat_jp_rii, &
+                                                mat_jp_riii
     INTEGER, INTENT(IN)                      :: iB, idir
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -109,9 +106,8 @@ CONTAINS
 
     INTEGER :: bo(2), handle, iab, iat, iatom, idir2, ii, iii, ikind, ilist, &
       inode, ispin, istat, jatom, jkind, katom, kkind, kneighbor, last_jatom, &
-      last_katom, max_gau, max_nsgf, maxso, maxsoc, mepos, nat, natom, nkind, &
-      nlist, nnode, nnode_c, nset, nsetc, nsgfa, nsgfb, nsoctot, nspins, &
-      num_pe
+      last_katom, max_gau, max_nsgf, maxsoc, mepos, nat, natom, nkind, nlist, &
+      nnode, nnode_c, nsetc, nsgfa, nsgfb, nsoctot, nspins, num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, is_not_associated, &
                                                 new_atom_b, new_atom_c, &
@@ -594,11 +590,11 @@ CONTAINS
   END SUBROUTINE calculate_jrho_atom_coeff
 
 
-  SUBROUTINE calculate_jrho_atom_rad(qs_env,current_env,IB,idir,error)
+  SUBROUTINE calculate_jrho_atom_rad(qs_env,current_env,idir,error)
     !
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(current_env_type)                   :: current_env
-    INTEGER, INTENT(IN)                      :: IB, idir
+    INTEGER, INTENT(IN)                      :: idir
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_rad', &
@@ -1126,7 +1122,7 @@ CONTAINS
 
   SUBROUTINE calculate_jrho_atom_ang(jrho1_atom,jrho_h,jrho_s,grid_atom,&
        &                             harmonics,do_igaim,ratom,natm_gauge,&
-       &                             hard_radius,iB,idir,ispin,error)
+       &                             iB,idir,ispin,error)
     !
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     REAL(dp), DIMENSION(:, :), POINTER       :: jrho_h, jrho_s
@@ -1135,7 +1131,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: do_igaim
     INTEGER, INTENT(IN)                      :: iB, idir, ispin, natm_gauge
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    REAL(dp), INTENT(IN) :: hard_radius, ratom(:,:)
+    REAL(dp), INTENT(IN) :: ratom(:,:)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_ang', &
       routineP = moduleN//':'//routineN
@@ -1431,7 +1427,7 @@ CONTAINS
                      jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef,&
                      grid_atom,harmonics,&
                      do_igaim,&
-                     ratom,natm_gauge,hard_radius,iB,idir,ispin,error=error)
+                     ratom,natm_gauge,iB,idir,ispin,error=error)
              END DO !ispin
           END DO !iat
        END DO !ikind

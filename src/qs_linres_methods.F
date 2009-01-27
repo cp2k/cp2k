@@ -322,7 +322,7 @@ CONTAINS
        !
        !minimization
        CALL linres_scf_mini(p_env,qs_env,linres_control,b,Ab,&
-                            dft_control%nspins,iter,error=error)
+                            dft_control%nspins,error=error)
 
        IF(output_unit>0.AND.MOD(iter,10).EQ.0) THEN
           WRITE(output_unit,"(T2,I5,T11,A,T20,1E8.2,T30,3F20.10)")&
@@ -460,14 +460,14 @@ CONTAINS
   END SUBROUTINE check_p_env_init
 
 ! *****************************************************************************
-  SUBROUTINE linres_scf_mini(p_env,qs_env,linres_control,b,Ab,nspins,iter,error)
+  SUBROUTINE linres_scf_mini(p_env,qs_env,linres_control,b,Ab,nspins,error)
     !
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: b, Ab
-    INTEGER, INTENT(IN)                      :: nspins, iter
+    INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf_mini', &
