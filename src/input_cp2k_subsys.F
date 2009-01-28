@@ -1109,7 +1109,7 @@ CONTAINS
        CALL keyword_create(keyword, name="POTENTIAL",&
             variants=(/ "POT" /),&
             description="The name of the pseudopotential for the defined kind.",&
-            usage="POTENTIAL <PSEUDO-POTENTIAL-NAME>", default_c_val=" ", n_var=1,&
+            usage="POTENTIAL <PSEUDO-POTENTIAL-NAME>", default_c_val="GTH", n_var=1,&
             citations=(/Goedecker1996, Hartwigsen1998, Krack2005/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
