@@ -524,3 +524,49 @@ H2O-tpss.inp
 H2O-tpss_new.inp 
 hcn_ts_r.inp 
 ZrO.inp 
+# New initial guess ATOMIC 
+H2O-2.inp
+# New initial guess ATOMIC 
+H2O-3.inp
+# New initial guess ATOMIC 
+H2O-4.inp
+# New initial guess ATOMIC 
+ZrO.inp
+# New initial guess ATOMIC 
+H2O-meta_kinds.inp
+# New initial guess ATOMIC 
+H2O-meta.inp
+# New initial guess ATOMIC 
+H2O-meta_res0.inp
+# New initial guess ATOMIC 
+H2O-meta_res1.inp
+# New initial guess ATOMIC 
+H2O-meta_res2.inp
+# New initial guess ATOMIC 
+H2O-meta_res3.inp
+# New initial guess ATOMIC 
+H2O-tpss.inp
+# New initial guess ATOMIC 
+H2O-tpss_new.inp
+# New initial guess ATOMIC 
+H2O-meta_coord.inp
+# New initial guess ATOMIC 
+H2O-meta_coord_1.inp
+# New initial guess ATOMIC 
+H2O-meta_coord_2.inp
+# New initial guess ATOMIC 
+hcn_ts.inp
+# New initial guess ATOMIC 
+hcn_ts_r.inp
+# New initial guess ATOMIC 
+hcn_md.inp
+# New initial guess ATOMIC 
+hcn_meta_coord.inp
+# New initial guess ATOMIC 
+hcn_meta_chaincoord.inp
+# New initial guess ATOMIC 
+hcn_meta_chaincoord_kind.inp
+# New initial guess ATOMIC 
+H2O_meta_pop.inp
+# New initial guess ATOMIC 
+H2O_meta_langevin.inp

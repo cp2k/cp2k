@@ -417,7 +417,7 @@ CONTAINS
               DO l=0,3
                 n = integrals%n(l)
                 m = basis%nprim(l)
-                ALLOCATE (omat(m,m),spmat(n,n),xmat(m),STAT=ierr)
+                ALLOCATE (omat(m,m),spmat(n,5),xmat(m),STAT=ierr)
                 CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
                 omat = 0._dp

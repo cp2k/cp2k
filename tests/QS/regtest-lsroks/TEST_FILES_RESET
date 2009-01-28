@@ -2,3 +2,5 @@
 O2.inp
 #NL PP rewrite 
 O2.inp 
+# New initial guess ATOMIC 
+O2.inp

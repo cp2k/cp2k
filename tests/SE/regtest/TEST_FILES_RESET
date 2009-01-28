@@ -306,3 +306,41 @@ b2h6_pm6.inp
 ch2o_pm6.inp
 # ASPC reset 
 hcn_pm6.inp
+# New initial guess ATOMIC 
+c2h4.inp
+# New initial guess ATOMIC 
+ch2o.inp
+# New initial guess ATOMIC 
+h2op.inp
+# New initial guess ATOMIC 
+hcn.inp
+# New initial guess ATOMIC 
+st.inp
+# New initial guess ATOMIC 
+ch4-ot.inp
+# New initial guess ATOMIC 
+h2o_lsd-ot.inp
+# New initial guess ATOMIC 
+c2h4_rm1.inp
+# New initial guess ATOMIC 
+h2op_2.inp
+# New initial guess ATOMIC 
+h2po4.inp
+# New initial guess ATOMIC 
+geom.inp
+# New initial guess ATOMIC 
+b2h6_pm6.inp
+# New initial guess ATOMIC 
+ch2o_pm6.inp
+# New initial guess ATOMIC 
+H2O-MNDOD.inp
+# New initial guess ATOMIC 
+sih_x.inp
+# New initial guess ATOMIC 
+sih_y.inp
+# New initial guess ATOMIC 
+dimer.inp
+# New initial guess ATOMIC 
+dimer3.inp
+# New initial guess ATOMIC 
+dimer4.inp

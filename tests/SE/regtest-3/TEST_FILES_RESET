@@ -15,3 +15,9 @@ O2.inp
 H2O-3.inp
 # ASPC reset 
 N3-rp_colvar.inp
+# New initial guess ATOMIC 
+H2O-MNDO-2.inp
+# New initial guess ATOMIC 
+O2.inp
+# New initial guess ATOMIC 
+H2O-3.inp

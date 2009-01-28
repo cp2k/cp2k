@@ -260,3 +260,35 @@ Ne-hybrid-MCY3.inp
 Ne-hybrid-rcam-b3lyp.inp
 #  
 Ne-hybrid-MCY3.inp
+# New initial guess ATOMIC 
+H2O-hybrid-bhandh.inp
+# New initial guess ATOMIC 
+H2O-hybrid-bhandhlyp.inp
+# New initial guess ATOMIC 
+H2O-hybrid-pbe0.inp
+# New initial guess ATOMIC 
+H2O-hybrid-b3lyp.inp
+# New initial guess ATOMIC 
+H2O-hybrid-b3lyp-g03.inp
+# New initial guess ATOMIC 
+CH3-hybrid-b3lyp-lsd-g03.inp
+# New initial guess ATOMIC 
+CH3-hybrid-handh-lsd.inp
+# New initial guess ATOMIC 
+CH3-hybrid-handhlyp-lsd.inp
+# New initial guess ATOMIC 
+CH3-hybrid-pbe0-lsd.inp
+# New initial guess ATOMIC 
+CH3-hybrid-HSE06-lsd.inp
+# New initial guess ATOMIC 
+H2O-hybrid-b3lyp_shortcut.inp
+# New initial guess ATOMIC 
+H2O-hybrid-pbe0_shortcut.inp
+# New initial guess ATOMIC 
+Li-hybrid-rcam-b3lyp.inp
+# New initial guess ATOMIC 
+Ne-hybrid-rcam-b3lyp.inp
+# New initial guess ATOMIC 
+Li-hybrid-MCY3.inp
+# New initial guess ATOMIC 
+Ne-hybrid-MCY3.inp

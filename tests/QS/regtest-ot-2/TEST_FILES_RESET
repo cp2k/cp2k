@@ -541,3 +541,55 @@ h2o_ot_chol_diis_1.inp
 Al_fermi.inp
 C_fermi.inp
 C_ot.inp
+# New initial guess ATOMIC 
+N3-1.inp
+# New initial guess ATOMIC 
+N3-2.inp
+# New initial guess ATOMIC 
+N3-3.inp
+# New initial guess ATOMIC 
+N3-4.inp
+# New initial guess ATOMIC 
+N3-5.inp
+# New initial guess ATOMIC 
+N3-6.inp
+# New initial guess ATOMIC 
+N3-7.inp
+# New initial guess ATOMIC 
+N3-8.inp
+# New initial guess ATOMIC 
+N3-9.inp
+# New initial guess ATOMIC 
+N3-10.inp
+# New initial guess ATOMIC 
+H2O-sic-ad-1.inp
+# New initial guess ATOMIC 
+H2O-sic-ad-2.inp
+# New initial guess ATOMIC 
+H-1.inp
+# New initial guess ATOMIC 
+H-2.inp
+# New initial guess ATOMIC 
+H2O-1.inp
+# New initial guess ATOMIC 
+H2O.inp
+# New initial guess ATOMIC 
+H2O-dist-1.inp
+# New initial guess ATOMIC 
+H2O-dist-2.inp
+# New initial guess ATOMIC 
+H2O-dist-3.inp
+# New initial guess ATOMIC 
+H2O-dist-4.inp
+# New initial guess ATOMIC 
+H2O-dist-5.inp
+# New initial guess ATOMIC 
+H2_trip.inp
+# New initial guess ATOMIC 
+C-sic-1.inp
+# New initial guess ATOMIC 
+C-sic-2.inp
+# New initial guess ATOMIC 
+C_fermi.inp
+# New initial guess ATOMIC 
+Al_fermi.inp

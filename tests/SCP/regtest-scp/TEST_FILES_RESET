@@ -82,3 +82,19 @@ argon2.inp
 w2.inp 
 w2-r1.inp 
 w2-r2.inp 
+# New initial guess ATOMIC 
+monomer.inp
+# New initial guess ATOMIC 
+monomer-r2.inp
+# New initial guess ATOMIC 
+monomer-r3.inp
+# New initial guess ATOMIC 
+w2.inp
+# New initial guess ATOMIC 
+w2-r1.inp
+# New initial guess ATOMIC 
+w2-r2.inp
+# New initial guess ATOMIC 
+argon1.inp
+# New initial guess ATOMIC 
+argon2.inp

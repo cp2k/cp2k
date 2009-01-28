@@ -117,3 +117,33 @@ He2-all-md.inp
 Be_GAPW.inp
 #NL PP rewrite 
 H2S-gapw.inp 
+# New initial guess ATOMIC 
+H2O-gapw-gth.inp
+# New initial guess ATOMIC 
+H2O-gapw-all_localize.inp
+# New initial guess ATOMIC 
+H2O-gapw-all_localize_crazy.inp
+# New initial guess ATOMIC 
+H2O-gapw-all_loc_list.inp
+# New initial guess ATOMIC 
+H2O-gapwxc-gth.inp
+# New initial guess ATOMIC 
+H2S-gapw.inp
+# New initial guess ATOMIC 
+HF_gapw_all_LB.inp
+# New initial guess ATOMIC 
+OF_gapw_all_lsd_LB.inp
+# New initial guess ATOMIC 
+H-gapw-all.inp
+# New initial guess ATOMIC 
+He2-all.inp
+# New initial guess ATOMIC 
+He2-all-md.inp
+# New initial guess ATOMIC 
+H2O-gapw-gth-pvh.inp
+# New initial guess ATOMIC 
+H2O-gapw-all_localize_noortho.inp
+# New initial guess ATOMIC 
+H2O-gapw-all_localize_crazy_noortho.inp
+# New initial guess ATOMIC 
+Be_GAPW.inp

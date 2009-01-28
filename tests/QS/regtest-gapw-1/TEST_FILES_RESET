@@ -48,3 +48,11 @@ CO.inp
 CO_xastphh.inp
 CO_xastphh_r.inp
 CO_xastpfh.inp
+# New initial guess ATOMIC 
+CO.inp
+# New initial guess ATOMIC 
+CO_xastphh.inp
+# New initial guess ATOMIC 
+CO_xastphh_r.inp
+# New initial guess ATOMIC 
+CO_xastpfh.inp

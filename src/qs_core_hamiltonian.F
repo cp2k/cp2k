@@ -1265,7 +1265,7 @@ CONTAINS
        DEALLOCATE(dist_list,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
-    
+
     ! Print matrices if requested
     CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, oce, qs_env, para_env, error)
     CALL timestop(handle)

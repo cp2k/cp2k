@@ -616,3 +616,49 @@ rsgrid-dist-1.inp
 rsgrid-dist-3.inp 
 # more numerics after NLPP
 H2O-solv.inp
+# New initial guess ATOMIC 
+H2O-bloechl.inp
+# New initial guess ATOMIC 
+H2O-bloechl-Spl.inp
+# New initial guess ATOMIC 
+H2O-bloechl-restraint.inp
+# New initial guess ATOMIC 
+CN.inp
+# New initial guess ATOMIC 
+rsgrid-dist-1.inp
+# New initial guess ATOMIC 
+2H2O_bsse.inp
+# New initial guess ATOMIC 
+2H2O_bsse_r.inp
+# New initial guess ATOMIC 
+3H2O_bsse.inp
+# New initial guess ATOMIC 
+OH-H2O-bsse.inp
+# New initial guess ATOMIC 
+H2O-langevin-1.inp
+# New initial guess ATOMIC 
+H2O-langevin-2.inp
+# New initial guess ATOMIC 
+H2O-ref-1.inp
+# New initial guess ATOMIC 
+H2O-ref-2.inp
+# New initial guess ATOMIC 
+H2O-ata.inp
+# New initial guess ATOMIC 
+O2-ROKS.inp
+# New initial guess ATOMIC 
+H2O-solv.inp
+# New initial guess ATOMIC 
+H2O-xc_none.inp
+# New initial guess ATOMIC 
+dynamics.inp
+# New initial guess ATOMIC 
+rsgrid-dist-2.inp
+# New initial guess ATOMIC 
+rsgrid-dist-3.inp
+# New initial guess ATOMIC 
+dynamics-2.inp
+# New initial guess ATOMIC 
+ghost_overlap.inp
+# New initial guess ATOMIC 
+ghost_overlap_vdw.inp

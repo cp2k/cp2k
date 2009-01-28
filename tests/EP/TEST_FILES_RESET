@@ -54,3 +54,9 @@ Ar2.inp
 3H2O-ep.inp 
 Ar2.inp 
 Ar-ep.inp 
+# New initial guess ATOMIC 
+Ar-ep.inp
+# New initial guess ATOMIC 
+Ar2.inp
+# New initial guess ATOMIC 
+3H2O-ep.inp

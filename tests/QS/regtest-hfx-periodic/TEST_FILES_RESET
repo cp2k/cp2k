@@ -1,3 +1,15 @@
 #
 # add files to be reset here
 #
+# New initial guess ATOMIC 
+H2O-coul-0.inp
+# New initial guess ATOMIC 
+H2O-trunc-auto-md.inp
+# New initial guess ATOMIC 
+CH3-trunc-auto.inp
+# New initial guess ATOMIC 
+CH3-trunc-1.inp
+# New initial guess ATOMIC 
+CH3-trunc-auto-md.inp
+# New initial guess ATOMIC 
+CH3-coul-0.inp

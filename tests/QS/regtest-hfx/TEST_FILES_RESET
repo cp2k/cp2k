@@ -163,3 +163,19 @@ CH-hfx-md-2.inp
 CH-hfx-md.inp
 # ASPC reset 
 CH-hfx-md-2.inp
+# New initial guess ATOMIC 
+H2O-hfx-1.inp
+# New initial guess ATOMIC 
+H2O-hfx-2.inp
+# New initial guess ATOMIC 
+H2O-hfx-3.inp
+# New initial guess ATOMIC 
+CH-hfx-md.inp
+# New initial guess ATOMIC 
+CH-hfx-md-2.inp
+# New initial guess ATOMIC 
+4H2O-disk.inp
+# New initial guess ATOMIC 
+4H2O-mix-disk-ram.inp
+# New initial guess ATOMIC 
+4H2O-mix-disk-ram-on-the-fly.inp

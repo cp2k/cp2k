@@ -328,3 +328,7 @@ H2O-qmmm-gauss-16.inp
 H2O-qmmm-gauss-17.inp
 # ASPC reset 
 H2O-qmmm-gauss-18.inp
+# New initial guess ATOMIC 
+H2O-qmmm-gauss-4.inp
+# New initial guess ATOMIC 
+H2O-qmmm-none-1.inp

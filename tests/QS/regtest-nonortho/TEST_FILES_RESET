@@ -64,3 +64,11 @@ graphite2.inp
 graphite3.inp 
 graphite.inp 
 graphite-lumo.inp 
+# New initial guess ATOMIC 
+graphite.inp
+# New initial guess ATOMIC 
+graphite2.inp
+# New initial guess ATOMIC 
+graphite3.inp
+# New initial guess ATOMIC 
+graphite-lumo.inp

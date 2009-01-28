@@ -547,3 +547,49 @@ h2o-otdiag.inp
 h2o-otdiag-lsd.inp 
 NO2-EFG-1.inp 
 test-pdb.inp 
+# New initial guess ATOMIC 
+H2O-5.inp
+# New initial guess ATOMIC 
+H2O-6.inp
+# New initial guess ATOMIC 
+H2-geo-1.inp
+# New initial guess ATOMIC 
+H2-geo-4.inp
+# New initial guess ATOMIC 
+Cu.inp
+# New initial guess ATOMIC 
+H2O-debug-2.inp
+# New initial guess ATOMIC 
+H2O-debug-3.inp
+# New initial guess ATOMIC 
+H2O-debug-4.inp
+# New initial guess ATOMIC 
+C2H4-meta.inp
+# New initial guess ATOMIC 
+spin_restraint.inp
+# New initial guess ATOMIC 
+H2O-meta_g.inp
+# New initial guess ATOMIC 
+H2O-meta_hydro.inp
+# New initial guess ATOMIC 
+H2O-7.inp
+# New initial guess ATOMIC 
+H2O_wavelet_free.inp
+# New initial guess ATOMIC 
+H2O_wavelet_free2.inp
+# New initial guess ATOMIC 
+H2O_wavelet_XZ.inp
+# New initial guess ATOMIC 
+NO2-EFG-1.inp
+# New initial guess ATOMIC 
+H2O-8.inp
+# New initial guess ATOMIC 
+H2O-9.inp
+# New initial guess ATOMIC 
+basis_none_1.inp
+# New initial guess ATOMIC 
+basis_none_2.inp
+# New initial guess ATOMIC 
+He3_multi_ddapc.inp
+# New initial guess ATOMIC 
+N.inp

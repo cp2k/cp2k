@@ -119,3 +119,23 @@ CO_xastpxfh_150Ry.inp
 H2O_gpw.inp
 # ASPC reset 
 CO_xastpxfh.inp
+# New initial guess ATOMIC 
+CO.inp
+# New initial guess ATOMIC 
+CO_xastpxfh.inp
+# New initial guess ATOMIC 
+CO_xastpxfh_locall.inp
+# New initial guess ATOMIC 
+CO_xastpxfh_150Ry.inp
+# New initial guess ATOMIC 
+H2O_gpw.inp
+# New initial guess ATOMIC 
+Ne-BP.inp
+# New initial guess ATOMIC 
+H2O_gpw_full_gapw.inp
+# New initial guess ATOMIC 
+H2O_Onopaw.inp
+# New initial guess ATOMIC 
+H2O_allnopaw.inp
+# New initial guess ATOMIC 
+H2O_Hnopaw_pp.inp

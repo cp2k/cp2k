@@ -177,3 +177,43 @@ CH3Cl2.inp
 c2h5cl.inp
 # ASPC reset 
 sio2.inp
+# New initial guess ATOMIC 
+c2h4.inp
+# New initial guess ATOMIC 
+ch2o.inp
+# New initial guess ATOMIC 
+h2op.inp
+# New initial guess ATOMIC 
+hcn.inp
+# New initial guess ATOMIC 
+st.inp
+# New initial guess ATOMIC 
+ch4-ot.inp
+# New initial guess ATOMIC 
+h2o_lsd-ot.inp
+# New initial guess ATOMIC 
+H2O-PDDG.inp
+# New initial guess ATOMIC 
+b2h6_pm6.inp
+# New initial guess ATOMIC 
+ch2o_pm6.inp
+# New initial guess ATOMIC 
+md.inp
+# New initial guess ATOMIC 
+Pt-cis-2xpet3Cl2.inp
+# New initial guess ATOMIC 
+Pt-cis-2xpet3Cl2-si.inp
+# New initial guess ATOMIC 
+Pt-cis-2xpet3Cl2-si-noc.inp
+# New initial guess ATOMIC 
+stp1.inp
+# New initial guess ATOMIC 
+stp2.inp
+# New initial guess ATOMIC 
+stp3.inp
+# New initial guess ATOMIC 
+stp4.inp
+# New initial guess ATOMIC 
+stp5.inp
+# New initial guess ATOMIC 
+stp6.inp

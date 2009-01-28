@@ -189,3 +189,47 @@ w2_qmmm-3.inp
 #NL PP rewrite 
 ch4-gapw-gpw-1.inp 
 no-gapw-gpw-1.inp 
+# New initial guess ATOMIC 
+ch4-gapw-1.inp
+# New initial guess ATOMIC 
+ch4-gapw-2.inp
+# New initial guess ATOMIC 
+ch4-gapw-3.inp
+# New initial guess ATOMIC 
+ch4-gapw-4.inp
+# New initial guess ATOMIC 
+ch4-gapw-5.inp
+# New initial guess ATOMIC 
+no-gapw-1.inp
+# New initial guess ATOMIC 
+no-gapw-2.inp
+# New initial guess ATOMIC 
+no-gapw-3.inp
+# New initial guess ATOMIC 
+no-gapw-4.inp
+# New initial guess ATOMIC 
+no-gapw-5.inp
+# New initial guess ATOMIC 
+ch4-gapw-1-distributed.inp
+# New initial guess ATOMIC 
+ch4-gapw-1-replicated.inp
+# New initial guess ATOMIC 
+no-gapw-1-distributed.inp
+# New initial guess ATOMIC 
+no-gapw-1-replicated.inp
+# New initial guess ATOMIC 
+w2_qmmm-1.inp
+# New initial guess ATOMIC 
+w2_qmmm-2.inp
+# New initial guess ATOMIC 
+w2_qmmm-3.inp
+# New initial guess ATOMIC 
+ch4-gapw-gpw-1.inp
+# New initial guess ATOMIC 
+no-gapw-gpw-1.inp
+# New initial guess ATOMIC 
+h2-gapw-1.inp
+# New initial guess ATOMIC 
+ch3m-gapw-1.inp
+# New initial guess ATOMIC 
+ch3p-gapw-1.inp

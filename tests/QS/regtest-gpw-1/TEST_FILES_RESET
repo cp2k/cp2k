@@ -389,3 +389,41 @@ H2O-tddfpt-saop.inp
 K2.inp 
 NO2_lsd.inp 
 pyridine.inp 
+# New initial guess ATOMIC 
+H2O-harris.inp
+# New initial guess ATOMIC 
+H2O-MD-harris.inp
+# New initial guess ATOMIC 
+H2O-Harris-Debug-SCF.inp
+# New initial guess ATOMIC 
+H2O-Harris-Debug-NoSCF.inp
+# New initial guess ATOMIC 
+H2O-tddfpt-saop.inp
+# New initial guess ATOMIC 
+pyridine.inp
+# New initial guess ATOMIC 
+Ar-12.inp
+# New initial guess ATOMIC 
+Ar-6.inp
+# New initial guess ATOMIC 
+Ar-7.inp
+# New initial guess ATOMIC 
+Ar-8.inp
+# New initial guess ATOMIC 
+Ar-9.inp
+# New initial guess ATOMIC 
+Ar-10.inp
+# New initial guess ATOMIC 
+Ar-11.inp
+# New initial guess ATOMIC 
+K2.inp
+# New initial guess ATOMIC 
+H2.inp
+# New initial guess ATOMIC 
+H2O-geoopt.inp
+# New initial guess ATOMIC 
+H2O-fixed.inp
+# New initial guess ATOMIC 
+h2o_dip_berry.inp
+# New initial guess ATOMIC 
+h2o_dip_iso.inp

@@ -11,7 +11,7 @@ MODULE atom_optimization
   USE atom_types,                      ONLY: atom_optimization_type
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE lapack,                          ONLY: lapack_sgesv
+  USE lapack,                          ONLY: lapack_sgelss
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -157,10 +157,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, info, ipiv(100), j, &
-                                                na, nb, nlen, nm, nmax, nnow
+    INTEGER                                  :: i, ierr, info, j, lwork, na, &
+                                                nb, nlen, nm, nmax, nnow, rank
     LOGICAL                                  :: failure = .FALSE.
-    REAL(dp)                                 :: a, t
+    REAL(dp)                                 :: a, rcond, t
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: s, work
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vec
 
     nmax = history%max_history 
@@ -169,7 +170,9 @@ CONTAINS
     IF ( history%hlen > 1 ) THEN
       IF ( err < history%eps_diis ) THEN
         ! DIIS
-        ALLOCATE(vec(nmax+1,1),STAT=ierr)
+        rcond = 1.e-10_dp
+        lwork = 25*nmax
+        ALLOCATE(vec(nmax+1,2),s(nmax+1),work(lwork),STAT=ierr)
         CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
         nlen = history%hlen
         vec = 0._dp
@@ -188,7 +191,8 @@ CONTAINS
             history%dmat(j,i) = t
           END DO
         END DO
-        CALL lapack_sgesv(nlen+1,1,history%dmat,nmax+1,ipiv,vec,nmax+1,info)
+        CALL lapack_sgelss(nlen+1,nlen+1,1,history%dmat,nmax+1,vec,nmax+1,s,&
+                           rcond,rank,work,lwork,info)
         CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
         fmat = 0._dp
         DO i=1,nlen
@@ -197,7 +201,7 @@ CONTAINS
           fmat = fmat + vec(i,1)*history%hmat(na)%fmat
         END DO
 
-        DEALLOCATE(vec,STAT=ierr)
+        DEALLOCATE(vec,s,work,STAT=ierr)
         CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
       ELSE
         ! damping

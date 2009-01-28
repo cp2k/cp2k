@@ -97,3 +97,19 @@ sic_energy.inp
 # more numerics after NLPP
 h2o_ot_lwdn_on_the_fly_l1.inp
 h2o_ot_poly_on_the_fly_l1.inp
+# New initial guess ATOMIC 
+h2o_ot_lwdn_on_the_fly_l1.inp
+# New initial guess ATOMIC 
+h2o_ot_poly_on_the_fly_l1.inp
+# New initial guess ATOMIC 
+o2_ot_lwdn_on_the_fly_l1.inp
+# New initial guess ATOMIC 
+o2_ot_poly_on_the_fly_l1.inp
+# New initial guess ATOMIC 
+h2o_ot_refine_3.inp
+# New initial guess ATOMIC 
+h2o_ot_refine_4.inp
+# New initial guess ATOMIC 
+o2_ot_refine_3.inp
+# New initial guess ATOMIC 
+o2_ot_refine_4.inp

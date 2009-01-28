@@ -540,3 +540,47 @@ Ar-14.inp
 Ar-15.inp
 Ar-16.inp
 H2O-9.inp
+# New initial guess ATOMIC 
+H2O.inp
+# New initial guess ATOMIC 
+H2O-OT-1.inp
+# New initial guess ATOMIC 
+Ar-14.inp
+# New initial guess ATOMIC 
+Ar-15.inp
+# New initial guess ATOMIC 
+Ar-16.inp
+# New initial guess ATOMIC 
+Ar-17.inp
+# New initial guess ATOMIC 
+Ar-18.inp
+# New initial guess ATOMIC 
+Ar-19.inp
+# New initial guess ATOMIC 
+Ar-20.inp
+# New initial guess ATOMIC 
+Ar-21.inp
+# New initial guess ATOMIC 
+H2O-7.inp
+# New initial guess ATOMIC 
+H2O-8.inp
+# New initial guess ATOMIC 
+H2O-9.inp
+# New initial guess ATOMIC 
+H2O-10.inp
+# New initial guess ATOMIC 
+H2O-OT-ASPC-1.inp
+# New initial guess ATOMIC 
+H2O-OT-ASPC-2.inp
+# New initial guess ATOMIC 
+H2O-bs_input.inp
+# New initial guess ATOMIC 
+H2O-VIB-MS-INT-1.inp
+# New initial guess ATOMIC 
+H2O-VIB-MS-INT-2.inp
+# New initial guess ATOMIC 
+vib-mixed.inp
+# New initial guess ATOMIC 
+dip-mixed.inp
+# New initial guess ATOMIC 
+vib-int-mixed.inp

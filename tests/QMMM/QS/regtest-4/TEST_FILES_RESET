@@ -152,3 +152,7 @@ acn-conn-1.inp
 #NL PP rewrite 
 acn-conn-1.inp 
 acn-qmmm-re.inp 
+# New initial guess ATOMIC 
+acn-qmmm-re.inp
+# New initial guess ATOMIC 
+acn-conn-1.inp

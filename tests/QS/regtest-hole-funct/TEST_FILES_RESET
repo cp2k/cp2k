@@ -12,3 +12,13 @@ H2O_BeckeRoussel_R_1.0.inp
 H2O_GV09_1.0.inp 
 H2O_LDA_HOLE_T_C_LR_1.0.inp 
 H2O_PBE_HOLE_T_C_LR_1.0.inp 
+# New initial guess ATOMIC 
+CH_BeckeRoussel_R_0.0.inp
+# New initial guess ATOMIC 
+CH_BeckeRoussel_R_1.0.inp
+# New initial guess ATOMIC 
+CH_LDA_HOLE_T_C_LR_1.0.inp
+# New initial guess ATOMIC 
+CH_PBE_HOLE_T_C_LR_1.0.inp
+# New initial guess ATOMIC 
+CH_GV09_1.0.inp

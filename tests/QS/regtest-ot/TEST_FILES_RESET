@@ -394,3 +394,45 @@ H2O-geo-ot-mols.inp
 # more numerics after NLPP
 sic_ddapc_rt.inp
 sic_energy.inp
+# New initial guess ATOMIC 
+C2H4-init.inp
+# New initial guess ATOMIC 
+C2H4.inp
+# New initial guess ATOMIC 
+He2_ddapc_constraint.inp
+# New initial guess ATOMIC 
+He2_ddapc_constraint-2.inp
+# New initial guess ATOMIC 
+He2_ddapc_constraint-3.inp
+# New initial guess ATOMIC 
+He2_none.inp
+# New initial guess ATOMIC 
+He2_none_full_all.inp
+# New initial guess ATOMIC 
+He2_none_full_single.inp
+# New initial guess ATOMIC 
+He2_none_full_inverse.inp
+# New initial guess ATOMIC 
+H2O-geo-ot-evals.inp
+# New initial guess ATOMIC 
+H2O-geo-ot-mols.inp
+# New initial guess ATOMIC 
+H2O-geo-ot-pdos.inp
+# New initial guess ATOMIC 
+H2O-geo-pdos.inp
+# New initial guess ATOMIC 
+H2O-geo-pdos_comp.inp
+# New initial guess ATOMIC 
+H2O-geo-ot-pdos-lumo-comp.inp
+# New initial guess ATOMIC 
+C2H4-init.inp
+# New initial guess ATOMIC 
+sic_ddapc_rt.inp
+# New initial guess ATOMIC 
+He2_ddapc_constraint-4.inp
+# New initial guess ATOMIC 
+H2-BECKE-MD.inp
+# New initial guess ATOMIC 
+H2-diffBECKE-ET_coupling.inp
+# New initial guess ATOMIC 
+sic_energy.inp

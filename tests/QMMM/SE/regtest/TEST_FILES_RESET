@@ -124,3 +124,23 @@ mol_CSVR_gen2.inp
 mol_CSVR_gen3.inp
 # ASPC reset 
 mol_sph_cut.inp
+# New initial guess ATOMIC 
+water_3.inp
+# New initial guess ATOMIC 
+mol.inp
+# New initial guess ATOMIC 
+water_3_NOwalls.inp
+# New initial guess ATOMIC 
+water_3_walls.inp
+# New initial guess ATOMIC 
+water_3_walls_q.inp
+# New initial guess ATOMIC 
+zwitt.inp
+# New initial guess ATOMIC 
+mol_CSVR_gen1.inp
+# New initial guess ATOMIC 
+mol_CSVR_gen2.inp
+# New initial guess ATOMIC 
+mol_CSVR_gen3.inp
+# New initial guess ATOMIC 
+mol_sph_cut.inp

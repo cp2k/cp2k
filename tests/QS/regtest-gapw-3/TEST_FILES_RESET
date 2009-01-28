@@ -83,3 +83,11 @@ CO_xastpval.inp
 CO_xastpxhh_loclist.inp
 #
 CO_xastpxhh_loclist.inp
+# New initial guess ATOMIC 
+CO.inp
+# New initial guess ATOMIC 
+CO_xastpxhh.inp
+# New initial guess ATOMIC 
+CO_xastpval.inp
+# New initial guess ATOMIC 
+CO_xastpxhh_loclist.inp

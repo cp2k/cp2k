@@ -8,7 +8,8 @@
 !> \par History
 !>      JGH (26-5-2001): New flag __SGL
 !>                     : Added SVD routines
-!>      JGH (30-5-2001): Added Cholesky facotrisation and triangular inverse
+!>      JGH (30-5-2001): Added Cholesky factorisation and triangular inverse
+!>      JGH (23-1-2009): Added linear system solution by SVD
 !> \author APSI
 ! *****************************************************************************
 MODULE lapack
@@ -194,6 +195,21 @@ MODULE lapack
      END SUBROUTINE sgesv
   END INTERFACE
 
+  INTERFACE lapack_sgelss
+! *****************************************************************************
+     SUBROUTINE sgelss ( m, n, nrhs, a, lda, b, ldb, s, rcond, rank, work, lwork, info )
+       USE kinds, ONLY: dp
+    INTEGER                                  :: m, n, nrhs, lda
+    REAL(KIND=dp)                            :: a( lda, * )
+    INTEGER                                  :: ldb
+    REAL(KIND=dp)                            :: b( ldb, *), s(*), rcond
+    INTEGER                                  :: rank
+    REAL(KIND=dp)                            :: work( * )
+    INTEGER                                  :: lwork, info
+
+     END SUBROUTINE sgelss
+  END INTERFACE
+
 #else
 
   INTERFACE lapack_ssyev
@@ -370,6 +386,22 @@ MODULE lapack
 
      END SUBROUTINE dgesv
   END INTERFACE
+
+  INTERFACE lapack_sgelss
+! *****************************************************************************
+     SUBROUTINE dgelss ( m, n, nrhs, a, lda, b, ldb, s, rcond, rank, work, lwork, info )
+       USE kinds, ONLY: dp
+    INTEGER                                  :: m, n, nrhs, lda
+    REAL(KIND=dp)                            :: a( lda, * )
+    INTEGER                                  :: ldb
+    REAL(KIND=dp)                            :: b( ldb, *), s(*), rcond
+    INTEGER                                  :: rank
+    REAL(KIND=dp)                            :: work( * )
+    INTEGER                                  :: lwork, info
+
+     END SUBROUTINE dgelss
+  END INTERFACE
+
 #endif
 
 END MODULE lapack
