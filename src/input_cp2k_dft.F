@@ -764,7 +764,7 @@ CONTAINS
     CALL cp_print_key_section_create(print_key,"WANNIER_CENTERS",&
          description="Controls the printing of the wannier functions", &
          print_level=high_print_level,add_last=add_last_numeric,filename="",&
-         error=error)
+         unit_str="angstrom",error=error)
     
     CALL keyword_create(keyword, name="IONS+CENTERS",&
          description="prints out the wannier centers together with the particles",&

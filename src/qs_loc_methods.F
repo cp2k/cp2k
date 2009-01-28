@@ -45,6 +45,7 @@ MODULE qs_loc_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, &
@@ -970,10 +971,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'print_wannier_centers', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(default_string_length)         :: iter
+    CHARACTER(default_string_length)         :: iter, unit_str
     CHARACTER(LEN=default_string_length)     :: my_ext, my_form
     INTEGER                                  :: iunit, l, nstates
     LOGICAL                                  :: first_time, init_traj
+    REAL(KIND=dp)                            :: unit_conv
 
     nstates = SIZE(center,2)
     my_form = "formatted"
@@ -990,15 +992,19 @@ CONTAINS
                middle_name=TRIM(qs_loc_env%tag_mo)//"_centers_s"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                log_filename=.FALSE.,on_file=.TRUE.,is_new_file=init_traj,error=error)
           IF (iunit>0) THEN
+             ! Gather units of measure for output (if available)
+             CALL section_vals_val_get(print_key,"UNIT",c_val=unit_str,error=error)
+             unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+
              IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,"/IONS+CENTERS",error=error),cp_p_file)) THEN
                 ! Different possible formats
-                CALL print_wannier_traj(qs_loc_env, print_key, center, iunit, init_traj, error)
+                CALL print_wannier_traj(qs_loc_env, print_key, center, iunit, init_traj, unit_conv, error)
              ELSE
                 ! Default print format
                 iter=cp_iter_string(logger%iter_info,error=error)
                 WRITE(iunit,'(i6,/,a)') nstates,TRIM(iter)
                 DO l=1,nstates
-                   WRITE(iunit,'(A,4F16.8)') "X", angstrom*center(1:4,l)
+                   WRITE(iunit,'(A,4F16.8)') "X", unit_conv*center(1:4,l)
                 END DO
              END IF
           END IF
@@ -1013,12 +1019,13 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE print_wannier_traj(qs_loc_env, print_key, center, iunit, init_traj, error)
+  SUBROUTINE print_wannier_traj(qs_loc_env, print_key, center, iunit, init_traj, unit_conv, error)
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: print_key
     REAL(KIND=dp), INTENT(IN)                :: center( :, : )
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: init_traj
+    REAL(KIND=dp), INTENT(IN)                :: unit_conv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_wannier_traj', &
@@ -1055,6 +1062,8 @@ CONTAINS
     END DO
     ! Dump the structure
     CALL section_vals_val_get(print_key,"FORMAT",i_val=outformat,error=error)
+
+    ! Header file
     IF(outformat==dump_dcd) THEN
        IF ( init_traj ) THEN
           !Lets write the header for the coordinate dcd
@@ -1080,7 +1089,7 @@ CONTAINS
        title = ""
     END IF
     CALL write_particle_coordinates(particle_set,iunit,outformat,"POS",title,qs_loc_env%cell,&
-         error=error)
+         unit_conv=unit_conv, error=error)
     CALL m_flush(iunit)
     CALL deallocate_particle_set(particle_set,error)
     CALL deallocate_atomic_kind_set(atomic_kind_set,error)
