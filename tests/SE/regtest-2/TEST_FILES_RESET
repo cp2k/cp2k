@@ -217,3 +217,5 @@ stp4.inp
 stp5.inp
 # New initial guess ATOMIC 
 stp6.inp
+# More on initial guess ATOMIC
+zn_1w_debug.inp
