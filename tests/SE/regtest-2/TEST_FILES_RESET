@@ -219,3 +219,5 @@ stp5.inp
 stp6.inp
 # More on initial guess ATOMIC
 zn_1w_debug.inp
+# more resets after change on GUESS
+scan_zn_1w_cp2k.inp

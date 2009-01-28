@@ -662,3 +662,6 @@ dynamics-2.inp
 ghost_overlap.inp
 # New initial guess ATOMIC 
 ghost_overlap_vdw.inp
+# more resets after change on GUESS
+H2O-1_3.restart
+H-ROKS.inp
