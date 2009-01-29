@@ -241,6 +241,7 @@ CONTAINS
          &          dft_control=dft_control,&
          &          mos=mos,&
          &          mpools=mpools,&
+         &          pw_env=pw_env,&
          &          para_env=para_env,&
          &          particle_set=particle_set,&
          &          error=error)
@@ -295,6 +296,7 @@ CONTAINS
             &                          target_symmetry="none",error=error)
     ENDDO
     !
+    !
     current_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES%CURRENT",&
          &                                        error=error)
     !
@@ -304,8 +306,11 @@ CONTAINS
        jrho_tot_G = 0.0_dp
        jrho_tot_R = 0.0_dp
        !
-       ! built density matrix
+       ! Lets go!
+       CALL set_vecp(iB,iiB,iiiB)
        DO ispin = 1,nspins
+          !
+          ! built density matrix and density
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
                &          occupation_numbers=occupation,homo=homo,nao=nao,nmo=nmo,&
                &          uniform_occupation=uni_occ,maxocc=maxocc)
@@ -325,15 +330,6 @@ CONTAINS
           CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix0(ispin)%matrix ,&
                &                  matrix_v=psi0_fk,matrix_g=psi0_fk,&
                &                  ncol=homo,alpha=alpha,error=error)
-          !
-       ENDDO
-       !
-       ! Lets go!
-       CALL set_vecp(iB,iiB,iiiB)
-       DO ispin = 1,nspins
-          CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
-               &          occupation_numbers=occupation,homo=homo,nao=nao,nmo=nmo,&
-               &          uniform_occupation=uni_occ,maxocc=maxocc)
           !
           ! create a new matrix
           NULLIFY(tmp_fm_struct)
@@ -358,7 +354,7 @@ CONTAINS
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           !
           ! the MOs
-          IF ( .NOT. uni_occ ) THEN
+          IF(.NOT.uni_occ ) THEN
              alpha = 1.0_dp
              CALL cp_fm_to_fm(mo_coeff,psi0_fk,error=error)
              CALL cp_fm_column_scale(psi0_fk,occupation(1:homo))
@@ -428,7 +424,6 @@ CONTAINS
           CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix ,&
                &                  matrix_v=psi0_fk,matrix_g=psi1_p(ispin,iiB)%matrix,&
                &                  ncol=homo,alpha=alpha,error=error)
-
           DO idir = 1,3
              !
              ! Calculate the current density on the pw grid (only soft if GAPW)
@@ -504,7 +499,6 @@ CONTAINS
        IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
             &   "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
           !
-          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool,&
                &          auxbas_pw_pool=auxbas_pw_pool,&
                &          error=error)
@@ -541,7 +535,6 @@ CONTAINS
                   &                            "PRINT%CURRENT_CUBES",error=error)
           ENDDO
           !
-          !
           CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,error=error)
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
        ENDIF ! current cube
@@ -552,9 +545,10 @@ CONTAINS
                &            SQRT(DDOT(9,jrho_tot_R(1,1),1,jrho_tot_R(1,1),1))
        ENDIF
        !
+       !
        ! Dellocate grids for the calculation of jrho and the shift
-       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, psi1,error=error)
-       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, p_psi1,error=error)
+       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,psi1,error=error)
+       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,p_psi1,error=error)
        !
        !
        DO ispin = 1,nspins
@@ -566,7 +560,7 @@ CONTAINS
        DEALLOCATE(density_matrix0,density_matrix_a,density_matrix_ii,density_matrix_iii,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        !
-    ENDIF !  failure
+    ENDIF ! failure
     !
     ! Finalize
     CALL timestop(handle)
@@ -675,9 +669,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input, interp_section
 
     failure=.FALSE.
-    NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, &
+    NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, rs_rho, &
          sab_orb_neighbor_list, sab_orb_neighbor_node, atomic_kind_set, &
-         sab_orb, particle_set, rs_current, rs_rho, pw_env, rs_pools, para_env, &
+         sab_orb, particle_set, rs_current, pw_env, rs_pools, para_env, &
          dist_ab, set_radius_a, set_radius_b, la_max, la_min, lb_max, &
          lb_min, npgfa, npgfb, nsgfa, nsgfb, rpgfa, rpgfb, sphi_a, sphi_b, &
          zeta, zetb, first_sgfa, first_sgfb, dist_ab, tasks, workt, mat_a, &
@@ -746,8 +740,8 @@ CONTAINS
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
-       IF ( .NOT. ALL (rs_current(igrid_level)%rs_grid%perd == 1 ) ) THEN
-          distributed_rs_grids=.TRUE.
+       IF(.NOT.ALL(rs_current(igrid_level)%rs_grid%perd == 1)) THEN
+          distributed_rs_grids = .TRUE.
        ENDIF
     ENDDO
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -1223,7 +1217,7 @@ CONTAINS
                   eps_rho_rspace,&
                   ga_gb_function=FUNC_AB,&
                   map_consistent=map_consistent,error=error)
-          ENDIF
+          ENDIF!rm
           ! here the decontracted mat_jp_rii{ab} is multiplied by
           !     f_{ab} = g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
           !             (dg_{a}/dr)_{idir} (d(r) - R_{b})_{iiB} g_{b}
@@ -1236,6 +1230,7 @@ CONTAINS
                ga_gb_function=FUNC_ADBmDAB,&
                idir=idir,ir=iiiB,&
                rsgauge=current_env%rs_gauge(iiiB)%rs(igrid_level)%rs_grid,&
+               rsbuf=current_env%rs_buf(igrid_level)%rs_grid,&
                map_consistent=map_consistent,error=error)
           ! here the decontracted mat_jp_riii{ab} is multiplied by
           !     f_{ab} = -g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
@@ -1249,6 +1244,7 @@ CONTAINS
                ga_gb_function=FUNC_ADBmDAB,&
                idir=idir,ir=iiB,&
                rsgauge=current_env%rs_gauge(iiB)%rs(igrid_level)%rs_grid,&
+               rsbuf=current_env%rs_buf(igrid_level)%rs_grid,&
                map_consistent=map_consistent,error=error)
        ELSE
           ! here the decontracted mat_jp_{ab} is multiplied by
@@ -1294,7 +1290,7 @@ CONTAINS
     IF(do_igaim) THEN
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_grid_mult_and_add(rs_current(igrid_level)%rs_grid,rs_rho(igrid_level)%rs_grid,&
-               &                    current_env%rs_gauge(idir2)%rs(igrid_level)%rs_grid)
+               &                    current_env%rs_gauge(idir2)%rs(igrid_level)%rs_grid,1.0_dp)
        ENDDO
     ENDIF
     !   *** Release work storage ***
@@ -1323,6 +1319,7 @@ CONTAINS
          interp_section=interp_section,error=error)
 
     CALL rs_pools_give_back_rs_vect(rs_pools,rs_rho,error=error)
+
     CALL timestop(handle)
 
   END SUBROUTINE calculate_jrho_resp
@@ -1367,6 +1364,10 @@ CONTAINS
                   &               idir,error)
           ENDDO
        ENDDO
+       !
+       ! allocate the buf
+       CALL rs_pools_create_rs_vect(rs_pools,current_env%rs_buf,error=error)
+       !
        DEALLOCATE(box_ptr,box_data)
     ENDIF
 
@@ -1471,7 +1472,7 @@ CONTAINS
     INTEGER :: i, iatom, ibeg, ibox, iend, imax, imin, j, jatom, jbox, jmax, &
       jmin, k, kbox, kmax, kmin, natms, natms_local, ng(3)
     REAL(KIND=dp) :: ab, dist, dr(3), gauge_atom_radius, lb(3), lb_local(3), &
-      offset(3), pa, pb, point(3), pra(3), prb(3), r(3), res, tmp
+      offset(3), pa, pb, point(3), pra(3), prb(3), r(3), res, summe, tmp
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: buf
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: ratom
@@ -1607,10 +1608,12 @@ CONTAINS
                      ENDDO
                   ENDDO
                   res = 0.0_dp
+                  summe = 0.0_dp
                   DO iatom = 1,natms_local
                      res = res + ratom(idir,iatom) * buf(iatom)
+                     summe = summe + buf(iatom)
                   ENDDO
-                  res = res / SUM(buf(1:natms_local))
+                  res = res / summe
                   grid(i,j,k) = point(idir) - res
                ELSE
                   grid(i,j,k) = 0.0_dp

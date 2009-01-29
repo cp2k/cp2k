@@ -35,8 +35,8 @@ MODULE qs_linres_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE f77_blas
   USE input_constants,                 ONLY: &
-       do_loc_none, lr_cg, lr_diis, lr_precond_none, lr_sd, ls_2pnt, ls_3pnt, &
-       ls_gold, ls_none, op_loc_berry, state_loc_all
+       do_loc_none, lr_cg, lr_precond_none, lr_sd, ls_2pnt, ls_3pnt, ls_none, &
+       op_loc_berry, state_loc_all
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -436,15 +436,6 @@ CONTAINS
         CALL cp_fm_set_all(p_env%d_psi1(ispin)%matrix,0.0_dp,error=error)
       END DO
 
-    ELSE IF (linres_control%opt_method == lr_diis) THEN
-      DO ispin = 1,nspins
-        CALL cp_fm_get_info( p_env%g_psi1(ispin)%matrix,nrow_global=nrow,ncol_global=ncol,error=error)
-        CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,error,failure)
-        CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,error,failure)
-        CALL cp_fm_set_all(p_env%g_psi1(ispin)%matrix,0.0_dp,error=error)
-        CALL cp_fm_set_all(p_env%d_psi1(ispin)%matrix,0.0_dp,error=error)
-      END DO
-
     END IF
 
     IF(linres_control%preconditioner_type /= lr_precond_none) THEN
@@ -637,8 +628,6 @@ CONTAINS
             linres_control%flag="LR LS"
           END IF
           CALL do_lr_line_search(p_env,b,linres_control,nspins,error=error)
-      CASE (lr_diis)
-           CALL stop_program("linres_scf_mini","LR_DIIS NYI")
       CASE DEFAULT
            CALL stop_program("linres_scf_mini","OPT_METHOD NYI")
     END SELECT
@@ -696,20 +685,18 @@ CONTAINS
 !
 
     SELECT CASE(linres_control%ls_method)
-      CASE(ls_gold)
-         CALL stop_program("do_lr_line_search","GOLD NYI")
-      CASE(ls_3pnt)
-         CALL do_lr_ls_3pnt(p_env,vectors,linres_control%ds_min,nspins,error=error)
-      CASE(ls_2pnt)
-         CALL do_lr_ls_2pnt(p_env,vectors,linres_control%ds_min,nspins,error=error)
-      CASE(ls_none)
-         ds=linres_control%ds_min
-         DO ispin = 1,nspins
-           CALL cp_fm_scale_and_add(1.0_dp,vectors(ispin)%matrix,ds,&
-                p_env%d_psi1(ispin)%matrix,error=error)
-         END DO
-      CASE DEFAULT
-          CALL stop_program("do_lr_line_search","NYI")
+    CASE(ls_3pnt)
+       CALL do_lr_ls_3pnt(p_env,vectors,linres_control%ds_min,nspins,error=error)
+    CASE(ls_2pnt)
+       CALL do_lr_ls_2pnt(p_env,vectors,linres_control%ds_min,nspins,error=error)
+    CASE(ls_none)
+       ds=linres_control%ds_min
+       DO ispin = 1,nspins
+          CALL cp_fm_scale_and_add(1.0_dp,vectors(ispin)%matrix,ds,&
+               p_env%d_psi1(ispin)%matrix,error=error)
+       END DO
+    CASE DEFAULT
+       CALL stop_program("do_lr_line_search","NYI")
     END SELECT
 
   END SUBROUTINE do_lr_line_search

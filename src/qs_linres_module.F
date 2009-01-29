@@ -24,9 +24,9 @@ MODULE qs_linres_module
                                              use_qmmm,&
                                              use_qs_force
   USE input_constants,                 ONLY: &
-       lr_cg, lr_current, lr_diis, lr_none, lr_precond_full_all, &
-       lr_precond_none, lr_precond_s_inverse, lr_precond_single, lr_sd, &
-       ls_2pnt, ls_3pnt, ls_gold, ls_none
+       lr_cg, lr_current, lr_none, lr_precond_full_all, &
+       lr_precond_h0_inverse, lr_precond_none, lr_precond_s_inverse, lr_sd, &
+       ls_2pnt, ls_3pnt, ls_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -288,7 +288,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ispin, istat, j, nspins, &
+    INTEGER                                  :: ispin, istat, nspins, &
                                                 output_unit
     LOGICAL                                  :: do_it, failure
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -370,36 +370,49 @@ CONTAINS
 
          IF(linres_control%localized_psi0) WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
             "LINRES|","LOCALIZED PSI0"
-         IF(linres_control%opt_method==lr_cg) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|   Optimization algorithm","Conjugate Gradients"
-         IF(linres_control%opt_method==lr_sd) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|   Optimization algorithm","    Steepnd Descent"
-         IF(linres_control%opt_method==lr_diis) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|   Optimization algorithm","               DIIS"
-         IF(linres_control%ls_method==ls_none) &
+
+         SELECT CASE(linres_control%opt_method)
+         CASE(lr_cg)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|              Line Search","               NONE"
-         IF(linres_control%ls_method==ls_2pnt) &
+                 "LINRES|   Optimization algorithm","Conjugate Gradients"
+         CASE(lr_sd) 
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|              Line Search","               2pnt"
-         IF(linres_control%ls_method==ls_3pnt) &
+                 "LINRES|   Optimization algorithm","    Steepnd Descent"
+         CASE DEFAULT
+            CALL stop_program(routineP,"Optimization algorithm NYI")
+         END SELECT
+
+         SELECT CASE(linres_control%ls_method)
+         CASE(ls_none)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|              Line Search","               3pnt"
-         IF(linres_control%ls_method==ls_gold) &
+                 "LINRES|              Line Search","               NONE"
+         CASE(ls_2pnt)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|              Line Search","               gold"
-         IF(linres_control%preconditioner_type==lr_precond_none) &
+                 "LINRES|              Line Search","               2pnt"
+         CASE(ls_3pnt)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|           Preconditioner","               NONE"
-         IF(linres_control%preconditioner_type==lr_precond_single) &
+                 "LINRES|              Line Search","               3pnt"
+         CASE DEFAULT
+            CALL stop_program(routineP,"Line Search NYI")
+         END SELECT
+
+         SELECT CASE(linres_control%preconditioner_type)
+         CASE(lr_precond_none)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|           Preconditioner","        FULL SINGLE"
-         IF(linres_control%preconditioner_type==lr_precond_s_inverse) &
+                 "LINRES|           Preconditioner","               NONE"
+         CASE(lr_precond_h0_inverse)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|           Preconditioner","     FULL S_INVERSE"
-         IF(linres_control%preconditioner_type==lr_precond_full_all) &
+                 "LINRES|           Preconditioner","        FULL SINGLE"
+         CASE(lr_precond_s_inverse)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|           Preconditioner","           FULL ALL"
+                 "LINRES|           Preconditioner","     FULL S_INVERSE"
+         CASE(lr_precond_full_all)
+            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+                 "LINRES|           Preconditioner","           FULL ALL"
+         CASE DEFAULT
+            CALL stop_program(routineP,"Preconditioner NYI")
+         END SELECT
+
          WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,ES8.1)")&
             "LINRES|                  EPS_SCF",linres_control%eps_scf
          WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,I8)")&
@@ -417,36 +430,19 @@ CONTAINS
        ! calculate eigenvectros and eigenvalues of K
        p_env%os_valid = .FALSE.
        IF(linres_control%preconditioner_type/= lr_precond_none) THEN
-         p_env%new_preconditioner = .TRUE.
-         CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,&
-              matrix_s=matrix_s,mos=mos,error=error)
-         nspins = SIZE(p_env%preconditioner,1)
-         DO ispin = 1,nspins
-           CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-           p_env%ev_h0(ispin)%matrix => mo_coeff
-!           CALL cp_fm_to_fm(mo_coeff,p_env%ev_h0(ispin)%matrix,p_env%n_mo(ispin),1,1)
-           ALLOCATE(p_env%preconditioner(ispin)%occ_evals(p_env%n_mo(ispin)),STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-           CALL calculate_subspace_eigenvalues(p_env%ev_h0(ispin)%matrix,&
-                matrix_ks(ispin)%matrix,evals_arg=p_env%preconditioner(ispin)%occ_evals,&
-                para_env=mo_coeff%matrix_struct%para_env, do_rotation = .FALSE.,error=error)
-
-           IF(output_unit>0) THEN
-             DO i = 1,p_env%n_mo(ispin),4
-               j=MIN(3,p_env%n_mo(ispin)-i)
-               SELECT CASE (j)
-               CASE(3)
-                 WRITE(output_unit,'(1X,4F16.8)') p_env%preconditioner(ispin)%occ_evals(i:i+j)
-               CASE(2)
-                 WRITE(output_unit,'(1X,3F16.8)') p_env%preconditioner(ispin)%occ_evals(i:i+j)
-               CASE(1)
-                 WRITE(output_unit,'(1X,2F16.8)') p_env%preconditioner(ispin)%occ_evals(i:i+j)
-               CASE(0)
-                 WRITE(output_unit,'(1X,1F16.8)') p_env%preconditioner(ispin)%occ_evals(i:i+j)
-               END SELECT
-             END DO
-           END IF
-         END DO
+          p_env%new_preconditioner = .TRUE.
+          CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,&
+               &          matrix_s=matrix_s,mos=mos,error=error)
+          nspins = SIZE(p_env%preconditioner,1)
+          DO ispin = 1,nspins
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+             p_env%ev_h0(ispin)%matrix => mo_coeff
+             ALLOCATE(p_env%preconditioner(ispin)%occ_evals(p_env%n_mo(ispin)),STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             CALL calculate_subspace_eigenvalues(p_env%ev_h0(ispin)%matrix,&
+                  matrix_ks(ispin)%matrix,evals_arg=p_env%preconditioner(ispin)%occ_evals,&
+                  para_env=mo_coeff%matrix_struct%para_env, do_rotation = .FALSE.,error=error)
+          END DO
        END IF
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&

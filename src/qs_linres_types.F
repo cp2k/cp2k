@@ -118,7 +118,8 @@ MODULE qs_linres_types
      TYPE(jrho_atom_type),    DIMENSION(:  ), POINTER :: jrho1_atom_set
      TYPE(qs_rho_p_type),     DIMENSION(:  ), POINTER :: jrho1_set
      TYPE(real_matrix_p_type),DIMENSION(:  ), POINTER :: op_p_ao,op_rmd_ao
-     TYPE(realspaces_grid_p_type), DIMENSION(3)       :: rs_gauge
+     TYPE(realspace_grid_p_type),DIMENSION(:),POINTER :: rs_buf
+     TYPE(realspaces_grid_p_type), DIMENSION(:) :: rs_gauge(3)
   END TYPE current_env_type
 
   TYPE nmr_env_type
@@ -317,6 +318,7 @@ CONTAINS
        NULLIFY(current_env%op_p_ao)
        NULLIFY(current_env%op_rmd_ao)
        NULLIFY(current_env%rs_gauge(1)%rs,current_env%rs_gauge(2)%rs,current_env%rs_gauge(3)%rs)
+       NULLIFY(current_env%rs_buf)
     END IF
 
   END SUBROUTINE current_env_create
@@ -380,7 +382,8 @@ CONTAINS
        &                 nstates,gauge,list_cubes,statetrueindex,gauge_name,basisfun_center,&
        &                 nbr_center,center_list,centers_set,ao_mo_fm_pools,mo_mo_fm_pools,&
        &                 psi1_p,psi1_rxp,psi1_D,p_psi0,rxp_psi0,dip,jrho1_atom_set,jrho1_set,&
-       &                 op_p_ao,op_rmd_ao,chi_tensor,chi_tensor_loc,gauge_atom_radius,error)
+       &                 op_p_ao,op_rmd_ao,chi_tensor,chi_tensor_loc,gauge_atom_radius,&
+       &                 error)
     
     TYPE(current_env_type), OPTIONAL         :: current_env
     LOGICAL, OPTIONAL                        :: simple_done(6), &

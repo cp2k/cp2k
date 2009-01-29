@@ -1316,6 +1316,11 @@ CONTAINS
                 CALL rs_pools_give_back_rs_vect(rs_pools,current_env%rs_gauge(idir)%rs,error=error)
              ENDIF
           ENDDO
+
+          ! give back the buf
+          IF(ASSOCIATED(current_env%rs_buf)) THEN
+             CALL rs_pools_give_back_rs_vect(rs_pools,current_env%rs_buf,error=error)
+          ENDIF
           
        END IF  ! ref count
     END IF ! failure

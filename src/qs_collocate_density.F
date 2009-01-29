@@ -1565,7 +1565,7 @@ CONTAINS
                                           lgrid,ithread,&
                                           map_consistent,&
                                           collocate_rho0,&
-                                          rpgf0_s,idir,ir,rsgauge,&
+                                          rpgf0_s,idir,ir,rsgauge,rsbuf,&
                                           use_subpatch,subpatch_pattern,error)
 
       INTEGER, INTENT(IN)                      :: la_max
@@ -1587,7 +1587,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent, collocate_rho0
       REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
       INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
-      TYPE(realspace_grid_type), POINTER, OPTIONAL :: rsgauge
+      TYPE(realspace_grid_type), POINTER, OPTIONAL :: rsgauge,rsbuf
       LOGICAL, OPTIONAL                        :: use_subpatch
       INTEGER(KIND=int_8), OPTIONAL, INTENT(IN):: subpatch_pattern
       TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1624,9 +1624,7 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
       REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
 
-      REAL(kind=dp), POINTER, DIMENSION(:,:,:) :: gauge_on_grid, grid_tmp,gauge
-
-      NULLIFY(gauge_on_grid, grid_tmp)
+      REAL(kind=dp), POINTER, DIMENSION(:,:,:) :: grid_tmp,gauge
 
     failure = .FALSE.
 
@@ -1867,11 +1865,8 @@ CONTAINS
     gridbounds(2,3)=UBOUND(GRID,3)
 
 
-    IF(PRESENT(ir).AND.PRESENT(rsgauge)) THEN
-       ALLOCATE(gauge_on_grid(gridbounds(1,1):gridbounds(2,1),&
-            &                 gridbounds(1,2):gridbounds(2,2),&
-            &                 gridbounds(1,3):gridbounds(2,3)))
-       grid => gauge_on_grid(:,:,:)
+    IF(PRESENT(ir).AND.PRESENT(rsgauge).AND.PRESENT(rsbuf)) THEN
+       grid => rsbuf%r(:,:,:)
        grid_tmp => rsgrid%r(:,:,:)
        gauge => rsgauge%r(:,:,:)
     ENDIF
@@ -2005,10 +2000,6 @@ CONTAINS
     DEALLOCATE(coef_xtt)
     DEALLOCATE(coef_xyt)
     DEALLOCATE(coef_xyz)
-
-    IF(PRESENT(ir).AND.PRESENT(rsgauge)) THEN
-       DEALLOCATE(gauge_on_grid)
-    ENDIF
 
   CONTAINS
 

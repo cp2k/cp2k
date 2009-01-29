@@ -26,6 +26,8 @@ MODULE qs_linres_nmr_epr_common_utils
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -63,7 +65,7 @@ CONTAINS
     REAL(dp), INTENT(IN)                     :: my_chi
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: ig, ng
+    INTEGER                                  :: handle, ig, ng
     LOGICAL                                  :: failure
     REAL(dp)                                 :: g2
     TYPE(pw_grid_type), POINTER              :: grid
@@ -73,6 +75,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: frho, influence_fn
 
     failure = .FALSE.
+    CALL timeset(routineN,handle)
 
     CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
 
@@ -95,6 +98,8 @@ CONTAINS
 
     CALL pw_pool_give_back_pw(pw_pool,influence_fn,&
          accept_non_compatible=.TRUE.,error=error)
+
+    CALL timestop(handle)
 
   END SUBROUTINE  mult_G_ov_G2_grid
 

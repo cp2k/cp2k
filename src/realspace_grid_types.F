@@ -1604,9 +1604,10 @@ CONTAINS
 !>      none
 !> \author 
 ! *****************************************************************************
-SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3 )
+SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
     TYPE(realspace_grid_type), POINTER       :: rs1, rs2, rs3
+    REAL(dp), INTENT(IN)                     :: scalar
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_mult_and_add', &
       routineP = moduleN//':'//routineN
@@ -1616,15 +1617,17 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3 )
 !-----------------------------------------------------------------------------!
 
    CALL timeset(routineN,handle)
-   l(1) = LBOUND( rs1 % r, 1 );l(2) = LBOUND( rs1 % r, 2 );l(3) = LBOUND( rs1 % r, 3 )
-   u(1) = UBOUND( rs1 % r, 1 );u(2) = UBOUND( rs1 % r, 2 );u(3) = UBOUND( rs1 % r, 3 )
-   DO k = l(3),u(3)
-   DO j = l(2),u(2)
-   DO i = l(1),u(1)
-      rs1 % r ( i, j, k ) = rs1 % r ( i, j, k ) + rs2 % r ( i, j, k ) * rs3 % r ( i, j, k )
-   ENDDO
-   ENDDO
-   ENDDO
+   IF(scalar.NE.0.0_dp) THEN
+      l(1) = LBOUND( rs1 % r, 1 );l(2) = LBOUND( rs1 % r, 2 );l(3) = LBOUND( rs1 % r, 3 )
+      u(1) = UBOUND( rs1 % r, 1 );u(2) = UBOUND( rs1 % r, 2 );u(3) = UBOUND( rs1 % r, 3 )
+      DO k = l(3),u(3)
+      DO j = l(2),u(2)
+      DO i = l(1),u(1)
+         rs1 % r ( i, j, k ) = rs1 % r ( i, j, k ) + scalar * rs2 % r ( i, j, k ) * rs3 % r ( i, j, k )
+      ENDDO
+      ENDDO
+      ENDDO
+   ENDIF
    CALL timestop(handle)
  END SUBROUTINE rs_grid_mult_and_add
 

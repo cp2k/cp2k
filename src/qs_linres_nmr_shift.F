@@ -37,7 +37,6 @@ MODULE qs_linres_nmr_shift
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_methods,                      ONLY: pw_axpy,&
-                                             pw_scale,&
                                              pw_transfer,&
                                              pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -121,7 +120,7 @@ CONTAINS
                                                 shift_pw_rspace
     TYPE(pw_p_type), DIMENSION(:, :), &
       POINTER                                :: shift_pw_gspace
-    TYPE(pw_p_type), POINTER                 :: rho_gspace
+    TYPE(pw_p_type), POINTER                 :: jrho_gspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -131,7 +130,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(chemical_shift,chemical_shift_loc,chemical_shift_nics,chemical_shift_nics_loc,&
-         &  cell,dft_control,pw_env,auxbas_rs_pool,auxbas_pw_pool,rho_gspace,&
+         &  cell,dft_control,pw_env,auxbas_rs_pool,auxbas_pw_pool,jrho_gspace,&
          &  pw_pools,particle_set)
 
     CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
@@ -179,26 +178,20 @@ CONTAINS
     CALL pw_zero(pw_gspace_work%pw)
     DO ispin = 1,nspins
        !
-       DO idir3=1,3
-          ! set to zero for the calculation of the shift
-          CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw)
-       ENDDO
-       !
        DO idir = 1,3
-          rho_gspace => current_env%jrho1_set(idir)%rho%rho_g(ispin)
+          jrho_gspace => current_env%jrho1_set(idir)%rho%rho_g(ispin)
           ! Field gradient
           ! loop over the Gvec  components: x,y,z
           DO idir2 = 1,3
              IF(idir /= idir2) THEN
                 ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
-                CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,&
+                CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,jrho_gspace,&
                      &                 pw_gspace_work,idir2,0.0_dp,error=error)
                 !
                 ! scale and add to the correct component of the shift column
                 CALL set_vecp_rev(idir,idir2,idir3)
                 scale_fac=fac_vecp(idir3,idir2,idir)
-                CALL pw_scale(pw_gspace_work%pw,scale_fac)
-                CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw)
+                CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw,scale_fac)
              ENDIF
           ENDDO
           !

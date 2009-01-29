@@ -5819,20 +5819,10 @@ CONTAINS
             description="Define the algorithms used to optimize the Psi1 in the scf iteration",&
             usage="OPT_METHOD CG",&
             default_i_val=lr_cg,&
-            enum_c_vals=s2a( "CG", "DIIS", "SD"),&
-            enum_desc=s2a("Conjugate Gradients", "DIIS (WARNING this option doesnt work yet)",&
-            "Steepesst Descent"),&
-            enum_i_vals=(/lr_cg,lr_diis,lr_sd/),&
+            enum_c_vals=s2a( "CG", "SD"),&
+            enum_desc=s2a("Conjugate Gradients","Steepesst Descent"),&
+            enum_i_vals=(/lr_cg,lr_sd/),&
             error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="N_DIIS",&
-            variants=(/"NDIIS"/),&
-            description="Number of history vectors to be used with DIIS "//&
-            "(WARNING this option doesnt work yet)",&
-            usage="N_DIIS 4",&
-            default_i_val=7,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5840,13 +5830,12 @@ CONTAINS
             variants=(/"LINE_SEARCH"/),&
             description="1D line search algorithm,"//&
             " in increasing order of robustness and cost.",&
-            usage="LINESEARCH GOLD",&
+            usage="LINESEARCH 2PNT",&
             default_i_val=ls_none,&
-            enum_c_vals=s2a( "NONE", "2PNT", "3PNT","GOLD"),&
+            enum_c_vals=s2a( "NONE", "2PNT", "3PNT"),&
             enum_desc=s2a("take fixed lenght steps","extrapolate based on 2 points", &
-            "... or on 3 points","perform 1D golden section search of the minimum "//&
-            "(WARNING this option doesnt work yet)"),&
-            enum_i_vals=(/ls_none,ls_2pnt,ls_3pnt,ls_gold/),&
+            "... or on 3 points"),&
+            enum_i_vals=(/ls_none,ls_2pnt,ls_3pnt/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
