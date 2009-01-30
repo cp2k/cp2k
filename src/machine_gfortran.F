@@ -8,8 +8,7 @@
 ! *****************************************************************************
 MODULE machine_gfortran
   USE f77_blas
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
+  USE kinds,                           ONLY: dp,&
                                              int_8
 
   IMPLICIT NONE
@@ -97,13 +96,13 @@ END SUBROUTINE m_datum
   SUBROUTINE m_mov(source,TARGET)
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
-    INTEGER :: stat
 
+    INTEGER                                  :: stat
 
-    stat=rename(source,target)
+    stat=rename(source,TARGET)
     IF (stat .NE. 0) THEN
-      write(6,*) "Trying to move "//TRIM(source)//" to "//TRIM(target)//"."
-      write(6,*) "rename returned status: ",stat
+      WRITE(6,*) "Trying to move "//TRIM(source)//" to "//TRIM(TARGET)//"."
+      WRITE(6,*) "rename returned status: ",stat
       STOP "Problem moving file"
     ENDIF
 END SUBROUTINE m_mov
