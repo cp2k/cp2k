@@ -165,6 +165,22 @@ vpath %.pretty $(PRETTYOBJDIR)
 vpath %.cu $(SRCDIRS)
 
 #
+# if the modules generated are not of the lower case form (e.g. kinds.F does not lead to kinds.mod)
+# use MODDEPS = no in the arch file
+# MODDEPS = upper does not work because of the rule '%.mod: %.o' is incorrect (see there), but if that is
+# fixed, upper should work as well.
+#
+ifeq ($(MODDEPS),no)
+MODSTRING=
+else
+ifeq ($(MODDEPS),upper)
+MODSTRING=-m "%M.mod"
+else
+MODSTRING=-m "%m.mod"
+endif
+endif
+
+#
 # generation of the dependencies
 #
 # if HACKDEP=="yes" we hack the dependencies so that only modified source files are recompiled
@@ -175,18 +191,18 @@ all.dep: $(OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F
 ifeq ($(HACKDEP),yes)
 	echo $^ | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/all.dep
 else
-	$(TOOLDIR)/makedepf90 -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/all.dep || ( rm -f $(OBJDIR)/$(VERSION)/all.dep  ; exit 1 )
+	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/all.dep || ( rm -f $(OBJDIR)/$(VERSION)/all.dep  ; exit 1 )
 endif
 
 lib.dep: $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F)
-	$(TOOLDIR)/makedepf90 -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/lib.dep || ( rm -f $(OBJDIR)/$(VERSION)/lib.dep ; exit 1 )
+	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/lib.dep || ( rm -f $(OBJDIR)/$(VERSION)/lib.dep ; exit 1 )
 
 # this is kind of a hack, fes and leap2fist depend on files in other directories, hence the -I and the -b.
 fes.dep: $(FESOBJS:.o=.F) 
-	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/fes.dep || ( rm -f $(OBJDIR)/$(VERSION)/fes.dep  ; exit 1 )
+	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/fes.dep || ( rm -f $(OBJDIR)/$(VERSION)/fes.dep  ; exit 1 )
 
 leap2fist.dep: $(LEAPOBJS:.o=.F) 
-	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/leap2fist.dep || ( rm -f  $(OBJDIR)/$(VERSION)/leap2fist.dep ; exit 1 )
+	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/leap2fist.dep || ( rm -f  $(OBJDIR)/$(VERSION)/leap2fist.dep ; exit 1 )
 
 #
 # and the rules doing the actual work
@@ -266,6 +282,8 @@ endif
 # by doing nothing
 # it avoids recompilation if .o is more recent than .F, but .mod is older than .F
 # (because it didn't change, as e.g. g95 can do)
+#
+# this is problematic if the module names are uppercase e.g. KINDS.mod (because this rule expands to kinds.mod)
 #
 %.mod: %.o
 	@true
