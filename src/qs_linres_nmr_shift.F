@@ -527,9 +527,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'interpolate_shift_pwgrid', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: aint_precond, iat, iatom, &
-                                                max_iter, n_nics, natom, &
-                                                precond_kind
+    INTEGER                                  :: aint_precond, handle, iat, &
+                                                iatom, max_iter, n_nics, &
+                                                natom, precond_kind
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
     LOGICAL                                  :: do_nics, failure, success
     REAL(dp)                                 :: eps_r, eps_x, R_iatom(3), &
@@ -543,7 +543,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: interp_section
 
     failure = .FALSE.
-
+    !
+    CALL timeset(routineN,handle)
+    !
     NULLIFY (interp_section)
     NULLIFY (auxbas_pw_pool,precond)
     NULLIFY (cs_atom_list,chemical_shift,chemical_shift_nics,r_nics)
@@ -610,7 +612,9 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool,shiftspl%pw,error=error)
 
     END IF
-
+    !
+    CALL timestop(handle)
+    !
   END SUBROUTINE interpolate_shift_pwgrid
 
 ! *****************************************************************************
