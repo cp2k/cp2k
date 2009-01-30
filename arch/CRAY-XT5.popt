@@ -2,15 +2,16 @@
 # do: "module swap PrgEnv-pgi PrgEnv-pathscale"
 
 CC       = gcc
-CPP      = cpp
-FC       = ftn -freeform
+CPP      = 
+FC       = ftn -freeform -cpp
 LD       = ftn
 AR       = ar -r
-DFLAGS   = -D__XT5 -D__FFTW3 -D__FFTSG\
-           -D__parallel -D__BLACS -D__SCALAPACK
+DFLAGS   = -D__XT5 -D__FFTW3 -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK
 CPPFLAGS = -traditional -C $(DFLAGS) -P -I$(FFTW_INC)
-FCFLAGS  = -target=linux -march=barcelona -O3 -OPT:Ofast -OPT:early_intrinsics=ON -LNO:simd=2 -intrinsic=PGI
+CPPFLAGS =
+FCFLAGS  = -target=linux -march=barcelona -O3 -OPT:Ofast -OPT:early_intrinsics=ON -LNO:simd=2 -intrinsic=PGI -I$(FFTW_INC) $(DFLAGS)
 LDFLAGS  = $(FCFLAGS)
-LIBS     = -lsci -L$(FFTW_DIR) -lfftw3 
+LIBS     = -lsci -L$(FFTW_DIR) -lfftw3
 
 OBJECTS_ARCHITECTURE = machine_xt5.o
+MODDEPS = no
