@@ -8,6 +8,8 @@
 !>      JGH 20-Feb-2001 : mltfft, mfft2d routines added
 !>                        integer_pointer_kind
 !>      Adapted to new interface style
+!>      IAB 09-Jan-2009 : Modified to cache plans in fft_plan_type
+!>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 !> \author JGH
 ! *****************************************************************************
 SUBROUTINE fftw2_get_lengths ( DATA, max_length )
@@ -210,14 +212,11 @@ SUBROUTINE fftw23d ( fft_in_place, fsign, scale, n, zin, zout )
 END SUBROUTINE fftw23d
 
 ! *****************************************************************************
-SUBROUTINE fftw21dm ( fsign, trans, n, m, zin, zout, scale )
+SUBROUTINE fftw2_create_plan_1dm ( plan, plan_style )
+
+  USE fft_plan,                           ONLY: fft_plan_type, dp
 
   IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
 
 ! this is a verbatim include of the fortran include file, as this is
 ! not installed with fftw2 :
@@ -252,57 +251,85 @@ SUBROUTINE fftw21dm ( fsign, trans, n, m, zin, zout, scale )
       PARAMETER(FFTW_SCRAMBLED_OUTPUT=16384)
 ! end include fftw_f77.i
 
-! integer_pointer_kind: kind parameter for pointer variables (addresses)
-!                       this is usually an integer with 32 or 64 bit size
-!                       needs improving, this will cause problems
-#if defined (__NAG)
-  INTEGER*8          :: dummy_64_bit
-  INTEGER, PARAMETER :: integer_pointer_kind = KIND(dummy_64_bit)
-#else
-  INTEGER, PARAMETER :: integer_pointer_kind = 8
+  TYPE(fft_plan_type), INTENT ( INOUT )              :: plan
+  INTEGER :: plan_style
+  
+  INTEGER :: fftw_plan_type
+  SELECT CASE(plan_style)
+  CASE(1)
+         fftw_plan_type = FFTW_ESTIMATE
+  CASE(2)
+         fftw_plan_type = FFTW_MEASURE
+  CASE(3) ! patient does not exist, use measure instead
+         fftw_plan_type = FFTW_MEASURE
+  CASE DEFAULT
+   STOP "fftw2_create_plan_1dm"
+  END SELECT
+
+#if defined ( __FFTW2 )
+  IF ( plan%fsign == +1 ) THEN
+    CALL fftw_f77_create_plan(plan%fftw_plan,plan%n,FFTW_FORWARD,fftw_plan_type)
+  ELSE
+    CALL fftw_f77_create_plan(plan%fftw_plan,plan%n,FFTW_BACKWARD,fftw_plan_type)
+  END IF
 #endif
 
-  INTEGER, INTENT ( INOUT )                          :: fsign
-  LOGICAL, INTENT ( IN )                             :: trans
-  INTEGER, INTENT ( IN )                             :: n, m
-  COMPLEX (KIND=dp), DIMENSION(*), INTENT ( INOUT )  :: zin
-  COMPLEX (KIND=dp), DIMENSION(*), INTENT ( OUT )    :: zout
+END SUBROUTINE fftw2_create_plan_1dm
+
+SUBROUTINE fftw2_destroy_plan ( plan )
+
+  USE fft_plan,                           ONLY: fft_plan_type
+
+  IMPLICIT NONE
+
+  TYPE(fft_plan_type), INTENT (INOUT)   :: plan
+
+#if defined ( __FFTW2 )
+  CALL fftw_f77_destroy_plan(plan%fftw_plan)
+#endif
+
+END SUBROUTINE fftw2_destroy_plan
+
+SUBROUTINE fftw21dm ( plan, zin, zout, scale )
+
+  USE fft_plan,                           ONLY: fft_plan_type, dp
+
+  IMPLICIT NONE
+
+  TYPE(fft_plan_type), INTENT ( INOUT )              :: plan  
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zout
   REAL (KIND=dp), INTENT ( IN )                      :: scale
 
   INTEGER                                  :: di, DO, ii, io
-  INTEGER(KIND=integer_pointer_kind)       :: plan
 
 !------------------------------------------------------------------------------
 
 #if defined ( __FFTW2 )
 
   ii = 1
-  di = n
+  di = plan%n
   io = 1
-  DO = n
-  IF ( fsign == +1 .AND. trans ) THEN
-    ii = m
+  DO = plan%n
+  IF ( plan%fsign == +1 .AND. plan%trans ) THEN
+    ii = plan%m
     di = 1
-  ELSEIF ( fsign == -1 .AND. trans ) THEN
-    io = m
+  ELSEIF ( plan%fsign == -1 .AND. plan%trans ) THEN
+    io = plan%m
     DO = 1
   END IF
-  IF ( fsign == +1 ) THEN
-    CALL fftw_f77_create_plan(plan,n,FFTW_FORWARD,FFTW_ESTIMATE)
-  ELSE
-    CALL fftw_f77_create_plan(plan,n,FFTW_BACKWARD,FFTW_ESTIMATE)
-  END IF
-  CALL fftw_f77(plan,m,zin,ii,di,zout,io,DO)
-  CALL fftw_f77_destroy_plan(plan)
+
+  CALL fftw_f77(plan%fftw_plan,plan%m,zin,ii,di,zout,io,DO)
+
 #if defined(__SGL) || defined(__FFTSGL)
-  IF ( scale /= 1.0_dp ) CALL csscal(n*m,scale,zout,1)
+  IF ( scale /= 1.0_dp ) CALL csscal(plan%n*plan%m,scale,zout,1)
 #else
-  IF ( scale /= 1.0_dp ) CALL zdscal(n*m,scale,zout,1)
+  IF ( scale /= 1.0_dp ) CALL zdscal(plan%n*plan%m,scale,zout,1)
 #endif
 
 #else
 
-  fsign = 0
+  plan%fsign = 0
 
 #endif
 

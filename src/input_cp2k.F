@@ -246,6 +246,7 @@ CONTAINS
     CALL keyword_create(keyword, name="PREFERRED_FFT_LIBRARY",&
          description="Specifies the FFT library which should be preferred. "//&
                      "If it is not available, use FFTW if this is linked in, if FFTW is not available use FFTSG. "//&
+                     "Improved performance with FFTW can be obtained specifying a proper value for FFTW_PLAN_TYPE. "//&
                      "Contrary to earlier CP2K versions, all libraries will result in the same grids, "//&
                      "i.e. the subset of grids which all FFT libraries can transform. "//&
                      "See EXTENDED_FFT_LENGTHS if larger FFTs or grids that more precisely match a given cutoff are needed, "//&
@@ -278,6 +279,28 @@ CONTAINS
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
+   CALL keyword_create(keyword, name="FFTW_PLAN_TYPE",&
+         description="FFTW can have improved performance if it is allowed to plan with "//&
+                     "explicit measurements which strategy is best for a given FFT. "//&
+                     "While a plan based on measurements is generally faster, "//& 
+                     "differences in machine load will lead to different plans for the same input file, "//&
+                     "and thus numerics for the FFTs will be slightly different from run to run."//&
+                     "PATIENT planning is recommended for ab initio MD runs.",&
+         usage="FFTW_PLAN_TYPE PATIENT",&
+         citations=(/Frigo2005/),&
+         default_i_val=fftw_plan_estimate, &
+         enum_i_vals=(/fftw_plan_estimate,fftw_plan_measure,fftw_plan_patient/), &
+         enum_c_vals=s2a("ESTIMATE",&
+                         "MEASURE",&
+                         "PATIENT"),&
+         enum_desc=s2a("Quick estimate, no runtime measurements.",&
+                       "Quick measurement, somewhat faster FFTs.",&
+                       "Measurements trying a wider range of possibilities."),&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
 
     CALL keyword_create(keyword, name="EXTENDED_FFT_LENGTHS",&
          description="Use fft library specific values for the allows number of points in FFTs. "//&

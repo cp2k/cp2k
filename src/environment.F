@@ -459,6 +459,7 @@ CONTAINS
     CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=print_level,error=error)
     CALL section_vals_val_get(global_section,"PROGRAM_NAME",i_val=globenv%prog_name_id,error=error)
     CALL section_vals_val_get(global_section,"FFT_POOL_SCRATCH_LIMIT",i_val=globenv%fft_pool_scratch_limit,error=error)
+    CALL section_vals_val_get(global_section,"FFTW_PLAN_TYPE",i_val=globenv%fftw_plan_type,error=error)
     CALL section_vals_val_get(global_section,"PROJECT_NAME",c_val=project_name,error=error)
     CALL section_vals_val_get(global_section,"FFTW_WISDOM_FILE_NAME",c_val=globenv%fftw_wisdom_file_name,error=error)
     CALL section_vals_val_get(global_section,"RUN_TYPE",i_val=globenv%run_type_id,error=error)
@@ -679,6 +680,7 @@ CONTAINS
          fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error), &
          pool_limit=globenv%fft_pool_scratch_limit,&
          wisdom_file=globenv%fftw_wisdom_file_name,&
+         plan_style=globenv%fftw_plan_type,&
          para_env=para_env,error=error)
 
     !   *** Check for FFT library ***
@@ -697,6 +699,7 @@ CONTAINS
                fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error), &
                pool_limit=globenv%fft_pool_scratch_limit,&
                wisdom_file=globenv%fftw_wisdom_file_name,&
+               plan_style=globenv%fftw_plan_type,&
                para_env=para_env,error=error)
 
           CALL fft3d(1,n,zz,status=stat)
@@ -716,6 +719,7 @@ CONTAINS
                fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error), &
                pool_limit=globenv%fft_pool_scratch_limit,&
                wisdom_file=globenv%fftw_wisdom_file_name,&
+               plan_style=globenv%fftw_plan_type,&
                para_env=para_env,error=error)
 
           CALL fft3d(1,n,zz,status=stat)

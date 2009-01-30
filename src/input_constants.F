@@ -708,6 +708,9 @@ MODULE input_constants
                                               do_fft_mkl=6,&
                                               do_fft_sci=7,&
                                               do_fft_cu=8
+  INTEGER, PARAMETER, PUBLIC               :: fftw_plan_estimate=1, &
+                                              fftw_plan_measure=2, &
+                                              fftw_plan_patient=3
 
   ! fftw will automatically be either FFTW2 or FFTW3 
 #if defined ( __FFTW2 )
@@ -715,6 +718,7 @@ MODULE input_constants
 #else
   INTEGER, PARAMETER, PUBLIC               :: do_fft_fftw=do_fft_fftw3
 #endif
+
   ! SCP-DFT
   INTEGER, PARAMETER, PUBLIC               :: copy_coeff=1,  &
                                               copy_fcoeff=2

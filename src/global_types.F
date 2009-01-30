@@ -87,6 +87,7 @@ MODULE global_types
      CHARACTER(LEN=default_path_length)      :: fftw_wisdom_file_name
 
      INTEGER :: fft_pool_scratch_limit !! limit used for fft scratches
+     INTEGER :: fftw_plan_type !! which kind of planning to use with fftw
      INTEGER :: idum         !! random number seed
      INTEGER :: prog_name_id !! index to define the type of program
      INTEGER :: run_type_id  !! index to define the run_tupe

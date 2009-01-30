@@ -1,15 +1,16 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2006 - 2008  CP2K developers group                          !
+!   Copyright (C) 2006 - 2009  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 !> \brief Interface to FFT libraries
 !> \par History
-!>      none
+!>      IAB 09-Jan-2009 : Modified to use fft_plan_type
+!>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 !> \author JGH
 ! *****************************************************************************
-FUNCTION fft_library ( fftlib ) RESULT ( flib )
+ FUNCTION fft_library ( fftlib ) RESULT ( flib )
 
   CHARACTER ( len=* ), INTENT(IN)        :: fftlib
   INTEGER                                :: flib
@@ -112,44 +113,94 @@ SUBROUTINE fft_3d ( fft_type, fft_in_place, fsign, scale, n, zin, zout )
 END SUBROUTINE fft_3d
 
 ! *****************************************************************************
-SUBROUTINE fft_1dm ( fft_type, fsign, trans, n, m, zin, zout, scale )
-  
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+!MODULE fft_create_plan
+
+!PUBLIC :: fft_create_plan_1dm
+
+!CONTAINS
+
+SUBROUTINE fft_create_plan_1dm ( plan, fft_type, fsign, trans, n, m, zin, zout, plan_style )
+
+USE fft_plan,                           ONLY: fft_plan_type, dp
+
+IMPLICIT NONE
+
 
 ! Arguments
-  INTEGER, INTENT ( IN )                                :: fft_type
-  INTEGER, INTENT ( INOUT )                             :: fsign
+  TYPE (fft_plan_type), INTENT (INOUT)                  :: plan
+  INTEGER, INTENT ( IN )                                :: fft_type, fsign
   LOGICAL, INTENT ( IN )                                :: trans
   INTEGER, INTENT ( IN )                                :: n, m
-  COMPLEX (KIND=dp), DIMENSION(*), INTENT ( IN )        :: zin
-  COMPLEX (KIND=dp), DIMENSION(*), INTENT ( INOUT )     :: zout
-  REAL (KIND=dp), INTENT ( IN )                         :: scale
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)            :: zin
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)            :: zout
+  LOGICAL, INTENT ( IN )                                :: plan_style
+
+  plan % fft_type = fft_type
+  plan % fsign = fsign
+  plan % trans = trans
+  plan % n = n
+  plan % m = m
+
+  SELECT CASE ( fft_type )
+    CASE ( 2 )
+      CALL fftw2_create_plan_1dm ( plan, plan_style )
+    CASE ( 3 )
+      CALL fftw3_create_plan_1dm ( plan, zin, zout, plan_style )
+  END SELECT
+
+END SUBROUTINE fft_create_plan_1dm 
+!END MODULE fft_create_plan
+
+SUBROUTINE fft_destroy_plan ( plan )
+
+USE fft_plan,                           ONLY: fft_plan_type, dp
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE (fft_plan_type), INTENT (INOUT)          :: plan
+
+  SELECT CASE ( plan % fft_type )
+    CASE ( 2 )
+      CALL fftw2_destroy_plan ( plan )
+    CASE ( 3 )
+      CALL fftw3_destroy_plan ( plan )
+  END SELECT
+
+END SUBROUTINE
+
+SUBROUTINE fft_1dm ( plan, zin, zout, scale)
+
+USE fft_plan,                           ONLY: fft_plan_type, dp
   
-  IF ( n*m > 0 ) THEN
-    SELECT CASE ( fft_type )
+  IMPLICIT NONE
+
+! Arguments
+  TYPE (fft_plan_type) , INTENT (INOUT)           :: plan
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)      :: zin
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: zout
+  REAL (KIND=dp), INTENT(IN)                      :: scale  
+  
+  IF ( plan%n * plan%m > 0 ) THEN
+    SELECT CASE ( plan%fft_type )
       CASE DEFAULT
         STOP "fft_1dm"
       CASE ( 1 )
-        CALL fftsg1dm ( fsign, trans, n, m, zin, zout, scale )
+        CALL fftsg1dm ( plan%fsign, plan%trans, plan%n, plan%m, zin, zout, scale )
       CASE ( 2 )
-        CALL fftw21dm ( fsign, trans, n, m, zin, zout, scale )
+        CALL fftw21dm ( plan, zin, zout, scale )
       CASE ( 3 )
-        CALL fftw31dm ( fsign, trans, n, m, zin, zout, scale )
+        CALL fftw31dm ( plan, zin, zout, scale )
       CASE ( 4 )
-        CALL fftessl1dm ( fsign, trans, n, m, zin, zout, scale )
+        CALL fftessl1dm ( plan%fsign, plan%trans, plan%n, plan%m, zin, zout, scale )
       CASE ( 5 )
-        CALL fftacml1dm ( fsign, trans, n, m, zin, zout, scale )
+        CALL fftacml1dm ( plan%fsign, plan%trans, plan%n, plan%m, zin, zout, scale ) 
       CASE ( 6 )
-        CALL fftmkl1dm ( fsign, trans, n, m, zin, zout, scale )
+        CALL fftmkl1dm ( plan%fsign, plan%trans, plan%n, plan%m, zin, zout, scale ) 
       CASE ( 7 )
-        CALL fftsci1dm ( fsign, trans, n, m, zin, zout, scale )
+        CALL fftsci1dm ( plan%fsign, plan%trans, plan%n, plan%m, zin, zout, scale )
       CASE ( 8 )
-        CALL fftmkl1dm ( fsign, trans, n, m, zin, zout, scale )
+        CALL fftmkl1dm ( plan%fsign, plan%trans, plan%n, plan%m, zin, zout, scale )
     END SELECT
   END IF
 
@@ -263,3 +314,4 @@ SUBROUTINE sortint ( iarr, n, index )
   GO TO 1
 
 END SUBROUTINE sortint
+

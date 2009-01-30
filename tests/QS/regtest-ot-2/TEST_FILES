@@ -41,3 +41,6 @@ C_ot.inp           1
 # use of the fermi distribution
 C_fermi.inp        1
 Al_fermi.inp       1
+# go through planned FFTs, but don't check results, they will depend on the selected plan
+H2O-plan-2.inp     0
+H2O-plan-3.inp     0
