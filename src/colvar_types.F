@@ -24,6 +24,7 @@ MODULE colvar_types
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
+  USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
@@ -1332,6 +1333,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'post_process_colvar', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(len=3)                         :: name_kind
     INTEGER                                  :: i, j, natoms, nkinds, stat
     LOGICAL                                  :: failure
 
@@ -1345,7 +1347,9 @@ CONTAINS
              nkinds = SIZE(colvar%coord_param%c_kinds_from)
              DO i = 1, natoms
                 DO j = 1 , nkinds
-                   IF (TRIM(colvar%coord_param%c_kinds_from(j))==TRIM(particles(i)%atomic_kind%name)) THEN
+                  name_kind = TRIM(particles(i)%atomic_kind%name)
+                  CALL uppercase(name_kind)
+                   IF (TRIM(colvar%coord_param%c_kinds_from(j))==name_kind) THEN
                       CALL reallocate(colvar%coord_param%i_at_from, 1, colvar%coord_param%n_atoms_from+1)
                       colvar%coord_param%n_atoms_from = colvar%coord_param%n_atoms_from + 1
                       colvar%coord_param%i_at_from(colvar%coord_param%n_atoms_from) = i
@@ -1361,7 +1365,9 @@ CONTAINS
              nkinds = SIZE(colvar%coord_param%c_kinds_to)
              DO i = 1, natoms
                 DO j = 1 , nkinds
-                   IF (TRIM(colvar%coord_param%c_kinds_to(j))==TRIM(particles(i)%atomic_kind%name)) THEN
+                   name_kind = TRIM(particles(i)%atomic_kind%name)
+                   CALL uppercase(name_kind)
+                   IF (TRIM(colvar%coord_param%c_kinds_to(j))==name_kind) THEN
                       CALL reallocate(colvar%coord_param%i_at_to, 1, colvar%coord_param%n_atoms_to+1)
                       colvar%coord_param%n_atoms_to = colvar%coord_param%n_atoms_to + 1
                       colvar%coord_param%i_at_to(colvar%coord_param%n_atoms_to) = i
@@ -1377,7 +1383,9 @@ CONTAINS
              nkinds = SIZE(colvar%coord_param%c_kinds_to_b)
              DO i = 1, natoms
                 DO j = 1 , nkinds
-                   IF (TRIM(colvar%coord_param%c_kinds_to_b(j))==TRIM(particles(i)%atomic_kind%name)) THEN
+                  name_kind = TRIM(particles(i)%atomic_kind%name)
+                  CALL uppercase(name_kind)
+                   IF (TRIM(colvar%coord_param%c_kinds_to_b(j))==name_kind) THEN
                       CALL reallocate(colvar%coord_param%i_at_to_b, 1, colvar%coord_param%n_atoms_to_b+1)
                       colvar%coord_param%n_atoms_to_b = colvar%coord_param%n_atoms_to_b + 1
                       colvar%coord_param%i_at_to_b(colvar%coord_param%n_atoms_to_b) = i
