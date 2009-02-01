@@ -342,6 +342,7 @@ MODULE hfx_derivatives
 !$OMP                                  shm_storage_counter_integrals,&
 !$OMP                                  shm_neris_incore,&
 !$OMP                                  force,&
+!$OMP                                  cell,&
 !$OMP                                  my_adiabatic_rescale_factor)
 
     i_thread = 0
