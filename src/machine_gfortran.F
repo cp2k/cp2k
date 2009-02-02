@@ -87,9 +87,46 @@ END SUBROUTINE m_datum
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
 ! *****************************************************************************
   FUNCTION m_memory()
-    INTEGER(KIND=int_8)                      :: m_memory
 
-    m_memory=0
+      INTEGER(KIND=int_8)                      :: m_memory
+
+      !
+      ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize 
+      ! lead to linking errors or /proc/self/statm can not be opened
+      !
+#if defined(__NO_STATM_ACCESS)
+      m_memory=0
+#else
+      CHARACTER(LEN=80) :: data
+      INTEGER :: iostat,i
+
+      ! the size of a page, might not be available everywhere
+      INTERFACE
+       FUNCTION getpagesize() BIND(C,name="getpagesize") RESULT(RES)
+         USE ISO_C_BINDING
+         INTEGER(C_INT) :: RES
+       END FUNCTION
+      END INTERFACE
+
+      !
+      ! reading from statm
+      !
+      m_memory=-1
+      data=""
+      OPEN(121245,FILE="/proc/self/statm",ACTION="READ",STATUS="OLD",ACCESS="STREAM")
+      DO I=1,80
+         READ(121245,END=999) data(I:I)
+      ENDDO
+999   CLOSE(121245)
+      data(I:80)=""
+      READ(data,*,IOSTAT=iostat) m_memory
+      IF (iostat.NE.0) THEN
+         m_memory=0
+      ELSE
+         m_memory=m_memory*getpagesize()
+      ENDIF
+#endif
+
   END FUNCTION m_memory
 
 ! *****************************************************************************
