@@ -437,7 +437,8 @@ CONTAINS
       num_threads, output_unit, print_level
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: ata, efl, explicit, failure, &
-                                                trace, trace_sync
+                                                trace, trace_master, &
+                                                trace_sync
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum1, enum2
     TYPE(keyword_type), POINTER              :: keyword
@@ -466,13 +467,14 @@ CONTAINS
     CALL section_vals_val_get(global_section,"WALLTIME",r_val=globenv%cp2k_target_time,error=error)
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
     CALL section_vals_val_get(global_section,"TRACE_SYNC",l_val=trace_sync,error=error)
+    CALL section_vals_val_get(global_section,"TRACE_MASTER",l_val=trace_MASTER,error=error)
     CALL section_vals_val_get(global_section,"FLUSH_SHOULD_FLUSH",l_val=flush_should_flush,error=error)
     force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
     logger=>cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
          extension=".log",error=error)
-    IF(trace) CALL trace_debug("start",trace_sync,para_env)
+    IF(trace) CALL trace_debug("start",trace_sync,trace_master,para_env)
 
     SELECT CASE(i_fft)
     CASE(do_fft_sg)

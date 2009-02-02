@@ -62,7 +62,7 @@ MODULE timings
      REAL (KIND=dp)                                  :: inclusive_wallclock_accu ( max_timer )
      INTEGER                                         :: num_timer 
      CHARACTER ( LEN = 15 )                          :: astring, bstring
-     LOGICAL                                         :: trace,trace_sync
+     LOGICAL                                         :: trace,trace_sync,trace_master
      INTEGER                                         :: mepos,group,num_pe
   END TYPE timer_env_type
 
@@ -128,6 +128,7 @@ CONTAINS
     timer_env%num_timer=0
     timer_env%trace=.FALSE. 
     timer_env%trace_sync=.FALSE. 
+    timer_env%trace_master=.FALSE. 
     timer_env%group=-1
     timer_env%mepos=-1
     timer_env%num_pe=-1
@@ -207,6 +208,7 @@ CONTAINS
           timer_env%num_timer=0
           timer_env%trace=.FALSE.
           timer_env%trace_sync=.FALSE.
+          timer_env%trace_master=.FALSE.
           DEALLOCATE(timer_env,stat=stat)
           IF (stat/=0) THEN
              PRINT*,moduleN,':timer_env_release ERROR deallocating, stat=',stat
@@ -324,7 +326,9 @@ CONTAINS
              ENDIF
           ENDDO
        ELSE
-          WRITE(6,*) TRIM(line)
+          IF (.NOT.timer_env%trace_master .OR. timer_env%mepos==0) THEN
+             WRITE(6,*) TRIM(line)
+          ENDIF
        ENDIF
     ENDIF
 
@@ -413,7 +417,9 @@ CONTAINS
              ENDIF
           ENDDO
        ELSE
-          WRITE(6,*) TRIM(line)
+          IF (.NOT.timer_env%trace_master .OR. timer_env%mepos==0) THEN
+             WRITE(6,*) TRIM(line)
+          ENDIF
        ENDIF
     ENDIF
 
@@ -545,9 +551,9 @@ CONTAINS
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE trace_debug ( set, trace_sync, para_env )
+  SUBROUTINE trace_debug ( set, trace_sync, trace_master, para_env )
     CHARACTER(len=*)                         :: set
-    LOGICAL                                  :: trace_sync
+    LOGICAL                                  :: trace_sync, trace_master
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
 
     CHARACTER(len=5)                         :: set2
@@ -564,6 +570,7 @@ CONTAINS
     CALL uppercase(set2)
 
     timer_env%trace_sync=trace_sync
+    timer_env%trace_master=trace_master
     ! this is a hack, timer_env can not retain para_env in a clean way
     ! as such, there is little guarantee this communicator remains valid
     timer_env%group=para_env%group

@@ -440,6 +440,13 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="TRACE_MASTER",&
+         description="For parallel TRACEd runs: only the master node writes output.",&
+         usage="TRACE_MASTER",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword,name="SEED",&
          description="Initial seed for the global (pseudo)random number "//&
          "generator to create a stream of normally Gaussian "//&

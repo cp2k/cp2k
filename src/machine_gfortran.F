@@ -97,7 +97,7 @@ END SUBROUTINE m_datum
 #if defined(__NO_STATM_ACCESS)
       m_memory=0
 #else
-      CHARACTER(LEN=80) :: data
+      CHARACTER(LEN=80) :: DATA
       INTEGER :: iostat,i
 
       ! the size of a page, might not be available everywhere
@@ -112,14 +112,14 @@ END SUBROUTINE m_datum
       ! reading from statm
       !
       m_memory=-1
-      data=""
+      DATA=""
       OPEN(121245,FILE="/proc/self/statm",ACTION="READ",STATUS="OLD",ACCESS="STREAM")
       DO I=1,80
-         READ(121245,END=999) data(I:I)
+         READ(121245,END=999) DATA(I:I)
       ENDDO
 999   CLOSE(121245)
-      data(I:80)=""
-      READ(data,*,IOSTAT=iostat) m_memory
+      DATA(I:80)=""
+      READ(DATA,*,IOSTAT=iostat) m_memory
       IF (iostat.NE.0) THEN
          m_memory=0
       ELSE
