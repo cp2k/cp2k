@@ -273,6 +273,24 @@ CONTAINS
              check=.FALSE.
           ENDIF
        ENDIF
+       
+       ! Get rid of possible parentheses
+       IF (INDEX(cond1,"(") /= 0) cond1 = cond1(INDEX(cond1,"(")+1:)
+       IF (INDEX(cond2,")") /= 0) cond2 = cond2(1:INDEX(cond2,")")-1)
+
+       ! Shave off leading whitespace from cond1
+       indi=1
+       DO WHILE (is_whitespace(cond1(indi:indi)))
+          indi = indi + 1
+       END DO
+       cond1=cond1(indi:)
+
+       ! Shave off leading whitespace from cond2
+       indi=1
+       DO WHILE (is_whitespace(cond2(indi:indi)))
+          indi = indi + 1
+       END DO
+       cond2=cond2(indi:)
 
        IF(LEN_TRIM(cond2)==0) THEN
           WRITE(UNIT=message,FMT="(3A,I6)") &
@@ -280,18 +298,13 @@ CONTAINS
                TRIM(input_file_name), "  Line:",input_line_number
           CALL stop_program(routineP,TRIM(message))
        ENDIF
-       ! shave off leading whitespace from cond2
-       indi=1
-       DO WHILE (is_whitespace(cond2(indi:indi)))
-          indi = indi + 1
-       END DO
-       cond2=cond2(indi:)
 
        IF ((TRIM(cond1)==TRIM(cond2)) .EQV. check) THEN
           IF (debug_this_module) THEN
              WRITE(UNIT=message,FMT="(3A,I6,A)") "INPP_@IF: in file: ",&
                   TRIM(input_file_name),"  Line:",input_line_number,&
-                  " Conditional resolves to true. Continuing parsing."
+                  " Conditional ("//TRIM(cond1)//","//TRIM(cond2)//&
+                  ") resolves to true. Continuing parsing."
              WRITE(default_output_unit,*) TRIM(message)
           END IF
           ! resolves to true. keep on reading normally...
@@ -300,7 +313,8 @@ CONTAINS
           IF (debug_this_module) THEN
              WRITE(UNIT=message,FMT="(3A,I6,A)") "INPP_@IF: in file: ",&
                   TRIM(input_file_name),"  Line:",input_line_number,&
-                  " Conditional resolves to false. Skipping Lines."
+                  " Conditional ("//TRIM(cond1)//","//TRIM(cond2)//&
+                  ") resolves to false. Skipping Lines."
              WRITE(default_output_unit,*) TRIM(message)
           END IF
           istat=0
