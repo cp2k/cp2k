@@ -14,6 +14,7 @@ MODULE metadynamics
   USE colvar_methods,                  ONLY: colvar_eval_glob_f
   USE colvar_types,                    ONLY: colvar_p_type,&
                                              torsion_colvar_id
+  USE constraint_fxd,                  ONLY: fix_atom_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_print_key_finished_output,&
@@ -297,6 +298,8 @@ CONTAINS
           END IF
        ENDDO
     ENDIF
+    ! Constraints ONLY of Fixed Atom type
+    CALL fix_atom_control(force_env, error=error)
 
     ! Reflective Wall only for ss
     DO i_c = 1, meta_env%n_colvar
