@@ -179,3 +179,8 @@ CH-hfx-md-2.inp
 4H2O-mix-disk-ram.inp
 # New initial guess ATOMIC 
 4H2O-mix-disk-ram-on-the-fly.inp
+# new screening
+CH-hfx-md.inp
+4H2O-disk.inp
+4H2O-mix-disk-ram.inp
+4H2O-mix-disk-ram-on-the-fly.inp

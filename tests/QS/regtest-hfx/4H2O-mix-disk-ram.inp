@@ -25,7 +25,6 @@
       &HF
        &SCREENING
          EPS_SCHWARZ 1.0E-6
-         EPS_BOX 1.0E-7
          SCREEN_ON_INITIAL_P FALSE 
        &END
        &MEMORY

@@ -22,7 +22,6 @@
        &HF
         &SCREENING
           EPS_SCHWARZ 1.0E-10
-          EPS_BOX 1.0E-10
           SCREEN_P_FORCES FALSE
         &END
         &MEMORY

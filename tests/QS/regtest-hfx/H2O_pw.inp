@@ -27,7 +27,6 @@
       &HF
         &SCREENING
           EPS_SCHWARZ 1.0E-7
-          EPS_BOX     1.0E-7
         &END
 #       &PERIODIC
 #         NUMBER_OF_SHELLS 0

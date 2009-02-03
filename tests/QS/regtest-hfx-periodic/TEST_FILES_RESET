@@ -13,3 +13,10 @@ CH3-trunc-1.inp
 CH3-trunc-auto-md.inp
 # New initial guess ATOMIC 
 CH3-coul-0.inp
+# new screening
+H2O-trunc-2.inp
+H2O-trunc-auto.inp
+H2O-trunc-auto-md.inp
+CH3-trunc-auto.inp
+CH3-trunc-1.inp
+CH3-trunc-auto-md.inp
