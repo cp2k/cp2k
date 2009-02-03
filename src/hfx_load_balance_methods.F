@@ -13,25 +13,17 @@ MODULE hfx_load_balance_methods
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE erf_fn,                          ONLY: erfc
   USE f77_blas
   USE hfx_distribution_mc,             ONLY: optimize_distribution
   USE hfx_helpers,                     ONLY: FNV64
   USE hfx_types,                       ONLY: hfx_basis_type,&
-                                             hfx_box_scheme,&
                                              hfx_distribution,&
                                              hfx_load_balance_type,&
                                              hfx_potential_type,&
+                                             hfx_screen_coeff_type,&
                                              hfx_set_distr_energy,&
                                              hfx_set_distr_forces,&
                                              hfx_type
-  USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
-                                             do_hfx_potential_gaussian,&
-                                             do_hfx_potential_id,&
-                                             do_hfx_potential_mix_cl,&
-                                             do_hfx_potential_mix_lg,&
-                                             do_hfx_potential_short,&
-                                             do_hfx_potential_truncated
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants
@@ -61,10 +53,20 @@ MODULE hfx_load_balance_methods
 !> \param x_data Object that stores the indices array
 !> \param eps_schwarz screening parameter
 !> \param particle_set , atomic_kind_set, para_env
+!> \param max_set Maximum number of set to be considered
+!> \param para_env para_env
 !> \param potential_parameter short/longrange screening information 
-!> \param screen_set , screen_atom, screen_max: screening matrices
+!> \param coeffs_set, coeffs_kind: screening functions
 !> \param is_assoc_atomic_kind KS-matrix sparsity
-!> \param ks_matrix used for parallel computation of total number of integrals
+!> \param do_periodic flag for periodicity
+!> \param load_balance_parameter Paramters for Monte-Carlo routines
+!> \param kind_of helper array for mapping
+!> \param basis_parameter Basis set parameters
+!> \param pmax_set Initial screening matrix
+!> \param i_thread Process ID of current Thread
+!> \param n_thread Total Number of Threads
+!> \param cell cell
+!> \param do_p_screening Flag for initial p screening
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \note
@@ -84,23 +86,26 @@ MODULE hfx_load_balance_methods
 !>      08.2007 new parallel scheme [Manuel Guidon]
 !>      09.2007 new 'modulo' parellel scheme and Monte Carlo step [Manuel Guidon]
 !>      11.2007 parallelize load balance on box_idx1 [Manuel Guidon]
+!>      02.2009 completely refactored [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE load_balance_energy(x_data, eps_schwarz, eps_box, particle_set,max_set,para_env,&
-                                 potential_parameter, screen_set, screen_atom, screen_max,&
+  SUBROUTINE load_balance_energy(x_data, eps_schwarz, particle_set,max_set,para_env,&
+                                 potential_parameter, coeffs_set, coeffs_kind, &
                                  is_assoc_atomic_block_global, do_periodic,&
                                  load_balance_parameter, kind_of, basis_parameter, pmax_set, &
-                                 i_thread, n_threads, shm_far_field_boxes, cell, error)
+                                 i_thread, n_threads, cell, &
+                                 do_p_screening, error)
     TYPE(hfx_type), POINTER                  :: x_data
-    REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
+    REAL(dp), INTENT(IN)                     :: eps_schwarz
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: max_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(hfx_potential_type), INTENT(IN)     :: potential_parameter
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
-    REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
-    REAL(dp), INTENT(IN)                     :: screen_max
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :, :, :), POINTER         :: coeffs_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :), POINTER               :: coeffs_kind
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
     LOGICAL                                  :: do_periodic
     TYPE(hfx_load_balance_type)              :: load_balance_parameter
@@ -109,9 +114,8 @@ MODULE hfx_load_balance_methods
       POINTER                                :: basis_parameter
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
     INTEGER, INTENT(IN)                      :: i_thread, n_threads
-    TYPE(hfx_box_scheme), DIMENSION(:, :), &
-      POINTER                                :: shm_far_field_boxes
     TYPE(cell_type), POINTER                 :: cell
+    LOGICAL, INTENT(IN)                      :: do_p_screening
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_energy', &
@@ -119,12 +123,11 @@ MODULE hfx_load_balance_methods
 
     INTEGER :: data_from, dest, i, iatom, ibin, icpu, ikind, ipos, iset, j, &
       jatom, jkind, jset, katom, kkind, kset, latom, lkind, lset, &
-      my_process_id, natom, nbins, nseta, nsetb, nsetc, nsetd, &
-      pgf_radius_box, radius1, radius2, req(2), source, stat
-    INTEGER(int_8) :: box_idx1, box_idx2, box_idx3, box_idx4, &
-      current_counter, distribution_counter_end, distribution_counter_start, &
-      int_per_cpu, mepos, n_processes, ncpu, optimal_cost, restore_counter, &
-      tmp_counter1, total_integrals
+      my_process_id, natom, nbins, nseta, nsetb, nsetc, nsetd, req(2), &
+      source, stat
+    INTEGER(int_8) :: box_idx1, current_counter, distribution_counter_end, &
+      distribution_counter_start, int_per_cpu, mepos, n_processes, ncpu, &
+      optimal_cost, restore_counter, tmp_counter1, total_integrals
     INTEGER(int_8), ALLOCATABLE, &
       DIMENSION(:), SAVE                     :: optimal_costs
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
@@ -138,9 +141,9 @@ MODULE hfx_load_balance_methods
     INTEGER, SAVE                            :: rank_id_of_best_dist, &
                                                 thread_id_of_best_dist
     LOGICAL                                  :: failure
-    REAL(dp) :: center1(3), center2(3), center2_folded(3), Kbox, max_val1, &
-      max_val2, omega2Inv, omega_box, pbc_center(3), pmax_entry, R1, R2, &
-      Rbox, temp(3)
+    REAL(dp) :: B11(3), D11(3), log10_eps_schwarz, max_val1, max_val2, &
+      omega2Inv, pbc_B(3), pbc_D(3), pmax_entry, ra(3), rab2, rb(3), rc(3), &
+      rcd2, rd(3), temp(3)
     TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_tmp_dist
     TYPE(hfx_distribution), &
@@ -155,7 +158,7 @@ MODULE hfx_load_balance_methods
     END IF
     natom=SIZE(particle_set)
     failure=.FALSE.
-
+    log10_eps_schwarz = LOG10(eps_schwarz)
     ncpu = para_env%num_pe
     n_processes = ncpu * n_threads
     !! If there is only 1 cpu skip the binning
@@ -181,10 +184,19 @@ MODULE hfx_load_balance_methods
         ikind = kind_of(iatom)
         nseta =  basis_parameter(ikind)%nset
         nsgfa => basis_parameter(ikind)%nsgf
+        ra=particle_set(iatom)%r(:)
         DO jatom=iatom,natom
           box_idx1 = (iatom-1)*natom+jatom
+          rb=particle_set(jatom)%r(:)
           IF(MODULO(FNV64(box_idx1),n_processes) /= my_process_id) CYCLE 
-          IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
+          IF( do_periodic ) THEN
+            temp = rb -ra
+            pbc_B = pbc(temp,cell)
+            B11 = ra + pbc_B
+            rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
+          ELSE
+            rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+          END IF
           jkind = kind_of(jatom)
           nsetb =  basis_parameter(jkind)%nset
           nsgfb => basis_parameter(jkind)%nsgf
@@ -192,8 +204,23 @@ MODULE hfx_load_balance_methods
             kkind = kind_of(katom)
             nsetc =  basis_parameter(kkind)%nset
             nsgfc => basis_parameter(kkind)%nsgf
+            rc=particle_set(katom)%r(:)
             DO latom=katom,natom
-              IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
+              rd=particle_set(latom)%r(:)
+              IF( do_periodic ) THEN
+                temp = rd -rc
+                pbc_D = pbc(temp,cell)
+                D11 = rc + pbc_D
+                rcd2 = (rc(1)-D11(1))**2+(rc(2)-D11(2))**2+(rc(3)-D11(3))**2
+              ELSE
+                rcd2 = (rc(1)-rd(1))**2+(rc(2)-rd(2))**2+(rc(3)-rd(3))**2
+              END IF
+              lkind = kind_of(latom)
+              IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
+                   coeffs_kind(jkind,ikind)%x(2) ) + &
+                  (coeffs_kind(lkind,kkind)%x(1)*rcd2+&
+                   coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
+
               IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
                         is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
                         is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
@@ -202,73 +229,29 @@ MODULE hfx_load_balance_methods
               IF((katom+latom<=iatom+jatom))  THEN
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
                
-                box_idx3 = (katom-1)*natom+latom
-                lkind = kind_of(latom)
                 nsetd =  basis_parameter(lkind)%nset
                 nsgfd => basis_parameter(lkind)%nsgf
                 DO iset = 1, nseta
                   DO jset = 1,nsetb
-                    max_val1 = screen_set(iset,jset,iatom,jatom)
-                    IF (max_val1 * screen_atom(latom,katom) < eps_schwarz) CYCLE
-                    box_idx2 = (iset-1)*max_set+jset
-                    center1 = shm_far_field_boxes(box_idx2, box_idx1)%center
-                    R1 = shm_far_field_boxes(box_idx2, box_idx1)%R
-                    radius1 = shm_far_field_boxes(box_idx2, box_idx1)%radius
+                    max_val1 = coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
+                               coeffs_set(jset,iset,jkind,ikind)%x(2)
+                    IF( max_val1 + coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
+                                   coeffs_kind(lkind,kkind)%x(2)  <log10_eps_schwarz) CYCLE
                     DO kset = 1,nsetc
                       DO lset = 1,nsetd
-                        max_val2 = max_val1 * screen_set(lset,kset,latom,katom)
-                        pmax_entry = MAX(pmax_set(kset,iset,katom,iatom), &
-                                         pmax_set(lset,jset,latom,jatom), &
-                                         pmax_set(lset,iset,latom,iatom), &
-                                         pmax_set(kset,jset,katom,jatom))
-
-                        max_val2 = max_val2 * pmax_entry
-                        IF(max_val2<eps_schwarz) CYCLE
-                        box_idx4 = (kset-1)*max_set+lset
-                        IF(.NOT. do_periodic) THEN
-                          center2_folded = shm_far_field_boxes(box_idx4, box_idx3)%center
+                        max_val2 = max_val1 + (coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
+                                               coeffs_set(lset,kset,lkind,kkind)%x(2) )
+                        IF(max_val2 <log10_eps_schwarz ) CYCLE
+                        IF( do_p_screening ) THEN
+                          pmax_entry = MAX(pmax_set(kset,iset,katom,iatom), &
+                                           pmax_set(lset,jset,latom,jatom), &
+                                           pmax_set(lset,iset,latom,iatom), &
+                                           pmax_set(kset,jset,katom,jatom))
                         ELSE
-                          center2 = shm_far_field_boxes(box_idx4, box_idx3)%center
-                          temp = center2-center1
-                          pbc_center = pbc(temp, cell)
-                          center2_folded = center1 + pbc_center
+                          pmax_entry = 0.0_dp
                         END IF
-
-                        R2 = shm_far_field_boxes(box_idx4, box_idx3)%R
-                        radius2 = shm_far_field_boxes(box_idx4, box_idx3)%radius
-                        Rbox = (center1(1)-center2_folded(1))**2 + &
-                               (center1(2)-center2_folded(2))**2 + &
-                               (center1(3)-center2_folded(3))**2
-                        Rbox = SQRT(Rbox) - R1 - R2
-                        pgf_radius_box = radius1 + radius2 + 2
-                        IF(Rbox>pgf_radius_box) THEN
-
-                          max_val2 = 0.0_dp
-                          SELECT CASE(potential_parameter%potential_type)
-                            CASE(do_hfx_potential_coulomb, do_hfx_potential_truncated)
-                              Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                     shm_far_field_boxes(box_idx4, box_idx3)%K
-                              max_val2 = 1.0_dp/Rbox*Kbox
-                              max_val2 = max_val2 * pmax_entry
-                            CASE(do_hfx_potential_short)
-                              omega_box = shm_far_field_boxes(box_idx2, box_idx1)%alphaInv + &
-                                          shm_far_field_boxes(box_idx4, box_idx3)%alphaInv + &
-                                          omega2Inv 
-                              omega_box = 1.0_dp/omega_box
-                              Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                     shm_far_field_boxes(box_idx4, box_idx3)%K
-                              max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
-                              max_val2 = max_val2 * pmax_entry
-                            CASE(do_hfx_potential_mix_cl)
-                              Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                     shm_far_field_boxes(box_idx4, box_idx3)%K
-                              max_val2 = 1.0_dp/Rbox*Kbox
-                              max_val2 = max_val2 * pmax_entry
-                            CASE(do_hfx_potential_gaussian,do_hfx_potential_mix_lg, do_hfx_potential_id) 
-                              max_val2 = HUGE(max_val2)
-                          END SELECT
-                          IF(max_val2<eps_box) CYCLE
-                        END IF
+                        max_val2= max_val2 + pmax_entry
+                        IF( max_val2< log10_eps_schwarz) CYCLE
                         total_integrals = total_integrals + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                       ENDDO
                     ENDDO
@@ -292,6 +275,7 @@ MODULE hfx_load_balance_methods
       binned_dist(:,:)%lstart = 0
       binned_dist(:,:)%number_of_integrals = 0
       binned_dist(:,:)%cost = 0
+
       binned_dist(:,:)%original_cpu_id = 0
       binned_dist(:,:)%time_first_scf = 0.0_dp
       binned_dist(:,:)%time_other_scf =0.0_dp
@@ -309,15 +293,25 @@ MODULE hfx_load_balance_methods
         ikind = kind_of(iatom)
         nseta =  basis_parameter(ikind)%nset
         nsgfa => basis_parameter(ikind)%nsgf
-
+        ra=particle_set(iatom)%r(:)
         DO jatom=iatom,natom
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),n_processes) /= my_process_id) CYCLE
           jkind = kind_of(jatom)
           nsetb =  basis_parameter(jkind)%nset
           nsgfb => basis_parameter(jkind)%nsgf
+          rb=particle_set(jatom)%r(:)
+          IF( do_periodic ) THEN
+            temp = rb -ra
+            pbc_B = pbc(temp,cell)
+            B11 = ra + pbc_B
+            rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
+          ELSE
+            rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+          END IF
           DO katom=1,natom
             kkind = kind_of(katom)
+            rc=particle_set(katom)%r(:)
             nsetc =  basis_parameter(kkind)%nset
             nsgfc => basis_parameter(kkind)%nsgf
             DO latom=katom,natom
@@ -330,79 +324,49 @@ MODULE hfx_load_balance_methods
                 IF(binned_dist(1,ibin)%kstart == 0 ) binned_dist(1,ibin)%kstart = katom
                 IF(binned_dist(1,ibin)%lstart == 0 ) binned_dist(1,ibin)%lstart = latom
 
-                IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
-                IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
+                lkind = kind_of(latom)
+                rd=particle_set(latom)%r(:)
+                IF( do_periodic ) THEN
+                  temp = rd -rc
+                  pbc_D = pbc(temp,cell)
+                  D11 = rc + pbc_D
+                  rcd2 = (rc(1)-D11(1))**2+(rc(2)-D11(2))**2+(rc(3)-D11(3))**2
+                ELSE
+                  rcd2 = (rc(1)-rd(1))**2+(rc(2)-rd(2))**2+(rc(3)-rd(3))**2
+                END IF
+                IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
+                     coeffs_kind(jkind,ikind)%x(2) ) + &
+                    (coeffs_kind(lkind,kkind)%x(1)*rcd2+&
+                     coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
+
                 IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
                           is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
                           is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
                           is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
 
-                box_idx3 = (katom-1)*natom+latom
-                lkind = kind_of(latom)
                 nsetd =  basis_parameter(lkind)%nset
                 nsgfd => basis_parameter(lkind)%nsgf
                 DO iset = 1, nseta
                   DO jset = 1,nsetb
-                    max_val1 = screen_set(jset,iset,jatom,iatom)
-                    IF (max_val1 * screen_atom(latom,katom) < eps_schwarz) CYCLE
-                    box_idx2 = (iset-1)*max_set+jset
-                    center1 = shm_far_field_boxes(box_idx2, box_idx1)%center
-                    R1 = shm_far_field_boxes(box_idx2, box_idx1)%R
-                    radius1 = shm_far_field_boxes(box_idx2, box_idx1)%radius
+                    max_val1 = coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
+                               coeffs_set(jset,iset,jkind,ikind)%x(2)
+                    IF( max_val1 +( coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
+                                    coeffs_kind(lkind,kkind)%x(2) ) < log10_eps_schwarz) CYCLE
                     DO kset = 1,nsetc
                       DO lset = 1,nsetd
-                        max_val2 = max_val1 * screen_set(lset,kset,latom,katom)
-                        pmax_entry = MAX(pmax_set(kset,iset,katom,iatom), &
-                                         pmax_set(lset,jset,latom,jatom), &
-                                         pmax_set(lset,iset,latom,iatom), &
-                                         pmax_set(kset,jset,katom,jatom))
-                        max_val2 = max_val2 * pmax_entry
-                        IF(max_val2<eps_schwarz) CYCLE
-                        box_idx4 = (kset-1)*max_set+lset
-                        IF(.NOT. do_periodic) THEN
-                          center2_folded = shm_far_field_boxes(box_idx4, box_idx3)%center
+                        max_val2 = max_val1 + (coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
+                                               coeffs_set(lset,kset,lkind,kkind)%x(2) )
+                        IF(max_val2<log10_eps_schwarz) CYCLE
+                        IF( do_p_screening) THEN
+                          pmax_entry = MAX(pmax_set(kset,iset,katom,iatom), &
+                                           pmax_set(lset,jset,latom,jatom), &
+                                           pmax_set(lset,iset,latom,iatom), &
+                                           pmax_set(kset,jset,katom,jatom))
                         ELSE
-                          center2 = shm_far_field_boxes(box_idx4, box_idx3)%center
-                          temp = center2-center1
-                          pbc_center = pbc(temp, cell)
-                          center2_folded = center1 + pbc_center
+                          pmax_entry = 0.0_dp
                         END IF
-
-                        R2 = shm_far_field_boxes(box_idx4, box_idx3)%R
-                        radius2 = shm_far_field_boxes(box_idx4, box_idx3)%radius
-                        Rbox = (center1(1)-center2_folded(1))**2 + &
-                               (center1(2)-center2_folded(2))**2 + &
-                               (center1(3)-center2_folded(3))**2
-                        Rbox = SQRT(Rbox) - R1 - R2
-                        pgf_radius_box = radius1 + radius2 + 2
-
-                        IF(Rbox>pgf_radius_box) THEN
-                          max_val2 = 0.0_dp
-                          SELECT CASE(potential_parameter%potential_type)
-                            CASE(do_hfx_potential_coulomb, do_hfx_potential_truncated)
-                              Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                     shm_far_field_boxes(box_idx4, box_idx3)%K
-                              max_val2 = 1.0_dp/Rbox*Kbox
-                              max_val2 = max_val2 * pmax_entry
-                            CASE(do_hfx_potential_short)
-                              omega_box = shm_far_field_boxes(box_idx2, box_idx1)%alphaInv + &
-                                          shm_far_field_boxes(box_idx4, box_idx3)%alphaInv + &
-                                          omega2Inv 
-                              omega_box = 1.0_dp/omega_box
-                              Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                     shm_far_field_boxes(box_idx4, box_idx3)%K
-                              max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
-                              max_val2 = max_val2 * pmax_entry
-                            CASE(do_hfx_potential_mix_cl)
-                              Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                     shm_far_field_boxes(box_idx4, box_idx3)%K
-                              max_val2 = 1.0_dp/Rbox*Kbox
-                              max_val2 = max_val2 * pmax_entry
-                            CASE(do_hfx_potential_gaussian,do_hfx_potential_mix_lg, do_hfx_potential_id) 
-                              max_val2 = HUGE(max_val2)
-                          END SELECT
-                          IF(max_val2<eps_box) CYCLE
-                        END IF
+                        max_val2 = max_val2 + pmax_entry
+                        IF(max_val2<log10_eps_schwarz) CYCLE
                         current_counter = current_counter + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                       ENDDO
                     ENDDO
@@ -597,7 +561,7 @@ MODULE hfx_load_balance_methods
       ALLOCATE(tmp_pos(ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       tmp_pos = 1
-      ALLOCATE(tmp_dist(ncpu*n_threads,nbins*ncpu*n_threads),STAT=stat)
+      ALLOCATE(tmp_dist(1,nbins*ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       tmp_dist(:,:)%istart = 0
@@ -616,8 +580,10 @@ MODULE hfx_load_balance_methods
         DO icpu= 1,n_processes
           DO i=1,nbins
             IF(shm_distribution_vector((icpu-1)*nbins + i) == mepos) THEN
-              tmp_dist(mepos,tmp_pos(mepos)) = full_dist(icpu,i)
-              tmp_pos(mepos) = tmp_pos(mepos) + 1
+              IF( mepos - 1 == my_process_id) THEN
+                tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
+                tmp_pos(mepos) = tmp_pos(mepos) + 1
+              END IF
             END IF
           END DO
         END DO
@@ -627,7 +593,7 @@ MODULE hfx_load_balance_methods
       NULLIFY(ptr_to_tmp_dist) 
       DO mepos=1,n_processes
         IF(my_process_id == mepos -1) THEN
-          ptr_to_tmp_dist => tmp_dist(mepos,1:tmp_pos(mepos)-1)
+          ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
         END IF
       END DO
       CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
@@ -646,46 +612,64 @@ MODULE hfx_load_balance_methods
     END IF
   END SUBROUTINE load_balance_energy
 
+
 ! *****************************************************************************
-!> \brief Distributes the computation of eri-derivatives to all available processes.
+!> \brief Distributes the computation of derivative-eri's to all available processes.
 !> \param x_data Object that stores the indices array
 !> \param eps_schwarz screening parameter
 !> \param particle_set , atomic_kind_set, para_env
+!> \param max_set Maximum number of set to be considered
+!> \param para_env para_env
 !> \param potential_parameter short/longrange screening information 
-!> \param screen_set , screen_atom, screen_max, pmax_set: screening matrices
+!> \param coeffs_set, coeffs_kind: screening functions
+!> \param pmax_set Initial screening matrix
 !> \param is_assoc_atomic_kind KS-matrix sparsity
+!> \param do_periodic flag for periodicity
+!> \param load_balance_parameter Paramters for Monte-Carlo routines
+!> \param kind_of helper array for mapping
+!> \param basis_parameter Basis set parameters
+!> \param i_thread Process ID of current Thread
+!> \param n_thread Total Number of Threads
+!> \param cell cell
+!> \param screen_pmat_forces Flag for p screening
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \note
-!>      The optimization is done via a simple binning procedure:
+!>      The optimization is done via a binning procedure followed by simple 
+!>      Monte Carlo procedure:
 !>      In a first step the total amount of integrals in the system is calculated,
-!>      taking into account the sparsity of the KS-matrix, the screening based
-!>      on the Schwarz-Inequality and the density-matrix. Then, the procedure uses 
-!>      different bin-sizes in order to optimize the load balance.
+!>      taking into account the sparsity of the KS-matrix , the screening based
+!>      on near/farfield approximations and if desired the screening on an initial
+!>      density matrix. In a second step, these integrals are distributed to bins
+!>      of a given size. Finally, a Monte Carlo procedure optimizes the assignment
+!>      of the different loads to each process
 !>      At the end each process owns an unique array of inidices-ranges 
 !>      that are used to decide whether a process has to calculate a certain
-!>      bunch of integrals.
+!>      bunch of integrals or not
 !> \par History
 !>      06.2007 created [Manuel Guidon]
 !>      08.2007 new parallel scheme [Manuel Guidon]
+!>      09.2007 new 'modulo' parellel scheme and Monte Carlo step [Manuel Guidon]
 !>      11.2007 parallelize load balance on box_idx1 [Manuel Guidon]
+!>      02.2009 completely refactored [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE load_balance_forces(x_data, eps_schwarz, eps_box, particle_set,max_set,para_env,&
-                                 potential_parameter, screen_set, screen_atom, screen_max,&
+  SUBROUTINE load_balance_forces(x_data, eps_schwarz, particle_set,max_set,para_env,&
+                                 potential_parameter, coeffs_set, coeffs_kind,&
                                  pmax_set, is_assoc_atomic_block_global, do_periodic, &
                                  load_balance_parameter, kind_of, basis_parameter,&
-                                 i_thread, n_threads, shm_far_field_boxes, cell, error)
+                                 i_thread, n_threads, cell, screen_pmat_forces, error)
     TYPE(hfx_type), POINTER                  :: x_data
-    REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
+    REAL(dp), INTENT(IN)                     :: eps_schwarz
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: max_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(hfx_potential_type), INTENT(IN)     :: potential_parameter
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
-    REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
-    REAL(dp), INTENT(IN)                     :: screen_max
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :, :, :), POINTER         :: coeffs_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :), POINTER               :: coeffs_kind
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
     LOGICAL                                  :: do_periodic
@@ -694,9 +678,8 @@ MODULE hfx_load_balance_methods
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     INTEGER, INTENT(IN)                      :: i_thread, n_threads
-    TYPE(hfx_box_scheme), DIMENSION(:, :), &
-      POINTER                                :: shm_far_field_boxes
     TYPE(cell_type), POINTER                 :: cell
+    LOGICAL, INTENT(IN)                      :: screen_pmat_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_forces', &
@@ -704,12 +687,11 @@ MODULE hfx_load_balance_methods
 
     INTEGER :: data_from, dest, i, iatom, ibin, icpu, ikind, ipos, iset, j, &
       jatom, jkind, jset, katom, kkind, kset, latom, lkind, lset, &
-      my_process_id, natom, nbins, nseta, nsetb, nsetc, nsetd, &
-      pgf_radius_box, radius1, radius2, req(2), source, stat
-    INTEGER(int_8) :: box_idx1, box_idx2, box_idx3, box_idx4, &
-      current_counter, distribution_counter_end, distribution_counter_start, &
-      int_per_cpu, mepos, n_processes, ncpu, optimal_cost, restore_counter, &
-      tmp_counter1, total_integrals
+      my_process_id, natom, nbins, nseta, nsetb, nsetc, nsetd, req(2), &
+      source, stat
+    INTEGER(int_8) :: box_idx1, current_counter, distribution_counter_end, &
+      distribution_counter_start, int_per_cpu, mepos, n_processes, ncpu, &
+      optimal_cost, restore_counter, tmp_counter1, total_integrals
     INTEGER(int_8), ALLOCATABLE, &
       DIMENSION(:), SAVE                     :: optimal_costs
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
@@ -723,9 +705,9 @@ MODULE hfx_load_balance_methods
     INTEGER, SAVE                            :: rank_id_of_best_dist, &
                                                 thread_id_of_best_dist
     LOGICAL                                  :: failure
-    REAL(dp) :: center1(3), center2(3), center2_folded(3), Kbox, max_val1, &
-      max_val2, omega2Inv, omega_box, pbc_center(3), pmax_entry, R1, R2, &
-      Rbox, temp(3)
+    REAL(dp) :: B11(3), D11(3), log10_eps_schwarz, log10_pmax, log_2, &
+      max_val1, max_val2, omega2Inv, pbc_B(3), pbc_D(3), ra(3), rab2, rb(3), &
+      rc(3), rcd2, rd(3), temp(3)
     TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_tmp_dist
     TYPE(hfx_distribution), &
@@ -733,6 +715,8 @@ MODULE hfx_load_balance_methods
     TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER, SAVE         :: full_dist
 
+    log_2 = LOG10(2.0_dp)
+     
     IF(potential_parameter%omega /= 0.0_dp) THEN
       omega2Inv = 1.0_dp/(potential_parameter%omega**2)
     ELSE
@@ -740,7 +724,7 @@ MODULE hfx_load_balance_methods
     END IF
 
     natom=SIZE(particle_set)
-
+    log10_eps_schwarz = LOG10(eps_schwarz)
     failure=.FALSE.
     ncpu = para_env%num_pe
     n_processes = ncpu * n_threads
@@ -764,89 +748,74 @@ MODULE hfx_load_balance_methods
         ikind = kind_of(iatom)
         nseta =  basis_parameter(ikind)%nset
         nsgfa => basis_parameter(ikind)%nsgf
+        ra = particle_set(iatom)%r(:)
         DO jatom=iatom,natom 
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),n_processes) /= my_process_id) CYCLE
-          IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
+          rb=particle_set(jatom)%r(:)
+          IF( do_periodic ) THEN
+            temp = rb -ra
+            pbc_B = pbc(temp,cell)
+            B11 = ra + pbc_B
+            rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
+          ELSE
+            rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+          END IF
           jkind = kind_of(jatom)
           nsetb =  basis_parameter(jkind)%nset
           nsgfb => basis_parameter(jkind)%nsgf
-          box_idx1 = (iatom-1)*natom+jatom
           DO katom=1,natom
             kkind = kind_of(katom)
             nsetc =  basis_parameter(kkind)%nset
             nsgfc => basis_parameter(kkind)%nsgf
+            rc = particle_set(katom)%r(:)
             DO latom=katom,natom
               !All four centers equivalent => zero-contribution
               IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
+              rd = particle_set(latom)%r(:)
+              IF( do_periodic ) THEN
+                temp = rd -rc
+                pbc_D = pbc(temp,cell)
+                D11 = rc + pbc_D
+                rcd2 = (rc(1)-D11(1))**2+(rc(2)-D11(2))**2+(rc(3)-D11(3))**2
+              ELSE
+                rcd2 = (rc(1)-rd(1))**2+(rc(2)-rd(2))**2+(rc(3)-rd(3))**2
+              END IF
+              lkind = kind_of(latom)
 
-              IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
+              IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
+                   coeffs_kind(jkind,ikind)%x(2) ) + &
+                  (coeffs_kind(lkind,kkind)%x(1)*rcd2+&
+                   coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
+
               IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
                         is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
                         is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
                         is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
+
               IF((katom+latom<=iatom+jatom))  THEN
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
-                lkind = kind_of(latom)
                 nsetd =  basis_parameter(lkind)%nset
                 nsgfd => basis_parameter(lkind)%nsgf
-                box_idx3 = (katom-1)*natom+latom
-
                 DO iset = 1, nseta
                   DO jset = 1,nsetb
-                    max_val1 = screen_set(jset,iset,jatom,iatom)
-                    IF (max_val1 * screen_atom(latom,katom) < eps_schwarz) CYCLE
-                    box_idx2 = (iset-1)*max_set+jset
-                    center1 = shm_far_field_boxes(box_idx2, box_idx1)%center
-                    R1 = shm_far_field_boxes(box_idx2, box_idx1)%R
-                    radius1 = shm_far_field_boxes(box_idx2, box_idx1)%radius
+                    max_val1 = coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
+                               coeffs_set(jset,iset,jkind,ikind)%x(2)
+                    IF (max_val1 +coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
+                                   coeffs_kind(lkind,kkind)%x(2)  <log10_eps_schwarz) CYCLE
                     DO kset = 1,nsetc
                       DO lset = 1,nsetd
-                        pmax_entry = 2.0_dp*MAX(pmax_set(kset,iset,katom,iatom) * pmax_set(lset,jset,latom,jatom),&
-                                                pmax_set(lset,iset,latom,iatom) * pmax_set(kset,jset,katom,jatom))
-                        max_val2 = max_val1 * pmax_entry
-                        IF(max_val2<eps_schwarz) CYCLE
-                        box_idx4 = (kset-1)*max_set+lset
-                        IF(.NOT. do_periodic) THEN
-                          center2_folded = shm_far_field_boxes(box_idx4, box_idx3)%center
+                        max_val2 = max_val1 + (coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
+                                               coeffs_set(lset,kset,lkind,kkind)%x(2) )
+                        IF(max_val2 < log10_eps_schwarz ) CYCLE
+                        IF( screen_pmat_forces) THEN
+                          log10_pmax = log_2 + MAX(pmax_set(kset,iset,katom,iatom) + pmax_set(lset,jset,latom,jatom),&
+                                                  pmax_set(lset,iset,latom,iatom) + pmax_set(kset,jset,katom,jatom))
                         ELSE
-                          center2 = shm_far_field_boxes(box_idx4, box_idx3)%center
-                          temp = center2-center1
-                          pbc_center = pbc(temp, cell)
-                          center2_folded = center1 + pbc_center
+                          log10_pmax = 0.0_dp
                         END IF
-                        R2 = shm_far_field_boxes(box_idx4, box_idx3)%R
-                        radius2 = shm_far_field_boxes(box_idx4, box_idx3)%radius
-                        Rbox = (center1(1)-center2_folded(1))**2 + &
-                               (center1(2)-center2_folded(2))**2 + &
-                               (center1(3)-center2_folded(3))**2
-                        Rbox = SQRT(Rbox) - R1 - R2
-                        pgf_radius_box = radius1 + radius2 + 2
-
-                        IF(Rbox>pgf_radius_box) THEN
-                          max_val2 = 0.0_dp
-                          SELECT CASE(potential_parameter%potential_type)
-                            CASE(do_hfx_potential_coulomb, do_hfx_potential_truncated)
-                              Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                     shm_far_field_boxes(box_idx4, box_idx3)%K
-                              max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry 
-                            CASE(do_hfx_potential_short)
-                              omega_box = shm_far_field_boxes(box_idx2, box_idx1)%alphaInv + &
-                                          shm_far_field_boxes(box_idx4, box_idx3)%alphaInv + &
-                                          omega2Inv 
-                              omega_box = 1.0_dp/omega_box
-                              Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                     shm_far_field_boxes(box_idx4, box_idx3)%K
-                              max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox * pmax_entry 
-                            CASE(do_hfx_potential_mix_cl)
-                              Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                     shm_far_field_boxes(box_idx4, box_idx3)%K
-                              max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry
-                            CASE(do_hfx_potential_gaussian,do_hfx_potential_mix_lg, do_hfx_potential_id) 
-                              max_val2 = HUGE(max_val2)
-                          END SELECT
-                          IF(max_val2<eps_box) CYCLE
-                        END IF
+                        max_val2 = max_val2 + log10_pmax
+                        IF(max_val2<log10_eps_schwarz) CYCLE
                         total_integrals = total_integrals + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                       ENDDO
                     ENDDO
@@ -882,17 +851,27 @@ MODULE hfx_load_balance_methods
         ikind = kind_of(iatom)
         nseta =  basis_parameter(ikind)%nset
         nsgfa => basis_parameter(ikind)%nsgf
+        ra=particle_set(iatom)%r(:)
         DO jatom=iatom,natom
           box_idx1 = (iatom-1)*natom+jatom
           IF(MODULO(FNV64(box_idx1),n_processes) /= my_process_id) CYCLE
           jkind = kind_of(jatom)
+          rb=particle_set(jatom)%r(:)
+          IF( do_periodic ) THEN
+            temp = rb -ra
+            pbc_B = pbc(temp,cell)
+            B11 = ra + pbc_B
+            rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
+          ELSE
+            rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+          END IF
           nsetb =  basis_parameter(jkind)%nset
           nsgfb => basis_parameter(jkind)%nsgf
-          box_idx1 = (iatom-1)*natom+jatom
           DO katom=1,natom
             kkind = kind_of(katom)
             nsetc =  basis_parameter(kkind)%nset
             nsgfc => basis_parameter(kkind)%nsgf
+            rc = particle_set(katom)%r(:)
             DO latom=katom,natom
               !All four centers equivalent => zero-contribution
               IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
@@ -905,73 +884,49 @@ MODULE hfx_load_balance_methods
                 IF(binned_dist(1,ibin)%kstart == 0 ) binned_dist(1,ibin)%kstart = katom
                 IF(binned_dist(1,ibin)%lstart == 0 ) binned_dist(1,ibin)%lstart = latom
 
-                IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
-                IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
+                lkind = kind_of(latom)
+                rd = particle_set(latom)%r(:)
+                IF( do_periodic ) THEN
+                  temp = rd -rc
+                  pbc_D = pbc(temp,cell)
+                  D11 = rc + pbc_D
+                  rcd2 = (rc(1)-D11(1))**2+(rc(2)-D11(2))**2+(rc(3)-D11(3))**2
+                ELSE
+                  rcd2 = (rc(1)-rd(1))**2+(rc(2)-rd(2))**2+(rc(3)-rd(3))**2
+                END IF
+
+                IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
+                     coeffs_kind(jkind,ikind)%x(2) ) + &
+                    (coeffs_kind(lkind,kkind)%x(1)*rcd2+&
+                     coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
+
                 IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
                           is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
                           is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
                           is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
  
-                lkind = kind_of(latom)
+
                 nsetd =  basis_parameter(lkind)%nset
                 nsgfd => basis_parameter(lkind)%nsgf
-                box_idx3 = (katom-1)*natom+latom
                 DO iset = 1, nseta
                   DO jset = 1,nsetb
-                   max_val1 = screen_set(jset,iset,jatom,iatom)
-                    IF (max_val1 * screen_atom(latom,katom) < eps_schwarz) CYCLE
-                    box_idx2 = (iset-1)*max_set+jset
-                    center1 = shm_far_field_boxes(box_idx2, box_idx1)%center
-                    R1 = shm_far_field_boxes(box_idx2, box_idx1)%R
-                    radius1 = shm_far_field_boxes(box_idx2, box_idx1)%radius
+                   max_val1 = coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
+                              coeffs_set(jset,iset,jkind,ikind)%x(2)
+                    IF (max_val1 +( coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
+                                    coeffs_kind(lkind,kkind)%x(2) ) < log10_eps_schwarz) CYCLE
                     DO kset = 1,nsetc
                      DO lset = 1,nsetd
-                        pmax_entry = 2.0_dp*MAX(pmax_set(kset,iset,katom,iatom) * pmax_set(lset,jset,latom,jatom),&
-                                                pmax_set(lset,iset,latom,iatom) * pmax_set(kset,jset,katom,jatom))
-
-                        max_val2 = max_val1 * pmax_entry
-                        IF(max_val2<eps_schwarz) CYCLE
-                        box_idx4 = (kset-1)*max_set+lset
-                        IF(.NOT. do_periodic) THEN
-                          center2_folded = shm_far_field_boxes(box_idx4, box_idx3)%center
+                        max_val2 = max_val1 + (coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
+                                               coeffs_set(lset,kset,lkind,kkind)%x(2) )
+                        IF(max_val2<log10_eps_schwarz) CYCLE
+                        IF( screen_pmat_forces) THEN
+                          log10_pmax = log_2 + MAX(pmax_set(kset,iset,katom,iatom) + pmax_set(lset,jset,latom,jatom),&
+                                                  pmax_set(lset,iset,latom,iatom) + pmax_set(kset,jset,katom,jatom))
                         ELSE
-                          center2 = shm_far_field_boxes(box_idx4, box_idx3)%center
-                          temp = center2-center1
-                          pbc_center = pbc(temp, cell)
-                          center2_folded = center1 + pbc_center
+                          log10_pmax = 0.0_dp
                         END IF
-                        R2 = shm_far_field_boxes(box_idx4, box_idx3)%R
-                        radius2 = shm_far_field_boxes(box_idx4, box_idx3)%radius
-                        Rbox = (center1(1)-center2_folded(1))**2 + &
-                               (center1(2)-center2_folded(2))**2 + &
-                               (center1(3)-center2_folded(3))**2
-                        Rbox = SQRT(Rbox) - R1 - R2
-                        pgf_radius_box = radius1 + radius2 + 2
-
-                        IF(Rbox>pgf_radius_box) THEN
-                          max_val2 = 0.0_dp
-                          SELECT CASE(potential_parameter%potential_type)
-                            CASE(do_hfx_potential_coulomb, do_hfx_potential_truncated)
-                              Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                     shm_far_field_boxes(box_idx4, box_idx3)%K
-                              max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry
-                            CASE(do_hfx_potential_short)
-                              omega_box = shm_far_field_boxes(box_idx2, box_idx1)%alphaInv + &
-                                          shm_far_field_boxes(box_idx4, box_idx3)%alphaInv + &
-                                          omega2Inv
-                              omega_box = 1.0_dp/omega_box
-                              Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                     shm_far_field_boxes(box_idx4, box_idx3)%K
-                              max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox * pmax_entry
-                            CASE(do_hfx_potential_mix_cl)
-                              Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                     shm_far_field_boxes(box_idx4, box_idx3)%K
-                              max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry
-                            CASE(do_hfx_potential_gaussian,do_hfx_potential_mix_lg, do_hfx_potential_id) 
-                              max_val2 = HUGE(max_val2)
-                          END SELECT
-                          IF(max_val2<eps_box) CYCLE
-                        END IF
+                        max_val2 = max_val2 + log10_pmax
+                        IF(max_val2<log10_eps_schwarz) CYCLE
                         current_counter = current_counter + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                       ENDDO
                     ENDDO
@@ -1166,7 +1121,7 @@ MODULE hfx_load_balance_methods
       ALLOCATE(tmp_pos(ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       tmp_pos = 1
-      ALLOCATE(tmp_dist(ncpu*n_threads,nbins*ncpu*n_threads),STAT=stat)
+      ALLOCATE(tmp_dist(1,nbins*ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       tmp_dist(:,:)%istart = 0
@@ -1183,8 +1138,10 @@ MODULE hfx_load_balance_methods
         DO icpu= 1,n_processes
           DO i=1,nbins
             IF(shm_distribution_vector((icpu-1)*nbins + i) == mepos) THEN
-              tmp_dist(mepos,tmp_pos(mepos)) = full_dist(icpu,i)
-              tmp_pos(mepos) = tmp_pos(mepos) + 1
+              IF(mepos - 1 == my_process_id) THEN
+                tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
+                tmp_pos(mepos) = tmp_pos(mepos) + 1
+              END IF
             END IF
           END DO
         END DO
@@ -1194,7 +1151,7 @@ MODULE hfx_load_balance_methods
       NULLIFY(ptr_to_tmp_dist)
       DO mepos=1,n_processes
         IF(my_process_id == mepos -1) THEN
-          ptr_to_tmp_dist => tmp_dist(mepos,1:tmp_pos(mepos)-1)
+          ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
         END IF
       END DO
       CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
@@ -1215,17 +1172,20 @@ MODULE hfx_load_balance_methods
   END SUBROUTINE load_balance_forces
 
 ! *****************************************************************************
-!> \brief Distributes the computation of eri's to all available processes.
+!> \brief Cheap way of redistributing the eri's
 !> \param x_data Object that stores the indices array
-!> \param potential_parameter short/longrange screening information 
-!> \param screen_set , screen_atom, screen_max: screening matrices
-!> \param is_assoc_atomic_kind KS-matrix sparsity
+!> \param para_env para_env
+!> \param load_balance_parameter contains parmameter for Monte-Carlo routines
+!> \param i_thread current thread ID
+!> \param n_threads Total Number of threads
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \note
-!>      The cost matrix is given by the walltime for each bin that is measured during the calculation
+!>      The cost matrix is given by the walltime for each bin that is measured 
+!>      during the calculation
 !> \par History
 !>      12.2007 created [Manuel Guidon]
+!>      02.2009 optimize Memory Usage [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE update_load_balance_energy(x_data, para_env, &
@@ -1499,8 +1459,9 @@ MODULE hfx_load_balance_methods
       ALLOCATE(tmp_pos(ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       tmp_pos = 1
-      ALLOCATE(tmp_dist(ncpu*n_threads,nbins*ncpu*n_threads),STAT=stat)
+      ALLOCATE(tmp_dist(1,nbins*ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
       tmp_dist(:,:)%istart = 0
       tmp_dist(:,:)%jstart = 0
       tmp_dist(:,:)%kstart = 0
@@ -1516,18 +1477,20 @@ MODULE hfx_load_balance_methods
         DO icpu= 1,n_processes
           DO i = 1,bin_histogram(icpu,1)
             IF(shm_distribution_vector(bin_histogram(icpu,2)- bin_histogram(icpu,1) + i) == mepos) THEN
-              tmp_dist(mepos,tmp_pos(mepos)) = full_dist(icpu,i)
-              tmp_pos(mepos) = tmp_pos(mepos) + 1
+               IF( mepos - 1 == my_process_id) THEN
+                 tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
+                 tmp_pos(mepos) = tmp_pos(mepos) + 1
+               END IF
             END IF
           END DO
         END DO
       END DO
-      
+ 
       !! Assign the load to each process
       NULLIFY(ptr_to_tmp_dist) 
       DO mepos=1,n_processes
         IF(my_process_id == mepos -1) THEN
-          ptr_to_tmp_dist => tmp_dist(mepos,1:tmp_pos(mepos)-1)
+          ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
         END IF
       END DO
 
@@ -1551,17 +1514,20 @@ MODULE hfx_load_balance_methods
   END SUBROUTINE update_load_balance_energy
 
 ! *****************************************************************************
-!> \brief Distributes the computation of eri's to all available processes.
+!> \brief Cheap way of redistributing the derivative eri's
 !> \param x_data Object that stores the indices array
-!> \param potential_parameter short/longrange screening information 
-!> \param screen_set , screen_atom, screen_max: screening matrices
-!> \param is_assoc_atomic_kind KS-matrix sparsity
+!> \param para_env para_env
+!> \param load_balance_parameter contains parmameter for Monte-Carlo routines
+!> \param i_thread current thread ID
+!> \param n_threads Total Number of threads
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \note
-!>      The cost matrix is given by the walltime for each bin that is measured during the calculation
+!>      The cost matrix is given by the walltime for each bin that is measured 
+!>      during the calculation
 !> \par History
 !>      12.2007 created [Manuel Guidon]
+!>      02.2009 optimize Memory Usage [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE update_load_balance_forces(x_data, para_env,&
@@ -1833,8 +1799,10 @@ MODULE hfx_load_balance_methods
       ALLOCATE(tmp_pos(ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       tmp_pos = 1
-      ALLOCATE(tmp_dist(ncpu*n_threads,nbins*ncpu*n_threads),STAT=stat)
+       
+      ALLOCATE(tmp_dist(1,nbins*ncpu*n_threads),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
       tmp_dist(:,:)%istart = 0
       tmp_dist(:,:)%jstart = 0
       tmp_dist(:,:)%kstart = 0
@@ -1850,18 +1818,20 @@ MODULE hfx_load_balance_methods
         DO icpu= 1,n_processes
           DO i = 1,bin_histogram(icpu,1)
             IF(shm_distribution_vector(bin_histogram(icpu,2)- bin_histogram(icpu,1) + i) == mepos) THEN
-              tmp_dist(mepos,tmp_pos(mepos)) = full_dist(icpu,i)
-              tmp_pos(mepos) = tmp_pos(mepos) + 1
+              IF( mepos - 1 == my_process_id) THEN
+                tmp_dist(1,tmp_pos(mepos)) = full_dist(icpu,i)
+                tmp_pos(mepos) = tmp_pos(mepos) + 1
+              END IF
             END IF
           END DO
         END DO
       END DO
-      
+     
       !! Assign the load to each process
       NULLIFY(ptr_to_tmp_dist) 
       DO mepos=1,n_processes
         IF(my_process_id == mepos -1) THEN
-          ptr_to_tmp_dist => tmp_dist(mepos,1:tmp_pos(mepos)-1)
+          ptr_to_tmp_dist => tmp_dist(1,1:tmp_pos(mepos)-1)
         END IF
       END DO
 

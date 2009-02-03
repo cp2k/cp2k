@@ -14,12 +14,9 @@ MODULE hfx_derivatives
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
-                                             pbc,&
-                                             real_to_scaled,&
-                                             scaled_to_real
+                                             pbc
   USE cp_files,                        ONLY: get_unit_number
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE erf_fn,                          ONLY: erfc
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: get_full_density
   USE hfx_helpers,                     ONLY: FNV64
@@ -30,20 +27,12 @@ MODULE hfx_derivatives
                                              lib_int
   USE hfx_load_balance_methods,        ONLY: load_balance_forces,&
                                              update_load_balance_forces
-  USE hfx_screening_methods,           ONLY: comp_pmax_mat,&
-                                             comp_screen_mat,&
-                                             comp_screen_mat_per
+  USE hfx_screening_methods,           ONLY: update_pmax_mat
   USE hfx_types,                       ONLY: &
-       hfx_basis_info_type, hfx_basis_type, hfx_box_scheme, hfx_cell_type, &
-       hfx_general_type, hfx_load_balance_type, hfx_potential_type, &
-       hfx_screening_type, hfx_type
-  USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
-                                             do_hfx_potential_gaussian,&
-                                             do_hfx_potential_id,&
-                                             do_hfx_potential_mix_cl,&
-                                             do_hfx_potential_mix_lg,&
-                                             do_hfx_potential_short,&
-                                             do_hfx_potential_truncated
+       hfx_basis_info_type, hfx_basis_type, hfx_cell_type, hfx_general_type, &
+       hfx_load_balance_type, hfx_potential_type, hfx_screen_coeff_type, &
+       hfx_screening_type, hfx_type, log_zero
+  USE input_constants,                 ONLY: do_hfx_potential_truncated
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -80,108 +69,23 @@ MODULE hfx_derivatives
   
   CONTAINS
 
-
-! *****************************************************************************
-!> \brief calculates two-electron derivatived of a quartet/shell using the library 
-!>      lib_deriv
-!> \param r position
-!> \param z zeta
-!> \param l angular momentum
-!> \param npgf number of primitive cartesian gaussian in actual shell
-!> \param primitive_forces array of primitive_forces
-!> \param work_forces work_storage
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      03.2007 created [Manuel Guidon]
-!> \author Manuel Guidon
-! *****************************************************************************
-  SUBROUTINE forces4(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
-                    la_min, la_max, lb_min, lb_max,&
-                    lc_min, lc_max, ld_min, ld_max,&
-                    npgfa, npgfb, npgfc, npgfd,&
-                    ncoa, ncob, ncoc, ncod,&
-                    primitive_forces, work_forces,&
-                    potential_parameter, eps_schwarz, max_contraction_val, &
-                    cartesian_estimate, i_thread)
-  
-    REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb, zetc, zetd
-    INTEGER, INTENT(IN) :: la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
-      ld_min, ld_max, npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod
-    REAL(dp), &
-      DIMENSION(ncoa, ncob, ncoc, ncod, 12)  :: primitive_forces
-    REAL(dp), DIMENSION(*)                   :: work_forces
-    TYPE(hfx_potential_type)                 :: potential_parameter
-    REAL(dp), INTENT(IN)                     :: eps_schwarz, &
-                                                max_contraction_val
-    REAL(dp), INTENT(INOUT)                  :: cartesian_estimate
-    INTEGER, INTENT(IN)                      :: i_thread
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'forces4', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, lpgf, offset_a, offset_a1, &
-      offset_b, offset_b1, offset_c, offset_c1, offset_d, offset_d1
-    LOGICAL                                  :: failure
-    REAL(dp)                                 :: tmp_max_all
-
-    failure = .FALSE.
-    cartesian_estimate = 0.0_dp
-
-    primitive_forces = 0.0_dp
-    DO ipgf = 1,npgfa
-      offset_a1 = (ipgf-1)*ncoset(la_max)
-      DO jpgf = 1,npgfb
-        offset_b1 = (jpgf-1)*ncoset(lb_max)
-        DO kpgf = 1,npgfc
-          offset_c1 = (kpgf-1)*ncoset(lc_max)
-          DO lpgf = 1,npgfd
-            offset_d1 = (lpgf-1)*ncoset(ld_max)
-            DO la = la_min,la_max
-              offset_a = offset_a1 + ncoset(la-1)
-              DO lb = lb_min, lb_max
-                offset_b = offset_b1 + ncoset(lb-1)
-                DO lc = lc_min, lc_max
-                  offset_c = offset_c1 + ncoset(lc-1)
-                  DO ld = ld_min, ld_max
-                    offset_d = offset_d1 + ncoset(ld-1) 
-                    !Build primitives
-                    tmp_max_all = 0.0_dp
-                    CALL evaluate_deriv_eri(deriv(i_thread+1), ra, rb, rc, rd,&
-                                           zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
-                                           la, lb, lc ,ld,&
-                                           work_forces,&
-                                           ncoa, ncob, ncoc, ncod, &
-                                           primitive_forces, &
-                                           offset_a, offset_b, offset_c, offset_d,&
-                                           potential_parameter, max_contraction_val, tmp_max_all, eps_schwarz)
-                    cartesian_estimate = MAX(cartesian_estimate, tmp_max_all)
-                  END DO !ld
-                END DO !lc
-              END DO !lb
-            END DO !la
-
-          END DO !lpgf
-        END DO !kpgf
-      END DO !jpgf
-    END DO !ipgf
-  
-  END SUBROUTINE forces4
-
 ! *****************************************************************************
 !> \brief computes four center derivatives for a full basis set and updates the
 !>      forces%fock_4c arrays. Uses all 8 eri symmetries
 !> \param qs_env  
-!> \param ks_matri x
-!> \param energ y
+!> \param ks_matrix
+!> \param energy
 !> \param rho density matrix
-!> \param para_en v
+!> \param hfx_section HFX input section
+!> \param para_env para_env
+!> \param irep ID of HFX replica
+!> \param adiabatic_rescale_factor parameter used for MCY3 hybrid
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      06.2007 created [Manuel Guidon]
 !>      08.2007 optimized load balance [Manuel Guidon]
+!>      02.2009 completely rewritten screening part [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE derivatives_four_center(qs_env,ks_matrix,energy,rho,hfx_section,para_env,& 
@@ -207,10 +111,11 @@ MODULE hfx_derivatives
       md, my_bin_size, my_istart, my_jstart, my_kstart, my_lstart, n_threads, &
       natom, nco_max, ncoa, ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, &
       nsgfa_total, nsgfb_total, nsgfc_total, nsgfd_total, nspins, p_index, &
-      pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, pd, pd1, pd2, pgf_radius_box, &
-      radius1, radius2, sgfa, sgfb, sgfc, sgfd, stat
-    INTEGER(int_8) :: box_idx1, box_idx2, box_idx3, box_idx4, &
-      my_current_counter, my_original_cpu_id, n_processes, ncpu
+      pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, pd, pd1, pd2, sgfa, sgfb, &
+      sgfc, sgfd, stat
+    INTEGER(int_8)                           :: box_idx1, my_current_counter, &
+                                                my_original_cpu_id, &
+                                                n_processes, ncpu
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
@@ -222,22 +127,17 @@ MODULE hfx_derivatives
                                                 first_j_loop, first_k_loop, &
                                                 first_l_loop, &
                                                 screen_pmat_forces
-    REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, center1(3), &
-      center2(3), center2_folded(3), eps_box, eps_schwarz, fac, hf_fraction, &
-      Kbox, max_contraction_val, max_val1, max_val2, &
-      my_adiabatic_rescale_factor, omega2Inv, omega_box, pbc_center(3), &
-      pmax_entry, pmax_max, R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), &
-      screen_max, symm_fac, temp(3), temp1, temp1b, temp2, temp3, temp3b
+    REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, eps_schwarz, &
+      fac, hf_fraction, max_contraction_val, max_val1, max_val2, &
+      my_adiabatic_rescale_factor, omega2Inv, pmax_entry, ra(3), rb(3), &
+      rc(3), rd(3), symm_fac, temp(3), temp1, temp1b, temp2, temp3, temp3b
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: work_forces
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces
     REAL(dp), DIMENSION(:), POINTER          :: T1, T2
     REAL(dp), DIMENSION(:, :), POINTER :: full_density, full_density_beta, &
-      max_contraction, pmax_atom, screen_atom, sphi_a, sphi_b, sphi_c, &
-      sphi_d, zeta, zetb, zetc, zetd
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set, screen_set
-    REAL(dp), DIMENSION(:, :, :, :, :), &
-      POINTER                                :: screen_periodic
+      max_contraction, sphi_a, sphi_b, sphi_c, sphi_d, zeta, zetb, zetc, zetd
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(hfx_basis_info_type), POINTER       :: basis_info
@@ -256,8 +156,6 @@ MODULE hfx_derivatives
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
     REAL(dp), DIMENSION(:, :, :, :), &
               POINTER, SAVE                  :: shm_initial_p
-    TYPE(hfx_box_scheme), DIMENSION(:,:), &
-                           POINTER, SAVE     :: shm_far_field_boxes
     INTEGER, SAVE                            :: shm_number_of_p_entries
     INTEGER, DIMENSION(:,:), POINTER, SAVE   :: shm_is_assoc_atomic_block
     INTEGER(int_8)                           :: shm_neris_total, shm_neris_onthefly, &
@@ -265,6 +163,14 @@ MODULE hfx_derivatives
     INTEGER                                  :: nkind, l_max
     TYPE(cell_type), POINTER                 :: cell
     INTEGER                                  :: unit_id
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:,:,:,:,:,:), POINTER        :: screen_coeffs_pgf, radii_pgf
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:,:,:,:), POINTER            :: screen_coeffs_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:,:), POINTER                :: screen_coeffs_kind, tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2
+    REAL(dp)                                 :: ln_10, B11(3), rab2, D11(3), rcd2, log10_eps_schwarz,&
+                                                log10_pmax, max_val2_set, pbc_B(3), pbc_D(3), log_2
 
 
     CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
@@ -330,11 +236,6 @@ MODULE hfx_derivatives
 !$OMP                                  full_density_beta,&
 !$OMP                                  shm_initial_p,&
 !$OMP                                  pmax_set,&
-!$OMP                                  screen_max,&
-!$OMP                                  screen_atom,&
-!$OMP                                  screen_set,&
-!$OMP                                  screen_periodic,&
-!$OMP                                  shm_far_field_boxes,&
 !$OMP                                  shm_is_assoc_atomic_block,&
 !$OMP                                  shm_number_of_p_entries,&
 !$OMP                                  shm_neris_total,&
@@ -342,12 +243,18 @@ MODULE hfx_derivatives
 !$OMP                                  shm_storage_counter_integrals,&
 !$OMP                                  shm_neris_incore,&
 !$OMP                                  force,&
+!$OMP                                  my_adiabatic_rescale_factor,&
 !$OMP                                  cell,&
-!$OMP                                  my_adiabatic_rescale_factor)
+!$OMP                                  screen_coeffs_set,&
+!$OMP                                  screen_coeffs_kind,&
+!$OMP                                  screen_coeffs_pgf,&
+!$OMP                                  radii_pgf)
 
     i_thread = 0
 !$  i_thread = omp_get_thread_num()
 
+    ln_10 = LOG(10.0_dp)
+    log_2 = LOG10(2.0_dp)
 
     actual_x_data => qs_env%x_data(irep, i_thread + 1)
     do_periodic = actual_x_data%periodic_parameter%do_periodic
@@ -380,7 +287,11 @@ MODULE hfx_derivatives
     hf_fraction = general_parameter%fraction
     hf_fraction = hf_fraction * my_adiabatic_rescale_factor
     eps_schwarz = screening_parameter%eps_schwarz_forces
-    eps_box = screening_parameter%eps_box_forces
+    IF( eps_schwarz < 0.0_dp) THEN
+      log10_eps_schwarz = log_zero
+    ELSE
+      log10_eps_schwarz = LOG10(eps_schwarz) 
+    END IF
     screen_pmat_forces =  screening_parameter%do_p_screening_forces
 
     !! Initialize memory for libint
@@ -454,42 +365,31 @@ MODULE hfx_derivatives
 
     !! Calculate max entries for screening on actual density. If screen_p_mat_forces = FALSE, the
     !! matrix is initialized to 1.0
-    CALL comp_pmax_mat(pmax_set,pmax_atom,pmax_max, &
-                       full_density,full_density_beta,screen_pmat_forces,particle_set,max_set,&
-                       kind_of, basis_parameter, error)
+    IF ( screen_pmat_forces ) THEN
+      NULLIFY(shm_initial_p)
+      shm_initial_p => actual_x_data%initial_p
+      CALL update_pmax_mat(shm_initial_p, full_density,full_density_beta,natom, &
+                           max_set,  kind_of, basis_parameter, last_sgf_global, error)
+    END IF 
+
     !! Calculatematrices for screening purpose taking into account periodicity. The farfield part is already
     !! in memory
-    IF( do_periodic ) THEN
-      ALLOCATE(screen_periodic(SIZE(actual_x_data%neighbor_cells),max_set,max_set,natom,natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL comp_screen_mat_per(lib(i_thread+1), screen_set,screen_atom,screen_max,screen_periodic,particle_set,max_set,&
-                               potential_parameter,.FALSE.,&
-                               kind_of, basis_parameter,&
-                               neighbor_cells=actual_x_data%neighbor_cells,&
-                               i_thread=i_thread, cell=cell, error=error)
 
-      !! Farfield screening matrix already there
-      shm_far_field_boxes => actual_x_data%far_field_boxes
-    ELSE
-
-      CALL comp_screen_mat(lib(i_thread+1),screen_set,screen_atom,screen_max,particle_set,max_set,&
-                           potential_parameter,.FALSE., kind_of, basis_parameter, i_thread, &
-                           error=error)
-      !! Farfield screening matrix already there
-    
-      shm_far_field_boxes => actual_x_data%far_field_boxes
-    END IF
+    screen_coeffs_set   => actual_x_data%screen_funct_coeffs_set
+    screen_coeffs_kind  => actual_x_data%screen_funct_coeffs_kind
+    screen_coeffs_pgf   => actual_x_data%screen_funct_coeffs_pgf
+    radii_pgf           => actual_x_data%pair_dist_radii_pgf
 
 !$OMP END MASTER
 !$OMP BARRIER
 
     !! Load balance the work
     IF( actual_x_data%b_first_load_balance_forces ) THEN
-      CALL load_balance_forces(actual_x_data,eps_schwarz,eps_box,particle_set,max_set,para_env,&
-                               potential_parameter,screen_set,screen_atom,screen_max,&
-                               pmax_set,shm_is_assoc_atomic_block, do_periodic,&
+      CALL load_balance_forces(actual_x_data,eps_schwarz,particle_set,max_set,para_env,&
+                               potential_parameter,screen_coeffs_set,screen_coeffs_kind,&
+                               shm_initial_p,shm_is_assoc_atomic_block, do_periodic,&
                                load_balance_parameter, kind_of, basis_parameter,i_thread, n_threads,&
-                               shm_far_field_boxes, cell, error)
+                               cell, screen_pmat_forces,error)
       actual_x_data%b_first_load_balance_forces = .FALSE.
     ELSE
       CALL update_load_balance_forces(actual_x_data, para_env, &
@@ -617,6 +517,17 @@ MODULE hfx_derivatives
           nsgfb_total = basis_parameter(jkind)%nsgf_total
 
           rb=particle_set(jatom)%r(:)
+          ! ** pbc for rb
+          IF( do_periodic ) THEN
+            temp = rb -ra
+            pbc_B = pbc(temp,cell)
+            B11 = ra + pbc_B
+            rab2 = (ra(1)-B11(1))**2+(ra(2)-B11(2))**2+(ra(3)-B11(3))**2
+          ELSE
+            rab2 = (ra(1)-rb(1))**2+(ra(2)-rb(2))**2+(ra(3)-rb(3))**2
+            B11 = ra - rb
+          END IF
+          
           j_atom = atom_of_kind(jatom)
           pb1 = last_sgf_global(jatom) - nsgfb_total
           forces_map(2,1) = jkind
@@ -647,7 +558,20 @@ MODULE hfx_derivatives
             END IF
             DO WHILE(latom+1<=natom)
               latom = latom + 1
- 
+              lkind = kind_of(latom)
+              rd=particle_set(latom)%r(:)
+             
+              ! ** pbc for rd
+              IF( do_periodic ) THEN
+                temp = rd -rc
+                pbc_D = pbc(temp,cell)
+                D11 = rc + pbc_D
+                rcd2 = (rc(1)-D11(1))**2+(rc(2)-D11(2))**2+(rc(3)-D11(3))**2
+              ELSE
+                rcd2 = (rc(1)-rd(1))**2+(rc(2)-rd(2))**2+(rc(3)-rd(3))**2
+                D11 = rc - rd
+              END IF
+
               !All four centers equivalent => zero-contribution
               IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE 
               IF(katom+latom<=iatom+jatom)  THEN
@@ -655,15 +579,16 @@ MODULE hfx_derivatives
 
                 my_current_counter = my_current_counter + 1
                 IF(my_current_counter <= actual_x_data%distribution_forces(bin)%number_of_integrals) THEN
-               
-                  IF (screen_atom(jatom,iatom) * screen_max < eps_schwarz) CYCLE
-                  IF (screen_atom(jatom,iatom) * screen_atom(latom,katom) < eps_schwarz) CYCLE
+                  IF( (screen_coeffs_kind(jkind,ikind)%x(1)*rab2+&
+                       screen_coeffs_kind(jkind,ikind)%x(2) ) + &
+                      (screen_coeffs_kind(lkind,kkind)%x(1)*rcd2+&
+                       screen_coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
+ 
                   IF(.NOT. (shm_is_assoc_atomic_block(latom,iatom)>=1 .AND. &
                             shm_is_assoc_atomic_block(katom,iatom)>=1 .AND. &
                             shm_is_assoc_atomic_block(katom,jatom)>=1 .AND. &
                             shm_is_assoc_atomic_block(latom,jatom)>=1 ) ) CYCLE
   
-                  lkind = kind_of(latom)
                   ld_max => basis_parameter(lkind)%lmax
                   ld_min => basis_parameter(lkind)%lmin
                   npgfd => basis_parameter(lkind)%npgf
@@ -674,14 +599,12 @@ MODULE hfx_derivatives
                   sphi_d => basis_parameter(lkind)%sphi
                   nsgfd_total = basis_parameter(lkind)%nsgf_total
   
-                  rd=particle_set(latom)%r(:)
-              
+ 
                   l_atom = atom_of_kind(latom)
                   lkind = kind_of(latom)
                   pd1 = last_sgf_global(latom) - nsgfd_total
                   forces_map(4,1) = lkind
                   forces_map(4,2) = l_atom
-                  box_idx3 = (katom-1)*natom+latom
   
                   IF(nspins == 1) THEN
                     fac = 0.25_dp * hf_fraction
@@ -703,12 +626,11 @@ MODULE hfx_derivatives
                     DO jset = 1,nsetb
                       ncob = npgfb(jset)*ncoset(lb_max(jset))
                       sgfb = first_sgfb(1,jset)
-                      max_val1 = screen_set(jset,iset,jatom,iatom)
-                      IF (max_val1 * screen_atom(latom,katom) < eps_schwarz) CYCLE
-                      box_idx2 = (iset-1)*max_set+jset
-                      center1 = shm_far_field_boxes(box_idx2, box_idx1)%center
-                      R1 = shm_far_field_boxes(box_idx2, box_idx1)%R
-                      radius1 = shm_far_field_boxes(box_idx2, box_idx1)%radius
+                      max_val1 = screen_coeffs_set(jset,iset,jkind,ikind)%x(1)*rab2 + &
+                                 screen_coeffs_set(jset,iset,jkind,ikind)%x(2)
+                      IF (max_val1 + (screen_coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
+                                      screen_coeffs_kind(lkind,kkind)%x(2) ) < log10_eps_schwarz) CYCLE
+
                       DO kset = 1,nsetc
                         ncoc = npgfc(kset)*ncoset(lc_max(kset))
                         sgfc = first_sgfc(1,kset)
@@ -716,57 +638,32 @@ MODULE hfx_derivatives
 
                           ncod = npgfd(lset)*ncoset(ld_max(lset)) 
                           sgfd = first_sgfd(1,lset)
-                          pmax_entry = 2.0_dp *MAX(pmax_set(kset,iset,katom,iatom) * pmax_set(lset,jset,latom,jatom),&
-                                                   pmax_set(lset,iset,latom,iatom) * pmax_set(kset,jset,katom,jatom))
-                          max_val2 = max_val1 * pmax_entry
-                          IF(max_val2<eps_schwarz)  CYCLE
-                          box_idx4 = (kset-1)*max_set+lset
-                          IF(.NOT. do_periodic) THEN
-                            center2_folded = shm_far_field_boxes(box_idx4, box_idx3)%center
+                          max_val2_set = (screen_coeffs_set(lset,kset,lkind,kkind)%x(1)*rcd2 + &
+                                          screen_coeffs_set(lset,kset,lkind,kkind)%x(2) )
+                          max_val2 = max_val1 + max_val2_set
+                          IF(max_val2<log10_eps_schwarz) CYCLE
+                          IF( screen_pmat_forces ) THEN 
+                            log10_pmax = log_2 + MAX(shm_initial_p(kset,iset,katom,iatom) + shm_initial_p(lset,jset,latom,jatom),&
+                                                     shm_initial_p(lset,iset,latom,iatom) + shm_initial_p(kset,jset,katom,jatom))
                           ELSE
-                            center2 = shm_far_field_boxes(box_idx4, box_idx3)%center
-                            temp = center2-center1
-                            pbc_center = pbc(temp, cell)
-                            center2_folded = center1 + pbc_center
+                            log10_pmax = 0.0_dp
                           END IF
-                          R2 = shm_far_field_boxes(box_idx4, box_idx3)%R
-                          radius2 = shm_far_field_boxes(box_idx4, box_idx3)%radius
-                          Rbox = (center1(1)-center2_folded(1))**2 + &
-                                 (center1(2)-center2_folded(2))**2 + &
-                                 (center1(3)-center2_folded(3))**2
-                          Rbox = SQRT(Rbox) - R1 - R2
-                          pgf_radius_box = radius1 + radius2 + 2
-  
-                          IF(Rbox>pgf_radius_box) THEN
-                            max_val2 = 0.0_dp
-                            SELECT CASE(potential_parameter%potential_type)
-                              CASE(do_hfx_potential_coulomb, do_hfx_potential_truncated)
-                                Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                       shm_far_field_boxes(box_idx4, box_idx3)%K
-                                max_val2 = 1.0_dp/Rbox*Kbox* pmax_entry
-                              CASE(do_hfx_potential_short)
-                                omega_box = shm_far_field_boxes(box_idx2, box_idx1)%alphaInv + &
-                                            shm_far_field_boxes(box_idx4, box_idx3)%alphaInv + &
-                                            omega2Inv 
-                                omega_box = 1.0_dp/omega_box
-                                Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                       shm_far_field_boxes(box_idx4, box_idx3)%K
-                                max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox *  pmax_entry
-                              CASE(do_hfx_potential_mix_cl)
-                                Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
-                                       shm_far_field_boxes(box_idx4, box_idx3)%K
-                                max_val2 = 1.0_dp/Rbox*Kbox* pmax_entry
-                              CASE (do_hfx_potential_gaussian,do_hfx_potential_mix_lg, do_hfx_potential_id) 
-                                max_val2 = HUGE(max_val2)
-                            END SELECT
-                            IF(max_val2<eps_box) CYCLE
-                          END IF
-                          IF( .NOT. do_periodic ) THEN
-                            max_contraction_val =  max_contraction(iset,iatom) * &
+
+                          max_val2 = max_val2 + log10_pmax
+                          IF(max_val2<log10_eps_schwarz)  CYCLE
+
+                          pmax_entry = EXP(log10_pmax*ln_10) 
+                          max_contraction_val =  max_contraction(iset,iatom) * &
                                                    max_contraction(jset,jatom) * &
                                                    max_contraction(kset,katom) * &
                                                    max_contraction(lset,latom) * &
                                                    pmax_entry
+                          tmp_R_1 => radii_pgf(:,:,jset,iset,jkind,ikind)
+                          tmp_R_2 => radii_pgf(:,:,lset,kset,lkind,kkind)
+                          tmp_screen_pgf1 => screen_coeffs_pgf(:,:,jset,iset,jkind,ikind)
+                          tmp_screen_pgf2 => screen_coeffs_pgf(:,:,lset,kset,lkind,kkind)
+
+                          IF( .NOT. do_periodic ) THEN
                             CALL forces4(ra, rb, rc, rd,&
                                          zeta(:,iset), zetb(:,jset), zetc(:,kset), zetd(:,lset),&
                                          la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
@@ -776,13 +673,9 @@ MODULE hfx_derivatives
                                          primitive_forces,&
                                          work_forces,&
                                          potential_parameter, eps_schwarz, max_contraction_val, cartesian_estimate,&
-                                         i_thread)
+                                         i_thread, rab2, rcd2, max_val2_set, log10_eps_schwarz, log10_pmax,&
+                                         tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2, B11, D11)
                           ELSE
-                            max_contraction_val =  max_contraction(iset,iatom) * &
-                                                   max_contraction(jset,jatom) * &
-                                                   max_contraction(kset,katom) * &
-                                                   max_contraction(lset,latom) * &
-                                                   pmax_entry
                             CALL forces4_periodic(ra, rb, rc, rd,&
                                                   zeta(:,iset), zetb(:,jset), zetc(:,kset), zetd(:,lset),&
                                                   la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
@@ -792,9 +685,11 @@ MODULE hfx_derivatives
                                                   primitive_forces,&
                                                   work_forces,&
                                                   potential_parameter, &
-                                                  actual_x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
-                                                  screen_periodic(:,kset,lset,katom,latom), eps_schwarz, &
-                                                  max_contraction_val, cartesian_estimate, i_thread, cell, error)
+                                                  actual_x_data%neighbor_cells, screen_coeffs_set(jset,iset,jkind,ikind)%x,& 
+                                                  screen_coeffs_set(lset,kset,lkind,kkind)%x, eps_schwarz,&
+                                                  max_contraction_val, cartesian_estimate, i_thread, cell, &
+                                                  log10_pmax, B11, D11, log10_eps_schwarz, &
+                                                  tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2,error)
                           END IF 
   
                           IF(cartesian_estimate<eps_schwarz) CYCLE
@@ -878,24 +773,17 @@ MODULE hfx_derivatives
       bintime_stop=m_walltime()
       actual_x_data%distribution_forces(bin)%time_forces=bintime_stop-bintime_start
     END DO  !bin
+ 
 !$OMP BARRIER
     DEALLOCATE(last_sgf_global, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 !$OMP MASTER
-    IF( do_periodic ) THEN
-      DEALLOCATE(screen_periodic, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    DEALLOCATE(screen_set, screen_atom, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(full_density,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF(nspins==2) THEN
       DEALLOCATE(full_density_beta,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    DEALLOCATE(pmax_set,pmax_atom,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
 !$OMP END MASTER
     DEALLOCATE(T1,primitive_forces, STAT=stat)
@@ -918,19 +806,173 @@ MODULE hfx_derivatives
     CALL timestop(handle)
   END SUBROUTINE derivatives_four_center
 
+
 ! *****************************************************************************
 !> \brief calculates two-electron derivatived of a quartet/shell using the library 
-!>      lib_deriv wrt pbc
+!>      lib_deriv
 !> \param r position
 !> \param z zeta
 !> \param l angular momentum
 !> \param npgf number of primitive cartesian gaussian in actual shell
+!> \param nco number of cartesian gaussians
 !> \param primitive_forces array of primitive_forces
 !> \param work_forces work_storage
+!> \param potential_parameter Infos about potential
+!> \param eps_schwarz threshold
+!> \param max_contraction_val max multiplication factor cart -> sph
+!> \param cartesian estimate max calculated integral
+!> \param i_thread current thread ID
+!> \param rab2, rcd2 distance (ab| and (cd|
+!> \param max_val2_set schwarz estimate for product
+!> \param log10_eps_schwarz logarithm of threshold
+!> \param log10_pmax logarithm of max p value
+!> \param R1_pgf, R2_pgf Radii functions of pair distributions
+!> \param pgf1, pgf2 near field screening functions
+!> \param B11, D11 ra-rb and rc-rd
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
-!>      07.2007 created [Manuel Guidon]
+!>      03.2007 created [Manuel Guidon]
+!>      02.2009 completely rewritte screening part [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+  SUBROUTINE forces4(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
+                    la_min, la_max, lb_min, lb_max,&
+                    lc_min, lc_max, ld_min, ld_max,&
+                    npgfa, npgfb, npgfc, npgfd,&
+                    ncoa, ncob, ncoc, ncod,&
+                    primitive_forces, work_forces,&
+                    potential_parameter, eps_schwarz, max_contraction_val, &
+                    cartesian_estimate, i_thread,rab2, rcd2, max_val2_set,&
+                    log10_eps_schwarz, log10_pmax,R1_pgf, R2_pgf, pgf1, pgf2, B11, D11)
+
+  
+    REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb, zetc, zetd
+    INTEGER, INTENT(IN) :: la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
+      ld_min, ld_max, npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod
+    REAL(dp), &
+      DIMENSION(ncoa, ncob, ncoc, ncod, 12)  :: primitive_forces
+    REAL(dp), DIMENSION(*)                   :: work_forces
+    TYPE(hfx_potential_type)                 :: potential_parameter
+    REAL(dp), INTENT(IN)                     :: eps_schwarz, &
+                                                max_contraction_val
+    REAL(dp), INTENT(INOUT)                  :: cartesian_estimate
+    INTEGER, INTENT(IN)                      :: i_thread
+    REAL(dp)                                 :: rab2, rcd2, max_val2_set, &
+                                                log10_eps_schwarz, log10_pmax
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :), POINTER               :: R1_pgf, R2_pgf, pgf1, pgf2
+    REAL(dp), INTENT(IN)                     :: B11(3), D11(3)
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'forces4', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, lpgf, offset_a, offset_a1, &
+      offset_b, offset_b1, offset_c, offset_c1, offset_d, offset_d1
+    LOGICAL                                  :: failure
+    REAL(dp) :: Eta, EtaInv, P(3), pgf_max_1, pgf_max_2, Q(3), R1, R2, Rho, &
+      RhoInv, rpq2, S1234, S1234a, tmp_max, W(3), Zeta1, Zeta_A, Zeta_B, &
+      Zeta_C, Zeta_D, ZetaInv, ZetapEtaInv
+
+    failure = .FALSE.
+    cartesian_estimate = 0.0_dp
+
+    primitive_forces = 0.0_dp
+    DO ipgf = 1,npgfa
+      offset_a1 = (ipgf-1)*ncoset(la_max)
+      Zeta_A = zeta(ipgf)
+      DO jpgf = 1,npgfb
+        pgf_max_1 = pgf1(jpgf,ipgf)%x(1)*rab2+pgf1(jpgf,ipgf)%x(2)
+        IF( pgf_max_1 + max_val2_set + log10_pmax < log10_eps_schwarz) CYCLE
+        R1 = R1_pgf(jpgf,ipgf)%x(1)*rab2 + &
+             R1_pgf(jpgf,ipgf)%x(2)
+        offset_b1 = (jpgf-1)*ncoset(lb_max)
+        Zeta_B = zetb(jpgf)
+        Zeta1 = Zeta_A + Zeta_B
+        ZetaInv = 1.0_dp/Zeta1
+        S1234a = (-Zeta_A*Zeta_B*ZetaInv*rab2)
+        P = (Zeta_A*ra + Zeta_B*rb)*ZetaInv
+        DO kpgf = 1,npgfc
+          offset_c1 = (kpgf-1)*ncoset(lc_max)
+          Zeta_C = zetc(kpgf)
+          DO lpgf = 1,npgfd
+            pgf_max_2 = pgf2(lpgf,kpgf)%x(1)*rcd2+pgf2(lpgf,kpgf)%x(2)
+            IF (pgf_max_1 + pgf_max_2 + log10_pmax < log10_eps_schwarz ) CYCLE
+            R2 = R2_pgf(lpgf,kpgf)%x(1)*rcd2 + &
+                 R2_pgf(lpgf,kpgf)%x(2)
+            offset_d1 = (lpgf-1)*ncoset(ld_max)
+            Zeta_D = zetd(lpgf)
+            Eta  =  Zeta_C + Zeta_D
+            EtaInv = 1.0_dp/Eta
+            ZetapEtaInv = Zeta1+Eta
+            ZetapEtaInv = 1.0_dp/ZetapEtaInv
+            Rho = Zeta1*Eta*ZetapEtaInv
+            RhoInv = 1.0_dp/Rho
+            S1234 = EXP(S1234a-Zeta_C*Zeta_D*EtaInv*rcd2)
+            Q = (Zeta_C*rc + Zeta_D*rd)*EtaInv
+            rpq2 = (P(1)-Q(1))**2+(P(2)-Q(2))**2+(P(3)-Q(3))**2
+            W = (Zeta1*P+Eta*Q)*ZetapEtaInv
+            DO la = la_min,la_max
+              offset_a = offset_a1 + ncoset(la-1)
+              DO lb = lb_min, lb_max
+                offset_b = offset_b1 + ncoset(lb-1)
+                DO lc = lc_min, lc_max
+                  offset_c = offset_c1 + ncoset(lc-1)
+                  DO ld = ld_min, ld_max
+                    offset_d = offset_d1 + ncoset(ld-1) 
+                    !Build primitives
+                    tmp_max = 0.0_dp
+                    CALL evaluate_deriv_eri(deriv(i_thread+1), ra, rb, rc, rd,&
+                                            zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
+                                            la, lb, lc ,ld,&
+                                            work_forces,&
+                                            ncoa, ncob, ncoc, ncod, &
+                                            primitive_forces, &
+                                            offset_a, offset_b, offset_c, offset_d,&
+                                            potential_parameter, max_contraction_val, tmp_max, eps_schwarz,&
+                                            Zeta1,ZetaInv,Eta,EtaInv,ZetapEtaInv,Rho,RhoInv,S1234,&
+                                            P,Q,W,rpq2,B11,D11,&
+                                            R1,R2)
+                    cartesian_estimate = MAX(cartesian_estimate, tmp_max)
+                  END DO !ld
+                END DO !lc
+              END DO !lb
+            END DO !la
+          END DO !lpgf
+        END DO !kpgf
+      END DO !jpgf
+    END DO !ipgf
+  
+  END SUBROUTINE forces4
+! *****************************************************************************
+!> \brief calculates two-electron derivatived of a quartet/shell using the library 
+!>      lib_deriv in the periodic case
+!> \param r position
+!> \param z zeta
+!> \param l angular momentum
+!> \param npgf number of primitive cartesian gaussian in actual shell
+!> \param nco number of cartesian gaussians
+!> \param primitive_forces array of primitive_forces
+!> \param work_forces work_storage
+!> \param potential_parameter Infos about potential
+!> \param neighbor_cells periodic image cells
+!> \param screen1, screen2 set based near field screening functions
+!> \param eps_schwarz threshold
+!> \param max_contraction_val max multiplication factor cart -> sph
+!> \param cartesian estimate max calculated integral
+!> \param i_thread current thread ID
+!> \param cell cell
+!> \param log10_pmax logarithm of max p value
+!> \param B11, D11 ra-rb and rc-rd after first MIC
+!> \param log10_eps_schwarz logarithm of threshold
+!> \param R1_pgf, R2_pgf Radii functions of pair distributions
+!> \param pgf1, pgf2 near field screening functions
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2007 created [Manuel Guidon]
+!>      02.2009 completely rewritte screening part [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE forces4_periodic(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
@@ -939,8 +981,10 @@ MODULE hfx_derivatives
                               npgfa, npgfb, npgfc, npgfd,&
                               ncoa, ncob, ncoc, ncod,&
                               primitive_forces, work_forces,&
-                              potential_parameter, neighbor_cells, screen1, screen2,&
-                              eps_schwarz, max_contraction_val, cartesian_estimate, i_thread, cell, error)
+                              potential_parameter, neighbor_cells,&
+                              screen1, screen2, eps_schwarz, max_contraction_val,&
+                              cart_estimate, i_thread, cell, log10_pmax,&
+                              B11,D11,log10_eps_schwarz,R1_pgf, R2_pgf, pgf1, pgf2,error)
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb, zetc, zetd
@@ -952,87 +996,100 @@ MODULE hfx_derivatives
     TYPE(hfx_potential_type)                 :: potential_parameter
     TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
-    REAL(dp), DIMENSION(:)                   :: screen1, screen2
-    REAL(dp), INTENT(IN)                     :: eps_schwarz, &
+    REAL(dp), INTENT(IN)                     :: screen1(2), screen2(2), &
+                                                eps_schwarz, &
                                                 max_contraction_val
-    REAL(dp), INTENT(INOUT)                  :: cartesian_estimate
+    REAL(dp), INTENT(INOUT)                  :: cart_estimate
     INTEGER, INTENT(IN)                      :: i_thread
     TYPE(cell_type), POINTER                 :: cell
+    REAL(dp), INTENT(IN)                     :: log10_pmax, B11(3), D11(3), &
+                                                log10_eps_schwarz
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :), POINTER               :: R1_pgf, R2_pgf, pgf1, pgf2
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'forces4_periodic', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: i, ipgf, j, jpgf, k, kpgf, la, lb, lc, ld, lpgf, offset_a, &
-      offset_a1, offset_b, offset_b1, offset_c, offset_c1, offset_d, &
-      offset_d1, stat
+      offset_a1, offset_b, offset_b1, offset_c, offset_c1, offset_d, offset_d1
     LOGICAL                                  :: failure
-    REAL(dp) :: B11(3), C11(3), D11(3), Eta, im_B(3), im_D(3), P(3), &
-      pbc_B(3), pbc_D(3), PQ(3), Q(3), s(3), s1(3), s2(3), s3(3), s4(3), &
-      shift(3), temp(3), tmp_D(3), tmp_max_all, Zeta1, Zeta_A, Zeta_B, &
-      Zeta_C, Zeta_D
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: tmp_cart_estimate
+    REAL(dp) :: AB(3), C11(3), CD(3), Eta, EtaInv, im_B(3), im_D(3), &
+      max_val1, max_val2, P(3), pgf_max_1, pgf_max_2, PQ(3), Q(3), R1, R2, &
+      rab2, rcd2, Rho, RhoInv, rpq2, S1234, S1234a, shift(3), temp(3), &
+      temp_CC(3), temp_DD(3), tmp_D(3), tmp_max, W(3), Zeta1, Zeta_A, Zeta_B, &
+      Zeta_C, Zeta_D, ZetaInv, ZetapEtaInv
 
     failure = .FALSE.
-    cartesian_estimate = 0.0_dp
-    ALLOCATE(tmp_cart_estimate(SIZE(neighbor_cells), SIZE(neighbor_cells)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    tmp_cart_estimate = 0.0_dp 
+    cart_estimate = 0.0_dp
 
     primitive_forces = 0.0_dp
-    temp = rb -ra
-    pbc_B = pbc(temp, cell)
-    B11 = ra + pbc_B
-    CALL real_to_scaled(s1,B11,cell)
-    temp = rd-rc
-    pbc_D = pbc(temp,cell)
-    D11 = rc + pbc_D
-    CALL real_to_scaled(s2,D11,cell)
+
     DO i = 1,SIZE(neighbor_cells)
-      s = s1 + neighbor_cells(i)%cell
-      CALL scaled_to_real(im_B,s,cell)
+      im_B = B11 + neighbor_cells(i)%cell_r(:)
+      AB = ra-im_B
+      rab2 = AB(1)**2+AB(2)**2+AB(3)**2
+      max_val1 = screen1(1)*rab2+screen1(2)
+      IF( max_val1 + screen2(2) + log10_pmax < log10_eps_schwarz ) CYCLE
       DO j = 1,SIZE(neighbor_cells)
-        IF(screen1(i)*screen2(j)<eps_schwarz) CYCLE
-        s = s2 + neighbor_cells(j)%cell
-        CALL scaled_to_real(im_D,s,cell)
-        DO lpgf = 1,npgfd
-          offset_d1 = (lpgf-1)*ncoset(ld_max)
-          Zeta_D = zetd(lpgf)
-          DO ld = ld_min, ld_max
-            offset_d = offset_d1 + ncoset(ld-1)
+        im_D = D11 + neighbor_cells(j)%cell_r(:)
+        rcd2 = (im_D(1)-rc(1))**2+(im_D(2)-rc(2))**2+(im_D(3)-rc(3))**2
+        max_val2 = screen2(1)*rcd2+screen2(2)
+        IF( max_val1 + max_val2 + log10_pmax < log10_eps_schwarz ) CYCLE
+        DO ipgf = 1,npgfa
+          Zeta_A = zeta(ipgf)
+          offset_a1 = (ipgf-1)*ncoset(la_max)
+          DO jpgf = 1,npgfb
+            pgf_max_1 = pgf1(jpgf,ipgf)%x(1)*rab2+pgf1(jpgf,ipgf)%x(2)
+            IF( pgf_max_1 + max_val2 + log10_pmax < log10_eps_schwarz) CYCLE
+            R1 = R1_pgf(jpgf,ipgf)%x(1)*rab2 + &
+                 R1_pgf(jpgf,ipgf)%x(2)
+            Zeta_B = zetb(jpgf)
+            offset_b1 = (jpgf-1)*ncoset(lb_max)
+            Zeta1 = Zeta_A + Zeta_B
+            ZetaInv = 1.0_dp/Zeta1
+            S1234a = (-Zeta_A*Zeta_B*ZetaInv*rab2)
+            P = (Zeta_A*ra + Zeta_B*im_B)*ZetaInv
             DO kpgf = 1,npgfc
-              offset_c1 = (kpgf-1)*ncoset(lc_max)
               Zeta_C = zetc(kpgf)
-              Eta  =  Zeta_C + Zeta_D
-              Q = (Zeta_C*rc + Zeta_D*im_D)/Eta
-              DO lc = lc_min, lc_max
-                offset_c = offset_c1 + ncoset(lc-1)
-                DO jpgf = 1,npgfb
-                  offset_b1 = (jpgf-1)*ncoset(lb_max)
-                  Zeta_B = zetb(jpgf)
-                  DO lb = lb_min, lb_max
-                    offset_b = offset_b1 + ncoset(lb-1)
-                    DO ipgf = 1,npgfa
-                      offset_a1 = (ipgf-1)*ncoset(la_max)
-                      Zeta_A = zeta(ipgf)
-                      Zeta1 = Zeta_A + Zeta_B
-                      P = (Zeta_A*ra + Zeta_B*im_B)/Zeta1
-                      temp = P-Q
-                      PQ = pbc(temp, cell)
-                      shift = -PQ + temp
-                      temp = rc+shift
-                      CALL real_to_scaled(s3,temp,cell)
-                      temp = im_D+shift
-                      CALL real_to_scaled(s4,temp,cell)
-                      DO k=1,SIZE(neighbor_cells)
-                        s = s3 + neighbor_cells(k)%cell
-                        CALL scaled_to_real(C11,s,cell)
-                        s = s4 + neighbor_cells(k)%cell
-                        CALL scaled_to_real(tmp_D,s,cell)
-                        DO la = la_min,la_max
-                          offset_a = offset_a1 + ncoset(la-1)
+              offset_c1 = (kpgf-1)*ncoset(lc_max)
+              DO lpgf = 1,npgfd
+                pgf_max_2 = pgf2(lpgf,kpgf)%x(1)*rcd2+pgf2(lpgf,kpgf)%x(2)
+                IF (pgf_max_1 + pgf_max_2 + log10_pmax < log10_eps_schwarz ) CYCLE
+                R2 = R2_pgf(lpgf,kpgf)%x(1)*rcd2 +&
+                     R2_pgf(lpgf,kpgf)%x(2)
+                offset_d1 = (lpgf-1)*ncoset(ld_max)
+                Zeta_D = zetd(lpgf)
+                Eta  =  Zeta_C + Zeta_D
+                EtaInv = 1.0_dp/Eta
+                ZetapEtaInv = Zeta1+Eta
+                ZetapEtaInv = 1.0_dp/ZetapEtaInv
+                Rho = Zeta1*Eta*ZetapEtaInv
+                RhoInv = 1.0_dp/Rho
+                S1234 = EXP(S1234a-Zeta_C*Zeta_D*EtaInv*rcd2)
+                Q = (Zeta_C*rc + Zeta_D*im_D)*EtaInv
+                temp = P-Q
+                PQ = pbc(temp,cell)
+                shift = -PQ + temp
+                temp_CC = rc+shift
+                temp_DD = im_D+shift
+                DO k = 1,SIZE(neighbor_cells)
+                  C11 = temp_CC + neighbor_cells(k)%cell_r(:)
+                  tmp_D = temp_DD + neighbor_cells(k)%cell_r(:)
+                  Q = (Zeta_C*C11 + Zeta_D*tmp_D)*EtaInv
+                  W = (Zeta1*P+Eta*Q)*ZetapEtaInv
+                  CD = C11-tmp_D
+                  rpq2 = (P(1)-Q(1))**2+(P(2)-Q(2))**2+(P(3)-Q(3))**2
+                  DO la = la_min,la_max
+                    offset_a = offset_a1 + ncoset(la-1)
+                    DO lb = lb_min, lb_max
+                      offset_b = offset_b1 + ncoset(lb-1)
+                      DO lc = lc_min, lc_max
+                        offset_c = offset_c1 + ncoset(lc-1)
+                        DO ld = ld_min, ld_max
+                          offset_d = offset_d1 + ncoset(ld-1)
                           !Build primitives
-                          tmp_max_all = 0.0_dp
+                          tmp_max = 0.0_dp
                           CALL evaluate_deriv_eri(deriv(i_thread+1), ra, im_B, C11, tmp_D,&
                                                   zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
                                                   la, lb, lc ,ld,&
@@ -1040,26 +1097,22 @@ MODULE hfx_derivatives
                                                   ncoa, ncob, ncoc, ncod, &
                                                   primitive_forces, &
                                                   offset_a, offset_b, offset_c, offset_d,&
-                                                  potential_parameter, max_contraction_val, tmp_max_all, eps_schwarz)
-                          tmp_cart_estimate(i,j) = MAX(tmp_cart_estimate(i,j),tmp_max_all)
-                        END DO !k
-                      END DO !la
-                    END DO !ipgf
-                  END DO !lb
-                END DO !jpgf
-              END DO !lc
+                                                  potential_parameter, max_contraction_val, tmp_max, eps_schwarz,&
+                                                  Zeta1,ZetaInv,Eta,EtaInv,ZetapEtaInv,Rho,RhoInv,S1234,&
+                                                  P,Q,W,rpq2,AB,CD,&
+                                                  R1,R2)
+                          cart_estimate = MAX(tmp_max,cart_estimate)
+                        END DO !ld
+                      END DO !lc
+                    END DO !lb
+                  END DO !la
+                END DO !k
+              END DO !lpgf
             END DO !kpgf
-          END DO !ld
-        END DO !lpgf
-      END DO
-    END DO
-    DO i=1,SIZE(neighbor_cells)
-      DO j=1,SIZE(neighbor_cells)
-        cartesian_estimate = MAX(cartesian_estimate, tmp_cart_estimate(i,j))
-      END DO
-    END DO
-    DEALLOCATE(tmp_cart_estimate, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END DO !jpgf
+        END DO !ipgf
+      END DO !j
+    END DO !i
   END SUBROUTINE forces4_periodic
 
 END MODULE hfx_derivatives

@@ -371,19 +371,6 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(&
             keyword=keyword,&
-            name="EPS_BOX",&
-            description="Screens the far field part of the electronic repulsion "//&
-                        "integrals using a box screening for the given "//&
-                        "threshold.",&
-            usage="EPS_BOX 1.0E-6",&
-            default_r_val=1.0E-10_dp,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       NULLIFY(keyword)
-       CALL keyword_create(&
-            keyword=keyword,&
             name="EPS_SCHWARZ_FORCES",&
             description="Screens the near field part of the electronic repulsion "//&
                         "integrals using the Schwarz inequality for the given "//&
@@ -395,20 +382,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
-       NULLIFY(keyword)
-       CALL keyword_create(&
-            keyword=keyword,&
-            name="EPS_BOX_FORCES",&
-            description="Screens the far field part of the electronic repulsion "//&
-                        "integrals using a box screening for the given "//&
-                        "threshold. This will be approximately the accuracy of the forces, "//&
-                        "and should normally be similar to EPS_SCF",&
-            usage="EPS_BOX_FORCES 1.0E-5",&
-            default_r_val=1.0E-6_dp,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        NULLIFY(keyword)
        CALL keyword_create(&
             keyword=keyword,&

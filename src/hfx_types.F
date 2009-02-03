@@ -52,19 +52,22 @@ MODULE hfx_types
   PUBLIC  hfx_type, hfx_create, hfx_release,& 
           hfx_set_distr_energy, &
           hfx_set_distr_forces, &
-          hfx_cell_type, hfx_distribution, hfx_box_scheme,&
+          hfx_cell_type, hfx_distribution, &
           hfx_potential_type, hfx_screening_type, hfx_periodic_type,&
           hfx_memory_type, hfx_load_balance_type, hfx_general_type,&
           hfx_compression_type,&
           hfx_container_type, hfx_container_node, hfx_cache_type, &
           hfx_basis_type, parse_memory_section, &
-          hfx_p_type, hfx_create_neighbor_cells, hfx_init_container,&
-          hfx_basis_info_type
+          hfx_p_type, hfx_init_container,&
+          hfx_basis_info_type, hfx_screen_coeff_type,&
+          hfx_reset_memory_usage_counter
 
 #define CACHE_SIZE 1024
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_types'
   INTEGER(int_8), PARAMETER, PRIVATE         :: one = 1_int_8
+  REAL(dp), PARAMETER, PUBLIC                :: log_zero = -1000.0_dp
+  REAL(dp), PARAMETER, PUBLIC                :: powell_min_log = -20.0_dp
   REAL(KIND=dp), DIMENSION(0:10), &
      PARAMETER, PUBLIC                       :: mul_fact = (/1.0_dp,&
                                                              1.1781_dp,&
@@ -94,12 +97,8 @@ MODULE hfx_types
   TYPE hfx_screening_type
     REAL(dp)                                 :: eps_schwarz         !! threshold
     REAL(dp)                                 :: eps_schwarz_forces  !! threshold
-    REAL(dp)                                 :: eps_box             !! threshold
-    REAL(dp)                                 :: eps_box_forces      !! threshold
     LOGICAL                                  :: do_p_screening_forces  !! screen on P^2 ?
     LOGICAL                                  :: do_initial_p_screening !! screen on inital guess?
-    LOGICAL                                  :: do_init_p_screen_corr  !! correct screen on initial guess?
-    REAL(dp)                                 :: initial_p_screening_correction !! corection factor
   END TYPE
   
 ! *****************************************************************************
@@ -143,7 +142,8 @@ MODULE hfx_types
 
 ! *****************************************************************************
   TYPE hfx_cell_type
-    INTEGER                                  :: cell(3)
+    REAL(dp)                                 :: cell(3)
+    REAL(dp)                                 :: cell_r(3)
   END TYPE
 
 ! *****************************************************************************
@@ -155,15 +155,6 @@ MODULE hfx_types
     REAL(KIND=dp)                            :: time_first_scf
     REAL(KIND=dp)                            :: time_other_scf
     REAL(KIND=dp)                            :: time_forces
-  END TYPE
-  
-! *****************************************************************************
-  TYPE hfx_box_scheme
-    REAL(dp)                                 :: center(3)
-    REAL(dp)                                 :: K
-    REAL(dp)                                 :: R
-    REAL(dp)                                 :: alphaInv
-    INTEGER                                  :: radius                                 
   END TYPE
   
 ! *****************************************************************************
@@ -215,6 +206,10 @@ MODULE hfx_types
     INTEGER                                  :: max_am
   END TYPE
 
+! *****************************************************************************
+  TYPE hfx_screen_coeff_type
+    REAL(dp)                                 :: x(2)
+  END TYPE
 
 ! *****************************************************************************
 !> \brief stores some data used in construction of Kohn-Sham matrix
@@ -228,15 +223,27 @@ MODULE hfx_types
 !> \param maxval_cache cache for maxvals in decompressed form
 !> \param integral_containers 64 containers for compressed integrals
 !> \param integral_caches 64 caches for decompressed integrals
-!> \param x_screening_buffer contains screening matrices in non-periodic case
-!> \param x_screening_buffer_periodic contains screening matrices in periodic case
-!> \param far_field_boxes contains information on far field screening
 !> \param neighbor_cells manages handling of periodic cells
 !> \param distribution_energy stores information on parallelization of energy
 !> \param distribution_forces stores information on parallelization of forces
 !> \param initial_p stores the initial guess if requested
+!> \param is_assoc_atomic_block reflects KS sparsity
+!> \param number_of_p_entries Size of P matrix
+!> \param n_rep_hf Number of HFX replicas
+!> \param b_first_load_balance_x flag to indicate if it is enough just to update
+!>        the distribution of the integrals
+!> \param full_ks_x full ks matrices
+!> \param lib libint type for eris
+!> \param basis_info contains information for basis sets
+!> \param screen_funct_coeffs_pgf pgf based near field screening coefficients
+!> \param pair_dist_radii_pgf pgf based radii coefficients of pair distributions
+!> \param screen_funct_coeffs_set set based near field screening coefficients
+!> \param screen_funct_coeffs_kind kind based near field screening coefficients
+!> \param screen_funct_is_initialized flag that indicates if the coefficients 
+!>        have already been fitted
 !> \par History
 !>      11.2006 created [Manuel Guidon]
+!>      02.2009 completely rewritten due to new screening
 !> \author Manuel Guidon
 ! *****************************************************************************
   TYPE hfx_type
@@ -252,11 +259,6 @@ MODULE hfx_types
                                 DIMENSION(:)  :: integral_containers, integral_containers_disk
      TYPE(hfx_cache_type)                     :: integral_caches(64), integral_caches_disk(64)
 
-     REAL(dp), DIMENSION(:, :, :, :), POINTER :: x_screening_buffer
-     REAL(dp), DIMENSION(:, :, :, :, :), &
-               POINTER                        :: x_screening_buffer_periodic
-     TYPE(hfx_box_scheme), DIMENSION(:,:),&
-                            POINTER           :: far_field_boxes
      TYPE(hfx_cell_type), DIMENSION(:), &
                 POINTER                       :: neighbor_cells
      TYPE(hfx_distribution), DIMENSION(:),&
@@ -276,6 +278,14 @@ MODULE hfx_types
      REAL(dp), DIMENSION(:,:), POINTER        :: full_ks_beta
      TYPE(lib_int)                            :: lib
      TYPE(hfx_basis_info_type)                :: basis_info
+     TYPE(hfx_screen_coeff_type), &
+          DIMENSION(:,:,:,:,:,:), POINTER     :: screen_funct_coeffs_pgf,&
+                                                 pair_dist_radii_pgf
+     TYPE(hfx_screen_coeff_type), &
+          DIMENSION(:,:,:,:), POINTER         :: screen_funct_coeffs_set
+     TYPE(hfx_screen_coeff_type), &
+          DIMENSION(:,:), POINTER             :: screen_funct_coeffs_kind
+     LOGICAL                                  :: screen_funct_is_initialized
   END TYPE hfx_type
 
 ! *****************************************************************************
@@ -296,7 +306,7 @@ MODULE hfx_types
 !> \brief - This routine allocates and initializes all types in hfx_data
 !> \param x_data contains all relevant data structures for hfx runs
 !> \param hfx_section input section
-!> \param natom  quantities that define some array sizes
+!> \param natom , max_set: quantities that define some array sizes
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \note
@@ -373,23 +383,13 @@ MODULE hfx_types
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"SCREENING",i_rep_section=irep, error=error)
         CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ", r_val=real_val, error=error)
         actual_x_data%screening_parameter%eps_schwarz = real_val
-        CALL section_vals_val_get(hf_sub_section, "EPS_BOX", r_val=real_val, error=error)
-        actual_x_data%screening_parameter%eps_box = real_val 
         CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ_FORCES", r_val=real_val, error=error)
         actual_x_data%screening_parameter%eps_schwarz_forces = real_val 
-        CALL section_vals_val_get(hf_sub_section, "EPS_BOX_FORCES", r_val=real_val, error=error)
-        actual_x_data%screening_parameter%eps_box_forces = real_val 
         CALL section_vals_val_get(hf_sub_section, "SCREEN_P_FORCES", l_val=logic_val, error=error)
         actual_x_data%screening_parameter%do_p_screening_forces = logic_val 
         CALL section_vals_val_get(hf_sub_section, "SCREEN_ON_INITIAL_P", l_val=logic_val, error=error)
         actual_x_data%screening_parameter%do_initial_p_screening = logic_val 
-        CALL section_vals_val_get(hf_sub_section, "P_SCREEN_CORRECTION_FACTOR", r_val=real_val, error=error)
-        IF( real_val == 0.0_dp ) THEN
-          actual_x_data%screening_parameter%do_init_p_screen_corr = .FALSE. 
-        ELSE
-          actual_x_data%screening_parameter%do_init_p_screen_corr = .TRUE. 
-        END IF
-        actual_x_data%screening_parameter%initial_p_screening_correction = real_val 
+        actual_x_data%screen_funct_is_initialized = .FALSE.
     
         !! INTERACTION_POTENTIAL section
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"INTERACTION_POTENTIAL",i_rep_section=irep,error=error)
@@ -446,7 +446,7 @@ MODULE hfx_types
         nkind = SIZE(atomic_kind_set,1)
         ALLOCATE(actual_x_data%basis_parameter(nkind), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        max_set=0
+        max_set = 0
         DO ikind = 1,nkind
             NULLIFY(atom_kind)
             atom_kind => atomic_kind_set(ikind)
@@ -466,8 +466,8 @@ MODULE hfx_types
                                        maxnset=actual_x_data%basis_info%max_set,&
                                        maxlgto=actual_x_data%basis_info%max_am,&
                                        basis_set_id=use_aux_fit_basis_set)
-            END IF 
-            max_set=MAX(max_set,actual_x_data%basis_info%max_set)
+            END IF
+            max_set = MAX(max_set,actual_x_data%basis_info%max_set)
             CALL get_gto_basis_set(gto_basis_set=orb_basis_a, &
                                    lmax=actual_x_data%basis_parameter(ikind)%lmax, &
                                    lmin=actual_x_data%basis_parameter(ikind)%lmin, &
@@ -485,28 +485,28 @@ MODULE hfx_types
           CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_SHELLS",i_val=pbc_shells,error=error)
           ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL hfx_create_neighbor_cells(actual_x_data,pbc_shells, cell, hfx_section, error=error)
-          ALLOCATE(actual_x_data%x_screening_buffer_periodic(SIZE(actual_x_data%neighbor_cells),&
-                   max_set,max_set,natom,natom),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ELSE
-          ALLOCATE(actual_x_data%x_screening_buffer(max_set,max_set,natom,natom),STAT=stat)
+          CALL hfx_create_neighbor_cells(actual_x_data,pbc_shells, cell, hfx_section, i_thread, error=error)
+        END IF
+     
+        !! ** This guy is allocated on the master thread only 
+        IF (i_thread == 1 ) THEN 
+          ALLOCATE(actual_x_data%is_assoc_atomic_block(natom,natom),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
-        
-        ALLOCATE(actual_x_data%is_assoc_atomic_block(natom,natom),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
         ALLOCATE(actual_x_data%distribution_forces(1),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(actual_x_data%distribution_energy(1),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
-        ALLOCATE(actual_x_data%far_field_boxes(1,1),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        
-        ALLOCATE(actual_x_data%initial_p(max_set,max_set,natom,natom),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
+           actual_x_data%screening_parameter%do_p_screening_forces) THEN
+          !! ** This guy is allocated on the master thread only 
+          IF (i_thread == 1 ) THEN
+            ALLOCATE(actual_x_data%initial_p(max_set,max_set,natom,natom),STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+        END IF
     
         actual_x_data%maxval_cache%element_counter = 1
         ALLOCATE(actual_x_data%maxval_container,STAT=stat)
@@ -611,7 +611,7 @@ MODULE hfx_types
     ! Memory Storage
     CALL section_vals_val_get(hf_sub_section, "MAX_MEMORY", i_val=int_val, error=error)
     memory_parameter%max_memory = int_val
-    memory_parameter%max_compression_counter = int_val*1024*128
+    memory_parameter%max_compression_counter = int_val*1024_int_8*128_int_8
     CALL section_vals_val_get(hf_sub_section, "EPS_STORAGE", r_val=real_val, error=error)
     memory_parameter%eps_storage_scaling = real_val
     IF(int_val == 0) THEN
@@ -703,12 +703,7 @@ MODULE hfx_types
       DO irep=1,n_rep_hf
         actual_x_data => x_data(irep,i_thread)
         IF( actual_x_data%periodic_parameter%do_periodic ) THEN
-          DEALLOCATE(actual_x_data%x_screening_buffer_periodic,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(actual_x_data%neighbor_cells,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ELSE
-          DEALLOCATE(actual_x_data%x_screening_buffer,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         DEALLOCATE(actual_x_data%distribution_energy,STAT=stat)
@@ -716,14 +711,17 @@ MODULE hfx_types
         DEALLOCATE(actual_x_data%distribution_forces,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
-        DEALLOCATE(actual_x_data%far_field_boxes,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-        DEALLOCATE(actual_x_data%initial_p,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-        DEALLOCATE(actual_x_data%is_assoc_atomic_block,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
+           actual_x_data%screening_parameter%do_p_screening_forces) THEN
+          IF( i_thread == 1 ) THEN
+            DEALLOCATE(actual_x_data%initial_p,STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+        END IF
+        IF( i_thread == 1 ) THEN 
+          DEALLOCATE(actual_x_data%is_assoc_atomic_block,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
     
         !! BASIS parameter
         DEALLOCATE(actual_x_data%basis_parameter,STAT=stat)
@@ -772,6 +770,19 @@ MODULE hfx_types
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       END DO
+
+      ! ** screening functions
+      IF(actual_x_data%screen_funct_is_initialized) THEN
+        DEALLOCATE(actual_x_data%screen_funct_coeffs_set,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(actual_x_data%screen_funct_coeffs_kind,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(actual_x_data%pair_dist_radii_pgf,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(actual_x_data%screen_funct_coeffs_pgf,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        actual_x_data%screen_funct_is_initialized = .FALSE. 
+      END IF
     END DO
     DEALLOCATE(x_data,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -782,17 +793,22 @@ MODULE hfx_types
 !>        in periodic runs
 !> \param x_data contains all relevant data structures for hfx runs
 !> \param pbc_shells number of shells taken into account
+!> \param cell cell
+!> \param hfx_section HFX input section
+!> \param i_thread current thread ID
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_create_neighbor_cells(x_data, pbc_shells, cell, hfx_section, error)
+  SUBROUTINE hfx_create_neighbor_cells(x_data, pbc_shells, cell, hfx_section, i_thread, &
+                                       error)
     TYPE(hfx_type), POINTER                  :: x_data
     INTEGER, INTENT(INOUT)                   :: pbc_shells
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: hfx_section
+    INTEGER, INTENT(IN)                      :: i_thread
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_neighbor_cells', &
@@ -820,30 +836,31 @@ MODULE hfx_types
     total_number_of_cells = 0
 
     ! ** Check some settings
-    IF( x_data%potential_parameter%potential_type /= do_hfx_potential_truncated) THEN
-      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                 "Periodic Hartree Fock calculation requested without use "//&
-                 "of a truncated potential. This may lead to unphysical total energies. "//&
-                 "Use a truncated  potential to avoid possible problems. "//&
-                 CPSourceFileRef,&
-                 only_ionode=.TRUE.)
-    ELSE
-      l_min = MIN( plane_distance(1,0,0,cell), &
-                   plane_distance(0,1,0,cell), &
-                   plane_distance(0,0,1,cell) )
-      l_min = 0.5_dp * l_min
-      IF( x_data%potential_parameter%cutoff_radius >= l_min ) THEN
+    IF( i_thread == 1 ) THEN
+      IF( x_data%potential_parameter%potential_type /= do_hfx_potential_truncated) THEN
         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                 "Periodic Hartree Fock calculation requested with use "//&
-                 "of a truncated potential. The cutoff radius is larger than half "//&
-                 "the minimal cell dimension. This may lead to unphysical "//&
-                 "total energies. Reduce the cutoff radius in order to avoid "//&
-                 "possible problems. "//&
-                 CPSourceFileRef,&
-                 only_ionode=.TRUE.)
+                   "Periodic Hartree Fock calculation requested without use "//&
+                   "of a truncated potential. This may lead to unphysical total energies. "//&
+                   "Use a truncated  potential to avoid possible problems. "//&
+                   CPSourceFileRef,&
+                   only_ionode=.TRUE.)
+      ELSE
+        l_min = MIN( plane_distance(1,0,0,cell), &
+                     plane_distance(0,1,0,cell), &
+                     plane_distance(0,0,1,cell) )
+        l_min = 0.5_dp * l_min
+        IF( x_data%potential_parameter%cutoff_radius >= l_min ) THEN
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                   "Periodic Hartree Fock calculation requested with use "//&
+                   "of a truncated potential. The cutoff radius is larger than half "//&
+                   "the minimal cell dimension. This may lead to unphysical "//&
+                   "total energies. Reduce the cutoff radius in order to avoid "//&
+                   "possible problems. "//&
+                   CPSourceFileRef,&
+                   only_ionode=.TRUE.)
+        END IF
       END IF
     END IF
-
 
     SELECT CASE(x_data%potential_parameter%potential_type)
     CASE( do_hfx_potential_truncated )
@@ -901,7 +918,7 @@ MODULE hfx_types
         m = 0
         i = 1
         DO WHILE(SUM(m**2)<=nshells)
-          x_data%neighbor_cells(i)%cell = m
+          x_data%neighbor_cells(i)%cell = REAL(m,dp)
           CALL next_image_cell_perd(m,x_data%periodic_parameter%perd)
           i=i+1
         END DO
@@ -941,6 +958,7 @@ MODULE hfx_types
       DEALLOCATE(x_data%neighbor_cells,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       IF(x_data%periodic_parameter%number_of_shells == do_hfx_auto_shells ) THEN 
+        IF(total_number_of_cells == 0) total_number_of_cells = 1
         ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         x_data%neighbor_cells(1:total_number_of_cells) = tmp_neighbor_cells(1:total_number_of_cells)
@@ -967,7 +985,7 @@ MODULE hfx_types
         m = 0
         i = 1
         DO WHILE(SUM(m**2)<=x_data%periodic_parameter%number_of_shells)
-           x_data%neighbor_cells(i)%cell = m
+           x_data%neighbor_cells(i)%cell = REAL(m,dp)
            CALL next_image_cell_perd(m,x_data%periodic_parameter%perd)
            i=i+1
         ENDDO
@@ -989,23 +1007,32 @@ MODULE hfx_types
       m = 0
       i = 1
       DO WHILE(SUM(m**2)<=pbc_shells)
-         x_data%neighbor_cells(i)%cell = m
+         x_data%neighbor_cells(i)%cell = REAL(m,dp)
          CALL next_image_cell_perd(m,x_data%periodic_parameter%perd)
          i=i+1
       ENDDO
     END SELECT
 
-    iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
-         extension=".scfLog",error=error)
-    IF (iw>0) THEN
-      WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I5))")&
-            "HFX_INFO| Number of periodic shells considered:     ",pbc_shells
-      WRITE (UNIT=iw,FMT="((T3,A,T60,I5),/)")&
-            "HFX_INFO| Number of periodic cells considered:     ",SIZE(x_data%neighbor_cells)
-    END IF
-    CALL cp_print_key_finished_output(iw,logger,hfx_section,&
-                                      "HF_INFO", error=error)
+    ! ** Transform into real coord
+    DO i=1,SIZE(x_data%neighbor_cells)
+      r = 0.0_dp
+      x_data%neighbor_cells(i)%cell_r(:) = 0.0_dp
+      s = x_data%neighbor_cells(i)%cell(:)
+      CALL scaled_to_real(x_data%neighbor_cells(i)%cell_r,s,cell)
+    END DO
 
+    IF( i_thread == 1 ) THEN
+      iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
+           extension=".scfLog",error=error)
+      IF (iw>0) THEN
+        WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I5))")&
+              "HFX_INFO| Number of periodic shells considered:     ",pbc_shells
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I5)),/")&
+              "HFX_INFO| Number of periodic cells considered:     ",SIZE(x_data%neighbor_cells)
+      END IF
+      CALL cp_print_key_finished_output(iw,logger,hfx_section,&
+                                        "HF_INFO", error=error)
+    END IF
   END SUBROUTINE hfx_create_neighbor_cells
 
 ! *****************************************************************************
@@ -1091,7 +1118,8 @@ MODULE hfx_types
     DEALLOCATE(x_data%distribution_energy,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE(x_data%distribution_energy(SIZE(ptr_to_distr)))
+    ALLOCATE(x_data%distribution_energy(SIZE(ptr_to_distr)),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     x_data%distribution_energy = ptr_to_distr
 
   END SUBROUTINE hfx_set_distr_energy
@@ -1122,10 +1150,48 @@ MODULE hfx_types
     DEALLOCATE(x_data%distribution_forces,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
    
-    ALLOCATE(x_data%distribution_forces(SIZE(ptr_to_distr)))
+    ALLOCATE(x_data%distribution_forces(SIZE(ptr_to_distr)),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     x_data%distribution_forces = ptr_to_distr
 
   END SUBROUTINE hfx_set_distr_forces
+
+! *****************************************************************************
+!> \brief - resets the maximum memory usage for a HFX calculation subtracting
+!>          all relevant buffers from the input MAX_MEM value and add 10% of
+!>          safety margin
+!> \param memory_parameter Memory information
+!> \param subtr_size_mb size of buffers in MB
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+  SUBROUTINE hfx_reset_memory_usage_counter(memory_parameter, subtr_size_mb, error)
+    TYPE(hfx_memory_type)                    :: memory_parameter
+    INTEGER(int_8), INTENT(IN)               :: subtr_size_mb
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'hfx_reset_memory_usage_counter', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER(int_8)                           :: margin, max_memory
+
+    margin = 90_int_8
+
+    max_memory = memory_parameter%max_memory
+    max_memory = max_memory - subtr_size_mb
+    IF( max_memory <= 0 ) THEN
+      memory_parameter%do_all_on_the_fly = .TRUE.
+    ELSE
+      memory_parameter%do_all_on_the_fly = .FALSE.
+      memory_parameter%max_compression_counter = max_memory*1024_int_8*128_int_8*margin/100_int_8
+    END IF
+
+  END SUBROUTINE hfx_reset_memory_usage_counter
+
 
 END MODULE hfx_types
 
