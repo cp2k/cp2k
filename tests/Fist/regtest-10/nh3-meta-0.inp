@@ -61,6 +61,7 @@
         COLVAR 1
         &WALL
           TYPE NONE
+          POSITION 0.0
         &END
         &WALL
           TYPE NONE
