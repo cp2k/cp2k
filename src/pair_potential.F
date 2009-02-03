@@ -499,6 +499,7 @@ CONTAINS
        CALL init_splinexy ( spline_data, npoints+1)
        dx2 = (1.0_dp/locut**2-1.0_dp/hicut**2)/REAL(npoints,KIND=dp)
        x2  = 1.0_dp/hicut**2
+       spline_data % x1 = x2
        DO jx = 1, npoints + 1
           ! jx: loop over 1/distance**2
           x = SQRT ( 1.0_dp/x2 )
@@ -506,7 +507,6 @@ CONTAINS
           IF (do_nonbonded) THEN
              e =  e + ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
           END IF
-          spline_data % x(jx) = x2
           spline_data % y(jx) = e
           x2 = x2 + dx2
        END DO
@@ -602,11 +602,11 @@ CPSourceFileRef,&
        CALL init_splinexy (spline_data, npoints+1)
        dx2 = (1.0_dp/locut**2-1.0_dp/hicut**2)/REAL(npoints,KIND=dp)
        x2  = 1.0_dp/hicut**2
+       spline_data % x1 = x2
        DO jx = 1, npoints + 1
           ! jx: loop over 1/distance**2
           x = SQRT ( 1.0_dp/x2 )
           e = ener_coul(pot,e_cutoff_coul, f, x, ewald_type, alpha, my_do_14, do_zbl )
-          spline_data % x(jx) = x2
           spline_data % y(jx) = e
           x2 = x2 + dx2
        END DO
@@ -629,11 +629,11 @@ CPSourceFileRef,&
           CALL init_splinexy (spline_data, npoints+1)
           dx2 = (1.0_dp/locut**2-1.0_dp/hicut**2)/REAL(npoints,KIND=dp)
           x2  = 1.0_dp/hicut**2
+          spline_data % x1 = x2
           DO jx = 1, npoints + 1
              ! jx: loop over 1/distance**2
              x = SQRT ( 1.0_dp/x2 )
              e = ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
-             spline_data % x(jx) = x2
              spline_data % y(jx) = e
              x2 = x2 + dx2
           END DO

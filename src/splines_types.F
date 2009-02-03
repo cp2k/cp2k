@@ -41,11 +41,9 @@ MODULE splines_types
   TYPE spline_data_type
      INTEGER :: ref_count, id_nr
      LOGICAL                 :: dual
-     REAL (KIND=dp), POINTER :: x  ( : )    ! the x values
      REAL (KIND=dp), POINTER :: y  ( : )    ! the function values y(x)
      REAL (KIND=dp), POINTER :: y2 ( : )    ! the 2nd derivative via interpolation
      INTEGER               :: n             ! dimension of above arrays
-     INTEGER               :: pos           ! index for arrays for last access
      ! not used if uniform increments
      REAL (KIND=dp)          :: h           ! uniform increment of x if applicable
      REAL (KIND=dp)          :: invh        ! inverse of h
@@ -143,11 +141,6 @@ CONTAINS
        CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,error,failure)
        spline_data%ref_count=spline_data%ref_count-1
        IF (spline_data%ref_count<1) THEN
-          IF ( ASSOCIATED ( spline_data%x)) THEN
-             DEALLOCATE (spline_data%x,STAT=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-             NULLIFY (spline_data%x)
-          END IF
           IF ( ASSOCIATED ( spline_data%y)) THEN
              DEALLOCATE (spline_data%y,STAT=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -383,7 +376,6 @@ CONTAINS
        spline_data_dest%id_nr     = spline_data_source%id_nr
        spline_data_dest%n         = spline_data_source%n
        spline_data_dest%dual      = spline_data_source%dual
-       spline_data_dest%pos       = spline_data_source%pos
        spline_data_dest%h         = spline_data_source%h
        spline_data_dest%invh      = spline_data_source%invh
        spline_data_dest%h26       = spline_data_source%h26
@@ -391,11 +383,6 @@ CONTAINS
        spline_data_dest%xn        = spline_data_source%xn
        spline_data_dest%ei_scale14  = spline_data_source%ei_scale14
        spline_data_dest%ei_cutoff14 = spline_data_source%ei_cutoff14
-       IF (ASSOCIATED(spline_data_source%x)) THEN
-          ALLOCATE(spline_data_dest%x(SIZE(spline_data_source%x)), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          spline_data_dest%x = spline_data_source%x
-       END IF
        IF (ASSOCIATED(spline_data_source%y)) THEN
           ALLOCATE(spline_data_dest%y(SIZE(spline_data_source%y)), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -432,7 +419,6 @@ CONTAINS
        last_spline_data_id_nr=last_spline_data_id_nr+1
        spline_data%id_nr = last_spline_data_id_nr
        spline_data%dual  = .FALSE.
-       NULLIFY ( spline_data % x )
        NULLIFY ( spline_data % y )
        NULLIFY ( spline_data % y2 )
     END IF

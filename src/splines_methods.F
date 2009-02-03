@@ -49,11 +49,6 @@ CONTAINS
     INTEGER                                  :: err
 
     spl % n = nn
-    IF ( ASSOCIATED ( spl % x ) ) THEN
-       DEALLOCATE ( spl % x, STAT = err )
-       IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%x')
-       NULLIFY ( spl % x )
-    END IF
 
     IF ( ASSOCIATED ( spl % y ) ) THEN
        DEALLOCATE ( spl % y, STAT = err )
@@ -61,11 +56,17 @@ CONTAINS
        NULLIFY ( spl % y )
     END IF
 
-    ALLOCATE ( spl % x ( 1:nn ), STAT = err )
-    IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%x', nn )
+    IF ( ASSOCIATED ( spl % y2 ) ) THEN
+       DEALLOCATE ( spl % y2, STAT = err )
+       IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y2')
+       NULLIFY ( spl % y2 )
+    END IF
 
     ALLOCATE ( spl % y ( 1:nn ), STAT = err )
     IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y', nn)
+
+    ALLOCATE ( spl % y2 ( 1:nn ), STAT = err )
+    IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y2', nn )
 
   END SUBROUTINE init_splinexy
 
@@ -109,26 +110,16 @@ CONTAINS
     REAL(KIND=dp)                            :: p, s
     REAL(KIND=dp), POINTER                   :: ww( : )
 
-    IF ( ASSOCIATED ( spl%y2)) THEN
-       DEALLOCATE (spl%y2,STAT=err)
-       IF (err /= 0 ) CALL stop_memory ( 'init_spline','spl%y2')
-       NULLIFY (spl%y2)
-    END IF
-
     n        = spl%n
-    spl%x1   = spl%x(1)
-    spl%xn   = spl%x(1)+ (n-1)*dx
-    spl%pos  = 1
+    spl%xn   = spl%x1+ (n-1)*dx
     spl%h    = dx
     spl%invh = 1.0_dp/dx
     spl%h26  = dx**2 / 6.0_dp
-    spl%y2   => spl%x
     spl%ei_scale14  = HUGE(0.0_dp)
     spl%ei_cutoff14 = HUGE(0.0_dp)
     IF (PRESENT(ei_scale14 )) spl%ei_scale14  = ei_scale14
     IF (PRESENT(ei_cutoff14)) spl%ei_cutoff14 = ei_cutoff14
     IF (PRESENT(dual)) spl%dual = dual
-    NULLIFY (spl%x)
     ALLOCATE (ww(1:n),STAT=err)
     IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'ww', spl%n )
     IF (PRESENT(y1a)) THEN
