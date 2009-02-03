@@ -23,6 +23,7 @@ MODULE metadynamics_utils
                                              do_wall_none,&
                                              do_wall_p,&
                                              do_wall_quadratic,&
+                                             do_wall_quartic,&
                                              do_wall_reflective
   USE input_cp2k_free_energy,          ONLY: create_metavar_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -357,6 +358,7 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        DO i = 1, n_walls
           CALL section_vals_val_get(wall_section,"TYPE",i_rep_section=i,i_val=metavar%walls(i)%id_type,error=error)
+          CALL section_vals_val_get(wall_section,"POSITION",i_rep_section=i,r_val=metavar%walls(i)%pos,error=error)
           SELECT CASE(metavar%walls(i)%id_type)
           CASE(do_wall_none)
              ! Just cycle..
@@ -368,12 +370,21 @@ CPSourceFileRef,&
              work_section => section_vals_get_subs_vals(wall_section,"QUADRATIC",i_rep_section=i,error=error)
              CALL section_vals_val_get(work_section,"DIRECTION",i_val=metavar%walls(i)%id_direction,error=error)
              CALL section_vals_val_get(work_section,"K",r_val=metavar%walls(i)%k_quadratic,error=error)
+          CASE(do_wall_quartic)
+             work_section => section_vals_get_subs_vals(wall_section,"QUARTIC",i_rep_section=i,error=error)
+             CALL section_vals_val_get(work_section,"DIRECTION",i_val=metavar%walls(i)%id_direction,error=error)
+             CALL section_vals_val_get(work_section,"K",r_val=metavar%walls(i)%k_quartic,error=error)
+             SELECT CASE(metavar%walls(i)%id_direction)
+             CASE(do_wall_m)
+               metavar%walls(i)%pos0= metavar%walls(i)%pos+(0.05_dp/metavar%walls(i)%k_quartic**(1/4))
+             CASE(do_wall_p)
+               metavar%walls(i)%pos0= metavar%walls(i)%pos-(0.05_dp/metavar%walls(i)%k_quartic**(1/4))
+             END SELECT
           CASE(do_wall_gaussian)
              work_section => section_vals_get_subs_vals(wall_section,"GAUSSIAN",i_rep_section=i,error=error)
              CALL section_vals_val_get(work_section,"WW",r_val=metavar%walls(i)%ww_gauss,error=error)
              CALL section_vals_val_get(work_section,"SIGMA",r_val=metavar%walls(i)%sigma_gauss,error=error)
           END SELECT
-          CALL section_vals_val_get(wall_section,"POSITION",i_rep_section=i,r_val=metavar%walls(i)%pos,error=error)
        END DO
     END IF
     ! Setup few more parameters for extended lagrangian
@@ -713,6 +724,7 @@ CPSourceFileRef,&
     ! Forces from the Walls
     DO ih=1,SIZE(colvars)
        IF (colvars(ih)%do_wall) THEN 
+          colvars(ih)%ff_walls=0.0_dp
           DO iwall = 1, SIZE(colvars(ih)%walls)
              SELECT CASE(colvars(ih)%walls(iwall)%id_type)
              CASE(do_wall_reflective,do_wall_none)
@@ -727,9 +739,34 @@ CPSourceFileRef,&
                 dfunc = 2.0_dp*colvars(ih)%walls(iwall)%k_quadratic*diff_ss
                 SELECT CASE (colvars(ih)%walls(iwall)%id_direction)
                 CASE(do_wall_p)
-                   IF (diff_ss>0.0_dp) colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
+                   IF (diff_ss>0.0_dp) THEN
+                     colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
+                     colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
+                   END IF
                 CASE(do_wall_m)
-                   IF (diff_ss<0.0_dp) colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
+                   IF (diff_ss<0.0_dp) THEN
+                     colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
+                     colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
+                   END IF
+                END SELECT
+             CASE(do_wall_quartic)
+                diff_ss = colvars(ih)%ss0-colvars(ih)%walls(iwall)%pos0
+                IF (colvars(ih)%periodic) THEN
+                   ! The difference of a periodic COLVAR is always within [-pi,pi]
+                   diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
+                END IF
+                dfunc = 4.0_dp*colvars(ih)%walls(iwall)%k_quartic*diff_ss**3
+                SELECT CASE (colvars(ih)%walls(iwall)%id_direction)
+                CASE(do_wall_p)
+                   IF (diff_ss>0.0_dp) THEN 
+                      colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
+                      colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
+                   END IF
+                CASE(do_wall_m)
+                   IF (diff_ss<0.0_dp) THEN
+                      colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
+                      colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
+                   END IF
                 END SELECT
              CASE(do_wall_gaussian)
                 diff_ss = colvars(ih)%ss0-colvars(ih)%walls(iwall)%pos
@@ -743,6 +780,7 @@ CPSourceFileRef,&
                 dp2 = ddp**2
                 dfunc=-ww*EXP(-0.5_dp*dp2)
                 colvars(ih)%ff_hills=colvars(ih)%ff_hills-ddp/delta_s*dfunc
+                colvars(ih)%ff_walls=colvars(ih)%ff_walls-ddp/delta_s*dfunc
              END SELECT
           END DO
        END IF

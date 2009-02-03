@@ -590,13 +590,14 @@ CONTAINS
        
        CALL keyword_create(keyword, name="TYPE",&
             description="Specify the type of wall",&
-            usage=" TYPE (REFLECTIVE|QUADRATIC|GAUSSIAN|NONE)",&
-            enum_c_vals=s2a( "REFLECTIVE","QUADRATIC","GAUSSIAN","NONE"),&
+            usage=" TYPE (REFLECTIVE|QUADRATIC|QUARTIC|GAUSSIAN|NONE)",&
+            enum_c_vals=s2a( "REFLECTIVE","QUADRATIC","QUARTIC","GAUSSIAN","NONE"),&
             enum_desc=s2a("Reflective wall. Colvar velocity is inverted when the colvar is beyond the wall position.",&
                           "Applies a quadratic potential at the wall position.",&
+                          "Applies a quartic potential at the wall position.",&
                           "Applies a gaussian potential at the wall position.",&
                           "No walls are applied."),&
-            enum_i_vals=(/do_wall_reflective,do_wall_quadratic,do_wall_gaussian,do_wall_none/),&
+            enum_i_vals=(/do_wall_reflective,do_wall_quadratic,do_wall_quartic,do_wall_gaussian,do_wall_none/),&
             default_i_val=do_wall_none,error=error)
        CALL section_add_keyword(wall_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
@@ -643,7 +644,33 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="K",&
-            description="Specify the value of the quadratic potential constan: K*(CV-POS)^2",&
+            description="Specify the value of the quadratic potential constant: K*(CV-POS)^2",&
+            usage="K <REAL>",unit_str='hartree',&
+            type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(wall_section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       ! Quartic wall
+       CALL section_create(subsection,name="QUARTIC",&
+            description="Parameters controlling the quartic wall",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="DIRECTION",&
+            description="Specify the direction of the wall.",&
+            usage=" TYPE (WALL_PLUS|WALL_MINUS)",&
+            enum_c_vals=s2a( "WALL_PLUS","WALL_MINUS"),&
+            enum_desc=s2a("Wall extends from the position towards larger values of COLVAR",&
+                          "Wall extends from the position towards smaller values of COLVAR"),&
+            enum_i_vals=(/do_wall_p,do_wall_m/),default_i_val=do_wall_p,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="K",&
+            description="Specify the value of the quartic potential constant: K*(CV-(POS+/-(1/K^(1/4))))^4",&
             usage="K <REAL>",unit_str='hartree',&
             type_of_var=real_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)

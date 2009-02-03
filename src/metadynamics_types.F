@@ -55,8 +55,8 @@ MODULE metadynamics_types
 ! *****************************************************************************
   TYPE wall_type
      INTEGER                                   :: id_type, id_direction
-     REAL(KIND=dp)                             :: pos
-     REAL(KIND=dp)                             :: k_quadratic, ww_gauss, sigma_gauss
+     REAL(KIND=dp)                             :: pos, pos0
+     REAL(KIND=dp)                             :: k_quadratic, k_quartic, ww_gauss, sigma_gauss
   END TYPE wall_type
 
 ! *****************************************************************************
@@ -68,7 +68,7 @@ MODULE metadynamics_types
      REAL(KIND=dp)                             :: mass, lambda, vvp
      REAL(KIND=dp)                             :: gamma
      REAL(KIND=dp)                             :: cv_energy, delta_s
-     REAL(KIND=dp)                             :: ss, ss0, ff_s, ff_hills
+     REAL(KIND=dp)                             :: ss, ss0, ff_s, ff_hills, ff_walls
      TYPE(wall_type), DIMENSION(:), POINTER    :: walls
   END TYPE metavar_type
 
@@ -198,6 +198,7 @@ CONTAINS
           meta_env%metavar(i)%cv_energy = 0.0_dp
           meta_env%metavar(i)%delta_s   = 0.0_dp
           meta_env%metavar(i)%ff_hills  = 0.0_dp
+          meta_env%metavar(i)%ff_walls  = 0.0_dp
           meta_env%metavar(i)%do_wall   = .FALSE.
           meta_env%metavar(i)%periodic  = .FALSE.
           meta_env%metavar(i)%icolvar   = 0

@@ -228,7 +228,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: do_wall_none=0,&
                                               do_wall_reflective=1,&
                                               do_wall_quadratic=2,&
-                                              do_wall_gaussian=3
+                                              do_wall_quartic=3,&
+                                              do_wall_gaussian=4
                                            
   INTEGER, PARAMETER, PUBLIC               :: do_wall_p=0,&
                                               do_wall_m=1

@@ -538,6 +538,7 @@ CONTAINS
                (meta_env%metavar(i)%ss,i=1,meta_env%n_colvar), &
                (meta_env%metavar(i)%ff_s,i=1,meta_env%n_colvar), &
                (meta_env%metavar(i)%ff_hills,i=1,meta_env%n_colvar), &
+               (meta_env%metavar(i)%ff_walls,i=1,meta_env%n_colvar), &
                (meta_env%metavar(i)%vvp,i=1,meta_env%n_colvar), &
                (meta_env%ekin_s)*2.0_dp/(REAL(meta_env%n_colvar,KIND=dp))*kelvin
        ELSE
@@ -545,7 +546,8 @@ CONTAINS
                (meta_env%metavar(i)%ss0,i=1,meta_env%n_colvar), &
                (meta_env%metavar(i)%ss,i=1,meta_env%n_colvar), &
                (meta_env%metavar(i)%ff_s,i=1,meta_env%n_colvar), &
-               (meta_env%metavar(i)%ff_hills,i=1,meta_env%n_colvar)
+               (meta_env%metavar(i)%ff_hills,i=1,meta_env%n_colvar),&
+               (meta_env%metavar(i)%ff_walls,i=1,meta_env%n_colvar)
        END IF
     END IF
     CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
