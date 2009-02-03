@@ -933,8 +933,8 @@ CONTAINS
     IF (tmp==0) THEN
        lcm = 0
     ELSE
-       ! could overflow
-       lcm = ABS(a*b)/tmp
+       ! could still overflow if the true lcm is larger than maxint
+       lcm = ABS((a/tmp)*b)
     END IF
   END FUNCTION lcm
 
