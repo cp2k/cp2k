@@ -31,7 +31,6 @@
       &HF
        &SCREENING
          EPS_SCHWARZ 1.0E-14
-         EPS_BOX -1.0E-8
          SCREEN_ON_INITIAL_P FALSE 
        &END
        &INTERACTION_POTENTIAL

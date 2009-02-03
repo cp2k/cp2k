@@ -44,7 +44,6 @@
       &HF
         &SCREENING
           EPS_SCHWARZ 1.0E-16 
-          EPS_BOX 1.0E-16
         &END
         &MEMORY
           MAX_MEMORY  100 
