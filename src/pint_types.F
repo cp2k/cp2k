@@ -28,6 +28,7 @@ MODULE pint_types
                                              f_env_type
   USE force_env_types,                 ONLY: force_env_get
   USE input_constants,                 ONLY: dump_dcd,&
+                                             dump_xmol,&
                                              pint_run,&
                                              transformation_stage
   USE input_section_types,             ONLY: section_vals_get,&
@@ -70,8 +71,9 @@ MODULE pint_types
   PUBLIC :: pint_env_create, pint_retain, pint_release,&
        pint_x2u, pint_u2x, pint_f2uf, pint_calc_uf_h,&
        pint_calc_e_kin_beads_u, pint_calc_nh_energy, pint_calc_e_vir, &
-       pint_calc_f, pint_init_v, pint_write_centroids, pint_write_ener,&
-       pint_write_restart, pint_step, pint_start, pint_do_run, pint_setup
+       pint_calc_f, pint_init_v, pint_write_centroids, pint_write_trajectory, &
+       pint_write_ener, pint_write_restart, pint_step, pint_start, &
+       pint_do_run, pint_setup
   PUBLIC :: staging_env_create, staging_x2u, staging_u2x, staging_f2uf,&
        staging_init_masses, staging_release, staging_retain, staging_calc_uf_h
   PUBLIC :: normalmode_env_create, normalmode_x2u, normalmode_u2x, &
@@ -1498,7 +1500,7 @@ SUBROUTINE pint_calc_f(pint_env,x,f,e,error)
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(out), OPTIONAL, TARGET          :: f
     REAL(kind=dp), DIMENSION(:), &
-      INTENT(out), OPTIONAL                  :: e
+      INTENT(out), OPTIONAL, TARGET          :: e
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_f', &
@@ -1506,6 +1508,7 @@ SUBROUTINE pint_calc_f(pint_env,x,f,e,error)
 
     INTEGER                                  :: ib, idim
     LOGICAL                                  :: failure
+    REAL(kind=dp), DIMENSION(:), POINTER     :: my_e
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_f, my_x
 
   failure=.FALSE.
@@ -1515,26 +1518,22 @@ SUBROUTINE pint_calc_f(pint_env,x,f,e,error)
   IF (.NOT. failure) THEN
      my_x => pint_env%x
      IF (PRESENT(x)) my_x => x
+     my_f => pint_env%f
+     IF (PRESENT(f)) my_f => f
+     my_e => pint_env%e_pot_bead
+     IF (PRESENT(e)) my_e => e
      DO idim=1,pint_env%ndim
         DO ib=1,pint_env%p
            pint_env%replicas%r(idim,ib)=my_x(ib,idim)
         END DO
      END DO
      CALL rep_env_calc_e_f(pint_env%replicas,calc_f=.TRUE.,error=error)
-     my_f => pint_env%f
-     IF (PRESENT(f)) my_f => f
      DO idim=1,pint_env%ndim
         DO ib=1,pint_env%p
            my_f(ib,idim)=pint_env%replicas%f(idim,ib)
         END DO
      END DO
-     IF (PRESENT(e)) THEN
-        e=pint_env%replicas%f(SIZE(pint_env%replicas%f,1),:)
-     ELSE
-        pint_env%e_pot_bead = pint_env%replicas%f(SIZE(pint_env%replicas%f,1),:)
-     END IF
-!     res=SUM(pint_env%replicas%f(:,SIZE(pint_env%replicas%f)))
-!          /REAL(SIZE(pint_env%replicas%f),dp)
+     my_e=pint_env%replicas%f(SIZE(pint_env%replicas%f,1),:)
   END IF
 END SUBROUTINE pint_calc_f
 
@@ -1947,9 +1946,11 @@ SUBROUTINE pint_write_centroids(pint_env,error)
                  END DO
               END DO
 
-              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-                   " i =",logger%iter_info%iteration(2),&
-                   ", E =",SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp)
+              IF (i_form == dump_xmol) THEN
+                 WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
+                      " i =",logger%iter_info%iteration(2),&
+                      ", E =",SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp)
+              END IF
               CALL write_particle_coordinates(particles%els,&
                    iunit=unit_nr,output_format=i_form,content="POS",title=title,&
                    cell=cell,error=error)
@@ -1963,6 +1964,102 @@ SUBROUTINE pint_write_centroids(pint_env,error)
      END IF
   END IF
 END SUBROUTINE pint_write_centroids
+
+! *****************************************************************************
+!> \brief writes out the trajectory of the beads
+!> \param pint_env path integral environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author hforbert
+! *****************************************************************************
+SUBROUTINE pint_write_trajectory(pint_env,error)
+    TYPE(pint_env_type), POINTER             :: pint_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_trajectory', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: ext, form, title
+    INTEGER                                  :: handle, i_form, iat, ib, &
+                                                idim, idir, ierr, iter, &
+                                                unit_nr
+    LOGICAL                                  :: failure
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type)                      :: new_error
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(section_vals_type), POINTER         :: print_key
+
+  failure=.FALSE.
+
+  NULLIFY(f_env,cell,subsys)
+  CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+     IF (pint_env%replicas%para_env%ionode) THEN
+        print_key => section_vals_get_subs_vals(pint_env%input,&
+             "MOTION%PRINT%TRAJECTORY", error=error)
+        CALL section_vals_val_get(print_key,"format",c_val=ext,i_val=i_form,&
+             error=error)
+        SELECT CASE(i_form)
+        CASE (dump_dcd)
+           form="UNFORMATTED"
+        CASE default
+           form="FORMATTED"
+           ext="TRAJ"
+        END SELECT
+        CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
+             f_env=f_env,new_error=new_error, failure=failure, handle=handle)
+        logger => cp_error_get_logger(new_error)
+        IF (BTEST(cp_print_key_should_output(iteration_info=logger%iter_info,&
+             basis_section=print_key, error=new_error),cp_p_file)) THEN
+           iter=logger%iter_info%iteration(1)
+           DO ib=1,pint_env%p
+              logger%iter_info%iteration(1)=ib
+              unit_nr=cp_print_key_unit_nr(logger=logger,&
+                      basis_section=print_key, print_key_path="",&
+                      extension="."//TRIM(ext), local=.FALSE.,&
+                     file_form=form, error=new_error)
+              IF (unit_nr>0) THEN
+                 logger%iter_info%iteration(1)=0
+                 CALL force_env_get(force_env=f_env%force_env,&
+                      cell=cell, subsys=subsys, error=new_error)
+                 CALL cp_subsys_get(subsys,particles=particles,&
+                      error=new_error)
+
+                 idim=0
+                 DO iat=1,pint_env%ndim/3
+                    DO idir=1,3
+                       idim=idim+1
+                       particles%els(iat)%r(idir)=pint_env%x(ib,idim)
+                       particles%els(iat)%v(idir)=pint_env%v(ib,idim)
+                    END DO
+                 END DO
+
+                 IF (i_form == dump_xmol) THEN
+                    WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
+                         " i =",logger%iter_info%iteration(2),&
+                        ", E =",pint_env%e_pot_bead(ib)
+                 END IF
+!TODO/FIXME separate printkey for velocities? since both is not
+! possible in one file atm it seems
+                 CALL write_particle_coordinates(particles%els,&
+                      iunit=unit_nr,output_format=i_form,content="POS",&
+                      title=title,cell=cell,error=error)
+                 CALL cp_print_key_finished_output(unit_nr,logger,&
+                      print_key,"", local=.FALSE., error=new_error)
+              END IF
+           END DO
+           logger%iter_info%iteration(1)=iter
+        END IF
+        CALL f_env_rm_defaults(f_env,new_error,ierr,handle)
+        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+     END IF
+  END IF
+END SUBROUTINE pint_write_trajectory
 
 ! *****************************************************************************
 !> \brief writes out the ener info of the centroids
@@ -2391,6 +2488,7 @@ SUBROUTINE pint_do_run(pint_env,error)
      DO i=1,num_steps
         CALL pint_write_ener(pint_env,error=error)
         CALL pint_write_centroids(pint_env,error=error)
+        CALL pint_write_trajectory(pint_env,error=error)
         CALL pint_write_restart(pint_env,error=error)
         IF (t_tol>0._dp) THEN
            IF (ABS(2._dp*pint_env%e_kin_beads/(pint_env%p*pint_env%ndim)&
