@@ -413,10 +413,12 @@ CONTAINS
             CALL stop_program(routineP,"Preconditioner NYI")
          END SELECT
 
-         WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,ES8.1)")&
-            "LINRES|                  EPS_SCF",linres_control%eps_scf
-         WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,I8)")&
-            "LINRES|  Max number of iterations per SCF cycle",linres_control%max_scf
+         WRITE (UNIT=output_unit,FMT="(T2,A,T71,ES8.1)")&
+              "LINRES|                  EPS_SCF",linres_control%eps_scf
+         WRITE (UNIT=output_unit,FMT="(T2,A,T77,L2)")&
+              "LINRES|              CHECK_ORTHO",linres_control%check_ortho
+         WRITE (UNIT=output_unit,FMT="(T2,A,T71,I8)")&
+              "LINRES|                  MAX_SCF",linres_control%max_scf
        END IF
 
       !------------------!
@@ -441,7 +443,7 @@ CONTAINS
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
              CALL calculate_subspace_eigenvalues(p_env%ev_h0(ispin)%matrix,&
                   matrix_ks(ispin)%matrix,evals_arg=p_env%preconditioner(ispin)%occ_evals,&
-                  para_env=mo_coeff%matrix_struct%para_env, do_rotation = .FALSE.,error=error)
+                  para_env=mo_coeff%matrix_struct%para_env,do_rotation = .FALSE.,error=error)
           END DO
        END IF
     END IF
