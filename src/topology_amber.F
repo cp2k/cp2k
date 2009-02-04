@@ -404,7 +404,7 @@ CPSourceFileRef,&
     NULLIFY(parser)
     IF (output_unit>0) WRITE(output_unit,'(/,A)')" AMBER_INFO| Reading Amber Topology File: "//&
          TRIM(filename)
-    CALL parser_create(parser,filename,para_env=para_env,error=error)
+    CALL parser_create(parser,filename,para_env=para_env,parse_white_lines=.TRUE.,error=error)
     valid_format = check_amber_8_std(parser, output_unit, error)
     IF (valid_format) THEN
        DO WHILE (get_section_parmtop(parser, section, input_format, error))
@@ -743,51 +743,53 @@ CPSourceFileRef,&
        CALL reallocate(conn_info%phi_c,1,nphih+nphia)
        CALL reallocate(conn_info%phi_d,1,nphih+nphia)
 
-       ALLOCATE(full_torsions(4,nphih+nphia),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(iwork(nphih+nphia),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (nphih+nphia /= 0) THEN
+          ALLOCATE(full_torsions(4,nphih+nphia),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(iwork(nphih+nphia),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       DO i = 1, nphih
-          full_torsions(1,i)          = iph(i)
-          full_torsions(2,i)          = jph(i)
-          full_torsions(3,i)          = kph(i)
-          full_torsions(4,i)          = lph(i)
-       END DO
-       DO i = 1, nphia
-          full_torsions(1,nphih+i)    = ip(i)
-          full_torsions(2,nphih+i)    = jp(i)
-          full_torsions(3,nphih+i)    = kp(i)
-          full_torsions(4,nphih+i)    = lp(i)
-       END DO
-       CALL sort(full_torsions, 1, nphih+nphia, 1, 4, iwork)
+          DO i = 1, nphih
+             full_torsions(1,i)          = iph(i)
+             full_torsions(2,i)          = jph(i)
+             full_torsions(3,i)          = kph(i)
+             full_torsions(4,i)          = lph(i)
+          END DO
+          DO i = 1, nphia
+             full_torsions(1,nphih+i)    = ip(i)
+             full_torsions(2,nphih+i)    = jp(i)
+             full_torsions(3,nphih+i)    = kp(i)
+             full_torsions(4,nphih+i)    = lp(i)
+          END DO
+          CALL sort(full_torsions, 1, nphih+nphia, 1, 4, iwork)
 
-       unique_torsions = 1
-       conn_info%phi_a(1) = full_torsions(1,1)
-       conn_info%phi_b(1) = full_torsions(2,1)
-       conn_info%phi_c(1) = full_torsions(3,1)
-       conn_info%phi_d(1) = full_torsions(4,1)
-       DO i = 2, nphih+nphia
-          IF ( (full_torsions(1,i)/=full_torsions(1,i-1)).OR.&
-               (full_torsions(2,i)/=full_torsions(2,i-1)).OR.&
-               (full_torsions(3,i)/=full_torsions(3,i-1)).OR.&
-               (full_torsions(4,i)/=full_torsions(4,i-1))) THEN
-             unique_torsions = unique_torsions + 1
-             conn_info%phi_a(unique_torsions) = full_torsions(1,i)
-             conn_info%phi_b(unique_torsions) = full_torsions(2,i)
-             conn_info%phi_c(unique_torsions) = full_torsions(3,i)
-             conn_info%phi_d(unique_torsions) = full_torsions(4,i)
-          END IF
-       END DO
-       CALL reallocate(conn_info%phi_a,1,unique_torsions)
-       CALL reallocate(conn_info%phi_b,1,unique_torsions)
-       CALL reallocate(conn_info%phi_c,1,unique_torsions)
-       CALL reallocate(conn_info%phi_d,1,unique_torsions)
+          unique_torsions = 1
+          conn_info%phi_a(1) = full_torsions(1,1)
+          conn_info%phi_b(1) = full_torsions(2,1)
+          conn_info%phi_c(1) = full_torsions(3,1)
+          conn_info%phi_d(1) = full_torsions(4,1)
+          DO i = 2, nphih+nphia
+             IF ( (full_torsions(1,i)/=full_torsions(1,i-1)).OR.&
+                  (full_torsions(2,i)/=full_torsions(2,i-1)).OR.&
+                  (full_torsions(3,i)/=full_torsions(3,i-1)).OR.&
+                  (full_torsions(4,i)/=full_torsions(4,i-1))) THEN
+                unique_torsions = unique_torsions + 1
+                conn_info%phi_a(unique_torsions) = full_torsions(1,i)
+                conn_info%phi_b(unique_torsions) = full_torsions(2,i)
+                conn_info%phi_c(unique_torsions) = full_torsions(3,i)
+                conn_info%phi_d(unique_torsions) = full_torsions(4,i)
+             END IF
+          END DO
+          CALL reallocate(conn_info%phi_a,1,unique_torsions)
+          CALL reallocate(conn_info%phi_b,1,unique_torsions)
+          CALL reallocate(conn_info%phi_c,1,unique_torsions)
+          CALL reallocate(conn_info%phi_d,1,unique_torsions)
 
-       DEALLOCATE(full_torsions,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(iwork,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(full_torsions,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(iwork,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
        ! IMPROPERS
        CALL reallocate(conn_info%impr_a,1,0)
        CALL reallocate(conn_info%impr_b,1,0)
@@ -1398,52 +1400,53 @@ CPSourceFileRef,&
 
     failure        = .FALSE.
     CALL timeset(routineN, handle)
-    ALLOCATE(work_label(2,nbond),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(iwork(nbond),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO i = 1, nbond
-       work_label(1,i) = particle_set(ib(i))%atomic_kind%name
-       work_label(2,i) = particle_set(jb(i))%atomic_kind%name
-    END DO
-       
-    CALL sort(work_label, 1, nbond, 1, 2, iwork)
+    IF (nbond/=0) THEN
+       ALLOCATE(work_label(2,nbond),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(iwork(nbond),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO i = 1, nbond
+          work_label(1,i) = particle_set(ib(i))%atomic_kind%name
+          work_label(2,i) = particle_set(jb(i))%atomic_kind%name
+       END DO
+       CALL sort(work_label, 1, nbond, 1, 2, iwork)
 
-    ibond = ibond + 1
-    ! In case we need more space ... give it up...
-    IF (ibond>SIZE(label_a)) THEN
-       CALL reallocate(label_a, 1,INT(buffer_size+ibond*1.5_dp))
-       CALL reallocate(label_b, 1,INT(buffer_size+ibond*1.5_dp))
-       CALL reallocate(k, 1,INT(buffer_size+ibond*1.5_dp))
-       CALL reallocate(r0,1,INT(buffer_size+ibond*1.5_dp))
-    END IF
-    label_a(ibond)  = work_label(1,1)
-    label_b(ibond)  = work_label(2,1)
-    k(ibond)  = rk (icb(iwork(1)))
-    r0(ibond) = req(icb(iwork(1)))
-    
-    DO i = 2, nbond
-       IF  ((work_label(1,i)/=label_a(ibond)).OR.&
-            (work_label(2,i)/=label_b(ibond))) THEN
-          ibond = ibond + 1
-          ! In case we need more space ... give it up...
-          IF (ibond>SIZE(label_a)) THEN
-             CALL reallocate(label_a, 1,INT(buffer_size+ibond*1.5_dp))
-             CALL reallocate(label_b, 1,INT(buffer_size+ibond*1.5_dp))
-             CALL reallocate(k, 1,INT(buffer_size+ibond*1.5_dp))
-             CALL reallocate(r0,1,INT(buffer_size+ibond*1.5_dp))
-          END IF
-          label_a(ibond)  = work_label(1,i)
-          label_b(ibond)  = work_label(2,i)
-          k(ibond)  = rk(icb(iwork(i)))
-          r0(ibond) = req(icb(iwork(i)))
+       ibond = ibond + 1
+       ! In case we need more space ... give it up...
+       IF (ibond>SIZE(label_a)) THEN
+          CALL reallocate(label_a, 1,INT(buffer_size+ibond*1.5_dp))
+          CALL reallocate(label_b, 1,INT(buffer_size+ibond*1.5_dp))
+          CALL reallocate(k, 1,INT(buffer_size+ibond*1.5_dp))
+          CALL reallocate(r0,1,INT(buffer_size+ibond*1.5_dp))
        END IF
-    END DO
+       label_a(ibond)  = work_label(1,1)
+       label_b(ibond)  = work_label(2,1)
+       k(ibond)  = rk (icb(iwork(1)))
+       r0(ibond) = req(icb(iwork(1)))
+       
+       DO i = 2, nbond
+          IF  ((work_label(1,i)/=label_a(ibond)).OR.&
+               (work_label(2,i)/=label_b(ibond))) THEN
+             ibond = ibond + 1
+             ! In case we need more space ... give it up...
+             IF (ibond>SIZE(label_a)) THEN
+                CALL reallocate(label_a, 1,INT(buffer_size+ibond*1.5_dp))
+                CALL reallocate(label_b, 1,INT(buffer_size+ibond*1.5_dp))
+                CALL reallocate(k, 1,INT(buffer_size+ibond*1.5_dp))
+                CALL reallocate(r0,1,INT(buffer_size+ibond*1.5_dp))
+             END IF
+             label_a(ibond)  = work_label(1,i)
+             label_b(ibond)  = work_label(2,i)
+             k(ibond)  = rk(icb(iwork(i)))
+             r0(ibond) = req(icb(iwork(i)))
+          END IF
+       END DO
 
-    DEALLOCATE(work_label,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(iwork, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(work_label,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(iwork, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
     CALL timestop(handle)
   END SUBROUTINE post_process_bonds_info
 
@@ -1475,58 +1478,60 @@ CPSourceFileRef,&
 
     failure        = .FALSE.
     CALL timeset(routineN,handle)
-    ALLOCATE(work_label(3,ntheta),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(iwork(ntheta),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO i = 1, ntheta
-       work_label(1,i) = particle_set(it(i))%atomic_kind%name
-       work_label(2,i) = particle_set(jt(i))%atomic_kind%name
-       work_label(3,i) = particle_set(kt(i))%atomic_kind%name
-    END DO
-       
-    CALL sort(work_label, 1, ntheta, 1, 3, iwork)
+    IF (ntheta/=0) THEN
+       ALLOCATE(work_label(3,ntheta),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(iwork(ntheta),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO i = 1, ntheta
+          work_label(1,i) = particle_set(it(i))%atomic_kind%name
+          work_label(2,i) = particle_set(jt(i))%atomic_kind%name
+          work_label(3,i) = particle_set(kt(i))%atomic_kind%name
+       END DO
+          
+       CALL sort(work_label, 1, ntheta, 1, 3, iwork)
 
-    itheta = itheta + 1
-    ! In case we need more space ... give it up...
-    IF (itheta>SIZE(label_a)) THEN
-       CALL reallocate(label_a, 1,INT(buffer_size+itheta*1.5_dp))
-       CALL reallocate(label_b, 1,INT(buffer_size+itheta*1.5_dp))
-       CALL reallocate(label_c, 1,INT(buffer_size+itheta*1.5_dp))
-       CALL reallocate(k, 1,INT(buffer_size+itheta*1.5_dp))
-       CALL reallocate(theta0,1,INT(buffer_size+itheta*1.5_dp))
-    END IF
-    label_a(itheta)  = work_label(1,1)
-    label_b(itheta)  = work_label(2,1)
-    label_c(itheta)  = work_label(3,1)
-    k(itheta)      = tk (ict(iwork(1)))
-    theta0(itheta) = teq(ict(iwork(1)))
-    
-    DO i = 2, ntheta
-       IF  ((work_label(1,i)/=label_a(itheta)).OR.&
-            (work_label(2,i)/=label_b(itheta)).OR.&
-            (work_label(3,i)/=label_c(itheta))) THEN
-          itheta = itheta + 1
-          ! In case we need more space ... give it up...
-          IF (itheta>SIZE(label_a)) THEN
-             CALL reallocate(label_a, 1,INT(buffer_size+itheta*1.5_dp))
-             CALL reallocate(label_b, 1,INT(buffer_size+itheta*1.5_dp))
-             CALL reallocate(label_c, 1,INT(buffer_size+itheta*1.5_dp))
-             CALL reallocate(k, 1,INT(buffer_size+itheta*1.5_dp))
-             CALL reallocate(theta0,1,INT(buffer_size+itheta*1.5_dp))
-          END IF
-          label_a(itheta)  = work_label(1,i)
-          label_b(itheta)  = work_label(2,i)
-          label_c(itheta)  = work_label(3,i)
-          k(itheta)      = tk (ict(iwork(i)))
-          theta0(itheta) = teq(ict(iwork(i)))
+       itheta = itheta + 1
+       ! In case we need more space ... give it up...
+       IF (itheta>SIZE(label_a)) THEN
+          CALL reallocate(label_a, 1,INT(buffer_size+itheta*1.5_dp))
+          CALL reallocate(label_b, 1,INT(buffer_size+itheta*1.5_dp))
+          CALL reallocate(label_c, 1,INT(buffer_size+itheta*1.5_dp))
+          CALL reallocate(k, 1,INT(buffer_size+itheta*1.5_dp))
+          CALL reallocate(theta0,1,INT(buffer_size+itheta*1.5_dp))
        END IF
-    END DO
+       label_a(itheta)  = work_label(1,1)
+       label_b(itheta)  = work_label(2,1)
+       label_c(itheta)  = work_label(3,1)
+       k(itheta)      = tk (ict(iwork(1)))
+       theta0(itheta) = teq(ict(iwork(1)))
+       
+       DO i = 2, ntheta
+          IF  ((work_label(1,i)/=label_a(itheta)).OR.&
+               (work_label(2,i)/=label_b(itheta)).OR.&
+               (work_label(3,i)/=label_c(itheta))) THEN
+             itheta = itheta + 1
+             ! In case we need more space ... give it up...
+             IF (itheta>SIZE(label_a)) THEN
+                CALL reallocate(label_a, 1,INT(buffer_size+itheta*1.5_dp))
+                CALL reallocate(label_b, 1,INT(buffer_size+itheta*1.5_dp))
+                CALL reallocate(label_c, 1,INT(buffer_size+itheta*1.5_dp))
+                CALL reallocate(k, 1,INT(buffer_size+itheta*1.5_dp))
+                CALL reallocate(theta0,1,INT(buffer_size+itheta*1.5_dp))
+             END IF
+             label_a(itheta)  = work_label(1,i)
+             label_b(itheta)  = work_label(2,i)
+             label_c(itheta)  = work_label(3,i)
+             k(itheta)      = tk (ict(iwork(i)))
+             theta0(itheta) = teq(ict(iwork(i)))
+          END IF
+       END DO
 
-    DEALLOCATE(work_label,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(iwork, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(work_label,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(iwork, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
     CALL timestop(handle)
   END SUBROUTINE post_process_bends_info
 
@@ -1560,77 +1565,79 @@ CPSourceFileRef,&
 
     failure        = .FALSE.
     CALL timeset(routineN, handle)
-    ALLOCATE(work_label(6,nphi),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(iwork(nphi),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO i = 1, nphi
-       work_label(1,i) = particle_set(ip(i))%atomic_kind%name
-       work_label(2,i) = particle_set(jp(i))%atomic_kind%name
-       work_label(3,i) = particle_set(kp(i))%atomic_kind%name
-       work_label(4,i) = particle_set(lp(i))%atomic_kind%name
-       ! Phase and multiplicity must be kept into account 
-       ! for the ordering of the torsions
-       work_label(5,i) = TRIM(ADJUSTL(cp_to_string(phase(icp(i)))))
-       work_label(6,i) = TRIM(ADJUSTL(cp_to_string(pn(icp(i)))))
-    END DO
-       
-    CALL sort(work_label, 1, nphi, 1, 6, iwork)
+    IF (nphi/=0) THEN
+       ALLOCATE(work_label(6,nphi),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(iwork(nphi),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO i = 1, nphi
+          work_label(1,i) = particle_set(ip(i))%atomic_kind%name
+          work_label(2,i) = particle_set(jp(i))%atomic_kind%name
+          work_label(3,i) = particle_set(kp(i))%atomic_kind%name
+          work_label(4,i) = particle_set(lp(i))%atomic_kind%name
+          ! Phase and multiplicity must be kept into account 
+          ! for the ordering of the torsions
+          work_label(5,i) = TRIM(ADJUSTL(cp_to_string(phase(icp(i)))))
+          work_label(6,i) = TRIM(ADJUSTL(cp_to_string(pn(icp(i)))))
+       END DO
+          
+       CALL sort(work_label, 1, nphi, 1, 6, iwork)
 
-    iphi = iphi + 1
-    ! In case we need more space ... give it up...
-    IF (iphi>SIZE(label_a)) THEN
-       CALL reallocate(label_a, 1,INT(buffer_size+iphi*1.5_dp))
-       CALL reallocate(label_b, 1,INT(buffer_size+iphi*1.5_dp))
-       CALL reallocate(label_c, 1,INT(buffer_size+iphi*1.5_dp))
-       CALL reallocate(label_d, 1,INT(buffer_size+iphi*1.5_dp))
-       CALL reallocate(k, 1,  INT(buffer_size+iphi*1.5_dp))
-       CALL reallocate(m, 1,  INT(buffer_size+iphi*1.5_dp))
-       CALL reallocate(phi0,1,INT(buffer_size+iphi*1.5_dp))
-    END IF
-    label_a(iphi)  = work_label(1,1)
-    label_b(iphi)  = work_label(2,1)
-    label_c(iphi)  = work_label(3,1)
-    label_d(iphi)  = work_label(4,1)
-    k(iphi)    = pk   (icp(iwork(1)))
-    m(iphi)    = pn   (icp(iwork(1)))
-    phi0(iphi) = phase(icp(iwork(1)))
-    
-    DO i = 2, nphi
-       ! We don't consider the possibility that a torsion can have same 
-       ! phase, periodicity but different value of k.. in this case the
-       ! potential should be summed-up
-       IF  ((work_label(1,i)/=label_a(iphi)).OR.&
-            (work_label(2,i)/=label_b(iphi)).OR.&
-            (work_label(3,i)/=label_c(iphi)).OR.&
-            (work_label(4,i)/=label_d(iphi)).OR.&
-            (pn(icp(iwork(i)))/=m(iphi))    .OR.&
-            (phase(icp(iwork(i)))/=phi0(iphi))) THEN
-          iphi = iphi + 1
-          ! In case we need more space ... give it up...
-          IF (iphi>SIZE(label_a)) THEN
-             CALL reallocate(label_a, 1,INT(buffer_size+iphi*1.5_dp))
-             CALL reallocate(label_b, 1,INT(buffer_size+iphi*1.5_dp))
-             CALL reallocate(label_c, 1,INT(buffer_size+iphi*1.5_dp))
-             CALL reallocate(label_d, 1,INT(buffer_size+iphi*1.5_dp))
-             CALL reallocate(k,   1,INT(buffer_size+iphi*1.5_dp))
-             CALL reallocate(m,   1,INT(buffer_size+iphi*1.5_dp))
-             CALL reallocate(phi0,1,INT(buffer_size+iphi*1.5_dp))
-          END IF
-          label_a(iphi)  = work_label(1,i)
-          label_b(iphi)  = work_label(2,i)
-          label_c(iphi)  = work_label(3,i)
-          label_d(iphi)  = work_label(4,i)
-          k(iphi)    = pk   (icp(iwork(i)))
-          m(iphi)    = pn   (icp(iwork(i)))
-          phi0(iphi) = phase(icp(iwork(i)))
+       iphi = iphi + 1
+       ! In case we need more space ... give it up...
+       IF (iphi>SIZE(label_a)) THEN
+          CALL reallocate(label_a, 1,INT(buffer_size+iphi*1.5_dp))
+          CALL reallocate(label_b, 1,INT(buffer_size+iphi*1.5_dp))
+          CALL reallocate(label_c, 1,INT(buffer_size+iphi*1.5_dp))
+          CALL reallocate(label_d, 1,INT(buffer_size+iphi*1.5_dp))
+          CALL reallocate(k, 1,  INT(buffer_size+iphi*1.5_dp))
+          CALL reallocate(m, 1,  INT(buffer_size+iphi*1.5_dp))
+          CALL reallocate(phi0,1,INT(buffer_size+iphi*1.5_dp))
        END IF
-    END DO
+       label_a(iphi)  = work_label(1,1)
+       label_b(iphi)  = work_label(2,1)
+       label_c(iphi)  = work_label(3,1)
+       label_d(iphi)  = work_label(4,1)
+       k(iphi)    = pk   (icp(iwork(1)))
+       m(iphi)    = pn   (icp(iwork(1)))
+       phi0(iphi) = phase(icp(iwork(1)))
+       
+       DO i = 2, nphi
+          ! We don't consider the possibility that a torsion can have same 
+          ! phase, periodicity but different value of k.. in this case the
+          ! potential should be summed-up
+          IF  ((work_label(1,i)/=label_a(iphi)).OR.&
+               (work_label(2,i)/=label_b(iphi)).OR.&
+               (work_label(3,i)/=label_c(iphi)).OR.&
+               (work_label(4,i)/=label_d(iphi)).OR.&
+               (pn(icp(iwork(i)))/=m(iphi))    .OR.&
+               (phase(icp(iwork(i)))/=phi0(iphi))) THEN
+             iphi = iphi + 1
+             ! In case we need more space ... give it up...
+             IF (iphi>SIZE(label_a)) THEN
+                CALL reallocate(label_a, 1,INT(buffer_size+iphi*1.5_dp))
+                CALL reallocate(label_b, 1,INT(buffer_size+iphi*1.5_dp))
+                CALL reallocate(label_c, 1,INT(buffer_size+iphi*1.5_dp))
+                CALL reallocate(label_d, 1,INT(buffer_size+iphi*1.5_dp))
+                CALL reallocate(k,   1,INT(buffer_size+iphi*1.5_dp))
+                CALL reallocate(m,   1,INT(buffer_size+iphi*1.5_dp))
+                CALL reallocate(phi0,1,INT(buffer_size+iphi*1.5_dp))
+             END IF
+             label_a(iphi)  = work_label(1,i)
+             label_b(iphi)  = work_label(2,i)
+             label_c(iphi)  = work_label(3,i)
+             label_d(iphi)  = work_label(4,i)
+             k(iphi)    = pk   (icp(iwork(i)))
+             m(iphi)    = pn   (icp(iwork(i)))
+             phi0(iphi) = phase(icp(iwork(i)))
+          END IF
+       END DO
 
-    DEALLOCATE(work_label,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(iwork, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(work_label,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(iwork, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
     CALL timestop(handle)
   END SUBROUTINE post_process_torsions_info
 
