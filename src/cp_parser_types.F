@@ -83,7 +83,7 @@ MODULE cp_parser_types
      CHARACTER(LEN=max_line_length)                 :: input_line
      INTEGER                                        :: icol,icol1,icol2
      INTEGER                                        :: input_unit, input_line_number
-     LOGICAL                                        :: first_separator
+     LOGICAL                                        :: first_separator, parse_white_lines
      TYPE(buffer_type), POINTER                     :: buffer
      TYPE(status_type), POINTER                     :: status
      TYPE(cp_para_env_type), POINTER                :: para_env
@@ -157,7 +157,8 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE parser_create(parser, file_name, unit_nr, para_env, end_section_label,&
-       separator_chars, comment_char, continuation_char, section_char, error)
+       separator_chars, comment_char, continuation_char, section_char, parse_white_lines,&
+       error)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_name
     INTEGER, INTENT(in), OPTIONAL            :: unit_nr
@@ -169,6 +170,7 @@ CONTAINS
                                                 continuation_char, &
                                                 section_char
     TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: parse_white_lines
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_create', &
       routineP = moduleN//':'//routineN
@@ -200,6 +202,10 @@ CONTAINS
        parser%end_section = parser%section_character//default_end_section_label
        IF (PRESENT(end_section_label)) THEN
           parser%end_section = parser%section_character//TRIM(end_section_label)
+       END IF
+       parser%parse_white_lines = .FALSE.
+       IF (PRESENT(parse_white_lines)) THEN
+          parser%parse_white_lines = parse_white_lines
        END IF
 
        CALL compress(parser%end_section) ! needed?

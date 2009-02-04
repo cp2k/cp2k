@@ -319,14 +319,18 @@ CONTAINS
              END IF
 
              ! Pre-processing and error checking done. Ready for parsing.
-             non_white_found=.FALSE.
-             DO icol=1,LEN(parser%buffer%input_lines(iline))
-                thischar=parser%buffer%input_lines(iline)(icol:icol)
-                IF (.NOT.is_whitespace(thischar)) THEN
-                   IF (.NOT. is_comment(parser,thischar)) non_white_found=.TRUE.
-                   EXIT
-                ENDIF
-             ENDDO
+             IF (.NOT.parser%parse_white_lines) THEN
+                non_white_found=.FALSE.
+                DO icol=1,LEN(parser%buffer%input_lines(iline))
+                   thischar=parser%buffer%input_lines(iline)(icol:icol)
+                   IF (.NOT.is_whitespace(thischar)) THEN
+                      IF (.NOT. is_comment(parser,thischar)) non_white_found=.TRUE.
+                      EXIT
+                   ENDIF
+                ENDDO
+             ELSE
+                 non_white_found=.TRUE.
+             END IF
              IF (.NOT. non_white_found) THEN 
                 iline                      = iline -1
                 last_buffered_line_number  = last_buffered_line_number - 1
