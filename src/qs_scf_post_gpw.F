@@ -825,7 +825,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_loc_dip', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: description
+    CHARACTER(LEN=80)                        :: description,descriptionThisDip
     CHARACTER(LEN=default_string_length)     :: iter
     COMPLEX(KIND=dp)                         :: zeta
     COMPLEX(KIND=dp), DIMENSION(3)           :: ggamma, zphase
@@ -859,6 +859,7 @@ CPSourceFileRef,&
        CALL section_vals_val_get(print_key,"REF_POINT",r_vals=ref_point,error=error)
        CALL section_vals_val_get(print_key,"PERIODIC",l_val=do_berry,error=error)
        description='[DIPOLE]'
+       descriptionThisDip='[TOTAL_DIPOLE]'
        CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point,error=error)
 
        dipole=0.0_dp
@@ -939,18 +940,25 @@ CPSourceFileRef,&
                                  "delta_dipole(x,y,z)[atomic units]"
           END IF
           iter=cp_iter_string(logger%iter_info,error=error)
-          CALL get_results(qs_env%results,description,n_rep=n_rep,error=error)
+          CALL get_results(qs_env%results,descriptionThisDip,n_rep=n_rep,error=error)
           IF(n_rep==0)THEN
              dipole_old=0._dp
           ELSE
-             CALL get_results(qs_env%results,description,dipole_old,nval=n_rep,error=error)
+             CALL get_results(qs_env%results,descriptionThisDip,dipole_old,nval=n_rep,error=error)
           END IF
-          WRITE(unit=unit_nr,fmt="(a,9(es18.8))")&
-               iter(1:15), dipole, dipole*debye, (dipole-dipole_old)
+          IF (do_berry) THEN
+             WRITE(unit=unit_nr,fmt="(a,9(es18.8))")&
+                  iter(1:15), dipole, dipole*debye, pbc(dipole-dipole_old,cell)
+          ELSE
+             WRITE(unit=unit_nr,fmt="(a,9(es18.8))")&
+                  iter(1:15), dipole, dipole*debye, (dipole-dipole_old)
+          END IF
        END IF
        CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
        CALL cp_results_erase(qs_env%results,description,error=error)
        CALL put_results(qs_env%results,description,dipole,error)
+       CALL cp_results_erase(qs_env%results,descriptionThisDip,error=error)
+       CALL put_results(qs_env%results,descriptionThisDip,dipole,error)
     END IF
 
     CALL timestop(handle)
