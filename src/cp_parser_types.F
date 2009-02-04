@@ -169,8 +169,8 @@ CONTAINS
     CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: comment_char, &
                                                 continuation_char, &
                                                 section_char
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: parse_white_lines
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_create', &
       routineP = moduleN//':'//routineN

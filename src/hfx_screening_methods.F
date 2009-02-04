@@ -14,7 +14,6 @@ MODULE hfx_screening_methods
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE erf_fn,                          ONLY: erfc
   USE f77_blas
   USE hfx_libint_interface,            ONLY: evaluate_eri_screen
   USE hfx_libint_wrapper,              ONLY: lib_int
