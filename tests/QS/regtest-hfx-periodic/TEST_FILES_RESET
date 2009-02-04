@@ -20,3 +20,6 @@ H2O-trunc-auto-md.inp
 CH3-trunc-auto.inp
 CH3-trunc-1.inp
 CH3-trunc-auto-md.inp
+# eps schwarz for radii calculation
+CH3-trunc-auto-md.inp
+H2O-trunc-auto-md.inp
