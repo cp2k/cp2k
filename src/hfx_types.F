@@ -1179,7 +1179,7 @@ MODULE hfx_types
 
     INTEGER(int_8)                           :: margin, max_memory
 
-    margin = 90_int_8
+    margin = 100_int_8
 
     max_memory = memory_parameter%max_memory
     max_memory = max_memory - subtr_size_mb

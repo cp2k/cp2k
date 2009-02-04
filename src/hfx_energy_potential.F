@@ -401,6 +401,8 @@ MODULE hfx_energy_potential
     IF(do_p_screening) THEN 
       subtr_size_mb = subtr_size_mb+max_set**2*natom**2
     END IF
+    ! ** if openMP, thats just divided by the number of threads
+    subtr_size_mb = subtr_size_mb/n_threads
     ! ** primitive buffers
     subtr_size_mb = subtr_size_mb + 2_int_8*nco_max**4
     subtr_size_mb = subtr_size_mb * 8_int_8/1024_int_8/1024_int_8
@@ -609,7 +611,7 @@ MODULE hfx_energy_potential
     !! are initialized
     IF( .NOT. actual_x_data%screen_funct_is_initialized ) THEN
       CALL calc_pair_dist_radii(qs_env, lib(i_thread+1), actual_x_data%potential_parameter, i_thread,&
-                                actual_x_data%pair_dist_radii_pgf, max_set, max_pgf, error)
+                                actual_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz, error)
 
       CALL calc_screening_functions(qs_env, lib(i_thread+1), actual_x_data%potential_parameter, i_thread,&
                                     actual_x_data%screen_funct_coeffs_set, actual_x_data%screen_funct_coeffs_kind, &
@@ -1463,11 +1465,8 @@ MODULE hfx_energy_potential
                  "HFX_MEM_INFO| Total compression factor ERI's disk:             ",compression_factor_disk
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Size of density matrix [MB's]:             ", mb_size_p
+                 "HFX_MEM_INFO| Size of density/Fock matrix [MB's]:             ", 2_int_8*mb_size_p
 
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Size of fock matrix [MB's]:             ", mb_size_f
-       
         IF( do_periodic) THEN
           WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Size of buffers [MB's]:             ", mb_size_buffers

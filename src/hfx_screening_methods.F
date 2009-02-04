@@ -40,8 +40,6 @@ MODULE hfx_screening_methods
          calc_screening_functions,&
          calc_pair_dist_radii
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_screening_methods'
-  REAL(dp), PARAMETER      :: epsilon = 0.00001_dp
-  REAL(dp), PARAMETER      :: erfc_epsilon = 0.99998871620832942100_dp !erfc(epsilon)
 
 !***
   
@@ -634,7 +632,7 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
 
   SUBROUTINE calc_pair_dist_radii(qs_env, lib, potential_parameter, i_thread, &
-                  radii_pgf, max_set, max_pgf, error)
+                  radii_pgf, max_set, max_pgf, eps_schwarz, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(lib_int)                            :: lib
     TYPE(hfx_potential_type)                 :: potential_parameter
@@ -642,6 +640,7 @@ MODULE hfx_screening_methods
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :, :, :, :, :), POINTER   :: radii_pgf
     INTEGER, INTENT(IN)                      :: max_set, max_pgf
+    REAL(dp)                                 :: eps_schwarz
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_pair_dist_radii', &
@@ -656,7 +655,7 @@ MODULE hfx_screening_methods
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure
-    REAL(dp) :: cutoff, DATA(2,0:100), epsilon, f, ff, max_contraction_a, &
+    REAL(dp) :: cutoff, DATA(2,0:100), f, ff, max_contraction_a, &
       max_contraction_b, prefactor, R1, R_max, ra(3), rab(3), rab2, radius, &
       rap(3), rb(3), rp(3), weight, x(2), zetp
     REAL(dp), DIMENSION(:), POINTER          :: set_radius_a, set_radius_b
@@ -668,7 +667,6 @@ MODULE hfx_screening_methods
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(opt_state_type)                     :: opt_state
 
-    epsilon = 1.0E-6_dp
     failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -744,7 +742,7 @@ MODULE hfx_screening_methods
                       rb(:) = ra(:) + rab(:)
                       cutoff = 1.0_dp
                       R1=exp_radius_very_extended(la,la,lb,lb,ra=ra,rb=rb,rp=rp,&
-                             zetp=zetp,eps=epsilon,prefactor=prefactor,cutoff=cutoff)
+                             zetp=zetp,eps=eps_schwarz,prefactor=prefactor,cutoff=cutoff)
                       R_max = MAX(R_max,R1)
                     END DO
                   END DO
