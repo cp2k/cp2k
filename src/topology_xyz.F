@@ -64,8 +64,8 @@ CONTAINS
     atom_info => topology%atom_info
 
     IF(iw>0) WRITE(iw,*) "    Reading in XYZ file ",TRIM(topology%coord_file_name)
-    CALL parser_create(parser,topology%coord_file_name,&
-         para_env=para_env,error=error)
+    CALL parser_create(parser,topology%coord_file_name, para_env=para_env, &
+                       parse_white_lines=.TRUE.,error=error)
 
     natom = 0
     frame = 0
@@ -115,7 +115,10 @@ CONTAINS
           atom_info%r(1,j) = cp_unit_to_cp2k(atom_info%r(1,j),"angstrom",error=error)
           atom_info%r(2,j) = cp_unit_to_cp2k(atom_info%r(2,j),"angstrom",error=error)
           atom_info%r(3,j) = cp_unit_to_cp2k(atom_info%r(3,j),"angstrom",error=error)
+          ! If there's a white line or end of file exit.. otherwise read other available
+          ! snapshots
           CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+          my_end = my_end .OR. (LEN_TRIM(parser%input_line)==0)
           IF (my_end) THEN 
              CALL cp_assert(j==natom,cp_fatal_level,cp_assertion_failed,routineP,&
                   "Number of lines in XYZ format not equal to the number of atoms."//&
