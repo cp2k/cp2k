@@ -90,7 +90,7 @@ MODULE message_passing
   PUBLIC :: mp_cart_shift, mp_isend, mp_irecv
   PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany
   PUBLIC :: mp_gatherv
-  PUBLIC :: mp_sum_i8
+  PUBLIC :: mp_sum_i8, mp_max_i8
   PUBLIC :: mp_send, mp_recv
 
   ! default communicators
@@ -124,6 +124,9 @@ MODULE message_passing
   ! needed in case default integer and int_8 are the same
   INTERFACE mp_sum_i8
      MODULE PROCEDURE mp_sum_8i1, mp_sum_8iv
+  END INTERFACE
+  INTERFACE mp_max_i8
+     MODULE PROCEDURE mp_max_8i1
   END INTERFACE
 
   INTERFACE mp_sum
@@ -2218,6 +2221,36 @@ CONTAINS
     CALL timestop_mp(handle)
 #endif
   END SUBROUTINE mp_sum_8i1
+
+! *****************************************************************************
+  SUBROUTINE mp_max_8i1(msg,gid)
+    INTEGER(KIND=int_8), INTENT(INOUT)       :: msg
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_max_8i1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER(KIND=int_8)                      :: res
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+    msglen = 1
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER8,MPI_MAX,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_8i1" )
+    msg = res
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_max_8i1
+
 
 ! *****************************************************************************
   SUBROUTINE mp_sum_iv(msg,gid)

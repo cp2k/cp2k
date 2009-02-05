@@ -57,6 +57,7 @@ MODULE hfx_energy_potential
   USE mathconstants
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_max,&
+                                             mp_max_i8,&
                                              mp_sum,&
                                              mp_sum_i8,&
                                              mp_sync
@@ -222,7 +223,7 @@ MODULE hfx_energy_potential
       DIMENSION(:,:), POINTER                :: tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2
 
     INTEGER                                  :: max_pgf
-    INTEGER(int_8)                           :: nanotime, time_1, time_2,memsize_start,memsize_end
+    INTEGER(int_8)                           :: nanotime, time_1, time_2,memsize_before,memsize_after
     REAL(dp)                                 :: BD2, AC2, min_PQ2, max_val2_set
 
    
@@ -231,7 +232,8 @@ MODULE hfx_energy_potential
     CALL timeset(routineN,handle)
 
     CALL cite_reference(Guidon2008)
-    memsize_start=m_memory()
+    memsize_before=m_memory()
+    CALL mp_max_i8(memsize_before, para_env%group)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, error=error)
 
@@ -314,6 +316,7 @@ MODULE hfx_energy_potential
 !$OMP                                  screen_coeffs_set,&
 !$OMP                                  screen_coeffs_kind,&
 !$OMP                                  screen_coeffs_pgf,&
+!$OMP                                  memsize_before,&
 !$OMP                                  radii_pgf)
 
 
@@ -1317,7 +1320,8 @@ MODULE hfx_energy_potential
 
 !$OMP BARRIER
 !$OMP MASTER
-    memsize_end=m_memory()
+    memsize_after=m_memory()
+    CALL mp_max_i8(memsize_after, para_env%group)
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -1484,9 +1488,9 @@ MODULE hfx_energy_potential
                  "HFX_MEM_INFO| Size of buffers [MB's]:             ", mb_size_buffers
         END IF
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Estimated program size start [MB's]:             ", memsize_start/(1024*1024)
+                 "HFX_MEM_INFO| Estimated maximum program size before HFX [MB's]:", memsize_before/(1024*1024)
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Estimated program size end   [MB's]:             ", memsize_end/(1024*1024)
+                 "HFX_MEM_INFO| Estimated maximum program size after HFX  [MB's]:", memsize_after/(1024*1024)
 
       END IF
   
