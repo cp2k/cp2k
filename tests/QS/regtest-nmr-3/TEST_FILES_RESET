@@ -68,3 +68,7 @@ ch2o-nmr-nics-1.inp
 h2o-nmr-nics-1.inp
 # New initial guess ATOMIC 
 no-gapw-nics.inp
+#
+ch2o-nmr-nics-1.inp
+h2o-nmr-nics-1.inp
+no-gapw-nics.inp
