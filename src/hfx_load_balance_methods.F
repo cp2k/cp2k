@@ -376,7 +376,8 @@ MODULE hfx_load_balance_methods
                 IF( current_counter >= int_per_cpu) THEN
                   binned_dist(1,ibin)%number_of_integrals = distribution_counter_end - distribution_counter_start + 1
                   binned_dist(1,ibin)%cost = binned_dist(1,ibin)%cost + current_counter
-                  ibin = ibin + 1
+                  ! protect against int_per_cpu==0 and possibly roundoff
+                  ibin = MIN(ibin + 1,nbins)
                   distribution_counter_start = distribution_counter_end + 1
                   restore_counter = current_counter
                   current_counter = 0
@@ -935,7 +936,8 @@ MODULE hfx_load_balance_methods
                 IF( current_counter >= int_per_cpu) THEN
                   binned_dist(1,ibin)%number_of_integrals = distribution_counter_end - distribution_counter_start +1
                   binned_dist(1,ibin)%cost = binned_dist(1,ibin)%cost + current_counter
-                  ibin = ibin + 1
+                  ! protect against int_per_cpu==0 and possibly roundoff
+                  ibin = MIN(ibin + 1,nbins)
                   distribution_counter_start = distribution_counter_end + 1
                   restore_counter = current_counter
                   current_counter = 0
