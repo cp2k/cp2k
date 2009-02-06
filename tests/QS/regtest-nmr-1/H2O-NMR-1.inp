@@ -24,8 +24,10 @@
   &PROPERTIES
     &LINRES
        &LOCALIZE
+          MAX_ITER 1
        &END
-       MAX_ITER 100
+       MAX_ITER 10
+       RESTART_EVERY 5
        PRECONDITIONER FULL_ALL
        &CURRENT
           GAUGE R_AND_STEP_FUNCTION
