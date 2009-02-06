@@ -47,9 +47,7 @@ MODULE qs_p_env_methods
   USE f77_blas
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE hartree_local_types,             ONLY: hartree_local_create
-  USE input_constants,                 ONLY: lr_cg,&
-                                             lr_precond_none,&
-                                             ls_none
+  USE input_constants,                 ONLY: lr_precond_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
@@ -288,11 +286,9 @@ CONTAINS
               name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%g_psi1",&
               error=error)
 
-         IF(linres_control%opt_method==lr_cg) THEN
-           CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%g_psi1_old,&
-                name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%g_psi1_old",&
-                error=error)
-         END IF
+         CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%g_psi1_old,&
+              name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%g_psi1_old",&
+              error=error)
 
          CALL fm_pools_create_fm_vect(mo_mo_fm_pools,elements=p_env%buf1,&
               name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%buf1",&
@@ -328,9 +324,6 @@ CONTAINS
 !                  name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%ev_h0",&
 !                  error=error)
            END IF
-         END IF
-         IF(linres_control%ls_method /= ls_none) THEN
-         ! Initialize the required variables for the line search
          END IF
 
        END IF

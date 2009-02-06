@@ -27,9 +27,7 @@
     &LINRES
        &LOCALIZE
        &END
-       OPT_METHOD CG
-       MAX_SCF 4
-       LINESEARCH 2PNT
+       MAX_ITER 4
        PRECONDITIONER FULL_ALL
        &CURRENT
           GAUGE ATOM

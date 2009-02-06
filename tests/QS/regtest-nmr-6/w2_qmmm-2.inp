@@ -29,10 +29,8 @@
        &LOCALIZE
          MAX_ITER 5
        &END
-       OPT_METHOD CG
-       LINESEARCH 2PNT
        PRECONDITIONER FULL_ALL
-       MAX_SCF 5
+       MAX_ITER 5
        &CURRENT
          ORBITAL_CENTER ATOM
        &END CURRENT

@@ -5802,48 +5802,21 @@ CONTAINS
             n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       CALL keyword_create(keyword, name="EPS_SCF",&
-            description="target accuracy for the scf convergence",&
-            usage="EPS_SCF 1.e-6", default_r_val=1.e-5_dp,error=error)
+       CALL keyword_create(keyword, name="EPS",&
+            description="target accuracy for the convergence of the conjugate gradient.",&
+            usage="EPS 1.e-6", default_r_val=1.e-5_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="MAX_SCF",&
-            description="Maximum number of SCF iteration to be performed for one optimization",&
-            usage="MAX_SCF 200", default_i_val=50,error=error)
+       CALL keyword_create(keyword, name="MAX_ITER",&
+            description="Maximum number of conjugate gradient iteration to be performed for one optimization.",&
+            usage="MAX_ITER 200", default_i_val=50,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="OPT_METHOD",&
-            variants=(/"MINIMIZER"/),&
-            description="Define the algorithms used to optimize the Psi1 in the scf iteration",&
-            usage="OPT_METHOD CG",&
-            default_i_val=lr_cg,&
-            enum_c_vals=s2a( "CG", "SD"),&
-            enum_desc=s2a("Conjugate Gradients","Steepesst Descent"),&
-            enum_i_vals=(/lr_cg,lr_sd/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="LINESEARCH",&
-            variants=(/"LINE_SEARCH"/),&
-            description="1D line search algorithm,"//&
-            " in increasing order of robustness and cost.",&
-            usage="LINESEARCH 2PNT",&
-            default_i_val=ls_none,&
-            enum_c_vals=s2a( "NONE", "2PNT", "3PNT"),&
-            enum_desc=s2a("take fixed lenght steps","extrapolate based on 2 points", &
-            "... or on 3 points"),&
-            enum_i_vals=(/ls_none,ls_2pnt,ls_3pnt/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="STEPSIZE",&
-            description="Initial stepsize used for the line search",&
-            usage="STEPSIZE 0.4",&
-            default_r_val=0.15_dp,error=error)
+       CALL keyword_create(keyword, name="RESTART_EVERY",&
+            description="Restart the conjugate gradient after the specified number of iterations.",&
+            usage="RESTART_EVERY 200", default_i_val=50,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5864,13 +5837,6 @@ CONTAINS
             description="Energy gap estimate [a.u.] for preconditioning",&
             usage="ENERGY_GAP 0.1",&
             default_r_val=0.2_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="CHECK_ORTHO",&
-            description="Require the check of the orthogonality condition",&
-            usage="CHECK_ORTHO",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

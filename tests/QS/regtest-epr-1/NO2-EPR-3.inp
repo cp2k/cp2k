@@ -26,9 +26,7 @@
   &END DFT
   &PROPERTIES
     &LINRES
-       OPT_METHOD  CG
-       MAX_SCF  5
-       LINESEARCH  2PNT
+       MAX_ITER 5
        PRECONDITIONER FULL_ALL
        &LOCALIZE
          MAX_ITER 10

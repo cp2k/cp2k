@@ -26,9 +26,7 @@
     &LINRES
        &LOCALIZE
        &END
-       OPT_METHOD CG
-       MAX_SCF 10
-       LINESEARCH 2PNT
+       MAX_ITER 10
        PRECONDITIONER FULL_ALL
        &CURRENT
        &END CURRENT

@@ -23,10 +23,12 @@ MODULE qs_linres_module
                                              force_env_type,&
                                              use_qmmm,&
                                              use_qs_force
-  USE input_constants,                 ONLY: &
-       lr_cg, lr_current, lr_none, lr_precond_full_all, &
-       lr_precond_h0_inverse, lr_precond_none, lr_precond_s_inverse, lr_sd, &
-       ls_2pnt, ls_3pnt, ls_none
+  USE input_constants,                 ONLY: lr_current,&
+                                             lr_none,&
+                                             lr_precond_full_all,&
+                                             lr_precond_h0_inverse,&
+                                             lr_precond_none,&
+                                             lr_precond_s_inverse
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -344,16 +346,11 @@ CONTAINS
          CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        END IF
 
-       CALL section_vals_val_get(lr_section,"OPT_METHOD",i_val=linres_control%opt_method,error=error)
-       CALL section_vals_val_get(lr_section,"MAX_SCF",i_val=linres_control%max_scf,error=error)
-       CALL section_vals_val_get(lr_section,"EPS_SCF",r_val=linres_control%eps_scf,error=error)
-       CALL section_vals_val_get(lr_section,"LINESEARCH",i_val=linres_control%ls_method,error=error)
-       CALL section_vals_val_get(lr_section,"STEPSIZE",r_val=linres_control%ds_min,error=error)
-
+       CALL section_vals_val_get(lr_section,"MAX_ITER",i_val=linres_control%max_iter,error=error)
+       CALL section_vals_val_get(lr_section,"EPS",r_val=linres_control%eps,error=error)
+       CALL section_vals_val_get(lr_section,"RESTART_EVERY",i_val=linres_control%restart_every,error=error)
        CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=linres_control%preconditioner_type,error=error)
        CALL section_vals_val_get(lr_section,"ENERGY_GAP",r_val=linres_control%energy_gap,error=error)
-       CALL section_vals_val_get(lr_section,"CHECK_ORTHO",&
-            l_val=linres_control%check_ortho,error=error)
 
        IF(output_unit>0) THEN
          WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
@@ -371,30 +368,8 @@ CONTAINS
          IF(linres_control%localized_psi0) WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
             "LINRES|","LOCALIZED PSI0"
 
-         SELECT CASE(linres_control%opt_method)
-         CASE(lr_cg)
-            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES|   Optimization algorithm","Conjugate Gradients"
-         CASE(lr_sd) 
-            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES|   Optimization algorithm","    Steepnd Descent"
-         CASE DEFAULT
-            CALL stop_program(routineP,"Optimization algorithm NYI")
-         END SELECT
-
-         SELECT CASE(linres_control%ls_method)
-         CASE(ls_none)
-            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES|              Line Search","               NONE"
-         CASE(ls_2pnt)
-            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES|              Line Search","               2pnt"
-         CASE(ls_3pnt)
-            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES|              Line Search","               3pnt"
-         CASE DEFAULT
-            CALL stop_program(routineP,"Line Search NYI")
-         END SELECT
+         WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+              "LINRES|   Optimization algorithm","Conjugate Gradients"
 
          SELECT CASE(linres_control%preconditioner_type)
          CASE(lr_precond_none)
@@ -414,11 +389,9 @@ CONTAINS
          END SELECT
 
          WRITE (UNIT=output_unit,FMT="(T2,A,T71,ES8.1)")&
-              "LINRES|                  EPS_SCF",linres_control%eps_scf
-         WRITE (UNIT=output_unit,FMT="(T2,A,T77,L2)")&
-              "LINRES|              CHECK_ORTHO",linres_control%check_ortho
+              "LINRES|                  EPS",linres_control%eps
          WRITE (UNIT=output_unit,FMT="(T2,A,T71,I8)")&
-              "LINRES|                  MAX_SCF",linres_control%max_scf
+              "LINRES|                  MAX_ITER",linres_control%max_iter
        END IF
 
       !------------------!

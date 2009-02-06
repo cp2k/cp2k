@@ -26,9 +26,7 @@ MODULE qs_linres_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: do_loc_none,&
-                                             lr_cg,&
                                              lr_precond_none,&
-                                             lr_sd,&
                                              op_loc_berry,&
                                              state_loc_all
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -298,7 +296,7 @@ CONTAINS
        IF(tr_rz0(ispin).LT.0.0_dp) CALL stop_program("linres_cg_step","tr(r_j*z_j) < 0")
     ENDDO
     !
-    iteration: DO iter = 1,linres_control%max_scf
+    iteration: DO iter = 1,linres_control%max_iter
        !
        ! Apply the operators that do not depend on the perturbation
        CALL apply_op(p,Ap,p_env,qs_env,linres_control%do_kernel,error)
@@ -325,7 +323,7 @@ CONTAINS
        !
        ! need to recompute the residue
        restart = .FALSE.
-       IF(MOD(iter,50).EQ.0) THEN
+       IF(MOD(iter,linres_control%restart_every).EQ.0) THEN
           !
           ! r_j+1 = b - A * x_j+1
           CALL apply_op(psi1,Ap,p_env,qs_env,linres_control%do_kernel,error)
@@ -387,7 +385,7 @@ CONTAINS
        !
        ! check convergence
        linres_control%converged = .FALSE.
-       IF(iter.NE.1.AND.norm_res.LT.linres_control%eps_scf) THEN
+       IF(iter.NE.1.AND.norm_res.LT.linres_control%eps) THEN
           linres_control%converged = .TRUE.
        ENDIF
        !
@@ -406,7 +404,7 @@ CONTAINS
        ENDIF
        !
        ! Max number of iteration reached
-       IF(iter == linres_control%max_scf) THEN
+       IF(iter == linres_control%max_iter) THEN
           IF(output_unit>0) THEN
              WRITE (output_unit,"(/,T10,A/)")&
                   "The linear solver didnt converge! Maximum number of iterations reached."
@@ -453,47 +451,29 @@ CONTAINS
     p_env%only_energy = .FALSE.
     p_env%ls_count=0
 
-    IF(linres_control%opt_method == lr_cg ) THEN
+    p_env%ls_pos = 0.0_dp
+    p_env%ls_energy = 0.0_dp
+    p_env%ls_grad = 0.0_dp
+    p_env%gnorm_old = 1.0_dp
 
-       p_env%ls_pos = 0.0_dp
-       p_env%ls_energy = 0.0_dp
-       p_env%ls_grad = 0.0_dp
-       p_env%gnorm_old = 1.0_dp
-
-       CPPrecondition(ASSOCIATED(p_env%g_psi1_old),cp_failure_level,routineP,error,failure)
-       DO ispin = 1,nspins
-          CALL cp_fm_get_info(p_env%g_psi1_old(ispin)%matrix,nrow_global=nrow,ncol_global=ncol,error=error)
-          CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,error,failure)
-          CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,error,failure)
-          CALL cp_fm_set_all(p_env%g_psi1_old(ispin)%matrix,0.0_dp,error=error)
-          CALL cp_fm_set_all(p_env%g_psi1(ispin)%matrix,0.0_dp,error=error)
-          CALL cp_fm_set_all(p_env%d_psi1(ispin)%matrix,0.0_dp,error=error)
-       END DO
-
-    ELSE IF (linres_control%opt_method == lr_sd) THEN
-
-       p_env%ls_pos = 0.0_dp
-       p_env%ls_energy = 0.0_dp
-       p_env%ls_grad = 0.0_dp
-       DO ispin = 1,nspins
-          CALL cp_fm_get_info(p_env%g_psi1(ispin)%matrix,nrow_global=nrow,ncol_global=ncol,error=error)
-          CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,error,failure)
-          CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,error,failure)
-          CALL cp_fm_set_all(p_env%g_psi1(ispin)%matrix,0.0_dp,error=error)
-          CALL cp_fm_set_all(p_env%d_psi1(ispin)%matrix,0.0_dp,error=error)
-       END DO
-
-    END IF
+    CPPrecondition(ASSOCIATED(p_env%g_psi1_old),cp_failure_level,routineP,error,failure)
+    DO ispin = 1,nspins
+       CALL cp_fm_get_info(p_env%g_psi1_old(ispin)%matrix,nrow_global=nrow,ncol_global=ncol,error=error)
+       CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,error,failure)
+       CALL cp_fm_set_all(p_env%g_psi1_old(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_fm_set_all(p_env%g_psi1(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_fm_set_all(p_env%d_psi1(ispin)%matrix,0.0_dp,error=error)
+    ENDDO
 
     IF(linres_control%preconditioner_type /= lr_precond_none) THEN
-
-      CPPrecondition(ASSOCIATED(p_env%preconditioner),cp_failure_level,routineP,error,failure)
-      DO ispin = 1,nspins
-        CALL cp_fm_get_info(p_env%PS_psi0(ispin)%matrix,nrow_global=nrow,ncol_global=ncol,error=error)
-        CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,error,failure)
-        CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,error,failure)
-      END DO
-    END IF
+       CPPrecondition(ASSOCIATED(p_env%preconditioner),cp_failure_level,routineP,error,failure)
+       DO ispin = 1,nspins
+          CALL cp_fm_get_info(p_env%PS_psi0(ispin)%matrix,nrow_global=nrow,ncol_global=ncol,error=error)
+          CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,error,failure)
+       ENDDO
+    ENDIF
 
   END SUBROUTINE check_p_env_init
 

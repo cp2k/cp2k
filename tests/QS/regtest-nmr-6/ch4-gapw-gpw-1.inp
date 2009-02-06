@@ -28,9 +28,7 @@
        &LOCALIZE
          MAX_ITER 2
        &END
-       OPT_METHOD CG
-       MAX_SCF 2
-       LINESEARCH 2PNT
+       MAX_ITER 2
        PRECONDITIONER FULL_ALL
        &CURRENT
           ORBITAL_CENTER COMMON

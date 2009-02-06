@@ -27,10 +27,8 @@
   &END DFT
   &PROPERTIES
     &LINRES
-       OPT_METHOD CG
-       LINESEARCH 2PNT
        PRECONDITIONER FULL_ALL
-       MAX_SCF 10
+       MAX_ITER 10
        &CURRENT
           GAUGE R
        &END CURRENT

@@ -54,16 +54,13 @@ MODULE qs_linres_types
      INTEGER                                   :: ref_count
      INTEGER                                   :: property
      INTEGER                                   :: preconditioner_type
+     INTEGER                                   :: restart_every
      REAL(dp)                                  :: energy_gap
-     INTEGER                                   :: opt_method
-     INTEGER                                   :: ls_method
-     REAL(dp)                                  :: ds_min
-     INTEGER                                   :: max_scf
+     INTEGER                                   :: max_iter
      LOGICAL                                   :: localized_psi0
      LOGICAL                                   :: do_kernel
      LOGICAL                                   :: converged
-     LOGICAL                                   :: check_ortho
-     REAL(KIND=dp)                             :: eps_scf
+     REAL(KIND=dp)                             :: eps
      TYPE(localized_wfn_control_type),POINTER  :: localized_wfn_control
      CHARACTER(LEN=8)                          :: flag
   END TYPE linres_control_type
