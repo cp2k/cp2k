@@ -688,7 +688,7 @@ MODULE hfx_energy_potential
     !! If we do a parallel run, each process owns a unique array of workloads. Here, a workload is
     !! defined as :
     !!
-    !! istart, jstart, kstart, lstart, number_of_integrals, initial_cpu_id
+    !! istart, jstart, kstart, lstart, number_of_atom_quartets, initial_cpu_id
     !!
     !! This tells the process where to start the main loops and how many bunches of integrals it has to
     !! calculate. The original parallelization is a simple modulo distribution that is binned and 
@@ -724,7 +724,7 @@ MODULE hfx_energy_potential
       my_current_counter = 0
       !! It could happen, that one bin is empty. In that case just skip the loop (but still time it)
       IF(my_istart == 0 .OR. my_jstart == 0 .OR. my_kstart == 0 .OR. my_lstart == 0 .OR. &
-         actual_x_data%distribution_energy(bin)%number_of_integrals == 0) THEN
+         actual_x_data%distribution_energy(bin)%number_of_atom_quartets == 0) THEN
          my_istart = natom + 1 ; my_jstart = natom + 1 ; my_kstart = natom + 1 ; my_lstart = natom + 1
       ENDIF
       DO iatom=my_istart,natom
@@ -814,9 +814,9 @@ MODULE hfx_energy_potential
                 !! if we pass through here, we have to update the workload counter
                 my_current_counter = my_current_counter + 1
                 lkind = kind_of(latom)
-                !! if we reach the counter in the distribution we are finished with the curren bunch
+                !! if we reach the counter in the distribution we are finished with the current bunch
                 !! of integrals. We also have to reset the flags for the main loops
-                IF(my_current_counter <= actual_x_data%distribution_energy(bin)%number_of_integrals) THEN
+                IF(my_current_counter <= actual_x_data%distribution_energy(bin)%number_of_atom_quartets) THEN
                   IF( (screen_coeffs_kind(jkind,ikind)%x(1)*rab2+&
                        screen_coeffs_kind(jkind,ikind)%x(2) ) + &
                       (screen_coeffs_kind(lkind,kkind)%x(1)*rcd2+&

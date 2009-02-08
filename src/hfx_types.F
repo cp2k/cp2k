@@ -149,7 +149,7 @@ MODULE hfx_types
 ! *****************************************************************************
   TYPE hfx_distribution
     INTEGER                                  :: istart, jstart, kstart, lstart
-    INTEGER(int_8)                           :: number_of_integrals
+    INTEGER(int_8)                           :: number_of_atom_quartets
     INTEGER(int_8)                           :: cost
     INTEGER(int_8)                           :: original_cpu_id
     REAL(KIND=dp)                            :: time_first_scf

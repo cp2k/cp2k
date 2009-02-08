@@ -75,10 +75,12 @@ MODULE hfx_load_balance_methods
 !>      In a first step the total amount of integrals in the system is calculated,
 !>      taking into account the sparsity of the KS-matrix , the screening based
 !>      on near/farfield approximations and if desired the screening on an initial
-!>      density matrix. In a second step, these integrals are distributed to bins
-!>      of a given size. Finally, a Monte Carlo procedure optimizes the assignment
+!>      density matrix.
+!>      In a second step, bins are generate that contain approximately the same number
+!>      of integrals, and a cost for these bins is estimated (currently the number of integrals)
+!>      In a third step, a Monte Carlo procedure optimizes the assignment
 !>      of the different loads to each process
-!>      At the end each process owns an unique array of inidices-ranges 
+!>      At the end each process owns an unique array of *atomic* indices-ranges 
 !>      that are used to decide whether a process has to calculate a certain
 !>      bunch of integrals or not
 !> \par History
@@ -165,7 +167,7 @@ MODULE hfx_load_balance_methods
     IF(n_processes == 1) THEN
       ALLOCATE(tmp_dist(1,1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      tmp_dist(1,1)%number_of_integrals = HUGE(tmp_dist(1,1)%number_of_integrals)
+      tmp_dist(1,1)%number_of_atom_quartets = HUGE(tmp_dist(1,1)%number_of_atom_quartets)
       tmp_dist(1,1)%istart = 1
       tmp_dist(1,1)%jstart = 1
       tmp_dist(1,1)%kstart = 1
@@ -273,7 +275,7 @@ MODULE hfx_load_balance_methods
       binned_dist(:,:)%jstart = 0
       binned_dist(:,:)%kstart = 0
       binned_dist(:,:)%lstart = 0
-      binned_dist(:,:)%number_of_integrals = 0
+      binned_dist(:,:)%number_of_atom_quartets = 0
       binned_dist(:,:)%cost = 0
 
       binned_dist(:,:)%original_cpu_id = 0
@@ -374,7 +376,7 @@ MODULE hfx_load_balance_methods
                 ENDDO
 
                 IF( current_counter >= int_per_cpu) THEN
-                  binned_dist(1,ibin)%number_of_integrals = distribution_counter_end - distribution_counter_start + 1
+                  binned_dist(1,ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start + 1
                   binned_dist(1,ibin)%cost = binned_dist(1,ibin)%cost + current_counter
                   ! protect against int_per_cpu==0 and possibly roundoff
                   ibin = MIN(ibin + 1,nbins)
@@ -391,7 +393,7 @@ MODULE hfx_load_balance_methods
       !! Fill the last bin if necessary
       IF( current_counter /= 0 ) THEN  
         binned_dist(1,ibin)%cost = binned_dist(1,ibin)%cost + current_counter
-        binned_dist(1,ibin)%number_of_integrals = distribution_counter_end-distribution_counter_start+1
+        binned_dist(1,ibin)%number_of_atom_quartets = distribution_counter_end-distribution_counter_start+1
       END IF
 
       !! store the original cpu_id
@@ -494,7 +496,7 @@ MODULE hfx_load_balance_methods
       full_dist(:,:)%jstart = 0
       full_dist(:,:)%kstart = 0
       full_dist(:,:)%lstart = 0
-      full_dist(:,:)%number_of_integrals = 0
+      full_dist(:,:)%number_of_atom_quartets = 0
       full_dist(:,:)%cost = 0
       full_dist(:,:)%original_cpu_id = 0
       full_dist(:,:)%time_first_scf = 0.0_dp
@@ -521,7 +523,7 @@ MODULE hfx_load_balance_methods
           sendbuffer((j-1)*7*nbins+(i-1)*7+2) = full_dist(mepos*n_threads+j,i)%jstart
           sendbuffer((j-1)*7*nbins+(i-1)*7+3) = full_dist(mepos*n_threads+j,i)%kstart
           sendbuffer((j-1)*7*nbins+(i-1)*7+4) = full_dist(mepos*n_threads+j,i)%lstart
-          sendbuffer((j-1)*7*nbins+(i-1)*7+5) = full_dist(mepos*n_threads+j,i)%number_of_integrals
+          sendbuffer((j-1)*7*nbins+(i-1)*7+5) = full_dist(mepos*n_threads+j,i)%number_of_atom_quartets
           sendbuffer((j-1)*7*nbins+(i-1)*7+6) = full_dist(mepos*n_threads+j,i)%cost
           sendbuffer((j-1)*7*nbins+(i-1)*7+7) = full_dist(mepos*n_threads+j,i)%original_cpu_id
         END DO
@@ -541,7 +543,7 @@ MODULE hfx_load_balance_methods
             full_dist(data_from*n_threads+j,i)%jstart = sendbuffer((j-1)*7*nbins+(i-1)*7+2)
             full_dist(data_from*n_threads+j,i)%kstart = sendbuffer((j-1)*7*nbins+(i-1)*7+3)
             full_dist(data_from*n_threads+j,i)%lstart = sendbuffer((j-1)*7*nbins+(i-1)*7+4)
-            full_dist(data_from*n_threads+j,i)%number_of_integrals = sendbuffer((j-1)*7*nbins+(i-1)*7+5)
+            full_dist(data_from*n_threads+j,i)%number_of_atom_quartets = sendbuffer((j-1)*7*nbins+(i-1)*7+5)
             full_dist(data_from*n_threads+j,i)%cost = sendbuffer((j-1)*7*nbins+(i-1)*7+6)
             full_dist(data_from*n_threads+j,i)%original_cpu_id = sendbuffer((j-1)*7*nbins+(i-1)*7+7)
           END DO
@@ -569,7 +571,7 @@ MODULE hfx_load_balance_methods
       tmp_dist(:,:)%jstart = 0
       tmp_dist(:,:)%kstart = 0
       tmp_dist(:,:)%lstart = 0
-      tmp_dist(:,:)%number_of_integrals = 0
+      tmp_dist(:,:)%number_of_atom_quartets = 0
       tmp_dist(:,:)%cost = 0
       tmp_dist(:,:)%original_cpu_id = 0
       tmp_dist(:,:)%time_first_scf = 0.0_dp
@@ -732,7 +734,7 @@ MODULE hfx_load_balance_methods
     IF(n_processes == 1) THEN
       ALLOCATE(tmp_dist(1,1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      tmp_dist(1,1)%number_of_integrals = HUGE(tmp_dist(1,1)%number_of_integrals)
+      tmp_dist(1,1)%number_of_atom_quartets = HUGE(tmp_dist(1,1)%number_of_atom_quartets)
       tmp_dist(1,1)%istart = 1
       tmp_dist(1,1)%jstart = 1
       tmp_dist(1,1)%kstart = 1
@@ -836,7 +838,7 @@ MODULE hfx_load_balance_methods
       binned_dist(:,:)%jstart = 0
       binned_dist(:,:)%kstart = 0
       binned_dist(:,:)%lstart = 0
-      binned_dist(:,:)%number_of_integrals = 0
+      binned_dist(:,:)%number_of_atom_quartets = 0
       binned_dist(:,:)%cost = 0
       binned_dist(:,:)%original_cpu_id = 0
  
@@ -934,7 +936,7 @@ MODULE hfx_load_balance_methods
                   ENDDO
                 ENDDO
                 IF( current_counter >= int_per_cpu) THEN
-                  binned_dist(1,ibin)%number_of_integrals = distribution_counter_end - distribution_counter_start +1
+                  binned_dist(1,ibin)%number_of_atom_quartets = distribution_counter_end - distribution_counter_start +1
                   binned_dist(1,ibin)%cost = binned_dist(1,ibin)%cost + current_counter
                   ! protect against int_per_cpu==0 and possibly roundoff
                   ibin = MIN(ibin + 1,nbins)
@@ -950,7 +952,7 @@ MODULE hfx_load_balance_methods
       !! Fill the last bin if necessary
       IF( current_counter /= 0 ) THEN  
         binned_dist(1,ibin)%cost = binned_dist(1,ibin)%cost + current_counter
-        binned_dist(1,ibin)%number_of_integrals = distribution_counter_end-distribution_counter_start+1
+        binned_dist(1,ibin)%number_of_atom_quartets = distribution_counter_end-distribution_counter_start+1
       END IF
 
       !! store the original cpu_di
@@ -1055,7 +1057,7 @@ MODULE hfx_load_balance_methods
       full_dist(:,:)%jstart = 0
       full_dist(:,:)%kstart = 0
       full_dist(:,:)%lstart = 0
-      full_dist(:,:)%number_of_integrals = 0
+      full_dist(:,:)%number_of_atom_quartets = 0
       full_dist(:,:)%cost = 0
       full_dist(:,:)%original_cpu_id = 0
       full_dist(:,:)%time_first_scf = 0.0_dp
@@ -1082,7 +1084,7 @@ MODULE hfx_load_balance_methods
           sendbuffer((j-1)*7*nbins+(i-1)*7+2) = full_dist(mepos*n_threads+j,i)%jstart
           sendbuffer((j-1)*7*nbins+(i-1)*7+3) = full_dist(mepos*n_threads+j,i)%kstart
           sendbuffer((j-1)*7*nbins+(i-1)*7+4) = full_dist(mepos*n_threads+j,i)%lstart
-          sendbuffer((j-1)*7*nbins+(i-1)*7+5) = full_dist(mepos*n_threads+j,i)%number_of_integrals
+          sendbuffer((j-1)*7*nbins+(i-1)*7+5) = full_dist(mepos*n_threads+j,i)%number_of_atom_quartets
           sendbuffer((j-1)*7*nbins+(i-1)*7+6) = full_dist(mepos*n_threads+j,i)%cost
           sendbuffer((j-1)*7*nbins+(i-1)*7+7) = full_dist(mepos*n_threads+j,i)%original_cpu_id
         END DO
@@ -1102,7 +1104,7 @@ MODULE hfx_load_balance_methods
             full_dist(data_from*n_threads+j,i)%jstart = sendbuffer((j-1)*7*nbins+(i-1)*7+2)
             full_dist(data_from*n_threads+j,i)%kstart = sendbuffer((j-1)*7*nbins+(i-1)*7+3)
             full_dist(data_from*n_threads+j,i)%lstart = sendbuffer((j-1)*7*nbins+(i-1)*7+4)
-            full_dist(data_from*n_threads+j,i)%number_of_integrals = sendbuffer((j-1)*7*nbins+(i-1)*7+5)
+            full_dist(data_from*n_threads+j,i)%number_of_atom_quartets = sendbuffer((j-1)*7*nbins+(i-1)*7+5)
             full_dist(data_from*n_threads+j,i)%cost = sendbuffer((j-1)*7*nbins+(i-1)*7+6)
             full_dist(data_from*n_threads+j,i)%original_cpu_id = sendbuffer((j-1)*7*nbins+(i-1)*7+7)
           END DO
@@ -1130,7 +1132,7 @@ MODULE hfx_load_balance_methods
       tmp_dist(:,:)%jstart = 0
       tmp_dist(:,:)%kstart = 0
       tmp_dist(:,:)%lstart = 0
-      tmp_dist(:,:)%number_of_integrals = 0
+      tmp_dist(:,:)%number_of_atom_quartets = 0
       tmp_dist(:,:)%cost = 0
       tmp_dist(:,:)%original_cpu_id = 0
       tmp_dist(:,:)%time_first_scf = 0.0_dp
@@ -1239,7 +1241,7 @@ MODULE hfx_load_balance_methods
     IF(n_processes == 1) THEN
       ALLOCATE(tmp_dist(1,1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      tmp_dist(1,1)%number_of_integrals = HUGE(tmp_dist(1,1)%number_of_integrals)
+      tmp_dist(1,1)%number_of_atom_quartets = HUGE(tmp_dist(1,1)%number_of_atom_quartets)
       tmp_dist(1,1)%istart = 1
       tmp_dist(1,1)%jstart = 1
       tmp_dist(1,1)%kstart = 1
@@ -1278,7 +1280,7 @@ MODULE hfx_load_balance_methods
       !! Use old binned_dist, but with timings cost
       binned_dist = x_data%distribution_energy
       DO ibin=1,my_bin_size
-        IF(binned_dist(ibin)%number_of_integrals == 0 ) THEN
+        IF(binned_dist(ibin)%number_of_atom_quartets == 0 ) THEN
           binned_dist(ibin)%cost = 0
         ELSE
           binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_first_scf + &
@@ -1394,7 +1396,7 @@ MODULE hfx_load_balance_methods
       full_dist(:,:)%jstart = 0
       full_dist(:,:)%kstart = 0
       full_dist(:,:)%lstart = 0
-      full_dist(:,:)%number_of_integrals = 0
+      full_dist(:,:)%number_of_atom_quartets = 0
       full_dist(:,:)%cost = 0
       full_dist(:,:)%original_cpu_id = 0
       full_dist(:,:)%time_first_scf = 0.0_dp
@@ -1421,7 +1423,7 @@ MODULE hfx_load_balance_methods
           sendbuffer((j-1)*7*max_bin_size+(i-1)*7+2) = full_dist(mepos*n_threads+j,i)%jstart
           sendbuffer((j-1)*7*max_bin_size+(i-1)*7+3) = full_dist(mepos*n_threads+j,i)%kstart
           sendbuffer((j-1)*7*max_bin_size+(i-1)*7+4) = full_dist(mepos*n_threads+j,i)%lstart
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+5) = full_dist(mepos*n_threads+j,i)%number_of_integrals
+          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+5) = full_dist(mepos*n_threads+j,i)%number_of_atom_quartets
           sendbuffer((j-1)*7*max_bin_size+(i-1)*7+6) = full_dist(mepos*n_threads+j,i)%cost
           sendbuffer((j-1)*7*max_bin_size+(i-1)*7+7) = full_dist(mepos*n_threads+j,i)%original_cpu_id
         END DO
@@ -1440,7 +1442,7 @@ MODULE hfx_load_balance_methods
             full_dist(data_from*n_threads+j,i)%jstart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+2)
             full_dist(data_from*n_threads+j,i)%kstart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+3)
             full_dist(data_from*n_threads+j,i)%lstart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+4)
-            full_dist(data_from*n_threads+j,i)%number_of_integrals = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+5)
+            full_dist(data_from*n_threads+j,i)%number_of_atom_quartets = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+5)
             full_dist(data_from*n_threads+j,i)%cost = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+6)
             full_dist(data_from*n_threads+j,i)%original_cpu_id = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+7)
           END DO
@@ -1468,7 +1470,7 @@ MODULE hfx_load_balance_methods
       tmp_dist(:,:)%jstart = 0
       tmp_dist(:,:)%kstart = 0
       tmp_dist(:,:)%lstart = 0
-      tmp_dist(:,:)%number_of_integrals = 0
+      tmp_dist(:,:)%number_of_atom_quartets = 0
       tmp_dist(:,:)%cost = 0
       tmp_dist(:,:)%original_cpu_id = 0
       tmp_dist(:,:)%time_first_scf = 0.0_dp
@@ -1580,7 +1582,7 @@ MODULE hfx_load_balance_methods
     IF(n_processes == 1) THEN
       ALLOCATE(tmp_dist(1,1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      tmp_dist(1,1)%number_of_integrals = HUGE(tmp_dist(1,1)%number_of_integrals)
+      tmp_dist(1,1)%number_of_atom_quartets = HUGE(tmp_dist(1,1)%number_of_atom_quartets)
       tmp_dist(1,1)%istart = 1
       tmp_dist(1,1)%jstart = 1
       tmp_dist(1,1)%kstart = 1
@@ -1619,7 +1621,7 @@ MODULE hfx_load_balance_methods
       !! Use old binned_dist, but with timings cost
       binned_dist = x_data%distribution_forces
       DO ibin=1,my_bin_size
-        IF(binned_dist(ibin)%number_of_integrals == 0 ) THEN
+        IF(binned_dist(ibin)%number_of_atom_quartets == 0 ) THEN
           binned_dist(ibin)%cost = 0
         ELSE
           binned_dist(ibin)%cost = INT((binned_dist(ibin)%time_forces)*10000.0_dp, int_8)
@@ -1734,7 +1736,7 @@ MODULE hfx_load_balance_methods
       full_dist(:,:)%jstart = 0
       full_dist(:,:)%kstart = 0
       full_dist(:,:)%lstart = 0
-      full_dist(:,:)%number_of_integrals = 0
+      full_dist(:,:)%number_of_atom_quartets = 0
       full_dist(:,:)%cost = 0
       full_dist(:,:)%original_cpu_id = 0
       full_dist(:,:)%time_first_scf = 0.0_dp
@@ -1761,7 +1763,7 @@ MODULE hfx_load_balance_methods
           sendbuffer((j-1)*7*max_bin_size+(i-1)*7+2) = full_dist(mepos*n_threads+j,i)%jstart
           sendbuffer((j-1)*7*max_bin_size+(i-1)*7+3) = full_dist(mepos*n_threads+j,i)%kstart
           sendbuffer((j-1)*7*max_bin_size+(i-1)*7+4) = full_dist(mepos*n_threads+j,i)%lstart
-          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+5) = full_dist(mepos*n_threads+j,i)%number_of_integrals
+          sendbuffer((j-1)*7*max_bin_size+(i-1)*7+5) = full_dist(mepos*n_threads+j,i)%number_of_atom_quartets
           sendbuffer((j-1)*7*max_bin_size+(i-1)*7+6) = full_dist(mepos*n_threads+j,i)%cost
           sendbuffer((j-1)*7*max_bin_size+(i-1)*7+7) = full_dist(mepos*n_threads+j,i)%original_cpu_id
         END DO
@@ -1780,7 +1782,7 @@ MODULE hfx_load_balance_methods
             full_dist(data_from*n_threads+j,i)%jstart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+2)
             full_dist(data_from*n_threads+j,i)%kstart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+3)
             full_dist(data_from*n_threads+j,i)%lstart = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+4)
-            full_dist(data_from*n_threads+j,i)%number_of_integrals = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+5)
+            full_dist(data_from*n_threads+j,i)%number_of_atom_quartets = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+5)
             full_dist(data_from*n_threads+j,i)%cost = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+6)
             full_dist(data_from*n_threads+j,i)%original_cpu_id = sendbuffer((j-1)*7*max_bin_size+(i-1)*7+7)
           END DO
@@ -1809,7 +1811,7 @@ MODULE hfx_load_balance_methods
       tmp_dist(:,:)%jstart = 0
       tmp_dist(:,:)%kstart = 0
       tmp_dist(:,:)%lstart = 0
-      tmp_dist(:,:)%number_of_integrals = 0
+      tmp_dist(:,:)%number_of_atom_quartets = 0
       tmp_dist(:,:)%cost = 0
       tmp_dist(:,:)%original_cpu_id = 0
       tmp_dist(:,:)%time_first_scf = 0.0_dp

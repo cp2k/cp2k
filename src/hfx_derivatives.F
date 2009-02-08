@@ -447,7 +447,7 @@ MODULE hfx_derivatives
     !! If we do a parallel run, each process owns a unique array of workloads. Here, a workload is
     !! defined as :
     !!
-    !! istart, jstart, kstart, lstart, number_of_integrals, initial_cpu_id
+    !! istart, jstart, kstart, lstart, number_of_atom_quartets, initial_cpu_id
     !!
     !! This tells the process where to start the main loops and how many bunches of integrals it has to
     !! calculate. The original parallelization is a simple modulo distribution that is binned and 
@@ -478,7 +478,7 @@ MODULE hfx_derivatives
       my_current_counter = 0
       !! It could happen, that one bin is empty. In that case just skip
       IF(my_istart == 0 .OR. my_jstart == 0 .OR. my_kstart == 0 .OR. my_lstart == 0 .OR. &
-         actual_x_data%distribution_forces(bin)%number_of_integrals == 0) THEN
+         actual_x_data%distribution_forces(bin)%number_of_atom_quartets == 0) THEN
          my_istart = natom + 1 ; my_jstart = natom + 1 ;my_kstart = natom + 1 ;my_lstart = natom + 1 
       ENDIF
       DO iatom=my_istart,natom
@@ -578,7 +578,7 @@ MODULE hfx_derivatives
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
 
                 my_current_counter = my_current_counter + 1
-                IF(my_current_counter <= actual_x_data%distribution_forces(bin)%number_of_integrals) THEN
+                IF(my_current_counter <= actual_x_data%distribution_forces(bin)%number_of_atom_quartets) THEN
                   IF( (screen_coeffs_kind(jkind,ikind)%x(1)*rab2+&
                        screen_coeffs_kind(jkind,ikind)%x(2) ) + &
                       (screen_coeffs_kind(lkind,kkind)%x(1)*rcd2+&
