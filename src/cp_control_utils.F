@@ -394,6 +394,8 @@ CPSourceFileRef,&
     qs_control%eps_ppnl        = qs_control%eps_pgf_orb/100.0_dp
     ! accuracy is basically set by the overlap, this sets an empirical shift
     qs_control%eps_ppl         = 1.0E-2_dp
+    ! 
+    qs_control%gapw_control%eps_cpc   = value
     ! expexted error in the density 
     qs_control%eps_rho_gspace  = value
     qs_control%eps_rho_rspace  = value
@@ -438,6 +440,10 @@ CPSourceFileRef,&
     CALL section_vals_val_get(qs_section,"EPS_KG_GPW",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_KG_GPW",r_val=qs_control%eps_kg_gpw,error=error)
+    END IF
+    CALL section_vals_val_get(qs_section,"EPS_CPC",n_rep_val=n_rep,error=error)
+    IF (n_rep /=0) THEN
+       CALL section_vals_val_get(qs_section,"EPS_CPC",r_val=qs_control%gapw_control%eps_cpc,error=error)
     END IF
 
     CALL section_vals_val_get(qs_section,"EPS_3C_REDUCE",r_val=qs_control%gapw_control%eps_3c_reduce,error=error)
@@ -978,7 +984,9 @@ CPSourceFileRef,&
                "QS| GAPW|                   eps_iso:",&
                qs_control%gapw_control%eps_iso,&
                "QS| GAPW|                   eps_svd:",&
-               qs_control%gapw_control%eps_svd
+               qs_control%gapw_control%eps_svd,&
+               "QS| GAPW|                   eps_cpc:",&
+               qs_control%gapw_control%eps_cpc
           WRITE (UNIT=output_unit,FMT="(T2,A,T55,A30)")&
                "QS| GAPW|   atom-r-grid: quadrature:",&
                enum_i2c(enum,qs_control%gapw_control%quadrature,error=error)

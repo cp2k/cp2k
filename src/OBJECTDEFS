@@ -530,6 +530,7 @@ OBJECTS_GENERIC =\
  restraint.o\
  rmsd.o\
  s_square_methods.o\
+ sap_kind_types.o\
  scf_control_types.o\
  scp_coeff_types.o\
  scp_diis_utils.o\

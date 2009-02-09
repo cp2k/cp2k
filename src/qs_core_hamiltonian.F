@@ -117,11 +117,15 @@ MODULE qs_core_hamiltonian
        find_neighbor_list, first_list, first_node, get_neighbor_list, &
        get_neighbor_list_set, get_neighbor_node, neighbor_list_set_p_type, &
        neighbor_list_type, neighbor_node_type, next, reduced_3c_list_type
-  USE qs_oce_methods,                  ONLY: set_up_oce
-  USE qs_oce_types,                    ONLY: &
-       allocate_oce_set, allocate_vtriple, build_reduced_3c_lists, &
-       create_oce_set, deallocate_vtriple, dist_list_4oce_type, &
-       oce_matrix_type, prepare_oce_coeff, retrieve_sac_list, vtriple_type
+  USE qs_oce_methods,                  ONLY: build_oce_matrices
+  USE qs_oce_types,                    ONLY: allocate_oce_set,&
+                                             allocate_vtriple,&
+                                             build_reduced_3c_lists,&
+                                             create_oce_set,&
+                                             deallocate_vtriple,&
+                                             oce_matrix_type,&
+                                             retrieve_sac_list,&
+                                             vtriple_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_matrix_distribution,&
@@ -216,22 +220,19 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(:), &
-      POINTER                                :: oceh, oces, sint, tint
+      POINTER                                :: sint, tint
     TYPE(block_p_type), DIMENSION(:, :), &
-      POINTER                                :: oceht, ocest, sintt, tintt
+      POINTER                                :: sintt, tintt
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dist_list_4oce_type), &
-      DIMENSION(:), POINTER                  :: dist_list
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb, sac_3c, sac_oce, &
-                                                sac_ppl, sap_ppnl, sbc_3c, &
-                                                sbc_oce
+      DIMENSION(:), POINTER                  :: sab_orb, sac_3c, sac_ppl, &
+                                                sap_oce, sap_ppnl, sbc_3c
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
                                                 sab_orb_neighbor_list_local, &
                                                 sac_ppl_neighbor_list
@@ -247,8 +248,7 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_p, matrix_s, &
                                                 matrix_t, matrix_w
     TYPE(reduced_3c_list_type), &
-      DIMENSION(:), POINTER                  :: reduced_3c_oce, &
-                                                reduced_3c_rho0
+      DIMENSION(:), POINTER                  :: reduced_3c_rho0
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: lr_section
     TYPE(vall_type), DIMENSION(:), POINTER   :: vall
@@ -276,7 +276,7 @@ CONTAINS
     NULLIFY (force)
     NULLIFY (matrix_h)
     NULLIFY (habt)
-    NULLIFY (oce,dist_list)
+    NULLIFY (oce)
     NULLIFY (VH_3c_list)
     NULLIFY (matrix_p)
     NULLIFY (pabt)
@@ -287,8 +287,7 @@ CONTAINS
     NULLIFY (sabt)
     NULLIFY (sac_ppl)
     NULLIFY (sap_ppnl)
-    NULLIFY (sac_oce)
-    NULLIFY (sbc_oce)
+    NULLIFY (sap_oce)
     NULLIFY (sac_3c)
     NULLIFY (sbc_3c)
     NULLIFY (scf_control)
@@ -320,8 +319,7 @@ CONTAINS
                     sab_orb=sab_orb,&
                     sac_ppl=sac_ppl,&
                     sap_ppnl=sap_ppnl,&
-                    sac_oce=sac_oce,&
-                    sbc_oce=sbc_oce,&
+                    sap_oce=sap_oce,&
                     VH_3c_list=VH_3c_list,&
                     sac_3c=sac_3c,&
                     sbc_3c=sbc_3c,&
@@ -432,14 +430,6 @@ CONTAINS
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
        CALL create_oce_set(oce,error=error)
        CALL allocate_oce_set(oce,natom,nkind,maxder,error=error)
-       CALL prepare_oce_coeff(particle_set,oce,natom,nsgf,&
-            first_sgf,last_sgf,distribution_2d,error=error)
-       ALLOCATE(dist_list(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i = 1,natom
-          dist_list(i)%ndist = 0
-          NULLIFY(dist_list(i)%rdist)
-       END DO
     ENDIF
     
     DEALLOCATE (first_sgf,STAT=stat)
@@ -569,23 +559,13 @@ CONTAINS
        END DO
     END IF
 
-    ! ***  Initialize blocks for the one center expansione ***
+    ! ***  Initialize blocks for the one center expansion ***
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
-       oce_present = ASSOCIATED(sac_oce)
+       oce_present = ASSOCIATED(sap_oce)
        rho0_present = ASSOCIATED(sac_3c)
        IF(rho0_present) THEN
           CALL allocate_vtriple(VH_3c_list,nkind,natom,error=error)
        END IF
-       ALLOCATE (oceht(SIZE(matrix_s),0:nthread-1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (ocest(SIZE(matrix_s),0:nthread-1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
-       DO i=1,SIZE(oceht,1)
-          DO j=0,nthread-1
-             NULLIFY (oceht(i,j)%block)
-             NULLIFY (ocest(i,j)%block)
-          END DO
-       END DO
     ENDIF
     
     ! *** Load GTH pseudo potential data (local part -> PPL) ***
@@ -639,15 +619,12 @@ CONTAINS
        END DO
     END IF
 
-    ! *** Retrieve data of SAC_OCE and of SAC_3C neighbors of atom "iatom" ***
+    ! *** Retrieve data of SAC_3C neighbors of atom "iatom" ***
     DO ikind = 1,nkind
        atomic_kind => atomic_kind_set(ikind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nat,atom_list=atom_list)
        DO iat = 1,nat
           iatom = atom_list(iat)
-          IF(oce_present) THEN
-             CALL retrieve_sac_list(oce%voce,sac_oce,iatom,ikind,nkind, error=error)
-          END IF
           IF(rho0_present) THEN
              CALL retrieve_sac_list(VH_3c_list,sac_3c,iatom,ikind,nkind,error=error)
           ENDIF
@@ -706,10 +683,6 @@ CONTAINS
           END IF
           IF (ppl_present) THEN
              vppl => vpplt(:,ithread)
-          END IF
-          IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
-             oceh => oceht(:,ithread)
-             oces => ocest(:,ithread)
           END IF
           IF (all_potential_present) THEN
              vall => vallt(:,ithread)
@@ -776,20 +749,6 @@ CONTAINS
                    last_jatom = jatom
                 ELSE
                    new_atom_b = .FALSE.
-                END IF
-                
-                IF(oce_present) THEN
-                   CALL get_neighbor_node(sab_orb_neighbor_node,reduced_3c_oce=reduced_3c_oce)
-                   
-                   ! *** Build reduced 3-center lists
-                   IF(.NOT. calculate_forces) &
-                        CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom,&
-                        ikind, jkind, sbc_oce, oce%voce, reduced_3c_oce,&
-                        .TRUE.,qs_env%dft_control%qs_control%eps_rho_rspace,error)
-                   
-                   ! *** Calculate the coefficients of the one center expansions ***
-                   CALL set_up_oce(atomic_kind_set,reduced_3c_oce,oce,ikind,iatom,jkind,jatom,&
-                        rab,oceh,oces,nder,dist_list,error=error)
                 END IF
                 
                 IF(rho0_present) THEN
@@ -1207,6 +1166,10 @@ CONTAINS
     CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
 
+    IF ( oce_present ) THEN
+      CALL build_oce_matrices(oce%intac,calculate_forces,nder,atomic_kind_set,particle_set,sap_oce,error)
+    END IF
+
     ! *** Put the core Hamiltonian matrix in the QS environment ***
     CALL set_qs_env(qs_env=qs_env,&
                     matrix_s=matrix_s,&
@@ -1225,9 +1188,6 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     
-    IF(ASSOCIATED(oce))THEN
-       CALL deallocate_vtriple(oce%voce,error=error)
-    END IF
     IF(ASSOCIATED(VH_3c_list))THEN
        CALL deallocate_vtriple(VH_3c_list,error=error)
     END IF
@@ -1251,21 +1211,6 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     
-    IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
-       DEALLOCATE (oceht,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (ocest,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i=1,SIZE(dist_list,1)
-          IF(ASSOCIATED(dist_list(i)%rdist)) THEN
-              DEALLOCATE(dist_list(i)%rdist,STAT=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ENDIF
-       END DO
-       DEALLOCATE(dist_list,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
-
     ! Print matrices if requested
     CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, oce, qs_env, para_env, error)
     CALL timestop(handle)
@@ -1356,26 +1301,6 @@ CONTAINS
        CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
-    END IF
-
-    ! *** Print the OCE HARD matrix, if requested ***
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/OCE_HARD",error=error),cp_p_file)) THEN
-       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OCE_HARD",&
-            extension=".Log",error=error)
-       CALL write_sparse_matrix(oce%hardo(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/OCE_HARD", error=error)
-    END IF
-
-    ! *** Print the OCE SOFT matrix, if requested ***
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/OCE_SOFT",error=error),cp_p_file)) THEN
-       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OCE_SOFT",&
-            extension=".Log",error=error)
-       CALL write_sparse_matrix(oce%softo(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/OCE_SOFT", error=error)
     END IF
 
     CALL timestop(handle)

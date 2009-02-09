@@ -1041,19 +1041,14 @@ CONTAINS
 
     END DO
 
-    ! finally add the contributions to the KS-matrix
-!    do ispin = 1,nspins
-       CALL update_ks_atom(qs_env, qs_env%matrix_ks, &
-                           rho_structure%rho_ao, &
-                           .FALSE., error=error)
-!    end do
+    CALL update_ks_atom(qs_env, qs_env%matrix_ks,rho_structure%rho_ao,.FALSE.,error=error)
 
     !---------!
     ! Cleanup !
     !---------!
-       CALL section_vals_release(xc_fun_section_tmp,error=error)
-       CALL section_vals_release(xc_section_tmp,error=error)
-       CALL section_vals_release(xc_section_orig,error=error)
+    CALL section_vals_release(xc_fun_section_tmp,error=error)
+    CALL section_vals_release(xc_section_tmp,error=error)
+    CALL section_vals_release(xc_section_orig,error=error)
 
     CALL local_rho_set_release(local_rho_set,error)
     DO ispin=1, nspins

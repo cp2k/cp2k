@@ -44,3 +44,9 @@ C11H24-qmmmgapw-gauss-0.inp
 H2O-qmmm-gapw-fdbg.inp
 #NL PP rewrite 
 C11H24-qmmmgapw-gauss-0.inp 
+# GAPW code rewrite 
+C11H24-qmmmgapwall-gauss-0.inp
+# GAPW code rewrite 
+C11H24-qmmmgapw-gauss-0.inp
+# GAPW code rewrite 
+H2O-qmmm-gapw-fdbg.inp

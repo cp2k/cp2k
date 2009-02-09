@@ -9,28 +9,18 @@ MODULE qs_oce_types
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: indco
-  USE orbital_symbols,                 ONLY: cgf_symbol
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
   USE qs_neighbor_list_types,          ONLY: &
        find_neighbor_list, first_node, get_neighbor_list, get_neighbor_node, &
        neighbor_list_set_p_type, neighbor_list_type, neighbor_node_type, &
        next, qlist_type, reduced_3c_list_type
-  USE sparse_matrix_types,             ONLY: allocate_matrix,&
-                                             allocate_matrix_set,&
-                                             deallocate_matrix_set,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure
-  USE string_utilities,                ONLY: compress,&
-                                             uppercase
+  USE sap_kind_types,                  ONLY: release_sap_int,&
+                                             sap_int_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -54,35 +44,22 @@ MODULE qs_oce_types
   END TYPE vtriple_type
 
 ! *****************************************************************************
-  TYPE oce_couple
-    LOGICAL                           :: block_created
-  END TYPE oce_couple
-
-! *****************************************************************************
-  TYPE dist_list_4oce_type
-    INTEGER                           :: ndist
-    REAL(dp), DIMENSION(:,:), POINTER :: rdist
-  END TYPE dist_list_4oce_type
-
-! *****************************************************************************
   TYPE oce_matrix_type
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER  :: hardo,softo
-    TYPE(vtriple_type), DIMENSION(:,:), POINTER      :: voce
-    TYPE(oce_couple), DIMENSION(:,:), POINTER        :: couple
+    TYPE(sap_int_type), DIMENSION(:), POINTER        :: intac
   END TYPE
 
 ! *** Public data types ***
 
-  PUBLIC :: dist_list_4oce_type,oce_couple,oce_matrix_type,vtriple_type
+!  PUBLIC :: dist_list_4oce_type,oce_couple,oce_matrix_type,vtriple_type
+  PUBLIC :: oce_matrix_type,vtriple_type
 
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_oce_set, &
             allocate_vtriple,&
-            create_oce_set,&
-            deallocate_oce_set, &
             deallocate_vtriple,&
-            prepare_oce_coeff,&
+            create_oce_set,&
+            deallocate_oce_set,&
             build_reduced_3c_lists,&
             retrieve_sac_list
 
@@ -100,16 +77,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_oce_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: i, istat
+    LOGICAL                                  :: failure = .FALSE.
 
-    CALL allocate_matrix_set(oce_set%hardo,ndim,error=error)
-    CALL allocate_matrix_set(oce_set%softo,ndim,error=error)
-
-    CALL allocate_vtriple(oce_set%voce,nkind,natom,error=error)
-
-    ALLOCATE(oce_set%couple(natom,natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"couple",natom*natom)
-    oce_set%couple(1:natom,1:natom)%block_created = .FALSE.
+    ALLOCATE(oce_set%intac(nkind*nkind),STAT=istat)
+    CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
+    DO i=1,nkind*nkind
+      NULLIFY(oce_set%intac(i)%alist)
+    END DO
 
   END SUBROUTINE allocate_oce_set
 
@@ -154,10 +129,7 @@ CONTAINS
     ALLOCATE (oce_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"oce_set",0)
 
-    NULLIFY(oce_set%hardo)
-    NULLIFY(oce_set%softo)
-    NULLIFY(oce_set%voce)
-    NULLIFY(oce_set%couple)
+    NULLIFY(oce_set%intac)
 
   END SUBROUTINE create_oce_set
 
@@ -178,13 +150,8 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(oce_set)) RETURN
 
-    IF(ASSOCIATED(oce_set%hardo)) CALL deallocate_matrix_set(oce_set%hardo,error=error)
-    IF(ASSOCIATED(oce_set%softo)) CALL deallocate_matrix_set(oce_set%softo,error=error)
-    IF(ASSOCIATED(oce_set%voce))  CALL deallocate_vtriple(oce_set%voce,error=error)
-    IF(ASSOCIATED(oce_set%couple)) THEN
-       DEALLOCATE(oce_set%couple,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"deallocate_couple",0)
-    END IF
+    IF(ASSOCIATED(oce_set%intac)) CALL release_sap_int(oce_set%intac,error=error)
+
     DEALLOCATE (oce_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"deallocate_oce_set",0)
 
@@ -247,104 +214,6 @@ CONTAINS
     ENDIF
 
   END SUBROUTINE deallocate_vtriple
-
-! *****************************************************************************
-!> \brief  Create the structure for the matrix for oce coefficients 
-!> \author  MI
-!> \date    5-02-04
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE prepare_oce_coeff(particle_set,oce,natom,nsgf,first_sgf,last_sgf,distribution_2d, error)
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(oce_matrix_type), POINTER           :: oce
-    INTEGER, INTENT(IN)                      :: natom, nsgf
-    INTEGER, DIMENSION(natom)                :: first_sgf, last_sgf
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'prepare_oce_coeff', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=12)                        :: cgfsym
-    CHARACTER(LEN=80)                        :: name
-    INTEGER                                  :: handle, i, istat, maxder, &
-                                                nsotot
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_nso, last_nso
-
-    CALL timeset(routineN,handle)
-
-    ALLOCATE (first_nso(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "first_nso",natom*int_size)
-    ALLOCATE (last_nso(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "last_nso",natom*int_size)
-
-    CALL get_particle_set(particle_set=particle_set, &
-                          first_nso=first_nso,last_nso=last_nso,&
-                          nsotot=nsotot, error=error)
-
-    CALL allocate_matrix(matrix=oce%hardo(1)%matrix,&
-                         nblock_row=natom,&
-                         nblock_col=natom,&
-                         nrow=nsotot,&
-                         ncol=nsgf,&
-                         first_row=first_nso,&
-                         last_row=last_nso,&
-                         first_col=first_sgf,&
-                         last_col=last_sgf,&
-                         matrix_name="HARD OCE COEFF",&
-                         matrix_symmetry="non symmetric",&
-                         sparsity_id=-1,& ! XXXXXXXXXX unknown, could presumably also be defined
-                         distribution_2d=distribution_2d,error=error)
-
-    DEALLOCATE (first_nso,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "first_nso")
-    DEALLOCATE (last_nso,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "last_nso")
-
-    name = "SOFT OCE COEFF"
-    CALL compress(name)
-    CALL uppercase(name)
-
-    CALL replicate_matrix_structure(source=oce%hardo(1)%matrix,&
-                                    TARGET=oce%softo(1)%matrix,&
-                                    target_name=TRIM(name),&
-                                    target_symmetry="non symmetric",error=error)
-
-    maxder = SIZE(oce%hardo,1)
-
-    DO i=2,maxder
-      cgfsym = cgf_symbol(1,indco(1:3,i))
-      name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE HARD OCE COEFF "//&
-             "W.R.T. THE NUCLEAR COORDINATES"
-      CALL compress(name)
-      CALL uppercase(name)
-
-      CALL replicate_matrix_structure(source=oce%hardo(1)%matrix,&
-                                      TARGET=oce%hardo(i)%matrix,&
-                                      target_name=TRIM(name),&
-                                      target_symmetry="non symmetric",error=error)
-
-      name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE SOFT OCE COEFF "//&
-             "W.R.T. THE NUCLEAR COORDINATES"
-      CALL compress(name)
-      CALL uppercase(name)
-      CALL replicate_matrix_structure(source=oce%softo(1)%matrix,&
-                                      TARGET=oce%softo(i)%matrix,&
-                                      target_name=TRIM(name),&
-                                      target_symmetry="non symmetric",error=error)
-    END DO
-
-!   Initialize the control variable couple
-    oce%couple(1:natom,1:natom)%block_created = .FALSE.
-
-    CALL timestop(handle)
-
-  END SUBROUTINE prepare_oce_coeff
 
 ! *****************************************************************************
   SUBROUTINE build_reduced_3c_lists(atomic_kind_set,iatom,jatom,ikind,jkind, &
@@ -659,7 +528,7 @@ CONTAINS
     maxab = max_overlap_ab
 
   END SUBROUTINE
-
+!
 ! *****************************************************************************
   SUBROUTINE retrieve_sac_list(vlist,sac_list,iatom,ikind,nkind,error)
 

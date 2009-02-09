@@ -1085,8 +1085,7 @@ CONTAINS
 ! **** SCP
        IF(gapw .OR. gapw_xc) THEN
 !      ***  Single atom contributions in the KS matrix ***
-          CALL update_ks_atom(qs_env,ks_matrix,rho%rho_ao,&
-               calculate_forces,error=error)
+          CALL update_ks_atom(qs_env,ks_matrix,rho%rho_ao,calculate_forces,error=error)
        ENDIF
 !
 

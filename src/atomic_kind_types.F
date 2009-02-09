@@ -49,7 +49,6 @@ MODULE atomic_kind_types
   USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                              nco,&
                                              ncoset
-!JT
   USE paw_proj_set_types,              ONLY: allocate_paw_proj_set,&
                                              deallocate_paw_proj_set,&
                                              get_paw_proj_set,&
@@ -659,7 +658,7 @@ CONTAINS
 !> \author MK (14.01.2002)
 ! *****************************************************************************
   SUBROUTINE get_atomic_kind_set(atomic_kind_set,maxatom,maxcgf,&
-       maxco,maxco_proj,maxgtop,maxgtops,maxlgto,&
+       maxco,maxco_proj,maxgtop,maxgtops,maxlgto,maxlprj,&
        maxlppl,maxlppnl,maxnset,maxpgf,&
        maxppnl,maxsgf,maxsgf_set,maxshell,&
        natom,nelectron,ncgf,ncgf_aux,&
@@ -676,8 +675,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(OUT), OPTIONAL :: maxatom, maxcgf, maxco, maxco_proj, &
-      maxgtop, maxgtops, maxlgto, maxlppl, maxlppnl, maxnset, maxpgf, &
-      maxppnl, maxsgf, maxsgf_set, maxshell, natom, nelectron, ncgf, &
+      maxgtop, maxgtops, maxlgto, maxlprj, maxlppl, maxlppnl, maxnset, &
+      maxpgf, maxppnl, maxsgf, maxsgf_set, maxshell, natom, nelectron, ncgf, &
       ncgf_aux, npgf, nset, nsgf, nshell
     LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, &
       gth_potential_present, elp_potential_present, paw_atom_present, &
@@ -731,6 +730,7 @@ CONTAINS
        IF (PRESENT(maxlgto)) maxlgto = -1
        IF (PRESENT(maxlppl)) maxlppl = -1
        IF (PRESENT(maxlppnl)) maxlppnl = -1
+       IF (PRESENT(maxlprj)) maxlprj = -1
        IF (PRESENT(maxnset)) maxnset = 0
        IF (PRESENT(maxpgf)) maxpgf = 0
        IF (PRESENT(maxppnl)) maxppnl = 0
@@ -772,6 +772,7 @@ CONTAINS
                aux_fit_basis_set=aux_fit_basis_set,&
                orb_basis_set=orb_basis_set,&
                soft_basis_set=soft_basis_set,&
+               paw_proj_set=paw_proj_set,&
                dftb_parameter=dftb_parameter,&
                ngrid_rad=ngrid_rad,&
                max_s_harm=max_s_harm, &
@@ -864,6 +865,12 @@ CONTAINS
              IF (ASSOCIATED(paw_proj_set)) THEN
                 CALL get_paw_proj_set(paw_proj_set=paw_proj_set,ncgauprj=imax)
                 maxco_proj = MAX(maxco_proj,imax)
+             END IF
+          ENDIF
+          IF (PRESENT(maxlprj)) THEN
+             IF (ASSOCIATED(paw_proj_set)) THEN
+                CALL get_paw_proj_set(paw_proj_set=paw_proj_set,maxl=imax)
+                maxlprj = MAX(maxlprj,imax)
              END IF
           ENDIF
           IF (PRESENT(maxgtop)) THEN
@@ -1359,8 +1366,8 @@ CONTAINS
           atomic_kind => atomic_kind_set(ikind)
 
           CALL allocate_gto_basis_set(atomic_kind%soft_basis_set,error)
-          ! CALL allocate_gto_basis_set(atomic_kind%hard_basis_set)
 
+          ! The hard_basis points to the orb_basis
           atomic_kind%hard_basis_set => atomic_kind%orb_basis_set
 
           CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis,&
@@ -1372,7 +1379,6 @@ CONTAINS
           CALL set_atomic_kind(atomic_kind=atomic_kind,paw_atom=paw_atom)
 
           IF (paw_atom) THEN
-             ! The hard_basis points to the orb_basis
              CALL allocate_paw_proj_set(atomic_kind%paw_proj_set,error)
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   paw_proj_set=paw_proj)

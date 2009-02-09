@@ -256,3 +256,45 @@ no-gapw-gpw-1.inp
 h2-gapw-1.inp
 ch3m-gapw-1.inp
 ch3p-gapw-1.inp
+# GAPW code rewrite 
+ch4-gapw-1.inp
+# GAPW code rewrite 
+ch4-gapw-2.inp
+# GAPW code rewrite 
+ch4-gapw-3.inp
+# GAPW code rewrite 
+ch4-gapw-4.inp
+# GAPW code rewrite 
+ch4-gapw-5.inp
+# GAPW code rewrite 
+no-gapw-1.inp
+# GAPW code rewrite 
+no-gapw-2.inp
+# GAPW code rewrite 
+no-gapw-3.inp
+# GAPW code rewrite 
+no-gapw-4.inp
+# GAPW code rewrite 
+no-gapw-5.inp
+# GAPW code rewrite 
+ch4-gapw-1-distributed.inp
+# GAPW code rewrite 
+ch4-gapw-1-replicated.inp
+# GAPW code rewrite 
+no-gapw-1-distributed.inp
+# GAPW code rewrite 
+no-gapw-1-replicated.inp
+# GAPW code rewrite 
+w2_qmmm-1.inp
+# GAPW code rewrite 
+w2_qmmm-2.inp
+# GAPW code rewrite 
+w2_qmmm-3.inp
+# GAPW code rewrite 
+ch4-gapw-gpw-1.inp
+# GAPW code rewrite 
+no-gapw-gpw-1.inp
+# GAPW code rewrite 
+ch3m-gapw-1.inp
+# GAPW code rewrite 
+ch3p-gapw-1.inp

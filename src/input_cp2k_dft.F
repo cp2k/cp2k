@@ -922,17 +922,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
-            name="sac_oce",&
-            description="Activates the printing of the orbital "//&
-            "PAW-projector neighbor lists (only GAPW)",&
-            default_l_val=.FALSE.,&
-            lone_keyword_l_val=.TRUE.,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword=keyword,&
-            name="sbc_oce",&
+            name="sap_oce",&
             description="Activates the printing of the orbital "//&
             "PAW-projector neighbor lists (only GAPW)",&
             default_l_val=.FALSE.,&
@@ -1670,6 +1660,13 @@ CONTAINS
        CALL keyword_create(keyword, name="EPS_PPNL",&
             description="Sets precision of the non-local part of the pseudo potential. Overrides sqrt(EPS_DEFAULT) value",&
             usage="EPS_PPNL real", type_of_var=real_t,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_CPC",&
+            description="Sets precision of the GAPW projection. Overrides EPS_DEFAULT value",&
+            usage="EPS_CPC real", type_of_var=real_t,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

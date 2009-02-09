@@ -75,7 +75,6 @@ MODULE qs_linres_current_utils
                                              pw_release
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_linres_atom_current,          ONLY: list_3c_jrho_atom
   USE qs_linres_methods,               ONLY: linres_scf
   USE qs_linres_op,                    ONLY: set_vecp
   USE qs_linres_types,                 ONLY: current_env_create,&
@@ -1112,7 +1111,7 @@ CONTAINS
     !
     ! Initialize local current density if GAPW calculation
     IF(gapw) THEN
-       CALL list_3c_jrho_atom(qs_env,error=error)
+!deb       CALL list_3c_jrho_atom(qs_env,error=error)
        CALL init_jrho_atom_set(jrho1_atom_set,atomic_kind_set,nspins,error=error)
        CALL set_current_env(current_env=current_env,jrho1_atom_set=jrho1_atom_set,&
             &               error=error)

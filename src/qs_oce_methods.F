@@ -15,26 +15,29 @@ MODULE qs_oce_methods
 
   USE ai_overlap_new,                  ONLY: overlap
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: dfac,&
                                              pi
-  USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indco,&
+                                             init_orbital_pointers,&
                                              nco,&
                                              ncoset,&
                                              nso
   USE orbital_transformation_matrices, ONLY: orbtramat
+  USE particle_types,                  ONLY: particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
-  USE qs_neighbor_list_types,          ONLY: reduced_3c_list_type
-  USE qs_oce_types,                    ONLY: dist_list_4oce_type,&
-                                             oce_matrix_type
-  USE sparse_matrix_types,             ONLY: add_1d_block_node,&
-                                             get_block_node
+  USE qs_neighbor_list_types,          ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next
+  USE sap_kind_types,                  ONLY: clist_type,&
+                                             sap_int_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -49,7 +52,7 @@ MODULE qs_oce_methods
 
 ! *** Public subroutines ***
 
-  PUBLIC :: set_up_oce
+  PUBLIC :: build_oce_matrices
 
 CONTAINS
 
@@ -350,216 +353,211 @@ CONTAINS
   END SUBROUTINE build_oce_block
 
 ! *****************************************************************************
-!> \brief Set up the sparse matrix for the coefficients  of one center expansions
-!>      To this end, it uses the same pair lists employed for the construction
-!>      of the density matriax. Here for each pair iatom jatom, all the katom
-!>      which are close to them both are taken into account.
-!> \param atomic_kind_set all the information of the atomic kinds
-!> \param reduced_ 3c_oce: special 3 center lists that give the neighbors to iatom and jatom
-!> \param oce sparse matrix of the one center coefficients
-!> \param ikind , iatom, jkind, jatom : indexes and kinds of the atoms of the pair
-!> \param oceh ,oces : blocks of the oce matrix for the hard and soft densities
-!> \param nder it is =/ 0 if the forces are required
-!> \param dist_list tool used to know which triplets have been already taken into account
-!>                   (to avoid double counting in presence of PBC)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \note
-!>      - The OCE blocks are dimensioned:
-!>        number of primitives on katom times of contractions on iatom/jatom
+!> \brief Set up the sparse matrix for the coefficients of one center expansions
+!>      This routine uses the same logic as the nonlocal pseudopotential
+!> \param intac: TYPE that holds the integrals (a=basis; c=projector)
 !> \par History
-!>      02.2004 created
-!> \author MI
+!>      02.2009 created
+!> \author jgh
 ! *****************************************************************************
-  SUBROUTINE set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
-                        ikind,iatom,jkind,jatom,rab,&
-                        oceh,oces,nder,dist_list,error)
+  SUBROUTINE build_oce_matrices(intac, calculate_forces, nder,&
+                    atomic_kind_set, particle_set, sap_oce, error)
 
+    TYPE(sap_int_type), DIMENSION(:), &
+      POINTER                                :: intac
+    LOGICAL, INTENT(IN)                      :: calculate_forces
+    INTEGER                                  :: nder
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(reduced_3c_list_type), &
-      DIMENSION(:), POINTER                  :: reduced_3c_oce
-    TYPE(oce_matrix_type), POINTER           :: oce
-    INTEGER, INTENT(IN)                      :: ikind, iatom, jkind, jatom
-    REAL(dp), DIMENSION(3), INTENT(IN)       :: rab
-    TYPE(block_p_type), DIMENSION(:), &
-      POINTER                                :: oceh, oces
-    INTEGER, INTENT(IN)                      :: nder
-    TYPE(dist_list_4oce_type), &
-      DIMENSION(:), POINTER                  :: dist_list
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sap_oce
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_up_oce', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_oce_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, katom, kkind, &
-                                                kneighbor, mepos, ndist, &
-                                                nkind, nneighbor, num
-    LOGICAL                                  :: add_oce, dist_done, paw_atom
-    REAL(KIND=dp)                            :: dac, dbc
-    REAL(KIND=dp), DIMENSION(3)              :: rac, rbc, rdist
+    INTEGER :: atom_a, atom_b, handle, i, iac, ikind, ilist, jkind, &
+      jneighbor, maxco, maxder, maxl, maxlgto, maxlprj, maxprj, maxsgf, &
+      maxsoa, maxsob, mlprj, natom, ncoa_sum, nkind, nlist, nneighbor, &
+      np_car, np_sph, nseta, nsetb, nsgfa, nsobtot, stat
+    INTEGER, DIMENSION(3)                    :: cell_b
+    INTEGER, DIMENSION(:), POINTER           :: fp_car, fp_sph, la_max, &
+                                                la_min, npgfa, nprjla, &
+                                                nsgf_seta
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
+    LOGICAL                                  :: failure, paw_atom_b
+    REAL(KIND=dp)                            :: dab, rcprj
+    REAL(KIND=dp), DIMENSION(3)              :: rab
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cprj, rpgfa, rzetprj, sphi_a, &
+                                                zeta, zetb
     TYPE(atomic_kind_type), POINTER          :: at_a, at_b, atomic_kind
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(block_p_type), DIMENSION(:), &
+      POINTER                                :: oceh, oces
+    TYPE(clist_type), POINTER                :: clist
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_paw, orb_basis_set
+    TYPE(neighbor_list_type), POINTER        :: sap_oce_neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: sap_oce_neighbor_node
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj_b
 
-    CALL timeset(routineN,handle)
+    failure = .FALSE.
+    IF (calculate_forces) THEN
+      CALL timeset(routineN//" (forces)",handle)
+    ELSE
+      CALL timeset(routineN,handle)
+    ENDIF
 
-    logger => cp_error_get_logger(error)
-    mepos = logger%para_env%mepos
-    num = 1000+mepos
+    IF ( ASSOCIATED(sap_oce) ) THEN
 
-    nkind = SIZE(atomic_kind_set)
+      nkind = SIZE(atomic_kind_set)
+      natom = SIZE(particle_set)
 
-    DO kkind=1,nkind
+      maxder = ncoset(nder)
 
-       atomic_kind => atomic_kind_set(kkind)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                               maxco=maxco,&
+                               maxlgto=maxlgto,&
+                               maxlprj=maxlprj,&
+                               maxco_proj=maxprj,&
+                               maxsgf=maxsgf)
 
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            paw_atom=paw_atom)
+      maxl = MAX(maxlgto,maxlprj)
+      CALL init_orbital_pointers(maxl+nder+1)
 
-       IF(.NOT. paw_atom)  CYCLE
+      ALLOCATE(oceh(maxder),oces(maxder),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-        nneighbor = reduced_3c_oce(kkind)%nnode
-        DO kneighbor = 1,nneighbor
+      DO i=1,nkind*nkind
+        NULLIFY(intac(i)%alist)
+        intac(i)%nalist=0
+      END DO
 
-           katom = reduced_3c_oce(kkind)%index_atom(kneighbor)
-           rac(1:3) = reduced_3c_oce(kkind)%rac(1:3,kneighbor)
-           dac = SQRT(reduced_3c_oce(kkind)%rac2(kneighbor))
-           rbc(1:3) = reduced_3c_oce(kkind)%rbc(1:3,kneighbor)
-           dbc = SQRT(reduced_3c_oce(kkind)%rbc2(kneighbor))
+      !calculate the overlap integrals <a|p>
+      DO ikind=1,nkind
+         atomic_kind => atomic_kind_set(ikind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set)
 
-!          *** Check whether this block is already done
-           add_oce = .FALSE.
+         IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                first_sgf=first_sgfa,&
+                                lmax=la_max,&
+                                lmin=la_min,&
+                                nco_sum=ncoa_sum,&
+                                maxso=maxsoa,&
+                                npgf=npgfa,&
+                                nset=nseta,&
+                                nsgf=nsgfa,&
+                                nsgf_set=nsgf_seta,&
+                                pgf_radius=rpgfa,&
+                                set_radius=set_radius_a,&
+                                sphi=sphi_a,&
+                                zet=zeta)
 
-           IF(oce%couple(katom,iatom)%block_created) THEN
-             dist_done = .FALSE.
-             DO i = 1,dist_list(katom)%ndist
-               rdist(1:3) = dist_list(katom)%rdist(1:3,i)
-               IF(ABS(rdist(1)-rac(1))< 1.E-8_dp .AND.&
-                    ABS(rdist(2)-rac(2))< 1.E-8_dp .AND.&
-                    ABS(rdist(3)-rac(3))< 1.E-8_dp ) THEN
-                 dist_done = .TRUE.
-                 GOTO 10
-               END IF
-             END DO
-             add_oce = .TRUE.
-           END IF
+         DO jkind=1,nkind
+           atomic_kind => atomic_kind_set(jkind)
 
-           IF (add_oce) THEN
-             DO i=1,SIZE(oce%hardo)
-                NULLIFY (oceh(i)%block)
-                CALL get_block_node(matrix=oce%hardo(i)%matrix,&
-                                    block_row=katom,&
-                                    block_col=iatom,&
-                                    BLOCK=oceh(i)%block)
-                NULLIFY (oces(i)%block)
-                CALL get_block_node(matrix=oce%softo(i)%matrix,&
-                                    block_row=katom,&
-                                    block_col=iatom,&
-                                    BLOCK=oces(i)%block)
-             END DO
-           ELSE
-             DO i=1,SIZE(oce%hardo)
-                NULLIFY (oceh(i)%block)
-                CALL add_1d_block_node(matrix=oce%hardo(i)%matrix,&
-                                 block_row=katom,&
-                                 block_col=iatom,&
-                                 BLOCK=oceh(i)%block,error=error)
-                NULLIFY (oces(i)%block)
-                CALL add_1d_block_node(matrix=oce%softo(i)%matrix,&
-                                 block_row=katom,&
-                                 block_col=iatom,&
-                                 BLOCK=oces(i)%block,error=error)
-             ENDDO
-!       write(num,"(A,4I5)") 'aloc ', katom, iatom, size(oceh(1)%block,1),size(oceh(1)%block,2)
-           END IF
-           at_a => atomic_kind_set(kkind)
-           at_b => atomic_kind_set(ikind)
+           iac = ikind + nkind*(jkind - 1)
+           IF (.NOT.ASSOCIATED(sap_oce(iac)%neighbor_list_set)) CYCLE
 
-           CALL build_oce_block(oceh,oces, &
-                                at_a,&
-                                at_b,&
-                                rac,dac,&
-                                nder,error=error)
+           NULLIFY(paw_proj_b)
+           CALL get_atomic_kind(atomic_kind=atomic_kind,paw_proj_set=paw_proj_b,paw_atom=paw_atom_b)
+           IF (.NOT.paw_atom_b) CYCLE
 
-!         *** This block has been done ***
-          oce%couple(katom,iatom)%block_created = .TRUE.
-          dist_list(katom)%ndist =dist_list(katom)%ndist + 1
-          ndist = dist_list(katom)%ndist
-          CALL reallocate(dist_list(katom)%rdist,1,3,1,ndist)
-          dist_list(katom)%rdist(1:3,ndist) = rac(1:3)
+           CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_paw)
+           IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+           CALL get_gto_basis_set(gto_basis_set=orb_basis_paw,maxso=maxsob,nset=nsetb)
+           nsobtot = maxsob*nsetb
 
-10         CONTINUE
-           IF(jatom == iatom) THEN
-             CYCLE
-           ENDIF
-!          *** Check whether this block is already done
-           add_oce = .FALSE.
+           CALL get_paw_proj_set(paw_proj_set=paw_proj_b,&
+                                 cprj=cprj,&
+                                 maxl=mlprj,&
+                                 nprj=nprjla,&
+                                 ncgauprj=np_car,&
+                                 nsgauprj=np_sph,&
+                                 rcprj=rcprj, &
+                                 first_prj=fp_car,&
+                                 first_prjs=fp_sph,&
+                                 rzetprj=rzetprj,&
+                                 zetprj=zetb)
 
-           IF(oce%couple(katom,jatom)%block_created) THEN
-             dist_done = .FALSE.
-             DO i = 1,dist_list(katom)%ndist
-               rdist(1:3) = dist_list(katom)%rdist(1:3,i)
-               IF(ABS(rdist(1)-rbc(1))< 1.E-8_dp .AND.&
-                    ABS(rdist(2)-rbc(2))< 1.E-8_dp .AND.&
-                    ABS(rdist(3)-rbc(3))< 1.E-8_dp ) THEN
-                 dist_done = .TRUE.
-                 GOTO 20
-               END IF
-             END DO
-             add_oce = .TRUE.
-           END IF
+           CALL get_neighbor_list_set(neighbor_list_set=sap_oce(iac)%neighbor_list_set,nlist=nlist)
+           NULLIFY(sap_oce_neighbor_list)
+           intac(iac)%a_kind = ikind
+           intac(iac)%p_kind = jkind
+           intac(iac)%nalist = nlist
+           ALLOCATE(intac(iac)%alist(nlist),STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-           IF(add_oce) THEN
-             DO i=1,SIZE(oce%hardo)
-                NULLIFY (oceh(i)%block)
-                CALL get_block_node(matrix=oce%hardo(i)%matrix,&
-                                block_row=katom,&
-                                block_col=jatom,&
-                                BLOCK=oceh(i)%block)
-                NULLIFY (oces(i)%block)
-                CALL get_block_node(matrix=oce%softo(i)%matrix,&
-                                block_row=katom,&
-                                block_col=jatom,&
-                                BLOCK=oces(i)%block)
-             END DO
-!       write(num,"(A,4I5)") 'aloc ', katom, jatom, size(oceh(1)%block,1),size(oceh(1)%block,2)
-           ELSE
-             DO i=1,SIZE(oce%hardo)
-                NULLIFY (oceh(i)%block)
-                CALL add_1d_block_node(matrix=oce%hardo(i)%matrix,&
-                               block_row=katom,&
-                               block_col=jatom,&
-                               BLOCK=oceh(i)%block,error=error)
-                NULLIFY (oces(i)%block)
-                CALL add_1d_block_node(matrix=oce%softo(i)%matrix,&
-                               block_row=katom,&
-                               block_col=jatom,&
-                               BLOCK=oces(i)%block,error=error)
-             ENDDO
-           END IF
+           DO ilist = 1, nlist
+              IF ( .NOT. ASSOCIATED(sap_oce_neighbor_list) ) THEN
+                sap_oce_neighbor_list => first_list(sap_oce(iac)%neighbor_list_set)
+              ELSE
+                sap_oce_neighbor_list => next(sap_oce_neighbor_list)
+              END IF
+              CALL get_neighbor_list(neighbor_list=sap_oce_neighbor_list,atom=atom_a,nnode=nneighbor)
+              intac(iac)%alist(ilist)%aatom  = atom_a
+              intac(iac)%alist(ilist)%nclist = nneighbor 
+              ALLOCATE(intac(iac)%alist(ilist)%clist(nneighbor),STAT=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-           at_a => atomic_kind_set(kkind)
-           at_b => atomic_kind_set(jkind)
+              sap_oce_neighbor_node => first_node(sap_oce_neighbor_list)
+              DO jneighbor=1,nneighbor
+                 CALL get_neighbor_node(neighbor_node=sap_oce_neighbor_node,neighbor=atom_b,r=rab,cell=cell_b)
+                 dab = SQRT(SUM(rab*rab))
+                 clist => intac(iac)%alist(ilist)%clist(jneighbor)
+                 clist%catom = atom_b
+                 clist%cell  = cell_b
+                 clist%rac   = rab
+                 NULLIFY(clist%acint,clist%achint)
+                 ALLOCATE(clist%acint(nsgfa,nsobtot,maxder),STAT=stat)
+                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                 clist%acint=0._dp
+                 DO i=1,maxder
+                   ALLOCATE(oceh(i)%block(nsobtot,nsgfa),oces(i)%block(nsobtot,nsgfa),STAT=stat)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   oceh(i)%block=0._dp
+                   oces(i)%block=0._dp
+                 END DO
+                 at_a => atomic_kind_set(jkind)
+                 at_b => atomic_kind_set(ikind)
 
-           CALL build_oce_block(oceh,oces, &
-                              at_a,&
-                              at_b,&
-                              rbc,dbc,&
-                              nder,error=error)
-!         *** This block has been done ***
-          oce%couple(katom,jatom)%block_created = .TRUE.
-          dist_list(katom)%ndist =dist_list(katom)%ndist + 1
-          ndist = dist_list(katom)%ndist
-          CALL reallocate(dist_list(katom)%rdist,1,3,1,ndist)
-          dist_list(katom)%rdist(1:3,ndist) = rbc(1:3)
+                 CALL build_oce_block(oceh,oces,at_a,at_b,rab,dab,nder,error)
 
-20         CONTINUE
+                 IF( atom_a == atom_b .AND. ALL(cell_b == 0) ) THEN
+                   ! *** Special case: A=B
+                   ALLOCATE(clist%achint(nsgfa,nsobtot,maxder),STAT=stat)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   clist%achint=0._dp
+                   clist%acint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oces(1)%block(1:nsobtot,1:nsgfa))
+                   clist%achint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oceh(1)%block(1:nsobtot,1:nsgfa))
+                 ELSE
+                   DO i=1,maxder
+                     clist%acint(1:nsgfa,1:nsobtot,i) = TRANSPOSE(oces(i)%block(1:nsobtot,1:nsgfa))
+                   END DO
+                 END IF
+                 clist%maxac=MAXVAL(ABS(clist%acint(:,:,1)))
+                 clist%maxach=0._dp
+                 sap_oce_neighbor_node => next(sap_oce_neighbor_node)
+                 DO i=1,maxder
+                   DEALLOCATE(oceh(i)%block,oces(i)%block,STAT=stat)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                 END DO
+              END DO
+           END DO
+        END DO
+     END DO
 
-       ENDDO   ! kneighbor
-    ENDDO  ! kkind
+     DEALLOCATE(oceh,oces,STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(handle)
+   END IF 
 
-  END SUBROUTINE set_up_oce
+   CALL timestop(handle)
+    
+ END SUBROUTINE build_oce_matrices
 
+!==========================================================================================================
+  
 END MODULE qs_oce_methods

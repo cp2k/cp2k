@@ -174,7 +174,7 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_2c, sab_all, &
       sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_orb, sab_scp, &
-      sab_vdw, sac_3c, sac_oce, sac_ppl, sap_ppnl, sbc_3c, sbc_oce
+      sab_vdw, sac_3c, sac_ppl, sap_oce, sap_ppnl, sbc_3c
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -205,8 +205,7 @@ CONTAINS
     NULLIFY (sab_orb)
     NULLIFY (sac_ppl)
     NULLIFY (sap_ppnl)
-    NULLIFY (sac_oce)
-    NULLIFY (sbc_oce)
+    NULLIFY (sap_oce)
     NULLIFY (sab_2c)
     NULLIFY (sac_3c)
     NULLIFY (sbc_3c)
@@ -266,8 +265,7 @@ CONTAINS
                     sac_ppl=sac_ppl,&
                     sab_vdw=sab_vdw,&
                     sap_ppnl=sap_ppnl,&
-                    sac_oce=sac_oce,&
-                    sbc_oce=sbc_oce,&
+                    sap_oce=sap_oce,&
                     sab_2c=sab_2c,&
                     sac_3c=sac_3c,&
                     sbc_3c=sbc_3c,&
@@ -732,23 +730,21 @@ CONTAINS
 
     IF (paw_atom_present) THEN
        IF (ANY(oce_present)) THEN
-          CALL build_gth_ppnl_neighbor_lists(sac_oce,sbc_oce,atom,cell,r_skin,&
-                                             maxatom,maxatom_local,unit_conv,unit_str,&
+          CALL build_projector_neighbor_lists(sap_oce,atom,cell,r_skin,&
+                                             maxatom,2*maxatom_local,unit_conv,unit_str,&
                                              output_unit,orb_present,oce_present,&
-                                             short_orb_radius,oce_radius,&
+                                             orb_radius,oce_radius,&
                                              name="ORBITAL PAW-PRJ",&
                                              subcells=subcells,&
                                              error=error)
-          
+
           ! Put the generated neighbor lists into the QS environment
-          CALL set_qs_env(qs_env=qs_env,sac_oce=sac_oce,sbc_oce=sbc_oce,error=error)
+          CALL set_qs_env(qs_env=qs_env,sap_oce=sap_oce,error=error)
 
           ! Dump neighbor list if requested
-          CALL write_neighbor_lists(sac_oce,particle_set,cell,para_env,neighbor_list_section,&
-               "/SAC_OCE","sac_oce","ORBITAL(A) PAW-PRJ",error)
+          CALL write_neighbor_lists(sap_oce,particle_set,cell,para_env,neighbor_list_section,&
+               "/SAP_OCE","sap_oce","ORBITAL(A) PAW-PRJ",error)
 
-          CALL write_neighbor_lists(sbc_oce,particle_set,cell,para_env,neighbor_list_section,&
-               "/SBC_OCE","sbc_oce","ORBITAL(B) PAW-PRJ",error)
        END IF
     END IF
 

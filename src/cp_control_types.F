@@ -90,7 +90,8 @@ MODULE cp_control_types
                                        eps_fit,&
                                        eps_iso,&
                                        eps_Vrho0,&
-                                       eps_svd
+                                       eps_svd,&
+                                       eps_cpc
     INTEGER                         :: ladd_rho0,&
                                        lmax_rho0,&
                                        lmax_sphere,&

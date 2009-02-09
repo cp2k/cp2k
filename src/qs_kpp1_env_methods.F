@@ -509,8 +509,7 @@ CONTAINS
                                         .TRUE.,p_env,error)
           END IF
 !         ***  Add single atom contributions to the KS matrix ***
-          CALL update_ks_atom(qs_env,k_p_p1,rho%rho_ao,&
-                                 .FALSE.,.TRUE.,p_env,error)
+          CALL update_ks_atom(qs_env,k_p_p1,rho%rho_ao,.FALSE.,.TRUE.,p_env,error)
        END IF
 
        CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,&

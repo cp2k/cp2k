@@ -147,3 +147,13 @@ H2O-gapw-all_localize_noortho.inp
 H2O-gapw-all_localize_crazy_noortho.inp
 # New initial guess ATOMIC 
 Be_GAPW.inp
+# GAPW code rewrite 
+H2S-gapw.inp
+# GAPW code rewrite 
+HF_gapw_all_LB.inp
+# GAPW code rewrite 
+OF_gapw_all_lsd_LB.inp
+# GAPW code rewrite 
+He2-all-md.inp
+# GAPW code rewrite 
+Be_GAPW.inp

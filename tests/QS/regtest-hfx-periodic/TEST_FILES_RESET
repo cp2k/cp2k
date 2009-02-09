@@ -23,3 +23,5 @@ CH3-trunc-auto-md.inp
 # eps schwarz for radii calculation
 CH3-trunc-auto-md.inp
 H2O-trunc-auto-md.inp
+# GAPW code rewrite 
+H2O-coul-0.inp

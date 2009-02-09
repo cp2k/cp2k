@@ -184,3 +184,13 @@ CH-hfx-md.inp
 4H2O-disk.inp
 4H2O-mix-disk-ram.inp
 4H2O-mix-disk-ram-on-the-fly.inp
+# GAPW code rewrite 
+CH-hfx-md.inp
+# GAPW code rewrite 
+CH-hfx-md-2.inp
+# GAPW code rewrite 
+4H2O-disk.inp
+# GAPW code rewrite 
+4H2O-mix-disk-ram.inp
+# GAPW code rewrite 
+4H2O-mix-disk-ram-on-the-fly.inp
