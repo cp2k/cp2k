@@ -11,7 +11,6 @@
 !> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_distribution_mc
-
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE hfx_types,                       ONLY: hfx_load_balance_type
@@ -23,6 +22,7 @@ MODULE hfx_distribution_mc
                                              next_random_number,&
                                              reset_to_next_rng_substream,&
                                              rng_stream_type
+  USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -162,19 +162,11 @@ MODULE hfx_distribution_mc
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE compute_max_cost(max_cost, my_ncpu, my_cost_cpu)
-    INTEGER(int_8)                           :: max_cost
-    INTEGER                                  :: my_ncpu
+  SUBROUTINE compute_max_cost(max_cost, average, my_cost_cpu)
+    INTEGER(int_8)                           :: max_cost, average
     INTEGER(int_8), DIMENSION(:)             :: my_cost_cpu
 
-    INTEGER                                  :: i
-
-    max_cost=-HUGE(max_cost)
-    DO i=1,my_ncpu
-      IF (my_cost_cpu(i).GT.max_cost) THEN 
-        max_cost=my_cost_cpu(i)
-      ENDIF
-    ENDDO
+    max_cost=MAXVAL(my_cost_cpu)+SQRT(REAL(SUM((my_cost_cpu-average)**2)/SIZE(my_cost_cpu),kind=dp))
 
   END SUBROUTINE compute_max_cost
 
@@ -196,7 +188,7 @@ MODULE hfx_distribution_mc
                                     my_cost_total, my_distribution, my_best_distribution, my_best_cost, &
                                     my_rng_stream, my_moves, my_cycles, my_reduction_steps, &
                                     my_reduction_factor, my_initial_temperature, my_tolerance, &
-                                    my_swap_probability, i_thread, error)
+                                    my_swap_probability, my_process_id, error)
     INTEGER                                  :: my_nbin, my_ncpu
     INTEGER(int_8), DIMENSION(:), POINTER    :: my_bin_costs, my_cost_cpu
     INTEGER(int_8)                           :: my_cost_optimal, my_cost_total
@@ -210,68 +202,78 @@ MODULE hfx_distribution_mc
                                                 my_initial_temperature, &
                                                 my_tolerance, &
                                                 my_swap_probability
-    INTEGER                                  :: i_thread
+    INTEGER                                  :: my_process_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: best_iac, i, iac, iswap, &
-                                                itmp, itries, jswap, &
+    INTEGER                                  :: i, iswap, itmp, itries, &
+                                                jswap, nele, &
                                                 old_distribution(my_nbin)
-    INTEGER(int_8)                           :: best_max_cost, max_cost, &
-                                                max_cost_old
+    INTEGER(int_8)                           :: average, best_max_cost, &
+                                                max_cost, max_cost_old
+    INTEGER(int_8), DIMENSION(:), POINTER    :: tmp_cost
+    INTEGER, DIMENSION(:), POINTER           :: tmp_index
     REAL(dp)                                 :: random_accept, random_move, &
-                                                random_move_type, T, t_final
+                                                T, T_local
 
-!! Initialize a modulo distribution
+    nele=SIZE(my_bin_costs)
 
-    DO i=1,my_nbin
-      my_distribution(i)=MOD(i-1,my_ncpu)+1
+    ALLOCATE(tmp_cost(nele))
+    ALLOCATE(tmp_index(nele))
+    tmp_cost=my_bin_costs
+    CALL sort(tmp_cost,nele,tmp_index)
+    my_cost_cpu=0
+!
+! assign the largest remaining bin to the CPU with the smallest load
+! gives near perfect distributions already
+!
+    DO i=my_nbin,1,-1
+       itmp=MINLOC(my_cost_cpu,1)
+       my_distribution(tmp_index(i))=itmp
+       my_cost_cpu(itmp)=my_cost_cpu(itmp)+my_bin_costs(tmp_index(i))
     ENDDO
+
     CALL compute_cost_cpu(my_distribution, my_nbin, my_cost_cpu, my_bin_costs)
-    CALL compute_max_cost(max_cost, my_ncpu, my_cost_cpu)
+    average=SUM(my_cost_cpu)/SIZE(my_cost_cpu)
+    CALL compute_max_cost(max_cost, average, my_cost_cpu)
     best_max_cost = max_cost
     my_best_distribution = my_distribution
     max_cost_old = max_cost
     old_distribution = my_distribution
-    
-    iac=0
-    best_iac=0
+
+    ! we base the temperature on a variance of the results obtained so far
+    ! too high a temperature would melt the system instead of converging to a minimum
+    T_local=my_initial_temperature*SQRT(REAL(SUM((my_cost_cpu-average)**2)/SIZE(my_cost_cpu),kind=dp))
+    DEALLOCATE(tmp_cost,tmp_index)
 
     DO itries=0,my_moves
       !do annealing 
       IF (MOD(itries,my_moves/my_cycles)==0) THEN
-        T=my_initial_temperature
+        T=T_local
       ENDIF
       IF ( MOD(itries,my_moves/(my_cycles*my_reduction_steps))==0 ) THEN
         T=T*my_reduction_factor
       ENDIF
       ! do some Monte Carlo
       random_move = next_random_number(my_rng_stream,error=error)
-      random_move_type = next_random_number(my_rng_stream,error=error)
       ! generate trial configuration
       my_distribution = old_distribution
       IF (random_move<1.0_dp-my_swap_probability) THEN
-        IF (random_move_type<0.5) THEN
           iswap = next_random_number(my_rng_stream,low=1,high=my_nbin,error=error)
           jswap = next_random_number(my_rng_stream,low=1,high=my_ncpu,error=error)
           IF (iswap>my_nbin .OR. jswap>my_ncpu) CYCLE
-            my_distribution(iswap)=jswap
-          ENDIF
-        ELSE
-        IF (random_move_type<0.5) THEN
+          my_distribution(iswap)=jswap
+      ELSE
           iswap = next_random_number(my_rng_stream,low=1,high=my_nbin,error=error)
-          jswap = next_random_number(my_rng_stream,low=1,high=my_ncpu,error=error)
+          jswap = next_random_number(my_rng_stream,low=1,high=my_nbin,error=error)
           IF (iswap>my_nbin .OR. jswap>my_nbin) CYCLE
           itmp=my_distribution(iswap)
           my_distribution(iswap)=my_distribution(jswap)
           my_distribution(jswap)=itmp
-        ENDIF
       ENDIF
 
       ! evaluate its cost
-      iac = iac + 1
-       
       CALL compute_cost_cpu(my_distribution, my_nbin, my_cost_cpu, my_bin_costs) 
-      CALL compute_max_cost(max_cost, my_ncpu, my_cost_cpu)
+      CALL compute_max_cost(max_cost, average, my_cost_cpu)
 
       ! accept / reject
       random_accept = next_random_number(my_rng_stream,error=error)
@@ -287,11 +289,9 @@ MODULE hfx_distribution_mc
       IF (max_cost < best_max_cost) THEN
         best_max_cost = max_cost
         my_best_distribution = my_distribution
-        best_iac = iac
       ENDIF
       IF (REAL((max_cost-my_cost_optimal),dp)/my_cost_optimal.LE.my_tolerance) EXIT
     ENDDO
-    CALL CPU_TIME(t_final)
 
     CALL compute_cost_cpu(my_best_distribution, my_nbin, my_cost_cpu, my_bin_costs)
     my_best_cost = best_max_cost
@@ -314,14 +314,14 @@ MODULE hfx_distribution_mc
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE optimize_distribution(para_env, nbin_in, ncpu_in, bin_costs_in, distribution_vector, &
-                                        load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
+                                        load_balance_parameter, optimal_cost, my_process_id, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER(int_8)                           :: nbin_in, ncpu_in
     INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs_in
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector
     TYPE(hfx_load_balance_type)              :: load_balance_parameter
     INTEGER(int_8), INTENT(INOUT)            :: optimal_cost
-    INTEGER                                  :: my_process_id, i_thread
+    INTEGER                                  :: my_process_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: my_cycles, my_moves, my_nbin, &
@@ -346,7 +346,7 @@ MODULE hfx_distribution_mc
                                 my_cost_total, my_distribution, my_best_distribution, &
                                 my_best_cost, my_rng_stream, my_moves, my_cycles, &
                                 my_reduction_steps, my_reduction_factor, my_initial_temperature, &
-                                my_tolerance, my_swap_probability, i_thread, error)
+                                my_tolerance, my_swap_probability,my_process_id, error)
     optimal_cost = my_best_cost
     distribution_vector = my_best_distribution
     CALL destructor(my_nbin, my_ncpu, my_bin_costs, my_cost_cpu, my_cost_optimal, &

@@ -147,7 +147,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"LOAD_BALANCE",&
-            description="Sets up interaction potential if requested ",&
+            description="Parameters influencing the load balancing of the HF",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             citations=(/guidon2008/),&
             error=error)
@@ -156,8 +156,7 @@ CONTAINS
        CALL keyword_create(&
             keyword=keyword,&
             name="NBINS",&
-            description="Number of bins to be used on each process to distribute "//&
-                        "in a first step.",&
+            description="Number of bins per process used to group atom quartets.",&
             usage="NBINS 32",&
             default_i_val=16,&
             error=error)
@@ -165,44 +164,44 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOVES",&
-            description="Total number of Monte Carlo moves to use in the optimization",&
+            description="Total number of Monte Carlo moves to use in the optimization.",&
             usage="MOVES 1000000 ",&
             n_var=1,default_i_val=100000,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="CYCLES",&
-            description="How many annealing cycles to use",&
-            usage="CYCLES 10", default_i_val=10, error=error)
+            description="How many annealing cycles to use in the MC process.",&
+            usage="CYCLES 10", default_i_val=5, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="REDUCTION_STEPS",&
-            description="How many temperature reduction steps have to be performed per cycle",&
-            usage="REDUCTION_STEPS 5", default_i_val=5, error=error)
+            description="How many temperature reduction steps have to be performed per cycle.",&
+            usage="REDUCTION_STEPS 5", default_i_val=10, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="REDUCTION_FACTOR",&
-            description="How to scale the temperature at each reduction step",&
+            description="How to scale the temperature at each reduction step.",&
             usage="REDUCTION_FACTOR 0.8", default_r_val=0.8_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="TEMPERATURE",&
-            description="Highest temperature to be used (in units of the maximum cost of a non-zero 2D block)",&
-            usage="TEMPERATURE 0.5", default_r_val=0.5_dp, error=error)
+            description="Highest temperature to be used (in units of the RMSD of the initial solution).",&
+            usage="TEMPERATURE 0.005", default_r_val=0.001_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="TOLERANCE",&
-            description="If the found distribution is within a fraction of the theoretical optimal one, the optimization stops",&
+            description="If the found distribution is within a fraction of the optimal one, the optimization stops.",&
             usage="TOLERANCE 0.01", default_r_val=0.02_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="SWAP_PROBABILITY",&
-            description="Probability of a col/row assignment swap",&
+            description="Probability of a swap of two bins.",&
             usage="SWAP_PROBABILITY 0.8", default_r_val=0.9_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

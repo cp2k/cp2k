@@ -460,7 +460,7 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
       CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
-                                      load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
+                                      load_balance_parameter, optimal_cost, my_process_id, error)
       
       !! Find optimal load balance wrt the cost
       optimal_costs(my_process_id+1) = optimal_cost
@@ -773,31 +773,31 @@ MODULE hfx_load_balance_methods
             nsgfc => basis_parameter(kkind)%nsgf
             rc = particle_set(katom)%r(:)
             DO latom=katom,natom
-              !All four centers equivalent => zero-contribution
-              IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
-              rd = particle_set(latom)%r(:)
-              IF( do_periodic ) THEN
-                temp = rd -rc
-                pbc_D = pbc(temp,cell)
-                D11 = rc + pbc_D
-                rcd2 = (rc(1)-D11(1))**2+(rc(2)-D11(2))**2+(rc(3)-D11(3))**2
-              ELSE
-                rcd2 = (rc(1)-rd(1))**2+(rc(2)-rd(2))**2+(rc(3)-rd(3))**2
-              END IF
-              lkind = kind_of(latom)
-
-              IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
-                   coeffs_kind(jkind,ikind)%x(2) ) + &
-                  (coeffs_kind(lkind,kkind)%x(1)*rcd2+&
-                   coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
-
-              IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
-                        is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
-
               IF((katom+latom<=iatom+jatom))  THEN
                 IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
+                !All four centers equivalent => zero-contribution
+                IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
+                rd = particle_set(latom)%r(:)
+                IF( do_periodic ) THEN
+                  temp = rd -rc
+                  pbc_D = pbc(temp,cell)
+                  D11 = rc + pbc_D
+                  rcd2 = (rc(1)-D11(1))**2+(rc(2)-D11(2))**2+(rc(3)-D11(3))**2
+                ELSE
+                  rcd2 = (rc(1)-rd(1))**2+(rc(2)-rd(2))**2+(rc(3)-rd(3))**2
+                END IF
+                lkind = kind_of(latom)
+
+                IF( (coeffs_kind(jkind,ikind)%x(1)*rab2+&
+                     coeffs_kind(jkind,ikind)%x(2) ) + &
+                    (coeffs_kind(lkind,kkind)%x(1)*rcd2+&
+                     coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
+
+                IF(.NOT. (is_assoc_atomic_block_global(latom,iatom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
+                          is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
+
                 nsetd =  basis_parameter(lkind)%nset
                 nsgfd => basis_parameter(lkind)%nsgf
                 DO iset = 1, nseta
@@ -1022,7 +1022,7 @@ MODULE hfx_load_balance_methods
       local_cost_matrix = cost_matrix
 
       CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
-                                 load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
+                                 load_balance_parameter, optimal_cost, my_process_id, error)
       !! Find optimal load balance wrt the cost
       optimal_costs(my_process_id+1) = optimal_cost
 !$OMP BARRIER
@@ -1358,7 +1358,7 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
       CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
-                                 load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
+                                 load_balance_parameter, optimal_cost, my_process_id, error)
       
       !! Find optimal load balance wrt the cost
       optimal_costs(my_process_id+1) = optimal_cost
@@ -1698,7 +1698,7 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
       CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
-                                 load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
+                                 load_balance_parameter, optimal_cost, my_process_id, error)
       
       !! Find optimal load balance wrt the cost
       optimal_costs(my_process_id+1) = optimal_cost
