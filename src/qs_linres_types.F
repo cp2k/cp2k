@@ -119,6 +119,15 @@ MODULE qs_linres_types
      TYPE(realspaces_grid_p_type), DIMENSION(:) :: rs_gauge(3)
   END TYPE current_env_type
 
+  TYPE issc_env_type
+     INTEGER                             :: ref_count
+     INTEGER, DIMENSION(:), POINTER      :: issc_atom_list
+     INTEGER, DIMENSION(:), POINTER      :: do_calc_issc_atom
+     LOGICAL                             :: interpolate_issc
+     REAL(dp)                            :: issc_gapw_radius,issc_factor,issc_factor_gapw
+     REAL(dp), DIMENSION(:,:,:), POINTER :: issc,issc_loc
+  END TYPE issc_env_type
+
   TYPE nmr_env_type
      INTEGER                             :: ref_count, n_nics
      INTEGER, DIMENSION(:), POINTER      :: cs_atom_list
@@ -190,10 +199,11 @@ MODULE qs_linres_types
   PUBLIC ::  allocate_jrho_atom_rad, deallocate_jrho_atom_set, get_nmr_env, &
              get_current_env, allocate_jrho_coeff, deallocate_jrho_coeff, &
              init_jrho_atom_set, linres_control_type, init_nablavks_atom_set, &
-             nmr_env_type, jrho_atom_type, set_nmr_env, set2zero_jrho_atom_rad, &
-             get_epr_env, epr_env_type, set_epr_env, nablavks_atom_type, &
-             deallocate_nablavks_atom_set, current_env_type, set_current_env, &
-             realspaces_grid_p_type
+             nmr_env_type, issc_env_type, jrho_atom_type, set_nmr_env, &
+             set2zero_jrho_atom_rad, get_epr_env, epr_env_type, set_epr_env, &
+             nablavks_atom_type, deallocate_nablavks_atom_set, current_env_type, &
+             set_current_env, realspaces_grid_p_type, get_issc_env, set_issc_env, &
+             issc_env_create
 
 ! *** Public subroutines ***
 
@@ -345,6 +355,30 @@ CONTAINS
      END IF 
 
   END SUBROUTINE nmr_env_create
+       
+! *****************************************************************************
+  SUBROUTINE issc_env_create(issc_env,error)
+
+    TYPE(issc_env_type)                      :: issc_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'issc_env_create', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+     failure =.FALSE.
+
+     CPPrecondition(issc_env%ref_count==0, cp_failure_level,routineP,error,failure)
+     IF(.NOT. failure) THEN
+        issc_env%ref_count = 1
+        NULLIFY(issc_env%issc_atom_list)
+        NULLIFY(issc_env%do_calc_issc_atom)
+        NULLIFY(issc_env%issc)
+        NULLIFY(issc_env%issc_loc)
+     ENDIF
+
+   END SUBROUTINE issc_env_create
        
 ! *****************************************************************************
   SUBROUTINE epr_env_create(epr_env,error)
@@ -506,6 +540,38 @@ CONTAINS
   END SUBROUTINE get_nmr_env
 
 ! *****************************************************************************
+  SUBROUTINE get_issc_env(issc_env,issc_atom_list,do_calc_issc_atom,&
+                          issc_gapw_radius,issc_loc,issc,interpolate_issc,&
+                          error)
+
+    TYPE(issc_env_type)                      :: issc_env
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: issc_atom_list, &
+                                                do_calc_issc_atom
+    REAL(dp), OPTIONAL                       :: issc_gapw_radius
+    REAL(dp), DIMENSION(:, :, :), OPTIONAL, &
+      POINTER                                :: issc_loc, issc
+    LOGICAL, OPTIONAL                        :: interpolate_issc
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_issc_env', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure =.FALSE.
+
+    CPPrecondition(issc_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    IF(PRESENT(issc_atom_list   )) issc_atom_list    => issc_env%issc_atom_list
+    IF(PRESENT(do_calc_issc_atom)) do_calc_issc_atom => issc_env%do_calc_issc_atom
+    IF(PRESENT(issc_gapw_radius )) issc_gapw_radius  =  issc_env%issc_gapw_radius
+    IF(PRESENT(issc_loc         )) issc_loc          => issc_env%issc_loc
+    IF(PRESENT(issc             )) issc              => issc_env%issc
+    IF(PRESENT(interpolate_issc )) interpolate_issc  =  issc_env%interpolate_issc
+
+  END SUBROUTINE get_issc_env
+
+! *****************************************************************************
   SUBROUTINE set_current_env(current_env,jrho1_atom_set,jrho1_set,error)
 
     TYPE(current_env_type)                   :: current_env
@@ -569,6 +635,22 @@ CONTAINS
     IF(PRESENT(chi_SI2ppmcgs  )) nmr_env%chi_SI2ppmcgs   = chi_SI2ppmcgs
 
   END SUBROUTINE set_nmr_env
+! *****************************************************************************
+  SUBROUTINE set_issc_env(issc_env,error)
+
+    TYPE(issc_env_type)                      :: issc_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_issc_env', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure =.FALSE.
+
+    CPPrecondition(issc_env%ref_count>0, cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE set_issc_env
 
 ! *****************************************************************************
   SUBROUTINE get_epr_env(epr_env, &

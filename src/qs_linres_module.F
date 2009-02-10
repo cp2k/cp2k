@@ -51,6 +51,8 @@ MODULE qs_linres_module
                                              epr_ind_magnetic_field
   USE qs_linres_epr_utils,             ONLY: epr_env_cleanup,&
                                              epr_env_init
+  USE qs_linres_issc_utils,            ONLY: issc_env_cleanup,&
+                                             issc_env_init
   USE qs_linres_methods,               ONLY: linres_localize
   USE qs_linres_nmr_shift,             ONLY: nmr_shift,&
                                              nmr_shift_print
@@ -59,6 +61,7 @@ MODULE qs_linres_module
   USE qs_linres_op,                    ONLY: current_operators
   USE qs_linres_types,                 ONLY: current_env_type,&
                                              epr_env_type,&
+                                             issc_env_type,&
                                              linres_control_create,&
                                              linres_control_release,&
                                              linres_control_type,&
@@ -110,11 +113,13 @@ CONTAINS
     INTEGER                                  :: handle, iB, output_unit
     LOGICAL                                  :: do_qmmm, epr_present, &
                                                 failure, ionode, &
-                                                lr_calculation, nmr_present
+                                                issc_present, lr_calculation, &
+                                                nmr_present
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(current_env_type)                   :: current_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(epr_env_type)                       :: epr_env
+    TYPE(issc_env_type)                      :: issc_env
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -126,6 +131,7 @@ CONTAINS
     lr_calculation = .FALSE.
     nmr_present = .FALSE.
     epr_present = .FALSE.
+    issc_present = .FALSE.
     do_qmmm = .FALSE.
 
     NULLIFY(dft_control,p_env,linres_control,logger,lr_section,prop_section,qs_env)
@@ -148,13 +154,11 @@ CONTAINS
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
 
-    ! The transition potential method to calculate XAS needs LSD
-    lr_section =>  section_vals_get_subs_vals(qs_env%input, &
-                                          "PROPERTIES%LINRES",error=error)
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
     CALL section_vals_get(lr_section,explicit=lr_calculation,error=error)
     CALL linres_init(lr_section,p_env,qs_env,error=error)
 
-    IF (lr_calculation) THEN
+    IF(lr_calculation) THEN
        output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".linresLog",error=error)
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
@@ -162,13 +166,14 @@ CONTAINS
 
        !The type of perturbation has not been defined yet
        linres_control%property = lr_none
-
+       !
        ! We do NMR or EPR, then compute the current response
        prop_section => section_vals_get_subs_vals(lr_section,"NMR",error=error)
        CALL section_vals_get(prop_section,explicit=nmr_present,error=error)
        prop_section => section_vals_get_subs_vals(lr_section,"EPR",error=error)
        CALL section_vals_get(prop_section,explicit=epr_present,error=error)
-       IF(nmr_present.OR.epr_present)THEN
+
+       IF(nmr_present.OR.epr_present) THEN
           linres_control%property = lr_current
           linres_control%do_kernel = .FALSE.
           IF(.NOT.linres_control%localized_psi0) THEN
@@ -186,6 +191,7 @@ CONTAINS
           !Initialize the current environment
           current_env%ref_count=0
           current_env%do_qmmm = do_qmmm
+          !current_env%prop='nmr'
           CALL current_env_init(current_env,qs_env,error=error)
           CALL current_operators(current_env,qs_env,error=error)
           CALL current_response(current_env,p_env,qs_env,error)
@@ -242,7 +248,54 @@ CONTAINS
           ! Finalized the current environment
           CALL current_env_cleanup(current_env,qs_env,error=error)
        ENDIF
-       
+       !
+       ! We do the indirect spin-spin coupling calculation 
+       prop_section => section_vals_get_subs_vals(lr_section,"SPINSPIN",error=error)
+       CALL section_vals_get(prop_section,explicit=issc_present,error=error)
+
+       IF(issc_present) THEN
+          linres_control%property = lr_current
+          linres_control%do_kernel = .FALSE.
+          IF(.NOT.linres_control%localized_psi0) THEN
+             CALL stop_program(routineP,&
+                  "Are you sure that you want to calculate the chemical"//&
+                  " shift without localized psi0??")
+             CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
+                  dft_control%nspins,centers_only=.TRUE.,error=error)
+          ENDIF
+          !
+          !Initialize the current environment
+          current_env%ref_count=0
+          current_env%do_qmmm = do_qmmm
+          !current_env%prop='issc'
+          !CALL current_env_init(current_env,qs_env,error=error)
+          !CALL current_operators(current_env,qs_env,error=error)
+          !CALL current_response(current_env,p_env,qs_env,error)
+          !
+          !Initialize the issc environment
+          issc_env%ref_count=0
+          CALL issc_env_init(issc_env,qs_env,error=error)
+          !
+          ! Loop over atoms and field direction
+          !DO iA = 1,natoms
+          !DO iB = 1,3
+             !
+             ! Build current response
+             !CALL current_build_current(current_env,qs_env,iB,error=error)
+             !
+             ! Compute indirect spin-spin coupling
+             !CALL issc_tensor(issc_env,current_env,qs_env,iB,error=error)
+          !ENDDO
+          !ENDDO
+          !
+          ! Finalized the issc environment
+          !CALL issc_print(issc_env,current_env,qs_env,error=error)
+          CALL issc_env_cleanup(issc_env,error=error)
+          !
+          ! Finalized the current environment
+          !CALL current_env_cleanup(current_env,qs_env,error=error)       
+       ENDIF
+
        ! Other possible LR calculations can be introduced here
 
        CALL p_env_release(p_env,error=error)

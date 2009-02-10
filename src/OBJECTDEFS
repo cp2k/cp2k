@@ -464,6 +464,7 @@ OBJECTS_GENERIC =\
  qs_linres_atom_current.o\
  qs_linres_current.o\
  qs_linres_current_utils.o\
+ qs_linres_issc_utils.o\
  qs_linres_nmr_shift.o\
  qs_linres_nmr_utils.o\
  qs_linres_types.o\

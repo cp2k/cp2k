@@ -5849,6 +5849,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_spin_spin_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_epr_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -6169,6 +6173,76 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_nmr_section
+
+! *****************************************************************************
+  SUBROUTINE create_spin_spin_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_spin_spin_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
+    failure=.FALSE.
+    NULLIFY(keyword,print_key,subsection)
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="spinspin",&
+            description="Compute indirect spin-spin coupling constants.",&
+            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of the nmr calculation",&
+            usage="&SPINSPIN T",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RESTART_SPINSPIN",&
+            description="Restart the spin-spin calculation from a previous run (NOT WORKING YET)",&
+            usage="RESTART_SPINSPIN",default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(subsection)
+       CALL section_create(subsection,name="PRINT",&
+            description="print results of the indirect spin-spin calculation",&
+            error=error,repeats=.FALSE.,required=.FALSE.)
+
+       CALL cp_print_key_section_create(print_key,"SPINSPIN_TENSOR",&
+            description="Controls the printing of the spin-spin tensors",&
+            print_level=low_print_level,add_last=add_last_numeric,filename="",&
+            error=error)
+
+       CALL keyword_create(keyword, name="ATOMS_LIST",&
+            description="list of atoms for which the indirect spin-spin is printed into a file ",&
+            usage="LIST_ATOMS 1 2",n_var=-1,&
+            type_of_var=integer_t,repeats=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       NULLIFY(subsection)
+       CALL create_interp_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_spin_spin_section
 
 ! *****************************************************************************
   SUBROUTINE create_epr_section(section,error)
