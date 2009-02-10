@@ -645,27 +645,41 @@ MODULE qs_rho_atom_methods
                     DO ispin = 1,nspins
 
                       IF(iatom == jatom) THEN
-                        PC(1:nsgfa,1:nsoctot) = MATMUL(p_block_spin(ispin)%r_coef(1:nsgfa,1:nsgfb),&
-                                                       C_coeff_hh_b(1:nsgfb,1:nsoctot,1))
-                        rho_atom(katom)%cpc_h(ispin)%r_coef(1:nsoctot,1:nsoctot) =&
-                          rho_atom(katom)%cpc_h(ispin)%r_coef(1:nsoctot,1:nsoctot) + &
-                          MATMUL(TRANSPOSE(C_coeff_hh_a(1:nsgfa,1:nsoctot,1)),PC(1:nsgfa,1:nsoctot))
-
-                        PC(1:nsgfa,1:nsoctot) = MATMUL(p_block_spin(ispin)%r_coef(1:nsgfa,1:nsgfb),&
-                                                       C_coeff_ss_b(1:nsgfb,1:nsoctot,1))
-                        rho_atom(katom)%cpc_s(ispin)%r_coef(1:nsoctot,1:nsoctot) =&
-                          rho_atom(katom)%cpc_s(ispin)%r_coef(1:nsoctot,1:nsoctot) + &
-                          MATMUL(TRANSPOSE(C_coeff_ss_a(1:nsgfa,1:nsoctot,1)),PC(1:nsgfa,1:nsoctot))
+                         CALL dgemm('N','N',nsgfa,nsoctot,nsgfb,&
+                              &     1.0_dp,p_block_spin(ispin)%r_coef(1,1),nsgfa,&
+                              &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
+                              &     0.0_dp,PC(1,1),max_nsgf)
+                         CALL dgemm('T','N',nsoctot,nsoctot,nsgfa,&
+                              &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
+                              &     PC(1,1),max_nsgf,&
+                              &     1.0_dp,rho_atom(katom)%cpc_h(ispin)%r_coef(1,1),nsoctot)
+                         !
+                         CALL dgemm('N','N',nsgfa,nsoctot,nsgfb,&
+                              &     1.0_dp,p_block_spin(ispin)%r_coef(1,1),nsgfa,&
+                              &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
+                              &     0.0_dp,PC(1,1),max_nsgf)
+                         CALL dgemm('T','N',nsoctot,nsoctot,nsgfa,&
+                              &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
+                              &     PC(1,1),max_nsgf,&
+                              &     1.0_dp,rho_atom(katom)%cpc_s(ispin)%r_coef(1,1),nsoctot)
                       ELSEIF(iatom < jatom) THEN
-                        PC(1:nsgfa,1:nsoctot) = MATMUL(p_block_spin(ispin)%r_coef(1:nsgfa,1:nsgfb),&
-                                                       C_coeff_hh_b(1:nsgfb,1:nsoctot,1))
-                        coef_aux_h(1:nsoctot,1:nsoctot,ispin) =&
-                          MATMUL(TRANSPOSE(C_coeff_hh_a(1:nsgfa,1:nsoctot,1)),PC(1:nsgfa,1:nsoctot))
-
-                        PC(1:nsgfa,1:nsoctot) = MATMUL(p_block_spin(ispin)%r_coef(1:nsgfa,1:nsgfb),&
-                                                       C_coeff_ss_b(1:nsgfb,1:nsoctot,1))
-                        coef_aux_s(1:nsoctot,1:nsoctot,ispin) =&
-                          MATMUL(TRANSPOSE(C_coeff_ss_a(1:nsgfa,1:nsoctot,1)),PC(1:nsgfa,1:nsoctot))
+                         CALL dgemm('N','N',nsgfa,nsoctot,nsgfb,&
+                              &     1.0_dp,p_block_spin(ispin)%r_coef(1,1),nsgfa,&
+                              &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
+                              &     0.0_dp,PC(1,1),max_nsgf)
+                         CALL dgemm('T','N',nsoctot,nsoctot,nsgfa,&
+                              &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
+                              &     PC(1,1),max_nsgf,&
+                              &     0.0_dp,coef_aux_h(1,1,ispin),max_gau)
+                         !
+                         CALL dgemm('N','N',nsgfa,nsoctot,nsgfb,&
+                              &     1.0_dp,p_block_spin(ispin)%r_coef(1,1),nsgfa,&
+                              &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
+                              &     0.0_dp,PC(1,1),max_nsgf)
+                         CALL dgemm('T','N',nsoctot,nsoctot,nsgfa,&
+                              &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
+                              &     PC(1,1),max_nsgf,&
+                              &     0.0_dp,coef_aux_s(1,1,ispin),max_gau)
 
                         CALL symmetric_add(rho_atom(katom)%cpc_h(ispin)%r_coef,nsoctot,&
                                        coef_aux_h(1,1,ispin),max_gau,nsoctot)
@@ -673,15 +687,23 @@ MODULE qs_rho_atom_methods
                                        coef_aux_s(1,1,ispin),max_gau,nsoctot)
 
                       ELSEIF(iatom > jatom) THEN
-                        PC(1:nsgfb,1:nsoctot) = MATMUL(p_block_spin(ispin)%r_coef(1:nsgfb,1:nsgfa),&
-                                                       C_coeff_hh_a(1:nsgfa,1:nsoctot,1))
-                        coef_aux_h(1:nsoctot,1:nsoctot,ispin) =&
-                          MATMUL(TRANSPOSE(C_coeff_hh_b(1:nsgfb,1:nsoctot,1)),PC(1:nsgfb,1:nsoctot))
-
-                        PC(1:nsgfb,1:nsoctot) = MATMUL(p_block_spin(ispin)%r_coef(1:nsgfb,1:nsgfa),&
-                                                       C_coeff_ss_a(1:nsgfa,1:nsoctot,1))
-                        coef_aux_s(1:nsoctot,1:nsoctot,ispin) =&
-                          MATMUL(TRANSPOSE(C_coeff_ss_b(1:nsgfb,1:nsoctot,1)),PC(1:nsgfb,1:nsoctot))
+                         CALL dgemm('N','N',nsgfb,nsoctot,nsgfa,&
+                              &     1.0_dp,p_block_spin(ispin)%r_coef(1,1),nsgfb,&
+                              &     C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
+                              &     0.0_dp,PC(1,1),max_nsgf)
+                         CALL dgemm('T','N',nsoctot,nsoctot,nsgfb,&
+                              &     1.0_dp,C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
+                              &     PC(1,1),max_nsgf,&
+                              &     0.0_dp,coef_aux_h(1,1,ispin),max_gau)
+                         !
+                         CALL dgemm('N','N',nsgfb,nsoctot,nsgfa,&
+                              &     1.0_dp,p_block_spin(ispin)%r_coef(1,1),nsgfb,&
+                              &     C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
+                              &     0.0_dp,PC(1,1),max_nsgf)
+                         CALL dgemm('T','N',nsoctot,nsoctot,nsgfb,&
+                              &     1.0_dp,C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
+                              &     PC(1,1),max_nsgf,&
+                              &     0.0_dp,coef_aux_s(1,1,ispin),max_gau)
 
                         CALL symmetric_add(rho_atom(katom)%cpc_h(ispin)%r_coef,nsoctot,&
                                        coef_aux_h(1,1,ispin),max_gau,nsoctot)

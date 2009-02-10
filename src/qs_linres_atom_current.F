@@ -92,8 +92,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iB, idir
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'calculate_jrho_atom_coeff', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom_coeff', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: bo(2), handle, iab, iac, iat, iatom, ibc, idir2, ii, iii, &
@@ -378,56 +377,89 @@ CONTAINS
                              !------------------------------------------------------------------
                              ! P_\alpha\alpha'
                              ! hard
-                             PC(1:na,1:nso) = MATMUL(a_block(ispin)%r_coef(1:na,1:nb),C_coeff_hh_b(1:nb,1:nso,1))
-                             jrho1_atom_set(katom)%cjc0_h(ispin)%r_coef(1:nso,1:nso) = &
-                               jrho1_atom_set(katom)%cjc0_h(ispin)%r_coef(1:nso,1:nso) + &
-                               MATMUL(TRANSPOSE(C_coeff_hh_a(1:na,1:nso,1)),PC(1:na,1:nso))
+                             CALL dgemm('N','N',na,nso,nb,&
+                                  &     1.0_dp,a_block(ispin)%r_coef(1,1),na,&
+                                  &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
+                                  &     0.0_dp,PC(1,1),max_nsgf)
+                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
+                                  &     PC(1,1),max_nsgf,&
+                                  &     1.0_dp,jrho1_atom_set(katom)%cjc0_h(ispin)%r_coef(1,1),nso)
                              !
                              ! soft
-                             PC(1:na,1:nso) = MATMUL(a_block(ispin)%r_coef(1:na,1:nb),C_coeff_ss_b(1:nb,1:nso,1))
-                             jrho1_atom_set(katom)%cjc0_s(ispin)%r_coef(1:nso,1:nso) = &
-                               jrho1_atom_set(katom)%cjc0_s(ispin)%r_coef(1:nso,1:nso) + &
-                               MATMUL(TRANSPOSE(C_coeff_ss_a(1:na,1:nso,1)),PC(1:na,1:nso))
+                             CALL dgemm('N','N',na,nso,nb,&
+                                  &     1.0_dp,a_block(ispin)%r_coef(1,1),na,&
+                                  &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
+                                  &     0.0_dp,PC(1,1),max_nsgf)
+                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
+                                  &     PC(1,1),max_nsgf,&
+                                  &     1.0_dp,jrho1_atom_set(katom)%cjc0_s(ispin)%r_coef(1,1),nso)
                              !------------------------------------------------------------------
                              ! mQai_\alpha\alpha'
                              ! hard
                              !
-                             PC(1:na,1:nso) = MATMUL(jp_RARnu(ispin)%r_coef(1:na,1:nb),C_coeff_hh_b(1:nb,1:nso,1))
-                             jrho1_atom_set(katom)%cjc_h(ispin)%r_coef(1:nso,1:nso) = &
-                               jrho1_atom_set(katom)%cjc_h(ispin)%r_coef(1:nso,1:nso) + &
-                               MATMUL(TRANSPOSE(C_coeff_hh_a(1:na,1:nso,1)),PC(1:na,1:nso))
+                             CALL dgemm('N','N',na,nso,nb,&
+                                  &     1.0_dp,jp_RARnu(ispin)%r_coef(1,1),na,&
+                                  &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
+                                  &     0.0_dp,PC(1,1),max_nsgf)
+                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
+                                  &     PC(1,1),max_nsgf,&
+                                  &     1.0_dp,jrho1_atom_set(katom)%cjc_h(ispin)%r_coef(1,1),nso)
                              !
                              ! soft
-                             PC(1:na,1:nso) = MATMUL(jp_RARnu(ispin)%r_coef(1:na,1:nb),C_coeff_ss_b(1:nb,1:nso,1))
-                             jrho1_atom_set(katom)%cjc_s(ispin)%r_coef(1:nso,1:nso) = &
-                               jrho1_atom_set(katom)%cjc_s(ispin)%r_coef(1:nso,1:nso) + &
-                               MATMUL(TRANSPOSE(C_coeff_ss_a(1:na,1:nso,1)),PC(1:na,1:nso))
+
+                             CALL dgemm('N','N',na,nso,nb,&
+                                  &     1.0_dp,jp_RARnu(ispin)%r_coef(1,1),na,&
+                                  &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
+                                  &     0.0_dp,PC(1,1),max_nsgf)
+                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
+                                  &     PC(1,1),max_nsgf,&
+                                  &     1.0_dp,jrho1_atom_set(katom)%cjc_s(ispin)%r_coef(1,1),nso)
                              !------------------------------------------------------------------
                              ! Qci_\alpha\alpha'
                              ! hard
-                             PC(1:na,1:nso) = MATMUL(c_block(ispin)%r_coef(1:na,1:nb),C_coeff_hh_b(1:nb,1:nso,1))
-                             jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef(1:nso,1:nso) = &
-                               jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef(1:nso,1:nso) + &
-                               MATMUL(TRANSPOSE(C_coeff_hh_a(1:na,1:nso,1)),PC(1:na,1:nso))
+                             CALL dgemm('N','N',na,nso,nb,&
+                                  &     1.0_dp,c_block(ispin)%r_coef(1,1),na,&
+                                  &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
+                                  &     0.0_dp,PC(1,1),max_nsgf)
+                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
+                                  &     PC(1,1),max_nsgf,&
+                                  &     1.0_dp,jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef(1,1),nso)
                              !
                              ! soft
-                             PC(1:na,1:nso) = MATMUL(c_block(ispin)%r_coef(1:na,1:nb),C_coeff_ss_b(1:nb,1:nso,1))
-                             jrho1_atom_set(katom)%cjc_ii_s(ispin)%r_coef(1:nso,1:nso) = &
-                               jrho1_atom_set(katom)%cjc_ii_s(ispin)%r_coef(1:nso,1:nso) + &
-                               MATMUL(TRANSPOSE(C_coeff_ss_a(1:na,1:nso,1)),PC(1:na,1:nso))
+                             CALL dgemm('N','N',na,nso,nb,&
+                                  &     1.0_dp,c_block(ispin)%r_coef(1,1),na,&
+                                  &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
+                                  &     0.0_dp,PC(1,1),max_nsgf)
+                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
+                                  &     PC(1,1),max_nsgf,&
+                                  &     1.0_dp,jrho1_atom_set(katom)%cjc_ii_s(ispin)%r_coef(1,1),nso)
                              !------------------------------------------------------------------
                              ! Qbi_\alpha\alpha'
                              ! hard
-                             PC(1:na,1:nso) = MATMUL(d_block(ispin)%r_coef(1:na,1:nb),C_coeff_hh_b(1:nb,1:nso,1))
-                             jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef(1:nso,1:nso) = &
-                               jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef(1:nso,1:nso) + &
-                               MATMUL(TRANSPOSE(C_coeff_hh_a(1:na,1:nso,1)),PC(1:na,1:nso))
+                             CALL dgemm('N','N',na,nso,nb,&
+                                  &     1.0_dp,d_block(ispin)%r_coef(1,1),na,&
+                                  &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
+                                  &     0.0_dp,PC(1,1),max_nsgf)
+                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
+                                  &     PC(1,1),max_nsgf,&
+                                  &     1.0_dp,jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef(1,1),nso)
                              !
                              ! soft
-                             PC(1:na,1:nso) = MATMUL(d_block(ispin)%r_coef(1:na,1:nb),C_coeff_ss_b(1:nb,1:nso,1))
-                             jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef(1:nso,1:nso) = &
-                               jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef(1:nso,1:nso) + &
-                               MATMUL(TRANSPOSE(C_coeff_ss_a(1:na,1:nso,1)),PC(1:na,1:nso))
+                             CALL dgemm('N','N',na,nso,nb,&
+                                  &     1.0_dp,d_block(ispin)%r_coef(1,1),na,&
+                                  &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
+                                  &     0.0_dp,PC(1,1),max_nsgf)
+                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
+                                  &     PC(1,1),max_nsgf,&
+                                  &     1.0_dp,jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef(1,1),nso)
                              !------------------------------------------------------------------
                           ENDDO ! ispin
                           !
