@@ -769,20 +769,22 @@ MODULE hfx_types
         DEALLOCATE(actual_x_data%integral_containers_disk,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+
+        ! ** screening functions
+        IF(actual_x_data%screen_funct_is_initialized) THEN
+          DEALLOCATE(actual_x_data%screen_funct_coeffs_set,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%screen_funct_coeffs_kind,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%pair_dist_radii_pgf,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%screen_funct_coeffs_pgf,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          actual_x_data%screen_funct_is_initialized = .FALSE. 
+        END IF
+
       END DO
 
-      ! ** screening functions
-      IF(actual_x_data%screen_funct_is_initialized) THEN
-        DEALLOCATE(actual_x_data%screen_funct_coeffs_set,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        DEALLOCATE(actual_x_data%screen_funct_coeffs_kind,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        DEALLOCATE(actual_x_data%pair_dist_radii_pgf,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        DEALLOCATE(actual_x_data%screen_funct_coeffs_pgf,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        actual_x_data%screen_funct_is_initialized = .FALSE. 
-      END IF
     END DO
     DEALLOCATE(x_data,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

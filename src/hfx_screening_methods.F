@@ -218,7 +218,7 @@ MODULE hfx_screening_methods
 
   SUBROUTINE calc_screening_functions(qs_env, lib, potential_parameter, i_thread, &
                                       coeffs_set, coeffs_kind, coeffs_pgf, radii_pgf,&
-                                      max_set, max_pgf,error) 
+                                      max_set, max_pgf, powell_unit, error) 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(lib_int)                            :: lib
     TYPE(hfx_potential_type)                 :: potential_parameter
@@ -229,7 +229,7 @@ MODULE hfx_screening_methods
       DIMENSION(:, :), POINTER               :: coeffs_kind
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :, :, :, :, :), POINTER   :: coeffs_pgf, radii_pgf
-    INTEGER, INTENT(IN)                      :: max_set, max_pgf
+    INTEGER, INTENT(IN)                      :: max_set, max_pgf, powell_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_screening_functions', &
@@ -359,7 +359,7 @@ MODULE hfx_screening_methods
                 opt_state%state = 0
                 opt_state%nvar = 2
                 opt_state%iprint = 3
-                opt_state%unit = 6
+                opt_state%unit = powell_unit
                 opt_state%maxfun = 100000
                 opt_state%rhobeg = 0.1
                 opt_state%rhoend = 0.000001
@@ -469,7 +469,7 @@ MODULE hfx_screening_methods
             opt_state%state = 0
             opt_state%nvar = 2
             opt_state%iprint = 3
-            opt_state%unit = 6
+            opt_state%unit = powell_unit
             opt_state%maxfun = 100000
             opt_state%rhobeg = 0.1
             opt_state%rhoend = 0.000001
@@ -578,7 +578,7 @@ MODULE hfx_screening_methods
         opt_state%state = 0
         opt_state%nvar = 2
         opt_state%iprint = 3
-        opt_state%unit = 6
+        opt_state%unit = powell_unit
         opt_state%maxfun = 100000
         opt_state%rhobeg = 0.1
         opt_state%rhoend = 0.000001
@@ -631,7 +631,7 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
 
   SUBROUTINE calc_pair_dist_radii(qs_env, lib, potential_parameter, i_thread, &
-                  radii_pgf, max_set, max_pgf, eps_schwarz, error)
+                  radii_pgf, max_set, max_pgf, eps_schwarz, powell_unit, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(lib_int)                            :: lib
     TYPE(hfx_potential_type)                 :: potential_parameter
@@ -640,6 +640,7 @@ MODULE hfx_screening_methods
       DIMENSION(:, :, :, :, :, :), POINTER   :: radii_pgf
     INTEGER, INTENT(IN)                      :: max_set, max_pgf
     REAL(dp)                                 :: eps_schwarz
+    INTEGER, INTENT(IN)                      :: powell_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_pair_dist_radii', &
@@ -751,7 +752,7 @@ MODULE hfx_screening_methods
                 opt_state%state = 0
                 opt_state%nvar = 2
                 opt_state%iprint = 3
-                opt_state%unit = 6
+                opt_state%unit = powell_unit
                 opt_state%maxfun = 100000
                 opt_state%rhobeg = 0.1
                 opt_state%rhoend = 0.000001

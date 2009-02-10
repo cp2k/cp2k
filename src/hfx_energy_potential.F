@@ -138,7 +138,7 @@ MODULE hfx_energy_potential
       natom, nbits, nco_max, ncoa, ncob, ncoc, ncod, nints, nseta, nsetb, &
       nsetc, nsetd, nsgfa_total, nsgfb_total, nsgfc_total, nsgfd_total, &
       nspins, p_index, pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, pd, pd1, &
-      pd2, sgfa, sgfb, sgfc, sgfd, stat
+      pd2, sgfa, sgfb, sgfc, sgfd, stat, powell_unit
     INTEGER(int_8) :: box_idx1, estimate_to_store_int, &
       mem_compression_counter, mem_compression_counter_disk, mem_eris, &
       mem_eris_disk, mem_maxvals, my_current_counter, my_original_cpu_id, &
@@ -615,13 +615,16 @@ MODULE hfx_energy_potential
     !! If the system is periodic, then the corresponding routines are called and some variables 
     !! are initialized
     IF( .NOT. actual_x_data%screen_funct_is_initialized ) THEN
+      powell_unit = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
+                    extension=".scfLog",error=error)
       CALL calc_pair_dist_radii(qs_env, lib(i_thread+1), actual_x_data%potential_parameter, i_thread,&
-                                actual_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz, error)
+                                actual_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz,&
+                                powell_unit, error)
 
       CALL calc_screening_functions(qs_env, lib(i_thread+1), actual_x_data%potential_parameter, i_thread,&
                                     actual_x_data%screen_funct_coeffs_set, actual_x_data%screen_funct_coeffs_kind, &
                                     actual_x_data%screen_funct_coeffs_pgf,actual_x_data%pair_dist_radii_pgf,&
-                                    max_set, max_pgf,error)
+                                    max_set, max_pgf, powell_unit, error)
       actual_x_data%screen_funct_is_initialized = .TRUE.
     END IF
     screen_coeffs_set   => actual_x_data%screen_funct_coeffs_set
