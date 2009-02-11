@@ -448,20 +448,36 @@ CONTAINS
       int_soft => int_local_s(ispin)%r_coef
       h_block => mat_h(ispin)%array
       IF (ia <= ja) THEN
-        C_int_h(1:nsp,1:nb,ispin) = MATMUL(int_hard(1:nsp,1:nsp),TRANSPOSE(C_hh_b(1:nb,1:nsp,1)))
-        C_int_s(1:nsp,1:nb,ispin) = MATMUL(int_soft(1:nsp,1:nsp),TRANSPOSE(C_ss_b(1:nb,1:nsp,1)))
+        CALL DGEMM('N','T',nsp,nb,nsp,1.0_dp,int_hard(1,1),SIZE(int_hard,1),C_hh_b(1,1,1),SIZE(C_hh_b,1),&
+                   0.0_dp,C_int_h(1,1,ispin),SIZE(C_int_h,1))
+        ! C_int_h(1:nsp,1:nb,ispin) = MATMUL(int_hard(1:nsp,1:nsp),TRANSPOSE(C_hh_b(1:nb,1:nsp,1)))
+        CALL DGEMM('N','T',nsp,nb,nsp,1.0_dp,int_soft(1,1),SIZE(int_soft,1),C_ss_b(1,1,1),SIZE(C_ss_b,1),&
+                   0.0_dp,C_int_s(1,1,ispin),SIZE(C_int_s,1))
+        ! C_int_s(1:nsp,1:nb,ispin) = MATMUL(int_soft(1:nsp,1:nsp),TRANSPOSE(C_ss_b(1:nb,1:nsp,1)))
 
-        h_block(1:na,1:nb) = h_block(1:na,1:nb) + factor*MATMUL(C_hh_a(1:na,1:nsp,1),C_int_h(1:nsp,1:nb,ispin))
-        h_block(1:na,1:nb) = h_block(1:na,1:nb) - factor*MATMUL(C_ss_a(1:na,1:nsp,1),C_int_s(1:nsp,1:nb,ispin))
+        CALL DGEMM('N','N',na,nb,nsp, factor,C_hh_a(1,1,1),SIZE(C_hh_a,1),C_int_h(1,1,ispin),SIZE(C_int_h,1),&
+                   1.0_dp,h_block(1,1),SIZE(h_block,1))
+        ! h_block(1:na,1:nb) = h_block(1:na,1:nb) + factor*MATMUL(C_hh_a(1:na,1:nsp,1),C_int_h(1:nsp,1:nb,ispin))
+        CALL DGEMM('N','N',na,nb,nsp,-factor,C_ss_a(1,1,1),SIZE(C_ss_a,1),C_int_s(1,1,ispin),SIZE(C_int_s,1),&
+                   1.0_dp,h_block(1,1),SIZE(h_block,1))
+        ! h_block(1:na,1:nb) = h_block(1:na,1:nb) - factor*MATMUL(C_ss_a(1:na,1:nsp,1),C_int_s(1:nsp,1:nb,ispin))
       ELSE
         int_hard => int_local_h(ispin)%r_coef
         int_soft => int_local_s(ispin)%r_coef
 
-        C_int_h(1:nsp,1:na,ispin) = MATMUL(int_hard(1:nsp,1:nsp),TRANSPOSE(C_hh_a(1:na,1:nsp,1)))
-        C_int_s(1:nsp,1:na,ispin) = MATMUL(int_soft(1:nsp,1:nsp),TRANSPOSE(C_ss_a(1:na,1:nsp,1)))
+        CALL DGEMM('N','T',nsp,na,nsp,1.0_dp,int_hard(1,1),SIZE(int_hard,1),C_hh_a(1,1,1),SIZE(C_hh_a,1),&
+                   0.0_dp,C_int_h(1,1,ispin),SIZE(C_int_h,1))
+        ! C_int_h(1:nsp,1:na,ispin) = MATMUL(int_hard(1:nsp,1:nsp),TRANSPOSE(C_hh_a(1:na,1:nsp,1)))
+        CALL DGEMM('N','T',nsp,na,nsp,1.0_dp,int_soft(1,1),SIZE(int_soft,1),C_ss_a(1,1,1),SIZE(C_ss_a,1),&
+                   0.0_dp,C_int_s(1,1,ispin),SIZE(C_int_s,1))
+        ! C_int_s(1:nsp,1:na,ispin) = MATMUL(int_soft(1:nsp,1:nsp),TRANSPOSE(C_ss_a(1:na,1:nsp,1)))
 
-        h_block(1:nb,1:na) = h_block(1:nb,1:na) + factor*MATMUL(C_hh_b(1:nb,1:nsp,1),C_int_h(1:nsp,1:na,ispin))
-        h_block(1:nb,1:na) = h_block(1:nb,1:na) - factor*MATMUL(C_ss_b(1:nb,1:nsp,1),C_int_s(1:nsp,1:na,ispin))
+        CALL DGEMM('N','N',nb,na,nsp, factor,C_hh_b(1,1,1),SIZE(C_hh_b,1),C_int_h(1,1,ispin),SIZE(C_int_h,1),&
+                   1.0_dp,h_block(1,1),SIZE(h_block,1))
+        ! h_block(1:nb,1:na) = h_block(1:nb,1:na) + factor*MATMUL(C_hh_b(1:nb,1:nsp,1),C_int_h(1:nsp,1:na,ispin))
+        CALL DGEMM('N','N',nb,na,nsp,-factor,C_ss_b(1,1,1),SIZE(C_ss_b,1),C_int_s(1,1,ispin),SIZE(C_int_s,1),&
+                   1.0_dp,h_block(1,1),SIZE(h_block,1))
+        ! h_block(1:nb,1:na) = h_block(1:nb,1:na) - factor*MATMUL(C_ss_b(1:nb,1:nsp,1),C_int_s(1:nsp,1:na,ispin))
       END IF
     END DO
 
@@ -507,16 +523,24 @@ CONTAINS
       int_hard => int_local_h(ispin)%r_coef
       int_soft => int_local_s(ispin)%r_coef
 
-      PC_h(1:na,1:nsp,ispin) = MATMUL(p_block(1:na,1:nb),C_hh_b(1:nb,1:nsp,1))
-      PC_s(1:na,1:nsp,ispin) = MATMUL(p_block(1:na,1:nb),C_ss_b(1:nb,1:nsp,1))
+      CALL DGEMM('N','N',na,nsp,nb,1.0_dp,p_block(1,1),SIZE(p_block,1),C_hh_b(1,1,1),SIZE(C_hh_b,1),&
+                 0.0_dp,PC_h(1,1,ispin),SIZE(PC_h,1))
+      ! PC_h(1:na,1:nsp,ispin) = MATMUL(p_block(1:na,1:nb),C_hh_b(1:nb,1:nsp,1))
+      CALL DGEMM('N','N',na,nsp,nb,1.0_dp,p_block(1,1),SIZE(p_block,1),C_ss_b(1,1,1),SIZE(C_ss_b,1),&
+                 0.0_dp,PC_s(1,1,ispin),SIZE(PC_s,1))
+      ! PC_s(1:na,1:nsp,ispin) = MATMUL(p_block(1:na,1:nb),C_ss_b(1:nb,1:nsp,1))
 
       DO dir = 2,4
-        dCPC_h(1:nsp,1:nsp) = MATMUL(TRANSPOSE(PC_h(1:na,1:nsp,ispin)),C_hh_a(1:na,1:nsp,dir))
+        CALL DGEMM('T','N',nsp,nsp,na,1.0_dp,PC_h(1,1,ispin),SIZE(PC_h,1),C_hh_a(1,1,dir),SIZE(C_hh_a,1),&
+                   0.0_dp,dCPC_h(1,1),SIZE(dCPC_h,1))
+        ! dCPC_h(1:nsp,1:nsp) = MATMUL(TRANSPOSE(PC_h(1:na,1:nsp,ispin)),C_hh_a(1:na,1:nsp,dir))
         trace = trace_r_AxB(dCPC_h,ldCPC,int_hard,nsp,nsp,nsp)
         force(dir-1,3) = force(dir-1,3) + ieqj * trace
         force(dir-1,1) = force(dir-1,1) - ieqj * trace
 
-        dCPC_s(1:nsp,1:nsp) = MATMUL(TRANSPOSE(PC_s(1:na,1:nsp,ispin)),C_ss_a(1:na,1:nsp,dir))
+        CALL DGEMM('T','N',nsp,nsp,na,1.0_dp,PC_s(1,1,ispin),SIZE(PC_s,1),C_ss_a(1,1,dir),SIZE(C_ss_a,1),&
+                   0.0_dp,dCPC_s(1,1),SIZE(dCPC_s,1))
+        ! dCPC_s(1:nsp,1:nsp) = MATMUL(TRANSPOSE(PC_s(1:na,1:nsp,ispin)),C_ss_a(1:na,1:nsp,dir))
         trace = trace_r_AxB(dCPC_s,ldCPC,int_soft,nsp,nsp,nsp)
         force(dir-1,3) = force(dir-1,3) -  ieqj * trace
         force(dir-1,1) = force(dir-1,1) +  ieqj * trace
@@ -524,16 +548,24 @@ CONTAINS
 
       ! j-k contributions
 
-      PC_h(1:nb,1:nsp,ispin) = MATMUL(TRANSPOSE(p_block(1:na,1:nb)),C_hh_a(1:na,1:nsp,1))
-      PC_s(1:nb,1:nsp,ispin) = MATMUL(TRANSPOSE(p_block(1:na,1:nb)),C_ss_a(1:na,1:nsp,1))
+      CALL DGEMM('T','N',nb,nsp,na,1.0_dp,p_block(1,1),SIZE(p_block,1),C_hh_a(1,1,1),SIZE(C_hh_a,1),&
+                   0.0_dp,PC_h(1,1,ispin),SIZE(PC_h,1))
+      ! PC_h(1:nb,1:nsp,ispin) = MATMUL(TRANSPOSE(p_block(1:na,1:nb)),C_hh_a(1:na,1:nsp,1))
+      CALL DGEMM('T','N',nb,nsp,na,1.0_dp,p_block(1,1),SIZE(p_block,1),C_ss_a(1,1,1),SIZE(C_ss_a,1),&
+                   0.0_dp,PC_s(1,1,ispin),SIZE(PC_s,1))
+      ! PC_s(1:nb,1:nsp,ispin) = MATMUL(TRANSPOSE(p_block(1:na,1:nb)),C_ss_a(1:na,1:nsp,1))
 
       DO dir = 2,4
-        dCPC_h(1:nsp,1:nsp) = MATMUL(TRANSPOSE(PC_h(1:nb,1:nsp,ispin)),C_hh_b(1:nb,1:nsp,dir))
+        CALL DGEMM('T','N',nsp,nsp,nb,1.0_dp,PC_h(1,1,ispin),SIZE(PC_h,1),C_hh_b(1,1,dir),SIZE(C_hh_b,1),&
+                   0.0_dp,dCPC_h(1,1),SIZE(dCPC_h,1))
+        ! dCPC_h(1:nsp,1:nsp) = MATMUL(TRANSPOSE(PC_h(1:nb,1:nsp,ispin)),C_hh_b(1:nb,1:nsp,dir))
         trace = trace_r_AxB(dCPC_h,ldCPC,int_hard,nsp,nsp,nsp)
         force(dir-1,3) = force(dir-1,3) +  ieqj * trace
         force(dir-1,2) = force(dir-1,2) -  ieqj * trace
 
-        dCPC_s(1:nsp,1:nsp) = MATMUL(TRANSPOSE(PC_s(1:nb,1:nsp,ispin)),C_ss_b(1:nb,1:nsp,dir))
+        CALL DGEMM('T','N',nsp,nsp,nb,1.0_dp,PC_s(1,1,ispin),SIZE(PC_s,1),C_ss_b(1,1,dir),SIZE(C_ss_b,1),&
+                   0.0_dp,dCPC_s(1,1),SIZE(dCPC_s,1))
+        ! dCPC_s(1:nsp,1:nsp) = MATMUL(TRANSPOSE(PC_s(1:nb,1:nsp,ispin)),C_ss_b(1:nb,1:nsp,dir))
         trace = trace_r_AxB(dCPC_s,ldCPC,int_soft,nsp,nsp,nsp)
         force(dir-1,3) = force(dir-1,3) -  ieqj * trace
         force(dir-1,2) = force(dir-1,2) +  ieqj * trace

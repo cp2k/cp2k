@@ -74,3 +74,5 @@ h2o-nmr-nics-1.inp
 no-gapw-nics.inp
 # GAPW code rewrite 
 no-gapw-nics.inp
+# replace matmul by dgemm 
+no-gapw-nics.inp

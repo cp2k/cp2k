@@ -157,3 +157,11 @@ OF_gapw_all_lsd_LB.inp
 He2-all-md.inp
 # GAPW code rewrite 
 Be_GAPW.inp
+# replace matmul by dgemm 
+H2O-gapw-gth.inp
+# replace matmul by dgemm 
+OF_gapw_all_lsd_LB.inp
+# replace matmul by dgemm 
+He2-all-md.inp
+# replace matmul by dgemm 
+H2O-gapw-gth-pvh.inp

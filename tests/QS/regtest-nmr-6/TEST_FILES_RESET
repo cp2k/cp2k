@@ -298,3 +298,11 @@ no-gapw-gpw-1.inp
 ch3m-gapw-1.inp
 # GAPW code rewrite 
 ch3p-gapw-1.inp
+# replace matmul by dgemm 
+no-gapw-5.inp
+# replace matmul by dgemm 
+w2_qmmm-1.inp
+# replace matmul by dgemm 
+w2_qmmm-2.inp
+# replace matmul by dgemm 
+w2_qmmm-3.inp

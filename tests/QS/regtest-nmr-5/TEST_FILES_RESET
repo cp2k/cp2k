@@ -171,3 +171,7 @@ o2-gapw-uks-1.inp
 o2-gapw-uks-3.inp
 # GAPW code rewrite 
 o2-gapw-uks-4.inp
+# replace matmul by dgemm 
+h2o-gapw-1.inp
+# replace matmul by dgemm 
+h2o-gapw-3.inp

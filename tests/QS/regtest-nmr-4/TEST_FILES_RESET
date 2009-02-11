@@ -157,3 +157,7 @@ he-gapw-no-soft-1.inp
 c2h2_list-1.inp
 # GAPW code rewrite 
 no_list-1.inp
+# replace matmul by dgemm 
+h2o-gapw-1.inp
+# replace matmul by dgemm 
+c2h2_list-1.inp

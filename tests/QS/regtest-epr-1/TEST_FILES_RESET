@@ -126,3 +126,7 @@ NO2-EPR-keys-1.inp
 NO2-EPR-2.inp
 # GAPW code rewrite 
 NO2-EPR-3.inp
+# replace matmul by dgemm 
+NO2-EPR-2.inp
+# replace matmul by dgemm 
+NO2-EPR-3.inp
