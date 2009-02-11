@@ -59,8 +59,7 @@ MODULE hfx_energy_potential
   USE message_passing,                 ONLY: mp_max,&
                                              mp_max_i8,&
                                              mp_sum,&
-                                             mp_sum_i8,&
-                                             mp_sync
+                                             mp_sum_i8
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -138,12 +137,13 @@ MODULE hfx_energy_potential
       natom, nbits, nco_max, ncoa, ncob, ncoc, ncod, nints, nseta, nsetb, &
       nsetc, nsetd, nsgfa_total, nsgfb_total, nsgfc_total, nsgfd_total, &
       nspins, p_index, pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, pd, pd1, &
-      pd2, sgfa, sgfb, sgfc, sgfd, stat, powell_unit
+      pd2, sgfa, sgfb, sgfc, sgfd, stat
     INTEGER(int_8) :: box_idx1, estimate_to_store_int, &
       mem_compression_counter, mem_compression_counter_disk, mem_eris, &
-      mem_eris_disk, mem_maxvals, my_current_counter, my_original_cpu_id, &
-      n_processes, ncpu, neris_disk, neris_incore, neris_onthefly, &
-      neris_total, stor_count_int_disk, storage_counter_integrals
+      mem_eris_disk, mem_max_val, mem_maxvals, my_current_counter, &
+      my_original_cpu_id, n_processes, ncpu, neris_disk, neris_incore, &
+      neris_onthefly, neris_total, stor_count_int_disk, stor_count_max_val, &
+      storage_counter_integrals
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
       lc_min, ld_max, ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, &
@@ -197,7 +197,7 @@ MODULE hfx_energy_potential
     INTEGER, DIMENSION(:,:), POINTER, SAVE   :: shm_is_assoc_atomic_block
     INTEGER(int_8)                           :: shm_neris_total, shm_neris_onthefly, &
                                                 shm_storage_counter_integrals, shm_neris_incore, &
-                                                shm_neris_disk, shm_stor_count_int_disk
+                                                shm_neris_disk, shm_stor_count_int_disk, shm_stor_count_max_val
     LOGICAL                                  :: do_disk_storage, use_disk_storage
     INTEGER(int_8)                           :: counter, neris_tmp, nprim_ints, shm_nprim_ints,&
                                                 mb_size_p, mb_size_f, mb_size_s, mb_size_buffers
@@ -223,12 +223,12 @@ MODULE hfx_energy_potential
       DIMENSION(:,:), POINTER                :: tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2
 
     INTEGER                                  :: max_pgf
-    INTEGER(int_8)                           :: nanotime, time_1, time_2,memsize_before,memsize_after
+    INTEGER(int_8)                           :: nanotime, time_1, time_2,memsize_before,memsize_after,&
+                                                max_val_memory, max_val_memory_tmp
     REAL(dp)                                 :: BD2, AC2, min_PQ2, max_val2_set
 
    
 
-    CALL mp_sync(para_env%group)
     CALL timeset(routineN,handle)
 
     CALL cite_reference(Guidon2008)
@@ -283,6 +283,7 @@ MODULE hfx_energy_potential
     shm_stor_count_int_disk = 0
     shm_neris_incore = 0
     shm_neris_disk = 0
+    shm_stor_count_max_val = 0
 
 !$OMP PARALLEL DEFAULT(PRIVATE) SHARED(qs_env,&
 !$OMP                                  ks_matrix,&
@@ -312,6 +313,7 @@ MODULE hfx_energy_potential
 !$OMP                                  shm_neris_incore,&
 !$OMP                                  shm_neris_disk,&
 !$OMP                                  shm_nprim_ints,&
+!$OMP                                  shm_stor_count_max_val,&
 !$OMP                                  cell,&
 !$OMP                                  screen_coeffs_set,&
 !$OMP                                  screen_coeffs_kind,&
@@ -358,11 +360,13 @@ MODULE hfx_energy_potential
     neris_onthefly = 0_int_8
     mem_eris = 0_int_8
     mem_eris_disk = 0_int_8
+    mem_max_val = 0_int_8
     mem_maxvals = 0_int_8
     compression_factor = 0.0_dp
     compression_factor_disk = 0.0_dp
     nprim_ints = 0_int_8
     neris_tmp = 0_int_8
+    max_val_memory = 1_int_8
 
     do_p_screening = screening_parameter%do_initial_p_screening
     max_set = basis_info%max_set
@@ -539,7 +543,6 @@ MODULE hfx_energy_potential
     !! Get the full density from all the processors
     NULLIFY(full_density)
     NULLIFY(full_density_beta)
-    CALL mp_sync(para_env%group) ! to clarify timings
     CALL timeset(routineN//"_getP",handle_getP)
     CALL get_full_density(para_env, full_density, rho%rho_ao(1)%matrix, shm_number_of_p_entries,&
                           shm_is_assoc_atomic_block, natom, last_sgf_global, &
@@ -554,7 +557,6 @@ MODULE hfx_energy_potential
     IF(nspins == 2) CALL symmetrize_matrix(full_density_beta,"upper_to_lower")
 
 
-    CALL mp_sync(para_env%group) ! to clarify timings
     CALL timestop(handle_getP)
 
     !! Calculate the max values of the density matrix actual_pmax stores the data from the actual density matrix
@@ -615,16 +617,14 @@ MODULE hfx_energy_potential
     !! If the system is periodic, then the corresponding routines are called and some variables 
     !! are initialized
     IF( .NOT. actual_x_data%screen_funct_is_initialized ) THEN
-      powell_unit = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
-                    extension=".scfLog",error=error)
       CALL calc_pair_dist_radii(qs_env, lib(i_thread+1), actual_x_data%potential_parameter, i_thread,&
                                 actual_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz,&
-                                powell_unit, error)
+                                error)
 
       CALL calc_screening_functions(qs_env, lib(i_thread+1), actual_x_data%potential_parameter, i_thread,&
                                     actual_x_data%screen_funct_coeffs_set, actual_x_data%screen_funct_coeffs_kind, &
                                     actual_x_data%screen_funct_coeffs_pgf,actual_x_data%pair_dist_radii_pgf,&
-                                    max_set, max_pgf, powell_unit, error)
+                                    max_set, max_pgf, error)
       actual_x_data%screen_funct_is_initialized = .TRUE.
     END IF
     screen_coeffs_set   => actual_x_data%screen_funct_coeffs_set
@@ -1113,14 +1113,16 @@ MODULE hfx_energy_potential
                             IF(.NOT.buffer_overflow .AND. geometry_did_change) THEN
                               IF(cartesian_estimate < eps_schwarz ) THEN
                                 IF(.NOT. use_disk_storage) THEN
+!                                  max_val_memory_tmp = memory_parameter%actual_memory_usage
                                   CALL hfx_add_single_cache_element(estimate_to_store_int, 6,&
                                                   maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
-                                                  use_disk_storage, error)
+                                                  use_disk_storage, max_val_memory, error)
+!                                  max_val_memory = max_val_memory + memory_parameter%actual_memory_usage - max_val_memory_tmp
                                 ELSE
                                   CALL hfx_add_single_cache_element(estimate_to_store_int, 6,&
                                                   maxval_cache_disk, maxval_container_disk, &
                                                   memory_parameter%actual_memory_usage_disk, &
-                                                  use_disk_storage, error)
+                                                  use_disk_storage, error=error)
                                 END IF
                               END IF
                             END IF
@@ -1156,15 +1158,17 @@ MODULE hfx_energy_potential
                             
                             IF(.NOT. buffer_overflow .AND. geometry_did_change) THEN
                               IF(.NOT.use_disk_storage) THEN
+!                                max_val_memory_tmp = memory_parameter%actual_memory_usage
                                 CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
                                                                    maxval_cache, maxval_container, &
                                                                    memory_parameter%actual_memory_usage, &
-                                                                   use_disk_storage, error)
+                                                                   use_disk_storage, max_val_memory, error)
+!                                max_val_memory = max_val_memory + memory_parameter%actual_memory_usage - max_val_memory_tmp
                               ELSE
                                 CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
                                                                    maxval_cache_disk, maxval_container_disk, &
                                                                    memory_parameter%actual_memory_usage_disk, &
-                                                                   use_disk_storage, error)
+                                                                   use_disk_storage, error=error)
                               END IF
                             END IF
                             spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
@@ -1324,7 +1328,6 @@ MODULE hfx_energy_potential
 !$OMP BARRIER
 !$OMP MASTER
     memsize_after=m_memory()
-    CALL mp_max_i8(memsize_after, para_env%group)
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -1345,6 +1348,7 @@ MODULE hfx_energy_potential
                                 memory_parameter%cache_size
     stor_count_int_disk = memory_parameter%actual_memory_usage_disk * &
                           memory_parameter%cache_size
+    stor_count_max_val = max_val_memory * memory_parameter%cache_size
 !$OMP ATOMIC
     shm_storage_counter_integrals = shm_storage_counter_integrals + storage_counter_integrals
 !$OMP ATOMIC
@@ -1353,6 +1357,8 @@ MODULE hfx_energy_potential
     shm_neris_incore = shm_neris_incore + neris_incore
 !$OMP ATOMIC
     shm_neris_disk = shm_neris_disk + neris_disk
+!$OMP ATOMIC
+    shm_stor_count_max_val = shm_stor_count_max_val + stor_count_max_val
 !$OMP BARRIER
 
 !$OMP MASTER   
@@ -1389,10 +1395,11 @@ MODULE hfx_energy_potential
         END IF
       END DO
     END DO
+
+    CALL timestop(handle_main)
     
     IF( distribute_fock_matrix) THEN
       !! Distribute the current KS-matrix to all the processes
-      CALL mp_sync(para_env%group) ! to clarify timings 
       CALL timeset(routineN//"_dist_KS",handle_dist_ks)
       CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, shm_number_of_p_entries, &
                                 shm_is_assoc_atomic_block,&
@@ -1409,7 +1416,6 @@ MODULE hfx_energy_potential
         DEALLOCATE(actual_x_data%full_ks_beta, STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
-      CALL mp_sync(para_env%group) ! to clarify timings 
       CALL timestop(handle_dist_ks)
     END IF
 
@@ -1423,8 +1429,6 @@ MODULE hfx_energy_potential
       energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb)
     END IF
 
-    CALL timestop(handle_main)
-
     !! Print some memeory information if this is the first step
     IF( geometry_did_change ) THEN
       CALL mp_sum_i8(shm_storage_counter_integrals, para_env%group)
@@ -1434,10 +1438,13 @@ MODULE hfx_energy_potential
       CALL mp_sum_i8(shm_neris_total, para_env%group)
       CALL mp_sum_i8(shm_stor_count_int_disk, para_env%group)
       CALL mp_sum_i8(shm_nprim_ints, para_env%group)
+      CALL mp_sum_i8(shm_stor_count_max_val, para_env%group)
+      CALL mp_max_i8(memsize_after, para_env%group)
       mem_eris = (shm_storage_counter_integrals+128*1024-1)/1024/128
       compression_factor = REAL(shm_neris_incore,dp)/REAL(shm_storage_counter_integrals,dp)
       mem_eris_disk = (shm_stor_count_int_disk+128*1024-1)/1024/128
       compression_factor_disk = REAL(shm_neris_disk,dp)/REAL(shm_stor_count_int_disk,dp)
+      mem_max_val = (shm_stor_count_max_val+128*1024-1)/1024/128
      
       IF( shm_neris_incore == 0 ) THEN 
         mem_eris = 0
@@ -1468,6 +1475,9 @@ MODULE hfx_energy_potential
   
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Total memory consumption ERI's RAM [MB's]:            ",mem_eris
+        
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
+                 "HFX_MEM_INFO| Whereof max-vals [MB's]:            ",mem_max_val
       
         WRITE (UNIT=iw,FMT="((T3,A,T60,F20.2))")&
                  "HFX_MEM_INFO| Total compression factor ERI's RAM:                  ",compression_factor
@@ -1491,9 +1501,9 @@ MODULE hfx_energy_potential
                  "HFX_MEM_INFO| Size of buffers [MB's]:             ", mb_size_buffers
         END IF
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Estimated maximum program size before HFX [MB's]:", memsize_before/(1024*1024)
+                 "HFX_MEM_INFO| Est. max. program size before HFX [MB's]:", memsize_before/(1024*1024)
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Estimated maximum program size after HFX  [MB's]:", memsize_after/(1024*1024)
+                 "HFX_MEM_INFO| Est. max. program size after HFX  [MB's]:", memsize_after/(1024*1024)
 
       END IF
   
@@ -1560,15 +1570,10 @@ MODULE hfx_energy_potential
     !  
     ! CALL terminate_libint(lib(i_thread))
     
-! many timings somewhat more clear
 !$OMP BARRIER
-!$OMP MASTER
-    CALL mp_sync(para_env%group)
-!$OMP END MASTER
 !$OMP END PARALLEL
     DEALLOCATE(lib, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL mp_sync(para_env%group)
     CALL timestop(handle)
   END SUBROUTINE integrate_four_center
 

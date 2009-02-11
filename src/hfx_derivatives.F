@@ -39,7 +39,6 @@ MODULE hfx_derivatives
   USE machine,                         ONLY: m_walltime
   USE mathconstants
   USE mathlib,                         ONLY: symmetrize_matrix
-  USE message_passing,                 ONLY: mp_sync
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -180,7 +179,6 @@ MODULE hfx_derivatives
       RETURN
     END IF
 
-    CALL mp_sync(para_env%group)
     CALL timeset(routineN,handle)
 
     !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
@@ -802,7 +800,6 @@ MODULE hfx_derivatives
 !$OMP END PARALLEL
     DEALLOCATE(lib, deriv, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL mp_sync(para_env%group)
     CALL timestop(handle)
   END SUBROUTINE derivatives_four_center
 
