@@ -15,9 +15,9 @@ MODULE timings
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_memory,&
-                                             m_walltime,&
-                                             m_flush
+  USE machine,                         ONLY: m_flush,&
+                                             m_memory,&
+                                             m_walltime
   USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
