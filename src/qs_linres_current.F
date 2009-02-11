@@ -1357,12 +1357,15 @@ CONTAINS
        CALL box_atoms(qs_env,error)
        !
        ! allocate and build the gauge
-       DO idir = 1,3
-          CALL rs_pools_create_rs_vect(rs_pools,current_env%rs_gauge(idir)%rs,error=error)
-          DO igrid_level=pw_env%gridlevel_info%ngrid_levels,1,-1
-             CALL collocate_gauge(current_env,qs_env,current_env%rs_gauge(idir)%rs(igrid_level)%rs_grid,&
-                  &               idir,error)
-          ENDDO
+       CALL rs_pools_create_rs_vect(rs_pools,current_env%rs_gauge(1)%rs,error=error)
+       CALL rs_pools_create_rs_vect(rs_pools,current_env%rs_gauge(2)%rs,error=error)
+       CALL rs_pools_create_rs_vect(rs_pools,current_env%rs_gauge(3)%rs,error=error)
+       DO igrid_level=pw_env%gridlevel_info%ngrid_levels,1,-1
+          CALL collocate_gauge(current_env,qs_env,&
+               &               current_env%rs_gauge(1)%rs(igrid_level)%rs_grid,&
+               &               current_env%rs_gauge(2)%rs(igrid_level)%rs_grid,&
+               &               current_env%rs_gauge(3)%rs(igrid_level)%rs_grid,&
+               &               error)
        ENDDO
        !
        ! allocate the buf
@@ -1461,23 +1464,23 @@ CONTAINS
       DEALLOCATE(ratom)
     END SUBROUTINE box_atoms
 
-    SUBROUTINE collocate_gauge(current_env,qs_env,rs_grid,idir,error)
+    SUBROUTINE collocate_gauge(current_env,qs_env,rs_grid_x,rs_grid_y,rs_grid_z,error)
       !
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(realspace_grid_type), POINTER       :: rs_grid
-    INTEGER, INTENT(IN)                      :: idir
+    TYPE(realspace_grid_type), POINTER       :: rs_grid_x, rs_grid_y, &
+                                                rs_grid_z
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER :: i, iatom, ibeg, ibox, iend, imax, imin, j, jatom, jbox, jmax, &
       jmin, k, kbox, kmax, kmin, natms, natms_local, ng(3)
     REAL(KIND=dp) :: ab, dist, dr(3), gauge_atom_radius, lb(3), lb_local(3), &
-      offset(3), pa, pb, point(3), pra(3), prb(3), r(3), res, summe, tmp
+      offset(3), pa, pb, point(3), pra(3), prb(3), r(3), res(3), summe, tmp
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: buf
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: ratom
     REAL(kind=dp), DIMENSION(:, :, :), &
-      POINTER                                :: grid
+      POINTER                                :: grid_x, grid_y, grid_z
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -1497,13 +1500,15 @@ CONTAINS
            error=error)
       !
       natms = SIZE(particle_set,1)
-      dr(1) = rs_grid%dh(1,1)
-      dr(2) = rs_grid%dh(2,2)
-      dr(3) = rs_grid%dh(3,3)
-      lb(:) = rs_grid%lb(:)
-      lb_local(:) = rs_grid%lb_local(:)
-      grid => rs_grid%r(:,:,:)
-      ng(:) = UBOUND(grid)
+      dr(1) = rs_grid_x%dh(1,1)
+      dr(2) = rs_grid_x%dh(2,2)
+      dr(3) = rs_grid_x%dh(3,3)
+      lb(:) = rs_grid_x%lb(:)
+      lb_local(:) = rs_grid_x%lb_local(:)
+      grid_x => rs_grid_x%r(:,:,:)
+      grid_y => rs_grid_y%r(:,:,:)
+      grid_z => rs_grid_z%r(:,:,:)
+      ng(:) = UBOUND(grid_x)
       offset(1) = cell%hmat(1,1)*0.5_dp
       offset(2) = cell%hmat(2,2)*0.5_dp
       offset(3) = cell%hmat(3,3)*0.5_dp
@@ -1607,16 +1612,26 @@ CONTAINS
                         buf(iatom) = buf(iatom) * 0.5_dp * ( 1.0_dp - tmp )
                      ENDDO
                   ENDDO
-                  res = 0.0_dp
+                  res(1) = 0.0_dp
+                  res(2) = 0.0_dp
+                  res(3) = 0.0_dp
                   summe = 0.0_dp
                   DO iatom = 1,natms_local
-                     res = res + ratom(idir,iatom) * buf(iatom)
+                     res(1) = res(1) + ratom(1,iatom) * buf(iatom)
+                     res(2) = res(2) + ratom(2,iatom) * buf(iatom)
+                     res(3) = res(3) + ratom(3,iatom) * buf(iatom)
                      summe = summe + buf(iatom)
                   ENDDO
-                  res = res / summe
-                  grid(i,j,k) = point(idir) - res
+                  res(1) = res(1) / summe
+                  res(2) = res(2) / summe
+                  res(3) = res(3) / summe
+                  grid_x(i,j,k) = point(1) - res(1)
+                  grid_y(i,j,k) = point(2) - res(2)
+                  grid_z(i,j,k) = point(3) - res(3)
                ELSE
-                  grid(i,j,k) = 0.0_dp
+                  grid_x(i,j,k) = 0.0_dp
+                  grid_y(i,j,k) = 0.0_dp
+                  grid_z(i,j,k) = 0.0_dp
                ENDIF
             ENDDO
          ENDDO
