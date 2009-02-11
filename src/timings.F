@@ -16,7 +16,8 @@ MODULE timings
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_memory,&
-                                             m_walltime
+                                             m_walltime,&
+                                             m_flush
   USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
@@ -306,7 +307,7 @@ CONTAINS
     timer_env%routine_stack_depth ( handle ) = timer_env%routine_stack_depth ( handle ) + stack_size
 
     IF (timer_env%routine_stack(stack_size).NE. timer_env%clock_name(timer_env%handle_stack (stack_size))) THEN
-       STOP "AGAIN?"
+       STOP "CP2K BUG with timeset/timestop?"
     ENDIF
 
     !..if debug mode echo the subroutine name
@@ -323,11 +324,13 @@ CONTAINS
              CALL mp_bcast(line2,i,timer_env%group)
              IF (timer_env%mepos==0) THEN
                 WRITE(6,*) TRIM(line2)
+                CALL m_flush(6)
              ENDIF
           ENDDO
        ELSE
           IF (.NOT.timer_env%trace_master .OR. timer_env%mepos==0) THEN
              WRITE(6,*) TRIM(line)
+             CALL m_flush(6)
           ENDIF
        ENDIF
     ENDIF
@@ -414,11 +417,13 @@ CONTAINS
              CALL mp_bcast(line2,i,timer_env%group)
              IF (timer_env%mepos==0) THEN
                 WRITE(6,*) TRIM(line2)
+                CALL m_flush(6)
              ENDIF
           ENDDO
        ELSE
           IF (.NOT.timer_env%trace_master .OR. timer_env%mepos==0) THEN
              WRITE(6,*) TRIM(line)
+             CALL m_flush(6)
           ENDIF
        ENDIF
     ENDIF
