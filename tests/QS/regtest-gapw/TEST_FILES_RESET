@@ -165,3 +165,5 @@ OF_gapw_all_lsd_LB.inp
 He2-all-md.inp
 # replace matmul by dgemm 
 H2O-gapw-gth-pvh.inp
+#  
+Be_GAPW.inp

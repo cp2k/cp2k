@@ -54,3 +54,5 @@ NO2-ROKS.inp
 C-levelshift.inp
 # New initial guess ATOMIC 
 H2-pbe-restart-run.inp
+#  
+C-levelshift.inp

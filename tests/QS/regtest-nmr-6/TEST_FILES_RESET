@@ -306,3 +306,21 @@ w2_qmmm-1.inp
 w2_qmmm-2.inp
 # replace matmul by dgemm 
 w2_qmmm-3.inp
+#  
+ch4-gapw-5.inp
+#  
+no-gapw-1.inp
+#  
+no-gapw-2.inp
+#  
+no-gapw-3.inp
+#  
+no-gapw-4.inp
+#  
+no-gapw-1-distributed.inp
+#  
+no-gapw-1-replicated.inp
+#  
+no-gapw-gpw-1.inp
+#  
+ch3p-gapw-1.inp
