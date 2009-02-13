@@ -174,10 +174,10 @@ CONTAINS
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".linresLog",error=error)
-    IF (output_unit>0) THEN
+    IF(output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
          "*** Self consistent optimization of the response wavefunctions ***"
-    END IF
+    ENDIF
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control= dft_control,&
@@ -206,7 +206,9 @@ CONTAINS
           CALL cp_fm_set_all(psi1_p(ispin,idir)%matrix,0.0_dp,error=error)
        ENDDO
        IF(.NOT.current_env%simple_done(idir)) THEN
-          WRITE(output_unit,"(T10,A)") "Response to the perturbation operator P_"//ACHAR(idir+119)
+          IF(output_unit>0) THEN
+             WRITE(output_unit,"(T10,A)") "Response to the perturbation operator P_"//ACHAR(idir+119)
+          ENDIF
           !
           !Initial guess for psi1
           DO ispin = 1,nspins
@@ -226,8 +228,10 @@ CONTAINS
           !
           !
           ! the optimized wfns are copied in the  fm
-          WRITE(output_unit,"(T10,A)")&
-               & "Store the psi1 for the calculation of the response current density "
+          IF(output_unit>0) THEN
+             WRITE(output_unit,"(T10,A)")&
+                  & "Store the psi1 for the calculation of the response current density "
+          ENDIF
           DO ispin=1,nspins
              CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_p(ispin,idir)%matrix,error=error)
           ENDDO
@@ -245,7 +249,9 @@ CONTAINS
           ENDIF ! print response functions
           !
           !
-          WRITE(output_unit,"(T10,A)") "Write the resulting psi1 in restart file... not implemented yet"
+          IF(output_unit>0) THEN
+             WRITE(output_unit,"(T10,A)") "Write the resulting psi1 in restart file... not implemented yet"
+          ENDIF
           ! Write the result in the restart file
           current_env%simple_done(idir) = .TRUE.
           current_env%simple_converged(idir) = linres_control%converged
@@ -260,7 +266,9 @@ CONTAINS
           CALL cp_fm_set_all(psi1_rxp(ispin,idir)%matrix,0.0_dp,error=error)
        ENDDO
        IF(.NOT.current_env%simple_done(idir+3)) THEN
-          WRITE(output_unit,"(T10,A)") "Response to the perturbation operator L_"//ACHAR(idir+119)
+          IF(output_unit>0) THEN
+             WRITE(output_unit,"(T10,A)") "Response to the perturbation operator L_"//ACHAR(idir+119)
+          ENDIF
           !
           !Initial guess for psi1
           DO ispin = 1,nspins
@@ -280,8 +288,10 @@ CONTAINS
           !
           !
           !   the optimized wfns are copied in the  fm
-          WRITE(output_unit,"(T10,A)")&
-               & "Store the psi1 for the calculation of the response current density "
+          IF(output_unit>0) THEN
+             WRITE(output_unit,"(T10,A)")&
+                  & "Store the psi1 for the calculation of the response current density "
+          ENDIF
           !
           DO ispin=1,nspins
              CALL cp_fm_to_fm(psi1(ispin)%matrix,psi1_rxp(ispin,idir)%matrix,error=error)
@@ -300,7 +310,9 @@ CONTAINS
           ENDIF ! print response functions
           !
           !
-          WRITE(output_unit,"(T10,A)") "Write the resulting psi1 in restart file... not implemented yet"
+          IF(output_unit>0) THEN
+             WRITE(output_unit,"(T10,A)") "Write the resulting psi1 in restart file... not implemented yet"
+          ENDIF
           ! Write the result inthe restart file
           current_env%simple_done(idir+3) = .TRUE.
           !CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+3,error=error)
@@ -346,9 +358,11 @@ CONTAINS
           ! to be careful with overflow while doing uks calculations.
           DO icenter = 1,max_nbr_center
              !
-             WRITE(output_unit,"(T10,A,I4,A)")&
-                  & "Response to the perturbation operator (dk-dl)xp for -state- ",&
-                  & icenter," in dir. "//ACHAR(idir+119)
+             IF(output_unit>0) THEN
+                WRITE(output_unit,"(T10,A,I4,A)")&
+                     & "Response to the perturbation operator (dk-dl)xp for -state- ",&
+                     & icenter," in dir. "//ACHAR(idir+119)
+             ENDIF
              !
              DO ispin = 1,nspins
                 !
@@ -417,8 +431,10 @@ CONTAINS
              ! Optimize the response wavefunctions
              CALL linres_scf(p_env,qs_env,psi1,h1_psi0,error=error)
              !
-             WRITE(output_unit,"(T10,A,/)")&
-                  & "Store the psi1 vector for the calculation of the response current density "
+             IF(output_unit>0) THEN
+                WRITE(output_unit,"(T10,A,/)")&
+                     & "Store the psi1 vector for the calculation of the response current density "
+             ENDIF
              !
              DO ispin = 1,nspins
                 !
@@ -534,8 +550,10 @@ CONTAINS
        CALL current_env_cleanup(current_env,qs_env,error=error)
     END IF
 
-    WRITE(output_unit,"(/,T20,A,/)") "*** Start current Calculation ***"
-    WRITE(output_unit,"(T10,A,/)") "Inizialization of the current environment"
+    IF(output_unit>0) THEN
+       WRITE(output_unit,"(/,T20,A,/)") "*** Start current Calculation ***"
+       WRITE(output_unit,"(T10,A,/)") "Inizialization of the current environment"
+    ENDIF
 
     CALL current_env_create(current_env,error=error)
     !
@@ -609,8 +627,10 @@ CONTAINS
     ! check that the psi0 are localized and you have all the centers
     CPPrecondition(linres_control%localized_psi0,cp_warning_level,routineP,error,failure)
     IF(failure) THEN
-       WRITE(output_unit,'(A)') &
-            ' To get CURRENT parameters within PBC you need localized zero order orbitals '
+       IF(output_unit>0) THEN
+          WRITE(output_unit,'(A)') &
+               ' To get CURRENT parameters within PBC you need localized zero order orbitals '
+       ENDIF
     ENDIF
     gapw = dft_control%qs_control%gapw
     nspins = dft_control%nspins
@@ -715,7 +735,9 @@ CONTAINS
                 ENDIF
              ENDDO
              IF(.NOT.is0) THEN
-                WRITE(output_unit,'(T2,A,I6,A,I6)') 'clustering ',j,' center(s) on atom ',iatom
+                IF(output_unit>0) THEN
+                   WRITE(output_unit,'(T2,A,I6,A,I6)') 'clustering ',j,' center(s) on atom ',iatom
+                ENDIF
                 current_env%center_list(ispin)%array(1,ii+1) = &
                      & current_env%center_list(ispin)%array(1,ii) + j
                 current_env%centers_set(ispin)%array(:,ii) = &
@@ -777,7 +799,9 @@ CONTAINS
                 ENDIF
              ENDDO
              IF(.NOT.is0) THEN
-                WRITE(output_unit,'(T2,A,I6,A,I6)') 'clustering ',j,' center(s) on box ',ibox
+                IF(output_unit>0) THEN
+                   WRITE(output_unit,'(T2,A,I6,A,I6)') 'clustering ',j,' center(s) on box ',ibox
+                ENDIF
                 current_env%center_list(ispin)%array(1,ii+1) = &
                   & current_env%center_list(ispin)%array(1,ii) + j
                 current_env%centers_set(ispin)%array(:,ii) = rbuff(:,ibox)
@@ -798,10 +822,12 @@ CONTAINS
          & (current_env%orb_center.EQ.current_orb_center_wannier.OR.&
          &  current_env%orb_center.EQ.current_orb_center_atom.OR.&
          &  current_env%orb_center.EQ.current_orb_center_box)) THEN
-       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
-       WRITE(output_unit,*) 'orbital center shifted to match the '
-       WRITE(output_unit,*) 'center of the box (L/2 L/2 L/2) (superdirty...)'
-       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
+       IF(output_unit>0) THEN
+          WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
+          WRITE(output_unit,*) 'orbital center shifted to match the '
+          WRITE(output_unit,*) 'center of the box (L/2 L/2 L/2) (superdirty...)'
+          WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
+       ENDIF
        DO ispin = 1,nspins
           DO istate = 1,current_env%nbr_center(ispin)
              IF(current_env%centers_set(ispin)%array(1,istate).LE.0.0_dp) THEN
@@ -820,12 +846,14 @@ CONTAINS
        ENDDO
        ! printing
        DO ispin = 1,nspins
-          WRITE(output_unit,'(/,T2,A,I2)') "WANNIER CENTERS for spin ",ispin
-          WRITE(output_unit,'(/,T18,A)') "--------------- Shifted Centers --------------- "
-          DO istate = 1,current_env%nbr_center(ispin)
-             WRITE(output_unit,'(T5,A,I6,3F12.6)')&
-                  'state ',istate,current_env%centers_set(ispin)%array(1:3,istate)
-          ENDDO
+          IF(output_unit>0) THEN
+             WRITE(output_unit,'(/,T2,A,I2)') "WANNIER CENTERS for spin ",ispin
+             WRITE(output_unit,'(/,T18,A)') "--------------- Shifted Centers --------------- "
+             DO istate = 1,current_env%nbr_center(ispin)
+                WRITE(output_unit,'(T5,A,I6,3F12.6)')&
+                     'state ',istate,current_env%centers_set(ispin)%array(1:3,istate)
+             ENDDO
+          ENDIF
        ENDDO
     ENDIF
 
@@ -884,22 +912,24 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     !
     !
-    WRITE(output_unit,"(T2,A)") "CURRENT| Gauge used "//TRIM(current_env%gauge_name)
-    IF(current_env%gauge.EQ.current_gauge_atom) THEN
-       WRITE(output_unit,"(T2,A,E12.6)") "CURRENT| radius for building the gauge ",&
-            & current_env%gauge_atom_radius
+    IF(output_unit>0) THEN
+       WRITE(output_unit,"(T2,A)") "CURRENT| Gauge used "//TRIM(current_env%gauge_name)
+       IF(current_env%gauge.EQ.current_gauge_atom) THEN
+          WRITE(output_unit,"(T2,A,E12.6)") "CURRENT| radius for building the gauge ",&
+               & current_env%gauge_atom_radius
+       ENDIF
+       WRITE(output_unit,"(T2,A)") "CURRENT| Orbital center used "//TRIM(current_env%orb_center_name)
+       DO ispin = 1,nspins       
+          WRITE(output_unit,'(T2,A,I6,A,I2)') 'CURRENT| There is a total of ', &
+               & current_env%nbr_center(ispin),' (clustered) center(s) for spin ',ispin
+       ENDDO
+       IF(current_env%orb_center.EQ.current_orb_center_common) THEN
+          WRITE(output_unit,"(T2,A,3F10.6)") "CURRENT| Common center ",common_center(1:3)
+       ELSEIF(current_env%orb_center.EQ.current_orb_center_box) THEN
+          WRITE(output_unit,"(T2,A,3I5)") "CURRENT| nbr boxes in each direction ",nbox(1:3)
+       ENDIF
+       WRITE(output_unit,"(T2,A)") "CURRENT| Orbital center used "//TRIM(current_env%orb_center_name)
     ENDIF
-    WRITE(output_unit,"(T2,A)") "CURRENT| Orbital center used "//TRIM(current_env%orb_center_name)
-    DO ispin = 1,nspins       
-       WRITE(output_unit,'(T2,A,I6,A,I2)') 'CURRENT| There is a total of ', &
-            & current_env%nbr_center(ispin),' (clustered) center(s) for spin ',ispin
-    ENDDO
-    IF(current_env%orb_center.EQ.current_orb_center_common) THEN
-       WRITE(output_unit,"(T2,A,3F10.6)") "CURRENT| Common center ",common_center(1:3)
-    ELSEIF(current_env%orb_center.EQ.current_orb_center_box) THEN
-       WRITE(output_unit,"(T2,A,3I5)") "CURRENT| nbr boxes in each direction ",nbox(1:3)
-    ENDIF
-    WRITE(output_unit,"(T2,A)") "CURRENT| Orbital center used "//TRIM(current_env%orb_center_name)
 
     IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
          &    "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
