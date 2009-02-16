@@ -19,7 +19,8 @@ MODULE sap_kind_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'sap_kind_types'
 
   TYPE clist_type
-      INTEGER                                    :: catom
+      INTEGER                                    :: catom, nsgf_cnt
+      INTEGER, DIMENSION(:), POINTER             :: sgf_list
       INTEGER, DIMENSION(3)                      :: cell
       REAL(KIND = dp)                            :: maxac, maxach
       REAL(KIND = dp), DIMENSION(3)              :: rac
@@ -40,7 +41,8 @@ MODULE sap_kind_types
   END TYPE sap_int_type
 
   PUBLIC :: sap_int_type, clist_type, alist_type,&
-            release_sap_int, get_alist
+            release_sap_int, get_alist, alist_pre_align_blk,&
+            alist_post_align_blk
 
 CONTAINS
 
@@ -69,6 +71,10 @@ CONTAINS
               clist => sap_int(i)%alist(j)%clist(k)
               IF ( ASSOCIATED(clist%acint) ) THEN
                 DEALLOCATE (clist%acint,STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+              END IF
+              IF ( ASSOCIATED(clist%sgf_list) ) THEN
+                DEALLOCATE (clist%sgf_list,STAT=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
               END IF
               IF ( ASSOCIATED(clist%achint) ) THEN
@@ -116,6 +122,69 @@ CONTAINS
     CPPostcondition(ASSOCIATED(alist),cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE get_alist
+
+
+  SUBROUTINE alist_pre_align_blk(blk_in,blk_out,ilist,in,jlist,jn,error)
+    REAL(dp), DIMENSION(:, :)                :: blk_in, blk_out
+    INTEGER, DIMENSION(:)                    :: ilist
+    INTEGER                                  :: in
+    INTEGER, DIMENSION(:)                    :: jlist
+    INTEGER                                  :: jn
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'alist_pre_align_blk', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j
+    LOGICAL                                  :: failure
+
+!
+
+    failure = .FALSE.
+    CPPrecondition(in.LE.SIZE(blk_out,1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(jn.LE.SIZE(blk_out,2),cp_failure_level,routineP,error,failure)
+    CPPrecondition(MAXVAL(ilist(1:in)).LE.SIZE(blk_in,1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(MAXVAL(jlist(1:jn)).LE.SIZE(blk_in,2),cp_failure_level,routineP,error,failure)
+    !
+    IF(.NOT.failure) THEN
+       DO j=1,jn
+          DO i=1,in
+             blk_out(i,j)=blk_in(ilist(i),jlist(j))
+          ENDDO
+       ENDDO
+    ENDIF
+  END SUBROUTINE alist_pre_align_blk
+
+  SUBROUTINE alist_post_align_blk(blk_in,blk_out,ilist,in,jlist,jn,error)
+    REAL(dp), DIMENSION(:, :)                :: blk_in, blk_out
+    INTEGER, DIMENSION(:)                    :: ilist
+    INTEGER                                  :: in
+    INTEGER, DIMENSION(:)                    :: jlist
+    INTEGER                                  :: jn
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'alist_post_align_blk', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j
+    LOGICAL                                  :: failure
+
+!
+
+    failure = .FALSE.
+    CPPrecondition(in.LE.SIZE(blk_in,1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(jn.LE.SIZE(blk_in,2),cp_failure_level,routineP,error,failure)
+    CPPrecondition(MAXVAL(ilist(1:in)).LE.SIZE(blk_out,1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(MAXVAL(jlist(1:jn)).LE.SIZE(blk_out,2),cp_failure_level,routineP,error,failure)
+    !
+    IF(.NOT.failure) THEN
+       DO j=1,jn
+          DO i=1,in
+             blk_out(ilist(i),jlist(j))=blk_out(ilist(i),jlist(j))+blk_in(i,j)
+          ENDDO
+       ENDDO
+    ENDIF
+  END SUBROUTINE alist_post_align_blk
 
 !==========================================================================================================
   

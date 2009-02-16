@@ -25,3 +25,6 @@ CH3-trunc-auto-md.inp
 H2O-trunc-auto-md.inp
 # GAPW code rewrite 
 H2O-coul-0.inp
+#
+CH3-trunc-1.inp
+CH3-coul-0.inp

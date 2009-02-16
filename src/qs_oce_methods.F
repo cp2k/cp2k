@@ -57,7 +57,7 @@ MODULE qs_oce_methods
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE build_oce_block(oceh,oces,atom_ka,atom_kb,rab,dab,nder,error)
+  SUBROUTINE build_oce_block(oceh,oces,atom_ka,atom_kb,rab,dab,nder,sgf_list,nsgf_cnt,error)
 
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: oceh, oces
@@ -65,22 +65,25 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: rab
     REAL(dp)                                 :: dab
     INTEGER, INTENT(IN)                      :: nder
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: sgf_list
+    INTEGER, INTENT(OUT)                     :: nsgf_cnt
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_oce_block', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: first_col, ic, ico, ider, igau, ip, ipgf, iprjc, iprjs, is, &
-      iset, isgfb, iso, isp, istat, ithread, jc, jset, lds, lm, lpoint, lprj, &
-      lsgfb, lshell, lx, ly, lz, m, m1, maxcob, maxder, maxlb, maxlprj, &
-      maxnprja, maxsoa, n, ncob, np_car, np_sph, nseta, nsetb, nsoatot, &
-      nthread, ntotsgfb, omp_get_max_threads, omp_get_thread_num
+      iset, isgfb, isgfb_cnt, iso, isp, istat, ithread, jc, jset, lds, lm, &
+      lpoint, lprj, lsgfb, lsgfb_cnt, lshell, lx, ly, lz, m, m1, maxcob, &
+      maxder, maxlb, maxlprj, maxnprja, maxsoa, n, ncob, np_car, np_sph, &
+      nseta, nsetb, nsoatot, nthread, ntotsgfb, omp_get_max_threads, &
+      omp_get_thread_num
     INTEGER, DIMENSION(:), POINTER           :: fp_cara, fp_spha, lb_max, &
                                                 lb_min, npgfb, nprjla, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
     LOGICAL                                  :: calculate_forces, failure, &
                                                 paw_atom_a, paw_atom_b
-    REAL(dp)                                 :: rcprja
+    REAL(dp)                                 :: hard_radius_a, rcprja
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: s
     REAL(dp), DIMENSION(:), POINTER          :: set_radius_b, zisominb
@@ -94,7 +97,8 @@ CONTAINS
    failure = .FALSE.
    NULLIFY(orb_basis_a,paw_proj_a)
    CALL get_atomic_kind(atomic_kind=atom_ka,orb_basis_set=orb_basis_a,&
-                        paw_proj_set=paw_proj_a,paw_atom=paw_atom_a)
+                        paw_proj_set=paw_proj_a,paw_atom=paw_atom_a,&
+                        hard_radius=hard_radius_a)
 
    NULLIFY(orb_basis_b,paw_proj_b)
    CALL get_atomic_kind(atomic_kind=atom_kb,orb_basis_set=orb_basis_b,&
@@ -161,10 +165,19 @@ CONTAINS
     spa_sb => spa_sbt(:,:,ithread)
     spa_tmp => spa_tmpt(:,:,ithread)
     sdpa_tmp => sdpa_tmpt(:,:,:,ithread)
-
     m1 = 0
+    nsgf_cnt = 0
+    isgfb_cnt = 1
     DO jset = 1,nsetb
-      IF (rcprja + set_radius_b(jset) >= dab) THEN
+       !
+       ! Set the contribution list
+       IF(hard_radius_a + set_radius_b(jset) >= dab) THEN
+          isgfb = first_sgfb(1,jset)
+          lsgfb = isgfb - 1 + nsgfb(jset)
+          DO jc = isgfb,lsgfb
+             nsgf_cnt = nsgf_cnt + 1
+             sgf_list(nsgf_cnt) = jc
+          ENDDO
 
 !     ***integral between proj of iatom and primitives of jatom
 !     *** Calculate the primitives overlap ***
@@ -174,8 +187,11 @@ CONTAINS
 
         s = 0.0_dp
         ncob = npgfb(jset)*ncoset(lb_max(jset))
+
         isgfb = first_sgfb(1,jset)
         lsgfb = isgfb - 1 + nsgfb(jset)
+
+        lsgfb_cnt = isgfb_cnt - 1 + nsgfb(jset)
 
         DO lprj = 0,maxlprj
           IF (calculate_forces) THEN
@@ -241,8 +257,8 @@ CONTAINS
 
             ENDDO
 
-          END IF
-        ENDDO
+         END IF
+      ENDDO
 
         n = ncoset(lb_max(jset))
         DO ider =1,maxder
@@ -337,12 +353,13 @@ CONTAINS
             CALL dgemm("T","N",nsoatot,nsgfb(jset),np_sph,&
                       1.0_dp,cprj_s(1,1),SIZE(cprj_s,1),&
                       spa_sb(1,isgfb),SIZE(spa_sb,1),&
-                      1.0_dp,oceh(ider)%block(1,isgfb),SIZE(oceh(ider)%block,1))
+                      1.0_dp,oceh(ider)%block(1,isgfb_cnt),SIZE(oceh(ider)%block,1))
 
-            oces(ider)%block(1:nsoatot,isgfb:lsgfb) = &
-                      oceh(ider)%block(1:nsoatot,isgfb:lsgfb)
+            oces(ider)%block(1:nsoatot,isgfb_cnt:lsgfb_cnt) = &
+                      oceh(ider)%block(1:nsoatot,isgfb_cnt:lsgfb_cnt)
           ENDDO
         END IF
+        isgfb_cnt = isgfb_cnt + nsgfb(jset)
       END IF ! radius
       m1 = m1 + maxcob
     ENDDO  !jset
@@ -381,7 +398,8 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, i, iac, ikind, ilist, jkind, &
       jneighbor, maxco, maxder, maxl, maxlgto, maxlprj, maxprj, maxsgf, &
       maxsoa, maxsob, mlprj, natom, ncoa_sum, nkind, nlist, nneighbor, &
-      np_car, np_sph, nseta, nsetb, nsgfa, nsobtot, stat
+      np_car, np_sph, nseta, nsetb, nsgf_cnt, nsgfa, nsobtot, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sgf_list
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: fp_car, fp_sph, la_max, &
                                                 la_min, npgfa, nprjla, &
@@ -510,40 +528,60 @@ CONTAINS
                  clist%catom = atom_b
                  clist%cell  = cell_b
                  clist%rac   = rab
-                 NULLIFY(clist%acint,clist%achint)
-                 ALLOCATE(clist%acint(nsgfa,nsobtot,maxder),STAT=stat)
-                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                 clist%acint=0._dp
+                 clist%nsgf_cnt = 0
+                 clist%maxac    = 0.0_dp
+                 clist%maxach   = 0.0_dp
+                 NULLIFY(clist%acint,clist%achint,clist%sgf_list)
+
                  DO i=1,maxder
-                   ALLOCATE(oceh(i)%block(nsobtot,nsgfa),oces(i)%block(nsobtot,nsgfa),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   oceh(i)%block=0._dp
-                   oces(i)%block=0._dp
+                    ALLOCATE(oceh(i)%block(nsobtot,nsgfa),oces(i)%block(nsobtot,nsgfa),STAT=stat)
+                    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                    oceh(i)%block=0._dp
+                    oces(i)%block=0._dp
                  END DO
+                 ALLOCATE(sgf_list(nsgfa),STAT=stat)
+                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
                  at_a => atomic_kind_set(jkind)
                  at_b => atomic_kind_set(ikind)
 
-                 CALL build_oce_block(oceh,oces,at_a,at_b,rab,dab,nder,error)
+                 CALL build_oce_block(oceh,oces,at_a,at_b,rab,dab,nder,sgf_list,nsgf_cnt,error)
 
-                 IF( atom_a == atom_b .AND. ALL(cell_b == 0) ) THEN
-                   ! *** Special case: A=B
-                   ALLOCATE(clist%achint(nsgfa,nsobtot,maxder),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   clist%achint=0._dp
-                   clist%acint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oces(1)%block(1:nsobtot,1:nsgfa))
-                   clist%achint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oceh(1)%block(1:nsobtot,1:nsgfa))
-                 ELSE
-                   DO i=1,maxder
-                     clist%acint(1:nsgfa,1:nsobtot,i) = TRANSPOSE(oces(i)%block(1:nsobtot,1:nsgfa))
-                   END DO
-                 END IF
-                 clist%maxac=MAXVAL(ABS(clist%acint(:,:,1)))
-                 clist%maxach=0._dp
+                 clist%nsgf_cnt = nsgf_cnt
+                 IF(nsgf_cnt.GT.0) THEN
+
+                    ALLOCATE(clist%acint(nsgf_cnt,nsobtot,maxder),clist%sgf_list(nsgf_cnt),STAT=stat)
+                    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                    clist%acint(:,:,:)=0._dp
+                    clist%sgf_list(:)=HUGE(0)
+
+                    IF( atom_a == atom_b .AND. ALL(cell_b == 0) ) THEN
+                       CPPostcondition(nsgf_cnt.EQ.nsgfa,cp_failure_level,routineP,error,failure)
+                       ! *** Special case: A=B
+                       ALLOCATE(clist%achint(nsgfa,nsobtot,maxder),STAT=stat)
+                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                       clist%achint=0._dp
+                       clist%acint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oces(1)%block(1:nsobtot,1:nsgfa))
+                       clist%achint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oceh(1)%block(1:nsobtot,1:nsgfa))
+                    ELSE
+                       DO i=1,maxder
+                          clist%acint(1:nsgf_cnt,1:nsobtot,i) = TRANSPOSE(oces(i)%block(1:nsobtot,1:nsgf_cnt))
+                       END DO
+                    END IF
+
+                    clist%maxac=MAXVAL(ABS(clist%acint(:,:,1)))
+                    clist%maxach=0._dp
+                    clist%sgf_list(1:nsgf_cnt) = sgf_list(1:nsgf_cnt)
+                 ENDIF
+
                  sap_oce_neighbor_node => next(sap_oce_neighbor_node)
+
                  DO i=1,maxder
                    DEALLOCATE(oceh(i)%block,oces(i)%block,STAT=stat)
                    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                  END DO
+                 DEALLOCATE(sgf_list,STAT=stat)
+                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
               END DO
            END DO
         END DO

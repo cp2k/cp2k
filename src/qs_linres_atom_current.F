@@ -48,10 +48,10 @@ MODULE qs_linres_atom_current
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-!!  USE qs_oce_methods,                  ONLY: set_up_oce
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
-  USE sap_kind_types,                  ONLY: alist_type,&
+  USE sap_kind_types,                  ONLY: alist_pre_align_blk,&
+                                             alist_type,&
                                              get_alist
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type
@@ -97,22 +97,24 @@ CONTAINS
 
     INTEGER :: bo(2), handle, iab, iac, iat, iatom, ibc, idir2, ii, iii, &
       ikind, ilist, inode, ispin, istat, jatom, jkind, kac, katom, kbc, &
-      kkind, max_gau, max_nsgf, maxsoc, mepos, na, nat, natom, nb, nkind, &
-      nlist, nnode, nsetc, nsgfa, nsgfb, nso, nsoctot, nspins, num_pe
+      kkind, max_gau, max_nsgf, maxsoc, mepos, n_cont_a, n_cont_b, nat, &
+      natom, nkind, nlist, nnode, nsetc, nsgfa, nsgfb, nso, nsoctot, nspins, &
+      num_pe
     INTEGER, DIMENSION(3)                    :: cell_b
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
     LOGICAL                                  :: failure, is_not_associated, &
                                                 paw_atom
     REAL(dp)                                 :: eps_cpc, hard_radius_a, &
                                                 hard_radius_b, hard_radius_c, &
                                                 jmax, rab(3), rbc(3)
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: PC
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_matrix, b_matrix, c_matrix, &
+                                                d_matrix
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: PC
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp_coeff, zero_coeff
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: C_coeff_hh_a, C_coeff_hh_b, &
                                                 C_coeff_ss_a, C_coeff_ss_b
-    TYPE(alist_type), POINTER                :: alist, alist_ac, alist_bc
+    TYPE(alist_type), POINTER                :: alist_ac, alist_bc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -183,8 +185,10 @@ CONTAINS
     nspins = dft_control%nspins
     !
     ! Allocate some arrays
-    ALLOCATE(a_block(nspins),b_block(nspins),c_block(nspins),d_block(nspins),&
-         &   jp_RARnu(nspins),jp2_RARnu(nspins),PC(max_nsgf,max_gau),STAT=istat)
+    ALLOCATE(a_matrix(max_nsgf,max_nsgf),b_matrix(max_nsgf,max_nsgf),&
+             c_matrix(max_nsgf,max_nsgf),d_matrix(max_nsgf,max_nsgf),&
+             a_block(nspins),b_block(nspins),c_block(nspins),d_block(nspins),&
+             jp_RARnu(nspins),jp2_RARnu(nspins),PC(max_nsgf*max_gau),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !
     ! Reset CJC coefficients and local density arrays
@@ -328,20 +332,26 @@ CONTAINS
                    CALL get_alist(oce%intac(iac)%alist, alist_ac, iatom, error)
                    CALL get_alist(oce%intac(ibc)%alist, alist_bc, jatom, error)
                    DO kac=1,alist_ac%nclist
-                     DO kbc=1,alist_bc%nclist
-                       IF ( alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom ) CYCLE
-                       IF ( ALL(cell_b+alist_bc%clist(kbc)%cell-alist_ac%clist(kac)%cell == 0) ) THEN
-                         IF(jmax*alist_bc%clist(kbc)%maxac*alist_ac%clist(kac)%maxac < eps_cpc) CYCLE
+                      DO kbc=1,alist_bc%nclist
+                         IF(alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
+                         IF(ALL(cell_b+alist_bc%clist(kbc)%cell-alist_ac%clist(kac)%cell == 0)) THEN
+                            IF(jmax*alist_bc%clist(kbc)%maxac*alist_ac%clist(kac)%maxac < eps_cpc) CYCLE
+                            !
+                            n_cont_a = alist_ac%clist(kac)%nsgf_cnt
+                            n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
+                            IF(n_cont_a.EQ.0.OR.n_cont_b.EQ.0) CYCLE
+                            list_a => alist_ac%clist(kac)%sgf_list
+                            list_b => alist_bc%clist(kbc)%sgf_list
+                            !
+                            katom = alist_ac%clist(kac)%catom
 
-                          katom = alist_ac%clist(kac)%catom
-
-                          IF(.NOT.ASSOCIATED(jrho1_atom_set(katom)%cjc0_h(1)%r_coef)) THEN
-                             CALL allocate_jrho_coeff(jrho1_atom_set,katom,nsoctot,error)
-                          ENDIF
-                          !
-                          ! Compute the modified Qai matrix as
-                          ! mQai_\mu\nu = Qai_\mu\nu - Qbi_\mu\nu * (R_A-R_\nu)_ii
-                          !             + Qci_\mu\nu * (R_A-R_\nu)_iii
+                            IF(.NOT.ASSOCIATED(jrho1_atom_set(katom)%cjc0_h(1)%r_coef)) THEN
+                               CALL allocate_jrho_coeff(jrho1_atom_set,katom,nsoctot,error)
+                            ENDIF
+                            !
+                            ! Compute the modified Qai matrix as
+                            ! mQai_\mu\nu = Qai_\mu\nu - Qbi_\mu\nu * (R_A-R_\nu)_ii
+                            !             + Qci_\mu\nu * (R_A-R_\nu)_iii
                           rbc = alist_bc%clist(kbc)%rac
                           DO ispin = 1,nspins
                              CALL DCOPY(nsgfa*nsgfb,b_block(ispin)%r_coef(1,1),1,&
@@ -369,96 +379,106 @@ CONTAINS
                             C_coeff_ss_b => alist_bc%clist(kbc)%acint
                           END IF
 
-                          na  = nsgfa
-                          nb  = nsgfb
                           nso = nsoctot
                           !
                           DO ispin = 1,nspins
+                             !
+                             ! align the blocks
+                             CALL alist_pre_align_blk(a_block(ispin)%r_coef,a_matrix,&
+                                  list_a,n_cont_a,list_b,n_cont_b,error)
+
+                             CALL alist_pre_align_blk(jp_RARnu(ispin)%r_coef,b_matrix,&
+                                  list_a,n_cont_a,list_b,n_cont_b,error)
+
+                             CALL alist_pre_align_blk(c_block(ispin)%r_coef,c_matrix,&
+                                  list_a,n_cont_a,list_b,n_cont_b,error)
+
+                             CALL alist_pre_align_blk(d_block(ispin)%r_coef,d_matrix,&
+                                  list_a,n_cont_a,list_b,n_cont_b,error)
                              !------------------------------------------------------------------
                              ! P_\alpha\alpha'
                              ! hard
-                             CALL dgemm('N','N',na,nso,nb,&
-                                  &     1.0_dp,a_block(ispin)%r_coef(1,1),na,&
+                             CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
+                                  &     1.0_dp,a_matrix(1,1),SIZE(a_matrix,1),&
                                   &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
-                                  &     0.0_dp,PC(1,1),max_nsgf)
-                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     0.0_dp,PC(1),n_cont_a)
+                             CALL dgemm('T','N',nso,nso,n_cont_a,&
                                   &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
-                                  &     PC(1,1),max_nsgf,&
+                                  &     PC(1),n_cont_a,&
                                   &     1.0_dp,jrho1_atom_set(katom)%cjc0_h(ispin)%r_coef(1,1),nso)
                              !
                              ! soft
-                             CALL dgemm('N','N',na,nso,nb,&
-                                  &     1.0_dp,a_block(ispin)%r_coef(1,1),na,&
+                             CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
+                                  &     1.0_dp,a_matrix(1,1),SIZE(a_matrix,1),&
                                   &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
-                                  &     0.0_dp,PC(1,1),max_nsgf)
-                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     0.0_dp,PC(1),n_cont_a)
+                             CALL dgemm('T','N',nso,nso,n_cont_a,&
                                   &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
-                                  &     PC(1,1),max_nsgf,&
+                                  &     PC(1),n_cont_a,&
                                   &     1.0_dp,jrho1_atom_set(katom)%cjc0_s(ispin)%r_coef(1,1),nso)
                              !------------------------------------------------------------------
                              ! mQai_\alpha\alpha'
                              ! hard
                              !
-                             CALL dgemm('N','N',na,nso,nb,&
-                                  &     1.0_dp,jp_RARnu(ispin)%r_coef(1,1),na,&
+                             CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
+                                  &     1.0_dp,b_matrix(1,1),SIZE(b_matrix,1),&
                                   &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
-                                  &     0.0_dp,PC(1,1),max_nsgf)
-                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     0.0_dp,PC(1),n_cont_a)
+                             CALL dgemm('T','N',nso,nso,n_cont_a,&
                                   &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
-                                  &     PC(1,1),max_nsgf,&
+                                  &     PC(1),n_cont_a,&
                                   &     1.0_dp,jrho1_atom_set(katom)%cjc_h(ispin)%r_coef(1,1),nso)
                              !
                              ! soft
-
-                             CALL dgemm('N','N',na,nso,nb,&
-                                  &     1.0_dp,jp_RARnu(ispin)%r_coef(1,1),na,&
+                             CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
+                                  &     1.0_dp,b_matrix(1,1),SIZE(b_matrix,1),&
                                   &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
-                                  &     0.0_dp,PC(1,1),max_nsgf)
-                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     0.0_dp,PC(1),n_cont_a)
+                             CALL dgemm('T','N',nso,nso,n_cont_a,&
                                   &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
-                                  &     PC(1,1),max_nsgf,&
+                                  &     PC(1),n_cont_a,&
                                   &     1.0_dp,jrho1_atom_set(katom)%cjc_s(ispin)%r_coef(1,1),nso)
                              !------------------------------------------------------------------
                              ! Qci_\alpha\alpha'
                              ! hard
-                             CALL dgemm('N','N',na,nso,nb,&
-                                  &     1.0_dp,c_block(ispin)%r_coef(1,1),na,&
+                             CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
+                                  &     1.0_dp,c_matrix(1,1),SIZE(c_matrix,1),&
                                   &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
-                                  &     0.0_dp,PC(1,1),max_nsgf)
-                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     0.0_dp,PC(1),n_cont_a)
+                             CALL dgemm('T','N',nso,nso,n_cont_a,&
                                   &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
-                                  &     PC(1,1),max_nsgf,&
+                                  &     PC(1),n_cont_a,&
                                   &     1.0_dp,jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef(1,1),nso)
                              !
                              ! soft
-                             CALL dgemm('N','N',na,nso,nb,&
-                                  &     1.0_dp,c_block(ispin)%r_coef(1,1),na,&
+                             CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
+                                  &     1.0_dp,c_matrix(1,1),SIZE(c_matrix,1),&
                                   &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
-                                  &     0.0_dp,PC(1,1),max_nsgf)
-                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     0.0_dp,PC(1),n_cont_a)
+                             CALL dgemm('T','N',nso,nso,n_cont_a,&
                                   &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
-                                  &     PC(1,1),max_nsgf,&
+                                  &     PC(1),n_cont_a,&
                                   &     1.0_dp,jrho1_atom_set(katom)%cjc_ii_s(ispin)%r_coef(1,1),nso)
                              !------------------------------------------------------------------
                              ! Qbi_\alpha\alpha'
                              ! hard
-                             CALL dgemm('N','N',na,nso,nb,&
-                                  &     1.0_dp,d_block(ispin)%r_coef(1,1),na,&
+                             CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
+                                  &     1.0_dp,d_matrix(1,1),SIZE(d_matrix,1),&
                                   &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
-                                  &     0.0_dp,PC(1,1),max_nsgf)
-                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     0.0_dp,PC(1),n_cont_a)
+                             CALL dgemm('T','N',nso,nso,n_cont_a,&
                                   &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
-                                  &     PC(1,1),max_nsgf,&
+                                  &     PC(1),n_cont_a,&
                                   &     1.0_dp,jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef(1,1),nso)
                              !
                              ! soft
-                             CALL dgemm('N','N',na,nso,nb,&
-                                  &     1.0_dp,d_block(ispin)%r_coef(1,1),na,&
+                             CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
+                                  &     1.0_dp,d_matrix(1,1),SIZE(d_matrix,1),&
                                   &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
-                                  &     0.0_dp,PC(1,1),max_nsgf)
-                             CALL dgemm('T','N',nso,nso,na,&
+                                  &     0.0_dp,PC(1),n_cont_a)
+                             CALL dgemm('T','N',nso,nso,n_cont_a,&
                                   &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
-                                  &     PC(1,1),max_nsgf,&
+                                  &     PC(1),n_cont_a,&
                                   &     1.0_dp,jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef(1,1),nso)
                              !------------------------------------------------------------------
                           ENDDO ! ispin
@@ -566,8 +586,10 @@ CONTAINS
     ENDDO ! ikind
     !
     ! clean up
-    DEALLOCATE(PC,a_block,b_block,c_block,d_block,jp_RARnu,jp2_RARnu,STAT=istat)
+    DEALLOCATE(a_matrix,b_matrix,c_matrix,d_matrix,PC,a_block,b_block,c_block,d_block,&
+         &     jp_RARnu,jp2_RARnu,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
     !
     CALL timestop(handle)
     !

@@ -238,7 +238,8 @@ CONTAINS
                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                   clist%acint=0._dp
                   clist%achint=0._dp
-
+                  clist%nsgf_cnt = 0
+                  NULLIFY(clist%sgf_list)
                   DO iset=1,nseta
                      ncoa = npgfa(iset)*ncoset(la_max(iset))
                      sgfa = first_sgfa(1,iset)

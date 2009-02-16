@@ -130,3 +130,6 @@ NO2-EPR-3.inp
 NO2-EPR-2.inp
 # replace matmul by dgemm 
 NO2-EPR-3.inp
+#
+NO2-EPR-2.inp
+NO2-EPR-3.inp
