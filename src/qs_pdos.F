@@ -42,6 +42,8 @@ MODULE qs_pdos
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: nso,&
                                              nsoset
+  USE orbital_symbols,                 ONLY: l_sym,&
+                                             sgf_symbol
   USE particle_types,                  ONLY: particle_type
   USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -99,11 +101,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=26)                        :: fmtstr
-    CHARACTER(LEN=default_string_length)     :: my_act, my_mittle, my_pos, &
-                                                spin(2)
-    INTEGER :: handle, homo, i, i_rep_val, iatom, il, imo, ir, irow, iset, &
-      isgf, ishell, iso, istat, iterstep, iw, kind_number, lcomponent, &
+    CHARACTER(LEN=16)                        :: fmtstr2
+    CHARACTER(LEN=26)                        :: fmtstr1
+    CHARACTER(LEN=default_string_length)     :: kind_name, my_act, my_mittle, &
+                                                my_pos, spin(2)
+    INTEGER :: handle, homo, i, i_rep_val, iatom, il, im, imo, ir, irow, &
+      iset, isgf, ishell, iso, istat, iterstep, iw, kind_number, lcomponent, &
       lshell, maxl, maxl_list, maxlgto, mepos, my_spin, n_dependent, n_rep, &
       nao, natom, ncol_global, nkind, nlist, nlumo, nmo, nrow_global, nset, &
       nsgf, nvirt
@@ -111,6 +114,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: l
     LOGICAL :: add_to_list, append, do_list, do_virt, failure, ionode, &
       separate_components, should_output
+    REAL(KIND=dp)                            :: e_fermi
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, evals_virt
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pdos_array_list, vecbuffer
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -152,7 +156,7 @@ CONTAINS
            natom=natom, nsgf=nsgf, maxlgto=maxlgto)
     nkind = SIZE(atomic_kind_set)
     
-    CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo )
+    CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo, mu=e_fermi )
     CALL cp_fm_get_info(mo_coeff,&
          context=context, para_env=para_env,&
          nrow_global=nrow_global,&
@@ -343,7 +347,7 @@ CONTAINS
       NULLIFY(atomic_kind, orb_basis_set)
       atomic_kind => atomic_kind_set(kind_number)
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-           orb_basis_set=orb_basis_set)
+           orb_basis_set=orb_basis_set,name=kind_name)
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
            maxl=maxl) 
 
@@ -364,23 +368,31 @@ CONTAINS
            error=error)
       IF(iw>0) THEN
 
-        fmtstr = "(I8,2X,F16.6,  (2X,F16.8))"
+        fmtstr1 = "(I8,2X,F16.6,  (2X,F16.8))"
+        fmtstr2 = "(A26,  (10X,A8))"
         IF(separate_components) THEN
-          WRITE (UNIT=fmtstr(14:15),FMT="(I2)")  nsoset(maxl)
+          WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") nsoset(maxl)
+          WRITE (UNIT=fmtstr2(6:7),FMT="(I2)") nsoset(maxl)
         ELSE
-          WRITE (UNIT=fmtstr(14:15),FMT="(I2)") maxl+1
+          WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") maxl+1
+          WRITE (UNIT=fmtstr2(6:7),FMT="(I2)") maxl+1
         END IF
  
-        WRITE(UNIT=iw,FMT="(A,I5,A,I10,A,F12.6,A)") "#  Projected DOS for kind number ", &
-              kind_number, " at iteration step i = ", iterstep,"  E-HOMO = ", eigenvalues(homo), "[Ha]"
-        IF(separate_components) THEN
+        WRITE (UNIT=iw,FMT="(A,I0,A,F12.6,A)")&
+          "# Projected DOS for atomic kind "//TRIM(kind_name)//" at iteration step i = ",&
+          iterstep,", E(Fermi) = ", e_fermi, " a.u."
+        IF (separate_components) THEN
+          WRITE (UNIT=iw,FMT=fmtstr2)&
+            "#     MO Eigenvalue [a.u.]",((TRIM(sgf_symbol(0,il,im)),im=-il,il),il=0,maxl)
           DO imo = 1,nmo+nvirt
-            WRITE(UNIT=iw,FMT=fmtstr) imo, eigenvalues(imo),&
+            WRITE(UNIT=iw,FMT=fmtstr1) imo, eigenvalues(imo),&
                   (pdos_array(lshell,kind_number,imo), lshell=1,nsoset(maxl))
           END DO
         ELSE
+          WRITE (UNIT=iw,FMT=fmtstr2)&
+            "#     MO Eigenvalue [a.u.]",(TRIM(l_sym(il)),il=0,maxl)
           DO imo = 1,nmo+nvirt
-            WRITE(UNIT=iw,FMT=fmtstr) imo, eigenvalues(imo),&
+            WRITE(UNIT=iw,FMT=fmtstr1) imo, eigenvalues(imo),&
                   (pdos_array(lshell,kind_number,imo), lshell=0,maxl)
           END DO
         END IF
@@ -408,23 +420,31 @@ CONTAINS
            error=error)
       IF(iw>0) THEN
 
-        fmtstr = "(I8,2X,F16.6,  (2X,F16.8))"
+        fmtstr1 = "(I8,2X,F16.6,  (2X,F16.8))"
+        fmtstr2 = "(A26,  (10X,A8))"
         IF(separate_components) THEN
-          WRITE (UNIT=fmtstr(14:15),FMT="(I2)")  nsoset(maxl_list)
+          WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") nsoset(maxl_list)
+          WRITE (UNIT=fmtstr2(6:7),FMT="(I2)") nsoset(maxl_list)
         ELSE
-          WRITE (UNIT=fmtstr(14:15),FMT="(I2)") maxl_list+1
+          WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") maxl_list+1
+          WRITE (UNIT=fmtstr2(6:7),FMT="(I2)") maxl_list+1
         END IF
  
-        WRITE(UNIT=iw,FMT="(A,I5,A,I10,A,F12.6,A)") "#  Projected DOS for a list of ", nlist,  &
-                "atoms, at iteration step i = ", iterstep,"  E-HOMO = ", eigenvalues(homo), "[Ha]"
+        WRITE(UNIT=iw,FMT="(A,I0,A,I0,A,F12.6,A)")&
+          "# Projected DOS for a list of ", nlist, " atoms, at iteration step i = ", iterstep,&
+          ", E(Fermi) = ", e_fermi, " a.u."
         IF(separate_components) THEN
+          WRITE (UNIT=iw,FMT=fmtstr2)&
+            "#     MO Eigenvalue [a.u.]",((TRIM(sgf_symbol(0,il,im)),im=-il,il),il=0,maxl_list)
           DO imo = 1,nmo+nvirt
-            WRITE(UNIT=iw,FMT=fmtstr) imo, eigenvalues(imo),&
+            WRITE(UNIT=iw,FMT=fmtstr1) imo, eigenvalues(imo),&
                   (pdos_array_list(lshell,imo), lshell=1,nsoset(maxl_list))
           END DO
         ELSE
+          WRITE (UNIT=iw,FMT=fmtstr2)&
+            "#     MO Eigenvalue [a.u.]",(TRIM(l_sym(il)),il=0,maxl)
           DO imo = 1,nmo+nvirt
-            WRITE(UNIT=iw,FMT=fmtstr) imo, eigenvalues(imo),&
+            WRITE(UNIT=iw,FMT=fmtstr1) imo, eigenvalues(imo),&
                   (pdos_array_list(lshell,imo), lshell=0,maxl_list)
           END DO
         END IF

@@ -21,14 +21,13 @@ MODULE orbital_symbols
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_symbols'
   PRIVATE
 
-! *** Global parameters ***
-
   CHARACTER(LEN=1), PARAMETER, DIMENSION(0:11) :: l_sym = (/"s","p","d",&
                                                             "f","g","h",&
                                                             "i","j","k",&
                                                             "l","m","n"/)
 
   PUBLIC :: cgf_symbol,sgf_symbol
+  PUBLIC :: l_sym
 
 CONTAINS
 
@@ -100,6 +99,8 @@ CONTAINS
 !>       - m: Magnetic quantum number m of the orbital.
 !>       - n: Principle quantum number n of the orbital.
 !> \version 1.0
+!> \par History
+!>  - Ignore n value for n = 0 (16.02.2009,MK)
 ! *****************************************************************************
   FUNCTION sgf_symbol(n,l,m) RESULT(symbol)
     INTEGER, INTENT(IN)                      :: n, l, m
@@ -110,17 +111,23 @@ CONTAINS
     CHARACTER(LEN=1), DIMENSION(-1:1), &
       PARAMETER                              :: yzx = (/"y","z","x"/)
 
+    INTEGER                                  :: i
+
     symbol = ""
 
-    IF ((n > 0).AND.(n < 100)) THEN
+    IF (n == 0) THEN
+      i = 1
+    ELSE IF ((n > 0).AND.(n < 100)) THEN
       WRITE (symbol(1:2),"(I2)") n
+      i = 3
     ELSE
       CALL stop_program(routineP,&
                         "Invalid principal quantum number specified")
     END IF
 
     IF ((l >= 0).AND.(l <= 11)) THEN
-      symbol(3:3) = l_sym(l)
+      symbol(i:i) = l_sym(l)
+      i = i + 1
     ELSE
       CALL stop_program(routineP,&
                         "Invalid angular momentum quantum number specified")
@@ -128,14 +135,14 @@ CONTAINS
 
     IF (ABS(m) <= l) THEN
       IF (l == 1) THEN
-        symbol(4:4) = yzx(m)
+        symbol(i:i) = yzx(m)
       ELSE IF (l > 1) THEN
         IF (m == 0) THEN
-          WRITE (symbol(4:4),"(I1)") m
+          WRITE (symbol(i:i),"(I1)") m
         ELSE IF (ABS(m) < 10) THEN
-          WRITE (symbol(4:5),"(SP,I2)") m
+          WRITE (symbol(i:i+1),"(SP,I2)") m
         ELSE IF (ABS(m) < 100) THEN
-          WRITE (symbol(4:6),"(SP,I3)") m
+          WRITE (symbol(i:i+2),"(SP,I3)") m
         END IF
       END IF
     ELSE
