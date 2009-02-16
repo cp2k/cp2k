@@ -113,6 +113,7 @@ MODULE qs_scf_post_gpw
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
+                                             set_mo_occupation,&
                                              write_mo_set
   USE qs_moments,                      ONLY: qs_moment_berry_phase,&
                                              qs_moment_locop
@@ -1605,6 +1606,8 @@ CPSourceFileRef,&
               CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
                    para_env=qs_env%para_env, do_rotation=.TRUE.,&
                    co_rotate=mo_coeff_deriv,error=error)
+              CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,error=error)
+
             END IF
             IF(dft_control%nspins==2) THEN
               CALL calculate_projected_dos(mos(ispin)%mo_set,atomic_kind_set,&
