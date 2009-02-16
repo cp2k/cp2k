@@ -23,6 +23,7 @@ H2O-geo-ot-pdos.inp  1
 H2O-geo-pdos.inp  1
 H2O-geo-pdos_comp.inp 1
 H2O-geo-ot-pdos-lumo-comp.inp 1
+H2O-geo-pdos_comp_list.inp   1
 # sic ddapc decoupled
 C2H4-init.inp      1
 sic_ddapc_rt.inp   1
