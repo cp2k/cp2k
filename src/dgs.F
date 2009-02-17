@@ -143,7 +143,7 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
   CALL fft_radix_operations ( npts_s ( 1 ), nout ( 3 ), &
        operation = FFT_RADIX_NEXT_ODD )
 
-  CALL get_cell_param ( box_b, cell_lengths )
+  CALL get_cell_param ( box_b, cell_lengths , error=error)
   CALL dg_get_spacing ( nout, cutoff_radius, dr )
   CALL dg_find_radix ( dr, cell_lengths, grid_b % npts )
 

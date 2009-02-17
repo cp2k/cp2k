@@ -215,12 +215,16 @@ CONTAINS
 !> \date    04.04.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_cell_param(cell,cell_length,cell_angle,units_angle)
+  SUBROUTINE get_cell_param(cell,cell_length,cell_angle,units_angle,error)
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: cell_length
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(OUT), OPTIONAL                  :: cell_angle
     INTEGER, INTENT(IN), OPTIONAL            :: units_angle
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_cell_param', &
+      routineP = moduleN//':'//routineN
 
     REAL(KIND=dp)                            :: alpha, beta, gamma
 
@@ -244,23 +248,30 @@ CONTAINS
 !> \author  Teodoro Laino
 !> \date    03.2008
 ! *****************************************************************************
-  SUBROUTINE set_cell_param(cell,cell_length,cell_angle)
+  SUBROUTINE set_cell_param(cell,cell_length,cell_angle,error)
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: cell_length
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(IN), OPTIONAL                   :: cell_angle
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    REAL(KIND=dp)                            :: cos_beta, cos_gamma, &
-                                                ctg_alpha, sin_gamma
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_cell_param', &
+      routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: cos_alpha, cos_beta, &
+                                                cos_gamma, sin_gamma
+
+    failure = .FALSE.
+    CPPrecondition(ALL(cell_angle/=0.0_dp),cp_failure_level,routineP,error,failure)
     cos_gamma = COS(cell_angle(3))
     sin_gamma = SIN(cell_angle(3))
     cos_beta  = COS(cell_angle(2))
-    ctg_alpha = COS(cell_angle(1))/SIN(cell_angle(1))
+    cos_alpha = COS(cell_angle(1))
     
-    cell%hmat(:,1)=(/   1.0_dp,                      0.0_dp,  0.0_dp/)
-    cell%hmat(:,2)=(/cos_gamma,                   sin_gamma,  0.0_dp/)
-    cell%hmat(:,3)=(/ cos_beta, ctg_alpha*(1.0_dp-cos_beta),  0.0_dp/)
+    cell%hmat(:,1)=(/   1.0_dp,                                   0.0_dp,  0.0_dp/)
+    cell%hmat(:,2)=(/cos_gamma,                                sin_gamma,  0.0_dp/)
+    cell%hmat(:,3)=(/ cos_beta, (cos_alpha-cos_gamma*cos_beta)/sin_gamma,  0.0_dp/)
     cell%hmat(3,3)=SQRT(1.0_dp-cell%hmat(1,3)**2-cell%hmat(2,3)**2)
 
     cell%hmat(:,1)=cell%hmat(:,1)*cell_length(1)

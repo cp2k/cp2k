@@ -66,8 +66,8 @@ CONTAINS
     CALL force_env_get(force_env, cell=cell, error=error)
     ! orthorhombic cells are diagonal, and should stay exactly like this
     IF (.NOT. cell%orthorhombic) THEN
-      CALL get_cell_param(cell,cell_length,cell_angle,cp_units_rad)
-      CALL set_cell_param(cell,cell_length,cell_angle)
+      CALL get_cell_param(cell,cell_length,cell_angle,cp_units_rad,error=error)
+      CALL set_cell_param(cell,cell_length,cell_angle,error=error)
     ENDIF
     CALL force_env_set_cell(force_env, cell=cell, error=error)
 
