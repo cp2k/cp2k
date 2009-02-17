@@ -147,7 +147,7 @@ CONTAINS
     !
     IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( para_env, iw)
     !
-    IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw, error=error )
+    IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw, globenv%fftw_plan_type, globenv%fftw_arrays_aligned, error=error )
     !
     ! runtest 4 has been deleted and can be recycled
     !
@@ -517,10 +517,11 @@ CONTAINS
 !>      none
 !> \author JGH  6-NOV-2000
 ! *****************************************************************************
-  SUBROUTINE fft_test ( para_env, iw, error )
+  SUBROUTINE fft_test ( para_env, iw, fftw_plan_type, fftw_arrays_aligned, error )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER                                  :: iw
+    INTEGER                                  :: iw, fftw_plan_type
+    LOGICAL                                  :: fftw_arrays_aligned
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: iall, ierr, it, j, len, n(3), &
@@ -550,42 +551,42 @@ CONTAINS
           EXIT
        CASE ( 1 )
           CALL init_fft ( "FFTSG", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
-                          pool_limit=10, plan_style=3, &
+                          pool_limit=10, plan_style=fftw_plan_type, arrays_aligned=fftw_arrays_aligned, &
                           para_env=para_env, error=error )
           method = "FFTSG  "
        CASE ( 2 )
           CALL init_fft ( "FFTW2", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
-                          pool_limit=10, plan_style=3, &
+                          pool_limit=10, plan_style=fftw_plan_type, arrays_aligned=fftw_arrays_aligned, &
                           para_env=para_env, error=error )
           method = "FFTW2  "
        CASE ( 3 )
           CALL init_fft ( "FFTW3", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
-                          pool_limit=10, plan_style=3, &
+                          pool_limit=10, plan_style=fftw_plan_type, arrays_aligned=fftw_arrays_aligned, &
                           para_env=para_env, error=error )
           method = "FFTW3  "
        CASE ( 4 )
           CALL init_fft ( "FFTESSL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
-                          pool_limit=10, plan_style=3, &
+                          pool_limit=10, plan_style=fftw_plan_type, arrays_aligned=fftw_arrays_aligned, &
                           para_env=para_env, error=error )
           method = "FFTESSL"
        CASE ( 5 )
           CALL init_fft ( "FFTACML", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
-                          pool_limit=10, plan_style=3, &
+                          pool_limit=10, plan_style=fftw_plan_type, arrays_aligned=fftw_arrays_aligned, &
                           para_env=para_env, error=error )
           method = "FFTACML"
        CASE ( 6 )
           CALL init_fft ( "FFTMKL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
-                          pool_limit=10, plan_style=3, &
+                          pool_limit=10, plan_style=fftw_plan_type, arrays_aligned=fftw_arrays_aligned, &
                           para_env=para_env, error=error )
           method = "FFTMKL"
        CASE ( 7 )
           CALL init_fft ( "FFTSCI", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
-                          pool_limit=10, plan_style=3, &
+                          pool_limit=10, plan_style=fftw_plan_type, arrays_aligned=fftw_arrays_aligned, &
                           para_env=para_env, error=error )
           method = "FFTSCI"
        CASE ( 8 )
           CALL init_fft ( "FFTCU", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
-                          pool_limit=10, plan_style=3, &
+                          pool_limit=10, plan_style=fftw_plan_type, arrays_aligned=fftw_arrays_aligned, &
                           para_env=para_env, error=error )
           method = "FFTCU"
        END SELECT
@@ -725,7 +726,8 @@ CONTAINS
     !..set fft lib
     CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
                pool_limit=globenv%fft_pool_scratch_limit,&
-         wisdom_file="", plan_style=3, para_env=para_env, error=error )
+         wisdom_file="", plan_style=globenv%fftw_plan_type,&
+         arrays_aligned=globenv%fftw_arrays_aligned, para_env=para_env, error=error )
 
     ! .. set cell (should otherwise be irrelevant)
     NULLIFY(box)
@@ -837,7 +839,8 @@ CONTAINS
 
     CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
                pool_limit=globenv%fft_pool_scratch_limit,&
-         wisdom_file="", plan_style=3, para_env=para_env, error=error )
+         wisdom_file="", plan_style=globenv%fftw_plan_type,&
+         arrays_aligned=globenv%fftw_arrays_aligned, para_env=para_env, error=error )
 
     !..the unit cell (should not really matter, the number of grid points do)
     NULLIFY(box,grid)
@@ -950,7 +953,7 @@ CONTAINS
           CALL pw_zero ( cb%pw )
           CALL pw_zero ( cc%pw )
           ca % pw % in_space = RECIPROCALSPACE
-          nn = SIZE ( ca % pw % cc  )
+          nn = SIZE ( ca % pw % cc )
           DO ig = 1, nn
              gsq = grid % gsq ( ig )
              ca  % pw % cc ( ig ) = EXP ( - gsq )

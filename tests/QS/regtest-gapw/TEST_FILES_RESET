@@ -184,3 +184,7 @@ Be_GAPW.inp
 C11H24-qmmmgapwall-gauss-0.inp
 #
 C11H24-qmmmgapwall-gauss-0.inp
+# FFTW changes 
+OF_gapw_all_lsd_LB.inp
+# FFTW changes 
+He2-all-md.inp

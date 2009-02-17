@@ -467,3 +467,5 @@ multipole_quadrupole.dbg_f_rec.inp
 multi_frag_check.inp
 multi_frag.inp
 multi_psf.inp
+# FFTW changes 
+water_hbonds_dist.inp

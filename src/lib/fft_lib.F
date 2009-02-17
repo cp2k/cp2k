@@ -69,57 +69,78 @@ SUBROUTINE fft_get_lengths ( fft_type, DATA, max_length )
 END SUBROUTINE fft_get_lengths
 
 ! *****************************************************************************
-SUBROUTINE fft_3d ( fft_type, fft_in_place, fsign, scale, n, zin, zout )
 
-  IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
+SUBROUTINE fft_create_plan_3d ( plan, fft_type, fft_in_place, fsign, n, zin, zout, plan_style )
+
+USE fft_plan,                           ONLY: fft_plan_type, dp
+
+IMPLICIT NONE
 
 ! Arguments
-  INTEGER, INTENT(IN)                             :: fft_type
-  LOGICAL, INTENT(IN)                             :: fft_in_place
-  INTEGER, INTENT(INOUT)                          :: fsign
+  TYPE (fft_plan_type), INTENT (INOUT)                  :: plan
+  INTEGER, INTENT ( IN )                                :: fft_type, fsign
+  LOGICAL, INTENT ( IN )                                :: fft_in_place
+  INTEGER, DIMENSION(3), INTENT ( IN )                                :: n
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)            :: zin
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)            :: zout
+  LOGICAL, INTENT ( IN )                                :: plan_style
+
+  plan % fft_type = fft_type
+  plan % fsign = fsign
+  plan % fft_in_place = fft_in_place 
+  plan % n_3d = n
+
+  SELECT CASE ( fft_type )
+    CASE ( 2 )
+      CALL fftw2_create_plan_3d ( plan, plan_style )
+    CASE ( 3 )
+      CALL fftw3_create_plan_3d ( plan, zin, zout, plan_style )
+  END SELECT
+
+  plan % valid = .TRUE.
+
+END SUBROUTINE fft_create_plan_3d
+
+SUBROUTINE fft_3d ( plan, scale, zin, zout )
+
+  USE fft_plan,                           ONLY: fft_plan_type, dp
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE(fft_plan_type), INTENT(IN)                 :: plan
   REAL(KIND=dp), INTENT(IN)                       :: scale
-  INTEGER, DIMENSION(*), INTENT(IN)               :: n
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: zout
 
-  IF ( n(1)*n(2)*n(3) > 0 ) THEN
-    SELECT CASE ( fft_type )
+  IF ( plan%n_3d(1)*plan%n_3d(2)*plan%n_3d(3) > 0 ) THEN
+    SELECT CASE ( plan%fft_type )
       CASE DEFAULT
         STOP "fft_3d"
       CASE ( 1 )
-        CALL fftsg3d ( fft_in_place, fsign, scale, n, zin, zout )
+        CALL fftsg3d ( plan%fft_in_place, plan%fsign, scale, plan%n_3d, zin, zout )
       CASE ( 2 )
-        CALL fftw23d ( fft_in_place, fsign, scale, n, zin, zout )
+        CALL fftw23d ( plan, scale, zin, zout )
       CASE ( 3 )
-        CALL fftw33d ( fft_in_place, fsign, scale, n, zin, zout )
+        CALL fftw33d ( plan, scale, zin, zout )
       CASE ( 4 )
-        CALL fftessl3d ( fft_in_place, fsign, scale, n, zin, zout )
+        CALL fftessl3d ( plan%fft_in_place, plan%fsign, scale, plan%n_3d, zin, zout )
       CASE ( 5 )
-        CALL fftacml3d ( fft_in_place, fsign, scale, n, zin, zout )
+        CALL fftacml3d ( plan%fft_in_place, plan%fsign, scale, plan%n_3d, zin, zout )
       CASE ( 6 )
-        CALL fftmkl3d ( fft_in_place, fsign, scale, n, zin, zout )
+        CALL fftmkl3d ( plan%fft_in_place, plan%fsign, scale, plan%n_3d, zin, zout )
       CASE ( 7 )
-        CALL fftsci3d ( fft_in_place, fsign, scale, n, zin, zout )
+        CALL fftsci3d ( plan%fft_in_place, plan%fsign, scale, plan%n_3d, zin, zout )
       CASE ( 8 )
-        CALL fftcu3d ( fft_in_place, fsign, scale, n, zin, zout )
+        CALL fftcu3d ( plan%fft_in_place, plan%fsign, scale, plan%n_3d, zin, zout )
     END SELECT
   END IF
 
 END SUBROUTINE fft_3d
 
 ! *****************************************************************************
-!MODULE fft_create_plan
 
-!PUBLIC :: fft_create_plan_1dm
-
-!CONTAINS
-
-SUBROUTINE fft_create_plan_1dm ( plan, fft_type, fsign, trans, n, m, zin, zout, plan_style )
+SUBROUTINE fft_create_plan_1dm ( plan, fft_type, fsign, trans, n, m, zin, zout, plan_style, aligned )
 
 USE fft_plan,                           ONLY: fft_plan_type, dp
 
@@ -133,7 +154,8 @@ IMPLICIT NONE
   INTEGER, INTENT ( IN )                                :: n, m
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)            :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)            :: zout
-  LOGICAL, INTENT ( IN )                                :: plan_style
+  INTEGER, INTENT ( IN )                                :: plan_style
+  LOGICAL, INTENT ( IN )                                :: aligned
 
   plan % fft_type = fft_type
   plan % fsign = fsign
@@ -143,13 +165,14 @@ IMPLICIT NONE
 
   SELECT CASE ( fft_type )
     CASE ( 2 )
-      CALL fftw2_create_plan_1dm ( plan, plan_style )
+      CALL fftw2_create_plan_1dm ( plan, plan_style, aligned )
     CASE ( 3 )
-      CALL fftw3_create_plan_1dm ( plan, zin, zout, plan_style )
+      CALL fftw3_create_plan_1dm ( plan, zin, zout, plan_style, aligned )
   END SELECT
 
+  plan % valid = .TRUE.
+
 END SUBROUTINE fft_create_plan_1dm 
-!END MODULE fft_create_plan
 
 SUBROUTINE fft_destroy_plan ( plan )
 
@@ -160,12 +183,15 @@ USE fft_plan,                           ONLY: fft_plan_type, dp
 ! Arguments
   TYPE (fft_plan_type), INTENT (INOUT)          :: plan
 
-  SELECT CASE ( plan % fft_type )
-    CASE ( 2 )
-      CALL fftw2_destroy_plan ( plan )
-    CASE ( 3 )
-      CALL fftw3_destroy_plan ( plan )
-  END SELECT
+  IF (plan % valid) THEN
+    SELECT CASE ( plan % fft_type )
+      CASE ( 2 )
+        CALL fftw2_destroy_plan ( plan )
+      CASE ( 3 )
+        CALL fftw3_destroy_plan ( plan )
+    END SELECT
+    plan % valid = .FALSE.
+  END IF
 
 END SUBROUTINE
 

@@ -436,3 +436,17 @@ H2-BECKE-MD.inp
 H2-diffBECKE-ET_coupling.inp
 # New initial guess ATOMIC 
 sic_energy.inp
+# FFTW changes 
+He2_ddapc_constraint.inp
+# FFTW changes 
+He2_ddapc_constraint-2.inp
+# FFTW changes 
+He2_ddapc_constraint-3.inp
+# FFTW changes 
+He2_none_full_all.inp
+# FFTW changes 
+He2_none_full_inverse.inp
+# FFTW changes 
+sic_ddapc_rt.inp
+# FFTW changes 
+He2_ddapc_constraint-4.inp

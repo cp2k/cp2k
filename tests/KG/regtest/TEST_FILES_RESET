@@ -144,3 +144,7 @@ kg_gpw_2H2O_llp.inp
 kg_gpw_2H2O_md.inp 
 kg_gpw_2H2O_pbellp_geoch.inp 
 kg_gpw_2H2O_ppot.inp 
+# FFTW changes 
+nai-1.inp
+# FFTW changes 
+nai-4.inp

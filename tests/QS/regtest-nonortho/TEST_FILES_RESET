@@ -72,3 +72,9 @@ graphite2.inp
 graphite3.inp
 # New initial guess ATOMIC 
 graphite-lumo.inp
+# FFTW changes 
+graphite.inp
+# FFTW changes 
+graphite2.inp
+# FFTW changes 
+graphite3.inp

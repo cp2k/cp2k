@@ -346,3 +346,27 @@ ch4-gapw-gpw-1.inp
 no-gapw-gpw-1.inp
 ch3m-gapw-1.inp
 ch3p-gapw-1.inp
+# FFTW changes 
+no-gapw-1.inp
+# FFTW changes 
+no-gapw-2.inp
+# FFTW changes 
+no-gapw-3.inp
+# FFTW changes 
+no-gapw-4.inp
+# FFTW changes 
+no-gapw-5.inp
+# FFTW changes 
+no-gapw-1-distributed.inp
+# FFTW changes 
+no-gapw-1-replicated.inp
+# FFTW changes 
+w2_qmmm-1.inp
+# FFTW changes 
+w2_qmmm-2.inp
+# FFTW changes 
+w2_qmmm-3.inp
+# FFTW changes 
+no-gapw-gpw-1.inp
+# FFTW changes 
+h2-gapw-1.inp

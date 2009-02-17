@@ -182,3 +182,9 @@ nh3-meta-walks_1.inp
 nh3-meta-walks_1r.inp
 nh3-meta-walks_2.inp
 nh3-meta-walks_2r.inp
+# FFTW changes 
+nh3-meta-walks_1r.inp
+# FFTW changes 
+nh3-meta-walks_2r.inp
+# FFTW changes 
+H2O-meta-combine.inp

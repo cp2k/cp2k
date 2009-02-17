@@ -156,3 +156,7 @@ acn-qmmm-re.inp
 acn-qmmm-re.inp
 # New initial guess ATOMIC 
 acn-conn-1.inp
+# FFTW changes 
+acn-qmmm-re.inp
+# FFTW changes 
+acn-conn-1.inp

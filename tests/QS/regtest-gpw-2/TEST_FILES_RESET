@@ -570,3 +570,5 @@ hcn_meta_chaincoord_kind.inp
 H2O_meta_pop.inp
 # New initial guess ATOMIC 
 H2O_meta_langevin.inp
+# FFTW changes 
+hcn_ts_r.inp

@@ -98,3 +98,9 @@ w2-r2.inp
 argon1.inp
 # New initial guess ATOMIC 
 argon2.inp
+# FFTW changes 
+w2.inp
+# FFTW changes 
+w2-r1.inp
+# FFTW changes 
+w2-r2.inp

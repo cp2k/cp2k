@@ -665,3 +665,15 @@ ghost_overlap_vdw.inp
 # more resets after change on GUESS
 H2O-1_3.restart
 H-ROKS.inp
+# FFTW changes 
+He2H-bloechl-md.inp
+# FFTW changes 
+He2H-bloechl.inp
+# FFTW changes 
+H2O-bloechl.inp
+# FFTW changes 
+H2O-bloechl-Spl.inp
+# FFTW changes 
+H2O-bloechl-restraint.inp
+# FFTW changes 
+dynamics.inp

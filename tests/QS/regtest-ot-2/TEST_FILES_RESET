@@ -593,3 +593,27 @@ C-sic-2.inp
 C_fermi.inp
 # New initial guess ATOMIC 
 Al_fermi.inp
+# FFTW changes 
+N3-2.inp
+# FFTW changes 
+N3-3.inp
+# FFTW changes 
+N3-4.inp
+# FFTW changes 
+N3-5.inp
+# FFTW changes 
+N3-6.inp
+# FFTW changes 
+N3-7.inp
+# FFTW changes 
+N3-8.inp
+# FFTW changes 
+N3-9.inp
+# FFTW changes 
+N3-10.inp
+# FFTW changes 
+H2O.inp
+# FFTW changes 
+H2_trip.inp
+# FFTW changes 
+C_fermi.inp

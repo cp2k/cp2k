@@ -58,3 +58,5 @@ H2-pbe-restart-run.inp
 C-levelshift.inp
 #
 C-levelshift.inp
+# FFTW changes 
+C-levelshift.inp

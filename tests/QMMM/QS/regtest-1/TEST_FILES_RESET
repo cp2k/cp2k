@@ -332,3 +332,5 @@ H2O-qmmm-gauss-18.inp
 H2O-qmmm-gauss-4.inp
 # New initial guess ATOMIC 
 H2O-qmmm-none-1.inp
+# FFTW changes 
+Ar-qmmm.inp
