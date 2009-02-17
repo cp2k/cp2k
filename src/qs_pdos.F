@@ -102,7 +102,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=16)                        :: fmtstr2
-    CHARACTER(LEN=26)                        :: fmtstr1
+    CHARACTER(LEN=27)                        :: fmtstr1
     CHARACTER(LEN=default_string_length)     :: kind_name, my_act, my_mittle, &
                                                 my_pos, spin(2)
     INTEGER :: handle, homo, i, i_rep_val, iatom, il, im, imo, ir, irow, &
@@ -115,7 +115,8 @@ CONTAINS
     LOGICAL :: add_to_list, append, do_list, do_virt, failure, ionode, &
       separate_components, should_output
     REAL(KIND=dp)                            :: e_fermi
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, evals_virt
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, evals_virt, &
+                                                occupation_numbers
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pdos_array_list, vecbuffer
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: pdos_array
@@ -144,6 +145,7 @@ CONTAINS
     NULLIFY (atomic_kind, context, s_matrix, orb_basis_set, para_env, pdos_array)
     NULLIFY (eigenvalues,fm_struct_tmp,matrix_work,matrix_shalf,mo_coeff,vecbuffer)
     NULLIFY (index_list, list, pdos_array_list)
+    NULLIFY (occupation_numbers)
 
     CALL timeset(routineN,handle)
     iterstep = logger%iter_info%iteration(logger%iter_info%n_rlevel) 
@@ -156,7 +158,8 @@ CONTAINS
            natom=natom, nsgf=nsgf, maxlgto=maxlgto)
     nkind = SIZE(atomic_kind_set)
     
-    CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo, mu=e_fermi )
+    CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo,&
+                    mu=e_fermi)
     CALL cp_fm_get_info(mo_coeff,&
          context=context, para_env=para_env,&
          nrow_global=nrow_global,&
@@ -244,11 +247,16 @@ CONTAINS
     END IF
     IF(do_virt) THEN
        ALLOCATE(eigenvalues(nmo+nvirt),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        eigenvalues(1:nmo) = mo_set%eigenvalues(1:nmo)
        eigenvalues(nmo+1:nmo+nvirt) = evals_virt(1:nvirt)
+       ALLOCATE(occupation_numbers(nmo+nvirt),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       occupation_numbers(:) = 0.0_dp
+       occupation_numbers(1:nmo) = mo_set%occupation_numbers(1:nmo)
     ELSE
        eigenvalues => mo_set%eigenvalues
+       occupation_numbers => mo_set%occupation_numbers
     END IF
 
     pdos_array = 0.0_dp
@@ -368,32 +376,34 @@ CONTAINS
            error=error)
       IF(iw>0) THEN
 
-        fmtstr1 = "(I8,2X,F16.6,  (2X,F16.8))"
-        fmtstr2 = "(A26,  (10X,A8))"
+        fmtstr1 = "(I8,2X,2F16.6,  (2X,F16.8))"
+        fmtstr2 = "(A42,  (10X,A8))"
         IF(separate_components) THEN
-          WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") nsoset(maxl)
+          WRITE (UNIT=fmtstr1(15:16),FMT="(I2)") nsoset(maxl)
           WRITE (UNIT=fmtstr2(6:7),FMT="(I2)") nsoset(maxl)
         ELSE
-          WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") maxl+1
+          WRITE (UNIT=fmtstr1(15:16),FMT="(I2)") maxl+1
           WRITE (UNIT=fmtstr2(6:7),FMT="(I2)") maxl+1
         END IF
  
         WRITE (UNIT=iw,FMT="(A,I0,A,F12.6,A)")&
           "# Projected DOS for atomic kind "//TRIM(kind_name)//" at iteration step i = ",&
-          iterstep,", E(Fermi) = ", e_fermi, " a.u."
+          iterstep,", E(Fermi) = ",e_fermi," a.u."
         IF (separate_components) THEN
           WRITE (UNIT=iw,FMT=fmtstr2)&
-            "#     MO Eigenvalue [a.u.]",((TRIM(sgf_symbol(0,il,im)),im=-il,il),il=0,maxl)
+            "#     MO Eigenvalue [a.u.]      Occupation",&
+            ((TRIM(sgf_symbol(0,il,im)),im=-il,il),il=0,maxl)
           DO imo = 1,nmo+nvirt
-            WRITE(UNIT=iw,FMT=fmtstr1) imo, eigenvalues(imo),&
-                  (pdos_array(lshell,kind_number,imo), lshell=1,nsoset(maxl))
+            WRITE (UNIT=iw,FMT=fmtstr1) imo,eigenvalues(imo),occupation_numbers(imo),&
+              (pdos_array(lshell,kind_number,imo),lshell=1,nsoset(maxl))
           END DO
         ELSE
           WRITE (UNIT=iw,FMT=fmtstr2)&
-            "#     MO Eigenvalue [a.u.]",(TRIM(l_sym(il)),il=0,maxl)
+            "#     MO Eigenvalue [a.u.]      Occupation",&
+            (TRIM(l_sym(il)),il=0,maxl)
           DO imo = 1,nmo+nvirt
-            WRITE(UNIT=iw,FMT=fmtstr1) imo, eigenvalues(imo),&
-                  (pdos_array(lshell,kind_number,imo), lshell=0,maxl)
+            WRITE (UNIT=iw,FMT=fmtstr1) imo,eigenvalues(imo),occupation_numbers(imo),&
+              (pdos_array(lshell,kind_number,imo),lshell=0,maxl)
           END DO
         END IF
       END IF
@@ -420,32 +430,34 @@ CONTAINS
            error=error)
       IF(iw>0) THEN
 
-        fmtstr1 = "(I8,2X,F16.6,  (2X,F16.8))"
-        fmtstr2 = "(A26,  (10X,A8))"
+        fmtstr1 = "(I8,2X,2F16.6,  (2X,F16.8))"
+        fmtstr2 = "(A42,  (10X,A8))"
         IF(separate_components) THEN
-          WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") nsoset(maxl_list)
+          WRITE (UNIT=fmtstr1(15:16),FMT="(I2)") nsoset(maxl_list)
           WRITE (UNIT=fmtstr2(6:7),FMT="(I2)") nsoset(maxl_list)
         ELSE
-          WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") maxl_list+1
+          WRITE (UNIT=fmtstr1(15:16),FMT="(I2)") maxl_list+1
           WRITE (UNIT=fmtstr2(6:7),FMT="(I2)") maxl_list+1
         END IF
  
-        WRITE(UNIT=iw,FMT="(A,I0,A,I0,A,F12.6,A)")&
-          "# Projected DOS for a list of ", nlist, " atoms, at iteration step i = ", iterstep,&
-          ", E(Fermi) = ", e_fermi, " a.u."
+        WRITE (UNIT=iw,FMT="(A,I0,A,I0,A,F12.6,A)")&
+          "# Projected DOS for a list of ",nlist," atoms, at iteration step i = ",iterstep,&
+          ", E(Fermi) = ",e_fermi," a.u."
         IF(separate_components) THEN
           WRITE (UNIT=iw,FMT=fmtstr2)&
-            "#     MO Eigenvalue [a.u.]",((TRIM(sgf_symbol(0,il,im)),im=-il,il),il=0,maxl_list)
+            "#     MO Eigenvalue [a.u.]      Occupation",&
+            ((TRIM(sgf_symbol(0,il,im)),im=-il,il),il=0,maxl_list)
           DO imo = 1,nmo+nvirt
-            WRITE(UNIT=iw,FMT=fmtstr1) imo, eigenvalues(imo),&
-                  (pdos_array_list(lshell,imo), lshell=1,nsoset(maxl_list))
+            WRITE (UNIT=iw,FMT=fmtstr1) imo,eigenvalues(imo),occupation_numbers(imo),&
+              (pdos_array_list(lshell,imo),lshell=1,nsoset(maxl_list))
           END DO
         ELSE
           WRITE (UNIT=iw,FMT=fmtstr2)&
-            "#     MO Eigenvalue [a.u.]",(TRIM(l_sym(il)),il=0,maxl)
+            "#     MO Eigenvalue [a.u.]      Occupation",&
+            (TRIM(l_sym(il)),il=0,maxl)
           DO imo = 1,nmo+nvirt
-            WRITE(UNIT=iw,FMT=fmtstr1) imo, eigenvalues(imo),&
-                  (pdos_array_list(lshell,imo), lshell=0,maxl_list)
+            WRITE (UNIT=iw,FMT=fmtstr1) imo,eigenvalues(imo),occupation_numbers(imo),&
+              (pdos_array_list(lshell,imo),lshell=0,maxl_list)
           END DO
         END IF
       END IF
@@ -469,6 +481,8 @@ CONTAINS
       CALL cp_fm_release(matrix_work,error=error)
       DEALLOCATE(eigenvalues,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+      DEALLOCATE(occupation_numbers,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL timestop(handle)
