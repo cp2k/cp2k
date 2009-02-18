@@ -141,26 +141,6 @@ CONTAINS
        shell_present = .TRUE.
     END IF
     ! Starting the force loop
-! incorrect omp (i.e. threads can write to the variable an other thread might be reading (e.g. pot_nonbonded))
-! !$OMP parallel do default(none) &
-! !$OMP shared(nkinds) &
-! !$OMP private(ikind,jkind,id_kind,istart,iend) &
-! !$OMP private(spline_data) &
-! !$OMP shared(potparm,use_virial) &
-! !$OMP private(ab) &
-! !$OMP shared(nonbonded) &
-! !$OMP private(rab,rab2_max,fac) &
-! !$OMP private(ilist,nlist,igrp,atom_a,atom_b,npairs,cvi,list,inode,nnode) &
-! !$OMP shared(cell) &
-! !$OMP shared(pot_nonbond) &
-! !$OMP private(f_eam,pot,fr,fscalar,energy) &
-! !$OMP shared(f_nonbond,pv_nonbond,r_last_update,ij_kind_full_fac) &
-! !$OMP private(rab2) &
-! !$OMP private(neighbor_kind_pair,cell_v) &
-! !$OMP shared(particle_set,r_last_update_pbc) &
-! !$OMP reduction(+:ptens11,ptens12,ptens13,ptens21,ptens22,ptens23, &
-! !$OMP             ptens31,ptens32,ptens33) &
-! !$OMP private(ipair) 
     Lists: DO ilist=1,nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
        npairs=neighbor_kind_pair%npairs
