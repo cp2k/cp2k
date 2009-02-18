@@ -10,6 +10,8 @@
 ! *****************************************************************************
 MODULE manybody_eam
 
+  USE bibliography,                    ONLY: Foiles1986,&
+                                             cite_reference
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
@@ -81,6 +83,8 @@ CONTAINS
     END DO
     ! Only if EAM potential are present
     IF (do_eam) THEN
+       ! Add citation
+       CALL cite_reference(Foiles1986)
        ! Check that order of multiple defined potential in case we do EAM
        ALLOCATE(pot_types(SIZE(potparm%pot(1,1)%pot%type)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

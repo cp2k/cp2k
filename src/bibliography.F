@@ -54,7 +54,7 @@ MODULE bibliography
              Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
              Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
-             VandenCic2006
+             VandenCic2006, Foiles1986
 
 CONTAINS
 
@@ -69,6 +69,25 @@ CONTAINS
 !>      08.2007 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE add_all_references()
+
+    CALL add_reference(key=Foiles1986, ISI_record=s2a(&
+         "AU FOILES, SM",&
+         "   BASKES, MI",&
+         "   DAW, MS",&
+         "TI EMBEDDED-ATOM-METHOD FUNCTIONS FOR THE FCC METALS CU, AG, AU, NI, PD,",&
+         "   PT, AND THEIR ALLOYS",&
+         "SO PHYSICAL REVIEW B",&
+         "SN 0163-1829",&
+         "PD JUN 15",&
+         "PY 1986",&
+         "VL 33",&
+         "IS 12",&
+         "PN Part 1",&
+         "BP 7983",&
+         "EP 7991",&
+         "UT ISI:A1986C899400011",&
+         "ER"),&
+         DOI="10.1103/PhysRevB.33.7983")
 
     CALL add_reference(key=VandenCic2006, ISI_record=s2a(&
          "AU Vanden-Eijnden, E",&

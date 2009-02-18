@@ -12,7 +12,8 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_cp2k_mm
-  USE bibliography,                    ONLY: Tersoff1988,&
+  USE bibliography,                    ONLY: Foiles1986,&
+                                             Tersoff1988,&
                                              Tosi1964a,&
                                              Tosi1964b,&
                                              Yamada2000
@@ -1182,8 +1183,8 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="EAM",&
             description="This section specifies the input parameters for EAM potential type.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
+            citations=(/Foiles1986/),n_keywords=1, n_subsections=0, repeats=.TRUE., &
+            required=.TRUE., error=error)
 
        NULLIFY(keyword)
        
