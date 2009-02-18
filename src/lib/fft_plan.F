@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Type to store data about a (1D or 3D) FFT, including FFTW plan
+!> \brief Type to store data about a (1D) FFT, including FFTW plan
 !> \par History
 !>      IAB 09-Jan-2009 : initial version
 !>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
@@ -33,9 +33,8 @@ MODULE fft_plan
 
     INTEGER                             :: fft_type
     INTEGER                             :: fsign
-    LOGICAL                             :: trans, fft_in_place, valid
+    LOGICAL                             :: trans
     INTEGER                             :: n, m
-    INTEGER, DIMENSION(3)               :: n_3d
     INTEGER (KIND=integer8_kind)        :: fftw_plan
 
   END TYPE fft_plan_type

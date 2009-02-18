@@ -711,8 +711,7 @@ MODULE input_constants
                                               do_fft_cu=8
   INTEGER, PARAMETER, PUBLIC               :: fftw_plan_estimate=1, &
                                               fftw_plan_measure=2, &
-                                              fftw_plan_patient=3, &
-                                              fftw_plan_exhaustive=4
+                                              fftw_plan_patient=3
 
   ! fftw will automatically be either FFTW2 or FFTW3 
 #if defined ( __FFTW2 )
