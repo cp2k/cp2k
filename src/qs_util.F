@@ -98,7 +98,6 @@ MODULE qs_util
        exp_radius,& 
        gauss_exponent,&
        gaussint_sph,&
-       symmetric_add,&
        trace_r_AxB, &
        trace_r_AxB_new, &
        transform_c2s,&
@@ -272,48 +271,6 @@ CONTAINS
     ENDIF
 
   END FUNCTION gaussint_sph
-
-! *****************************************************************************
-  SUBROUTINE symmetric_add(A,lda,B,ldb,m)
-    !
-    !            A=A+B+transpose(B)
-    !
-
-    INTEGER                                  :: lda
-    REAL(dp)                                 :: A(lda,*)
-    INTEGER                                  :: ldb
-    REAL(dp)                                 :: B(ldb,*)
-    INTEGER                                  :: m
-
-    INTEGER                                  :: i1, i2, i2minus1, imod
-    REAL(dp)                                 :: t1, t2, t3, t4
-
-    DO i2=1,m
-       i2minus1=i2-1
-       DO i1=1,i2minus1-3,4
-          t1=B(i1,i2)+B(i2,i1)
-          t2=B(i1+1,i2)+B(i2,i1+1)
-          t3=B(i1+2,i2)+B(i2,i1+2)
-          t4=B(i1+3,i2)+B(i2,i1+3)
-          A(i1,i2)=A(i1,i2)+t1
-          A(i1+1,i2)=A(i1+1,i2)+t2
-          A(i1+2,i2)=A(i1+2,i2)+t3
-          A(i1+3,i2)=A(i1+3,i2)+t4
-          A(i2,i1)=A(i2,i1)+t1
-          A(i2,i1+1)=A(i2,i1+1)+t2
-          A(i2,i1+2)=A(i2,i1+2)+t3
-          A(i2,i1+3)=A(i2,i1+3)+t4
-       ENDDO
-       DO imod=MODULO(i2minus1,4),1,-1
-          i1=i2-imod
-          t1=B(i1,i2)+B(i2,i1)
-          A(i1,i2)=A(i1,i2)+t1
-          A(i2,i1)=A(i2,i1)+t1
-       ENDDO
-       A(i2,i2)=A(i2,i2)+2._dp*B(i2,i2)
-    ENDDO
-
-  END SUBROUTINE symmetric_add
 
 ! *****************************************************************************
   FUNCTION trace_r_AxB(A,lda,B,ldb,m,n)

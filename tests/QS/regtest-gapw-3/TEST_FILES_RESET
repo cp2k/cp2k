@@ -127,3 +127,9 @@ CO_xastpxhh.inp
 CO_xastpval.inp
 #  
 CO_xastpxhh_loclist.inp
+#
+CO.inp
+CO_xastpxhh.inp
+CO_xastpval.inp
+CO_xastpxhh_loclist.inp
+no-gapw-nics.inp

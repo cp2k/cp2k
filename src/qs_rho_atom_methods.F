@@ -42,7 +42,6 @@ MODULE qs_rho_atom_methods
   USE qs_rho_atom_types,               ONLY: allocate_rho_atom_set,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE qs_util,                         ONLY: symmetric_add
   USE sap_kind_types,                  ONLY: alist_pre_align_blk,&
                                              alist_type,&
                                              get_alist
@@ -442,11 +441,10 @@ MODULE qs_rho_atom_methods
     INTEGER, DIMENSION(:), POINTER           :: a_list, list_a, list_b
     LOGICAL                                  :: failure, paw_atom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: p_matrix
-    REAL(KIND=dp)                            :: eps_cpc, pmax
+    REAL(KIND=dp)                            :: eps_cpc, factor, pmax
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: PC
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: coef_aux_h, coef_aux_s
     REAL(KIND=dp), DIMENSION(3)              :: rab
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_coef
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: C_coeff_hh_a, C_coeff_hh_b, &
                                                 C_coeff_ss_a, C_coeff_ss_b
@@ -500,8 +498,7 @@ MODULE qs_rho_atom_methods
                              maxsgf=max_nsgf,&
                              maxgtops=max_gau,natom=natom)
 
-    ALLOCATE (PC(max_nsgf*max_gau),coef_aux_h(max_gau,max_gau,nspins),&
-              coef_aux_s(max_gau,max_gau,nspins),p_matrix(max_nsgf,max_nsgf),&
+    ALLOCATE (PC(max_nsgf*max_gau),p_matrix(max_nsgf,max_nsgf),&
               STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -650,78 +647,65 @@ MODULE qs_rho_atom_methods
                     DO ispin = 1,nspins
 
                        IF (iatom <= jatom) THEN
-                          CALL alist_pre_align_blk(p_block_spin(ispin)%r_coef,p_matrix,&
-                               list_a,n_cont_a,list_b,n_cont_b,error)
+                          CALL alist_pre_align_blk(p_block_spin(ispin)%r_coef,&
+                               SIZE(p_block_spin(ispin)%r_coef,1),p_matrix,SIZE(p_matrix,1),&
+                               list_a,n_cont_a,list_b,n_cont_b)
                        ELSE
-                          CALL alist_pre_align_blk(p_block_spin(ispin)%r_coef,p_matrix,&
-                               list_b,n_cont_b,list_a,n_cont_a,error)
+                          CALL alist_pre_align_blk(p_block_spin(ispin)%r_coef,&
+                               SIZE(p_block_spin(ispin)%r_coef,1),p_matrix,SIZE(p_matrix,1),&
+                               list_b,n_cont_b,list_a,n_cont_a)
                        ENDIF
 
-                       IF(iatom == jatom) THEN
-                          CALL dgemm('N','N',n_cont_a,nsoctot,n_cont_b,&
-                               &     1.0_dp,p_matrix(1,1),SIZE(p_matrix,1),&
-                               &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
-                               &     0.0_dp,PC(1),n_cont_a)
-                          CALL dgemm('T','N',nsoctot,nsoctot,n_cont_a,&
-                               &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
-                               &     PC(1),n_cont_a,&
-                               &     1.0_dp,rho_atom(katom)%cpc_h(ispin)%r_coef(1,1),nsoctot)
-                          !
-                          CALL dgemm('N','N',n_cont_a,nsoctot,n_cont_b,&
-                               &     1.0_dp,p_matrix(1,1),SIZE(p_matrix,1),&
-                               &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
-                               &     0.0_dp,PC(1),n_cont_a)
-                          CALL dgemm('T','N',nsoctot,nsoctot,n_cont_a,&
-                               &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
-                               &     PC(1),n_cont_a,&
-                               &     1.0_dp,rho_atom(katom)%cpc_s(ispin)%r_coef(1,1),nsoctot)
-                       ELSEIF(iatom < jatom) THEN
-                          CALL dgemm('N','N',n_cont_a,nsoctot,n_cont_b,&
-                               &     1.0_dp,p_matrix(1,1),SIZE(p_matrix,1),&
-                               &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
-                               &     0.0_dp,PC(1),n_cont_a)
-                          CALL dgemm('T','N',nsoctot,nsoctot,n_cont_a,&
-                               &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
-                               &     PC(1),n_cont_a,&
-                               &     0.0_dp,coef_aux_h(1,1,ispin),max_gau)
-                          !
-                          CALL dgemm('N','N',n_cont_a,nsoctot,n_cont_b,&
-                               &     1.0_dp,p_matrix(1,1),SIZE(p_matrix,1),&
-                               &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
-                               &     0.0_dp,PC(1),n_cont_a)
-                          CALL dgemm('T','N',nsoctot,nsoctot,n_cont_a,&
-                               &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
-                               &     PC(1),n_cont_a,&
-                               &     0.0_dp,coef_aux_s(1,1,ispin),max_gau)
+                       factor = 1.0_dp
+                       IF(iatom == jatom) factor = 0.5_dp
 
-                          CALL symmetric_add(rho_atom(katom)%cpc_h(ispin)%r_coef,nsoctot,&
-                                             coef_aux_h(1,1,ispin),max_gau,nsoctot)
-                          CALL symmetric_add(rho_atom(katom)%cpc_s(ispin)%r_coef,nsoctot,&
-                                             coef_aux_s(1,1,ispin),max_gau,nsoctot)
-
-                       ELSEIF(iatom > jatom) THEN
-                          CALL dgemm('N','N',n_cont_b,nsoctot,n_cont_a,&
-                               &     1.0_dp,p_matrix(1,1),SIZE(p_matrix,1),&
-                               &     C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
-                               &     0.0_dp,PC(1),n_cont_b)
-                          CALL dgemm('T','N',nsoctot,nsoctot,n_cont_b,&
-                               &     1.0_dp,C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
-                               &     PC(1),n_cont_b,&
-                               &     0.0_dp,coef_aux_h(1,1,ispin),max_gau)
+                       ! special case avoiding a dgemm. up to 2x faster.
+                       IF(n_cont_a.EQ.1.AND.n_cont_b.EQ.1) THEN
+                          CALL dger(nsoctot,nsoctot,factor*p_matrix(1,1),&
+                               &    C_coeff_hh_a(1,1,1),1,C_coeff_hh_b(1,1,1),1,&
+                               &    rho_atom(katom)%cpc_h(ispin)%r_coef(1,1),nsoctot)
                           !
-                          CALL dgemm('N','N',n_cont_b,nsoctot,n_cont_a,&
-                               &     1.0_dp,p_matrix(1,1),SIZE(p_matrix,1),&
-                               &     C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
-                               &     0.0_dp,PC(1),n_cont_b)
-                          CALL dgemm('T','N',nsoctot,nsoctot,n_cont_b,&
-                               &     1.0_dp,C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
-                               &     PC(1),n_cont_b,&
-                               &     0.0_dp,coef_aux_s(1,1,ispin),max_gau)
-
-                          CALL symmetric_add(rho_atom(katom)%cpc_h(ispin)%r_coef,nsoctot,&
-                                             coef_aux_h(1,1,ispin),max_gau,nsoctot)
-                          CALL symmetric_add(rho_atom(katom)%cpc_s(ispin)%r_coef,nsoctot,&
-                                             coef_aux_s(1,1,ispin),max_gau,nsoctot)
+                          CALL dger(nsoctot,nsoctot,factor*p_matrix(1,1),&
+                               &    C_coeff_ss_a(1,1,1),1,C_coeff_ss_b(1,1,1),1,&
+                               &    rho_atom(katom)%cpc_s(ispin)%r_coef(1,1),nsoctot)
+                       ELSE
+                          IF(iatom <= jatom) THEN
+                             CALL dgemm('N','N',n_cont_a,nsoctot,n_cont_b,&
+                                  &     1.0_dp,p_matrix(1,1),SIZE(p_matrix,1),&
+                                  &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
+                                  &     0.0_dp,PC(1),n_cont_a)
+                             CALL dgemm('T','N',nsoctot,nsoctot,n_cont_a,&
+                                  &     factor,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
+                                  &     PC(1),n_cont_a,&
+                                  &     1.0_dp,rho_atom(katom)%cpc_h(ispin)%r_coef(1,1),nsoctot)
+                             !
+                             CALL dgemm('N','N',n_cont_a,nsoctot,n_cont_b,&
+                                  &     1.0_dp,p_matrix(1,1),SIZE(p_matrix,1),&
+                                  &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
+                                  &     0.0_dp,PC(1),n_cont_a)
+                             CALL dgemm('T','N',nsoctot,nsoctot,n_cont_a,&
+                                  &     factor,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
+                                  &     PC(1),n_cont_a,&
+                                  &     1.0_dp,rho_atom(katom)%cpc_s(ispin)%r_coef(1,1),nsoctot)
+                          ELSE
+                             CALL dgemm('N','N',n_cont_b,nsoctot,n_cont_a,&
+                                  &     1.0_dp,p_matrix(1,1),SIZE(p_matrix,1),&
+                                  &     C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
+                                  &     0.0_dp,PC(1),n_cont_b)
+                             CALL dgemm('T','N',nsoctot,nsoctot,n_cont_b,&
+                                  &     1.0_dp,C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
+                                  &     PC(1),n_cont_b,&
+                                  &     1.0_dp,rho_atom(katom)%cpc_h(ispin)%r_coef(1,1),nsoctot)
+                             !
+                             CALL dgemm('N','N',n_cont_b,nsoctot,n_cont_a,&
+                                  &     1.0_dp,p_matrix(1,1),SIZE(p_matrix,1),&
+                                  &     C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
+                                  &     0.0_dp,PC(1),n_cont_b)
+                             CALL dgemm('T','N',nsoctot,nsoctot,n_cont_b,&
+                                  &     1.0_dp,C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
+                                  &     PC(1),n_cont_b,&
+                                  &     1.0_dp,rho_atom(katom)%cpc_s(ispin)%r_coef(1,1),nsoctot)
+                          ENDIF
                        END IF
 
                     END DO
@@ -742,12 +726,16 @@ MODULE qs_rho_atom_methods
          IF(ASSOCIATED(rho_atom(iatom)%cpc_h(ispin)%r_coef)) THEN
            CALL mp_sum(rho_atom(iatom)%cpc_h(ispin)%r_coef,qs_env%para_env%group)
            CALL mp_sum(rho_atom(iatom)%cpc_s(ispin)%r_coef,qs_env%para_env%group)
+           r_coef => rho_atom(iatom)%cpc_h(ispin)%r_coef
+           r_coef(:,:) = r_coef(:,:)+TRANSPOSE(r_coef(:,:))
+           r_coef => rho_atom(iatom)%cpc_s(ispin)%r_coef
+           r_coef(:,:) = r_coef(:,:)+TRANSPOSE(r_coef(:,:))
          END IF
        ENDDO
 
     END DO
 
-    DEALLOCATE(PC,coef_aux_h,coef_aux_s,p_block_spin,p_matrix,STAT=istat)
+    DEALLOCATE(PC,p_block_spin,p_matrix,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)

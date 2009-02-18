@@ -484,7 +484,8 @@ CONTAINS
                C_int_s(1),nsp,&
                1.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
           !
-          CALL alist_post_align_blk(a_matrix,h_block,lista,nconta,listb,ncontb,error)
+          CALL alist_post_align_blk(a_matrix,SIZE(a_matrix,1),h_block,SIZE(h_block,1),&
+               lista,nconta,listb,ncontb)
        ELSE
           CALL DGEMM('N','T',nsp,nconta,nsp,1.0_dp,int_hard(1,1),SIZE(int_hard,1),&
                C_hh_a(1,1,1),SIZE(C_hh_a,1),&
@@ -499,7 +500,8 @@ CONTAINS
                C_int_s(1),nsp,&
                1.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
           !
-          CALL alist_post_align_blk(a_matrix,h_block,listb,ncontb,lista,nconta,error)
+          CALL alist_post_align_blk(a_matrix,SIZE(a_matrix,1),h_block,SIZE(h_block,1),&
+               listb,ncontb,lista,nconta)
        END IF
     END DO
 
@@ -549,7 +551,8 @@ CONTAINS
     DO ispin = 1,nspins
       p_block => mat_p(ispin)%array
 
-      CALL alist_pre_align_blk(p_block,p_matrix,lista,nconta,listb,ncontb,error)
+      CALL alist_pre_align_blk(p_block,SIZE(p_block,1),p_matrix,SIZE(p_matrix,1),&
+           lista,nconta,listb,ncontb)
 
       int_hard => int_local_h(ispin)%r_coef
       int_soft => int_local_s(ispin)%r_coef

@@ -124,66 +124,66 @@ CONTAINS
   END SUBROUTINE get_alist
 
 
-  SUBROUTINE alist_pre_align_blk(blk_in,blk_out,ilist,in,jlist,jn,error)
-    REAL(dp), DIMENSION(:, :)                :: blk_in, blk_out
-    INTEGER, DIMENSION(:)                    :: ilist
-    INTEGER                                  :: in
-    INTEGER, DIMENSION(:)                    :: jlist
-    INTEGER                                  :: jn
-    TYPE(cp_error_type), INTENT(inout)       :: error
+  SUBROUTINE alist_pre_align_blk(blk_in,ldin,blk_out,ldout,ilist,in,jlist,jn)
+    INTEGER                                  :: ldin
+    REAL(dp)                                 :: blk_in(ldin,*)
+    INTEGER                                  :: ldout
+    REAL(dp)                                 :: blk_out(ldout,*)
+    INTEGER                                  :: ilist(*), in, jlist(*), jn
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'alist_pre_align_blk', &
-      routineP = moduleN//':'//routineN
+    INTEGER                                  :: i, i0, i1, i2, i3, inn, inn1, &
+                                                j, j0
 
-    INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
-
-!
-
-    failure = .FALSE.
-    CPPrecondition(in.LE.SIZE(blk_out,1),cp_failure_level,routineP,error,failure)
-    CPPrecondition(jn.LE.SIZE(blk_out,2),cp_failure_level,routineP,error,failure)
-    CPPrecondition(MAXVAL(ilist(1:in)).LE.SIZE(blk_in,1),cp_failure_level,routineP,error,failure)
-    CPPrecondition(MAXVAL(jlist(1:jn)).LE.SIZE(blk_in,2),cp_failure_level,routineP,error,failure)
-    !
-    IF(.NOT.failure) THEN
-       DO j=1,jn
-          DO i=1,in
-             blk_out(i,j)=blk_in(ilist(i),jlist(j))
-          ENDDO
+    inn = MOD(in,4)
+    inn1 = inn+1
+    DO j = 1,jn
+       j0 = jlist(j)
+       DO i = 1,inn
+          i0 = ilist(i)
+          blk_out(i,j) = blk_in(i0,j0)
        ENDDO
-    ENDIF
+       DO i = inn1,in,4
+          i0 = ilist(i)
+          i1 = ilist(i+1)
+          i2 = ilist(i+2)
+          i3 = ilist(i+3)
+          blk_out(i  ,j) = blk_in(i0,j0)
+          blk_out(i+1,j) = blk_in(i1,j0)
+          blk_out(i+2,j) = blk_in(i2,j0)
+          blk_out(i+3,j) = blk_in(i3,j0)
+       ENDDO
+    ENDDO
   END SUBROUTINE alist_pre_align_blk
 
-  SUBROUTINE alist_post_align_blk(blk_in,blk_out,ilist,in,jlist,jn,error)
-    REAL(dp), DIMENSION(:, :)                :: blk_in, blk_out
-    INTEGER, DIMENSION(:)                    :: ilist
-    INTEGER                                  :: in
-    INTEGER, DIMENSION(:)                    :: jlist
-    INTEGER                                  :: jn
-    TYPE(cp_error_type), INTENT(inout)       :: error
+  SUBROUTINE alist_post_align_blk(blk_in,ldin,blk_out,ldout,ilist,in,jlist,jn)
+    INTEGER                                  :: ldin
+    REAL(dp)                                 :: blk_in(ldin,*)
+    INTEGER                                  :: ldout
+    REAL(dp)                                 :: blk_out(ldout,*)
+    INTEGER                                  :: ilist(*), in, jlist(*), jn
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'alist_post_align_blk', &
-      routineP = moduleN//':'//routineN
+    INTEGER                                  :: i, i0, i1, i2, i3, inn, inn1, &
+                                                j, j0
 
-    INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
-
-!
-
-    failure = .FALSE.
-    CPPrecondition(in.LE.SIZE(blk_in,1),cp_failure_level,routineP,error,failure)
-    CPPrecondition(jn.LE.SIZE(blk_in,2),cp_failure_level,routineP,error,failure)
-    CPPrecondition(MAXVAL(ilist(1:in)).LE.SIZE(blk_out,1),cp_failure_level,routineP,error,failure)
-    CPPrecondition(MAXVAL(jlist(1:jn)).LE.SIZE(blk_out,2),cp_failure_level,routineP,error,failure)
-    !
-    IF(.NOT.failure) THEN
-       DO j=1,jn
-          DO i=1,in
-             blk_out(ilist(i),jlist(j))=blk_out(ilist(i),jlist(j))+blk_in(i,j)
-          ENDDO
+    inn = MOD(in,4)
+    inn1 = inn+1
+    DO j = 1,jn
+       j0 = jlist(j)
+       DO i = 1,inn
+          i0 = ilist(i)
+          blk_out(i0,j0) = blk_out(i0,j0) + blk_in(i,j)
        ENDDO
-    ENDIF
+       DO i = inn1,in,4
+          i0 = ilist(i)
+          i1 = ilist(i+1)
+          i2 = ilist(i+2)
+          i3 = ilist(i+3)
+          blk_out(i0,j0) = blk_out(i0,j0) + blk_in(i  ,j)
+          blk_out(i1,j0) = blk_out(i1,j0) + blk_in(i+1,j)
+          blk_out(i2,j0) = blk_out(i2,j0) + blk_in(i+2,j)
+          blk_out(i3,j0) = blk_out(i3,j0) + blk_in(i+3,j)
+       ENDDO
+    ENDDO
   END SUBROUTINE alist_post_align_blk
 
 !==========================================================================================================
