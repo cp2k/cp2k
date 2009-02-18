@@ -271,12 +271,14 @@ CONTAINS
     CALL p_postortho(p_env,qs_env,r,error=error)
     !
     ! preconditioner
+    linres_control%flag=""
     IF(linres_control%preconditioner_type.EQ.lr_precond_none) THEN
        !
        ! z_0 = r_0
        DO ispin = 1,nspins
           CALL cp_fm_to_fm(r(ispin)%matrix,z(ispin)%matrix,error=error)
        ENDDO
+       linres_control%flag="CG"
     ELSE
        !
        ! z_0 = M * r_0
@@ -284,8 +286,10 @@ CONTAINS
           CALL apply_preconditioner_lr(p_env%preconditioner(ispin),r(ispin)%matrix,&
               &                        z(ispin)%matrix,error=error)
        ENDDO
+       linres_control%flag="PCG"
     ENDIF
     !
+    norm_res = 0.0_dp
     DO ispin = 1,nspins
        !
        ! p_0 = z_0
@@ -294,9 +298,42 @@ CONTAINS
        ! trace(r_0 * z_0)
        CALL cp_fm_trace(r(ispin)%matrix,z(ispin)%matrix,tr_rz0(ispin),error)
        IF(tr_rz0(ispin).LT.0.0_dp) CALL stop_program("linres_cg_step","tr(r_j*z_j) < 0")
+       norm_res = MAX(norm_res,ABS(tr_rz0(ispin))/SQRT(REAL(p_env%n_ao(1)*p_env%n_mo(ispin),dp)))
     ENDDO
     !
+    !
+    alpha(:) = 0.0_dp
+    restart = .FALSE.
     iteration: DO iter = 1,linres_control%max_iter
+       !
+       ! check convergence
+       linres_control%converged = .FALSE.
+       IF(norm_res.LT.linres_control%eps) THEN
+          linres_control%converged = .TRUE.
+       ENDIF
+       !
+       IF(iter.EQ.1.OR.MOD(iter,10).EQ.0.OR.linres_control%converged.OR.restart) THEN
+          IF(output_unit>0) THEN
+             WRITE(output_unit,"(T5,I5,T22,A3,T37,L1,T49,1E8.2,T60,F20.10)")&
+                  iter,linres_control%flag,restart,MAXVAL(alpha),norm_res
+          ENDIF
+       ENDIF
+       !
+       IF(linres_control%converged) THEN
+          IF(output_unit>0) THEN
+             WRITE(output_unit,"(/,T10,A,I4,A,/)") "The linear solver has converged in ",iter," iterations."
+          ENDIF
+          EXIT iteration
+       ENDIF
+       !
+       ! Max number of iteration reached
+       IF(iter == linres_control%max_iter) THEN
+          IF(output_unit>0) THEN
+             WRITE (output_unit,"(/,T10,A/)")&
+                  "The linear solver didnt converge! Maximum number of iterations reached."
+          ENDIF
+          linres_control%converged = .FALSE.
+       ENDIF
        !
        ! Apply the operators that do not depend on the perturbation
        CALL apply_op(p,Ap,p_env,qs_env,linres_control%do_kernel,error)
@@ -382,35 +419,6 @@ CONTAINS
           CALL cp_fm_scale_and_add(beta(ispin),p(ispin)%matrix,1.0_dp,z(ispin)%matrix,error=error)
           tr_rz0(ispin) = tr_rz1(ispin)
        ENDDO
-       !
-       ! check convergence
-       linres_control%converged = .FALSE.
-       IF(iter.NE.1.AND.norm_res.LT.linres_control%eps) THEN
-          linres_control%converged = .TRUE.
-       ENDIF
-       !
-       IF(iter.EQ.1.OR.MOD(iter,10).EQ.0.OR.linres_control%converged.OR.restart) THEN
-          IF(output_unit>0) THEN
-             WRITE(output_unit,"(T5,I5,T22,A3,T37,L1,T49,1E8.2,T60,F20.10)")&
-                  iter,linres_control%flag,restart,MAXVAL(alpha),norm_res
-          ENDIF
-       ENDIF
-       !
-       IF(linres_control%converged) THEN
-          IF(output_unit>0) THEN
-             WRITE(output_unit,"(/,T10,A,I4,A,/)") "The linear solver has converged in ",iter," iterations."
-          ENDIF
-          EXIT iteration
-       ENDIF
-       !
-       ! Max number of iteration reached
-       IF(iter == linres_control%max_iter) THEN
-          IF(output_unit>0) THEN
-             WRITE (output_unit,"(/,T10,A/)")&
-                  "The linear solver didnt converge! Maximum number of iterations reached."
-          ENDIF
-          linres_control%converged = .FALSE.
-       ENDIF
     ENDDO iteration
     !
     ! proj psi1
