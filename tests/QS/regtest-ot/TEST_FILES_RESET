@@ -450,3 +450,31 @@ He2_none_full_inverse.inp
 sic_ddapc_rt.inp
 # FFTW changes 
 He2_ddapc_constraint-4.inp
+# reset for FFT patch 
+He2_ddapc_constraint.inp
+# reset for FFT patch 
+He2_ddapc_constraint-2.inp
+# reset for FFT patch 
+He2_ddapc_constraint-3.inp
+# reset for FFT patch 
+He2_none_full_all.inp
+# reset for FFT patch 
+He2_none_full_inverse.inp
+# reset for FFT patch 
+sic_ddapc_rt.inp
+# reset for FFT patch 
+He2_ddapc_constraint-4.inp
+#  
+He2_ddapc_constraint.inp
+#  
+He2_ddapc_constraint-2.inp
+#  
+He2_ddapc_constraint-3.inp
+#  
+He2_none_full_all.inp
+#  
+He2_none_full_inverse.inp
+#  
+sic_ddapc_rt.inp
+#  
+He2_ddapc_constraint-4.inp

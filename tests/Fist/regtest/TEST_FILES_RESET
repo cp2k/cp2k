@@ -469,3 +469,7 @@ multi_frag.inp
 multi_psf.inp
 # FFTW changes 
 water_hbonds_dist.inp
+# reset for FFT patch 
+water_hbonds_dist.inp
+#  
+water_hbonds_dist.inp

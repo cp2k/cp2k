@@ -94,84 +94,116 @@ SUBROUTINE fftw3_get_lengths ( DATA, max_length )
 END SUBROUTINE fftw3_get_lengths
 
 ! *****************************************************************************
-SUBROUTINE fftw33d ( fft_in_place, fsign, scale, n, zin, zout )
+
+SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style, aligned)
+
+  USE fft_plan,                           ONLY : fft_plan_type, dp
 
   IMPLICIT NONE
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dp = KIND(0.0)
-#else
-  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-#endif
-  LOGICAL, INTENT(IN)                                  :: fft_in_place
-  INTEGER, INTENT(INOUT)                               :: fsign
-  REAL(KIND=dp), INTENT(IN)                            :: scale
-  INTEGER, DIMENSION(*), INTENT(IN)                    :: n
-  COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zin
-  COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zout
 
-! This file is part of the fftw distribution and can be found in the
-! corresponding include directory
-! add this to the path to the -I flags of the CPP
+  TYPE(fft_plan_type), INTENT ( INOUT )              :: plan
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zout
+  INTEGER                                            :: plan_style
+  LOGICAL                                            :: aligned
+  INTEGER                                            :: n1,n2,n3
+
 #if defined ( __FFTW3 )
 #include "fftw3.f"
-  INTEGER, PARAMETER                                   :: fftw_plan_type = FFTW_ESTIMATE
+  INTEGER :: fftw_plan_type
+  SELECT CASE(plan_style)
+  CASE(1)
+         fftw_plan_type = FFTW_ESTIMATE 
+  CASE(2)
+         fftw_plan_type = FFTW_MEASURE
+  CASE(3)
+         fftw_plan_type = FFTW_PATIENT
+  CASE(4)
+         fftw_plan_type = FFTW_EXHAUSTIVE
+  CASE DEFAULT
+   STOP "fftw3_create_plan_3d"
+  END SELECT
+
+  IF (aligned) THEN
+    fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
+  END IF
+
+  n1 = plan%n_3d(1)
+  n2 = plan%n_3d(2)
+  n3 = plan%n_3d(3)
+
+#if defined(__SGL) || defined(__FFTSGL)
+  IF ( plan%fft_in_place .AND. plan%fsign == +1 ) THEN
+    CALL sfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zin,FFTW_FORWARD,fftw_plan_type)
+  ELSE IF ( plan%fft_in_place .AND. plan%fsign == -1 ) THEN
+    CALL sfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zin,FFTW_BACKWARD,fftw_plan_type)
+  ELSE IF ( .NOT. plan%fft_in_place .AND. plan%fsign == +1 ) THEN
+    CALL sfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zout,FFTW_FORWARD,fftw_plan_type)
+  ELSE IF ( .NOT. plan%fft_in_place .AND. plan%fsign == -1 ) THEN
+    CALL sfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zout,FFTW_BACKWARD,fftw_plan_type)
+  END IF
 #else
-  INTEGER, PARAMETER                                   :: fftw_plan_type = 1
+  IF ( plan%fft_in_place .AND. plan%fsign == +1 ) THEN
+    CALL dfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zin,FFTW_FORWARD,fftw_plan_type)
+  ELSE IF ( plan%fft_in_place .AND. plan%fsign == -1 ) THEN
+    CALL dfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zin,FFTW_BACKWARD,fftw_plan_type)
+  ELSE IF ( .NOT. plan%fft_in_place .AND. plan%fsign == +1 ) THEN
+    CALL dfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zout,FFTW_FORWARD,fftw_plan_type)
+  ELSE IF ( .NOT. plan%fft_in_place .AND. plan%fsign == -1 ) THEN
+    CALL dfftw_plan_dft_3d(plan%fftw_plan,n1,n2,n3,zin,zout,FFTW_BACKWARD,fftw_plan_type)
+  END IF
 #endif
 
-#if defined (__NAG)
-  INTEGER*8          :: dummy_64_bit
-  INTEGER, PARAMETER :: integer8_kind = KIND(dummy_64_bit)
-#else
-  INTEGER, PARAMETER :: integer8_kind = 8
 #endif
+
+END SUBROUTINE fftw3_create_plan_3d
+
+SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
+
+  USE fft_plan,                           ONLY : fft_plan_type, dp
+
+  IMPLICIT NONE
+
+  TYPE(fft_plan_type), INTENT(IN)                      :: plan
+  REAL(KIND=dp), INTENT(IN)                            :: scale
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zin
+  COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)        :: zout
+  INTEGER, INTENT(OUT)                                 :: stat
 
   INTEGER                                  :: n1, n2, n3
-  INTEGER(KIND=integer8_kind)              :: plan
 
 !------------------------------------------------------------------------------
 
-  n1 = n(1)
-  n2 = n(2)
-  n3 = n(3)
+  n1 = plan%n_3d(1)
+  n2 = plan%n_3d(2)
+  n3 = plan%n_3d(3)
 
 #if defined ( __FFTW3 )
+  stat = 1
 
 #if defined(__SGL) || defined(__FFTSGL)
-  IF ( fft_in_place .AND. fsign == +1 ) THEN
-    CALL sfftw_plan_dft_3d(plan,n1,n2,n3,zin,zin,FFTW_FORWARD,fftw_plan_type)
-  ELSE IF ( fft_in_place .AND. fsign == -1 ) THEN
-    CALL sfftw_plan_dft_3d(plan,n1,n2,n3,zin,zin,FFTW_BACKWARD,fftw_plan_type)
-  ELSE IF ( .NOT. fft_in_place .AND. fsign == +1 ) THEN
-    CALL sfftw_plan_dft_3d(plan,n1,n2,n3,zin,zout,FFTW_FORWARD,fftw_plan_type)
-  ELSE IF ( .NOT. fft_in_place .AND. fsign == -1 ) THEN
-    CALL sfftw_plan_dft_3d(plan,n1,n2,n3,zin,zout,FFTW_BACKWARD,fftw_plan_type)
+  IF ( plan%fft_in_place ) THEN
+    CALL sfftw_execute_dft(plan%fftw_plan, zin, zin)
+  ELSE
+    CALL sfftw_execute_dft(plan%fftw_plan, zin, zout)
   END IF
-  CALL sfftw_execute(plan)
-  CALL sfftw_destroy_plan(plan)
 #else
-  IF ( fft_in_place .AND. fsign == +1 ) THEN
-    CALL dfftw_plan_dft_3d(plan,n1,n2,n3,zin,zin,FFTW_FORWARD,fftw_plan_type)
-  ELSE IF ( fft_in_place .AND. fsign == -1 ) THEN
-    CALL dfftw_plan_dft_3d(plan,n1,n2,n3,zin,zin,FFTW_BACKWARD,fftw_plan_type)
-  ELSE IF ( .NOT. fft_in_place .AND. fsign == +1 ) THEN
-    CALL dfftw_plan_dft_3d(plan,n1,n2,n3,zin,zout,FFTW_FORWARD,fftw_plan_type)
-  ELSE IF ( .NOT. fft_in_place .AND. fsign == -1 ) THEN
-    CALL dfftw_plan_dft_3d(plan,n1,n2,n3,zin,zout,FFTW_BACKWARD,fftw_plan_type)
+  IF ( plan%fft_in_place ) THEN
+    CALL dfftw_execute_dft(plan%fftw_plan, zin, zin)
+  ELSE
+    CALL dfftw_execute_dft(plan%fftw_plan, zin, zout)
   END IF
-  CALL dfftw_execute(plan)
-  CALL dfftw_destroy_plan(plan)
 #endif
 
   IF ( scale /= 1.0_dp ) THEN
 #if defined(__SGL) || defined(__FFTSGL)
-    IF ( fft_in_place ) THEN
+    IF ( plan%fft_in_place ) THEN
       CALL csscal(n1*n2*n3,scale,zin,1)
     ELSE
       CALL csscal(n1*n2*n3,scale,zout,1)
     END IF
 #else
-    IF ( fft_in_place ) THEN
+    IF ( plan%fft_in_place ) THEN
       CALL zdscal(n1*n2*n3,scale,zin,1)
     ELSE
       CALL zdscal(n1*n2*n3,scale,zout,1)
@@ -181,7 +213,7 @@ SUBROUTINE fftw33d ( fft_in_place, fsign, scale, n, zin, zout )
 
 #else
 
-  fsign = 0
+  stat = 0
 
 #endif
 
@@ -189,7 +221,7 @@ END SUBROUTINE fftw33d
 
 ! *****************************************************************************
 
-SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style)
+SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style, aligned)
 
   USE fft_plan,                           ONLY : fft_plan_type, dp
 
@@ -197,6 +229,7 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style)
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zout
   INTEGER                                            :: plan_style
+  LOGICAL                                            :: aligned
   INTEGER                                            :: ii,di,io,DO
 
 #if defined ( __FFTW3 )
@@ -204,14 +237,20 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style)
   INTEGER :: fftw_plan_type 
   SELECT CASE(plan_style)
   CASE(1)
-         fftw_plan_type = FFTW_ESTIMATE + FFTW_UNALIGNED
+         fftw_plan_type = FFTW_ESTIMATE
   CASE(2)
-         fftw_plan_type = FFTW_MEASURE + FFTW_UNALIGNED
+         fftw_plan_type = FFTW_MEASURE
   CASE(3)
-         fftw_plan_type = FFTW_PATIENT + FFTW_UNALIGNED
+         fftw_plan_type = FFTW_PATIENT
+  CASE(4)
+         fftw_plan_type = FFTW_EXHAUSTIVE
   CASE DEFAULT
    STOP "fftw3_create_plan_1dm"
   END SELECT
+
+  IF (aligned) THEN
+    fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
+  END IF
 
   ii = 1
   di = plan%n
@@ -265,19 +304,21 @@ SUBROUTINE fftw3_destroy_plan ( plan )
 
 END SUBROUTINE fftw3_destroy_plan
 
-SUBROUTINE fftw31dm ( plan, zin, zout, scale )
+SUBROUTINE fftw31dm ( plan, zin, zout, scale, stat )
 
   USE fft_plan,                 ONLY : fft_plan_type, dp
 
   IMPLICIT NONE
-  TYPE (fft_plan_type), INTENT (INOUT)               :: plan
+  TYPE (fft_plan_type), INTENT (IN)                  :: plan
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zout
   REAL (KIND=dp), INTENT ( IN )                      :: scale
+  INTEGER, INTENT(OUT)                               :: stat
 
 !------------------------------------------------------------------------------
 
 #if defined ( __FFTW3 )
+  stat=1
 #if defined(__SGL) || defined(__FFTSGL)
   CALL sfftw_execute_dft(plan%fftw_plan, zin, zout)
   IF ( scale /= 1.0_dp ) CALL csscal(plan%n*plan%m,scale,zout,1)
@@ -287,7 +328,7 @@ SUBROUTINE fftw31dm ( plan, zin, zout, scale )
 #endif
 #else
 
-plan%fsign = 0
+  stat=0
 
 #endif
 

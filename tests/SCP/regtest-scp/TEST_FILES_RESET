@@ -104,3 +104,15 @@ w2.inp
 w2-r1.inp
 # FFTW changes 
 w2-r2.inp
+# reset for FFT patch 
+w2.inp
+# reset for FFT patch 
+w2-r1.inp
+# reset for FFT patch 
+w2-r2.inp
+#  
+w2.inp
+#  
+w2-r1.inp
+#  
+w2-r2.inp

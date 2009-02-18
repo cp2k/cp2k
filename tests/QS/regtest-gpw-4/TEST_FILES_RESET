@@ -603,3 +603,23 @@ He3_multi_ddapc.inp
 h2o-otdiag.inp
 # FFTW changes 
 h2o-otdiag-lsd.inp
+# reset for FFT patch 
+spin_restraint.inp
+# reset for FFT patch 
+NO2-EFG-1.inp
+# reset for FFT patch 
+He3_multi_ddapc.inp
+# reset for FFT patch 
+h2o-otdiag.inp
+# reset for FFT patch 
+h2o-otdiag-lsd.inp
+#  
+spin_restraint.inp
+#  
+NO2-EFG-1.inp
+#  
+He3_multi_ddapc.inp
+#  
+h2o-otdiag.inp
+#  
+h2o-otdiag-lsd.inp

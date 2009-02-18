@@ -572,3 +572,7 @@ H2O_meta_pop.inp
 H2O_meta_langevin.inp
 # FFTW changes 
 hcn_ts_r.inp
+# reset for FFT patch 
+hcn_ts_r.inp
+#  
+hcn_ts_r.inp

@@ -617,3 +617,51 @@ H2O.inp
 H2_trip.inp
 # FFTW changes 
 C_fermi.inp
+# reset for FFT patch 
+N3-2.inp
+# reset for FFT patch 
+N3-3.inp
+# reset for FFT patch 
+N3-4.inp
+# reset for FFT patch 
+N3-5.inp
+# reset for FFT patch 
+N3-6.inp
+# reset for FFT patch 
+N3-7.inp
+# reset for FFT patch 
+N3-8.inp
+# reset for FFT patch 
+N3-9.inp
+# reset for FFT patch 
+N3-10.inp
+# reset for FFT patch 
+H2O.inp
+# reset for FFT patch 
+H2_trip.inp
+# reset for FFT patch 
+C_fermi.inp
+#  
+N3-2.inp
+#  
+N3-3.inp
+#  
+N3-4.inp
+#  
+N3-5.inp
+#  
+N3-6.inp
+#  
+N3-7.inp
+#  
+N3-8.inp
+#  
+N3-9.inp
+#  
+N3-10.inp
+#  
+H2O.inp
+#  
+H2_trip.inp
+#  
+C_fermi.inp

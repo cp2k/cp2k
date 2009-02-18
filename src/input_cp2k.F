@@ -258,7 +258,8 @@ CONTAINS
          enum_i_vals=(/do_fft_sg,do_fft_fftw,do_fft_essl,do_fft_acml,do_fft_mkl,do_fft_sci,do_fft_cu/),&
          enum_c_vals=s2a("FFTSG","FFTW","FFTESSL","FFTACML","FFTMKL","FFTSCI","FFTCU"),&
          enum_desc=s2a("Stefan Goedecker FFT, always available, will be used in case a FFT lib is specified and not available",&
-                       "a fast portable FFT library. Recommended. This will use either FFTW2 or FFTW3, as available",&
+                       "a fast portable FFT library. Recommended. This will use either FFTW2 or FFTW3, as available"//&
+                       "See also the FFTW_ARRAYS_ALIGNED, FFTW_PLAN_TYPE, and FFTW_WISDOM_FILE_NAME keywords.",&
                        "available/tuned for IBM machines",&
                        "available/tuned for AMD machines (buggy & untested)",&
                        "available/tuned for INTEL machines (untested in parallel)",&
@@ -286,21 +287,36 @@ CONTAINS
                      "While a plan based on measurements is generally faster, "//& 
                      "differences in machine load will lead to different plans for the same input file, "//&
                      "and thus numerics for the FFTs will be slightly different from run to run."//&
-                     "PATIENT planning is recommended for ab initio MD runs.",&
+                     "PATIENT planning is recommended for long ab initio MD runs.",&
          usage="FFTW_PLAN_TYPE PATIENT",&
          citations=(/Frigo2005/),&
          default_i_val=fftw_plan_estimate, &
-         enum_i_vals=(/fftw_plan_estimate,fftw_plan_measure,fftw_plan_patient/), &
+         enum_i_vals=(/fftw_plan_estimate,fftw_plan_measure,fftw_plan_patient,fftw_plan_exhaustive/), &
          enum_c_vals=s2a("ESTIMATE",&
                          "MEASURE",&
-                         "PATIENT"),&
+                         "PATIENT",&
+                         "EXHAUSTIVE"),&
          enum_desc=s2a("Quick estimate, no runtime measurements.",&
                        "Quick measurement, somewhat faster FFTs.",&
-                       "Measurements trying a wider range of possibilities."),&
+                       "Measurements trying a wider range of possibilities.",&
+                       "Measurements trying all possibilities - use with caution."),&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+   CALL keyword_create(keyword, name="FFTW_ARRAYS_ALIGNED",&
+         description="FFTW3 can make use of SIMD (e.g SSE/AltiVec) instructions for improved performance "//&
+                     "provided the FFT arrays are aligned correctly.  There is no "//&
+                     "platform-independent way to achieve this, although most modern"//&
+                     "compilers will align the arrays correctly.  This flag is used to"//&
+                     "tell FFTW3 if it can generate plans with SIMD instructions.",&
+         usage="FFTW_ARRAYS_ALIGNED NO",&
+         citations=(/Frigo2005/),&
+         default_l_val=.TRUE., &
+         lone_keyword_l_val=.TRUE., &
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="EXTENDED_FFT_LENGTHS",&
          description="Use fft library specific values for the allows number of points in FFTs. "//&

@@ -308,3 +308,15 @@ Li-hybrid-rcam-b3lyp.inp
 Ne-hybrid-rcam-b3lyp.inp
 # FFTW changes 
 Ne-hybrid-MCY3.inp
+# reset for FFT patch 
+Li-hybrid-rcam-b3lyp.inp
+# reset for FFT patch 
+Ne-hybrid-rcam-b3lyp.inp
+# reset for FFT patch 
+Ne-hybrid-MCY3.inp
+#  
+Li-hybrid-rcam-b3lyp.inp
+#  
+Ne-hybrid-rcam-b3lyp.inp
+#  
+Ne-hybrid-MCY3.inp

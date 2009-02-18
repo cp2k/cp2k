@@ -148,3 +148,11 @@ kg_gpw_2H2O_ppot.inp
 nai-1.inp
 # FFTW changes 
 nai-4.inp
+# reset for FFT patch 
+nai-1.inp
+# reset for FFT patch 
+nai-4.inp
+#  
+nai-1.inp
+#  
+nai-4.inp

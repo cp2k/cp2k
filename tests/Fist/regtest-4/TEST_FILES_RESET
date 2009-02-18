@@ -188,3 +188,15 @@ nh3-meta-walks_1r.inp
 nh3-meta-walks_2r.inp
 # FFTW changes 
 H2O-meta-combine.inp
+# reset for FFT patch 
+nh3-meta-walks_1r.inp
+# reset for FFT patch 
+nh3-meta-walks_2r.inp
+# reset for FFT patch 
+H2O-meta-combine.inp
+#  
+nh3-meta-walks_1r.inp
+#  
+nh3-meta-walks_2r.inp
+#  
+H2O-meta-combine.inp

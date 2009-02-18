@@ -28,3 +28,19 @@ CH_BeckeRoussel_R_1.0.inp
 CH_PBE_HOLE_T_C_LR_1.0.inp
 # FFTW changes 
 CH_GV09_1.0.inp
+# reset for FFT patch 
+CH_BeckeRoussel_R_1.0.inp
+# reset for FFT patch 
+CH_PBE_HOLE_T_C_LR_1.0.inp
+# reset for FFT patch 
+CH_GV09_1.0.inp
+#  
+CH_LDA_HOLE_T_C_LR_1.0.inp
+#  
+CH_BeckeRoussel_R_1.0.inp
+#  
+CH_PBE_HOLE_T_C_LR_1.0.inp
+#  
+CH_GV09_1.0.inp
+#  
+CH_LDA_HOLE_T_C_LR_1.0.inp

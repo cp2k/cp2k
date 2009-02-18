@@ -334,3 +334,7 @@ H2O-qmmm-gauss-4.inp
 H2O-qmmm-none-1.inp
 # FFTW changes 
 Ar-qmmm.inp
+# reset for FFT patch 
+Ar-qmmm.inp
+#  
+Ar-qmmm.inp

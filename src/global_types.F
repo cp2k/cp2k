@@ -88,6 +88,7 @@ MODULE global_types
 
      INTEGER :: fft_pool_scratch_limit !! limit used for fft scratches
      INTEGER :: fftw_plan_type !! which kind of planning to use with fftw
+     LOGICAL :: fftw_arrays_aligned !! specify whether fft arrays are suitable for SIMD
      INTEGER :: idum         !! random number seed
      INTEGER :: prog_name_id !! index to define the type of program
      INTEGER :: run_type_id  !! index to define the run_tupe

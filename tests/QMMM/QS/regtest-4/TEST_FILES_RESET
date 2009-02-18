@@ -160,3 +160,15 @@ acn-conn-1.inp
 acn-qmmm-re.inp
 # FFTW changes 
 acn-conn-1.inp
+# reset for FFT patch 
+acn-qmmm-re.inp
+# reset for FFT patch 
+acn-conn-1.inp
+#  
+crys_per_qmmm_spln.inp
+#  
+acn-qmmm-re.inp
+#  
+acn-conn-1.inp
+#  
+crys_per_qmmm_spln.inp

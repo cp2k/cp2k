@@ -150,3 +150,7 @@ CO_xastpxfh.inp
 CO_xastpxfh_locall.inp
 # FFTW changes 
 CO_xastpxfh.inp
+# reset for FFT patch 
+CO_xastpxfh.inp
+#  
+CO_xastpxfh.inp
