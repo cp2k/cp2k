@@ -27,3 +27,5 @@ argon.inp                25
 ace_ala_nme.inp           7
 ace_ala_nme-ambconn.inp   7
 ace_ala_nme-amber.inp     7
+#EAM alloys
+agpt.inp                  2

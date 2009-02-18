@@ -252,8 +252,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, i, iend, ifirst, igrp, ikind, ilast, &
-      ilist, ipair, istart, iunique, jkind, junique, mpair, nkinds, &
-      nloc_size, npairs, nunique, stat
+      ilist, ipair, istart, iunique, jkind, junique, kind_a, kind_b, mpair, &
+      nkinds, nloc_size, npairs, nunique, stat
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
     LOGICAL                                  :: any_tersoff, failure
@@ -262,7 +262,7 @@ CONTAINS
       rtmp(3)
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: glob_cell_v
-    TYPE(eam_pot_type), POINTER              :: eam
+    TYPE(eam_pot_type), POINTER              :: eam_a, eam_b
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -274,7 +274,7 @@ CONTAINS
     failure     = .FALSE.
     any_tersoff = .FALSE.
     CALL timeset ( routineN, handle )
-    NULLIFY(eam,tersoff)
+    NULLIFY(eam_a, eam_b, tersoff)
 
     CALL fist_nonbond_env_get(fist_nonbond_env,nonbonded=nonbonded,potparm=potparm,&
          natom_types=nkinds,r_last_update_pbc=r_last_update_pbc,error=error)
@@ -286,23 +286,6 @@ CONTAINS
        ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
     END IF
     ! starting the force loop
-    ! !$OMP parallel do default(none) &
-    ! !$OMP shared(nkinds) &
-    ! !$OMP private(ikind,jkind) &
-    ! !$OMP shared(potparm) &
-    ! !$OMP private(is_eam) &
-    ! !$OMP shared(nonbonded, use_virial) &
-    ! !$OMP private(rab,rab2_max) &
-    ! !$OMP private(ilist,nlist,atom_a,atom_b,npairs,list,inode,nnode) &
-    ! !$OMP shared(cell) &
-    ! !$OMP private(f_eam,pot,fr,fscalar,energy) &
-    ! !$OMP shared(f_nonbond,pv_nonbond,r_last_update) &
-    ! !$OMP private(rab2) &
-    ! !$OMP private(neighbor_kind_pair) &
-    ! !$OMP shared(particle_set,r_last_update_pbc) &
-    ! !$OMP reduction(+:ptens11,ptens12,ptens13,ptens21,ptens22,ptens23, &
-    ! !$OMP             ptens31,ptens32,ptens33) &
-    ! !$OMP private(ipair) 
 
     DO ilist=1,nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
@@ -323,22 +306,25 @@ CONTAINS
              ! EAM
              any_tersoff = any_tersoff.OR.ANY(pot%type==tersoff_type)
              IF (pot%type(i)==ea_type) THEN
-                eam => pot%set(i)%eam
                 DO ipair = istart, iend
                    atom_a = list(1,ipair)
                    atom_b = list(2,ipair)
+                   kind_a = particle_set(atom_a)%atomic_kind%kind_number
+                   kind_b = particle_set(atom_b)%atomic_kind%kind_number
+                   eam_a => potparm%pot(kind_a,kind_a)%pot%set(i)%eam
+                   eam_b => potparm%pot(kind_b,kind_b)%pot%set(i)%eam
+                   
                    !set this outside the potential type in case need multiple potentials
-                   fr(:) = 0.0_dp
                    !Do everything necessary for EAM here
-                   rab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
-                   rab = rab+cell_v
+                   rab  = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+                   rab  = rab+cell_v
                    rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                    IF (rab2 <= rab2_max) THEN
-                      CALL get_force_eam ( rab2, eam, particle_set, atom_a, atom_b, f_eam )
-                      fr(1) =  - f_eam * rab ( 1 )
-                      fr(2) =  - f_eam * rab ( 2 )
-                      fr(3) =  - f_eam * rab ( 3 )
+                      CALL get_force_eam ( rab2, eam_a, eam_b, particle_set, atom_a, atom_b, f_eam )
           
+                      fr(1) = - f_eam * rab(1)
+                      fr(2) = - f_eam * rab(2)
+                      fr(3) = - f_eam * rab(3)
                       f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
                       f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
                       f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
