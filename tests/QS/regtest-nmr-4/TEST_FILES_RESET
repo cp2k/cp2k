@@ -201,3 +201,13 @@ h2o-gapw-1.inp
 o2-gapw-uks-1.inp
 c2h2_list-1.inp
 no_list-1.inp
+# speedup projection
+h2o-gapw-1.inp
+# speedup projection
+ch4-gapw-1.inp
+# speedup projection
+o2-gapw-uks-1.inp
+# speedup projection
+c2h2_list-1.inp
+# speedup projection
+no_list-1.inp

@@ -227,3 +227,11 @@ h2o-gapw-3.inp
 o2-gapw-uks-1.inp
 o2-gapw-uks-3.inp
 o2-gapw-uks-4.inp
+# speedup projection
+h2o-gapw-1.inp
+# speedup projection
+h2o-gapw-3.inp
+# speedup projection
+h2o-gapw-4.inp
+# speedup projection
+o2-gapw-uks-1.inp

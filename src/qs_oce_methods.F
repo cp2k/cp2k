@@ -36,6 +36,7 @@ MODULE qs_oce_methods
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
+  USE qs_util,                         ONLY: exp_radius
   USE sap_kind_types,                  ONLY: clist_type,&
                                              sap_int_type
   USE timings,                         ONLY: timeset,&
@@ -52,12 +53,13 @@ MODULE qs_oce_methods
 
 ! *** Public subroutines ***
 
-  PUBLIC :: build_oce_matrices
+  PUBLIC :: build_oce_matrices,proj_blk
 
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE build_oce_block(oceh,oces,atom_ka,atom_kb,rab,dab,nder,sgf_list,nsgf_cnt,error)
+  SUBROUTINE build_oce_block(oceh,oces,atom_ka,atom_kb,rab,dab,nder,sgf_list,nsgf_cnt,sgf_soft_only,&
+       eps_fit,error)
 
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: oceh, oces
@@ -67,6 +69,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nder
     INTEGER, DIMENSION(:), INTENT(OUT)       :: sgf_list
     INTEGER, INTENT(OUT)                     :: nsgf_cnt
+    LOGICAL, INTENT(OUT)                     :: sgf_soft_only
+    REAL(dp), INTENT(IN)                     :: eps_fit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_oce_block', &
@@ -77,13 +81,14 @@ CONTAINS
       lpoint, lprj, lsgfb, lsgfb_cnt, lshell, lx, ly, lz, m, m1, maxcob, &
       maxder, maxlb, maxlprj, maxnprja, maxsoa, n, ncob, np_car, np_sph, &
       nseta, nsetb, nsoatot, nthread, ntotsgfb, omp_get_max_threads, &
-      omp_get_thread_num
+      omp_get_thread_num, sgf_hard_only
     INTEGER, DIMENSION(:), POINTER           :: fp_cara, fp_spha, lb_max, &
                                                 lb_min, npgfb, nprjla, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
     LOGICAL                                  :: calculate_forces, failure, &
                                                 paw_atom_a, paw_atom_b
-    REAL(dp)                                 :: hard_radius_a, rcprja
+    REAL(dp)                                 :: hard_radius_a, hard_radius_b, &
+                                                radius, rcprja
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: s
     REAL(dp), DIMENSION(:), POINTER          :: set_radius_b, zisominb
@@ -102,7 +107,8 @@ CONTAINS
 
    NULLIFY(orb_basis_b,paw_proj_b)
    CALL get_atomic_kind(atomic_kind=atom_kb,orb_basis_set=orb_basis_b,&
-                         paw_proj_set=paw_proj_b,paw_atom=paw_atom_b)
+                         paw_proj_set=paw_proj_b,paw_atom=paw_atom_b,&
+                         hard_radius=hard_radius_b)
 
    IF(.NOT. paw_atom_a) RETURN
 
@@ -168,10 +174,16 @@ CONTAINS
     m1 = 0
     nsgf_cnt = 0
     isgfb_cnt = 1
+    sgf_hard_only = 0
     DO jset = 1,nsetb
        !
        ! Set the contribution list
        IF(hard_radius_a + set_radius_b(jset) >= dab) THEN
+
+          ! check if this function is hard
+          radius = exp_radius(lb_max(jset),MAXVAL(zetb(1:npgfb(jset),jset)),eps_fit,1.0_dp)
+          IF(radius.LE.hard_radius_b) sgf_hard_only = sgf_hard_only + 1
+
           isgfb = first_sgfb(1,jset)
           lsgfb = isgfb - 1 + nsgfb(jset)
           DO jc = isgfb,lsgfb
@@ -364,6 +376,10 @@ CONTAINS
       m1 = m1 + maxcob
     ENDDO  !jset
 
+    ! check if the screened functions are all soft
+    sgf_soft_only = .FALSE.
+    IF(sgf_hard_only.EQ.0) sgf_soft_only = .TRUE.
+
     DEALLOCATE(s,spa_sbt,spa_tmpt,sdpa_tmpt,ovc,ovs ,STAT = istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -378,7 +394,7 @@ CONTAINS
 !> \author jgh
 ! *****************************************************************************
   SUBROUTINE build_oce_matrices(intac, calculate_forces, nder,&
-                    atomic_kind_set, particle_set, sap_oce, error)
+                    atomic_kind_set, particle_set, sap_oce, eps_fit, error)
 
     TYPE(sap_int_type), DIMENSION(:), &
       POINTER                                :: intac
@@ -390,6 +406,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sap_oce
+    REAL(dp), INTENT(IN)                     :: eps_fit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_oce_matrices', &
@@ -405,7 +422,8 @@ CONTAINS
                                                 la_min, npgfa, nprjla, &
                                                 nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, paw_atom_b
+    LOGICAL                                  :: failure, paw_atom_b, &
+                                                sgf_soft_only
     REAL(KIND=dp)                            :: dab, rcprj
     REAL(KIND=dp), DIMENSION(3)              :: rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
@@ -545,8 +563,10 @@ CONTAINS
                  at_a => atomic_kind_set(jkind)
                  at_b => atomic_kind_set(ikind)
 
-                 CALL build_oce_block(oceh,oces,at_a,at_b,rab,dab,nder,sgf_list,nsgf_cnt,error)
+                 CALL build_oce_block(oceh,oces,at_a,at_b,rab,dab,nder,sgf_list,nsgf_cnt,&
+                      sgf_soft_only,eps_fit,error)
 
+                 clist%sgf_soft_only = sgf_soft_only
                  clist%nsgf_cnt = nsgf_cnt
                  IF(nsgf_cnt.GT.0) THEN
 
@@ -597,5 +617,62 @@ CONTAINS
  END SUBROUTINE build_oce_matrices
 
 !==========================================================================================================
-  
+
+! *****************************************************************************
+!> \brief Project a matrix block onto the local atomic functions.
+!>        
+!> \par History
+!>      02.2009 created
+!> \author vw
+! *****************************************************************************
+  SUBROUTINE proj_blk(h_a,s_a,na,h_b,s_b,nb,blk,ldb,proj_h,proj_s,nso,buf1,buf2,fac,distab)
+
+    INTEGER                                  :: na
+    REAL(dp)                                 :: s_a(na,*), h_a(na,*)
+    INTEGER                                  :: nb
+    REAL(dp)                                 :: s_b(nb,*), h_b(nb,*)
+    INTEGER                                  :: ldb
+    REAL(dp)                                 :: blk(ldb,*)
+    INTEGER                                  :: nso
+    REAL(dp)                                 :: proj_s(nso,*), proj_h(nso,*), &
+                                                buf1(*), buf2(*), fac
+    LOGICAL                                  :: distab
+
+!
+
+    IF(na.EQ.0.OR.nb.EQ.0.OR.nso.EQ.0) RETURN
+    !
+    ! handle special cases
+    IF(na.EQ.1.AND.nb.EQ.1) THEN
+       !
+       ! hard
+       CALL dger(nso,nso,fac*blk(1,1),h_a(1,1),1,h_b(1,1),1,proj_h(1,1),nso)
+       !
+       ! soft
+       CALL dger(nso,nso,fac*blk(1,1),s_a(1,1),1,s_b(1,1),1,proj_s(1,1),nso)
+    ELSE
+       IF (distab) THEN
+          !
+          ! hard
+          CALL dgemm('N','N',na,nso,nb,fac,blk(1,1),ldb,h_b(1,1),nb,0.0_dp,buf1(1),na)
+          CALL dgemm('T','N',nso,nso,na,1.0_dp,h_a(1,1),na,buf1(1),na,0.0_dp,buf2(1),nso)
+          CALL daxpy(nso*nso,1.0_dp,buf2(1),1,proj_h(1,1),1)
+          !
+          ! soft
+          CALL daxpy(nso*nso,1.0_dp,buf2(1),1,proj_s(1,1),1)
+       ELSE
+          !
+          ! hard
+          CALL dgemm('N','N',na,nso,nb,fac,blk(1,1),ldb,h_b(1,1),nb,0.0_dp,buf1(1),na)
+          CALL dgemm('T','N',nso,nso,na,1.0_dp,h_a(1,1),na,buf1(1),na,1.0_dp,proj_h(1,1),nso)
+          !
+          ! soft
+          CALL dgemm('N','N',na,nso,nb,fac,blk(1,1),ldb,s_b(1,1),nb,0.0_dp,buf1(1),na)
+          CALL dgemm('T','N',nso,nso,na,1.0_dp,s_a(1,1),na,buf1(1),na,1.0_dp,proj_s(1,1),nso)
+       ENDIF
+    ENDIF
+    !
+  END SUBROUTINE proj_blk
+ 
+
 END MODULE qs_oce_methods

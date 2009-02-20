@@ -48,6 +48,7 @@ MODULE qs_linres_atom_current
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
+  USE qs_oce_methods,                  ONLY: proj_blk
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE sap_kind_types,                  ONLY: alist_pre_align_blk,&
@@ -102,18 +103,17 @@ CONTAINS
       num_pe
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
-    LOGICAL                                  :: failure, is_not_associated, &
-                                                paw_atom
+    LOGICAL :: dista, distab, distb, failure, is_not_associated, paw_atom, &
+      sgf_soft_only_a, sgf_soft_only_b
     REAL(dp)                                 :: eps_cpc, hard_radius_a, &
                                                 hard_radius_b, hard_radius_c, &
                                                 jmax, rab(3), rbc(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_matrix, b_matrix, c_matrix, &
                                                 d_matrix
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: PC
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp_coeff, zero_coeff
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: C_coeff_hh_a, C_coeff_hh_b, &
-                                                C_coeff_ss_a, C_coeff_ss_b
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: CPC, PC1
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: C_coeff_hh_a, C_coeff_hh_b, &
+      C_coeff_ss_a, C_coeff_ss_b, r_coef, r_coef_h, r_coef_s, tmp_coeff, &
+      zero_coeff
     TYPE(alist_type), POINTER                :: alist_ac, alist_bc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -188,7 +188,8 @@ CONTAINS
     ALLOCATE(a_matrix(max_nsgf,max_nsgf),b_matrix(max_nsgf,max_nsgf),&
              c_matrix(max_nsgf,max_nsgf),d_matrix(max_nsgf,max_nsgf),&
              a_block(nspins),b_block(nspins),c_block(nspins),d_block(nspins),&
-             jp_RARnu(nspins),jp2_RARnu(nspins),PC(max_nsgf*max_gau),STAT=istat)
+             jp_RARnu(nspins),jp2_RARnu(nspins),PC1(max_nsgf*max_gau),&
+             CPC(max_gau*max_gau),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !
     ! Reset CJC coefficients and local density arrays
@@ -339,7 +340,16 @@ CONTAINS
                             !
                             n_cont_a = alist_ac%clist(kac)%nsgf_cnt
                             n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
+                            sgf_soft_only_a = alist_ac%clist(kac)%sgf_soft_only
+                            sgf_soft_only_b = alist_bc%clist(kbc)%sgf_soft_only
                             IF(n_cont_a.EQ.0.OR.n_cont_b.EQ.0) CYCLE
+                            !
+                            ! thanks to the linearity of the response, we
+                            ! can avoid computing soft-soft interations.
+                            ! those terms are already included in the 
+                            ! regular grid.
+                            IF(sgf_soft_only_a.AND.sgf_soft_only_b) CYCLE
+                            !
                             list_a => alist_ac%clist(kac)%sgf_list
                             list_b => alist_bc%clist(kbc)%sgf_list
                             !
@@ -352,196 +362,94 @@ CONTAINS
                             ! Compute the modified Qai matrix as
                             ! mQai_\mu\nu = Qai_\mu\nu - Qbi_\mu\nu * (R_A-R_\nu)_ii
                             !             + Qci_\mu\nu * (R_A-R_\nu)_iii
-                          rbc = alist_bc%clist(kbc)%rac
-                          DO ispin = 1,nspins
-                             CALL DCOPY(nsgfa*nsgfb,b_block(ispin)%r_coef(1,1),1,&
-                              &     jp_RARnu(ispin)%r_coef(1,1),1)
-                             CALL DAXPY(nsgfa*nsgfb,-rbc(ii),d_block(ispin)%r_coef(1,1),1,&
-                              &     jp_RARnu(ispin)%r_coef(1,1),1)
-                             CALL DAXPY(nsgfa*nsgfb,rbc(iii),c_block(ispin)%r_coef(1,1),1,&
-                              &     jp_RARnu(ispin)%r_coef(1,1),1)
-                          ENDDO
-                          !
-                          ! Get the d_A's for the hard and soft densities.
-                          IF(iatom==katom .AND. ALL(alist_ac%clist(kac)%cell == 0)) THEN
-                            C_coeff_hh_a => alist_ac%clist(kac)%achint
-                            C_coeff_ss_a => alist_ac%clist(kac)%acint
-                          ELSE
-                            C_coeff_hh_a => alist_ac%clist(kac)%acint
-                            C_coeff_ss_a => alist_ac%clist(kac)%acint
-                          END IF
-                          ! Get the d_B's for the hard and soft densities.
-                          IF(jatom==katom .AND. ALL(alist_bc%clist(kbc)%cell == 0)) THEN
-                            C_coeff_hh_b => alist_bc%clist(kbc)%achint
-                            C_coeff_ss_b => alist_bc%clist(kbc)%acint
-                          ELSE
-                            C_coeff_hh_b => alist_bc%clist(kbc)%acint
-                            C_coeff_ss_b => alist_bc%clist(kbc)%acint
-                          END IF
+                            rbc = alist_bc%clist(kbc)%rac
+                            DO ispin = 1,nspins
+                               CALL DCOPY(nsgfa*nsgfb,b_block(ispin)%r_coef(1,1),1,&
+                                    &     jp_RARnu(ispin)%r_coef(1,1),1)
+                               CALL DAXPY(nsgfa*nsgfb,-rbc(ii),d_block(ispin)%r_coef(1,1),1,&
+                                    &     jp_RARnu(ispin)%r_coef(1,1),1)
+                               CALL DAXPY(nsgfa*nsgfb,rbc(iii),c_block(ispin)%r_coef(1,1),1,&
+                                    &     jp_RARnu(ispin)%r_coef(1,1),1)
+                            ENDDO
+                            !
+                            ! Get the d_A's for the hard and soft densities.
+                            IF(iatom==katom .AND. ALL(alist_ac%clist(kac)%cell == 0)) THEN
+                               C_coeff_hh_a => alist_ac%clist(kac)%achint(:,:,1)
+                               C_coeff_ss_a => alist_ac%clist(kac)%acint(:,:,1)
+                               dista=.FALSE.
+                            ELSE
+                               C_coeff_hh_a => alist_ac%clist(kac)%acint(:,:,1)
+                               C_coeff_ss_a => alist_ac%clist(kac)%acint(:,:,1)
+                               dista=.TRUE.
+                            END IF
+                            ! Get the d_B's for the hard and soft densities.
+                            IF(jatom==katom .AND. ALL(alist_bc%clist(kbc)%cell == 0)) THEN
+                               C_coeff_hh_b => alist_bc%clist(kbc)%achint(:,:,1)
+                               C_coeff_ss_b => alist_bc%clist(kbc)%acint(:,:,1)
+                               distb=.FALSE.
+                            ELSE
+                               C_coeff_hh_b => alist_bc%clist(kbc)%acint(:,:,1)
+                               C_coeff_ss_b => alist_bc%clist(kbc)%acint(:,:,1)
+                               distb=.TRUE.
+                            END IF
 
-                          nso = nsoctot
-                          !
-                          DO ispin = 1,nspins
-                             !
-                             ! align the blocks
-                             CALL alist_pre_align_blk(a_block(ispin)%r_coef,SIZE(a_block(ispin)%r_coef,1),&
-                                  a_matrix,SIZE(a_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
+                            distab = dista.AND.distb
 
-                             CALL alist_pre_align_blk(jp_RARnu(ispin)%r_coef,SIZE(jp_RARnu(ispin)%r_coef,1),&
-                                  b_matrix,SIZE(b_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
+                            nso = nsoctot
+                            !
+                            DO ispin = 1,nspins
+                               !
+                               ! align the blocks
+                               CALL alist_pre_align_blk(a_block(ispin)%r_coef,SIZE(a_block(ispin)%r_coef,1),&
+                                    a_matrix,SIZE(a_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
 
-                             CALL alist_pre_align_blk(c_block(ispin)%r_coef,SIZE(c_block(ispin)%r_coef,1),&
-                                  c_matrix,SIZE(c_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
+                               CALL alist_pre_align_blk(jp_RARnu(ispin)%r_coef,SIZE(jp_RARnu(ispin)%r_coef,1),&
+                                    b_matrix,SIZE(b_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
 
-                             CALL alist_pre_align_blk(d_block(ispin)%r_coef,SIZE(d_block(ispin)%r_coef,1),&
-                                  d_matrix,SIZE(d_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
-                             !------------------------------------------------------------------
-                             ! P_\alpha\alpha'
-                             IF(n_cont_a.EQ.1.AND.n_cont_b.EQ.1) THEN
-                                !
-                                ! hard
-                                CALL dger(nso,nso,a_matrix,C_coeff_hh_a(1,1,1),1,&
-                                     &                     C_coeff_hh_b(1,1,1),1,&
-                                     &    jrho1_atom_set(katom)%cjc0_h(ispin)%r_coef(1,1),nso)
-                                !
-                                ! soft
-                                CALL dger(nso,nso,a_matrix,C_coeff_ss_a(1,1,1),1,&
-                                     &                     C_coeff_ss_b(1,1,1),1,&
-                                     &    jrho1_atom_set(katom)%cjc0_s(ispin)%r_coef(1,1),nso)
-                             ELSE
-                                !
-                                ! hard
-                                CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
-                                     &     1.0_dp,a_matrix(1,1),SIZE(a_matrix,1),&
-                                     &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
-                                     &     0.0_dp,PC(1),n_cont_a)
-                                CALL dgemm('T','N',nso,nso,n_cont_a,&
-                                     &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
-                                     &     PC(1),n_cont_a,&
-                                     &     1.0_dp,jrho1_atom_set(katom)%cjc0_h(ispin)%r_coef(1,1),nso)
-                                !
-                                ! soft
-                                CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
-                                     &     1.0_dp,a_matrix(1,1),SIZE(a_matrix,1),&
-                                     &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
-                                     &     0.0_dp,PC(1),n_cont_a)
-                                CALL dgemm('T','N',nso,nso,n_cont_a,&
-                                     &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
-                                     &     PC(1),n_cont_a,&
-                                     &     1.0_dp,jrho1_atom_set(katom)%cjc0_s(ispin)%r_coef(1,1),nso)
-                             ENDIF
-                             !------------------------------------------------------------------
-                             ! mQai_\alpha\alpha'
-                             IF(n_cont_a.EQ.1.AND.n_cont_b.EQ.1) THEN
-                                !
-                                ! hard
-                                CALL dger(nso,nso,b_matrix,C_coeff_hh_a(1,1,1),1,&
-                                     &                     C_coeff_hh_b(1,1,1),1,&
-                                     &    jrho1_atom_set(katom)%cjc_h(ispin)%r_coef(1,1),nso)
-                                !
-                                ! soft
-                                CALL dger(nso,nso,b_matrix,C_coeff_ss_a(1,1,1),1,&
-                                     &                     C_coeff_ss_b(1,1,1),1,&
-                                     &    jrho1_atom_set(katom)%cjc_s(ispin)%r_coef(1,1),nso)
-                             ELSE
-                                !
-                                ! hard
-                                CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
-                                     &     1.0_dp,b_matrix(1,1),SIZE(b_matrix,1),&
-                                     &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
-                                     &     0.0_dp,PC(1),n_cont_a)
-                                CALL dgemm('T','N',nso,nso,n_cont_a,&
-                                     &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
-                                     &     PC(1),n_cont_a,&
-                                     &     1.0_dp,jrho1_atom_set(katom)%cjc_h(ispin)%r_coef(1,1),nso)
-                                !
-                                ! soft
-                                CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
-                                     &     1.0_dp,b_matrix(1,1),SIZE(b_matrix,1),&
-                                     &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
-                                     &     0.0_dp,PC(1),n_cont_a)
-                                CALL dgemm('T','N',nso,nso,n_cont_a,&
-                                     &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
-                                     &     PC(1),n_cont_a,&
-                                     &     1.0_dp,jrho1_atom_set(katom)%cjc_s(ispin)%r_coef(1,1),nso)
-                             ENDIF
-                             !------------------------------------------------------------------
-                             ! Qci_\alpha\alpha'
-                             IF(n_cont_a.EQ.1.AND.n_cont_b.EQ.1) THEN
-                                !
-                                ! hard
-                                CALL dger(nso,nso,c_matrix,C_coeff_hh_a(1,1,1),1,&
-                                     &                     C_coeff_hh_b(1,1,1),1,&
-                                     &    jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef(1,1),nso)
-                                !
-                                ! soft
-                                CALL dger(nso,nso,c_matrix,C_coeff_ss_a(1,1,1),1,&
-                                     &                     C_coeff_ss_b(1,1,1),1,&
-                                     &    jrho1_atom_set(katom)%cjc_ii_s(ispin)%r_coef(1,1),nso)
-                             ELSE
-                                !
-                                ! hard
-                                CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
-                                     &     1.0_dp,c_matrix(1,1),SIZE(c_matrix,1),&
-                                     &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
-                                     &     0.0_dp,PC(1),n_cont_a)
-                                CALL dgemm('T','N',nso,nso,n_cont_a,&
-                                     &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
-                                     &     PC(1),n_cont_a,&
-                                     &     1.0_dp,jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef(1,1),nso)
-                                !
-                                ! soft
-                                CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
-                                     &     1.0_dp,c_matrix(1,1),SIZE(c_matrix,1),&
-                                     &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
-                                     &     0.0_dp,PC(1),n_cont_a)
-                                CALL dgemm('T','N',nso,nso,n_cont_a,&
-                                     &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
-                                     &     PC(1),n_cont_a,&
-                                     &     1.0_dp,jrho1_atom_set(katom)%cjc_ii_s(ispin)%r_coef(1,1),nso)
-                             ENDIF
-                             !------------------------------------------------------------------
-                             ! Qbi_\alpha\alpha'
-                             IF(n_cont_a.EQ.1.AND.n_cont_b.EQ.1) THEN
-                                !
-                                ! hard
-                                CALL dger(nso,nso,d_matrix,C_coeff_hh_a(1,1,1),1,&
-                                     &                     C_coeff_hh_b(1,1,1),1,&
-                                     &    jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef(1,1),nso)
-                                !
-                                ! soft
-                                CALL dger(nso,nso,d_matrix,C_coeff_ss_a(1,1,1),1,&
-                                     &                     C_coeff_ss_b(1,1,1),1,&
-                                     &    jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef(1,1),nso)
-                             ELSE
-                                !
-                                ! hard
-                                CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
-                                     &     1.0_dp,d_matrix(1,1),SIZE(d_matrix,1),&
-                                     &     C_coeff_hh_b(1,1,1),SIZE(C_coeff_hh_b,1),&
-                                     &     0.0_dp,PC(1),n_cont_a)
-                                CALL dgemm('T','N',nso,nso,n_cont_a,&
-                                     &     1.0_dp,C_coeff_hh_a(1,1,1),SIZE(C_coeff_hh_a,1),&
-                                     &     PC(1),n_cont_a,&
-                                     &     1.0_dp,jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef(1,1),nso)
-                                !
-                                ! soft
-                                CALL dgemm('N','N',n_cont_a,nso,n_cont_b,&
-                                     &     1.0_dp,d_matrix(1,1),SIZE(d_matrix,1),&
-                                     &     C_coeff_ss_b(1,1,1),SIZE(C_coeff_ss_b,1),&
-                                     &     0.0_dp,PC(1),n_cont_a)
-                                CALL dgemm('T','N',nso,nso,n_cont_a,&
-                                     &     1.0_dp,C_coeff_ss_a(1,1,1),SIZE(C_coeff_ss_a,1),&
-                                     &     PC(1),n_cont_a,&
-                                     &     1.0_dp,jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef(1,1),nso)
-                             ENDIF
-                             !------------------------------------------------------------------
-                          ENDDO ! ispin
-                          !
-                        EXIT !search loop over jatom-katom list
-                      END IF
-                    END DO
-                  END DO
+                               CALL alist_pre_align_blk(c_block(ispin)%r_coef,SIZE(c_block(ispin)%r_coef,1),&
+                                    c_matrix,SIZE(c_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
+
+                               CALL alist_pre_align_blk(d_block(ispin)%r_coef,SIZE(d_block(ispin)%r_coef,1),&
+                                    d_matrix,SIZE(d_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
+                               !------------------------------------------------------------------
+                               ! P_\alpha\alpha'
+                               r_coef_h => jrho1_atom_set(katom)%cjc0_h(ispin)%r_coef
+                               r_coef_s => jrho1_atom_set(katom)%cjc0_s(ispin)%r_coef
+                               CALL proj_blk(C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
+                                    &        C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
+                                    &        a_matrix,max_nsgf,r_coef_h,r_coef_s,nso,&
+                                    &        PC1,CPC,1.0_dp,distab)
+                               !------------------------------------------------------------------
+                               ! mQai_\alpha\alpha'
+                               r_coef_h => jrho1_atom_set(katom)%cjc_h(ispin)%r_coef
+                               r_coef_s => jrho1_atom_set(katom)%cjc_s(ispin)%r_coef
+                               CALL proj_blk(C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
+                                    &        C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
+                                    &        b_matrix,max_nsgf,r_coef_h,r_coef_s,nso,&
+                                    &        PC1,CPC,1.0_dp,distab)
+                               !------------------------------------------------------------------
+                               ! Qci_\alpha\alpha'
+                               r_coef_h => jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef
+                               r_coef_s => jrho1_atom_set(katom)%cjc_ii_s(ispin)%r_coef
+                               CALL proj_blk(C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
+                                    &        C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
+                                    &        c_matrix,max_nsgf,r_coef_h,r_coef_s,nso,&
+                                    &        PC1,CPC,1.0_dp,distab)
+                               !------------------------------------------------------------------
+                               ! Qbi_\alpha\alpha'
+                               r_coef_h => jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef
+                               r_coef_s => jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef
+                               CALL proj_blk(C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
+                                    &        C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
+                                    &        d_matrix,max_nsgf,r_coef_h,r_coef_s,nso,&
+                                    &        PC1,CPC,1.0_dp,distab)
+                               !------------------------------------------------------------------
+                            ENDDO ! ispin
+                            !
+                            EXIT !search loop over jatom-katom list
+                         END IF
+                      END DO
+                   END DO
 
                 ENDDO ! kkind
                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -641,7 +549,7 @@ CONTAINS
     ENDDO ! ikind
     !
     ! clean up
-    DEALLOCATE(a_matrix,b_matrix,c_matrix,d_matrix,PC,a_block,b_block,c_block,d_block,&
+    DEALLOCATE(a_matrix,b_matrix,c_matrix,d_matrix,PC1,CPC,a_block,b_block,c_block,d_block,&
          &     jp_RARnu,jp2_RARnu,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -649,8 +557,7 @@ CONTAINS
     CALL timestop(handle)
     !
   END SUBROUTINE calculate_jrho_atom_coeff
-
-
+  
   SUBROUTINE calculate_jrho_atom_rad(qs_env,current_env,idir,error)
     !
     TYPE(qs_environment_type), POINTER       :: qs_env

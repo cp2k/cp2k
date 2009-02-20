@@ -436,3 +436,37 @@ w2_qmmm-2.inp
 w2_qmmm-3.inp
 no-gapw-gpw-1.inp
 ch3m-gapw-1.inp
+# speedup projection
+ch4-gapw-1.inp
+# speedup projection
+ch4-gapw-2.inp
+# speedup projection
+ch4-gapw-3.inp
+# speedup projection
+ch4-gapw-4.inp
+# speedup projection
+no-gapw-1.inp
+# speedup projection
+no-gapw-2.inp
+# speedup projection
+no-gapw-3.inp
+# speedup projection
+no-gapw-4.inp
+# speedup projection
+ch4-gapw-1-distributed.inp
+# speedup projection
+ch4-gapw-1-replicated.inp
+# speedup projection
+no-gapw-1-distributed.inp
+# speedup projection
+no-gapw-1-replicated.inp
+# speedup projection
+w2_qmmm-1.inp
+# speedup projection
+w2_qmmm-2.inp
+# speedup projection
+w2_qmmm-3.inp
+# speedup projection
+ch4-gapw-gpw-1.inp
+# speedup projection
+no-gapw-gpw-1.inp

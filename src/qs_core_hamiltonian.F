@@ -199,8 +199,9 @@ CONTAINS
       epr_calculation, failure, gth_potential_present, harris_flag, &
       new_atom_b, oce_present, ppl_present, return_s_derivatives, &
       return_t_derivatives, rho0_present, use_virial, xas_calculation
-    REAL(KIND=dp)                            :: dab, dac, dbc, eps_ppnl, f, &
-                                                f0, rab2, rac2, rbc2
+    REAL(KIND=dp)                            :: dab, dac, dbc, eps_fit, &
+                                                eps_ppnl, f, f0, rab2, rac2, &
+                                                rbc2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: ai_work
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, rab, rac, &
@@ -1162,12 +1163,15 @@ CONTAINS
     END IF
 
     eps_ppnl = qs_env%dft_control%qs_control%eps_ppnl
+    eps_fit = qs_env%dft_control%qs_control%gapw_control%eps_fit
+
     ! *** compute the ppnl contribution to the core hamiltonian ***
     CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
 
     IF ( oce_present ) THEN
-      CALL build_oce_matrices(oce%intac,calculate_forces,nder,atomic_kind_set,particle_set,sap_oce,error)
+      CALL build_oce_matrices(oce%intac,calculate_forces,nder,atomic_kind_set,particle_set,&
+                              sap_oce,eps_fit,error)
     END IF
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***

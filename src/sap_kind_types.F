@@ -22,6 +22,7 @@ MODULE sap_kind_types
       INTEGER                                    :: catom, nsgf_cnt
       INTEGER, DIMENSION(:), POINTER             :: sgf_list
       INTEGER, DIMENSION(3)                      :: cell
+      LOGICAL                                    :: sgf_soft_only
       REAL(KIND = dp)                            :: maxac, maxach
       REAL(KIND = dp), DIMENSION(3)              :: rac
       REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: acint

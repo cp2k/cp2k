@@ -345,7 +345,7 @@ CONTAINS
           !
           ! tr(Ap_j*p_j)
           CALL cp_fm_trace(Ap(ispin)%matrix,p(ispin)%matrix,tr_pAp(ispin),error)
-          IF(tr_pAp(ispin).LT.0.0_dp) CALL stop_program("linres_cg_step","tr(Ap_j*p_j) <= 0")
+          IF(tr_pAp(ispin).LT.0.0_dp) CALL stop_program("linres_cg_step","tr(Ap_j*p_j) < 0")
           !          
           ! alpha = tr(r_j*z_j) / tr(Ap_j*p_j)
           IF(tr_pAp(ispin).LT.1.0e-10_dp) THEN
