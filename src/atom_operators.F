@@ -21,7 +21,7 @@ MODULE atom_operators
                                              numpot_matrix,&
                                              slater_density,&
                                              wigner_slater_functional
-!deb  USE dkh_main,                        ONLY: dkh_transformation
+  USE dkh_main,                        ONLY: dkh_atom_transformation
   USE f77_blas
   USE input_constants,                 ONLY: do_dkh0_atom,&
                                              do_dkh1_atom,&
@@ -616,7 +616,7 @@ CONTAINS
       n = integrals%n(l)
       m = basis%nprim(l)
       IF ( n > 0 ) THEN
-!deb        CALL dkh_transformation(sp(1:m,1:m,l),vp(1:m,1:m,l),tp(1:m,1:m,l),pvp(1:m,1:m,l),m,order)
+        CALL dkh_atom_transformation(sp(1:m,1:m,l),vp(1:m,1:m,l),tp(1:m,1:m,l),pvp(1:m,1:m,l),m,order)
         SELECT CASE (basis%basis_type)
           CASE DEFAULT
             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
