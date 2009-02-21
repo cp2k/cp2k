@@ -108,7 +108,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE verfc(la_max1,npgfa,zeta,rpgfa,la_min1,lb_max1,npgfb,zetb,rpgfb,lb_min1,&
        zetc,rpgfc,zc,cerf,rab,rab2,rac,rac2,rbc,rbc2,vabc,verf,vnuc,f,&
-       maxder,vabc_plus,vnabc,pVp_sum,pVp)                                             !JT
+       maxder,vabc_plus,vnabc,pVp_sum,pVp,dkh_erfc)                                             !JT
     INTEGER, INTENT(IN)                      :: la_max1, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
     INTEGER, INTENT(IN)                      :: la_min1, lb_max1, npgfb
@@ -127,6 +127,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(0:)             :: f
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
     REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: vabc_plus, vnabc, pVp_sum, pVp
+    LOGICAL, OPTIONAL                        :: dkh_erfc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'verfc', &
       routineP = moduleN//':'//routineN
@@ -147,6 +148,8 @@ CONTAINS
 
     verf = 0.0_dp
     vnuc = 0.0_dp
+
+    do_dkh = .FALSE.
 
     IF(PRESENT(pVp)) THEN
       do_dkh=.TRUE.
@@ -191,11 +194,20 @@ CONTAINS
 
 !     *** Screening ***
 
-! JT must be cut out when running benchmark calculations
-      IF (rpgfa(ipgf) + rpgfc < dac) THEN
-        na = na + ncoset(la_max1-maxder_local)             !JT
-        nap = nap + ncoset(la_max1)                        !JT 
-        CYCLE
+      IF(do_dkh)THEN
+        IF(dkh_erfc)THEN
+            IF (rpgfa(ipgf) + rpgfc < dac) THEN
+            na = na + ncoset(la_max1-maxder_local)             !JT
+            nap = nap + ncoset(la_max1)                        !JT
+            CYCLE
+          END IF
+        END IF
+      ELSE
+        IF (rpgfa(ipgf) + rpgfc < dac) THEN
+          na = na + ncoset(la_max1-maxder_local)             !JT
+          nap = nap + ncoset(la_max1)                        !JT 
+          CYCLE
+        END IF
       END IF
 
       nb = 0
@@ -203,14 +215,21 @@ CONTAINS
       DO jpgf=1,npgfb
 
 !       *** Screening ***
-
-! JT dito
-        IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
-            (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
-          nb = nb + ncoset(lb_max1)                        !JT
-          CYCLE
-        END IF
-
+       IF(do_dkh)THEN
+         IF(dkh_erfc)THEN
+           IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
+               (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
+             nb = nb + ncoset(lb_max1)                        !JT
+             CYCLE
+           END IF
+         END IF 
+       ELSE
+         IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
+             (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
+           nb = nb + ncoset(lb_max1)                        !JT
+           CYCLE
+         END IF
+       END IF
 !       *** Calculate some prefactors ***
 
         zetp = 1.0_dp/(zeta(ipgf) + zetb(jpgf))
@@ -841,11 +860,11 @@ CONTAINS
 
               END DO
 
-            END DO
+    END DO
 
-          END IF
+  END IF
 
-        END IF
+END IF
 
 !       *** Add the contribution of the current pair ***
 !       *** of primitive Gaussian-type functions     ***
@@ -888,7 +907,6 @@ CONTAINS
           ! which do not contribute, because their prefactor Ni(a) or Ni(b) is zero) 
           ! and is given by verf/vnuc(coset(ax,ay,az),coset(bx,by,bz),1)
           ! ***********************************************
-
           ftaz = 2.0_dp*zeta(ipgf)
           ftbz = 2.0_dp*zetb(jpgf)
           nxx=1
@@ -928,18 +946,33 @@ CONTAINS
                       cobpx = coset(bx+1,by,bz)
                       cobpy = coset(bx,by+1,bz)
                       cobpz = coset(bx,by,bz+1)
-                      pVp(pVpa,pVpb)=ftaz*ftbz*(-zc*vnuc(coapx,cobpx,1))-&
-                                         ftaz* fbx*(-zc*vnuc(coapx,cobmx,1))-&
-                                         ftbz* fax*(-zc*vnuc(coamx,cobpx,1))+&
-                                         fax*  fbx*(-zc*vnuc(coamx,cobmx,1))+&
-                                        ftaz*ftbz*(-zc*vnuc(coapy,cobpy,1))-&
-                                         ftaz* fby*(-zc*vnuc(coapy,cobmy,1))-&
-                                         ftbz* fay*(-zc*vnuc(coamy,cobpy,1))+&
-                                         fay*  fby*(-zc*vnuc(coamy,cobmy,1))+&
-                                        ftaz*ftbz*(-zc*vnuc(coapz,cobpz,1))-&
-                                         ftaz* fbz*(-zc*vnuc(coapz,cobmz,1))-&
-                                         ftbz* faz*(-zc*vnuc(coamz,cobpz,1))+&
-                                         faz*  fbz*(-zc*vnuc(coamz,cobmz,1))
+                      IF(dkh_erfc)THEN
+                        pVp(pVpa,pVpb)=ftaz*ftbz*    (-zc*vnuc(coapx,cobpx,1)+cerf*verf(coapx,cobpx,1))-&
+                                           ftaz* fbx*(-zc*vnuc(coapx,cobmx,1)+cerf*verf(coapx,cobmx,1))-&
+                                           ftbz* fax*(-zc*vnuc(coamx,cobpx,1)+cerf*verf(coamx,cobpx,1))+&
+                                           fax*  fbx*(-zc*vnuc(coamx,cobmx,1)+cerf*verf(coamx,cobmx,1))+&
+                                          ftaz*ftbz* (-zc*vnuc(coapy,cobpy,1)+cerf*verf(coapy,cobpy,1))-&
+                                           ftaz* fby*(-zc*vnuc(coapy,cobmy,1)+cerf*verf(coapy,cobmy,1))-&
+                                           ftbz* fay*(-zc*vnuc(coamy,cobpy,1)+cerf*verf(coamy,cobpy,1))+&
+                                           fay*  fby*(-zc*vnuc(coamy,cobmy,1)+cerf*verf(coamy,cobmy,1))+&
+                                          ftaz*ftbz* (-zc*vnuc(coapz,cobpz,1)+cerf*verf(coapz,cobpz,1))-&
+                                           ftaz* fbz*(-zc*vnuc(coapz,cobmz,1)+cerf*verf(coapz,cobmz,1))-&
+                                           ftbz* faz*(-zc*vnuc(coamz,cobpz,1)+cerf*verf(coamz,cobpz,1))+&
+                                           faz*  fbz*(-zc*vnuc(coamz,cobmz,1)+cerf*verf(coamz,cobmz,1))
+                      ELSE
+                        pVp(pVpa,pVpb)=ftaz*ftbz*(-zc*vnuc(coapx,cobpx,1))-&
+                                           ftaz* fbx*(-zc*vnuc(coapx,cobmx,1))-&
+                                           ftbz* fax*(-zc*vnuc(coamx,cobpx,1))+&
+                                           fax*  fbx*(-zc*vnuc(coamx,cobmx,1))+&
+                                          ftaz*ftbz*(-zc*vnuc(coapy,cobpy,1))-&
+                                           ftaz* fby*(-zc*vnuc(coapy,cobmy,1))-&
+                                           ftbz* fay*(-zc*vnuc(coamy,cobpy,1))+&
+                                           fay*  fby*(-zc*vnuc(coamy,cobmy,1))+&
+                                          ftaz*ftbz*(-zc*vnuc(coapz,cobpz,1))-&
+                                           ftaz* fbz*(-zc*vnuc(coapz,cobmz,1))-&
+                                           ftbz* faz*(-zc*vnuc(coamz,cobpz,1))+&
+                                           faz*  fbz*(-zc*vnuc(coamz,cobmz,1))
+                      END IF
                     END DO
                   END DO
                 END DO
@@ -949,7 +982,7 @@ CONTAINS
 
           DO j=1,ncoset(lb_max1)                                       
             DO i=ncoset(la_min1-1)+1,ncoset(la_max1-maxder_local)      
-              pVp_sum(na+i,nb+j) = pVp_sum(na+i,nb+j) +pVp(i,j)     
+              pVp_sum(na+i,nb+j) = pVp_sum(na+i,nb+j) +pVp(i,j)    
             END DO
           END DO
         END IF

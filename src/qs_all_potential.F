@@ -66,7 +66,7 @@ MODULE qs_all_potential
                             lb_max,lb_min,npgfb,rpgfb,zetb,&
                             rab,dab,jkind,nkind,sbc_3c,&
                             reduced_3c_rho0,vall,hab,nder,&
-                            pab,f_a,f_b,virial_ab,nab,pVpab,error)
+                            pab,f_a,f_b,virial_ab,nab,pVpab,dkh_erfc,error)
 
     INTEGER, INTENT(IN)                      :: la_max, la_min, npgfa
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rpgfa, zeta
@@ -90,6 +90,7 @@ MODULE qs_all_potential
       OPTIONAL                               :: virial_ab
     REAL(dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: nab, pVpab
+    LOGICAL, INTENT(IN), OPTIONAL            :: dkh_erfc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'all_integrals', &
@@ -232,7 +233,7 @@ MODULE qs_all_potential
                    vverf,vvnuc,ff(0:),&
                    maxder=nder,vabc_plus=Int_ab_plus,&
                    pVp_sum=int_pVp_sum,vnabc=int_ab_nuc_sum,&
-                   pVp=vpVp)
+                   pVp=vpVp,dkh_erfc=dkh_erfc)
           ELSE
             CALL verfc(la_max+nder,npgfa,zeta,rpgfa,la_min,&
                        lb_max,npgfb,zetb,rpgfb,lb_min,&
@@ -320,7 +321,7 @@ MODULE qs_all_potential
                        rab,rab2,rac,rac2,rbc,rbc2,Int_ab_sum,&
                        vverf,vvnuc,ff(0:),&
                        pVp_sum=int_pVp_sum,vnabc=int_ab_nuc_sum,&
-                       pVp=vpVp)
+                       pVp=vpVp,dkh_erfc=dkh_erfc)
           ELSE
             CALL verfc(la_max,npgfa,zeta,rpgfa,la_min,&
                        lb_max,npgfb,zetb,rpgfb,lb_min,&
@@ -334,12 +335,10 @@ MODULE qs_all_potential
 
     END DO  ! kkind
 
-    IF(do_dkh)THEN 
-      nab(1:ncoa,1:ncob) = Int_ab_nuc_sum(1:ncoa,1:ncob) 
-      pVpab(1:ncoa,1:ncob) = Int_pVp_sum(1:ncoa,1:ncob) 
-      hab(1:ncoa,1:ncob) = Int_ab_sum(1:ncoa,1:ncob)
-
-      !hier ist alles ok, sofern 'CC' Matrix alles letztes ausgegeben wird
+    IF(do_dkh)THEN
+        nab(1:ncoa,1:ncob)   = Int_ab_nuc_sum(1:ncoa,1:ncob) 
+        pVpab(1:ncoa,1:ncob) = Int_pVp_sum(1:ncoa,1:ncob) 
+        hab(1:ncoa,1:ncob)   = Int_ab_sum(1:ncoa,1:ncob)
     ELSE
       hab(1:ncoa,1:ncob) = hab(1:ncoa,1:ncob)+Int_ab_sum(1:ncoa,1:ncob)
     END IF

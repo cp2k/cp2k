@@ -136,6 +136,7 @@ OBJECTS_GENERIC =\
  distribution_2d_types.o\
  distribution_methods.o\
  distribution_optimize.o\
+ dkh_main.o\
  dynamical_coeff_types.o\
  dynamical_coeff_methods.o\
  eigenvalueproblems.o\

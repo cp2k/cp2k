@@ -49,6 +49,7 @@ MODULE atomic_kind_types
   USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                              nco,&
                                              ncoset
+!JT
   USE paw_proj_set_types,              ONLY: allocate_paw_proj_set,&
                                              deallocate_paw_proj_set,&
                                              get_paw_proj_set,&
@@ -411,9 +412,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atomic_kind', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, l, my_basis_set_id, n_set
-    INTEGER, DIMENSION(:), POINTER           :: lmax, npgf_set
+    INTEGER                                  :: i, j, l, my_basis_set_id, &
+                                                n_set
+    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf_set
     LOGICAL                                  :: softb_local
+
+!JTs
+!JTe
 
     IF( PRESENT(basis_set_id) ) THEN
       my_basis_set_id = basis_set_id
@@ -557,10 +562,13 @@ CONTAINS
            CALL get_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
                                   npgf=npgf_set, &
                                   nset=n_set, &
-                                  lmax=lmax)
+                                  lmax=lmax,&
+                                  lmin=lmin)
            npgf = 0
            DO i=1,n_set
-             npgf = npgf+npgf_set(i)*nco(lmax(i))
+             DO j = lmin(i),lmax(i)
+               npgf = npgf+npgf_set(i)*nco(j)
+             END DO
            END DO
          ELSE
            npgf = 0

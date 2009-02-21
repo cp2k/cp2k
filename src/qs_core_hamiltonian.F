@@ -86,6 +86,7 @@ MODULE qs_core_hamiltonian
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE dkh_main,                        ONLY: dkh_mol_integrals
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
@@ -476,12 +477,6 @@ CONTAINS
    ! Assume false by default
    return_t_derivatives = .FALSE.
   
-   IF(qs_env%rel_control%rel_method/=rel_none)THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="DKH method not yet available", &
-              error=error, error_level=cp_failure_level) 
-   END IF
- 
    IF (build_kinetic_energy_matrix) THEN
       IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0) THEN
@@ -1163,15 +1158,15 @@ CONTAINS
     END IF
 
     eps_ppnl = qs_env%dft_control%qs_control%eps_ppnl
-    eps_fit = qs_env%dft_control%qs_control%gapw_control%eps_fit
-
+    eps_fit  = qs_env%dft_control%qs_control%gapw_control%eps_fit
     ! *** compute the ppnl contribution to the core hamiltonian ***
-    CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+    IF(qs_env%rel_control%rel_method==rel_none)THEN
+      CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
+    END IF
 
     IF ( oce_present ) THEN
-      CALL build_oce_matrices(oce%intac,calculate_forces,nder,atomic_kind_set,particle_set,&
-                              sap_oce,eps_fit,error)
+      CALL build_oce_matrices(oce%intac,calculate_forces,nder,atomic_kind_set,particle_set,sap_oce,eps_fit,error)
     END IF
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***
@@ -1181,6 +1176,21 @@ CONTAINS
                     matrix_h=matrix_h,&
                     oce=oce,error=error)
 
+    IF(ASSOCIATED(VH_3c_list))THEN
+       CALL deallocate_vtriple(VH_3c_list,error=error)
+    END IF
+    
+    IF(qs_env%rel_control%rel_method/=rel_none)THEN
+      CALL dkh_mol_integrals(qs_env,error)
+      CALL get_qs_env(qs_env=qs_env,&
+                      matrix_h=matrix_h,&
+                      error=error)
+      CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+                    atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
+      CALL set_qs_env(qs_env=qs_env,&
+                      matrix_h=matrix_h,&
+                      error=error)
+    END IF
     ! *** Release work storage ***
     IF (ppl_present) THEN
        DEALLOCATE (vpplt,STAT=stat)
@@ -1190,10 +1200,6 @@ CONTAINS
     IF (all_potential_present) THEN
        DEALLOCATE (vallt,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    
-    IF(ASSOCIATED(VH_3c_list))THEN
-       CALL deallocate_vtriple(VH_3c_list,error=error)
     END IF
     
     DEALLOCATE (habt,STAT=stat)

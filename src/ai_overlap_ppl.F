@@ -73,7 +73,7 @@ CONTAINS
   SUBROUTINE overlap_ppl(la_max_set,la_min_set,npgfa,rpgfa,zeta,&
        lb_max_set,lb_min_set,npgfb,rpgfb,zetb,cexp_ppl,zetc,rpgfc,&
        rab,dab,rac,dac,rbc,dbc,vab,da_max,db_max,return_derivatives,s,&
-       pab,force_a,force_b)
+       pab,force_a,force_b,pVpab,dkh_erfc)
     INTEGER, INTENT(IN)                      :: la_max_set, la_min_set, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
     INTEGER, INTENT(IN)                      :: lb_max_set, lb_min_set, npgfb
@@ -95,6 +95,8 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: pab
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(OUT), OPTIONAL                  :: force_a, force_b
+    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: pVpab
+    LOGICAL, INTENT(IN), OPTIONAL            :: dkh_erfc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'overlap_ppl', &
       routineP = moduleN//':'//routineN
@@ -103,12 +105,16 @@ CONTAINS
       cdby, cdbz, coa, coamx, coamy, coamz, coapx, coapy, coapz, cob, cobmx, &
       cobmy, cobmz, cobpx, cobpy, cobpz, da, dax, day, daz, db, dbx, dby, &
       dbz, i, ipgf, j, jk, jpgf, jstart, k, la, la_max, la_min, la_start, lb, &
-      lb_max, lb_min, lc, maxder, na, nb, nexp_ppl
+      lb_max, lb_min, lc, maxder, na, nb, nexp_ppl, nxx, nxy, nxz, nyx, nyy, &
+      nyz, nzx, nzy, nzz, pVpa, pVpb
     LOGICAL                                  :: calculate_force_a, &
-                                                calculate_force_b
+                                                calculate_force_b, do_dkh
     REAL(KIND=dp)                            :: f0, f1, f2, f3, f4, fax, fay, &
-                                                faz, fbx, fby, fbz, fc, ftz, &
-                                                rcg2, rcp2, zetg, zetp
+                                                faz, fbx, fby, fbz, fc, ftaz, &
+                                                ftbz, ftz, rcg2, rcp2, zetg, &
+                                                zetp
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: pVp
     REAL(KIND=dp), DIMENSION(3)              :: rag, rbg, rcg, rcp
 
     IF (PRESENT(pab)) THEN
@@ -138,6 +144,25 @@ CONTAINS
     nexp_ppl = SIZE(cexp_ppl)
     maxder = ncoset(MAX(da_max,db_max))
 
+!JT
+    do_dkh = .FALSE.
+    IF (PRESENT(pVpab)) THEN
+      ALLOCATE(pVp(npgfa*ncoset(la_max_set),npgfa*ncoset(lb_max_set)))
+      do_dkh = .TRUE.
+      pVp = 0.0_dp
+   
+      IF(da_max == 0) THEN
+        la_max = la_max + 1
+        la_min = MAX(0, la_min - 1) 
+      END IF
+      IF(db_max == 0) THEN
+        lb_max = lb_max + 1
+        lb_min = MAX(0, lb_min - 1) 
+      END IF
+    END IF 
+
+!END JT
+
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
     na = 0
@@ -146,9 +171,18 @@ CONTAINS
 
 !     *** Screening ***
 
-      IF (rpgfa(ipgf) + rpgfc < dac) THEN
-        na = na + ncoset(la_max_set)
-        CYCLE
+      IF(do_dkh)THEN
+        IF(dkh_erfc)THEN
+          IF (rpgfa(ipgf) + rpgfc < dac) THEN
+            na = na + ncoset(la_max_set)
+            CYCLE
+          END IF
+        END IF
+      ELSE
+        IF (rpgfa(ipgf) + rpgfc < dac) THEN
+          na = na + ncoset(la_max_set)
+          CYCLE
+        END IF   
       END IF
 
       nb = 0
@@ -156,11 +190,20 @@ CONTAINS
       DO jpgf=1,npgfb
 
 !       *** Screening ***
-
-        IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
-            (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
-          nb = nb + ncoset(lb_max_set)
-          CYCLE
+        IF(do_dkh) THEN
+          IF(dkh_erfc) THEN        
+            IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
+               (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
+               nb = nb + ncoset(lb_max_set)
+               CYCLE
+            END IF
+          END IF
+        ELSE
+          IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
+             (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
+             nb = nb + ncoset(lb_max_set)
+             CYCLE
+          END IF
         END IF
 
 !       *** Calculate some prefactors ***
@@ -1273,6 +1316,82 @@ CONTAINS
           END DO
         END IF
 
+!JTs
+        IF(do_dkh)THEN
+          ! *********** Calculate pVp matrix **************
+          ! [pa|V|pb]=4*zeta*zetb*[a+i|V|b+i]-2*zetb*Ni(a)*[a-i|V|b+i]-2*zeta*Ni(b)*[a+i|V|b-i]+Ni(a)*Ni(b)*[a-i|V|b-i]
+          ! Every integral has been calculated before (except [-1|V|-1],[a|V|-1] and [-1|V|b], 
+          ! which do not contribute, because their prefactor Ni(a) or Ni(b) is zero) 
+          ! and is given by verf/vnuc(coset(ax,ay,az),coset(bx,by,bz),1)
+          ! ***********************************************
+
+          ftaz = 2.0_dp*zeta(ipgf)
+          ftbz = 2.0_dp*zetb(jpgf)
+          nxx=1
+          nyy=2
+          nzz=3
+          nxy=4
+          nxz=5
+          nyx=6
+          nyz=7
+          nzx=8
+          nzy=9
+          DO la=0,la_max_set
+            DO ax=0,la
+              fax = REAL(ax,dp)
+              DO ay=0,la-ax
+                fay = REAL(ay,dp)
+                az = la - ax - ay
+                faz = REAL(az,dp)
+                pVpa  = coset(ax,ay,az)
+                coamx = coset(ax-1,ay,az)
+                coamy = coset(ax,ay-1,az)
+                coamz = coset(ax,ay,az-1)
+                coapx = coset(ax+1,ay,az)
+                coapy = coset(ax,ay+1,az)
+                coapz = coset(ax,ay,az+1)
+                DO lb=0,lb_max_set
+                  DO bx=0,lb
+                    fbx=REAL(bx,dp)
+                    DO by=0,lb-bx
+                      fby=REAL(by,dp)
+                      bz = lb - bx - by
+                      fbz=REAL(bz,dp)
+                      pVpb = coset(bx,by,bz)
+                      cobmx = coset(bx-1,by,bz)
+                      cobmy = coset(bx,by-1,bz)
+                      cobmz = coset(bx,by,bz-1)
+                      cobpx = coset(bx+1,by,bz)
+                      cobpy = coset(bx,by+1,bz)
+                      cobpz = coset(bx,by,bz+1)
+                      pVp(pVpa,pVpb)= 0.0_dp
+                      DO c=1, nexp_ppl  
+                        pVp(pVpa,pVpb)=ftaz*ftbz*    (cexp_ppl(c)*s(coapx,cobpx,c,1))-&
+                                           ftaz* fbx*(cexp_ppl(c)*s(coapx,cobmx,c,1))-&
+                                           ftbz* fax*(cexp_ppl(c)*s(coamx,cobpx,c,1))+&
+                                           fax*  fbx*(cexp_ppl(c)*s(coamx,cobmx,c,1))+&
+                                          ftaz*ftbz* (cexp_ppl(c)*s(coapy,cobpy,c,1))-&
+                                           ftaz* fby*(cexp_ppl(c)*s(coapy,cobmy,c,1))-&
+                                           ftbz* fay*(cexp_ppl(c)*s(coamy,cobpy,c,1))+&
+                                           fay*  fby*(cexp_ppl(c)*s(coamy,cobmy,c,1))+&
+                                          ftaz*ftbz* (cexp_ppl(c)*s(coapz,cobpz,c,1))-&
+                                           ftaz* fbz*(cexp_ppl(c)*s(coapz,cobmz,c,1))-&
+                                           ftbz* faz*(cexp_ppl(c)*s(coamz,cobpz,c,1))+&
+                                           faz*  fbz*(cexp_ppl(c)*s(coamz,cobmz,c,1)) + pVp(pVpa,pVpb)  !accounting for c 
+                      END DO
+                    END DO
+                  END DO
+                END DO
+              END DO
+            END DO
+          END DO
+          DO j=ncoset(lb_min_set-1)+1,ncoset(lb_max_set)
+            DO i=ncoset(la_min_set-1)+1,ncoset(la_max_set)
+              pVpab(na+i,nb+j) = pVpab(na+i,nb+j) +pVp(i,j)     
+            END DO
+          END DO
+        END IF
+!JTe
         nb = nb + ncoset(lb_max_set)
 
       END DO
@@ -1280,6 +1399,10 @@ CONTAINS
       na = na + ncoset(la_max_set)
 
     END DO
+
+    IF(do_dkh)THEN
+      DEALLOCATE(pVp)
+    END IF
 
   END SUBROUTINE overlap_ppl
 
