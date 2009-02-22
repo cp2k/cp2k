@@ -835,10 +835,10 @@ MODULE qs_rho_atom_methods
     ENDDO      ! lc1
     DEALLOCATE(rga,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL clebsch_gordon_deallocate
+    CALL clebsch_gordon_deallocate()
 
 !   *** initialize the Lebedev grids ***
-    CALL init_lebedev_grids
+    CALL init_lebedev_grids()
     quadrature=gapw_control%quadrature
 
     DO ikind = 1,nkind
@@ -919,7 +919,7 @@ MODULE qs_rho_atom_methods
 
     END DO
 
-    CALL deallocate_lebedev_grids
+    CALL deallocate_lebedev_grids()
     DEALLOCATE(my_CG)
 
     CALL allocate_rho_atom_internals(qs_env, rho_atom_set,error=error)

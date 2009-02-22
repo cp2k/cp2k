@@ -13,6 +13,8 @@ MODULE qs_grid_atom
   USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -198,8 +200,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_grid_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: l
+    INTEGER                                  :: handle, l
     REAL(dp), DIMENSION(:), POINTER          :: rad, rad2, wr
+
+    CALL timeset(routineN,handle)
 
     NULLIFY (rad,rad2,wr)
 
@@ -240,6 +244,9 @@ CONTAINS
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer grid_atom is not associated")
     END IF
+
+    CALL timestop(handle)
+
   END SUBROUTINE create_grid_atom
 
 ! *****************************************************************************

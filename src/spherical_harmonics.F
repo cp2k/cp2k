@@ -30,6 +30,8 @@ MODULE spherical_harmonics
                                              pi
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -53,6 +55,8 @@ MODULE spherical_harmonics
   INTERFACE clebsch_gordon_getm
      MODULE PROCEDURE getm
   END INTERFACE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'spherical_harmonics'
 
   REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: cg_table
   INTEGER :: lmax=-1
@@ -185,21 +189,35 @@ CONTAINS
   END FUNCTION get_factor
 
 ! *****************************************************************************
-  SUBROUTINE clebsch_gordon_deallocate
-    INTEGER                                  :: ierr
+  SUBROUTINE clebsch_gordon_deallocate()
+    CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_deallocate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+
+    CALL timeset(routineN,handle)
+
 
      IF ( ALLOCATED ( cg_table ) ) THEN
         DEALLOCATE ( cg_table, STAT=ierr )
         IF ( ierr /= 0 ) CALL stop_memory ("clebsch_gordon_deallocate","cg_table")
      END IF
+    CALL timestop(handle)
+
   END SUBROUTINE clebsch_gordon_deallocate
 
 ! *****************************************************************************
   SUBROUTINE clebsch_gordon_init ( l )
     INTEGER, INTENT(IN)                      :: l
 
-    INTEGER                                  :: i1, i2, ierr, ix, iy, l1, l2, &
-                                                lp, m, m1, m2, ml, mp, n
+    CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_init', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i1, i2, ierr, ix, iy, &
+                                                l1, l2, lp, m, m1, m2, ml, &
+                                                mp, n
+
+     CALL timeset(routineN,handle)
 
      sq2 = SQRT(2.0_dp)
      osq2 = 1.0_dp/sq2
@@ -240,6 +258,8 @@ CONTAINS
          END DO
        END DO
      END DO
+
+     CALL timestop(handle)
      
   END SUBROUTINE clebsch_gordon_init
 

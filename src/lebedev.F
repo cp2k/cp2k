@@ -57,6 +57,8 @@ MODULE lebedev
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -319,7 +321,7 @@ CONTAINS
   END SUBROUTINE load_sub_grid
 
 ! *****************************************************************************
-  SUBROUTINE deallocate_lebedev_grids
+  SUBROUTINE deallocate_lebedev_grids()
 
     INTEGER                                  :: ilg
 
@@ -336,9 +338,14 @@ CONTAINS
 !> \date    04.05.99
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE init_lebedev_grids
+  SUBROUTINE init_lebedev_grids()
 
-    INTEGER                                  :: ilg
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_lebedev_grids', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ilg
+
+    CALL timeset(routineN,handle)
 
     DO ilg=1,nlg
       IF(ASSOCIATED(lebedev_grid(ilg)%r)) DEALLOCATE(lebedev_grid(ilg)%r)
@@ -845,6 +852,8 @@ CONTAINS
     CALL load_sub_grid("D",14,36)
 
     init_lebedev_grids_done = .TRUE.
+
+    CALL timestop(handle)
 
   END SUBROUTINE init_lebedev_grids
 
