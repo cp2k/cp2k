@@ -752,6 +752,12 @@ CONTAINS
           ub = pbo(1,:)+bo(2,:,MODULO(mepos-ip,np)+1)-1
           ii = 0
           ! this loop takes about the same time as the message passing call
+          ! If I read the code correctly then:
+          ! BUG/FIXME: Unfortunately MPI standard says we are not allowed
+          ! to access the sendbuf/recvbuf while the sendrecv is still not
+          ! finished. This EXPLICITLY includes READING sendbuf!
+          ! I don't know any MPI implementation that really requires this
+          ! but the standard explicitly mandates it.
           DO iz = lb(3), ub(3)
              DO iy = lb(2), ub(2)
                 DO ix = lb(1), ub(1)
