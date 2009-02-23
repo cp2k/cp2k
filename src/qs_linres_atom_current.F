@@ -50,7 +50,7 @@ MODULE qs_linres_atom_current
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE qs_oce_methods,                  ONLY: proj_blk, prj_scatter
+  USE qs_oce_methods,                  ONLY: proj_blk
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE sap_kind_types,                  ONLY: alist_pre_align_blk,&
@@ -100,9 +100,8 @@ CONTAINS
 
     INTEGER :: bo(2), handle, iab, iac, iat, iatom, ibc, idir2, ii, iii, &
       ikind, ilist, inode, ispin, istat, jatom, jkind, kac, katom, kbc, &
-      kkind, max_gau, max_nsgf, maxsoc, mepos, n_cont_a, n_cont_b, nat, &
-      natom, nkind, nlist, nnode, nsetc, nsgfa, nsgfb, nso, nsoctot, nspins, &
-      num_pe, np_sph
+      kkind, max_gau, max_nsgf, mepos, n_cont_a, n_cont_b, nat, natom, nkind, &
+      nlist, nnode, np_sph, nsgfa, nsgfb, nso, nsoctot, nspins, num_pe
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
     LOGICAL :: dista, distab, distb, failure, is_not_associated, paw_atom, &
@@ -131,12 +130,12 @@ CONTAINS
                                                 sab_orb_neighbor_list_local
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(oce_matrix_type), POINTER           :: oce
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: mat_a, mat_b, mat_c, mat_d
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: a_block, b_block, c_block, &
                                                 d_block, jp2_RARnu, jp_RARnu
-    TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     CALL timeset(routineN,handle)
     !
@@ -578,7 +577,8 @@ CONTAINS
       m2s, max_iso_not0, max_nso, maxl, maxso, mepos, n1s, n2s, na, natom, &
       natom_tot, nkind, nr, nset, nspins, num_pe, size1, size2
     INTEGER, DIMENSION(2)                    :: bo
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf, o2nindex
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf, &
+                                                o2nindex
     LOGICAL                                  :: failure, paw_atom
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: is_set_to_0
     REAL(dp)                                 :: hard_radius

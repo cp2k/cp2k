@@ -26,8 +26,8 @@ MODULE qs_ks_atom
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_oce_methods,                  ONLY: prj_gather
+  USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
@@ -466,10 +466,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'add_vhxca_to_ks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ispin, j, k, istat
-    LOGICAL                                  :: failure = .FALSE.
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: int_hard, int_soft
+    INTEGER                                  :: i, ispin, j, k
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, int_hard, int_soft
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_local_h, int_local_s
 
@@ -603,8 +601,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'add_vhxca_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dir, ispin, istat
-    LOGICAL                                  :: failure = .FALSE.
+    INTEGER                                  :: dir, ispin
     REAL(dp), DIMENSION(:, :), POINTER       :: int_hard, int_soft
     REAL(KIND=dp)                            :: ieqj, trace
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block

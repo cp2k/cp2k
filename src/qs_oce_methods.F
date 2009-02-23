@@ -272,14 +272,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_oce_block_local', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iset, isgfa, jc, lsgfa, &
+    INTEGER                                  :: i, iset, isgfa, j, jc, lsgfa, &
                                                 maxlprj, maxsoa, n, np_sph, &
-                                                nseta, stat, nsgfa, i, j
-    INTEGER, DIMENSION(:), POINTER           :: nsgf_seta, n2oindex
-    INTEGER, DIMENSION(:,:), POINTER         :: first_sgfa
+                                                nseta, nsgfa, stat
+    INTEGER, DIMENSION(:), POINTER           :: n2oindex, nsgf_seta
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: failure, paw_atom_a
-    REAL(dp), DIMENSION(:,:), POINTER        :: local_oce_h, local_oce_s
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE    :: prjloc_h, prjloc_s
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: prjloc_h, prjloc_s
+    REAL(dp), DIMENSION(:, :), POINTER       :: local_oce_h, local_oce_s
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_a
 
@@ -659,18 +659,17 @@ CONTAINS
   ! aout : matrix in new compressed indexing
   SUBROUTINE prj_gather(ain,aout,atom,error)
 
-    REAL(dp), DIMENSION(:,:), INTENT(IN)     :: ain
-    REAL(dp), DIMENSION(:,:), INTENT(OUT)    :: aout
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: ain
+    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: aout
     TYPE(atomic_kind_type), POINTER          :: atom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'prj_gather', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure=.FALSE.
+    INTEGER                                  :: i, ip, j, jp, np_sph
+    INTEGER, DIMENSION(:), POINTER           :: n2oindex
     LOGICAL                                  :: paw_atom
-    INTEGER                                  :: i,j,ip,jp,np_sph, handle
-    INTEGER, DIMENSION(:),POINTER            :: n2oindex
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     NULLIFY(paw_proj)
@@ -692,21 +691,21 @@ CONTAINS
   ! ain  : matrix in new compressed indexing
   SUBROUTINE prj_scatter(ain,aout,atom,error)
 
-    REAL(dp), DIMENSION(:,:), INTENT(IN)     :: ain
-    REAL(dp), DIMENSION(:,:), INTENT(INOUT)  :: aout
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: ain
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: aout
     TYPE(atomic_kind_type), POINTER          :: atom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'prj_scatter', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure=.FALSE.
+    INTEGER                                  :: i, ip, j, jp, np_sph
+    INTEGER, DIMENSION(:), POINTER           :: n2oindex
     LOGICAL                                  :: paw_atom
-    INTEGER                                  :: i,j,ip,jp,np_sph, handle
-    INTEGER, DIMENSION(:),POINTER            :: n2oindex
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
 !    CALL timeset(routineN,handle)
+
     NULLIFY(paw_proj)
     CALL get_atomic_kind(atomic_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom)
     NULLIFY(n2oindex)

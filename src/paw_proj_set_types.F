@@ -33,8 +33,6 @@ MODULE paw_proj_set_types
   USE qs_util,                         ONLY: exp_radius,&
                                              gauss_exponent
   USE termination,                     ONLY: stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

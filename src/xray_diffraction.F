@@ -533,11 +533,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom, handle, iatom, ico, ico1_pgf, ico1_set, ikind, ipgf, &
-      iset, iso, iso1_pgf, iso1_set, ispin, istat, jco, jco1_pgf, jco1_set, &
-      jpgf, jset, jso, jso1_pgf, jso1_set, la, lb, maxco, maxso, na, natom, &
-      nb, ncoa, ncob, ncotot, nkind, nset, nsoa, nsob, nsotot, nspin, np_sph, &
-      ison, json
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf, o2nindex
+      iset, iso, iso1_pgf, iso1_set, ison, ispin, istat, jco, jco1_pgf, &
+      jco1_set, jpgf, jset, jso, jso1_pgf, jso1_set, json, la, lb, maxco, &
+      maxso, na, natom, nb, ncoa, ncob, ncotot, nkind, np_sph, nset, nsoa, &
+      nsob, nsotot, nspin
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf, &
+                                                o2nindex
     LOGICAL                                  :: failure, orthorhombic, &
                                                 paw_atom
     REAL(KIND=dp)                            :: alpha, eps_rho_gspace, &
@@ -552,6 +553,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(pw_p_type)                          :: rho_elec_gspace
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_coeff), DIMENSION(:), &
@@ -559,7 +561,6 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     failure = .FALSE.
 

@@ -254,11 +254,9 @@ MODULE qs_rho_atom_types
                           ga_Vlocal_gb_h,ga_Vlocal_gb_s)
 
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    TYPE(rho_atom_coeff), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: cpc_h, cpc_s, cpc_hx, cpc_sx, rho_rad_h, &
-                                                rho_rad_s, drho_rad_h, &
-                                                drho_rad_s, vrho_rad_h, &
-                                                vrho_rad_s
+    TYPE(rho_atom_coeff), DIMENSION(:), OPTIONAL, POINTER :: cpc_h, cpc_s, &
+      cpc_hx, cpc_sx, rho_rad_h, rho_rad_s, drho_rad_h, drho_rad_s, &
+      vrho_rad_h, vrho_rad_s
     TYPE(rho_atom_coeff), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: rho_rad_h_d, rho_rad_s_d, &
                                                 trho_rad_h, trho_rad_s

@@ -40,7 +40,8 @@ MODULE qs_rho_atom_methods
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE qs_oce_methods,                  ONLY: proj_blk, prj_scatter
+  USE qs_oce_methods,                  ONLY: prj_scatter,&
+                                             proj_blk
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_rho_atom_types,               ONLY: allocate_rho_atom_set,&
                                              rho_atom_coeff,&
@@ -450,13 +451,13 @@ MODULE qs_rho_atom_methods
     INTEGER :: handle, i, iab, iac, iatom, ibc, icol, ikind, ilist, inode, &
       irow, ispin, istat, jatom, jkind, kac, katom, kbc, kkind, max_gau, &
       max_nsgf, maxsoc, n_cont_a, n_cont_b, nat_kind, natom, nkind, nlist, &
-      nnode, nsetc, nsgfa, nsgfb, nsoctot, nspins, np_sph
+      nnode, np_sph, nsetc, nsgfa, nsgfb, nsoctot, nspins
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: a_list, list_a, list_b
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: kind_of
     LOGICAL                                  :: dista, distab, distb, &
                                                 failure, paw_atom
-    REAL(dp), ALLOCATABLE, DIMENSION(:,:)    :: p_matrix
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: p_matrix
     REAL(KIND=dp)                            :: eps_cpc, factor, pmax
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: CPC, PC1
     REAL(KIND=dp), DIMENSION(3)              :: rab
@@ -475,11 +476,11 @@ MODULE qs_rho_atom_methods
                                                 sab_orb_neighbor_list_local
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(oce_matrix_type), POINTER           :: oce
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: p_block_spin
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
-    TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     CALL timeset(routineN,handle)
 
@@ -972,7 +973,7 @@ MODULE qs_rho_atom_methods
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iat, iatom, ikind, ispin, istat, j, max_iso_not0, &
-      maxso, nat, natom, nkind, nr, nset, nsotot, nspins, tmpstat, np_sph, nsp
+      maxso, nat, natom, nkind, np_sph, nr, nset, nsotot, nspins, tmpstat
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
     TYPE(atomic_kind_type), DIMENSION(:), &
