@@ -336,3 +336,6 @@ CH3-hybrid-handhlyp-lsd.inp
 CH3-hybrid-pbe0-lsd.inp
 # GAPW rewrite 2nd step 
 CH3-hybrid-HSE06-lsd.inp
+# more numerics
+Ne-hybrid-MCY3.inp
+Ne-hybrid-rcam-b3lyp.inp

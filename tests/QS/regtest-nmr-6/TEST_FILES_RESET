@@ -496,3 +496,5 @@ w2_qmmm-3.inp
 no-gapw-gpw-1.inp
 # GAPW rewrite 2nd step 
 ch3m-gapw-1.inp
+# more numerics
+h2-gapw-1.inp
