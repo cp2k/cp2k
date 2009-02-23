@@ -83,3 +83,9 @@ NO2-EPR-1.inp
 NO2-EPR-2.inp
 # speedup projection
 NO2-EPR-3.inp
+# GAPW rewrite 2nd step 
+NO2-EPR-1.inp
+# GAPW rewrite 2nd step 
+NO2-EPR-2.inp
+# GAPW rewrite 2nd step 
+NO2-EPR-3.inp

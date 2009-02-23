@@ -34,6 +34,8 @@ MODULE xray_diffraction
                                              nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE particle_types,                  ONLY: particle_type
+  USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
+                                             paw_proj_set_type
   USE physcon,                         ONLY: angstrom
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -533,8 +535,9 @@ CONTAINS
     INTEGER :: atom, handle, iatom, ico, ico1_pgf, ico1_set, ikind, ipgf, &
       iset, iso, iso1_pgf, iso1_set, ispin, istat, jco, jco1_pgf, jco1_set, &
       jpgf, jset, jso, jso1_pgf, jso1_set, la, lb, maxco, maxso, na, natom, &
-      nb, ncoa, ncob, ncotot, nkind, nset, nsoa, nsob, nsotot, nspin
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
+      nb, ncoa, ncob, ncotot, nkind, nset, nsoa, nsob, nsotot, nspin, np_sph, &
+      ison, json
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf, o2nindex
     LOGICAL                                  :: failure, orthorhombic, &
                                                 paw_atom
     REAL(KIND=dp)                            :: alpha, eps_rho_gspace, &
@@ -556,6 +559,7 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     failure = .FALSE.
 
@@ -650,9 +654,12 @@ CONTAINS
                              atom_list=atom_list,&
                              natom=natom,&
                              orb_basis_set=orb_basis_set,&
+                             paw_proj_set=paw_proj,&
                              paw_atom=paw_atom)
 
         IF (.NOT.paw_atom) CYCLE ! no PAW atom: nothing to do
+
+        CALL get_paw_proj_set(paw_proj_set=paw_proj,o2nindex=o2nindex,nsgauprj=np_sph)
 
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                lmax=lmax,&
@@ -665,7 +672,7 @@ CONTAINS
 
         ncotot = maxco*nset
         nsotot = maxso*nset
-        CALL reallocate(delta_cpc,1,nsotot,1,nsotot)
+        CALL reallocate(delta_cpc,1,np_sph,1,np_sph)
         CALL reallocate(pab,1,ncotot,1,ncotot)
         CALL reallocate(work,1,maxso,1,maxco)
 
@@ -675,8 +682,8 @@ CONTAINS
           rho_atom => rho_atom_set(atom)
 
           CALL get_rho_atom(rho_atom=rho_atom,&
-                            cpc_h=cpc_h,&
-                            cpc_s=cpc_s)
+                            cpc_hx=cpc_h,&
+                            cpc_sx=cpc_s)
 
           ra(:) = pbc(particle_set(iatom)%r,cell)
 
@@ -718,8 +725,10 @@ CONTAINS
                     jco = jco1_pgf + ncoset(lmin(jset)-1)
                     jso = jso1_pgf + nsoset(lmin(jset)-1)
                     DO lb=lmin(jset),lmax(jset)
+                      ison = o2nindex(iso)
+                      json = o2nindex(jso)
                       CALL dgemm("N","N",nso(la),nco(lb),nso(lb),1.0_dp,&
-                                 delta_cpc(iso,jso),SIZE(delta_cpc,1),&
+                                 delta_cpc(ison,json),SIZE(delta_cpc,1),&
                                  orbtramat(lb)%slm,nso(lb),0.0_dp,work,&
                                  maxso)
                       CALL dgemm("T","N",nco(la),nco(lb),nso(la),1.0_dp,&

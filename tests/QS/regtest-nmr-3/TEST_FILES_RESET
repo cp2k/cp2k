@@ -95,3 +95,5 @@ h2o-nmr-nics-1.inp
 #  
 no-gapw-nics.inp
 no-gapw-nics.inp
+# GAPW rewrite 2nd step 
+no-gapw-nics.inp

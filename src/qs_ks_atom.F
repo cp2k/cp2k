@@ -27,6 +27,7 @@ MODULE qs_ks_atom
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
   USE qs_oce_types,                    ONLY: oce_matrix_type
+  USE qs_oce_methods,                  ONLY: prj_gather
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
@@ -97,13 +98,13 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
-    LOGICAL                                  :: failure, my_tddft, paw_atom, &
-                                                use_virial
+    LOGICAL                                  :: dista, distb, failure, &
+                                                my_tddft, paw_atom, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_matrix, p_matrix
     REAL(dp), DIMENSION(3)                   :: rac, rbc
     REAL(dp), DIMENSION(3, 3)                :: force_tmp
     REAL(kind=dp)                            :: eps_cpc, factor, pmax
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: C_int_h, C_int_s
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: C_int_h, C_int_s, coc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dCPC_h, dCPC_s
     REAL(KIND=dp), ALLOCATABLE, &
@@ -167,7 +168,7 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxsgf=max_nsgf,&
                              maxgtops=max_gau,natom=natom)
 
-    ALLOCATE (C_int_h(max_gau*max_nsgf),C_int_s(max_gau*max_nsgf),&
+    ALLOCATE (C_int_h(max_gau*max_nsgf),C_int_s(max_gau*max_nsgf),coc(max_gau*max_gau),&
               a_matrix(max_gau,max_gau),p_matrix(max_nsgf,max_nsgf),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -209,10 +210,12 @@ CONTAINS
          DO iat = 1,nat
          iatom =  atom_list(iat)
             DO ispin = 1,nspins
-              CALL  mp_sum(rho_atom(iatom)%ga_Vlocal_gb_h(ispin)%r_coef,&
-                           para_env%group)
-              CALL  mp_sum(rho_atom(iatom)%ga_Vlocal_gb_s(ispin)%r_coef,&
-                           para_env%group)
+              CALL prj_gather(rho_atom(iatom)%ga_Vlocal_gb_h(ispin)%r_coef,&
+                              rho_atom(iatom)%cpc_hx(ispin)%r_coef,atomic_kind,error)
+              CALL prj_gather(rho_atom(iatom)%ga_Vlocal_gb_s(ispin)%r_coef,&
+                              rho_atom(iatom)%cpc_sx(ispin)%r_coef,atomic_kind,error)
+              CALL  mp_sum(rho_atom(iatom)%cpc_hx(ispin)%r_coef,para_env%group)
+              CALL  mp_sum(rho_atom(iatom)%cpc_sx(ispin)%r_coef,para_env%group)
             END DO
          END DO
        END IF
@@ -306,9 +309,7 @@ CONTAINS
 
               IF(.NOT. paw_atom)  CYCLE
 
-              CALL  get_gto_basis_set(gto_basis_set=orb_basis,&
-                                      nset =nsetc,maxso=maxsoc)
-              nsoctot = maxsoc*nsetc
+              CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nsetc,maxso=maxsoc)
 
               iac = ikind + nkind*(kkind - 1)
               ibc = jkind + nkind*(kkind - 1)
@@ -333,23 +334,29 @@ CONTAINS
                     IF(iatom==katom .AND. ALL(alist_ac%clist(kac)%cell == 0)) THEN
                       C_coeff_hh_a => alist_ac%clist(kac)%achint
                       C_coeff_ss_a => alist_ac%clist(kac)%acint
+                      dista = .FALSE.
                     ELSE
                       C_coeff_hh_a => alist_ac%clist(kac)%acint
                       C_coeff_ss_a => alist_ac%clist(kac)%acint
+                      dista = .TRUE.
                     END IF
                     IF(jatom==katom .AND. ALL(alist_bc%clist(kbc)%cell == 0)) THEN
                       C_coeff_hh_b => alist_bc%clist(kbc)%achint
                       C_coeff_ss_b => alist_bc%clist(kbc)%acint
+                      distb = .FALSE.
                     ELSE
                       C_coeff_hh_b => alist_bc%clist(kbc)%acint
                       C_coeff_ss_b => alist_bc%clist(kbc)%acint
+                      distb = .TRUE.
                     END IF
 
                     rho_at => rho_atom(katom)
 
-                    CALL add_vhxca_to_ks2(mat_h,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,C_coeff_ss_b,&
+                    nsoctot = SIZE(C_coeff_ss_a,2)
+
+                    CALL add_vhxca_to_ks(mat_h,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,C_coeff_ss_b,&
                          rho_at,nspins,iatom,jatom,nsoctot,factor,&
-                         list_a,n_cont_a,list_b,n_cont_b,C_int_h,C_int_s,a_matrix,error)
+                         list_a,n_cont_a,list_b,n_cont_b,C_int_h,C_int_s,a_matrix,dista,distb,coc,error)
 
                     IF(forces)THEN
                       ia_kind = atom_of_kind(iatom)
@@ -358,9 +365,10 @@ CONTAINS
                       rho_at => rho_atom(katom)
                       force_tmp(1:3,1:3) = 0.0_dp
                       IF(iatom <= jatom) THEN
-                         CALL add_vhxca_forces2(mat_p,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,C_coeff_ss_b,&
+                         CALL add_vhxca_forces(mat_p,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,C_coeff_ss_b,&
                               rho_at,force_tmp,nspins,iatom,jatom,nsoctot,&
-                              list_a,n_cont_a,list_b,n_cont_b,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,error)
+                              list_a,n_cont_a,list_b,n_cont_b,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,&
+                              dista,distb,coc,error)
                         
                          force(kkind)%vhxc_atom(1:3,ka_kind) = &
                                            force(kkind)%vhxc_atom(1:3,ka_kind) + &
@@ -378,9 +386,10 @@ CONTAINS
                             CALL virial_pair_force(virial%pv_virial,1._dp,force_tmp(1:3,2),rbc,error)
                          END IF
                       ELSE
-                         CALL add_vhxca_forces2(mat_p,C_coeff_hh_b,C_coeff_hh_a,C_coeff_ss_b,C_coeff_ss_a,&
+                         CALL add_vhxca_forces(mat_p,C_coeff_hh_b,C_coeff_hh_a,C_coeff_ss_b,C_coeff_ss_a,&
                               rho_at,force_tmp,nspins,jatom,iatom,nsoctot,&
-                              list_b,n_cont_b,list_a,n_cont_a,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,error)
+                              list_b,n_cont_b,list_a,n_cont_a,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,&
+                              distb,dista,coc,error)
 
                          force(kkind)%vhxc_atom(1:3,ka_kind) = &
                                            force(kkind)%vhxc_atom(1:3,ka_kind) + &
@@ -417,7 +426,7 @@ CONTAINS
       NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
     END DO
 
-    DEALLOCATE(mat_h,mat_p,C_int_h,C_int_s,a_matrix,p_matrix,STAT=istat)
+    DEALLOCATE(mat_h,mat_p,C_int_h,C_int_s,a_matrix,p_matrix,coc,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF(forces) THEN
@@ -434,9 +443,9 @@ CONTAINS
   END SUBROUTINE update_ks_atom
 
 ! *****************************************************************************
-  SUBROUTINE add_vhxca_to_ks2(mat_h,C_hh_a,C_hh_b,C_ss_a,C_ss_b,&
+  SUBROUTINE add_vhxca_to_ks(mat_h,C_hh_a,C_hh_b,C_ss_a,C_ss_b,&
              rho_atom,nspins,ia,ja,nsp,factor,lista,nconta,listb,ncontb,&
-             C_int_h,C_int_s,a_matrix,error)
+             C_int_h,C_int_s,a_matrix,dista,distb,coc,error)
 
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: mat_h
@@ -450,19 +459,24 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ncontb
     REAL(KIND=dp), DIMENSION(:)              :: C_int_h, C_int_s
     REAL(dp), DIMENSION(:, :)                :: a_matrix
+    LOGICAL, INTENT(IN)                      :: dista, distb
+    REAL(dp), DIMENSION(:)                   :: coc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'add_vhxca_to_ks2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_vhxca_to_ks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, int_hard, int_soft
+    INTEGER                                  :: i, ispin, j, k, istat
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: int_hard, int_soft
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_local_h, int_local_s
 
     NULLIFY(int_local_h,int_local_s,int_hard,int_soft)
-    CALL get_rho_atom(rho_atom=rho_atom,&
-                      ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
+!   CALL get_rho_atom(rho_atom=rho_atom,&
+!                     ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
+    CALL get_rho_atom(rho_atom=rho_atom,cpc_hx=int_local_h,cpc_sx=int_local_s)
 
     DO ispin = 1,nspins
        h_block => mat_h(ispin)%array
@@ -471,46 +485,101 @@ CONTAINS
        int_soft => int_local_s(ispin)%r_coef
        !
        IF(ia <= ja) THEN
-          CALL DGEMM('N','T',nsp,ncontb,nsp,1.0_dp,int_hard(1,1),SIZE(int_hard,1),&
-               C_hh_b(1,1,1),SIZE(C_hh_b,1),&
-               0.0_dp,C_int_h(1),nsp)
-          CALL DGEMM('N','T',nsp,ncontb,nsp,1.0_dp,int_soft(1,1),SIZE(int_soft,1),&
-               C_ss_b(1,1,1),SIZE(C_ss_b,1),&
-               0.0_dp,C_int_s(1),nsp)
-          CALL DGEMM('N','N',nconta,ncontb,nsp,factor,C_hh_a(1,1,1),SIZE(C_hh_a,1),&
-               C_int_h(1),nsp,&
-               0.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
-          CALL DGEMM('N','N',nconta,ncontb,nsp,-factor,C_ss_a(1,1,1),SIZE(C_ss_a,1),&
-               C_int_s(1),nsp,&
-               1.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
+          IF (dista .AND. distb) THEN
+            k=0
+            DO i=1,nsp
+              DO j=1,nsp
+                k = k+1
+                coc(k) = int_hard(j,i)-int_soft(j,i)
+              END DO
+            END DO
+            CALL DGEMM('N','T',nsp,ncontb,nsp,1.0_dp,coc,nsp,C_hh_b(1,1,1),SIZE(C_hh_b,1),&
+                 0.0_dp,C_int_h(1),nsp)
+            CALL DGEMM('N','N',nconta,ncontb,nsp,factor,C_hh_a(1,1,1),SIZE(C_hh_a,1),&
+                 C_int_h(1),nsp,0.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
+          ELSEIF (dista) THEN
+            CALL DGEMM('N','T',nsp,ncontb,nsp,1.0_dp,int_hard(1,1),SIZE(int_hard,1),&
+                 C_hh_b(1,1,1),SIZE(C_hh_b,1),0.0_dp,coc(1),nsp)
+            CALL DGEMM('N','T',nsp,ncontb,nsp,-1.0_dp,int_soft(1,1),SIZE(int_soft,1),&
+                 C_ss_b(1,1,1),SIZE(C_ss_b,1),1.0_dp,coc(1),nsp)
+            CALL DGEMM('N','N',nconta,ncontb,nsp,factor,C_hh_a(1,1,1),SIZE(C_hh_a,1),&
+                 coc(1),nsp,0.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
+          ELSEIF (distb) THEN
+            CALL DGEMM('N','N',nconta,nsp,nsp,factor,C_hh_a(1,1,1),SIZE(C_hh_a,1),&
+                 int_hard(1,1),SIZE(int_hard,1),0.0_dp,coc(1),nconta)
+            CALL DGEMM('N','N',nconta,nsp,nsp,-factor,C_ss_a(1,1,1),SIZE(C_hh_a,1),&
+                 int_soft(1,1),SIZE(int_hard,1),1.0_dp,coc(1),nconta)
+            CALL DGEMM('N','T',nconta,ncontb,nsp,1.0_dp,coc(1),nconta,&
+                 C_hh_b(1,1,1),SIZE(C_hh_b,1),0.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
+          ELSE
+            CALL DGEMM('N','T',nsp,ncontb,nsp,1.0_dp,int_hard(1,1),SIZE(int_hard,1),&
+                 C_hh_b(1,1,1),SIZE(C_hh_b,1),&
+                 0.0_dp,C_int_h(1),nsp)
+            CALL DGEMM('N','T',nsp,ncontb,nsp,1.0_dp,int_soft(1,1),SIZE(int_soft,1),&
+                 C_ss_b(1,1,1),SIZE(C_ss_b,1),&
+                 0.0_dp,C_int_s(1),nsp)
+            CALL DGEMM('N','N',nconta,ncontb,nsp,factor,C_hh_a(1,1,1),SIZE(C_hh_a,1),&
+                 C_int_h(1),nsp,&
+                 0.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
+            CALL DGEMM('N','N',nconta,ncontb,nsp,-factor,C_ss_a(1,1,1),SIZE(C_ss_a,1),&
+                 C_int_s(1),nsp,&
+                 1.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
+          END IF
           !
           CALL alist_post_align_blk(a_matrix,SIZE(a_matrix,1),h_block,SIZE(h_block,1),&
                lista,nconta,listb,ncontb)
        ELSE
-          CALL DGEMM('N','T',nsp,nconta,nsp,1.0_dp,int_hard(1,1),SIZE(int_hard,1),&
-               C_hh_a(1,1,1),SIZE(C_hh_a,1),&
-               0.0_dp,C_int_h(1),nsp)
-          CALL DGEMM('N','T',nsp,nconta,nsp,1.0_dp,int_soft(1,1),SIZE(int_soft,1),&
-               C_ss_a(1,1,1),SIZE(C_ss_a,1),&
-               0.0_dp,C_int_s(1),nsp)
-          CALL DGEMM('N','N',ncontb,nconta,nsp, factor,C_hh_b(1,1,1),SIZE(C_hh_b,1),&
-               C_int_h(1),nsp,&
-               0.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
-          CALL DGEMM('N','N',ncontb,nconta,nsp,-factor,C_ss_b(1,1,1),SIZE(C_ss_b,1),&
-               C_int_s(1),nsp,&
-               1.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
+          IF (dista .AND. distb) THEN
+            k=0
+            DO i=1,nsp
+              DO j=1,nsp
+                k = k+1
+                coc(k) = int_hard(j,i)-int_soft(j,i)
+              END DO
+            END DO
+            CALL DGEMM('N','T',nsp,nconta,nsp,1.0_dp,coc,nsp,C_hh_a(1,1,1),SIZE(C_hh_a,1),0.0_dp,C_int_h(1),nsp)
+            CALL DGEMM('N','N',ncontb,nconta,nsp, factor,C_hh_b(1,1,1),SIZE(C_hh_b,1),&
+                 C_int_h(1),nsp,0.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
+          ELSEIF (dista) THEN
+            CALL DGEMM('N','N',ncontb,nsp,nsp,factor,C_hh_b(1,1,1),SIZE(C_hh_b,1),&
+                 int_hard(1,1),SIZE(int_hard,1),0.0_dp,coc,ncontb)
+            CALL DGEMM('N','N',ncontb,nsp,nsp,-factor,C_ss_b(1,1,1),SIZE(C_ss_b,1),&
+                 int_soft(1,1),SIZE(int_soft,1),1.0_dp,coc,ncontb)
+            CALL DGEMM('N','T',ncontb,nconta,nsp,1.0_dp,coc,ncontb,&
+                 C_hh_a(1,1,1),SIZE(C_hh_a,1),0.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
+          ELSEIF (distb) THEN
+            CALL DGEMM('N','T',nsp,nconta,nsp,1.0_dp,int_hard(1,1),SIZE(int_hard,1),&
+                 C_hh_a(1,1,1),SIZE(C_hh_a,1),0.0_dp,coc(1),nsp)
+            CALL DGEMM('N','T',nsp,nconta,nsp,-1.0_dp,int_soft(1,1),SIZE(int_soft,1),&
+                 C_ss_a(1,1,1),SIZE(C_ss_a,1),1.0_dp,coc(1),nsp)
+            CALL DGEMM('N','N',ncontb,nconta,nsp, factor,C_hh_b(1,1,1),SIZE(C_hh_b,1),&
+                 coc(1),nsp,0.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
+          ELSE
+            CALL DGEMM('N','T',nsp,nconta,nsp,1.0_dp,int_hard(1,1),SIZE(int_hard,1),&
+                 C_hh_a(1,1,1),SIZE(C_hh_a,1),&
+                 0.0_dp,C_int_h(1),nsp)
+            CALL DGEMM('N','T',nsp,nconta,nsp,1.0_dp,int_soft(1,1),SIZE(int_soft,1),&
+                 C_ss_a(1,1,1),SIZE(C_ss_a,1),&
+                 0.0_dp,C_int_s(1),nsp)
+            CALL DGEMM('N','N',ncontb,nconta,nsp, factor,C_hh_b(1,1,1),SIZE(C_hh_b,1),&
+                 C_int_h(1),nsp,&
+                 0.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
+            CALL DGEMM('N','N',ncontb,nconta,nsp,-factor,C_ss_b(1,1,1),SIZE(C_ss_b,1),&
+                 C_int_s(1),nsp,&
+                 1.0_dp,a_matrix(1,1),SIZE(a_matrix,1))
+          END IF
           !
           CALL alist_post_align_blk(a_matrix,SIZE(a_matrix,1),h_block,SIZE(h_block,1),&
                listb,ncontb,lista,nconta)
        END IF
     END DO
 
-  END SUBROUTINE add_vhxca_to_ks2
+  END SUBROUTINE add_vhxca_to_ks
 
 ! *****************************************************************************
-  SUBROUTINE add_vhxca_forces2(mat_p,C_hh_a,C_hh_b,C_ss_a,C_ss_b,&
+  SUBROUTINE add_vhxca_forces(mat_p,C_hh_a,C_hh_b,C_ss_a,C_ss_b,&
              rho_atom,force,nspins,ia,ja,nsp,lista,nconta,listb,ncontb,&
-             dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,error)
+             dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,dista,distb,coc,error)
 
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: mat_p
@@ -527,26 +596,31 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :)        :: PC_h, PC_s
     INTEGER, INTENT(IN)                      :: lPC
     REAL(KIND=dp), DIMENSION(:, :)           :: p_matrix
+    LOGICAL, INTENT(IN)                      :: dista, distb
+    REAL(dp), DIMENSION(:)                   :: coc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'add_vhxca_forces2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_vhxca_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dir, ispin
+    INTEGER                                  :: dir, ispin, istat
+    LOGICAL                                  :: failure = .FALSE.
     REAL(dp), DIMENSION(:, :), POINTER       :: int_hard, int_soft
     REAL(KIND=dp)                            :: ieqj, trace
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_local_h, int_local_s
 
+!   if(dista.and.distb) we could also here use ChPCh = CsPCs
 !   *** factor 2 because only half of the pairs with ia =/ ja are  considered
 
     ieqj = 2.0_dp
     IF(ia == ja) ieqj = 1.0_dp
 
     NULLIFY(int_local_h,int_local_s,int_hard,int_soft)
-    CALL get_rho_atom(rho_atom=rho_atom,&
-                     ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
+!   CALL get_rho_atom(rho_atom=rho_atom,&
+!                    ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
+    CALL get_rho_atom(rho_atom=rho_atom,cpc_hx=int_local_h,cpc_sx=int_local_s)
 
     DO ispin = 1,nspins
       p_block => mat_p(ispin)%array
@@ -606,6 +680,6 @@ CONTAINS
       END DO
     END DO
 
-  END SUBROUTINE add_vhxca_forces2
+  END SUBROUTINE add_vhxca_forces
 
 END MODULE qs_ks_atom

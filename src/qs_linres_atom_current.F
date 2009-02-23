@@ -31,6 +31,8 @@ MODULE qs_linres_atom_current
   USE orbital_pointers,                ONLY: indso,&
                                              nsoset
   USE particle_types,                  ONLY: particle_type
+  USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
+                                             paw_proj_set_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -48,7 +50,7 @@ MODULE qs_linres_atom_current
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE qs_oce_methods,                  ONLY: proj_blk
+  USE qs_oce_methods,                  ONLY: proj_blk, prj_scatter
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE sap_kind_types,                  ONLY: alist_pre_align_blk,&
@@ -100,7 +102,7 @@ CONTAINS
       ikind, ilist, inode, ispin, istat, jatom, jkind, kac, katom, kbc, &
       kkind, max_gau, max_nsgf, maxsoc, mepos, n_cont_a, n_cont_b, nat, &
       natom, nkind, nlist, nnode, nsetc, nsgfa, nsgfb, nso, nsoctot, nspins, &
-      num_pe
+      num_pe, np_sph
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
     LOGICAL :: dista, distab, distb, failure, is_not_associated, paw_atom, &
@@ -134,6 +136,7 @@ CONTAINS
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: a_block, b_block, c_block, &
                                                 d_block, jp2_RARnu, jp_RARnu
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     CALL timeset(routineN,handle)
     !
@@ -312,18 +315,18 @@ CONTAINS
 
                    atomic_kind => atomic_kind_set(kkind)
 
+                   NULLIFY(paw_proj)
                    CALL get_atomic_kind(atomic_kind=atomic_kind,&
                         &               orb_basis_set=orb_basis_set,&
                         &               hard_radius=hard_radius_c,&
+                        &               paw_proj_set=paw_proj,&
                         &               paw_atom=paw_atom)
-
-                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                        &                 nset=nsetc,maxso=maxsoc)
-
-                   nsoctot = maxsoc*nsetc
                    !
                    ! Quick cycle if needed.
                    IF(.NOT.paw_atom) CYCLE
+
+                   CALL get_paw_proj_set(paw_proj_set=paw_proj,nsgauprj=np_sph)
+                   nsoctot = np_sph
 
                    iac = ikind + nkind*(kkind - 1)
                    ibc = jkind + nkind*(kkind - 1)
@@ -470,12 +473,13 @@ CONTAINS
             &               orb_basis_set=orb_basis_set,&
             &               atom_list=atom_list,&
             &               natom=nat,&
+            &               paw_proj_set=paw_proj,&
             &               paw_atom=paw_atom)
-       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-            &                 nset=nsetc,maxso=maxsoc)
-       nsoctot = maxsoc*nsetc
-       !
+
        IF(.NOT. paw_atom) CYCLE
+
+       CALL get_paw_proj_set(paw_proj_set=paw_proj,nsgauprj=np_sph)
+       nsoctot = np_sph
        !
        num_pe = para_env%num_pe
        mepos  = para_env%mepos
@@ -574,7 +578,7 @@ CONTAINS
       m2s, max_iso_not0, max_nso, maxl, maxso, mepos, n1s, n2s, na, natom, &
       natom_tot, nkind, nr, nset, nspins, num_pe, size1, size2
     INTEGER, DIMENSION(2)                    :: bo
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf, o2nindex
     LOGICAL                                  :: failure, paw_atom
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: is_set_to_0
     REAL(dp)                                 :: hard_radius
@@ -598,6 +602,7 @@ CONTAINS
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
 !
 !
@@ -640,6 +645,7 @@ CONTAINS
             &               atom_list=atom_list,&
             &               grid_atom=grid_atom,&
             &               natom=natom,&
+            &               paw_proj_set=paw_proj,&
             &               paw_atom=paw_atom,&
             &               harmonics=harmonics,&
             &               hard_radius=hard_radius,&
@@ -653,6 +659,7 @@ CONTAINS
             &                 maxl=maxl,npgf=npgf,&
             &                 nset=nset,zet=zet,&
             &                 maxso=maxso)
+       CALL get_paw_proj_set(paw_proj_set=paw_proj,o2nindex=o2nindex)
        !
        nr = grid_atom%nr
        na = grid_atom%ng_sphere
@@ -709,6 +716,10 @@ CONTAINS
              iso1_first = nsoset(lmin(iset1)-1)+1+n1s*(ipgf1-1)+m1s
              iso1_last  = nsoset(lmax(iset1))+n1s*(ipgf1-1)+m1s
              size1 = iso1_last - iso1_first + 1
+             iso1_first = o2nindex(iso1_first)
+             iso1_last  = o2nindex(iso1_last)
+             i1 = iso1_last - iso1_first + 1
+             CPPrecondition(size1==i1,cp_failure_level,routineP,error,failure)
              i1 = nsoset(lmin(iset1)-1)+1
              !
              g1(1:nr) = EXP(-zet(ipgf1,iset1)*grid_atom%rad2(1:nr))
@@ -720,6 +731,10 @@ CONTAINS
                    iso2_first = nsoset(lmin(iset2)-1)+1+n2s*(ipgf2-1)+m2s
                    iso2_last  = nsoset(lmax(iset2))+n2s*(ipgf2-1)+m2s
                    size2 = iso2_last - iso2_first + 1
+                   iso2_first = o2nindex(iso2_first)
+                   iso2_last  = o2nindex(iso2_last)
+                   i2 = iso2_last - iso2_first + 1
+                   CPPrecondition(size2==i2,cp_failure_level,routineP,error,failure)
                    i2 = nsoset(lmin(iset2)-1)+1
                    !
                    g2(1:nr) = EXP(-zet(ipgf2,iset2)*grid_atom%rad2(1:nr))

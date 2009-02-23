@@ -433,3 +433,5 @@ H2O-NMR-11.inp
 H2O-NMR-12.inp
 # speedup projection
 H2O-NMR-4.inp
+# GAPW rewrite 2nd step 
+H2O-NMR-4.inp

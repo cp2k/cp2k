@@ -211,3 +211,11 @@ o2-gapw-uks-1.inp
 c2h2_list-1.inp
 # speedup projection
 no_list-1.inp
+# GAPW rewrite 2nd step 
+h2o-gapw-1.inp
+# GAPW rewrite 2nd step 
+o2-gapw-uks-1.inp
+# GAPW rewrite 2nd step 
+c2h2_list-1.inp
+# GAPW rewrite 2nd step 
+no_list-1.inp

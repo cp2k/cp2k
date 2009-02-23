@@ -31,6 +31,8 @@ MODULE qs_electric_field_gradient
   USE orbital_pointers,                ONLY: indso,&
                                              nsoset
   USE particle_types,                  ONLY: particle_type
+  USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
+                                             paw_proj_set_type
   USE physcon,                         ONLY: a_bohr,&
                                              e_charge,&
                                              joule
@@ -458,7 +460,7 @@ CONTAINS
       l_iso, m1s, m2s, m_iso, max_iso_not0, maxl, maxso, mepos, n1s, n2s, &
       nset, num_pe, size1, size2
     INTEGER, DIMENSION(2)                    :: bo
-    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
+    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, o2nindex
     LOGICAL                                  :: failure
     REAL(dp)                                 :: zet12
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: CPC_sphere
@@ -467,6 +469,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     failure = .FALSE.
     NULLIFY(orb_basis)
@@ -474,11 +477,13 @@ CONTAINS
     NULLIFY(lmin,lmax,npgf,zet,my_CG,coeff)
 
     CALL get_atomic_kind(atomic_kind=atom_kind, orb_basis_set=orb_basis,&
-                         harmonics=harmonics)
+                         paw_proj_set=paw_proj,harmonics=harmonics)
 
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
                            maxl=maxl,npgf=npgf,nset=nset,zet=zet,&
                            maxso=maxso)
+
+    CALL get_paw_proj_set(paw_proj_set=paw_proj,o2nindex=o2nindex)
 
     max_iso_not0 = harmonics%max_iso_not0
 
@@ -501,6 +506,10 @@ CONTAINS
         iso1_first = nsoset(lmin(iset1)-1)+1+n1s*(ipgf1-1)+m1s
         iso1_last  = nsoset(lmax(iset1))+n1s*(ipgf1-1)+m1s
         size1 = iso1_last - iso1_first + 1
+        iso1_first = o2nindex(iso1_first)
+        iso1_last  = o2nindex(iso1_last)
+        i1 = iso1_last - iso1_first + 1
+        CPPrecondition(size1==i1,cp_failure_level,routineP,error,failure)
         i1 = nsoset(lmin(iset1)-1)+1
 
         m2s = 0
@@ -510,6 +519,10 @@ CONTAINS
             iso2_first = nsoset(lmin(iset2)-1)+1+n2s*(ipgf2-1)+m2s
             iso2_last  = nsoset(lmax(iset2))+n2s*(ipgf2-1)+m2s
             size2 = iso2_last - iso2_first + 1
+            iso2_first = o2nindex(iso2_first)
+            iso2_last  = o2nindex(iso2_last)
+            i2 = iso2_last - iso2_first + 1
+            CPPrecondition(size2==i2,cp_failure_level,routineP,error,failure)
             i2 = nsoset(lmin(iset2)-1)+1
 
             zet12 = zet(ipgf1,iset1)+zet(ipgf2,iset2)
@@ -534,11 +547,11 @@ CONTAINS
 
               CPC_sphere = 0.0_dp
               DO i=1,nspins
-                coeff => rho_atom_set(iatom)%cpc_h(i)%r_coef
+                coeff => rho_atom_set(iatom)%cpc_hx(i)%r_coef
                 CPC_sphere(i1:i1+size1-1,i2:i2+size2-1) = &
                   CPC_sphere(i1:i1+size1-1,i2:i2+size2-1) + &
                   coeff(iso1_first:iso1_last,iso2_first:iso2_last)
-                coeff => rho_atom_set(iatom)%cpc_s(i)%r_coef
+                coeff => rho_atom_set(iatom)%cpc_sx(i)%r_coef
                 CPC_sphere(i1:i1+size1-1,i2:i2+size2-1) = &
                   CPC_sphere(i1:i1+size1-1,i2:i2+size2-1) - &
                   coeff(iso1_first:iso1_last,iso2_first:iso2_last)

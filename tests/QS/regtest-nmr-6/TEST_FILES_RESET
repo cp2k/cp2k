@@ -470,3 +470,29 @@ w2_qmmm-3.inp
 ch4-gapw-gpw-1.inp
 # speedup projection
 no-gapw-gpw-1.inp
+# GAPW rewrite 2nd step 
+ch4-gapw-5.inp
+# GAPW rewrite 2nd step 
+no-gapw-1.inp
+# GAPW rewrite 2nd step 
+no-gapw-2.inp
+# GAPW rewrite 2nd step 
+no-gapw-3.inp
+# GAPW rewrite 2nd step 
+no-gapw-4.inp
+# GAPW rewrite 2nd step 
+no-gapw-5.inp
+# GAPW rewrite 2nd step 
+no-gapw-1-distributed.inp
+# GAPW rewrite 2nd step 
+no-gapw-1-replicated.inp
+# GAPW rewrite 2nd step 
+w2_qmmm-1.inp
+# GAPW rewrite 2nd step 
+w2_qmmm-2.inp
+# GAPW rewrite 2nd step 
+w2_qmmm-3.inp
+# GAPW rewrite 2nd step 
+no-gapw-gpw-1.inp
+# GAPW rewrite 2nd step 
+ch3m-gapw-1.inp

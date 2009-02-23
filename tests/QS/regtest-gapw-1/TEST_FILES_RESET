@@ -56,3 +56,9 @@ CO_xastphh.inp
 CO_xastphh_r.inp
 # New initial guess ATOMIC 
 CO_xastpfh.inp
+# GAPW rewrite 2nd step 
+CO.inp
+# GAPW rewrite 2nd step 
+CO_xastphh.inp
+# GAPW rewrite 2nd step 
+CO_xastpfh.inp

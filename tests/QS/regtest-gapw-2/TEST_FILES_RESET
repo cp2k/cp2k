@@ -68,3 +68,7 @@ C-levelshift.inp
 C-levelshift.inp
 # speedup projection
 H2-pbe-restart-rerun.inp
+# GAPW rewrite 2nd step 
+NO2-ROKS.inp
+# GAPW rewrite 2nd step 
+H2-pbe-restart-rerun.inp

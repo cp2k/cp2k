@@ -326,3 +326,13 @@ Ne-hybrid-rcam-b3lyp.inp
 Ne-hybrid-MCY3.inp
 # speedup projection
 Li-hybrid-rcam-b3lyp.inp
+# GAPW rewrite 2nd step 
+CH3-hybrid-b3lyp-lsd-g03.inp
+# GAPW rewrite 2nd step 
+CH3-hybrid-handh-lsd.inp
+# GAPW rewrite 2nd step 
+CH3-hybrid-handhlyp-lsd.inp
+# GAPW rewrite 2nd step 
+CH3-hybrid-pbe0-lsd.inp
+# GAPW rewrite 2nd step 
+CH3-hybrid-HSE06-lsd.inp

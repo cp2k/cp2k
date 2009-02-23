@@ -33,6 +33,8 @@ MODULE paw_proj_set_types
   USE qs_util,                         ONLY: exp_radius,&
                                              gauss_exponent
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -61,11 +63,14 @@ MODULE paw_proj_set_types
      REAL(dp), DIMENSION(:,:), POINTER        :: rzetprj    ! maxnprj,0:maxl
      REAL(dp), DIMENSION(:,:), POINTER        :: cprj       ! ncgauprj, maxco*nset
      REAL(dp), DIMENSION(:,:), POINTER        :: cprj_s     ! nsgauprj, maxso*nset
+     REAL(dp), DIMENSION(:,:), POINTER        :: csprj      ! ncgauprj, np_so
      REAL(dp), DIMENSION(:,:), POINTER        :: local_oce_cphi_h,local_oce_cphi_s ! maxco,ncgf
      REAL(dp), DIMENSION(:,:), POINTER        :: local_oce_sphi_h,local_oce_sphi_s ! maxco,nsgf
      REAL(dp), DIMENSION(:,:), POINTER        :: sphi_h, sphi_s
      REAL(dp), DIMENSION(:,:,:,:), POINTER    :: gccprj     ! maxnprj,maxnpgf,0:maxl,nset
      LOGICAL, DIMENSION(:,:), POINTER         :: isoprj     ! maxnprj,0:maxl
+     INTEGER, DIMENSION(:), POINTER           :: o2nindex   ! maxso*nset
+     INTEGER, DIMENSION(:), POINTER           :: n2oindex   ! maxso*nset
 
   END TYPE paw_proj_set_type
 
@@ -119,6 +124,7 @@ CONTAINS
     NULLIFY (paw_proj_set%zetprj)
     NULLIFY (paw_proj_set%cprj)
     NULLIFY (paw_proj_set%cprj_s)
+    NULLIFY (paw_proj_set%csprj)
     NULLIFY (paw_proj_set%local_oce_cphi_h)
     NULLIFY (paw_proj_set%local_oce_cphi_s)
     NULLIFY (paw_proj_set%local_oce_sphi_h)
@@ -129,6 +135,9 @@ CONTAINS
     NULLIFY (paw_proj_set%rzetprj)
 
     NULLIFY (paw_proj_set%isoprj)
+
+    NULLIFY (paw_proj_set%o2nindex)
+    NULLIFY (paw_proj_set%n2oindex)
 
   END SUBROUTINE allocate_paw_proj_set
 
@@ -176,6 +185,8 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (paw_proj_set%cprj_s,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (paw_proj_set%csprj,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (paw_proj_set%local_oce_cphi_h,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (paw_proj_set%local_oce_cphi_s,STAT=stat)
@@ -194,6 +205,11 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (paw_proj_set%rzetprj,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (paw_proj_set%o2nindex,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (paw_proj_set%n2oindex,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
     DEALLOCATE (paw_proj_set,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE deallocate_paw_proj_set
@@ -253,9 +269,10 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: bsname
     INTEGER :: ic, icgf, icgfmax, icgfmin, ico, icomax, icomin, il, info, ip, &
       ipgf, ipp, iprj, iprjfirst, iprjs, is, iset, isgf, isgfmax, isgfmin, &
-      ishell, iso, isomin, jp, k, kp, lshell, lwork, lx, ly, lz, m, maxco, &
-      maxl, maxnprj, maxpgf, maxso, ms, n, ncgauprj, ncgf, nisop, notprj, np, &
-      npgfg, ns, nset, nsgauprj, nsgf, output_unit, stat
+      ishell, iso, iso_pgf, iso_set, isomin, jp, k, kp, lshell, lwork, lx, &
+      ly, lz, m, maxco, maxl, maxnprj, maxpgf, maxso, mp, ms, n, ncgauprj, &
+      ncgf, nisop, notprj, np, npgfg, ns, nset, nsgauprj, nsgf, nsox, &
+      output_unit, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: IWORK
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_cgf, first_sgf, l, &
@@ -368,6 +385,11 @@ CONTAINS
        ALLOCATE(paw_proj%isoprj(maxnprj,0:maxl),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%isoprj = .FALSE.
+
+       mp = 0
+       DO lshell = 0,maxl    ! lshell
+         mp = MAX(mp,paw_proj%nprj(lshell)*nco(lshell))
+       END DO
 
        NULLIFY(zet,zetp,gcc,smat,work)
        !   *** Generate the projetor basis for each ang. mom. q.n. ***
@@ -770,6 +792,40 @@ CONTAINS
              END DO  ! ishell
           END DO  ! ipgf
        END DO  ! iset
+
+       !Index transformation OLD-NEW
+       ALLOCATE(paw_proj%o2nindex(maxso*nset),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(paw_proj%n2oindex(maxso*nset),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       paw_proj%o2nindex = 0
+       paw_proj%n2oindex = 0
+       ico = 1
+       DO iset=1,nset
+         iso_set = (iset - 1)*maxso + 1
+         nsox = nsoset(lmax(iset))
+         DO ipgf=1,npgf(iset)
+           iso_pgf = iso_set + (ipgf - 1)*nsox
+           iso = iso_pgf + nsoset(lmin(iset)-1)
+           DO lx=lmin(iset),lmax(iset)
+             DO k=1,nso(lx)
+               paw_proj%n2oindex(ico) = iso
+               paw_proj%o2nindex(iso) = ico
+               iso = iso + 1
+               ico = ico + 1
+             END DO 
+           END DO 
+         END DO 
+       END DO 
+       mp = ico-1
+       ALLOCATE(paw_proj%csprj(nsgauprj,mp),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       paw_proj%csprj = 0._dp
+       DO k=1,mp
+         ico = paw_proj%n2oindex(k)
+         paw_proj%csprj(:,k) = paw_proj%cprj_s(:,ico)
+       END DO
+
     END IF  ! failure
   END SUBROUTINE  build_projector
 
@@ -777,22 +833,23 @@ CONTAINS
 !> \brief   Get informations about a paw projectors set.
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_paw_proj_set(paw_proj_set,cprj,cprj_s,&
+  SUBROUTINE get_paw_proj_set(paw_proj_set,cprj,cprj_s,csprj,&
        first_prj,first_prjs,last_prj, & 
        local_oce_sphi_h,local_oce_sphi_s,&
        maxl,ncgauprj,nsgauprj,nprj,&
+       o2nindex,n2oindex,&
        rcprj,rzetprj,zisomin,zetprj)
 
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: cprj, cprj_s
+      POINTER                                :: cprj, cprj_s, csprj
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: first_prj, first_prjs, &
                                                 last_prj
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: local_oce_sphi_h, &
                                                 local_oce_sphi_s
     INTEGER, INTENT(OUT), OPTIONAL           :: maxl, ncgauprj, nsgauprj
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nprj
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nprj, o2nindex, n2oindex
     REAL(dp), INTENT(OUT), OPTIONAL          :: rcprj
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: rzetprj
@@ -807,6 +864,7 @@ CONTAINS
     IF (ASSOCIATED(paw_proj_set)) THEN
        IF (PRESENT(cprj)) cprj => paw_proj_set%cprj
        IF (PRESENT(cprj_s)) cprj_s => paw_proj_set%cprj_s
+       IF (PRESENT(csprj)) csprj => paw_proj_set%csprj
        IF (PRESENT(local_oce_sphi_h)) local_oce_sphi_h => paw_proj_set%local_oce_sphi_h
        IF (PRESENT(local_oce_sphi_s)) local_oce_sphi_s => paw_proj_set%local_oce_sphi_s
        IF (PRESENT(first_prj)) first_prj => paw_proj_set%first_prj
@@ -820,6 +878,8 @@ CONTAINS
        IF (PRESENT(rzetprj)) rzetprj => paw_proj_set%rzetprj 
        IF (PRESENT(zisomin)) zisomin => paw_proj_set%zisomin
        IF (PRESENT(zetprj)) zetprj => paw_proj_set%zetprj
+       IF (PRESENT(o2nindex)) o2nindex => paw_proj_set%o2nindex
+       IF (PRESENT(n2oindex)) n2oindex => paw_proj_set%n2oindex
 
     ELSE
        CALL stop_program(routineP,moduleN,__LINE__,&

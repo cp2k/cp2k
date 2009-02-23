@@ -200,3 +200,11 @@ He2-all-md.inp
 HF_gapw_all_LB.inp
 OF_gapw_all_lsd_LB.inp
 He2-all-md.inp
+# GAPW rewrite 2nd step 
+HF_gapw_all_LB.inp
+# GAPW rewrite 2nd step 
+OF_gapw_all_lsd_LB.inp
+# GAPW rewrite 2nd step 
+He2-all-md.inp
+# GAPW rewrite 2nd step 
+Be_GAPW.inp
