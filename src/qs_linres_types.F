@@ -116,7 +116,7 @@ MODULE qs_linres_types
      TYPE(qs_rho_p_type),     DIMENSION(:  ), POINTER :: jrho1_set
      TYPE(real_matrix_p_type),DIMENSION(:  ), POINTER :: op_p_ao,op_rmd_ao
      TYPE(realspace_grid_p_type),DIMENSION(:),POINTER :: rs_buf
-     TYPE(realspaces_grid_p_type), DIMENSION(:) :: rs_gauge(3)
+     TYPE(realspaces_grid_p_type), DIMENSION(:), POINTER :: rs_gauge
   END TYPE current_env_type
 
   TYPE issc_env_type
@@ -324,7 +324,7 @@ CONTAINS
        NULLIFY(current_env%jrho1_set)
        NULLIFY(current_env%op_p_ao)
        NULLIFY(current_env%op_rmd_ao)
-       NULLIFY(current_env%rs_gauge(1)%rs,current_env%rs_gauge(2)%rs,current_env%rs_gauge(3)%rs)
+       NULLIFY(current_env%rs_gauge)
        NULLIFY(current_env%rs_buf)
     END IF
 
@@ -414,7 +414,7 @@ CONTAINS
        &                 nbr_center,center_list,centers_set,ao_mo_fm_pools,mo_mo_fm_pools,&
        &                 psi1_p,psi1_rxp,psi1_D,p_psi0,rxp_psi0,dip,jrho1_atom_set,jrho1_set,&
        &                 op_p_ao,op_rmd_ao,chi_tensor,chi_tensor_loc,gauge_atom_radius,&
-       &                 error)
+       &                 rs_gauge,error)
     
     TYPE(current_env_type), OPTIONAL         :: current_env
     LOGICAL, OPTIONAL                        :: simple_done(6), &
@@ -448,6 +448,8 @@ CONTAINS
     REAL(dp), INTENT(OUT), OPTIONAL          :: chi_tensor(3,3,2), &
                                                 chi_tensor_loc(3,3,2), &
                                                 gauge_atom_radius
+    TYPE(realspaces_grid_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: rs_gauge
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_current_env', &
@@ -491,6 +493,7 @@ CONTAINS
        IF(PRESENT(jrho1_set       )) jrho1_set             => current_env%jrho1_set
        IF(PRESENT(op_rmd_ao       )) op_rmd_ao             => current_env%op_rmd_ao
        IF(PRESENT(op_p_ao         )) op_p_ao               => current_env%op_p_ao
+       IF(PRESENT(rs_gauge        )) rs_gauge              => current_env%rs_gauge
        IF(PRESENT(gauge_atom_radius))gauge_atom_radius     =  current_env%gauge_atom_radius
     ENDIF
 
@@ -653,11 +656,8 @@ CONTAINS
   END SUBROUTINE set_issc_env
 
 ! *****************************************************************************
-  SUBROUTINE get_epr_env(epr_env, &
-             g_total, g_so, g_soo, &
-             nablavks_set, nablavks_atom_set, &
-             bind_set, bind_atom_set, &
-             vks_atom_set, error)
+  SUBROUTINE get_epr_env(epr_env, g_total, g_so, g_soo, nablavks_set, nablavks_atom_set, &
+       bind_set, bind_atom_set, error)
 
     TYPE(epr_env_type)                       :: epr_env
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
@@ -670,8 +670,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: bind_set
     TYPE(rho_atom_coeff), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: bind_atom_set
-    TYPE(rho_atom_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: vks_atom_set
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

@@ -1136,6 +1136,12 @@ CONTAINS
     ALLOCATE(current_env%full_done(3*nspins,max_nbr_center),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     current_env%full_done = .FALSE.
+    !
+    ! allocate pointer for the gauge
+    ALLOCATE(current_env%rs_gauge(3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(current_env%rs_gauge(1)%rs,current_env%rs_gauge(2)%rs,current_env%rs_gauge(3)%rs)
+
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          &                            "PRINT%PROGRAM_RUN_INFO",error=error)
@@ -1308,6 +1314,9 @@ CONTAINS
                 CALL rs_pools_give_back_rs_vect(rs_pools,current_env%rs_gauge(idir)%rs,error=error)
              ENDIF
           ENDDO
+          !
+          DEALLOCATE(current_env%rs_gauge,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
           ! give back the buf
           IF(ASSOCIATED(current_env%rs_buf)) THEN

@@ -93,7 +93,8 @@ MODULE qs_linres_current
                                              set_vecp,&
                                              set_vecp_rev
   USE qs_linres_types,                 ONLY: current_env_type,&
-                                             get_current_env
+                                             get_current_env,&
+                                             realspaces_grid_p_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -666,6 +667,8 @@ CONTAINS
                                                 mat_b, mat_c, mat_d
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_current, rs_rho
+    TYPE(realspaces_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_gauge
     TYPE(section_vals_type), POINTER         :: input, interp_section
 
     failure=.FALSE.
@@ -675,7 +678,7 @@ CONTAINS
          dist_ab, set_radius_a, set_radius_b, la_max, la_min, lb_max, &
          lb_min, npgfa, npgfb, nsgfa, nsgfb, rpgfa, rpgfb, sphi_a, sphi_b, &
          zeta, zetb, first_sgfa, first_sgfb, dist_ab, tasks, workt, mat_a, &
-         mat_b, mat_c, mat_d)
+         mat_b, mat_c, mat_d, rs_gauge)
     NULLIFY(deltajp_a,deltajp_b,deltajp_c,deltajp_d)
     NULLIFY(jp_block_a,jp_block_b,jp_block_c,jp_block_d)
     NULLIFY(jpblock_a,jpblock_b,jpblock_c,jpblock_d)
@@ -707,6 +710,10 @@ CONTAINS
          para_env=para_env,&
          input=input,&
          pw_env=pw_env,error=error)
+
+    CALL get_current_env(current_env=current_env,&
+         &               rs_gauge=rs_gauge,&
+         &               error=error)
 
     ! Component of appearing in the vector product rxp, iiB and iiiB
     CALL set_vecp(iB,iiB,iiiB)
@@ -1229,7 +1236,7 @@ CONTAINS
                eps_rho_rspace,&
                ga_gb_function=FUNC_ADBmDAB,&
                idir=idir,ir=iiiB,&
-               rsgauge=current_env%rs_gauge(iiiB)%rs(igrid_level)%rs_grid,&
+               rsgauge=rs_gauge(iiiB)%rs(igrid_level)%rs_grid,&
                rsbuf=current_env%rs_buf(igrid_level)%rs_grid,&
                map_consistent=map_consistent,error=error)
           ! here the decontracted mat_jp_riii{ab} is multiplied by
@@ -1243,7 +1250,7 @@ CONTAINS
                eps_rho_rspace,&
                ga_gb_function=FUNC_ADBmDAB,&
                idir=idir,ir=iiB,&
-               rsgauge=current_env%rs_gauge(iiB)%rs(igrid_level)%rs_grid,&
+               rsgauge=rs_gauge(iiB)%rs(igrid_level)%rs_grid,&
                rsbuf=current_env%rs_buf(igrid_level)%rs_grid,&
                map_consistent=map_consistent,error=error)
        ELSE
@@ -1290,7 +1297,7 @@ CONTAINS
     IF(do_igaim) THEN
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_grid_mult_and_add(rs_current(igrid_level)%rs_grid,rs_rho(igrid_level)%rs_grid,&
-               &                    current_env%rs_gauge(idir2)%rs(igrid_level)%rs_grid,1.0_dp)
+               &                    rs_gauge(idir2)%rs(igrid_level)%rs_grid,1.0_dp)
        ENDDO
     ENDIF
     !   *** Release work storage ***
@@ -1341,9 +1348,15 @@ CONTAINS
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(realspaces_grid_p_type), DIMENSION(:), POINTER :: rs_gauge
 
+    NULLIFY(rs_gauge)
 
     CALL timeset(routineN,handle)
+
+    CALL get_current_env(current_env=current_env,&
+         &               rs_gauge=rs_gauge,&
+         &               error=error)
 
     IF(current_env%gauge.EQ.current_gauge_atom) THEN
        CALL get_qs_env(qs_env=qs_env,&
@@ -1357,14 +1370,14 @@ CONTAINS
        CALL box_atoms(qs_env,error)
        !
        ! allocate and build the gauge
-       CALL rs_pools_create_rs_vect(rs_pools,current_env%rs_gauge(1)%rs,error=error)
-       CALL rs_pools_create_rs_vect(rs_pools,current_env%rs_gauge(2)%rs,error=error)
-       CALL rs_pools_create_rs_vect(rs_pools,current_env%rs_gauge(3)%rs,error=error)
+       CALL rs_pools_create_rs_vect(rs_pools,rs_gauge(1)%rs,error=error)
+       CALL rs_pools_create_rs_vect(rs_pools,rs_gauge(2)%rs,error=error)
+       CALL rs_pools_create_rs_vect(rs_pools,rs_gauge(3)%rs,error=error)
        DO igrid_level=pw_env%gridlevel_info%ngrid_levels,1,-1
           CALL collocate_gauge(current_env,qs_env,&
-               &               current_env%rs_gauge(1)%rs(igrid_level)%rs_grid,&
-               &               current_env%rs_gauge(2)%rs(igrid_level)%rs_grid,&
-               &               current_env%rs_gauge(3)%rs(igrid_level)%rs_grid,&
+               &               rs_gauge(1)%rs(igrid_level)%rs_grid,&
+               &               rs_gauge(2)%rs(igrid_level)%rs_grid,&
+               &               rs_gauge(3)%rs(igrid_level)%rs_grid,&
                &               error)
        ENDDO
        !
