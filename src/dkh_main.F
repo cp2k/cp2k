@@ -1553,7 +1553,7 @@ MODULE dkh_main
 !    eig  (:,:) eigenvectors of sinv' h sinv                           *
 !    tt   (:)   eigenvalues of sinv' h sinv                            *
 !    revt (:,:) reverse transformation matrix T-basis -> position space*
-!    aa   (:)   kinematical factors f. DKH DSQRT((c^2+e(i))/(2.0*e(i)))*
+!    aa   (:)   kinematical factors f. DKH SQRT((c^2+e(i))/(2.0*e(i))) *
 !    rr   (:)   kinematical factors f. DKH c/(c^2+e(i))                *
 !    vt   (:,:) non relativistic potential matrix in T-basis           *
 !    pvpt (:,:) pvp integral matrix in T-basis                         * 
@@ -1681,8 +1681,8 @@ MODULE dkh_main
 !-----------------------------------------------------------------------
  
       DO i=1,n
-        aa(i)=DSQRT((velit*velit+e(i)) / (2.0_dp*e(i)))            
-        rr(i)=DSQRT(velit*velit)/(velit*velit+e(i))                        
+        aa(i)=SQRT((velit*velit+e(i)) / (2.0_dp*e(i)))            
+        rr(i)=SQRT(velit*velit)/(velit*velit+e(i))                        
       END DO
  
 !----------------------------------------------------------------------- 
@@ -1843,7 +1843,7 @@ MODULE dkh_main
           tv4=-tv3*tt(i)*prea*1.25_dp
           ev0t(i)=tv1+tv2+tv3+tv4
         ELSE
-          ev0t(i)=con*(DSQRT(1.0_dp+con2*tt(i))-1.0_dp)   
+          ev0t(i)=con*(SQRT(1.0_dp+con2*tt(i))-1.0_dp)   
         END IF
         e(i)=ev0t(i)+con           
       END DO
@@ -2790,7 +2790,7 @@ MODULE dkh_main
 !    eig  (:,:) eigenvectors of sinv' h sinv                           *
 !    tt   (:)   eigenvalues of sinv' h sinv                            *
 !    revt (:,:) reverse transformation matrix T-basis -> position space*
-!    aa   (:)   kinematical factors f. DKH DSQRT((c^2+e(i))/(2.0*e(i)))*
+!    aa   (:)   kinematical factors f. DKH SQRT((c^2+e(i))/(2.0*e(i))) *
 !    rr   (:)   kinematical factors f. DKH c/(c^2+e(i))                *
 !    vt   (:,:) non relativistic potential matrix in T-basis           *
 !    pvpt (:,:) pvp integral matrix in T-basis                         * 
@@ -2899,8 +2899,8 @@ MODULE dkh_main
 !-----------------------------------------------------------------------
 
       DO i=1,n
-        aa(i)=DSQRT((velit*velit+e(i)) / (2.0_dp*e(i)))            
-        rr(i)=DSQRT(velit*velit)/(velit*velit+e(i))                        
+        aa(i)=SQRT((velit*velit+e(i)) / (2.0_dp*e(i)))            
+        rr(i)=SQRT(velit*velit)/(velit*velit+e(i))                        
       END DO
 
 !----------------------------------------------------------------------- 
@@ -3038,7 +3038,7 @@ MODULE dkh_main
           tv4=-tv3*tt(i)*prea*1.25_dp
           ev0t(i)=tv1+tv2+tv3+tv4
         ELSE
-          ev0t(i)=con*(DSQRT(1.0_dp+con2*tt(i))-1.0_dp)   
+          ev0t(i)=con*(SQRT(1.0_dp+con2*tt(i))-1.0_dp)   
         END IF
         e(i)=ev0t(i)+con           
       END DO
@@ -4034,7 +4034,7 @@ MODULE dkh_main
       END DO
     
       IF (ext_norm.gt.0.0_dp) THEN 
-        ext_norm=DSQRT(2.0_dp*ext_norm)
+        ext_norm=SQRT(2.0_dp*ext_norm)
         thr_min=ext_norm*tol/u1    
         ind=0
         thr=ext_norm
@@ -4046,19 +4046,19 @@ MODULE dkh_main
             DO                   
               m=l+1
               DO                
-                IF ((DABS(sogt(m,l))-thr).ge.0.0_dp) THEN     
+                IF ((ABS(sogt(m,l))-thr).ge.0.0_dp) THEN     
                   ind=1
                   x=0.5_dp*(eigw(l)-eigw(m))                       
-                  y=-sogt(m,l)/DSQRT(sogt(m,l)*sogt(m,l)+x*x)   
+                  y=-sogt(m,l)/SQRT(sogt(m,l)*sogt(m,l)+x*x)   
                   IF (x.lt.0.0_dp) y=-y                      
                                                             
                   IF (y.gt.1.0_dp) y=1.0_dp                
                   IF (y.lt.-1.0_dp) y=-1.0_dp                      
                   xy=1.0_dp-y*y                                    
-                  sint=y/DSQRT(2.0_dp*(1.0_dp+DSQRT(xy))) 
+                  sint=y/SQRT(2.0_dp*(1.0_dp+SQRT(xy))) 
                   sint2=sint*sint
                   cost2=1.0_dp-sint2
-                  cost=DSQRT(cost2)
+                  cost=SQRT(cost2)
                   sincs=sint*cost
 
                   DO i=1,n                               
@@ -4183,7 +4183,7 @@ MODULE dkh_main
           END DO   
         END IF                                                 
 
-        diag_s=1.0_dp/DSQRT(diag_s)                          
+        diag_s=1.0_dp/SQRT(diag_s)                          
         DO i=1,jn
           g(i,jn)=g(i,jn)*diag_s                            
         END DO
