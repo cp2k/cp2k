@@ -44,6 +44,7 @@ MODULE pint_types
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: pi,&
                                              twopi
+  USE mathlib,                         ONLY: gcd
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
@@ -240,6 +241,13 @@ CONTAINS
        CALL section_vals_val_get(pint_section,"p",i_val=nrep,error=error)
        CALL section_vals_val_get(pint_section,"proc_per_replica",&
             i_val=prep,error=error)
+       IF ( (prep < 1) .OR. (prep > para_env%num_pe) .OR. &
+            (MOD(prep*nrep,para_env%num_pe) /= 0) ) THEN
+          prep = para_env%num_pe/gcd(para_env%num_pe,nrep)
+          IF (para_env%ionode) THEN
+             WRITE (*,*) "PINT WARNING: Adjusting number of processors per replica to ",prep
+          END IF
+       END IF
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
             nrep=nrep,prep=prep,error=error)
        IF (.NOT. ASSOCIATED(rep_env)) RETURN

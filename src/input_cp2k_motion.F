@@ -2447,7 +2447,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="proc_per_replica",&
             description="Specify number of processors to use for each replica",&
-            repeats=.FALSE., default_i_val=1, error=error)
+            repeats=.FALSE., default_i_val=0, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="num_steps",&
