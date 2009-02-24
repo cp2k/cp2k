@@ -80,7 +80,6 @@ MODULE hfx_energy_potential
   PRIVATE
    
   PUBLIC  integrate_four_center
-  TYPE(lib_int),   ALLOCATABLE, DIMENSION(:), SAVE      :: lib
   INTEGER, SAVE                                         :: init_t_c_g0_lmax = -1
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_energy_potential'
@@ -226,6 +225,7 @@ MODULE hfx_energy_potential
     INTEGER(int_8)                           :: nanotime, time_1, time_2,memsize_before,memsize_after,&
                                                 max_val_memory, max_val_memory_tmp
     REAL(dp)                                 :: BD2, AC2, min_PQ2, max_val2_set
+    TYPE(lib_int)                            :: private_lib
 
    
 
@@ -274,8 +274,7 @@ MODULE hfx_energy_potential
 
     n_threads = 1
 !$  n_threads = omp_get_max_threads()
-    ALLOCATE(lib(n_threads), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     shm_neris_total = 0 
     shm_nprim_ints = 0
     shm_neris_onthefly = 0
@@ -296,7 +295,6 @@ MODULE hfx_energy_potential
 !$OMP                                  distribute_fock_matrix,&
 !$OMP                                  error,&
 !$OMP                                  ncoset,&
-!$OMP                                  lib,&
 !$OMP                                  full_ks,&
 !$OMP                                  full_ks_beta,&
 !$OMP                                  n_threads,&
@@ -501,7 +499,7 @@ MODULE hfx_energy_potential
     maxsgf = basis_info%max_sgf
     max_am = basis_info%max_am
     !! Initialize memory used by libint
-    CALL initialize_libint(lib(i_thread+1), max_am, error)
+    CALL initialize_libint(private_lib, max_am, error)
 
     nspins = qs_env%dft_control%nspins
     !! Helper array to map local basis function indeces to global ones 
@@ -617,14 +615,14 @@ MODULE hfx_energy_potential
     !! If the system is periodic, then the corresponding routines are called and some variables 
     !! are initialized
     IF( .NOT. actual_x_data%screen_funct_is_initialized ) THEN
-      CALL calc_pair_dist_radii(qs_env, lib(i_thread+1), actual_x_data%potential_parameter, i_thread,&
+      CALL calc_pair_dist_radii(qs_env, private_lib, actual_x_data%potential_parameter, i_thread,&
                                 actual_x_data%pair_dist_radii_pgf, max_set, max_pgf, eps_schwarz,&
                                 error)
-
-      CALL calc_screening_functions(qs_env, lib(i_thread+1), actual_x_data%potential_parameter, i_thread,&
+      CALL calc_screening_functions(qs_env, private_lib, actual_x_data%potential_parameter, i_thread,&
                                     actual_x_data%screen_funct_coeffs_set, actual_x_data%screen_funct_coeffs_kind, &
                                     actual_x_data%screen_funct_coeffs_pgf,actual_x_data%pair_dist_radii_pgf,&
                                     max_set, max_pgf, error)
+
       actual_x_data%screen_funct_is_initialized = .TRUE.
     END IF
     screen_coeffs_set   => actual_x_data%screen_funct_coeffs_set
@@ -654,7 +652,6 @@ MODULE hfx_energy_potential
                                  cell, do_p_screening, error)
         actual_x_data%b_first_load_balance_energy = .FALSE.
       ELSE
-        
         CALL update_load_balance_energy(actual_x_data,para_env, &
                                         load_balance_parameter, &
                                         i_thread, n_threads, error)
@@ -1074,35 +1071,32 @@ MODULE hfx_energy_potential
                             tmp_screen_pgf1 => screen_coeffs_pgf(:,:,jset,iset,jkind,ikind)
                             tmp_screen_pgf2 => screen_coeffs_pgf(:,:,lset,kset,lkind,kkind)
                             IF( .NOT.do_periodic ) THEN 
-                              CALL coulomb4(ra, rb, rc, rd,&
-                                            zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset), &
-                                            zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
-                                            la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
-                                            lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
-                                            npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
-                                            ncoa,ncob,ncoc,ncod,&
-                                            primitive_integrals(1),&
-                                            potential_parameter, eps_schwarz, max_contraction_val, &
-                                            cartesian_estimate, i_thread, neris_tmp, rab2, rcd2, max_val2_set,&
-                                            log10_eps_schwarz, log10_pmax, tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2,&
-                                            B11, D11)
+                             CALL coulomb4(private_lib, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
+                                           la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
+                                           lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
+                                           ncoa, ncob, ncoc, ncod,&
+                                           zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset),&
+                                           zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
+                                           primitive_integrals,&
+                                           potential_parameter, eps_schwarz, max_contraction_val, &
+                                           cartesian_estimate, neris_tmp, rab2, rcd2, max_val2_set,&
+                                           log10_eps_schwarz, log10_pmax, tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2,&
+                                           B11, D11)
                             ELSE
-                              CALL coulomb4_per(ra, rb, rc, rd,&
-                                                zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset), &
-                                                zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
-                                                la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
-                                                lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
-                                                npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
-                                                ncoa,ncob,ncoc,ncod,&
-                                                primitive_integrals(1),&
-                                                potential_parameter, &
-                                                actual_x_data%neighbor_cells, screen_coeffs_set(jset,iset,jkind,ikind)%x,&
-                                                screen_coeffs_set(lset,kset,lkind,kkind)%x, eps_schwarz, &
-                                                max_contraction_val, cartesian_estimate, i_thread, cell, neris_tmp,&
-                                                log10_pmax, B11, D11, log10_eps_schwarz, &
-                                                tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2,error)
+                             CALL coulomb4_per(private_lib, ra, rb, rc, rd, npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset), &
+                                               la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
+                                               lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
+                                               ncoa, ncob, ncoc, ncod,&
+                                               zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset),&
+                                               zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
+                                               primitive_integrals,&
+                                               potential_parameter, &
+                                               actual_x_data%neighbor_cells, screen_coeffs_set(jset,iset,jkind,ikind)%x,&
+                                               screen_coeffs_set(lset,kset,lkind,kkind)%x, eps_schwarz, &
+                                               max_contraction_val, cartesian_estimate,  cell, neris_tmp,&
+                                               log10_pmax, B11, D11, log10_eps_schwarz, &
+                                               tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2,error)
                             END IF
-                            
                             nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                             neris_total = neris_total + nints
                             nprim_ints = nprim_ints + neris_tmp
@@ -1113,11 +1107,9 @@ MODULE hfx_energy_potential
                             IF(.NOT.buffer_overflow .AND. geometry_did_change) THEN
                               IF(cartesian_estimate < eps_schwarz ) THEN
                                 IF(.NOT. use_disk_storage) THEN
-!                                  max_val_memory_tmp = memory_parameter%actual_memory_usage
                                   CALL hfx_add_single_cache_element(estimate_to_store_int, 6,&
                                                   maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
                                                   use_disk_storage, max_val_memory, error)
-!                                  max_val_memory = max_val_memory + memory_parameter%actual_memory_usage - max_val_memory_tmp
                                 ELSE
                                   CALL hfx_add_single_cache_element(estimate_to_store_int, 6,&
                                                   maxval_cache_disk, maxval_container_disk, &
@@ -1324,7 +1316,6 @@ MODULE hfx_energy_potential
                 actual_x_data%distribution_energy(bin)%time_other_scf+bintime_stop-bintime_start 
       ENDIF
     END DO !bin
-
 !$OMP BARRIER
 !$OMP MASTER
     memsize_after=m_memory()
@@ -1572,8 +1563,6 @@ MODULE hfx_energy_potential
     
 !$OMP BARRIER
 !$OMP END PARALLEL
-    DEALLOCATE(lib, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE integrate_four_center
 
@@ -1605,33 +1594,29 @@ MODULE hfx_energy_potential
 !>      02.2009 completely rewritten screening part [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE coulomb4(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
+  SUBROUTINE coulomb4(lib, ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd,&
                       la_min, la_max, lb_min, lb_max,&
                       lc_min, lc_max, ld_min, ld_max,&
-                      npgfa, npgfb, npgfc, npgfd,&
-                      ncoa,ncob,ncoc,ncod,&
+                      ncoa, ncob, ncoc, ncod,&
+                      zeta, zetb, zetc, zetd,&
                       primitive_integrals,&
                       potential_parameter, eps_schwarz, max_contraction_val, &
-                      cartesian_estimate, i_thread, neris_tmp, rab2, rcd2, max_val2_set,&
+                      cartesian_estimate, neris_tmp, rab2, rcd2, max_val2_set,&
                       log10_eps_schwarz, log10_pmax,R1_pgf, R2_pgf, pgf1, pgf2,B11,D11)
-  
+    TYPE(lib_int)                            :: lib
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
-    INTEGER, INTENT(IN)                      :: npgfa, ld_max, ld_min, &
-                                                lc_max, lc_min, lb_max, &
-                                                lb_min, la_max, la_min, &
-                                                npgfd, npgfc, npgfb
+    INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, &
+      lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, ncoa, ncob, ncoc, ncod
     REAL(dp), DIMENSION(1:npgfa), INTENT(IN) :: zeta
     REAL(dp), DIMENSION(1:npgfb), INTENT(IN) :: zetb
     REAL(dp), DIMENSION(1:npgfc), INTENT(IN) :: zetc
     REAL(dp), DIMENSION(1:npgfd), INTENT(IN) :: zetd
-    INTEGER, INTENT(IN)                      :: ncoa, ncob, ncoc, ncod
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod)      :: primitive_integrals
     TYPE(hfx_potential_type)                 :: potential_parameter
     REAL(dp), INTENT(IN)                     :: eps_schwarz, &
                                                 max_contraction_val
     REAL(dp), INTENT(INOUT)                  :: cartesian_estimate
-    INTEGER, INTENT(IN)                      :: i_thread
     INTEGER(int_8)                           :: neris_tmp
     REAL(dp)                                 :: rab2, rcd2, max_val2_set, &
                                                 log10_eps_schwarz, log10_pmax
@@ -1692,7 +1677,7 @@ MODULE hfx_energy_potential
                     offset_d = offset_d1 + ncoset(ld-1)
                     !Build primitives
                     tmp_max = 0.0_dp
-                    CALL evaluate_eri(lib(i_thread+1), ra, rb, rc, rd,&
+                    CALL evaluate_eri(lib, ra, rb, rc, rd,&
                                       zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
                                       la, lb, lc ,ld,&
                                       ncoa,ncob,ncoc,ncod,&
@@ -1740,27 +1725,25 @@ MODULE hfx_energy_potential
 !>      02.2009 completely rewritten screening part [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE coulomb4_per(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
+  SUBROUTINE coulomb4_per(lib, ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd,&
                           la_min, la_max, lb_min, lb_max,&
                           lc_min, lc_max, ld_min, ld_max,&
-                          npgfa, npgfb, npgfc, npgfd,&
-                          ncoa,ncob,ncoc,ncod,&
+                          ncoa, ncob, ncoc, ncod,&
+                          zeta, zetb, zetc, zetd,&
                           primitive_integrals,&
                           potential_parameter, neighbor_cells, &
                           screen1, screen2, eps_schwarz, max_contraction_val, &
-                          cart_estimate, i_thread, cell, neris_tmp, log10_pmax,& 
+                          cart_estimate, cell, neris_tmp, log10_pmax,& 
                           B11,D11,log10_eps_schwarz,R1_pgf, R2_pgf, pgf1, pgf2, error)
-
+   
+    TYPE(lib_int)                            :: lib
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
-    INTEGER, INTENT(IN)                      :: npgfa, ld_max, ld_min, &
-                                                lc_max, lc_min, lb_max, &
-                                                lb_min, la_max, la_min, &
-                                                npgfd, npgfc, npgfb
-    REAL(dp), DIMENSION(1:npgfa), INTENT(IN) :: zeta
-    REAL(dp), DIMENSION(1:npgfb), INTENT(IN) :: zetb
-    REAL(dp), DIMENSION(1:npgfc), INTENT(IN) :: zetc
-    REAL(dp), DIMENSION(1:npgfd), INTENT(IN) :: zetd
-    INTEGER, INTENT(IN)                      :: ncoa, ncob, ncoc, ncod
+    INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, &
+      lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, ncoa, ncob, ncoc, ncod
+    REAL(dp), DIMENSION(1:npgfa)             :: zeta
+    REAL(dp), DIMENSION(1:npgfb)             :: zetb
+    REAL(dp), DIMENSION(1:npgfc)             :: zetc
+    REAL(dp), DIMENSION(1:npgfd)             :: zetd
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod)      :: primitive_integrals
     TYPE(hfx_potential_type)                 :: potential_parameter
@@ -1770,7 +1753,6 @@ MODULE hfx_energy_potential
                                                 eps_schwarz, &
                                                 max_contraction_val
     REAL(dp), INTENT(INOUT)                  :: cart_estimate
-    INTEGER, INTENT(IN)                      :: i_thread
     TYPE(cell_type), POINTER                 :: cell
     INTEGER(int_8)                           :: neris_tmp
     REAL(dp), INTENT(IN)                     :: log10_pmax, B11(3), D11(3), &
@@ -1861,16 +1843,16 @@ MODULE hfx_energy_potential
                           offset_d = offset_d1 + ncoset(ld-1)
                           !Build primitives
                           tmp_max = 0.0_dp
-                          CALL evaluate_eri(lib(i_thread+1), ra, im_B, C11, tmp_D,&
-                                             zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
-                                             la, lb, lc ,ld,&
-                                             ncoa,ncob,ncoc,ncod,&
-                                             offset_a,offset_b,offset_c,offset_d, &
-                                             primitive_integrals, &
-                                             potential_parameter, max_contraction_val, tmp_max, eps_schwarz,&
-                                             neris_tmp,Zeta1,ZetaInv,Eta,EtaInv,ZetapEtaInv,Rho,RhoInv,S1234,&
-                                             P,Q,W,rpq2,AB,CD,&
-                                             R1,R2)
+                          CALL evaluate_eri(lib, ra, im_B, C11, tmp_D,&
+                                            zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
+                                            la, lb, lc ,ld,&
+                                            ncoa,ncob,ncoc,ncod,&
+                                            offset_a,offset_b,offset_c,offset_d, &
+                                            primitive_integrals, &
+                                            potential_parameter, max_contraction_val, tmp_max, eps_schwarz,&
+                                            neris_tmp,Zeta1,ZetaInv,Eta,EtaInv,ZetapEtaInv,Rho,RhoInv,S1234,&
+                                            P,Q,W,rpq2,AB,CD,&
+                                            R1,R2)
                           cart_estimate = MAX(tmp_max,cart_estimate)
                         END DO !ld
                       END DO !lc
