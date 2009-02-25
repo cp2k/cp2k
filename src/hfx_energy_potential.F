@@ -235,6 +235,17 @@ MODULE hfx_energy_potential
     memsize_before=m_memory()
     CALL mp_max_i8(memsize_before, para_env%group)
 
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
+         extension=".scfLog",error=error)
+    IF (iw>0) THEN
+      WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I20))")&
+               "HFX_MEM_INFO| Est. max. program size before HFX [MB's]:", memsize_before/(1024*1024)
+
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,hfx_section,&
+                                    "HF_INFO", error=error)
+
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, error=error)
 
     !! Get occupation of KS-matrix
@@ -316,7 +327,6 @@ MODULE hfx_energy_potential
 !$OMP                                  screen_coeffs_set,&
 !$OMP                                  screen_coeffs_kind,&
 !$OMP                                  screen_coeffs_pgf,&
-!$OMP                                  memsize_before,&
 !$OMP                                  radii_pgf)
 
 
@@ -492,7 +502,6 @@ MODULE hfx_energy_potential
     ELSE
       buffer_overflow = .TRUE.
     END IF
-    NULLIFY(logger)
     logger => cp_error_get_logger(error)
    
 
@@ -1465,7 +1474,7 @@ MODULE hfx_energy_potential
       iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
            extension=".scfLog",error=error)
       IF (iw>0) THEN
-        WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I20))")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Number of cart. primitive ERI's calculated:      ",shm_nprim_ints
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
@@ -1501,15 +1510,13 @@ MODULE hfx_energy_potential
         IF( do_periodic) THEN
           WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Size of buffers [MB's]:             ", mb_size_buffers
-          WRITE (UNIT=iw,FMT="((T3,A,T60,I20),/)")&
+          WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Number of periodic image cells considered: ", SIZE(actual_x_data%neighbor_cells)
         ELSE
-           WRITE (UNIT=iw,FMT="((T3,A,T60,I20),/)")&
+           WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HFX_MEM_INFO| Size of buffers [MB's]:             ", mb_size_buffers
         END IF
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HFX_MEM_INFO| Est. max. program size before HFX [MB's]:", memsize_before/(1024*1024)
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20),/)")&
                  "HFX_MEM_INFO| Est. max. program size after HFX  [MB's]:", memsize_after/(1024*1024)
 
       END IF
