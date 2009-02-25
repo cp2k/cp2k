@@ -45,6 +45,8 @@ MODULE hfx_types
                                              m_getcwd
   USE string_utilities,                ONLY: compress
   USE t_c_g0,                          ONLY: free
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -333,7 +335,7 @@ MODULE hfx_types
 
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=default_path_length)       :: char_val, filename
-    INTEGER :: i, i_thread, ikind, int_val, irep, max_set, n_rep_hf, &
+    INTEGER :: handle, i, i_thread, ikind, int_val, irep, max_set, n_rep_hf, &
       n_threads, nkind, pbc_shells, stat, storage_id
     LOGICAL                                  :: do_periodic, exist, failure, &
                                                 logic_val
@@ -344,6 +346,8 @@ MODULE hfx_types
     TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_sub_section
 
 !$  INTEGER                                  :: omp_get_max_threads
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CALL cite_reference(Guidon2008)
@@ -576,6 +580,9 @@ MODULE hfx_types
         actual_x_data%b_first_load_balance_forces = .TRUE.
       END DO
     END DO
+
+    CALL timestop(handle)
+
   END SUBROUTINE hfx_create 
 
 ! *****************************************************************************

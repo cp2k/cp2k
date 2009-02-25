@@ -129,14 +129,14 @@ MODULE hfx_energy_potential
       routineP = moduleN//':'//routineN
 
     INTEGER :: bin, buffer_left, buffer_size, buffer_start, cache_size, &
-      current_counter, handle, handle_dist_ks, handle_getP, handle_main, i, &
-      i_thread, iatom, ikind, iset, iw, jatom, jkind, jset, katom, kkind, &
-      kset, latom, lkind, lset, ma, max_am, max_set, maxsgf, mb, mc, md, &
-      my_bin_size, my_istart, my_jstart, my_kstart, my_lstart, n_threads, &
-      natom, nbits, nco_max, ncoa, ncob, ncoc, ncod, nints, nseta, nsetb, &
-      nsetc, nsetd, nsgfa_total, nsgfb_total, nsgfc_total, nsgfd_total, &
-      nspins, p_index, pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, pd, pd1, &
-      pd2, sgfa, sgfb, sgfc, sgfd, stat
+      current_counter, handle, handle_dist_ks, handle_getP, handle_load, &
+      handle_main, i, i_thread, iatom, ikind, iset, iw, jatom, jkind, jset, &
+      katom, kkind, kset, latom, lkind, lset, ma, max_am, max_set, maxsgf, &
+      mb, mc, md, my_bin_size, my_istart, my_jstart, my_kstart, my_lstart, &
+      n_threads, natom, nbits, nco_max, ncoa, ncob, ncoc, ncod, nints, nseta, &
+      nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, nsgfc_total, &
+      nsgfd_total, nspins, p_index, pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, &
+      pd, pd1, pd2, sgfa, sgfb, sgfc, sgfd, stat
     INTEGER(int_8) :: box_idx1, estimate_to_store_int, &
       mem_compression_counter, mem_compression_counter_disk, mem_eris, &
       mem_eris_disk, mem_max_val, mem_maxvals, my_current_counter, &
@@ -630,7 +630,6 @@ MODULE hfx_energy_potential
     screen_coeffs_pgf   => actual_x_data%screen_funct_coeffs_pgf
     radii_pgf           => actual_x_data%pair_dist_radii_pgf
 
-    CALL timeset(routineN//"_main",handle_main)
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -641,8 +640,14 @@ MODULE hfx_energy_potential
     ELSE
       fac = 1.0_dp * hf_fraction
     END IF
+
     !! Call routines that distribute the load on all processes. If we want to screen on a initial density matrix, there is
     !! an optional parameter. Of course, this is only done if the geometry did change
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timeset(routineN//"_load",handle_load)
+!$OMP MASTER
+!$OMP BARRIER
     IF( geometry_did_change ) THEN
       IF( actual_x_data%b_first_load_balance_energy ) THEN
         CALL load_balance_energy(actual_x_data,eps_schwarz,particle_set,max_set,para_env,&
@@ -657,6 +662,11 @@ MODULE hfx_energy_potential
                                         i_thread, n_threads, error)
       END IF
     END IF
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timestop(handle_load)
+!$OMP MASTER
+!$OMP BARRIER
 
 
 
@@ -697,6 +707,12 @@ MODULE hfx_energy_potential
     !! Furthermore, the indices iatom, jatom, katom, latom have to be set to istart, jstart, kstart and
     !! lstart only the first time the loop is executed. All subsequent loops have to start with one or
     !! iatom and katom respectively. Therefore, we use flags like first_j_loop etc.
+
+!$OMP BARRIER
+!$OMP MASTER
+    CALL timeset(routineN//"_main",handle_main)
+!$OMP MASTER
+!$OMP BARRIER
     
     ncpu = para_env%num_pe 
     n_processes = ncpu * n_threads
