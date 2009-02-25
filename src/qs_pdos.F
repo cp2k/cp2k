@@ -103,13 +103,15 @@ CONTAINS
 
     CHARACTER(LEN=16)                        :: fmtstr2
     CHARACTER(LEN=27)                        :: fmtstr1
+    CHARACTER(LEN=6), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: tmp_str
     CHARACTER(LEN=default_string_length)     :: kind_name, my_act, my_mittle, &
                                                 my_pos, spin(2)
     INTEGER :: handle, homo, i, i_rep_val, iatom, il, im, imo, ir, irow, &
-      iset, isgf, ishell, iso, istat, iterstep, iw, kind_number, lcomponent, &
+      iset, isgf, ishell, iso, iterstep, iw, j, kind_number, lcomponent, &
       lshell, maxl, maxl_list, maxlgto, mepos, my_spin, n_dependent, n_rep, &
       nao, natom, ncol_global, nkind, nlist, nlumo, nmo, nrow_global, nset, &
-      nsgf, nvirt
+      nsgf, nvirt, stat
     INTEGER, DIMENSION(:), POINTER           :: index_list, list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
     LOGICAL :: add_to_list, append, do_list, do_virt, failure, ionode, &
@@ -231,27 +233,27 @@ CONTAINS
     END IF
     CALL section_vals_val_get(dft_section,"PRINT%PDOS%COMPONENTS",l_val=separate_components,error=error)
     IF (separate_components) THEN
-      ALLOCATE(pdos_array(nsoset(maxlgto),nkind,nmo+nvirt),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+      ALLOCATE(pdos_array(nsoset(maxlgto),nkind,nmo+nvirt),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
       IF(do_list) THEN
-         ALLOCATE(pdos_array_list(nsoset(maxlgto),nmo+nvirt),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(pdos_array_list(nsoset(maxlgto),nmo+nvirt),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
     ELSE
-      ALLOCATE(pdos_array(0:maxlgto,nkind,nmo+nvirt),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+      ALLOCATE(pdos_array(0:maxlgto,nkind,nmo+nvirt),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
       IF(do_list) THEN
-         ALLOCATE(pdos_array_list(0:maxlgto,nmo+nvirt),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(pdos_array_list(0:maxlgto,nmo+nvirt),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
     END IF
     IF(do_virt) THEN
-       ALLOCATE(eigenvalues(nmo+nvirt),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(eigenvalues(nmo+nvirt),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        eigenvalues(1:nmo) = mo_set%eigenvalues(1:nmo)
        eigenvalues(nmo+1:nmo+nvirt) = evals_virt(1:nvirt)
-       ALLOCATE(occupation_numbers(nmo+nvirt),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(occupation_numbers(nmo+nvirt),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        occupation_numbers(:) = 0.0_dp
        occupation_numbers(1:nmo) = mo_set%occupation_numbers(1:nmo)
     ELSE
@@ -263,8 +265,8 @@ CONTAINS
     IF(do_list) pdos_array_list = 0.0_dp
     maxl_list = -1
     nao = mo_set%nao
-    ALLOCATE(vecbuffer(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(vecbuffer(1,nao),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     vecbuffer = 0.0_dp
 
     DO imo =  1,nmo+nvirt
@@ -339,8 +341,8 @@ CONTAINS
     END DO  ! imo
 
     CALL cp_fm_release(matrix_shalfc,error=error)
-    DEALLOCATE(vecbuffer,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(vecbuffer,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
 
     CALL section_vals_val_get(dft_section,"PRINT%PDOS%APPEND",l_val=append,error=error)
@@ -390,13 +392,24 @@ CONTAINS
           "# Projected DOS for atomic kind "//TRIM(kind_name)//" at iteration step i = ",&
           iterstep,", E(Fermi) = ",e_fermi," a.u."
         IF (separate_components) THEN
+          ALLOCATE(tmp_str(0:0,0:maxl,-maxl:maxl),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          tmp_str = ""
+          DO j = 0, maxl
+             DO i = -j,j
+                tmp_str(0,j,i) = sgf_symbol(0,j,i)
+             END DO
+          END DO
+
           WRITE (UNIT=iw,FMT=fmtstr2)&
             "#     MO Eigenvalue [a.u.]      Occupation",&
-            ((TRIM(sgf_symbol(0,il,im)),im=-il,il),il=0,maxl)
+            ((TRIM(tmp_str(0,il,im)),im=-il,il),il=0,maxl)
           DO imo = 1,nmo+nvirt
             WRITE (UNIT=iw,FMT=fmtstr1) imo,eigenvalues(imo),occupation_numbers(imo),&
               (pdos_array(lshell,kind_number,imo),lshell=1,nsoset(maxl))
           END DO
+          DEALLOCATE(tmp_str,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ELSE
           WRITE (UNIT=iw,FMT=fmtstr2)&
             "#     MO Eigenvalue [a.u.]      Occupation",&
@@ -444,13 +457,24 @@ CONTAINS
           "# Projected DOS for a list of ",nlist," atoms, at iteration step i = ",iterstep,&
           ", E(Fermi) = ",e_fermi," a.u."
         IF(separate_components) THEN
+          ALLOCATE(tmp_str(0:0,0:maxl_list,-maxl_list:maxl_list),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          tmp_str = ""
+          DO j = 0, maxl_list
+             DO i = -j,j
+                tmp_str(0,j,i) = sgf_symbol(0,j,i)
+             END DO
+          END DO
+
           WRITE (UNIT=iw,FMT=fmtstr2)&
             "#     MO Eigenvalue [a.u.]      Occupation",&
-            ((TRIM(sgf_symbol(0,il,im)),im=-il,il),il=0,maxl_list)
+            ((TRIM(tmp_str(0,il,im)),im=-il,il),il=0,maxl_list)
           DO imo = 1,nmo+nvirt
             WRITE (UNIT=iw,FMT=fmtstr1) imo,eigenvalues(imo),occupation_numbers(imo),&
               (pdos_array_list(lshell,imo),lshell=1,nsoset(maxl_list))
           END DO
+          DEALLOCATE(tmp_str,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ELSE
           WRITE (UNIT=iw,FMT=fmtstr2)&
             "#     MO Eigenvalue [a.u.]      Occupation",&
@@ -466,23 +490,23 @@ CONTAINS
 
     END IF  ! do_list
 
-    DEALLOCATE(pdos_array, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+    DEALLOCATE(pdos_array, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
     IF(do_list) THEN
-       DEALLOCATE(pdos_array_list, STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(index_list, STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(pdos_array_list, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(index_list, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(do_virt) THEN
-      DEALLOCATE(evals_virt,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+      DEALLOCATE(evals_virt,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
       CALL cp_fm_release(mo_virt,error=error)
       CALL cp_fm_release(matrix_work,error=error)
-      DEALLOCATE(eigenvalues,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-      DEALLOCATE(occupation_numbers,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(eigenvalues,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+      DEALLOCATE(occupation_numbers,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL timestop(handle)
@@ -515,7 +539,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_virtual_mo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, nmo, nrow_global
+    INTEGER                                  :: nmo, nrow_global, stat
     LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
@@ -526,34 +550,34 @@ CONTAINS
       POINTER                                :: ks_matrix, s_matrix
     TYPE(scf_control_type), POINTER          :: scf_control
 
-       failure = .FALSE.
-       NULLIFY(evals_virt,mo_virt)
-       ALLOCATE(evals_virt(nvirt),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+    failure = .FALSE.
+    NULLIFY(evals_virt,mo_virt)
+    ALLOCATE(evals_virt(nvirt),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
 
-       CALL get_qs_env(qs_env,matrix_ks=ks_matrix, matrix_s=s_matrix, &
-            scf_control=scf_control, error=error)
-       CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, nmo=nmo )
-       CALL cp_fm_get_info(mo_coeff, context=context, para_env=para_env,&
-            nrow_global=nrow_global, error=error)
+    CALL get_qs_env(qs_env,matrix_ks=ks_matrix, matrix_s=s_matrix, &
+         scf_control=scf_control, error=error)
+    CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, nmo=nmo )
+    CALL cp_fm_get_info(mo_coeff, context=context, para_env=para_env,&
+         nrow_global=nrow_global, error=error)
 
-       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=context, &
-            nrow_global=nrow_global,ncol_global=nvirt,error=error)
-       CALL cp_fm_create(mo_virt, fm_struct_tmp,name="virtual",error=error)
-       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-       CALL cp_fm_init_random(mo_virt,nvirt,error=error)
+    CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=context, &
+         nrow_global=nrow_global,ncol_global=nvirt,error=error)
+    CALL cp_fm_create(mo_virt, fm_struct_tmp,name="virtual",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+    CALL cp_fm_init_random(mo_virt,nvirt,error=error)
 
-       NULLIFY (local_preconditioner)
+    NULLIFY (local_preconditioner)
 
-       CALL ot_eigensolver(matrix_h=ks_matrix(ispin)%matrix,matrix_s=s_matrix(1)%matrix, &
-            matrix_c=mo_virt, matrix_orthogonal_space=mo_coeff, &
-            eps_gradient=scf_control%eps_lumos, &
-            preconditioner=local_preconditioner, &
-            iter_max=scf_control%max_iter_lumos,&
-            size_ortho_space=nmo,error=error)
+    CALL ot_eigensolver(matrix_h=ks_matrix(ispin)%matrix,matrix_s=s_matrix(1)%matrix, &
+         matrix_c=mo_virt, matrix_orthogonal_space=mo_coeff, &
+         eps_gradient=scf_control%eps_lumos, &
+         preconditioner=local_preconditioner, &
+         iter_max=scf_control%max_iter_lumos,&
+         size_ortho_space=nmo,error=error)
 
-       CALL calculate_subspace_eigenvalues(mo_virt,ks_matrix(ispin)%matrix,&
-            evals_virt, para_env=para_env, error=error)
+    CALL calculate_subspace_eigenvalues(mo_virt,ks_matrix(ispin)%matrix,&
+         evals_virt, para_env=para_env, error=error)
 
 
   END SUBROUTINE generate_virtual_mo
