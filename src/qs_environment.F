@@ -182,7 +182,7 @@ MODULE qs_environment
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment'
 
   ! *** Public subroutines ***
-  PUBLIC :: qs_init, qs_init_subsys
+  PUBLIC :: qs_init
 
 CONTAINS
 
