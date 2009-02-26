@@ -687,3 +687,5 @@ N3-10.inp
 H2O.inp
 # Refactoring of qs_core_hamiltonian 
 C_fermi.inp
+# more numerics
+H2_trip.inp

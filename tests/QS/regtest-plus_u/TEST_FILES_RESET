@@ -179,3 +179,5 @@ H2O-uks-otcg.inp
 H2O-rks-otcg-mulliken.inp
 # Refactoring of qs_core_hamiltonian 
 H2O-uks-otcg-mulliken.inp
+# more numerics
+H2O-rks-diag.inp

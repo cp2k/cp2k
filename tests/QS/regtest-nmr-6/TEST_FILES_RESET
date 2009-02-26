@@ -523,3 +523,6 @@ no-gapw-gpw-1.inp
 # Refactoring of qs_core_hamiltonian 
 h2-gapw-1.inp
 ch3p-gapw-1.inp
+# more numerics
+ch3m-gapw-1.inp
+ch4-gapw-1-distributed.inp

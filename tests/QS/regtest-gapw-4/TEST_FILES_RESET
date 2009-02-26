@@ -163,3 +163,6 @@ CO_xastpxfh.inp
 CO_xastpxfh.inp
 H2O_Hnopaw_pp.inp
 
+# more numerics
+CO_xastpxfh_150Ry.inp
+CO_xastpxfh_locall.inp

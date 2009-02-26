@@ -584,3 +584,5 @@ vib-mixed.inp
 dip-mixed.inp
 # New initial guess ATOMIC 
 vib-int-mixed.inp
+# more numerics
+H2O-OT-1.inp

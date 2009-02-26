@@ -147,3 +147,5 @@ CO_xastpxhh.inp
 CO_xastpval.inp
 # Refactoring of qs_core_hamiltonian 
 CO_xastpxhh_loclist.inp
+# more numerics
+CO.inp
