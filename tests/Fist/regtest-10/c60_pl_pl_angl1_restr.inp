@@ -1,0 +1,119 @@
+@SET INDEX 1
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT c60_meta
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &CONSTRAINT
+     &COLLECTIVE
+        COLVAR 1
+        TARGET [deg] 70.0
+        INTERMOLECULAR
+        &RESTRAINT
+          K [kcalmol*deg^-2] 10.0
+        &END
+     &END
+  &END
+  &MD
+    ENSEMBLE NVT
+    &THERMOSTAT
+      TYPE CSVR
+      &CSVR
+        TIMECON 10.
+      &END
+    &END
+    STEPS 200
+    TIMESTEP 1.0
+    TEMPERATURE 300.0
+    &PRINT
+      &PROGRAM_RUN_INFO
+        &EACH 
+          MD ${INDEX}
+        &END
+      &END
+      &ENERGY
+        &EACH 
+          MD ${INDEX}
+        &END
+      &END ENERGY
+    &END PRINT
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      &EACH
+        MD ${INDEX}
+      &END
+    &END TRAJECTORY
+    &VELOCITIES OFF
+    &END VELOCITIES
+    &RESTART OFF
+    &END RESTART
+    &RESTART_HISTORY OFF
+    &END RESTART_HISTORY
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  &PRINT
+    &PROGRAM_RUN_INFO
+      &EACH 
+        MD ${INDEX}
+      &END
+    &END
+  &END
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &SPLINE
+       EPS_SPLINE 1.E-6
+      &END
+      &NONBONDED
+        &TERSOFF
+          ATOMS C  C 
+          A        1.3936E3
+          B        3.467E2
+          lambda1  3.4879
+          lambda2  2.2119
+          alpha    0.00
+          beta     1.5724E-7
+          n        7.2751E-1
+          c        3.8049E4
+          d        4.384
+          h       -5.7058E-1
+          lambda3  0.0000
+          bigR     1.95
+          bigD     0.15
+        &END TERSOFF
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC  30. 30. 30.
+    &END CELL
+    &TOPOLOGY
+       COORDINATE XYZ
+       COORD_FILE_NAME ../sample_xyz/c60.xyz
+       CONNECTIVITY OFF
+    &END TOPOLOGY
+    # COLVARS
+    &COLVAR
+      &ANGLE_PLANE_PLANE
+        &PLANE
+          DEF_TYPE ATOMS
+          ATOMS 17 25 50
+        &END
+        &PLANE
+          DEF_TYPE VECTOR
+          NORMAL_VECTOR 0.0 0.0 1.0 
+        &END
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL

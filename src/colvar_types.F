@@ -14,7 +14,9 @@ MODULE colvar_types
   USE f77_blas
   USE input_constants,                 ONLY: do_clv_fix_point,&
                                              do_clv_geo_center,&
-                                             do_clv_xyz
+                                             do_clv_xyz,&
+                                             plane_def_atoms,&
+                                             plane_def_vec
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -47,6 +49,8 @@ MODULE colvar_types
             torsion_colvar_type,&
             angle_colvar_type,&
             plane_distance_colvar_type,&
+            plane_def_type,&
+            plane_plane_angle_colvar_type,&
             rotation_colvar_type,&
             dfunct_colvar_type,&
             qparm_colvar_type,&
@@ -61,20 +65,20 @@ MODULE colvar_types
             post_process_colvar,&
             diff_colvar
 
-  INTEGER, PARAMETER, PUBLIC :: no_colvar_id              = -2,&
-                                dist_colvar_id            =  1,&
-                                coord_colvar_id           =  2,&
-                                torsion_colvar_id         =  3,&
-                                angle_colvar_id           =  4,&
-                                plane_distance_colvar_id  =  5,&
-                                rotation_colvar_id        =  6,&
-                                dfunct_colvar_id          =  7,&
-                                qparm_colvar_id           =  8,&
-                                hydronium_colvar_id       =  9,&
-                                reaction_path_colvar_id   = 10,&
-                                combine_colvar_id         = 11,&
-                                population_colvar_id      = 12
-
+  INTEGER, PARAMETER, PUBLIC :: no_colvar_id                = -2,&
+                                dist_colvar_id              =  1,&
+                                coord_colvar_id             =  2,&
+                                torsion_colvar_id           =  3,&
+                                angle_colvar_id             =  4,&
+                                plane_distance_colvar_id    =  5,&
+                                rotation_colvar_id          =  6,&
+                                dfunct_colvar_id            =  7,&
+                                qparm_colvar_id             =  8,&
+                                hydronium_colvar_id         =  9,&
+                                reaction_path_colvar_id     = 10,&
+                                combine_colvar_id           = 11,&
+                                population_colvar_id        = 12,&
+                                plane_plane_angle_colvar_id = 13
 
 ! *****************************************************************************
 !> \brief parameters for the distance collective variable
@@ -132,6 +136,17 @@ MODULE colvar_types
      INTEGER, DIMENSION(3) :: plane
      INTEGER               :: point     
   END TYPE plane_distance_colvar_type
+
+! *****************************************************************************
+  TYPE plane_def_type
+     INTEGER                     :: type_of_def
+     INTEGER, DIMENSION(3)       :: points
+     REAL(KIND=dp), DIMENSION(3) :: normal_vec
+  END TYPE plane_def_type
+
+  TYPE plane_plane_angle_colvar_type
+     TYPE(plane_def_type)        :: plane1, plane2
+  END TYPE plane_plane_angle_colvar_type
 
 ! *****************************************************************************
   TYPE angle_colvar_type
@@ -208,26 +223,27 @@ MODULE colvar_types
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
   TYPE colvar_type
-     INTEGER                                  :: type_id
-     LOGICAL                                  :: use_points
-     REAL(kind=dp)                            :: ss               ! Value of the colvar
-     REAL(kind=dp), DIMENSION (:,:), POINTER  :: dsdr             ! Derivative of colvar (3,:)
-     INTEGER, DIMENSION (:), POINTER          :: i_atom           ! Mapping of dsdr
-     INTEGER                                  :: n_atom_s
-     ! Available COLVAR types
-     TYPE(dist_colvar_type),POINTER           :: dist_param
-     TYPE(coord_colvar_type),POINTER          :: coord_param
-     TYPE(population_colvar_type),POINTER     :: population_param
-     TYPE(torsion_colvar_type),POINTER        :: torsion_param
-     TYPE(angle_colvar_type),POINTER          :: angle_param
-     TYPE(plane_distance_colvar_type),POINTER :: plane_distance_param
-     TYPE(rotation_colvar_type), POINTER      :: rotation_param
-     TYPE(dfunct_colvar_type), POINTER        :: dfunct_param
-     TYPE(qparm_colvar_type), POINTER         :: qparm_param
-     TYPE(hydronium_colvar_type), POINTER     :: hydronium_param
-     TYPE(reaction_path_colvar_type),POINTER  :: reaction_path_param
-     TYPE(combine_colvar_type), POINTER       :: combine_cvs_param
-     TYPE(point_type), DIMENSION(:), POINTER  :: points
+     INTEGER                                     :: type_id
+     LOGICAL                                     :: use_points
+     REAL(kind=dp)                               :: ss               ! Value of the colvar
+     REAL(kind=dp), DIMENSION (:,:), POINTER     :: dsdr             ! Derivative of colvar (3,:)
+     INTEGER, DIMENSION (:), POINTER             :: i_atom           ! Mapping of dsdr
+     INTEGER                                     :: n_atom_s
+     ! Available COLVAR types                    
+     TYPE(dist_colvar_type),POINTER              :: dist_param
+     TYPE(coord_colvar_type),POINTER             :: coord_param
+     TYPE(population_colvar_type),POINTER        :: population_param
+     TYPE(torsion_colvar_type),POINTER           :: torsion_param
+     TYPE(angle_colvar_type),POINTER             :: angle_param
+     TYPE(plane_distance_colvar_type),POINTER    :: plane_distance_param
+     TYPE(plane_plane_angle_colvar_type),POINTER :: plane_plane_angle_param
+     TYPE(rotation_colvar_type), POINTER         :: rotation_param
+     TYPE(dfunct_colvar_type), POINTER           :: dfunct_param
+     TYPE(qparm_colvar_type), POINTER            :: qparm_param
+     TYPE(hydronium_colvar_type), POINTER        :: hydronium_param
+     TYPE(reaction_path_colvar_type),POINTER     :: reaction_path_param
+     TYPE(combine_colvar_type), POINTER          :: combine_cvs_param
+     TYPE(point_type), DIMENSION(:), POINTER     :: points
   END TYPE colvar_type
 
 ! *****************************************************************************
@@ -242,6 +258,7 @@ MODULE colvar_types
      INTEGER :: ntorsion
      INTEGER :: ncoord
      INTEGER :: nplane_dist
+     INTEGER :: nplane_angle
      INTEGER :: nrot
      INTEGER :: ndfunct
      INTEGER :: nqparm
@@ -282,6 +299,7 @@ CONTAINS
     NULLIFY(colvar%angle_param)
     NULLIFY(colvar%torsion_param)
     NULLIFY(colvar%plane_distance_param)
+    NULLIFY(colvar%plane_plane_angle_param)
     NULLIFY(colvar%rotation_param)
     NULLIFY(colvar%dfunct_param)
     NULLIFY(colvar%coord_param)
@@ -316,6 +334,9 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(plane_distance_colvar_id)
           ALLOCATE(colvar%plane_distance_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(plane_plane_angle_colvar_id)
+          ALLOCATE(colvar%plane_plane_angle_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(rotation_colvar_id)
           ALLOCATE(colvar%rotation_param, stat=stat)
@@ -585,7 +606,52 @@ CONTAINS
           i = colvar%plane_distance_param%point
           list(4) = i
           idum = idum + 1
-          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)            
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CASE(plane_plane_angle_colvar_id)
+          np = 0
+          IF (colvar%plane_plane_angle_param%plane1%type_of_def==plane_def_atoms) np = np +3
+          IF (colvar%plane_plane_angle_param%plane2%type_of_def==plane_def_atoms) np = np +3
+          ! if np is equal to zero this means that this is not a COLLECTIVE variable..
+          CALL cp_assert(np/=0,cp_fatal_level,cp_assertion_failed,routineP,&
+               "PLANE_PLANE_ANGLE Colvar defined using two normal vectors! This is "//&
+               "not a COLLECTIVE VARIABLE! One of the two planes must be defined "//&
+               "using atomic positions. "//&
+CPSourceFileRef)
+
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s= 0
+          IF (colvar%plane_plane_angle_param%plane1%type_of_def==plane_def_atoms) THEN
+             DO ii = 1, 3
+                i = colvar%plane_plane_angle_param%plane1%points(ii)
+                colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+             ENDDO
+          END IF
+          IF (colvar%plane_plane_angle_param%plane2%type_of_def==plane_def_atoms) THEN
+             DO ii = 1, 3
+                i = colvar%plane_plane_angle_param%plane2%points(ii)
+                colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+             ENDDO
+          END IF
+
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          IF (colvar%plane_plane_angle_param%plane1%type_of_def==plane_def_atoms) THEN
+             DO ii=1, 3
+                idum = idum + 1
+                i = colvar%plane_plane_angle_param%plane1%points(ii)
+                list(idum) = i
+             ENDDO
+          END IF
+          IF (colvar%plane_plane_angle_param%plane2%type_of_def==plane_def_atoms) THEN
+             DO ii=1, 3
+                idum = idum + 1
+                i = colvar%plane_plane_angle_param%plane2%points(ii)
+                list(idum) = i
+             ENDDO
+          END IF
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
        CASE(dfunct_colvar_id)
           np = 4
           ! Number of real atoms involved in the colvar
@@ -862,6 +928,9 @@ CONTAINS
     CASE(plane_distance_colvar_id)
        DEALLOCATE(colvar%plane_distance_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE(plane_plane_angle_colvar_id)
+       DEALLOCATE(colvar%plane_plane_angle_param, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(dfunct_colvar_id)
        DEALLOCATE(colvar%dfunct_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
@@ -1051,6 +1120,20 @@ CONTAINS
     CASE(plane_distance_colvar_id)
        colvar_out%plane_distance_param%plane = colvar_in%plane_distance_param%plane + my_offset
        colvar_out%plane_distance_param%point = colvar_in%plane_distance_param%point + my_offset
+    CASE(plane_plane_angle_colvar_id)
+       colvar_out%plane_plane_angle_param%plane1%type_of_def = colvar_in%plane_plane_angle_param%plane1%type_of_def
+       IF (colvar_out%plane_plane_angle_param%plane1%type_of_def == plane_def_vec) THEN
+          colvar_out%plane_plane_angle_param%plane1%normal_vec  = colvar_in%plane_plane_angle_param%plane1%normal_vec
+       ELSE
+          colvar_out%plane_plane_angle_param%plane1%points = colvar_in%plane_plane_angle_param%plane1%points + my_offset
+       END IF
+
+       colvar_out%plane_plane_angle_param%plane2%type_of_def = colvar_in%plane_plane_angle_param%plane2%type_of_def
+       IF (colvar_out%plane_plane_angle_param%plane2%type_of_def == plane_def_vec) THEN
+          colvar_out%plane_plane_angle_param%plane2%normal_vec  = colvar_in%plane_plane_angle_param%plane2%normal_vec
+       ELSE
+          colvar_out%plane_plane_angle_param%plane2%points = colvar_in%plane_plane_angle_param%plane2%points + my_offset
+       END IF
     CASE(rotation_colvar_id)
        colvar_out%rotation_param%i_at1_bond1  = colvar_in%rotation_param%i_at1_bond1 + my_offset
        colvar_out%rotation_param%i_at2_bond1  = colvar_in%rotation_param%i_at2_bond1 + my_offset

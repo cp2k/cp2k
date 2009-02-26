@@ -32,7 +32,7 @@ MODULE input_cp2k_colvar
   IMPLICIT NONE
   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_colvar'
 
 PUBLIC :: create_colvar_section
@@ -132,6 +132,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_colvar_d_pl_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_colvar_a_pl_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -709,7 +713,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="distance_point_plane",&
-            description="Section to define the distance of a point from a plane"//&
+            description="Section to define the distance of a point from a plane "//&
             "as a collective variables.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
@@ -739,6 +743,79 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_colvar_d_pl_section
+
+! *****************************************************************************
+!> \brief creates the colvar section regarded to the collective variables 
+!>      angles betweem two planes
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_colvar_a_pl_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_a_pl_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="angle_plane_plane",&
+            description="This section defines the angle between two planes "//&
+            "as a collective variables.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword, subsection)
+
+       CALL section_create(subsection,name="PLANE",&
+            description="This section defines the plane. When using this colvar, "//&
+            "two plane section must be defined!",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="DEF_TYPE",&
+            description="Specify how the plane is defined: either by 3 atoms or by a fixed normal "//&
+            "vector. At least one plane must be defined through atoms.",&
+            usage="DEF_TYPE ATOMS",&
+            default_i_val=plane_def_atoms,&
+            enum_c_vals=s2a("ATOMS", "VECTOR"),&
+            enum_desc=s2a("Plane defined by the position of 3 atoms",&
+            "Plane defined by a fixed normal vector"),&
+            enum_i_vals=(/plane_def_atoms,plane_def_vec/),error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies the indexes of 3 atoms/points defining the plane.",&
+            usage="ATOMS <INTEGER> <INTEGER> <INTEGER>",required=.TRUE.,&
+            n_var=3, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NORMAL_VECTOR",&
+            description="Alternatively to 3 atoms/points one can define one of the two, "//&
+            "planes by defining its NORMAL vector.",&
+            usage="NORMAL_VECTOR 0.0 1.0 0.0",required=.TRUE.,&
+            n_var=3, type_of_var=real_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+    END IF
+  END SUBROUTINE create_colvar_a_pl_section
 
 ! *****************************************************************************
 !> \brief create a geometrical point as a function of several atom coordinates

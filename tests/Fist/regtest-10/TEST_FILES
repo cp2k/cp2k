@@ -11,3 +11,6 @@ nh3-meta-1.inp              2
 nh3-meta-2.inp              2
 nh3-meta-3.inp              2
 nh3-meta-4.inp              2
+#new colvar
+c60_pl_pl_angl1_restr.inp   2
+c60_pl_pl_angl2_restr.inp   2

@@ -75,7 +75,10 @@ MODULE input_constants
                                            
   INTEGER, PARAMETER, PUBLIC               :: do_cell_cp2k=1,&
                                               do_cell_xsc=2
-                                           
+
+  INTEGER, PARAMETER, PUBLIC               :: plane_def_atoms=0,&
+                                              plane_def_vec=1                                           
+
   ! MD Ensemble                            
   INTEGER, PARAMETER, PUBLIC               :: nve_ensemble=1,&
                                               nvt_ensemble=2,&

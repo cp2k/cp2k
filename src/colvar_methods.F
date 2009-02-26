@@ -17,8 +17,9 @@ MODULE colvar_methods
        angle_colvar_id, colvar_check_points, colvar_create, colvar_setup, &
        colvar_type, combine_colvar_id, coord_colvar_id, dfunct_colvar_id, &
        dist_colvar_id, eval_point_der, eval_point_pos, hydronium_colvar_id, &
-       plane_distance_colvar_id, population_colvar_id, qparm_colvar_id, &
-       reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id
+       plane_distance_colvar_id, plane_plane_angle_colvar_id, &
+       population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
+       rotation_colvar_id, torsion_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -37,7 +38,9 @@ MODULE colvar_methods
                                              do_clv_xz,&
                                              do_clv_y,&
                                              do_clv_yz,&
-                                             do_clv_z
+                                             do_clv_z,&
+                                             plane_def_atoms,&
+                                             plane_def_vec
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -66,6 +69,7 @@ MODULE colvar_methods
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_methods'
+  REAL(KIND=dp), PRIVATE, PARAMETER    :: tolerance_acos = 1.0E-5_dp
 
   PUBLIC :: colvar_read,&
             colvar_eval_glob_f,&
@@ -107,17 +111,17 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
     LOGICAL                                  :: check, failure
-    LOGICAL, DIMENSION(12)                   :: my_subsection
+    LOGICAL, DIMENSION(13)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
-    REAL(KIND=dp)                            :: coeff
     REAL(KIND=dp), DIMENSION(1)              :: my_val
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g_range, grid_point, grid_sp, &
                                                 my_vals, range
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: angle_section, colvar_subsection, &
       combine_section, coordination_section, dfunct_section, &
-      distance_section, hydronium_section, plane_dist_section, point_section, &
+      distance_section, hydronium_section, plane_dist_section, &
+      plane_plane_angle_section, plane_sections, point_section, &
       population_section, qparm_section, reaction_path_section, &
       rotation_section, torsion_section, wrk_section
 
@@ -134,6 +138,9 @@ CONTAINS
     coordination_section => section_vals_get_subs_vals(colvar_section,"COORDINATION",i_rep_section=icol,error=error)
     plane_dist_section   => section_vals_get_subs_vals(colvar_section,"DISTANCE_POINT_PLANE",i_rep_section=icol,&
                             error=error)
+    plane_plane_angle_section &
+         &               => section_vals_get_subs_vals(colvar_section,"ANGLE_PLANE_PLANE",i_rep_section=icol,&
+         &                  error=error)
     rotation_section     => section_vals_get_subs_vals(colvar_section,"BOND_ROTATION",i_rep_section=icol,error=error)
     qparm_section        => section_vals_get_subs_vals(colvar_section,"QPARM",i_rep_section=icol,error=error)
     hydronium_section    => section_vals_get_subs_vals(colvar_section,"HYDRONIUM",i_rep_section=icol,error=error)
@@ -141,6 +148,7 @@ CONTAINS
                             can_return_null=.TRUE.,error=error)
     combine_section      => section_vals_get_subs_vals(colvar_section,"COMBINE_COLVAR",i_rep_section=icol,&
                             can_return_null=.TRUE.,error=error)
+    population_section   => section_vals_get_subs_vals(colvar_section,"POPULATION",i_rep_section=icol,error=error)
 
     CALL section_vals_get(distance_section,     explicit=my_subsection( 1), error=error)
     CALL section_vals_get(angle_section,        explicit=my_subsection( 2), error=error)
@@ -153,17 +161,15 @@ CONTAINS
     CALL section_vals_get(hydronium_section,    explicit=my_subsection( 9), error=error)
     ! These are just special cases since they are not present in their own defition of COLVARS
     IF (ASSOCIATED(reaction_path_section)) THEN
-       CALL section_vals_get(reaction_path_section,explicit=my_subsection(10), error=error)
+       CALL section_vals_get(reaction_path_section,&
+            &                                   explicit=my_subsection(10), error=error)
     END IF
     IF (ASSOCIATED(combine_section)) THEN
-       CALL section_vals_get(combine_section,explicit=my_subsection(11), error=error)
+       CALL section_vals_get(combine_section,   explicit=my_subsection(11), error=error)
     END IF
-
-
-
-    population_section    => section_vals_get_subs_vals(colvar_section,"POPULATION",i_rep_section=icol,error=error)
-    CALL section_vals_get(population_section,   explicit=my_subsection(12),error=error)
-
+    CALL section_vals_get(population_section,   explicit=my_subsection(12), error=error)
+    CALL section_vals_get(plane_plane_angle_section,&
+         &                                      explicit=my_subsection(13), error=error)
 
     ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
@@ -479,7 +485,6 @@ CONTAINS
        CALL cp_print_key_finished_output(iw1,logger,reaction_path_section,&
             "MAP", error=error)
 
-
     ELSE IF(my_subsection(11))THEN
        ! combine colvar
        CALL colvar_create(colvar,combine_colvar_id, error)
@@ -611,14 +616,47 @@ CPSourceFileRef)
           END DO
        END IF
        ! Let's finish reading the other parameters
-
        CALL section_vals_val_get(population_section,"R0",r_val=colvar%population_param%r_0,error=error)
        CALL section_vals_val_get(population_section,"NN",i_val=colvar%population_param%nncrd,error=error)
        CALL section_vals_val_get(population_section,"ND",i_val=colvar%population_param%ndcrd,error=error)
-
        CALL section_vals_val_get(population_section,"N0",i_val=colvar%population_param%n0,error=error)
-
        CALL section_vals_val_get(population_section,"SIGMA",r_val=colvar%population_param%sigma,error=error)
+    ELSE IF (my_subsection(13)) THEN
+       ! Angle between two planes
+       wrk_section => plane_plane_angle_section
+       CALL colvar_create(colvar, plane_plane_angle_colvar_id, error)
+       CALL colvar_check_points(colvar, plane_plane_angle_section, error)
+       ! Read the specification of the two planes
+       plane_sections => section_vals_get_subs_vals(plane_plane_angle_section,"PLANE",error=error)
+       CALL section_vals_get(plane_sections, n_repetition=n_var, error=error)
+       CALL cp_assert(n_var==2,cp_fatal_level,cp_assertion_failed,routineP,&
+               "PLANE_PLANE_ANGLE Colvar section: Two PLANE sections must be provided!"//&
+CPSourceFileRef)
+       ! Plane 1
+       CALL section_vals_val_get(plane_sections,"DEF_TYPE",i_rep_section=1,&
+            i_val=colvar%plane_plane_angle_param%plane1%type_of_def,error=error)
+       IF (colvar%plane_plane_angle_param%plane1%type_of_def==plane_def_vec) THEN
+          CALL section_vals_val_get(plane_sections,"NORMAL_VECTOR",i_rep_section=1,&
+               r_vals=s1,error=error)
+          colvar%plane_plane_angle_param%plane1%normal_vec = s1 
+       ELSE
+          CALL section_vals_val_get(plane_sections,"ATOMS",i_rep_section=1,&
+               i_vals=iatms,error=error)
+          colvar%plane_plane_angle_param%plane1%points = iatms
+       END IF
+
+       ! Plane 2
+       CALL section_vals_val_get(plane_sections,"DEF_TYPE",i_rep_section=2,&
+            i_val=colvar%plane_plane_angle_param%plane2%type_of_def,error=error)
+       IF (colvar%plane_plane_angle_param%plane2%type_of_def==plane_def_vec) THEN
+          CALL section_vals_val_get(plane_sections,"NORMAL_VECTOR",i_rep_section=2,&
+               r_vals=s1,error=error)
+          colvar%plane_plane_angle_param%plane2%normal_vec = s1
+       ELSE
+          CALL section_vals_val_get(plane_sections,"ATOMS",i_rep_section=2,&
+               i_vals=iatms,error=error)
+          colvar%plane_plane_angle_param%plane2%points = iatms
+       END IF
     END IF
     CALL colvar_setup(colvar, error)
 
@@ -646,6 +684,22 @@ CPSourceFileRef)
                colvar%plane_distance_param%plane
           WRITE ( iw, '( A,T73,1I8)' )   ' COLVARS| PLANE DISTANCE - POINT  >>> '//tag,&
                colvar%plane_distance_param%point
+       CASE(plane_plane_angle_colvar_id)
+          IF (colvar%plane_plane_angle_param%plane1%type_of_def==plane_def_atoms) THEN
+             WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| PLANE-PLANE ANGLE - PLANE 1  (ATOMS) >>> '//tag,&
+                  colvar%plane_plane_angle_param%plane1%points
+          ELSE
+             WRITE ( iw, '( A,T57,3F8.3)' )   ' COLVARS| PLANE-PLANE ANGLE - PLANE 1 (VECTOR) >>> '//tag,&
+                  colvar%plane_plane_angle_param%plane1%normal_vec
+          END IF
+          
+          IF (colvar%plane_plane_angle_param%plane2%type_of_def==plane_def_atoms) THEN
+             WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| PLANE-PLANE ANGLE - PLANE 1  (ATOMS) >>> '//tag,&
+                  colvar%plane_plane_angle_param%plane2%points
+          ELSE
+             WRITE ( iw, '( A,T57,3F8.3)' )   ' COLVARS| PLANE-PLANE ANGLE - PLANE 1 (VECTOR) >>> '//tag,&
+                  colvar%plane_plane_angle_param%plane2%normal_vec
+          END IF
        CASE(torsion_colvar_id)
           WRITE ( iw, '( A,T49,4I8)' )   ' COLVARS| TORSION       >>> '//tag,&
                colvar%torsion_param%i_at_tors
@@ -844,6 +898,8 @@ CPSourceFileRef)
           CALL dfunct_colvar(colvar, cell, particles=particles, error=error)
        CASE (plane_distance_colvar_id)
           CALL plane_distance_colvar(colvar,cell, particles=particles, error=error)
+       CASE (plane_plane_angle_colvar_id)
+          CALL plane_plane_angle_colvar(colvar,cell, particles=particles, error=error)
        CASE (rotation_colvar_id)
           CALL rotation_colvar(colvar,cell, particles=particles, error=error)
        CASE (qparm_colvar_id)
@@ -911,6 +967,8 @@ CPSourceFileRef)
           CALL dfunct_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (plane_distance_colvar_id)
           CALL plane_distance_colvar(colvar,cell,subsys=subsys, error=error)
+       CASE (plane_plane_angle_colvar_id)
+          CALL plane_plane_angle_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (rotation_colvar_id)
           CALL rotation_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (qparm_colvar_id)
@@ -967,6 +1025,8 @@ CPSourceFileRef)
           CALL dfunct_colvar(colvar, cell, particles=particles, error=error)
        CASE (plane_distance_colvar_id)
           CALL plane_distance_colvar(colvar,cell, particles=particles, error=error)
+       CASE (plane_plane_angle_colvar_id)
+          CALL plane_plane_angle_colvar(colvar,cell, particles=particles, error=error)
        CASE (rotation_colvar_id)
           CALL rotation_colvar(colvar,cell, particles=particles, error=error)
        CASE (qparm_colvar_id)
@@ -1135,6 +1195,229 @@ CPSourceFileRef)
 
   END SUBROUTINE plane_distance_colvar
 
+
+! *****************************************************************************
+!> \brief evaluates the force due (and on) the angle between two planes.
+!>        plane-plane angle collective variable
+!> \author Teodoro Laino 02.2009 [created]
+! *****************************************************************************
+  SUBROUTINE plane_plane_angle_colvar(colvar,cell,subsys,particles,error)
+
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'plane_plane_angle_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i1, i2, j1, j2, k1, k2, np
+    LOGICAL                                  :: check, failure
+    REAL(dp) :: a1, a2, d, dnorm_dxpn(3), dprod12_dxpn(3), dsdxpn(3), &
+      dt_dxpn(3), dxpndxi(3,3), dxpndxj(3,3), dxpndxk(3,3), fi(3), fj(3), &
+      fk(3), fmod, norm1, norm2, prod_12, ri1(3), ri2(3), rj1(3), rj2(3), &
+      rk1(3), rk2(3), ss(3), t, xpij1(3), xpij2(3), xpkj1(3), xpkj2(3), &
+      xpn1(3), xpn2(3)
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+
+    failure=.FALSE.
+    NULLIFY(particles_i)
+
+    check = colvar%type_id==plane_plane_angle_colvar_id
+    CPPrecondition(check,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+
+    ! Plane 1
+    IF (colvar%plane_plane_angle_param%plane1%type_of_def==plane_def_atoms) THEN
+       i1=colvar%plane_plane_angle_param%plane1%points(1)
+       j1=colvar%plane_plane_angle_param%plane1%points(2)
+       k1=colvar%plane_plane_angle_param%plane1%points(3)
+       
+       ! Get coordinates of atoms or points
+       CALL get_coordinates(colvar, i1, ri1, my_particles)
+       CALL get_coordinates(colvar, j1, rj1, my_particles)
+       CALL get_coordinates(colvar, k1, rk1, my_particles)
+
+       ! xpij
+       ss=MATMUL(cell%h_inv,ri1-rj1)
+       ss=ss-NINT(ss)
+       xpij1=MATMUL(cell%hmat,ss)
+
+       ! xpkj
+       ss=MATMUL(cell%h_inv,rk1-rj1)
+       ss=ss-NINT(ss)
+       xpkj1=MATMUL(cell%hmat,ss)
+
+       ! xpn
+       xpn1(1)  = xpij1(2)*xpkj1(3)-xpij1(3)*xpkj1(2)
+       xpn1(2)  = xpij1(3)*xpkj1(1)-xpij1(1)*xpkj1(3)
+       xpn1(3)  = xpij1(1)*xpkj1(2)-xpij1(2)*xpkj1(1)
+    ELSE
+       xpn1     = colvar%plane_plane_angle_param%plane1%normal_vec
+    END IF
+    a1    = DOT_PRODUCT(xpn1,xpn1)
+    norm1 = SQRT(a1)
+    CPPrecondition(norm1/=0.0_dp,cp_failure_level,routineP,error,failure)
+
+    ! Plane 2
+    IF (colvar%plane_plane_angle_param%plane2%type_of_def==plane_def_atoms) THEN
+       i2=colvar%plane_plane_angle_param%plane2%points(1)
+       j2=colvar%plane_plane_angle_param%plane2%points(2)
+       k2=colvar%plane_plane_angle_param%plane2%points(3)
+       
+       ! Get coordinates of atoms or points
+       CALL get_coordinates(colvar, i2, ri2, my_particles)
+       CALL get_coordinates(colvar, j2, rj2, my_particles)
+       CALL get_coordinates(colvar, k2, rk2, my_particles)
+
+       ! xpij
+       ss=MATMUL(cell%h_inv,ri2-rj2)
+       ss=ss-NINT(ss)
+       xpij2=MATMUL(cell%hmat,ss)
+
+       ! xpkj
+       ss=MATMUL(cell%h_inv,rk2-rj2)
+       ss=ss-NINT(ss)
+       xpkj2=MATMUL(cell%hmat,ss)
+
+       ! xpn
+       xpn2(1)  = xpij2(2)*xpkj2(3)-xpij2(3)*xpkj2(2)
+       xpn2(2)  = xpij2(3)*xpkj2(1)-xpij2(1)*xpkj2(3)
+       xpn2(3)  = xpij2(1)*xpkj2(2)-xpij2(2)*xpkj2(1)
+    ELSE
+       xpn2     = colvar%plane_plane_angle_param%plane2%normal_vec
+    END IF
+    a2    = DOT_PRODUCT(xpn2,xpn2)
+    norm2 = SQRT(a2)
+    CPPrecondition(norm2/=0.0_dp,cp_failure_level,routineP,error,failure)
+
+    ! The value of the angle is defined only between 0 and Pi/2
+    prod_12  = DOT_PRODUCT(xpn1,xpn2)
+
+    d        = norm1*norm2
+    t        = MIN(1.0_dp,prod_12/d)
+    colvar%ss= ACOS(ABS(t))
+
+    IF ((ABS(colvar%ss).LT.tolerance_acos).OR.(ABS(colvar%ss-pi).LT.tolerance_acos)) THEN
+       fmod =   0.0_dp
+    ELSE
+       fmod = - 1.0_dp / SIN(colvar%ss) * SIGN(1.0_dp,t)
+    ENDIF
+    ! Compute derivatives
+    np = 0
+    ! Plane 1
+    IF (colvar%plane_plane_angle_param%plane1%type_of_def==plane_def_atoms) THEN
+       dprod12_dxpn = xpn2
+       dnorm_dxpn   = 1.0_dp/norm1*xpn1
+       dt_dxpn      = (dprod12_dxpn * d - prod_12 * dnorm_dxpn * norm2)/d**2
+
+       dsdxpn(1) = fmod * dt_dxpn(1)
+       dsdxpn(2) = fmod * dt_dxpn(2)
+       dsdxpn(3) = fmod * dt_dxpn(3)
+       !
+       dxpndxi(1,1)=  0.0_dp
+       dxpndxi(1,2)=  1.0_dp * xpkj1(3)
+       dxpndxi(1,3)= -1.0_dp * xpkj1(2)
+       dxpndxi(2,1)= -1.0_dp * xpkj1(3)
+       dxpndxi(2,2)=  0.0_dp
+       dxpndxi(2,3)=  1.0_dp * xpkj1(1)
+       dxpndxi(3,1)=  1.0_dp * xpkj1(2)
+       dxpndxi(3,2)= -1.0_dp * xpkj1(1)
+       dxpndxi(3,3)=  0.0_dp
+       !
+       dxpndxj(1,1)=  0.0_dp
+       dxpndxj(1,2)= -1.0_dp * xpkj1(3) + xpij1(3)
+       dxpndxj(1,3)= -1.0_dp * xpij1(2) + xpkj1(2)
+       dxpndxj(2,1)= -1.0_dp * xpij1(3) + xpkj1(3)
+       dxpndxj(2,2)=  0.0_dp
+       dxpndxj(2,3)= -1.0_dp * xpkj1(1) + xpij1(1)
+       dxpndxj(3,1)= -1.0_dp * xpkj1(2) + xpij1(2)
+       dxpndxj(3,2)= -1.0_dp * xpij1(1) + xpkj1(1)
+       dxpndxj(3,3)=  0.0_dp
+       !
+       dxpndxk(1,1)=  0.0_dp
+       dxpndxk(1,2)= -1.0_dp * xpij1(3)
+       dxpndxk(1,3)=  1.0_dp * xpij1(2)
+       dxpndxk(2,1)=  1.0_dp * xpij1(3)
+       dxpndxk(2,2)=  0.0_dp
+       dxpndxk(2,3)= -1.0_dp * xpij1(1)
+       dxpndxk(3,1)= -1.0_dp * xpij1(2)
+       dxpndxk(3,2)=  1.0_dp * xpij1(1)
+       dxpndxk(3,3)=  0.0_dp
+       !
+       fi=MATMUL(dsdxpn,dxpndxi)
+       fj=MATMUL(dsdxpn,dxpndxj)
+       fk=MATMUL(dsdxpn,dxpndxk)
+
+       ! Transfer derivatives on atoms
+       CALL put_derivative(colvar, np+1, fi)
+       CALL put_derivative(colvar, np+2, fj)
+       CALL put_derivative(colvar, np+3, fk)
+       np = 3
+    END IF
+
+    ! Plane 2
+    IF (colvar%plane_plane_angle_param%plane2%type_of_def==plane_def_atoms) THEN
+       dprod12_dxpn = xpn1
+       dnorm_dxpn   = 1.0_dp/norm2*xpn2
+       dt_dxpn      = (dprod12_dxpn * d - prod_12 * dnorm_dxpn * norm1)/d**2
+
+       dsdxpn(1) = fmod * dt_dxpn(1)
+       dsdxpn(2) = fmod * dt_dxpn(2)
+       dsdxpn(3) = fmod * dt_dxpn(3)
+       !
+       dxpndxi(1,1)=  0.0_dp
+       dxpndxi(1,2)=  1.0_dp * xpkj1(3)
+       dxpndxi(1,3)= -1.0_dp * xpkj1(2)
+       dxpndxi(2,1)= -1.0_dp * xpkj1(3)
+       dxpndxi(2,2)=  0.0_dp
+       dxpndxi(2,3)=  1.0_dp * xpkj1(1)
+       dxpndxi(3,1)=  1.0_dp * xpkj1(2)
+       dxpndxi(3,2)= -1.0_dp * xpkj1(1)
+       dxpndxi(3,3)=  0.0_dp
+       !
+       dxpndxj(1,1)=  0.0_dp
+       dxpndxj(1,2)= -1.0_dp * xpkj1(3) + xpij1(3)
+       dxpndxj(1,3)= -1.0_dp * xpij1(2) + xpkj1(2)
+       dxpndxj(2,1)= -1.0_dp * xpij1(3) + xpkj1(3)
+       dxpndxj(2,2)=  0.0_dp
+       dxpndxj(2,3)= -1.0_dp * xpkj1(1) + xpij1(1)
+       dxpndxj(3,1)= -1.0_dp * xpkj1(2) + xpij1(2)
+       dxpndxj(3,2)= -1.0_dp * xpij1(1) + xpkj1(1)
+       dxpndxj(3,3)=  0.0_dp
+       !
+       dxpndxk(1,1)=  0.0_dp
+       dxpndxk(1,2)= -1.0_dp * xpij1(3)
+       dxpndxk(1,3)=  1.0_dp * xpij1(2)
+       dxpndxk(2,1)=  1.0_dp * xpij1(3)
+       dxpndxk(2,2)=  0.0_dp
+       dxpndxk(2,3)= -1.0_dp * xpij1(1)
+       dxpndxk(3,1)= -1.0_dp * xpij1(2)
+       dxpndxk(3,2)=  1.0_dp * xpij1(1)
+       dxpndxk(3,3)=  0.0_dp
+       !
+       fi=MATMUL(dsdxpn,dxpndxi)
+       fj=MATMUL(dsdxpn,dxpndxj)
+       fk=MATMUL(dsdxpn,dxpndxk)
+
+       ! Transfer derivatives on atoms
+       CALL put_derivative(colvar, np+1, fi)
+       CALL put_derivative(colvar, np+2, fj)
+       CALL put_derivative(colvar, np+3, fk)
+    END IF
+
+  END SUBROUTINE plane_plane_angle_colvar
+
 ! *****************************************************************************
 !> \brief Evaluates the value of the rotation angle between two bonds 
 !> \author Teodoro Laino 02.2006 [created]
@@ -1196,7 +1479,7 @@ CPSourceFileRef)
     t2 = 1.0_dp/(a*b**3.0_dp)
     t3 = DOT_PRODUCT(xij,xkj)
     colvar%ss = ACOS(t3*t0)
-    IF ((ABS(colvar%ss).LT.0.00001_dp).OR.(ABS(colvar%ss-pi).LT.0.00001_dp)) THEN
+    IF ((ABS(colvar%ss).LT.tolerance_acos).OR.(ABS(colvar%ss-pi).LT.tolerance_acos)) THEN
        fmod =   0.0_dp
     ELSE
        fmod = - 1.0_dp / SIN(colvar%ss)
@@ -1347,7 +1630,7 @@ CPSourceFileRef)
     t2 = 1.0_dp/(a*b**3.0_dp)
     t3 = DOT_PRODUCT(xij,xkj)
     colvar%ss = ACOS(t3*t0)
-    IF ((ABS(colvar%ss).LT.0.00001_dp).OR.(ABS(colvar%ss-pi).LT.0.00001_dp)) THEN
+    IF ((ABS(colvar%ss).LT.tolerance_acos).OR.(ABS(colvar%ss-pi).LT.tolerance_acos)) THEN
        fmod =   0.0_dp
     ELSE
        fmod = - 1.0_dp / SIN(colvar%ss)
@@ -2069,7 +2352,6 @@ CPSourceFileRef)
     REAL(dp)                                 :: err
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dss_vals, my_val, ss_vals
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: fi
-    REAL(dp), DIMENSION(3)                   :: ss
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -2179,7 +2461,6 @@ CPSourceFileRef,&
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1, f_vals, fi, s1v
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ds1v
-    REAL(dp), DIMENSION(3)                   :: ss
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles

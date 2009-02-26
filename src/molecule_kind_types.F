@@ -19,8 +19,9 @@ MODULE molecule_kind_types
   USE colvar_types,                    ONLY: &
        angle_colvar_id, colvar_counters, combine_colvar_id, coord_colvar_id, &
        dfunct_colvar_id, dist_colvar_id, hydronium_colvar_id, &
-       plane_distance_colvar_id, population_colvar_id, qparm_colvar_id, &
-       reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id
+       plane_distance_colvar_id, plane_plane_angle_colvar_id, &
+       population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
+       rotation_colvar_id, torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE external_potential_types,        ONLY: all_potential_type,&
@@ -252,6 +253,7 @@ CONTAINS
     ncolv%ntorsion       = 0
     ncolv%ncoord         = 0
     ncolv%nplane_dist    = 0
+    ncolv%nplane_angle   = 0
     ncolv%nrot           = 0
     ncolv%nqparm         = 0
     ncolv%nhydronium     = 0
@@ -278,6 +280,8 @@ CONTAINS
              ncolv%ndfunct = ncolv%ndfunct + 1
           CASE(plane_distance_colvar_id)
              ncolv%nplane_dist = ncolv%nplane_dist + 1
+          CASE(plane_plane_angle_colvar_id)
+             ncolv%nplane_angle = ncolv%nplane_angle + 1
           CASE(torsion_colvar_id)
              ncolv%ntorsion = ncolv%ntorsion + 1
           CASE(qparm_colvar_id)
@@ -298,6 +302,7 @@ CONTAINS
                  ncolv%ntorsion     +&
                  ncolv%ncoord       +&
                  ncolv%nplane_dist  +&
+                 ncolv%nplane_angle +&
                  ncolv%ndfunct      +&
                  ncolv%nrot         +&
                  ncolv%nqparm       +&
