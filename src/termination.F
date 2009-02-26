@@ -24,7 +24,7 @@ MODULE termination
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: default_output_unit,&
-                                             m_flush,&
+                                             m_flush_internal,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_bcast
@@ -101,7 +101,7 @@ CONTAINS
 ! with a mystery core dump
 
     WRITE(default_output_unit,*) "Out of memory ..."
-    CALL m_flush(default_output_unit)
+    CALL m_flush_internal(default_output_unit)
     IF (memory == 0) THEN
       WRITE (message,"(A)")&
         "The memory allocation for the data object <"//TRIM(array)//"> failed"
@@ -214,7 +214,7 @@ CONTAINS
       CALL print_message("ERROR in "//TRIM(routine),error_unit,2,2,0)
       CALL print_message(error_message,error_unit,1,1,1)
       CALL print_stack(error_unit)
-      CALL m_flush(error_unit)
+      CALL m_flush_internal(error_unit)
       CALL mp_abort()
     END IF
 
@@ -251,7 +251,7 @@ CONTAINS
       CALL compress(message)
       CALL print_message(message,error_unit,1,1,0)
       CALL print_stack(error_unit)
-      CALL m_flush(error_unit)
+      CALL m_flush_internal(error_unit)
       CALL mp_abort()
     END IF
 

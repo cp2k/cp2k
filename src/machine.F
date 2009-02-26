@@ -101,7 +101,7 @@ MODULE machine
 
   PRIVATE
 
-  PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, &
+  PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, m_flush_internal, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 
