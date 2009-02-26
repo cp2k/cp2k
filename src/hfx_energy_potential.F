@@ -655,7 +655,7 @@ MODULE hfx_energy_potential
 !$OMP BARRIER
 !$OMP MASTER
     CALL timeset(routineN//"_load",handle_load)
-!$OMP MASTER
+!$OMP END MASTER
 !$OMP BARRIER
     IF( geometry_did_change ) THEN
       IF( actual_x_data%b_first_load_balance_energy ) THEN
@@ -674,7 +674,7 @@ MODULE hfx_energy_potential
 !$OMP BARRIER
 !$OMP MASTER
     CALL timestop(handle_load)
-!$OMP MASTER
+!$OMP END MASTER
 !$OMP BARRIER
 
 
@@ -720,7 +720,7 @@ MODULE hfx_energy_potential
 !$OMP BARRIER
 !$OMP MASTER
     CALL timeset(routineN//"_main",handle_main)
-!$OMP MASTER
+!$OMP END MASTER
 !$OMP BARRIER
     
     ncpu = para_env%num_pe 
