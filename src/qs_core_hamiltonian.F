@@ -455,6 +455,8 @@ CONTAINS
 
    build_kinetic_energy_matrix = (scf_control%use_ot.OR.&
         cp_print_key_should_output(logger%iter_info,&
+        qs_env%input,"DFT%PRINT%KINETIC_ENERGY",error=error)/=0.OR.&
+        cp_print_key_should_output(logger%iter_info,&
         qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error)/=0.OR.&
         cp_print_key_should_output(logger%iter_info,&
         qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error)/=0.OR.&

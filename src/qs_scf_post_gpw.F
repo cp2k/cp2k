@@ -93,6 +93,7 @@ MODULE qs_scf_post_gpw
   USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                              calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
+  USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -222,6 +223,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input, localization_section, &
                                                 localize_section, print_key
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: kinetic_m
+    real(dp) :: e_kin,e_kinAtt
 
     CALL timeset(routineN,handle)
 
@@ -235,7 +238,7 @@ CONTAINS
          mo_coeff, ks_rmpv, matrix_s, qs_loc_env, scf_control, &
          unoccupied_orbs, mo_eigenvalues, unoccupied_evals, fm_struct_tmp, &
          molecule_set, tddfpt_control, subsys, particles, input, &
-         print_key)
+         print_key,kinetic_m)
 
     has_homo=.FALSE.
     has_lumo=.FALSE.
@@ -244,7 +247,7 @@ CONTAINS
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit = -1
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
-
+    
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -256,6 +259,26 @@ CONTAINS
             error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 
+       !    **** the kinetic energy
+       IF (cp_print_key_should_output(logger%iter_info,input,&
+            "DFT%PRINT%KINETIC_ENERGY",error=error)/=0) then
+          CALL get_qs_env(qs_env,dft_control=dft_control,kinetic=kinetic_m,rho=rho,error=error)
+          CPPrecondition(ASSOCIATED(kinetic_m),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ASSOCIATED(kinetic_m(1)%matrix),cp_failure_level,routineP,error,failure)
+          e_kin=0.0_dp
+          DO ispin=1,dft_control%nspins
+             CALL calculate_ecore(h=kinetic_m(1)%matrix,&
+                  p=rho%rho_ao(ispin)%matrix,&
+                  ecore=e_kinAtt,&
+                  para_env=para_env)
+             e_kin=e_kin+e_kinAtt
+          END DO
+          output_unit = cp_print_key_unit_nr(logger,input,"DFT%PRINT%KINETIC_ENERGY",&
+               extension=".Log",error=error)
+          WRITE (output_unit,'(T3,A,T55,F25.14)') "Electronic kinetic energy:",e_kin
+          CALL cp_print_key_finished_output(output_unit,logger,input,&
+               "DFT%PRINT%KINETIC_ENERGY", error=error)
+       END IF
        ! Compute Atomic Charges
        CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, para_env, error)
 

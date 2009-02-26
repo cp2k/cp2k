@@ -824,6 +824,13 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"KINETIC_ENERGY",&
+            description="Controls the printing of the kinetic energy",&
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"DERIVATIVES",&
             description="Print all derivatives after the DFT calculation", &
             print_level=high_print_level,filename="__STD_OUT__",&
