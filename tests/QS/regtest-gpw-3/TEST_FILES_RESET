@@ -705,3 +705,13 @@ H2O-bloechl-restraint.inp
 dynamics.inp
 #  
 H2O-solv.inp
+# Refactoring of qs_core_hamiltonian 
+H2O-bloechl.inp
+# Refactoring of qs_core_hamiltonian 
+H2O-bloechl-Spl.inp
+# Refactoring of qs_core_hamiltonian 
+H2O-bloechl-restraint.inp
+# Refactoring of qs_core_hamiltonian 
+H2O-solv.inp
+# Refactoring of qs_core_hamiltonian 
+dynamics.inp

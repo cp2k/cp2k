@@ -219,3 +219,11 @@ o2-gapw-uks-1.inp
 c2h2_list-1.inp
 # GAPW rewrite 2nd step 
 no_list-1.inp
+# Refactoring of qs_core_hamiltonian 
+h2o-gapw-1.inp
+# Refactoring of qs_core_hamiltonian 
+o2-gapw-uks-1.inp
+# Refactoring of qs_core_hamiltonian 
+c2h2_list-1.inp
+# Refactoring of qs_core_hamiltonian 
+no_list-1.inp

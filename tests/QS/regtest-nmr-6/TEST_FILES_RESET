@@ -498,3 +498,27 @@ no-gapw-gpw-1.inp
 ch3m-gapw-1.inp
 # more numerics
 h2-gapw-1.inp
+# Refactoring of qs_core_hamiltonian 
+no-gapw-1.inp
+# Refactoring of qs_core_hamiltonian 
+no-gapw-2.inp
+# Refactoring of qs_core_hamiltonian 
+no-gapw-3.inp
+# Refactoring of qs_core_hamiltonian 
+no-gapw-4.inp
+# Refactoring of qs_core_hamiltonian 
+no-gapw-5.inp
+# Refactoring of qs_core_hamiltonian 
+no-gapw-1-distributed.inp
+# Refactoring of qs_core_hamiltonian 
+no-gapw-1-replicated.inp
+# Refactoring of qs_core_hamiltonian 
+w2_qmmm-1.inp
+# Refactoring of qs_core_hamiltonian 
+w2_qmmm-2.inp
+# Refactoring of qs_core_hamiltonian 
+w2_qmmm-3.inp
+# Refactoring of qs_core_hamiltonian 
+no-gapw-gpw-1.inp
+# Refactoring of qs_core_hamiltonian 
+h2-gapw-1.inp

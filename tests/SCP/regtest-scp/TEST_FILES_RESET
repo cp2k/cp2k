@@ -116,3 +116,9 @@ w2.inp
 w2-r1.inp
 #  
 w2-r2.inp
+# Refactoring of qs_core_hamiltonian 
+w2.inp
+# Refactoring of qs_core_hamiltonian 
+w2-r1.inp
+# Refactoring of qs_core_hamiltonian 
+w2-r2.inp

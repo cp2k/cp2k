@@ -247,3 +247,13 @@ o2-gapw-uks-1.inp
 o2-gapw-uks-3.inp
 # GAPW rewrite 2nd step 
 o2-gapw-uks-4.inp
+# Refactoring of qs_core_hamiltonian 
+h2o-gapw-1.inp
+# Refactoring of qs_core_hamiltonian 
+h2o-gapw-3.inp
+# Refactoring of qs_core_hamiltonian 
+o2-gapw-uks-1.inp
+# Refactoring of qs_core_hamiltonian 
+o2-gapw-uks-3.inp
+# Refactoring of qs_core_hamiltonian 
+o2-gapw-uks-4.inp

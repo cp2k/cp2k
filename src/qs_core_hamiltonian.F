@@ -66,19 +66,21 @@
 !>      - New parallelization scheme (27.06.2003,MK)
 !>      - OpenMP version (07.12.2003,JGH)
 !>      - Binary search loop for VPPNL operators (09.01.2004,JGH,MK)
+!>      - Refactoring of pseudopotential and nuclear attraction integrals (25.02.2009,JGH)
 !> \author Matthias Krack (14.09.2000,21.03.02)
 ! *****************************************************************************
 MODULE qs_core_hamiltonian
 
   USE ai_kinetic,                      ONLY: kinetic
   USE ai_overlap_new,                  ONLY: overlap
-  USE ai_overlap_ppl,                  ONLY: overlap_ppl
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
+  USE core_ae,                         ONLY: build_core_ae
+  USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -88,9 +90,6 @@ MODULE qs_core_hamiltonian
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE dkh_main,                        ONLY: dkh_mol_integrals
   USE ep_qs_types,                     ONLY: ep_qs_type
-  USE external_potential_types,        ONLY: all_potential_type,&
-                                             get_potential,&
-                                             gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type
   USE input_constants,                 ONLY: diag_ot,&
@@ -108,16 +107,14 @@ MODULE qs_core_hamiltonian
   USE orbital_symbols,                 ONLY: cgf_symbol
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
-  USE qs_all_potential,                ONLY: all_integrals,&
-                                             vall_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_neighbor_list_types,          ONLY: &
-       find_neighbor_list, first_list, first_node, get_neighbor_list, &
-       get_neighbor_list_set, get_neighbor_node, neighbor_list_set_p_type, &
-       neighbor_list_type, neighbor_node_type, next, reduced_3c_list_type
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next, reduced_3c_list_type
   USE qs_oce_methods,                  ONLY: build_oce_matrices
   USE qs_oce_types,                    ONLY: allocate_oce_set,&
                                              allocate_vtriple,&
@@ -183,13 +180,12 @@ CONTAINS
 
     CHARACTER(LEN=12)                        :: cgfsym
     CHARACTER(LEN=80)                        :: name
-    INTEGER :: atom_a, atom_b, atom_c, first_col, handle, i, iab, iac, iat, &
-      iatom, ico, icol, ikind, ilist, inode, irow, iset, ithread, j, jatom, &
-      jco, jkind, jset, katom, kkind, kneighbor, knode, last_jatom, ldai, &
-      ldsab, lr_precond, maxblock, maxco, maxdco, maxder, maxl, maxlgto, &
-      maxlppl, maxsgf, n, nat, natom, ncoa, ncob, ncol, nder, &
-      neighbor_list_id, nkind, nlist, nneighbor, nnode, nnode_c, nrow, nseta, &
-      nsetb, nsgf, nthread, sgfa, sgfb, stat
+    INTEGER :: atom_a, atom_b, first_col, handle, i, iab, iat, iatom, ico, &
+      icol, ikind, ilist, inode, irow, iset, ithread, j, jatom, jco, jkind, &
+      jset, last_jatom, ldai, ldsab, lr_precond, maxblock, maxco, maxdco, &
+      maxder, maxl, maxlgto, maxlppl, maxsgf, n, nat, natom, ncoa, ncob, &
+      ncol, nder, neighbor_list_id, nkind, nlist, nnode, nrow, nseta, nsetb, &
+      nsgf, nthread, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf, &
                                                 last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
@@ -200,14 +196,11 @@ CONTAINS
       epr_calculation, failure, gth_potential_present, harris_flag, &
       new_atom_b, oce_present, ppl_present, return_s_derivatives, &
       return_t_derivatives, rho0_present, use_virial, xas_calculation
-    REAL(KIND=dp)                            :: dab, dac, dbc, eps_fit, &
-                                                eps_ppnl, f, f0, rab2, rac2, &
-                                                rbc2
+    REAL(KIND=dp)                            :: dab, eps_fit, eps_ppnl, f, &
+                                                f0, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: ai_work
-    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, rab, rac, &
-                                                rbc
-    REAL(KIND=dp), DIMENSION(3, 3)           :: virial_ab
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, hab, p_block, pab, &
                                                 rpgfa, rpgfb, sab, sphi_a, &
@@ -217,7 +210,6 @@ CONTAINS
       POINTER                                :: habt, pabt, sabt, sdab, workt
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: sdabt
-    TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -229,17 +221,15 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
-    TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb, sac_3c, sac_ppl, &
-                                                sap_oce, sap_ppnl, sbc_3c
+      DIMENSION(:), POINTER                  :: sab_orb, sac_3c, sac_ae, &
+                                                sac_ppl, sap_oce, sap_ppnl, &
+                                                sbc_3c
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local, &
-                                                sac_ppl_neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node, &
-                                                sac_ppl_neighbor_node
+                                                sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -253,13 +243,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: reduced_3c_rho0
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: lr_section
-    TYPE(vall_type), DIMENSION(:), POINTER   :: vall
-    TYPE(vall_type), DIMENSION(:, :), &
-      POINTER                                :: vallt
     TYPE(virial_type), POINTER               :: virial
-    TYPE(vppl_type), DIMENSION(:), POINTER   :: vppl
-    TYPE(vppl_type), DIMENSION(:, :), &
-      POINTER                                :: vpplt
     TYPE(vtriple_type), DIMENSION(:, :), &
       POINTER                                :: VH_3c_list
 
@@ -287,6 +271,7 @@ CONTAINS
     NULLIFY (matrix_s)
     NULLIFY (sab_orb)
     NULLIFY (sabt)
+    NULLIFY (sac_ae)
     NULLIFY (sac_ppl)
     NULLIFY (sap_ppnl)
     NULLIFY (sap_oce)
@@ -319,6 +304,7 @@ CONTAINS
                     particle_set=particle_set,&
                     matrix_s=matrix_s,&
                     sab_orb=sab_orb,&
+                    sac_ae=sac_ae,&
                     sac_ppl=sac_ppl,&
                     sap_ppnl=sap_ppnl,&
                     sap_oce=sap_oce,&
@@ -564,56 +550,7 @@ CONTAINS
        END IF
     ENDIF
     
-    ! *** Load GTH pseudo potential data (local part -> PPL) ***
     ppl_present = ASSOCIATED(sac_ppl)
-
-    IF (ppl_present) THEN
-       ALLOCATE (vpplt(nkind,0:nthread-1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO kkind=1,nkind
-          atomic_kind => atomic_kind_set(kkind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,gth_potential=gth_potential)
-
-          DO j=0,nthread-1
-             NULLIFY (vpplt(kkind,j)%cexp_ppl)
-             IF (ASSOCIATED(gth_potential)) THEN
-                CALL get_potential(potential=gth_potential,&
-                                   alpha_ppl=vpplt(kkind,j)%alpha_ppl,&
-                                   cexp_ppl=vpplt(kkind,j)%cexp_ppl,&
-                                   ppl_radius=vpplt(kkind,j)%ppl_radius)
-             END IF
-             NULLIFY (vpplt(kkind,j)%r2)
-             NULLIFY (vpplt(kkind,j)%neighbor)
-             NULLIFY (vpplt(kkind,j)%r)
-          END DO
-       END DO
-    END IF
-
-    IF (all_potential_present) THEN
-       ALLOCATE(vallt(nkind,0:nthread-1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO kkind=1,nkind
-          atomic_kind => atomic_kind_set(kkind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               all_potential=all_potential)
-          DO j=0,nthread-1
-             NULLIFY(vallt(kkind,j)%neighbor)
-             NULLIFY(vallt(kkind,j)%force_c)
-             IF (ASSOCIATED(all_potential)) THEN
-                CALL get_potential(potential=all_potential,&
-                                   alpha_core_charge=vallt(kkind,j)%alpha_c,&
-                                   zeff=vallt(kkind,j)%zeta_c,&
-                                   ccore_charge=vallt(kkind,j)%core_charge,&
-                                   core_charge_radius=vallt(kkind,j)%core_radius)
-             ELSE
-                vallt(kkind,j)%alpha_c = 0.0_dp
-                vallt(kkind,j)%zeta_c = 0.0_dp
-                vallt(kkind,j)%core_charge = 0.0_dp
-                vallt(kkind,j)%core_radius = 0.0_dp
-             END IF
-          END DO
-       END DO
-    END IF
 
     ! *** Retrieve data of SAC_3C neighbors of atom "iatom" ***
     DO ikind = 1,nkind
@@ -677,12 +614,6 @@ CONTAINS
           IF (build_kinetic_energy_matrix) THEN
              tint => tintt(:,ithread)
           END IF
-          IF (ppl_present) THEN
-             vppl => vpplt(:,ithread)
-          END IF
-          IF (all_potential_present) THEN
-             vall => vallt(:,ithread)
-          END IF
           ALLOCATE (ai_work(ldai,ldai,MAX(1,ncoset(maxlppl)),ncoset(nder+1)),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DO ilist=1,nlist
@@ -696,44 +627,6 @@ CONTAINS
 
              IF (calculate_forces) atom_a = atom_of_kind(iatom)
 
-             ! *** Retrieve the data of the SAC_PPL neighbors of atom "iatom" ***
-             IF (ppl_present) THEN
-                DO kkind=1,nkind
-                   iac = ikind + nkind*(kkind - 1)
-                   IF (.NOT.ASSOCIATED(sac_ppl(iac)%neighbor_list_set)) CYCLE
-                   sac_ppl_neighbor_list => find_neighbor_list(sac_ppl(iac)%neighbor_list_set,atom=iatom)
-                   
-                   CALL get_neighbor_list(neighbor_list=sac_ppl_neighbor_list,nnode=nneighbor)
-                   
-                   ALLOCATE (vppl(kkind)%r2(nneighbor),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   ALLOCATE (vppl(kkind)%neighbor(nneighbor),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   ALLOCATE (vppl(kkind)%r(3,nneighbor),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   
-                   sac_ppl_neighbor_node => first_node(sac_ppl_neighbor_list)
-                   
-                   DO kneighbor=1,nneighbor
-                      CALL get_neighbor_node(neighbor_node=sac_ppl_neighbor_node,&
-                                             neighbor=vppl(kkind)%neighbor(kneighbor),&
-                                             r=vppl(kkind)%r(:,kneighbor))
-                      vppl(kkind)%r2(kneighbor) =&
-                           vppl(kkind)%r(1,kneighbor)*vppl(kkind)%r(1,kneighbor) +&
-                           vppl(kkind)%r(2,kneighbor)*vppl(kkind)%r(2,kneighbor) +&
-                           vppl(kkind)%r(3,kneighbor)*vppl(kkind)%r(3,kneighbor)
-                      sac_ppl_neighbor_node => next(sac_ppl_neighbor_node)
-                   END DO
-                END DO
-             END IF
-             
-             IF(all_potential_present) THEN
-                DO kkind = 1,nkind
-                   IF(ASSOCIATED(VH_3c_list(kkind,iatom)%neighbor)) &
-                        vall(kkind)%neighbor =>  VH_3c_list(kkind,iatom)%neighbor
-                END DO
-             END IF
-             
              last_jatom = 0
              sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
              
@@ -747,7 +640,8 @@ CONTAINS
                    new_atom_b = .FALSE.
                 END IF
                 
-                IF(rho0_present) THEN
+                IF(rho0_present .AND. (qs_env%dft_control%qs_control%gapw_control%full_gapw .OR. &
+                    qs_env%rel_control%rel_method/=rel_none)) THEN
                    CALL get_neighbor_node(sab_orb_neighbor_node,reduced_3c_rho0=reduced_3c_rho0)
                    ! *** Build reduced 3-center lists
                    IF(.NOT. calculate_forces) &
@@ -965,64 +859,6 @@ CONTAINS
                                END IF
                             END DO
                          END IF
-                         
-                         ! *** Loop over the GTH pseudo potential atoms (local part) ***
-                         IF (ppl_present) THEN
-                            DO kkind=1,nkind
-                               IF (.NOT.ASSOCIATED(vppl(kkind)%neighbor)) CYCLE
-                               DO kneighbor=1,SIZE(vppl(kkind)%neighbor)
-                                  katom = vppl(kkind)%neighbor(kneighbor)
-                                  rac(:) = vppl(kkind)%r(:,kneighbor)
-                                  rac2 = vppl(kkind)%r2(kneighbor)
-                                  dac = SQRT(rac2)
-                                  
-                                  IF (set_radius_a(iset) + vppl(kkind)%ppl_radius < dac) CYCLE
-                                  rbc(:) = rac(:) - rab(:)
-                                  rbc2 = rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3)
-                                  dbc = SQRT(rbc2)
-                                  IF (set_radius_b(jset) + vppl(kkind)%ppl_radius < dbc) CYCLE
-                                  
-                                  ! *** Calculate the GTH pseudo potential forces ***
-                                  IF (calculate_forces) THEN
-                                     CALL overlap_ppl(&
-                                          la_max(iset),la_min(iset),npgfa(iset),&
-                                          rpgfa(:,iset),zeta(:,iset),&
-                                          lb_max(jset),lb_min(jset),npgfb(jset),&
-                                          rpgfb(:,jset),zetb(:,jset),&
-                                          vppl(kkind)%cexp_ppl,vppl(kkind)%alpha_ppl,&
-                                          vppl(kkind)%ppl_radius,&
-                                          rab,dab,rac,dac,rbc,dbc,&
-                                          hab,nder,nder,.FALSE.,ai_work,&
-                                          pab,force_a,force_b)
-                                     
-                                     ! *** The derivatives w.r.t. atomic center c are    ***
-                                     ! *** calculated using the translational invariance ***
-                                     ! *** of the first derivatives                      ***
-                                     atom_c = atom_of_kind(katom)
-                                     force(ikind)%gth_ppl(:,atom_a) =force(ikind)%gth_ppl(:,atom_a) + f0*force_a(:)
-                                     force(kkind)%gth_ppl(:,atom_c) =force(kkind)%gth_ppl(:,atom_c) - f0*force_a(:)
-                                     
-                                     force(jkind)%gth_ppl(:,atom_b) =force(jkind)%gth_ppl(:,atom_b) + f0*force_b(:)
-                                     force(kkind)%gth_ppl(:,atom_c) =force(kkind)%gth_ppl(:,atom_c) - f0*force_b(:)
-                                     
-                                     IF (use_virial) THEN
-                                        CALL virial_pair_force ( virial%pv_virial, f0, force_a, rac, error)
-                                        CALL virial_pair_force ( virial%pv_virial, f0, force_b, rbc, error)
-                                     END IF
-                                  ELSE
-                                     CALL overlap_ppl(&
-                                          la_max(iset),la_min(iset),npgfa(iset),&
-                                          rpgfa(:,iset),zeta(:,iset),&
-                                          lb_max(jset),lb_min(jset),npgfb(jset),&
-                                          rpgfb(:,jset),zetb(:,jset),&
-                                          vppl(kkind)%cexp_ppl,vppl(kkind)%alpha_ppl,&
-                                          vppl(kkind)%ppl_radius,&
-                                          rab,dab,rac,dac,rbc,dbc,&
-                                          hab,0,0,.FALSE.,ai_work)
-                                  END IF
-                               END DO
-                            END DO
-                         END IF
                       ELSE
                          DO jco=1,ncob
                             DO ico=1,ncoa
@@ -1049,48 +885,6 @@ CONTAINS
                          END IF
                       END IF
 
-                      IF (all_potential_present ) THEN
-                         IF(calculate_forces) THEN
-                            CALL all_integrals(la_max(iset),la_min(iset),npgfa(iset),&
-                                 rpgfa(:,iset),zeta(:,iset),&
-                                 lb_max(jset),lb_min(jset),npgfb(jset),&
-                                 rpgfb(:,jset),zetb(:,jset),&
-                                 rab,dab,jkind,nkind,sbc_3c,&
-                                 reduced_3c_rho0,vall,&
-                                 hab,nder,pab,force_a,force_b,virial_ab,error=error)
-                            force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) + f0*force_a(:)
-                            force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + f0*force_b(:)
-                            IF (use_virial) THEN
-                               virial%pv_virial = virial%pv_virial + f0*virial_ab
-                            END IF
-                            DO kkind = 1,nkind
-                               IF (.NOT. ASSOCIATED(vall(kkind)%force_c)) CYCLE
-                               nnode_c = reduced_3c_rho0(kkind)%nnode
-                               DO knode = 1,nnode_c
-                                  katom = reduced_3c_rho0(kkind)%index_atom(knode)
-                                  atom_c = atom_of_kind(katom)
-                                  force(kkind)%all_potential(1:3,atom_c) = force(kkind)%all_potential(1:3,atom_c) + &
-                                                                           f0*vall(kkind)%force_c(1:3,knode)
-                               END DO
-                               DEALLOCATE(vall(kkind)%force_c,STAT=stat)
-                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                            END DO
-                         ELSE
-                            CALL all_integrals(la_max(iset),la_min(iset),npgfa(iset),&
-                                 rpgfa(:,iset),zeta(:,iset),&
-                                 lb_max(jset),lb_min(jset),npgfb(jset),&
-                                 rpgfb(:,jset),zetb(:,jset),&
-                                 rab,dab,jkind,nkind,sbc_3c,&
-                                 reduced_3c_rho0,vall,&
-                                 hab,nder,error=error)
-                            DO kkind = 1,nkind
-                               IF (.NOT. ASSOCIATED(vall(kkind)%force_c)) CYCLE
-                               DEALLOCATE(vall(kkind)%force_c,STAT=stat)
-                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                            END DO
-                         END IF
-                      END IF
-                      
                       ! *** Contraction step (core Hamiltonian matrix) ***
                       CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                            1.0_dp,hab(1,1),SIZE(hab,1),&
@@ -1112,27 +906,6 @@ CONTAINS
                 END DO
                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
              END DO
-             IF (ppl_present) THEN
-                DO kkind=1,nkind
-                   IF (ASSOCIATED(vppl(kkind)%r2)) THEN
-                      DEALLOCATE (vppl(kkind)%r2,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                      DEALLOCATE (vppl(kkind)%neighbor,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                      DEALLOCATE (vppl(kkind)%r,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   END IF
-                END DO
-             END IF
-             
-             IF (all_potential_present) THEN
-                DO kkind=1,nkind
-                   IF (ASSOCIATED(vall(kkind)%neighbor)) THEN
-                      NULLIFY (vall(kkind)%neighbor)
-                      NULLIFY (vall(kkind)%force_c)
-                   END IF
-                END DO
-             END IF
           END DO
           
           IF (ALLOCATED(ai_work)) THEN
@@ -1155,6 +928,17 @@ CONTAINS
           CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 0.5_dp,matrix_p(2)%matrix,0.5_dp,error=error)
           CALL cp_sm_scale_and_add(matrix_p(2)%matrix,-1.0_dp,matrix_p(1)%matrix,1.0_dp,error=error)
        END IF
+    END IF
+
+    ! *** compute the ppl contribution to the core hamiltonian ***
+    IF (ppl_present) THEN
+      CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+                    atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
+    END IF
+    ! *** compute the nucelar attraction contribution to the core hamiltonian ***
+    IF (all_potential_present) THEN
+      CALL build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
+                    atomic_kind_set, particle_set, sab_orb, sac_ae, error)
     END IF
 
     eps_ppnl = qs_env%dft_control%qs_control%eps_ppnl
@@ -1192,16 +976,6 @@ CONTAINS
                       error=error)
     END IF
     ! *** Release work storage ***
-    IF (ppl_present) THEN
-       DEALLOCATE (vpplt,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    
-    IF (all_potential_present) THEN
-       DEALLOCATE (vallt,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    
     DEALLOCATE (habt,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (sabt,STAT=stat)

@@ -90,3 +90,5 @@ graphite.inp
 graphite2.inp
 #  
 graphite3.inp
+# Refactoring of qs_core_hamiltonian 
+graphite2.inp

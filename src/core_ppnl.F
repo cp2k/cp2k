@@ -442,8 +442,6 @@ CONTAINS
       IF (calculate_forces) THEN
          ! *** If LSD, then recover alpha density and beta density     ***
          ! *** from the total density (1) and the spin density (2)     ***
-         ! *** The W matrix is neglected, since it will be destroyed   ***
-         ! *** in the calling force routine after leaving this routine ***
          IF (SIZE(matrix_p) == 2) THEN
             CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 0.5_dp,matrix_p(2)%matrix,0.5_dp,error=error)
             CALL cp_sm_scale_and_add(matrix_p(2)%matrix,-1.0_dp,matrix_p(1)%matrix,1.0_dp,error=error)

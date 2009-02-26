@@ -141,3 +141,9 @@ CO_xastpxhh.inp
 CO_xastpval.inp
 # GAPW rewrite 2nd step 
 CO_xastpxhh_loclist.inp
+# Refactoring of qs_core_hamiltonian 
+CO_xastpxhh.inp
+# Refactoring of qs_core_hamiltonian 
+CO_xastpval.inp
+# Refactoring of qs_core_hamiltonian 
+CO_xastpxhh_loclist.inp

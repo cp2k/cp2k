@@ -97,3 +97,5 @@ no-gapw-nics.inp
 no-gapw-nics.inp
 # GAPW rewrite 2nd step 
 no-gapw-nics.inp
+# Refactoring of qs_core_hamiltonian 
+no-gapw-nics.inp

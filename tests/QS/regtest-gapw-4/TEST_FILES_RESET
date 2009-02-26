@@ -159,3 +159,5 @@ CO_xastpxfh.inp
 CO_xastpxfh_150Ry.inp
 # GAPW rewrite 2nd step 
 CO_xastpxfh.inp
+# Refactoring of qs_core_hamiltonian 
+CO_xastpxfh.inp

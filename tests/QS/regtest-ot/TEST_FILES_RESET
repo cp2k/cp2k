@@ -478,3 +478,19 @@ He2_none_full_inverse.inp
 sic_ddapc_rt.inp
 #  
 He2_ddapc_constraint-4.inp
+# Refactoring of qs_core_hamiltonian 
+He2_ddapc_constraint.inp
+# Refactoring of qs_core_hamiltonian 
+He2_ddapc_constraint-2.inp
+# Refactoring of qs_core_hamiltonian 
+He2_ddapc_constraint-3.inp
+# Refactoring of qs_core_hamiltonian 
+He2_none_full_all.inp
+# Refactoring of qs_core_hamiltonian 
+He2_none_full_single.inp
+# Refactoring of qs_core_hamiltonian 
+He2_none_full_inverse.inp
+# Refactoring of qs_core_hamiltonian 
+sic_ddapc_rt.inp
+# Refactoring of qs_core_hamiltonian 
+He2_ddapc_constraint-4.inp

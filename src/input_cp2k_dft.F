@@ -900,6 +900,16 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
+            name="sac_ae",&
+            description="Activates the printing of the orbital "//&
+            "nuclear attraction neighbor lists (erfc potential)",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
             name="sac_ppl",&
             description="Activates the printing of the orbital "//&
             "GTH-PPL neighbor lists (local part of the "//&

@@ -162,3 +162,11 @@ NO2-EPR-3.inp
 NO2-EPR-2.inp
 # GAPW rewrite 2nd step 
 NO2-EPR-3.inp
+# Refactoring of qs_core_hamiltonian 
+NO2-EPR-1.inp
+# Refactoring of qs_core_hamiltonian 
+NO2-EPR-2.inp
+# Refactoring of qs_core_hamiltonian 
+NO2-EPR-3.inp
+# Refactoring of qs_core_hamiltonian 
+NO2-EPR-keys-1.inp

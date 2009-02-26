@@ -174,7 +174,7 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_2c, sab_all, &
       sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_orb, sab_scp, &
-      sab_vdw, sac_3c, sac_ppl, sap_oce, sap_ppnl, sbc_3c
+      sab_vdw, sac_3c, sac_ae, sac_ppl, sap_oce, sap_ppnl, sbc_3c
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -203,6 +203,7 @@ CONTAINS
     NULLIFY (rho0_mpole)
     NULLIFY (rhoz_set)
     NULLIFY (sab_orb)
+    NULLIFY (sac_ae)
     NULLIFY (sac_ppl)
     NULLIFY (sap_ppnl)
     NULLIFY (sap_oce)
@@ -262,6 +263,7 @@ CONTAINS
                     sab_aux_fit=sab_aux_fit,&
                     sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
                     sab_aux_fit_asymm=sab_aux_fit_asymm,&
+                    sac_ae=sac_ae,&
                     sac_ppl=sac_ppl,&
                     sab_vdw=sab_vdw,&
                     sap_ppnl=sap_ppnl,&
@@ -726,9 +728,9 @@ CONTAINS
        END IF
     END IF
 
-    ! Build orbital-orbital GAPW projector overlap list
 
     IF (paw_atom_present) THEN
+       ! Build orbital-GAPW projector overlap list
        IF (ANY(oce_present)) THEN
           CALL build_projector_neighbor_lists(sap_oce,atom,cell,r_skin,&
                                              maxatom,2*maxatom_local,unit_conv,unit_str,&
@@ -747,6 +749,24 @@ CONTAINS
 
        END IF
     END IF
+
+    ! Build orbital-ERFC potential list
+    IF (all_potential_present) THEN
+       CALL build_gth_ppl_neighbor_lists(sac_ae,atom,cell,r_skin,&
+                                         maxatom_local,unit_conv,unit_str,&
+                                         output_unit,orb_present,all_present,&
+                                         orb_radius,all_pot_rad,&
+                                         name="ORBITAL ERFC POTENTIAL",&
+                                         subcells=subcells,&
+                                         error=error)
+
+       ! Put the generated neighbor lists into the QS environment
+       CALL set_qs_env(qs_env=qs_env,sac_ae=sac_ae,error=error)
+
+       ! Dump neighbor list if requested
+       CALL write_neighbor_lists(sac_ae,particle_set,cell,para_env,neighbor_list_section,&
+               "/SAC_AE","sac_ae","ORBITAL ERFC POTENTIAL",error)
+     END IF
 
     IF (qs_env%dft_control%qs_control%semi_empirical) THEN
        ALLOCATE (semi_present(nkind),STAT=stat)

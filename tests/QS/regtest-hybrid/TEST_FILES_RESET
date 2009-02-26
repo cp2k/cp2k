@@ -339,3 +339,9 @@ CH3-hybrid-HSE06-lsd.inp
 # more numerics
 Ne-hybrid-MCY3.inp
 Ne-hybrid-rcam-b3lyp.inp
+# Refactoring of qs_core_hamiltonian 
+Li-hybrid-rcam-b3lyp.inp
+# Refactoring of qs_core_hamiltonian 
+Ne-hybrid-rcam-b3lyp.inp
+# Refactoring of qs_core_hamiltonian 
+Ne-hybrid-MCY3.inp
