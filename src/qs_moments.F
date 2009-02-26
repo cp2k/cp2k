@@ -1035,13 +1035,14 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE (rlab(nm+1),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       rmom=0._dp
+       rmom=0.0_dp
        rlab = ""
 
+       trace = 0.0_dp
        DO ispin=1,dft_control%nspins
          CALL cp_sm_sm_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,&
                                 para_env,error)
-         rmom(1,1) = trace
+         rmom(1,1) = rmom(1,1) + trace
        END DO
 
        DO i = 1, SIZE(moments)
