@@ -715,3 +715,4 @@ H2O-bloechl-restraint.inp
 H2O-solv.inp
 # Refactoring of qs_core_hamiltonian 
 dynamics.inp
+H2O-ata.inp
