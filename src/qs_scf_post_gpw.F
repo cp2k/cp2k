@@ -183,9 +183,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, homo, ispin, n, n_mo(2), nao, nelectron, nhomo, nlumo, &
-      nlumos, nmo, nmoloc(2), nmos, output_unit
+      nlumos, nmo, nmoloc(2), nmos, output_unit, unit_nr
     LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, failure, has_homo, &
       has_lumo, ionode, my_localized_wfn, p_loc, uniform_occ
+    REAL(dp)                                 :: e_kin, e_kinAtt
     REAL(KIND=dp)                            :: gap, homo_lumo(2,2), maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, stm_biases
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
@@ -217,14 +218,12 @@ CONTAINS
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, matrix_s
+      POINTER                                :: kinetic_m, ks_rmpv, matrix_s
     TYPE(real_matrix_type), POINTER          :: stm_density_ao
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: input, localization_section, &
                                                 localize_section, print_key
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: kinetic_m
-    real(dp) :: e_kin,e_kinAtt
 
     CALL timeset(routineN,handle)
 
@@ -261,7 +260,7 @@ CONTAINS
 
        !    **** the kinetic energy
        IF (cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%KINETIC_ENERGY",error=error)/=0) then
+            "DFT%PRINT%KINETIC_ENERGY",error=error)/=0) THEN
           CALL get_qs_env(qs_env,dft_control=dft_control,kinetic=kinetic_m,rho=rho,error=error)
           CPPrecondition(ASSOCIATED(kinetic_m),cp_failure_level,routineP,error,failure)
           CPPrecondition(ASSOCIATED(kinetic_m(1)%matrix),cp_failure_level,routineP,error,failure)
@@ -273,10 +272,10 @@ CONTAINS
                   para_env=para_env)
              e_kin=e_kin+e_kinAtt
           END DO
-          output_unit = cp_print_key_unit_nr(logger,input,"DFT%PRINT%KINETIC_ENERGY",&
+          unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%KINETIC_ENERGY",&
                extension=".Log",error=error)
-          WRITE (output_unit,'(T3,A,T55,F25.14)') "Electronic kinetic energy:",e_kin
-          CALL cp_print_key_finished_output(output_unit,logger,input,&
+          WRITE (unit_nr,'(T3,A,T55,F25.14)') "Electronic kinetic energy:",e_kin
+          CALL cp_print_key_finished_output(unit_nr,logger,input,&
                "DFT%PRINT%KINETIC_ENERGY", error=error)
        END IF
        ! Compute Atomic Charges
