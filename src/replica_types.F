@@ -164,8 +164,8 @@ CONTAINS
 
     CHARACTER(len=default_path_length)       :: input_file_path, &
                                                 output_file_path
-    INTEGER :: comm_cart, comm_f, comm_inter_rep, i, i0, ierr, ip, ir, irep, &
-      lp, my_prep, natom, new_env_id, nrep_local, stat, unit_nr, forcedim
+    INTEGER :: comm_cart, comm_f, comm_inter_rep, forcedim, i, i0, ierr, ip, &
+      ir, irep, lp, my_prep, natom, new_env_id, nrep_local, stat, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: gridinfo
     INTEGER, DIMENSION(2)                    :: dims, pos
     LOGICAL                                  :: failure, ionode
