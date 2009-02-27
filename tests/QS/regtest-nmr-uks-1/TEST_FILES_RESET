@@ -459,3 +459,5 @@ O2-UKS-NMR-10.inp
 O2-UKS-NMR-11.inp
 # Refactoring of qs_core_hamiltonian 
 O2-UKS-NMR-12.inp
+# new gauge build
+O2-UKS-NMR-4.inp

@@ -927,6 +927,9 @@ MODULE dkh_main
                   hp_block(:,:) = hp_block(:,:) + loc_hp_block(:,:)
                   t_block(:,:) = t_block(:,:) + loc_t_block(:,:)
                   s_block(:,:) = s_block(:,:) + loc_s_block(:,:)
+               ENDIF
+
+               IF(dkh_loc_atom) THEN
                   DEALLOCATE(loc_s_block)
                   DEALLOCATE(loc_t_block)
                   DEALLOCATE(loc_n_block)

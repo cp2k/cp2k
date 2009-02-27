@@ -419,32 +419,32 @@ CONTAINS
              "NMR Chemical Shift"
 
          IF(linres_control%localized_psi0) WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
-            "LINRES|","LOCALIZED PSI0"
+            "LINRES|"," LOCALIZED PSI0"
 
-         WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-              "LINRES|   Optimization algorithm","Conjugate Gradients"
+         WRITE(UNIT=output_unit,FMT="(T2,A,T60,A)")&
+              "LINRES| Optimization algorithm"," Conjugate Gradients"
 
          SELECT CASE(linres_control%preconditioner_type)
          CASE(lr_precond_none)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES|           Preconditioner","               NONE"
+                 "LINRES| Preconditioner","                NONE"
          CASE(lr_precond_h0_inverse)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES|           Preconditioner","        FULL SINGLE"
+                 "LINRES| Preconditioner","         FULL SINGLE"
          CASE(lr_precond_s_inverse)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES|           Preconditioner","     FULL S_INVERSE"
+                 "LINRES| Preconditioner","      FULL S_INVERSE"
          CASE(lr_precond_full_all)
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES|           Preconditioner","           FULL ALL"
+                 "LINRES| Preconditioner","            FULL ALL"
          CASE DEFAULT
             CALL stop_program(routineP,"Preconditioner NYI")
          END SELECT
 
-         WRITE (UNIT=output_unit,FMT="(T2,A,T71,ES8.1)")&
-              "LINRES|                  EPS",linres_control%eps
-         WRITE (UNIT=output_unit,FMT="(T2,A,T71,I8)")&
-              "LINRES|                  MAX_ITER",linres_control%max_iter
+         WRITE (UNIT=output_unit,FMT="(T2,A,T72,ES8.1)")&
+              "LINRES| EPS",linres_control%eps
+         WRITE (UNIT=output_unit,FMT="(T2,A,T72,I8)")&
+              "LINRES| MAX_ITER",linres_control%max_iter
        END IF
 
       !------------------!

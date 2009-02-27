@@ -209,26 +209,18 @@ CONTAINS
        (cp_unit_from_cp2k(cell%deth,"angstrom^3",error=error)*1.0E-30_dp) * 1.0E+6_dp
 
     IF(output_unit>0) THEN
-       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
-            & "  NMR|  shift gapw radius (a.u.) ",nmr_env%shift_gapw_radius
+       WRITE(output_unit,"(T2,A,T65,ES15.6)") "NMR| Shift gapw radius (a.u.) ",nmr_env%shift_gapw_radius
        IF(nmr_env%do_nics) THEN
-          WRITE(output_unit,"(T2,A,T50,I5,A)")&
-               & "  NMR|   NICS computed in ",nmr_env%n_nics," additional points"
-          WRITE(output_unit,"(T2,A,T60,A)")&
-               & "  NMR|   NICS coordinates read on file ",nics_file_name
+          WRITE(output_unit,"(T2,A,T50,I5,A)") "NMR| NICS computed in ",nmr_env%n_nics," additional points"
+          WRITE(output_unit,"(T2,A,T60,A)") "NMR| NICS coordinates read on file ",nics_file_name
        ENDIF
-       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
-            & "  NMR|      Shift factor (ppm)", nmr_env%shift_factor
+       WRITE(output_unit,"(T2,A,T65,ES15.6)") "NMR| Shift factor (ppm)",nmr_env%shift_factor
        IF(gapw) THEN
-          WRITE(output_unit,"(T2,A,T60,ES15.6)")&
-               & "  NMR| Shift factor gapw (ppm)", nmr_env%shift_factor_gapw
+          WRITE(output_unit,"(T2,A,T65,ES15.6)") "NMR| Shift factor gapw (ppm)",nmr_env%shift_factor_gapw
        ENDIF
-       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
-            & "  NMR|        Chi factor  (SI)", nmr_env%chi_factor
-       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
-            & "  NMR| Conversion Chi (ppm/cgs)", nmr_env%chi_SI2ppmcgs
-       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
-            & "  NMR| Conversion Chi to Shift", nmr_env%chi_SI2shiftppm
+       WRITE(output_unit,"(T2,A,T65,ES15.6)") "NMR| Chi factor (SI)",nmr_env%chi_factor
+       WRITE(output_unit,"(T2,A,T65,ES15.6)") "NMR| Conversion Chi (ppm/cgs)",nmr_env%chi_SI2ppmcgs
+       WRITE(output_unit,"(T2,A,T65,ES15.6)") "NMR| Conversion Chi to Shift",nmr_env%chi_SI2shiftppm
     ENDIF
 
     ALLOCATE (nmr_env%do_calc_cs_atom(natom), STAT=istat)
@@ -300,15 +292,13 @@ CONTAINS
 
     IF(output_unit>0) THEN
        IF(ASSOCIATED(nmr_env%cs_atom_list)) THEN
-          WRITE(output_unit,"(T2,A,T40,I5,A)")&
-               & "  NMR|   Shielding tensor computed for ",&
-               & SIZE(nmr_env%cs_atom_list,1) ," atoms"
+          WRITE(output_unit,"(T2,A,T69,I5,A)") "NMR| Shielding tensor computed for ",&
+               & SIZE(nmr_env%cs_atom_list,1)," atoms"
        ELSE
           WRITE(output_unit,"(T2,A,T50)")&
-               & "  NMR|   Shielding tensor not computed at the atomic positions"
+               & "NMR| Shielding tensor not computed at the atomic positions"
        ENDIF
     ENDIF
-
     !
     ! Initialize the chemical shift tensor
     ALLOCATE(nmr_env%chemical_shift(3,3,natom),&

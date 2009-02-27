@@ -101,6 +101,7 @@ MODULE qs_linres_types
 
   TYPE current_env_type
      LOGICAL                                     :: full,simple_done(6),simple_converged(6),do_qmmm
+     LOGICAL                                     :: use_old_gauge_atom,chi_pbc
      LOGICAL, DIMENSION(:,:), POINTER            :: full_done
      INTEGER                                     :: ref_count,nao,nstates(2),gauge,orb_center,nbr_center(2)
      INTEGER, DIMENSION(:    ), POINTER          :: list_cubes
@@ -306,6 +307,8 @@ CONTAINS
        current_env%orb_center    = HUGE(1)
        current_env%nstates(:)    = HUGE(1)
        current_env%nbr_center(:) = HUGE(1)
+       current_env%use_old_gauge_atom = .TRUE.
+       current_env%chi_pbc = .FALSE.
        NULLIFY(current_env%full_done)
        NULLIFY(current_env%list_cubes)
        NULLIFY(current_env%statetrueindex)
@@ -414,7 +417,7 @@ CONTAINS
        &                 nbr_center,center_list,centers_set,ao_mo_fm_pools,mo_mo_fm_pools,&
        &                 psi1_p,psi1_rxp,psi1_D,p_psi0,rxp_psi0,dip,jrho1_atom_set,jrho1_set,&
        &                 op_p_ao,op_rmd_ao,chi_tensor,chi_tensor_loc,gauge_atom_radius,&
-       &                 rs_gauge,error)
+       &                 rs_gauge,use_old_gauge_atom,chi_pbc,error)
     
     TYPE(current_env_type), OPTIONAL         :: current_env
     LOGICAL, OPTIONAL                        :: simple_done(6), &
@@ -450,6 +453,7 @@ CONTAINS
                                                 gauge_atom_radius
     TYPE(realspaces_grid_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: rs_gauge
+    LOGICAL, OPTIONAL                        :: use_old_gauge_atom, chi_pbc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_current_env', &
@@ -494,7 +498,9 @@ CONTAINS
        IF(PRESENT(op_rmd_ao       )) op_rmd_ao             => current_env%op_rmd_ao
        IF(PRESENT(op_p_ao         )) op_p_ao               => current_env%op_p_ao
        IF(PRESENT(rs_gauge        )) rs_gauge              => current_env%rs_gauge
-       IF(PRESENT(gauge_atom_radius))gauge_atom_radius     =  current_env%gauge_atom_radius
+       IF(PRESENT(chi_pbc         )) chi_pbc               =  current_env%chi_pbc
+       IF(PRESENT(gauge_atom_radius )) gauge_atom_radius   =  current_env%gauge_atom_radius
+       IF(PRESENT(use_old_gauge_atom)) use_old_gauge_atom  =  current_env%use_old_gauge_atom
     ENDIF
 
   END SUBROUTINE get_current_env

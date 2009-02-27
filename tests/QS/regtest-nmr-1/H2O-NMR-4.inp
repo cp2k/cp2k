@@ -10,6 +10,9 @@
     POTENTIAL_FILE_NAME ../GTH_POTENTIALS
     &MGRID
       CUTOFF 150
+      &RS_GRID
+        DISTRIBUTION_TYPE DISTRIBUTED
+      &END RS_GRID
     &END MGRID
     &QS
     &END QS
@@ -27,6 +30,12 @@
        &END
        MAX_ITER 100
        PRECONDITIONER FULL_ALL
+       &CURRENT
+          GAUGE ATOM
+          USE_OLD_GAUGE_ATOM F
+          GAUGE_ATOM_RADIUS 0.5
+          ORBITAL_CENTER COMMON
+       &END CURRENT
        &NMR
        &END
     &END

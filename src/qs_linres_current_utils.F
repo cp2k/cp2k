@@ -581,6 +581,11 @@ CONTAINS
     ! maximal radius to build the atom gauge
     CALL section_vals_val_get(current_section,"GAUGE_ATOM_RADIUS",&
          r_val=current_env%gauge_atom_radius,error=error)
+    ! use old gauge atom
+    CALL section_vals_val_get(current_section,"USE_OLD_GAUGE_ATOM",&
+         l_val=current_env%use_old_gauge_atom,error=error)
+    ! chi for pbc
+    CALL section_vals_val_get(current_section,"CHI_PBC",l_val=current_env%chi_pbc,error=error)
     !
     ! no need of this guy anymore
     !CALL section_vals_val_get(current_section,"FULL",l_val=current_env%full,error=error)
@@ -913,22 +918,25 @@ CONTAINS
     !
     !
     IF(output_unit>0) THEN
-       WRITE(output_unit,"(T2,A)") "CURRENT| Gauge used "//TRIM(current_env%gauge_name)
+       WRITE(output_unit,"(T2,A,T60,A)" ) "CURRENT| Gauge used",&
+            REPEAT(' ',20-LEN_TRIM(current_env%gauge_name))//TRIM(current_env%gauge_name)
+       WRITE(output_unit,"(T2,A,T79,L1)") "CURRENT| Use old gauge code",current_env%use_old_gauge_atom
+       WRITE(output_unit,"(T2,A,T79,L1)") "CURRENT| Compute chi for PBC calculation",current_env%chi_pbc
        IF(current_env%gauge.EQ.current_gauge_atom) THEN
-          WRITE(output_unit,"(T2,A,E12.6)") "CURRENT| radius for building the gauge ",&
+          WRITE(output_unit,"(T2,A,T68,E12.6)") "CURRENT| Radius for building the gauge",&
                & current_env%gauge_atom_radius
        ENDIF
-       WRITE(output_unit,"(T2,A)") "CURRENT| Orbital center used "//TRIM(current_env%orb_center_name)
+       WRITE(output_unit,"(T2,A,T60,A)") "CURRENT| Orbital center used",&
+            REPEAT(' ',20-LEN_TRIM(current_env%orb_center_name))//TRIM(current_env%orb_center_name)
+       IF(current_env%orb_center.EQ.current_orb_center_common) THEN
+          WRITE(output_unit,"(T2,A,T50,3F10.6)") "CURRENT| Common center",common_center(1:3)
+       ELSEIF(current_env%orb_center.EQ.current_orb_center_box) THEN
+          WRITE(output_unit,"(T2,A,T60,3I5)") "CURRENT| Nbr boxes in each direction",nbox(1:3)
+       ENDIF
        DO ispin = 1,nspins       
-          WRITE(output_unit,'(T2,A,I6,A,I2)') 'CURRENT| There is a total of ', &
+          WRITE(output_unit,'(T2,A,T40,I6,A,I2)') 'CURRENT| There is a total of ', &
                & current_env%nbr_center(ispin),' (clustered) center(s) for spin ',ispin
        ENDDO
-       IF(current_env%orb_center.EQ.current_orb_center_common) THEN
-          WRITE(output_unit,"(T2,A,3F10.6)") "CURRENT| Common center ",common_center(1:3)
-       ELSEIF(current_env%orb_center.EQ.current_orb_center_box) THEN
-          WRITE(output_unit,"(T2,A,3I5)") "CURRENT| nbr boxes in each direction ",nbox(1:3)
-       ENDIF
-       WRITE(output_unit,"(T2,A)") "CURRENT| Orbital center used "//TRIM(current_env%orb_center_name)
     ENDIF
 
     IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&

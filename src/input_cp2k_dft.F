@@ -5951,6 +5951,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="USE_OLD_GAUGE_ATOM",&
+            description="Use the old way to compute the gauge.", &
+            usage="USE_OLD_GAUGE_ATOM T",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword,name="ORBITAL_CENTER",&
             description="The orbital center.",&
             usage="ORBITAL_CENTER WANNIER",&
@@ -5977,6 +5984,13 @@ CONTAINS
             description="How many boxes along each directions ", usage="NBOX 6 6 5",&
             n_var=3,default_i_vals=(/4,4,4/),type_of_var=integer_t,&
             error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CHI_PBC",&
+            description="Calculate the succeptibility correction to the shift with PBC",&
+            usage="CHI_PBC T",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
