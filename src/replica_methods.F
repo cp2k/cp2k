@@ -15,8 +15,7 @@ MODULE replica_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_rm_iter_level
-  USE cp_para_types,                   ONLY: cp_para_cart_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_types,                 ONLY: cp_result_create,&
                                              cp_result_retain
   USE f77_blas
@@ -72,7 +71,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_cart_type), POINTER         :: cart
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -84,14 +82,12 @@ CONTAINS
          routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id),&
          failure=failure)
     NULLIFY(qs_env,dft_control)
-    NULLIFY(cart,f_env)
     IF (.NOT. failure) THEN
        CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
             new_error=error, failure=failure)
        IF (.NOT.failure) THEN
           logger => cp_error_get_logger(error)
-          cart => rep_env%cart
-          logger%iter_info%iteration(1)=cart%mepos(2)
+          logger%iter_info%iteration(1)=rep_env%my_rep_group
           CALL cp_add_iter_level(iteration_info=logger%iter_info,&
                level_name="REPLICA_EVAL",error=error)
           !wf interp

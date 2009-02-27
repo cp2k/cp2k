@@ -726,7 +726,7 @@ CONTAINS
              blocksize2=blocksize
              DO icol=0,sub_nmo-1,blocksize
                 IF (icol+blocksize>sub_nmo) blocksize2=sub_nmo-icol
-                IF (rep_env%replica_owner(isub)==rep_env%cart%mepos(2)) THEN
+                IF (rep_env%rep_is_local(isub)) THEN
                    CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
                         new_error=new_error, failure=failure)
                    local_idx=rep_env_local_index(rep_env,isub,error=error)
@@ -774,7 +774,7 @@ CONTAINS
                    CALL f_env_rm_defaults(f_env,new_error,ierr)
                    CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
                 END IF
-                CALL mp_bcast(sub_mo_matrix,rep_env%col_rank(rep_env%replica_owner(isub)),&
+                CALL mp_bcast(sub_mo_matrix,rep_env%inter_rep_rank(rep_env%replica_owner(isub)),&
                      rep_env%para_env_inter_rep%group)
 
                 ! be smarter and use only a part of the full width?
@@ -1671,7 +1671,7 @@ CONTAINS
           CALL cp_fm_set_all(orbitals,0.0_dp,error=error)
        END DO
        DO imol=1,ep_env%nmol
-          IF (rep_env%replica_owner(imol)==rep_env%cart%mepos(2)) THEN
+          IF (rep_env%rep_is_local(imol)) THEN
              ! this should return the C0 for a molecule
              CALL calc_c0_tilde(ep_env,&
                   mol_pos=rep_env%r(:,imol),new_c=rotatedC0,&
@@ -2829,7 +2829,7 @@ CONTAINS
              CALL get_block_node(block_node=block_node,&
                   block_col=iblock_col, block=m_block)
              IF (ep_env%at2sub(iblock_col)==ep_env%at2sub(iblock_row)) THEN
-                target_p=rep_env%col_rank(&
+                target_p=rep_env%inter_rep_rank(&
                      rep_env%replica_owner(ep_env%at2sub(iblock_col)))
                 send_sizes(target_p)=send_sizes(target_p)+SIZE(m_block,1)*SIZE(m_block,2)+2
              END IF
@@ -2874,7 +2874,7 @@ CONTAINS
                   block_col=iblock_col,&
                   BLOCK=m_block)
              IF (ep_env%at2sub(iblock_col)==ep_env%at2sub(iblock_row)) THEN
-                target_p=rep_env%col_rank(&
+                target_p=rep_env%inter_rep_rank(&
                      rep_env%replica_owner(ep_env%at2sub(iblock_col)))
                 send_buf(pos_att(target_p)+1)=REAL(iblock_row,dp)
                 send_buf(pos_att(target_p)+2)=REAL(iblock_col,dp)

@@ -71,19 +71,31 @@ MODULE replica_types
 !>        replicas owned by this processor
 !> \param r ,v,f: positions, velocities and forces of the replicas.
 !>        the indexing is as follow (idir,iat,irep)
-!> \param replica_owner which processor column owns the replica irep
+!> \param replica_owner which replica group number owns the replica irep
 !> \param cart 2d distribution of the processors for the replicas,
-!>        a column  work together on the same force_env (i.e. changing the
-!>        row you stay in the same replica), rows have different replicas
+!>        a column (or row if row_force was true in the rep_env_create call)
+!>        work together on the same force_env (i.e. changing the
+!>        row (column) you stay in the same replica), rows (columns) have
+!>        different replicas
+!> \param force_dim which dimension of cart works on forces together
+!>        used to be hardcoded to 1. Default is still 1, will
+!>        be 2 if row_force is true in the rep_env_create call. 
 !> \param para_env the global para env that contains all the replicas,
 !>        this is just the cart as para_env
 !> \param para_env_f parallel environment of the underlying force
 !>        environment
-!> \param row_rank mapping row -> rank in para_env_f
-!> \param para_env_inter_rep parallel environment between processors
-!>        on the same row of cart
-!> \param col_rank mapping column -> rank in para_env_inter_rep
+!> \param inter_rep_rank mapping replica group number -> rank in para_env_inter_rep
+!>        (this used to be col_rank)
+!> \param para_env_inter_rep parallel environment between replica
+!> \param force_rank mapping number of processor in force env -> rank in para_env_f
+!>        (this used to be row_rank)
 !> \param local_rep_indices indices of the local replicas, starting at 1
+!> \param rep_is_local logical if specific replica is a local one.
+!> \param my_rep_group which replica group number this process belongs to
+!>        (this used to be just cart%mepos(2) but with transposing the cart
+!>        (row_force=.true.) became cart%mepos(1), and to generalize this it
+!>        is now a separate variable, so one does not need to know
+!>        which way the cart is mapped.)
 !> \param wf_history wavefunction history for the owned replicas
 !> \param keep_wf_history if the wavefunction history for the owned replicas
 !>        should be kept
@@ -91,13 +103,16 @@ MODULE replica_types
 ! *****************************************************************************
   TYPE replica_env_type
      INTEGER                                           :: ref_count, id_nr, f_env_id,&
-                                                          nrep, nat, ndim
+                                                          nrep, nat, ndim, &
+                                                          my_rep_group, force_dim
      REAL(kind=dp), DIMENSION(:,:), POINTER            :: r,v,f
      LOGICAL                                           :: sync_v, keep_wf_history
      TYPE(qs_wf_history_p_type), DIMENSION(:), POINTER :: wf_history
      TYPE(cp_result_p_type),DIMENSION(:),POINTER       :: results
      INTEGER, DIMENSION(:), POINTER                    :: local_rep_indices
-     INTEGER, DIMENSION(:), POINTER                    :: replica_owner,row_rank,col_rank
+     INTEGER, DIMENSION(:), POINTER                    :: replica_owner, force_rank, &
+                                                          inter_rep_rank
+     LOGICAL, DIMENSION(:), POINTER                    :: rep_is_local
      TYPE(cp_para_cart_type), POINTER                  :: cart
      TYPE(cp_para_env_type), POINTER                   :: para_env, para_env_f,&
                                                           para_env_inter_rep
@@ -128,17 +143,20 @@ CONTAINS
 !> \param sync_v if the volocity should be synchronized (defaults to false)
 !> \param keep_wf_history if wf history should be kept on a per replica
 !>        basis (defaults to true for QS jobs)
+!> \param row_force to use the new mapping to the cart with rows
+!>        working on force instead of columns.
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
-       sync_v,keep_wf_history,error)
+       sync_v,keep_wf_history,row_force,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
     INTEGER                                  :: nrep, prep
-    LOGICAL, INTENT(in), OPTIONAL            :: sync_v, keep_wf_history
+    LOGICAL, INTENT(in), OPTIONAL            :: sync_v, keep_wf_history, &
+                                                row_force
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_create', &
@@ -147,7 +165,7 @@ CONTAINS
     CHARACTER(len=default_path_length)       :: input_file_path, &
                                                 output_file_path
     INTEGER :: comm_cart, comm_f, comm_inter_rep, i, i0, ierr, ip, ir, irep, &
-      lp, my_prep, natom, new_env_id, nrep_local, stat, unit_nr
+      lp, my_prep, natom, new_env_id, nrep_local, stat, unit_nr, forcedim
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: gridinfo
     INTEGER, DIMENSION(2)                    :: dims, pos
     LOGICAL                                  :: failure, ionode
@@ -169,9 +187,13 @@ CONTAINS
           unit_nr=-1
        END IF
        new_env_id=-1
+       forcedim = 1
+       IF (PRESENT(row_force)) THEN
+          IF (row_force) forcedim = 2
+       END IF
        my_prep=MIN(prep,para_env%num_pe)
-       dims(1)=my_prep
-       dims(2)=MIN(para_env%num_pe/my_prep,nrep)
+       dims(3-forcedim)=MIN(para_env%num_pe/my_prep,nrep)
+       dims(forcedim)=my_prep
        IF ((dims(1)*dims(2)/=para_env%num_pe).AND.(unit_nr>0)) THEN
           WRITE(unit_nr,FMT="(T2,A)") "REPLICA| WARNING: number of processors is not divisible by the number of replicas"
           WRITE(unit_nr,FMT="(T2,A,I0,A)") "REPLICA| ",para_env%num_pe-dims(1)*dims(2)," MPI process(es) will be idle"
@@ -181,12 +203,12 @@ CONTAINS
           CALL cp_cart_create(cart,comm_cart,ndims=2,owns_group=.TRUE.,error=error)
           NULLIFY(para_env_full)
           CALL cp_para_env_create(para_env_full,comm_cart,owns_group=.FALSE.,error=error)
-          rdim(1)=.TRUE.
-          rdim(2)=.FALSE.
+          rdim(3-forcedim)=.FALSE.
+          rdim(forcedim)=.TRUE.
           CALL mp_cart_sub( comm=comm_cart, rdim=rdim , sub_comm=comm_f)
           CALL cp_para_env_create(para_env_f,comm_f,owns_group=.TRUE.,error=error)
-          rdim(1)=.FALSE.
-          rdim(2)=.TRUE.
+          rdim(3-forcedim)=.TRUE.
+          rdim(forcedim)=.FALSE.
           CALL mp_cart_sub( comm=comm_cart, rdim=rdim , sub_comm=comm_inter_rep)
           CALL cp_para_env_create(para_env_inter_rep,comm_inter_rep,&
                owns_group=.TRUE.,error=error)
@@ -200,13 +222,14 @@ CONTAINS
        gridinfo(:,para_env%mepos)=pos
        CALL mp_sum(gridinfo,para_env%group)
        IF (unit_nr>0) THEN
-          WRITE(unit_nr,FMT="(T2,A,T71,I10)") "REPLICA| layout of the replica grid, number of groups ",dims(2)
-          WRITE(unit_nr,FMT="(T2,A,T71,I10)") "REPLICA| layout of the replica grid, size of each group",dims(1)
-          WRITE(unit_nr,FMT="(T2,A)",ADVANCE="NO") "REPLICA| MPI process to grid (rank,group) correspondence:"
+          WRITE(unit_nr,FMT="(T2,A,T71,I10)") "REPLICA| layout of the replica grid, number of groups ",para_env_inter_rep%num_pe
+          WRITE(unit_nr,FMT="(T2,A,T71,I10)") "REPLICA| layout of the replica grid, size of each group",para_env_f%num_pe
+          WRITE(unit_nr,FMT="(T2,A)",ADVANCE="NO") "REPLICA| MPI process to grid (group,rank) correspondence:"
           DO i=0,para_env%num_pe-1
              IF (MODULO(i,4)==0) WRITE(unit_nr,*)
              WRITE(unit_nr,FMT='(A3,I4,A3,I4,A1,I4,A1)',ADVANCE="NO")&
-                  "  (",i," : ",gridinfo(1,i),",",gridinfo(2,i),")"
+                  "  (",i," : ",gridinfo(3-forcedim,i),",",&
+                  gridinfo(forcedim,i),")"
           END DO
           WRITE(unit_nr,*)
        ENDIF
@@ -224,20 +247,23 @@ CONTAINS
        NULLIFY(rep_env%wf_history)
        NULLIFY(rep_env%results)
 
-       ALLOCATE(rep_env%row_rank(0:cart%num_pe(1)-1),rep_env%col_rank(0:cart%num_pe(2)-1),&
-            stat=stat)
-       rep_env%row_rank=0
-       rep_env%row_rank(cart%mepos(1))=para_env_f%mepos
-       CALL mp_sum(rep_env%row_rank,para_env_f%group)
-       rep_env%col_rank=0
-       rep_env%col_rank(cart%mepos(2))=para_env_inter_rep%mepos
-       CALL mp_sum(rep_env%col_rank,para_env_inter_rep%group)
+       rep_env%force_dim = forcedim
+       rep_env%my_rep_group = cart%mepos(3-forcedim)
+       ALLOCATE(rep_env%inter_rep_rank(0:para_env_inter_rep%num_pe-1),&
+                rep_env%force_rank(0:para_env_f%num_pe-1),stat=stat)
+       rep_env%inter_rep_rank=0
+       rep_env%inter_rep_rank(rep_env%my_rep_group)=para_env_inter_rep%mepos
+       CALL mp_sum(rep_env%inter_rep_rank,para_env_inter_rep%group)
+       rep_env%force_rank=0
+       rep_env%force_rank(cart%mepos(forcedim))=para_env_f%mepos
+       CALL mp_sum(rep_env%force_rank,para_env_f%group)
+ 
 
        CALL section_vals_val_get(input,"GLOBAL%PROJECT_NAME",&
             c_val=input_file_path,error=error)
        lp=LEN_TRIM(input_file_path)
        input_file_path(lp+1:LEN(input_file_path))="-r-"//&
-            ADJUSTL(cp_to_string(cart%mepos(2)))
+            ADJUSTL(cp_to_string(rep_env%my_rep_group))
        lp=LEN_TRIM(input_file_path)
             CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
                  c_val=input_file_path,error=error) !needed, or using a differen iteration is enough?
@@ -265,23 +291,26 @@ CONTAINS
           ALLOCATE(rep_env%replica_owner(nrep),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
 
-          i0=nrep/cart%num_pe(2)
-          ir=MODULO(nrep,cart%num_pe(2))
-          DO ip=0,cart%num_pe(2)-1
+          i0=nrep/para_env_inter_rep%num_pe
+          ir=MODULO(nrep,para_env_inter_rep%num_pe)
+          DO ip=0,para_env_inter_rep%num_pe-1
              DO i=i0*ip+MIN(ip,ir)+1,i0*(ip+1)+MIN(ip+1,ir)
                 rep_env%replica_owner(i)=ip
              END DO
           END DO
 
           nrep_local=i0
-          IF (cart%mepos(2)<ir) nrep_local=nrep_local+1
-          ALLOCATE(rep_env%local_rep_indices(nrep_local),stat=stat)
+          IF (rep_env%my_rep_group<ir) nrep_local=nrep_local+1
+          ALLOCATE(rep_env%local_rep_indices(nrep_local),&
+                   rep_env%rep_is_local(nrep),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           nrep_local=0
+          rep_env%rep_is_local = .FALSE.
           DO irep=1,nrep
-             IF (rep_env%replica_owner(irep)==cart%mepos(2)) THEN
+             IF (rep_env%replica_owner(irep)==rep_env%my_rep_group) THEN
                 nrep_local=nrep_local+1
                 rep_env%local_rep_indices(nrep_local)=irep
+                rep_env%rep_is_local(irep) = .TRUE.
              END IF
           END DO
           CPPostcondition(nrep_local==SIZE(rep_env%local_rep_indices),cp_failure_level,routineP,error,failure)
@@ -301,7 +330,7 @@ CONTAINS
           CALL cp_set_vel(rep_env%f_env_id, rep_env%v(:,1), rep_env%ndim, ierr)
           CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
           DO i=1,nrep
-             IF (cart%mepos(2)==rep_env%replica_owner(i)) THEN
+             IF (rep_env%rep_is_local(i)) THEN
                 CALL cp_get_pos(rep_env%f_env_id, &
                      rep_env%r(:,i), rep_env%ndim, ierr)
                 CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -375,11 +404,13 @@ CONTAINS
           END IF
           DEALLOCATE(rep_env%local_rep_indices,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          DEALLOCATE(rep_env%rep_is_local,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           IF (ASSOCIATED(rep_env%replica_owner)) THEN
              DEALLOCATE(rep_env%replica_owner,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
-          DEALLOCATE(rep_env%col_rank,rep_env%row_rank,stat=stat)
+          DEALLOCATE(rep_env%inter_rep_rank,rep_env%force_rank,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           CALL cp_cart_release(rep_env%cart,error=error)
           CALL cp_para_env_release(rep_env%para_env,error=error)
@@ -458,11 +489,14 @@ CONTAINS
        CALL cp_para_env_write(rep_env%para_env_f,unit_nr,error=error)
        WRITE (unit_nr,"(' para_env_inter_rep=')", advance="no")
        CALL cp_para_env_write(rep_env%para_env_inter_rep,unit_nr,error=error)
-       WRITE (unit_nr,"(' col_rank=(')", advance="no")
-       WRITE (unit_nr,"(10i6)") rep_env%col_rank
+       WRITE (unit_nr,"(' force_rank=(')", advance="no")
+       WRITE (unit_nr,"(10i6)") rep_env%force_rank
        WRITE (unit_nr,"(')')")
-       WRITE (unit_nr,"(' row_rank=(')", advance="no")
-       WRITE (unit_nr,"(10i6)") rep_env%row_rank
+       WRITE (unit_nr,"(' inter_rep_rank=(')", advance="no")
+       WRITE (unit_nr,"(10i6)") rep_env%inter_rep_rank
+       WRITE (unit_nr,"(')')")
+       WRITE (unit_nr,"(' force_dim=(')", advance="no")
+       WRITE (unit_nr,"(10i6)") rep_env%force_dim
        WRITE (unit_nr,"(')')")
        WRITE (unit_nr,"(' r=(')", advance="no")
        WRITE (unit_nr,"(3es12.5)") rep_env%r
@@ -512,7 +546,7 @@ CONTAINS
     CPPrecondition(SIZE(vals,2)==rep_env%nrep,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        DO irep=1,rep_env%nrep
-          IF (rep_env%replica_owner(irep)/=rep_env%cart%mepos(2)) THEN
+          IF (.NOT.rep_env%rep_is_local(irep)) THEN
              vals(:,irep)=0._dp
           END IF
        END DO
@@ -550,9 +584,11 @@ CONTAINS
     CPPrecondition(SIZE(results)==rep_env%nrep,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        DO irep=1, nrep
-          source = 0
-          IF (rep_env%replica_owner(irep)==rep_env%cart%mepos(2)) source = rep_env%para_env_inter_rep%mepos
-          CALL mp_sum(source, rep_env%para_env_inter_rep%group)
+!         source = 0
+!         IF (rep_env%rep_is_local(irep)) source = rep_env%para_env_inter_rep%mepos
+!         CALL mp_sum(source, rep_env%para_env_inter_rep%group)
+! above three lines should be the same as just:
+          source = rep_env%inter_rep_rank(rep_env%replica_owner(irep))
           CALL cp_results_mp_bcast(results(irep)%results, source, rep_env%para_env_inter_rep, error)
        END DO
     END IF

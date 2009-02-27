@@ -249,7 +249,7 @@ CONTAINS
           END IF
        END IF
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
-            nrep=nrep,prep=prep,error=error)
+            nrep=nrep,prep=prep, row_force=.TRUE.,error=error)
        IF (.NOT. ASSOCIATED(rep_env)) RETURN
 
        ALLOCATE(pint_env,stat=stat)
