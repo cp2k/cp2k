@@ -146,8 +146,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    verf = 0.0_dp
-    vnuc = 0.0_dp
+    IF(PRESENT(maxder)) THEN
+      verf(1:ncoset(la_max1),1:ncoset(lb_max1),1) = 0._dp
+      vnuc(1:ncoset(la_max1),1:ncoset(lb_max1),1) = 0._dp
+    END IF
 
     do_dkh = .FALSE.
 

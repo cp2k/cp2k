@@ -526,3 +526,25 @@ ch3p-gapw-1.inp
 # more numerics
 ch3m-gapw-1.inp
 ch4-gapw-1-distributed.inp
+# updated all electron integrals 
+no-gapw-1.inp
+# updated all electron integrals 
+no-gapw-2.inp
+# updated all electron integrals 
+no-gapw-3.inp
+# updated all electron integrals 
+no-gapw-4.inp
+# updated all electron integrals 
+no-gapw-5.inp
+# updated all electron integrals 
+no-gapw-1-distributed.inp
+# updated all electron integrals 
+no-gapw-1-replicated.inp
+# updated all electron integrals 
+w2_qmmm-1.inp
+# updated all electron integrals 
+w2_qmmm-2.inp
+# updated all electron integrals 
+w2_qmmm-3.inp
+# updated all electron integrals 
+no-gapw-gpw-1.inp

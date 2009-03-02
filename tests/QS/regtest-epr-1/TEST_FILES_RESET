@@ -170,3 +170,5 @@ NO2-EPR-2.inp
 NO2-EPR-3.inp
 # Refactoring of qs_core_hamiltonian 
 NO2-EPR-keys-1.inp
+# updated all electron integrals 
+NO2-EPR-3.inp

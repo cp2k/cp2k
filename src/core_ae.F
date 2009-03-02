@@ -75,9 +75,9 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, atom_c, handle, iab, iac, iatom, icol, ikind, &
       ilist, inode, irow, iset, jatom, jkind, jset, katom, kkind, kneighbor, &
-      last_jatom, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxsgf, natom, &
-      ncoa, ncob, nkind, nlist, nneighbor, nnode, nseta, nsetb, sgfa, sgfb, &
-      stat
+      last_jatom, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxnset, maxsgf, &
+      na_plus, natom, nb_plus, ncoa, ncob, nij, nkind, nlist, nneighbor, &
+      nnode, nseta, nsetb, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -89,9 +89,9 @@ CONTAINS
                                                 f0, rab2, rac2, rbc2, zeta_c
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ff
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: hab, habd, pab, work
+      DIMENSION(:, :)                        :: habd, work
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: verf, vnuc
+      DIMENSION(:, :, :)                     :: hab, pab, verf, vnuc
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, rab, rac, &
                                                 rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
@@ -130,20 +130,18 @@ CONTAINS
     maxder = ncoset(nder)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-            maxco=maxco,maxlgto=maxl,maxsgf=maxsgf)
+            maxco=maxco,maxlgto=maxl,maxsgf=maxsgf,maxnset=maxnset)
 
     CALL init_orbital_pointers(maxl+nder+1)
 
     ldsab = MAX(maxco,maxsgf)
     ldai = ncoset(maxl+nder+1)
-    ALLOCATE(hab(ldsab,ldsab),work(ldsab,ldsab),STAT=stat)
+    ALLOCATE(hab(ldsab,ldsab,maxnset*maxnset),work(ldsab,ldsab),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (verf(ldai,ldai,2*maxl+nder+1),vnuc(ldai,ldai,2*maxl+nder+1),ff(0:2*maxl+nder),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (calculate_forces) THEN
-       ALLOCATE(habd(ldai*ldsab,ldsab),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(pab(maxco,maxco),STAT=stat)
+       ALLOCATE(pab(maxco,maxco,maxnset*maxnset),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
@@ -234,11 +232,37 @@ CONTAINS
                                           block_col=icol,&
                                           BLOCK=p_block)
                       CPPostcondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
+                      ! *** Decontract density matrix block ***
+                      DO iset=1,nseta
+                         ncoa = npgfa(iset)*ncoset(la_max(iset))
+                         sgfa = first_sgfa(1,iset)
+                         DO jset=1,nsetb
+                            ncob = npgfb(jset)*ncoset(lb_max(jset))
+                            sgfb = first_sgfb(1,jset)
+                            nij=jset+(iset-1)*maxnset
+                            IF (iatom <= jatom) THEN
+                               CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
+                                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                       p_block(sgfa,sgfb),SIZE(p_block,1),&
+                                       0.0_dp,work(1,1),SIZE(work,1))
+                            ELSE
+                               CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
+                                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                       p_block(sgfb,sgfa),SIZE(p_block,1),&
+                                       0.0_dp,work(1,1),SIZE(work,1))
+                            END IF
+                            CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
+                                    1.0_dp,work(1,1),SIZE(work,1),&
+                                    sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                                    0.0_dp,pab(1,1,nij),SIZE(pab,1))
+                         END DO
+                      END DO
                    END IF
 
                 END IF
 
                 ! loop over all kinds for pseudopotential  atoms
+                hab = 0._dp
                 DO kkind=1,nkind
                    atomic_kind => atomic_kind_set(kkind)
                    CALL get_atomic_kind(atomic_kind=atomic_kind,all_potential=all_potential)
@@ -279,78 +303,86 @@ CONTAINS
                             rab2 = dab*dab
                             rac2 = dac*dac
                             rbc2 = dbc*dbc
+                            nij=jset+(iset-1)*maxnset
                             ! *** Calculate the GTH pseudo potential forces ***
                             IF (calculate_forces) THEN
-                               ! *** Decontract density matrix block ***
-                               IF (iatom <= jatom) THEN
-                                  CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                       p_block(sgfa,sgfb),SIZE(p_block,1),&
-                                       0.0_dp,work(1,1),SIZE(work,1))
-                               ELSE
-                                  CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
-                                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                       p_block(sgfb,sgfa),SIZE(p_block,1),&
-                                       0.0_dp,work(1,1),SIZE(work,1))
-                               END IF
-                               CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                                    1.0_dp,work(1,1),SIZE(work,1),&
-                                    sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                    0.0_dp,pab(1,1),SIZE(pab,1))
-
-                               hab = 0._dp
+                               na_plus = npgfa(iset)*ncoset(la_max(iset)+nder)
+                               nb_plus = npgfb(jset)*ncoset(lb_max(jset))
+                               ALLOCATE(habd(na_plus,nb_plus),STAT=stat)
+                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                                habd = 0._dp
                                CALL verfc(&
                                        la_max(iset)+nder,npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                                        lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
                                        alpha_c,core_radius,zeta_c,core_charge,&
-                                       rab,rab2,rac,rac2,rbc,rbc2,hab,verf,vnuc,ff(0:),&
+                                       rab,rab2,rac,rac2,rbc,rbc2,hab(:,:,nij),verf,vnuc,ff(0:),&
                                        nder,habd)
 
                                ! *** The derivatives w.r.t. atomic center c are    ***
                                ! *** calculated using the translational invariance ***
                                ! *** of the first derivatives                      ***
-                               CALL verfc_force(habd,pab,force_a,force_b,nder,&
+                               CALL verfc_force(habd,pab(:,:,nij),force_a,force_b,nder,&
                                                la_max(iset),la_min(iset),npgfa(iset),zeta(:,iset),&
                                                lb_max(jset),lb_min(jset),npgfb(jset),zetb(:,jset),rab,error)
-                               atom_c = atom_of_kind(katom)
-                               force(ikind)%all_potential(:,atom_a) =force(ikind)%all_potential(:,atom_a) + f0*force_a(:)
-                               force(kkind)%all_potential(:,atom_c) =force(kkind)%all_potential(:,atom_c) - f0*force_a(:)
 
-                               force(jkind)%all_potential(:,atom_b) =force(jkind)%all_potential(:,atom_b) + f0*force_b(:)
-                               force(kkind)%all_potential(:,atom_c) =force(kkind)%all_potential(:,atom_c) - f0*force_b(:)
+                               DEALLOCATE(habd,STAT=stat)
+                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+                               atom_c = atom_of_kind(katom)
+                               force(ikind)%all_potential(1,atom_a) =force(ikind)%all_potential(1,atom_a) + f0*force_a(1)
+                               force(ikind)%all_potential(2,atom_a) =force(ikind)%all_potential(2,atom_a) + f0*force_a(2)
+                               force(ikind)%all_potential(3,atom_a) =force(ikind)%all_potential(3,atom_a) + f0*force_a(3)
+
+                               force(jkind)%all_potential(1,atom_b) =force(jkind)%all_potential(1,atom_b) + f0*force_b(1)
+                               force(jkind)%all_potential(2,atom_b) =force(jkind)%all_potential(2,atom_b) + f0*force_b(2)
+                               force(jkind)%all_potential(3,atom_b) =force(jkind)%all_potential(3,atom_b) + f0*force_b(3)
+
+                               force(kkind)%all_potential(1,atom_c) =force(kkind)%all_potential(1,atom_c) &
+                                                                     - f0*force_a(1) - f0*force_b(1)
+                               force(kkind)%all_potential(2,atom_c) =force(kkind)%all_potential(2,atom_c) &
+                                                                     - f0*force_a(2) - f0*force_b(2)
+                               force(kkind)%all_potential(3,atom_c) =force(kkind)%all_potential(3,atom_c) &
+                                                                     - f0*force_a(3) - f0*force_b(3)
 
                                IF (use_virial) THEN
                                   CALL virial_pair_force ( virial%pv_virial, f0, force_a, rac, error)
                                   CALL virial_pair_force ( virial%pv_virial, f0, force_b, rbc, error)
                                END IF
                             ELSE
-                               hab = 0._dp
                                CALL verfc(&
                                        la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                                        lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
                                        alpha_c,core_radius,zeta_c,core_charge,&
-                                       rab,rab2,rac,rac2,rbc,rbc2,hab,verf,vnuc,ff(0:))
-                            END IF
-                            ! *** Contract nucatt integrals
-                            CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                                 1.0_dp,hab(1,1),SIZE(hab,1),&
-                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                 0.0_dp,work(1,1),SIZE(work,1))
-                            IF (iatom <= jatom) THEN
-                               CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    work(1,1),SIZE(work,1),&
-                                    1.0_dp,h_block(sgfa,sgfb),SIZE(h_block,1))
-                            ELSE
-                               CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                                    1.0_dp,work(1,1),SIZE(work,1),&
-                                    sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
+                                       rab,rab2,rac,rac2,rbc,rbc2,hab(:,:,nij),verf,vnuc,ff(0:))
                             END IF
                          END DO
                       END DO
                       sac_ae_neighbor_node => next(sac_ae_neighbor_node)
+                   END DO
+                END DO
+                ! *** Contract nuclear attraction integrals
+                DO iset=1,nseta
+                   ncoa = npgfa(iset)*ncoset(la_max(iset))
+                   sgfa = first_sgfa(1,iset)
+                   DO jset=1,nsetb
+                      ncob = npgfb(jset)*ncoset(lb_max(jset))
+                      sgfb = first_sgfb(1,jset)
+                      nij=jset+(iset-1)*maxnset
+                      CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                           1.0_dp,hab(1,1,nij),SIZE(hab,1),&
+                           sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                           0.0_dp,work(1,1),SIZE(work,1))
+                      IF (iatom <= jatom) THEN
+                         CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                              1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                              work(1,1),SIZE(work,1),&
+                              1.0_dp,h_block(sgfa,sgfb),SIZE(h_block,1))
+                      ELSE
+                         CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+                              1.0_dp,work(1,1),SIZE(work,1),&
+                              sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                              1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
+                      END IF
                    END DO
                 END DO
 
@@ -368,7 +400,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF (calculate_forces) THEN
-       DEALLOCATE(pab,habd,STAT=stat)
+       DEALLOCATE(pab,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (calculate_forces) THEN
@@ -400,73 +432,58 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'verfc_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, ic_a, ic_am, ic_ap, ic_b, ic_bm, icoa, icoa_plus, &
-      icoam_plus, icoap_plus, icob, icobm, ipgfa, ipgfb, na, nap, nb
-    INTEGER, DIMENSION(3)                    :: la, lam, lap, lb, lbm
-    REAL(KIND=dp)                            :: der_intab_a, der_intab_b, &
-                                                zax2, zbx2
+    INTEGER :: ic_a, ic_b, icam1, icam2, icam3, icap1, icap2, icap3, icax, &
+      icbm1, icbm2, icbm3, icbx, icoa, icob, ipgfa, ipgfb, na, nap, nb
+    INTEGER, DIMENSION(3)                    :: la, lb
+    REAL(KIND=dp)                            :: zax2, zbx2
 
     fa = 0.0_dp
     fb = 0.0_dp
 
-    DO i = 1,3
-
-       na = ncoset(la_max)
-       nap = ncoset(la_max+nder)
-       nb = ncoset(lb_max)
-
-       DO ipgfa = 1,npgfa
-          zax2 = zeta(ipgfa)*2.0_dp
+    na = ncoset(la_max)
+    nap = ncoset(la_max+nder)
+    nb = ncoset(lb_max)
+    DO ipgfa = 1,npgfa
+       zax2 = zeta(ipgfa)*2.0_dp
+       DO ipgfb = 1,npgfb
+          zbx2 = zetb(ipgfb)*2.0_dp
           DO ic_a = ncoset(la_min-1)+1,ncoset(la_max)
              la(1:3) = indco(1:3,ic_a)
-             lap(1:3) = la(1:3)
-             lap(i) = la(i) + 1
-             ic_ap = coset(lap(1),lap(2),lap(3))
-             lam(1:3) = la(1:3)
-             lam(i) = la(i) - 1
-             ic_am = coset(lam(1),lam(2),lam(3))
-
+             icap1 = coset(la(1)+1,la(2),la(3))
+             icap2 = coset(la(1),la(2)+1,la(3))
+             icap3 = coset(la(1),la(2),la(3)+1)
+             icam1 = coset(la(1)-1,la(2),la(3))
+             icam2 = coset(la(1),la(2)-1,la(3))
+             icam3 = coset(la(1),la(2),la(3)-1)
              icoa =  ic_a + (ipgfa-1)*na
-             icoa_plus = ic_a  + (ipgfa-1)*nap
-             icoap_plus = ic_ap + (ipgfa-1)*nap
-             icoam_plus = ic_am + (ipgfa-1)*nap
+             icax =  (ipgfa-1)*nap
 
-             DO ipgfb = 1,npgfb
-                zbx2 = zetb(ipgfb)*2.0_dp
-                DO ic_b = ncoset(lb_min-1)+1,ncoset(lb_max)
-                   lb(1:3) = indco(1:3,ic_b)
-                   lbm(1:3) = lb(1:3)
-                   lbm(i) = lb(i) - 1
-                   ic_bm = coset(lbm(1),lbm(2),lbm(3))
+             DO ic_b = ncoset(lb_min-1)+1,ncoset(lb_max)
+                lb(1:3) = indco(1:3,ic_b)
+                icbm1 = coset(lb(1)-1,lb(2),lb(3))
+                icbm2 = coset(lb(1),lb(2)-1,lb(3))
+                icbm3 = coset(lb(1),lb(2),lb(3)-1)
+                icob = ic_b + (ipgfb-1)*nb
+                icbx = (ipgfb-1)*nb
 
-                   icob = ic_b + (ipgfb-1)*nb
-                   icobm = ic_bm + (ipgfb-1)*nb
+                fa(1) = fa(1) - pab(icoa,icob)*(-zax2*habd(icap1+icax,icob)+&
+                                                REAL(la(1),KIND=dp)*habd(icam1+icax,icob))
+                fa(2) = fa(2) - pab(icoa,icob)*(-zax2*habd(icap2+icax,icob)+&
+                                                REAL(la(2),KIND=dp)*habd(icam2+icax,icob))
+                fa(3) = fa(3) - pab(icoa,icob)*(-zax2*habd(icap3+icax,icob)+&
+                                                REAL(la(3),KIND=dp)*habd(icam3+icax,icob))
 
-                   IF(lam(i)<0) THEN
-                      der_intab_a = -zax2*habd(icoap_plus,icob)
-                   ELSE
-                      der_intab_a = -zax2*habd(icoap_plus,icob)+&
-                              REAL(la(i),KIND=dp)*habd(icoam_plus,icob)
-                   END IF
+                fb(1) = fb(1) - pab(icoa,icob)*(-zbx2*(habd(icap1+icax,icob)-&
+                                rab(1)*habd(ic_a+icax,icob))+REAL(lb(1),KIND=dp)*habd(ic_a+icax,icbm1+icbx))
+                fb(2) = fb(2) - pab(icoa,icob)*(-zbx2*(habd(icap2+icax,icob)-&
+                                rab(2)*habd(ic_a+icax,icob))+REAL(lb(2),KIND=dp)*habd(ic_a+icax,icbm2+icbx))
+                fb(3) = fb(3) - pab(icoa,icob)*(-zbx2*(habd(icap3+icax,icob)-&
+                                rab(3)*habd(ic_a+icax,icob))+REAL(lb(3),KIND=dp)*habd(ic_a+icax,icbm3+icbx))
 
-                   fa(i) = fa(i) - pab(icoa,icob)*der_intab_a
-
-                   IF(lbm(i)<0) THEN
-                      der_intab_b = -zbx2*(habd(icoap_plus,icob)-&
-                                    rab(i)*habd(icoa_plus,icob))
-                   ELSE
-                      der_intab_b = -zbx2*(habd(icoap_plus,icob)-&
-                                    rab(i)*habd(icoa_plus,icob))+&
-                              REAL(lb(i),KIND=dp)*habd(icoa_plus,icobm)
-                   END IF
-
-                   fb(i) = fb(i) - pab(icoa,icob)*der_intab_b
-
-                END DO  ! ic_b
-             END DO  ! ipgfb
+             END DO  ! ic_b
           END DO  ! ic_a
-       END DO  ! ipgfa
-    END DO 
+       END DO  ! ipgfb
+    END DO  ! ipgfa
 
   END SUBROUTINE verfc_force
 

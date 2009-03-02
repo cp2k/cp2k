@@ -166,3 +166,7 @@ H2O_Hnopaw_pp.inp
 # more numerics
 CO_xastpxfh_150Ry.inp
 CO_xastpxfh_locall.inp
+# updated all electron integrals 
+CO_xastpxfh.inp
+# updated all electron integrals 
+CO_xastpxfh_locall.inp
