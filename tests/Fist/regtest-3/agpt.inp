@@ -4,7 +4,7 @@
   &MM
     &FORCEFIELD
       &SPLINE
-       EPS_SPLINE 1.E-4
+       EPS_SPLINE 1.E-3
       &END
       &NONBONDED
         &EAM
