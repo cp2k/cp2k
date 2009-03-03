@@ -27,13 +27,17 @@ MODULE hfx_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE hfx_helpers,                     ONLY: count_cells_perd,&
                                              next_image_cell_perd
   USE hfx_libint_wrapper,              ONLY: lib_int
-  USE input_constants,                 ONLY: do_hfx_auto_shells,&
-                                             do_hfx_potential_truncated,&
-                                             use_aux_fit_basis_set
+  USE input_constants,                 ONLY: &
+       do_hfx_auto_shells, do_hfx_potential_coulomb, &
+       do_hfx_potential_gaussian, do_hfx_potential_id, do_hfx_potential_long, &
+       do_hfx_potential_mix_cl, do_hfx_potential_mix_lg, &
+       do_hfx_potential_short, do_hfx_potential_truncated, &
+       use_aux_fit_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -123,6 +127,7 @@ MODULE hfx_types
     INTEGER                                  :: number_of_shells        !! number of periodic image cells 
     LOGICAL                                  :: do_periodic             !! periodic ?
     INTEGER                                  :: perd(3)                 !! x,xy,xyz,...
+    INTEGER                                  :: mode
   END TYPE
 
 ! *****************************************************************************
@@ -376,7 +381,8 @@ MODULE hfx_types
         hf_sub_section => section_vals_get_subs_vals(hfx_section,"PERIODIC", i_rep_section=irep, error=error)
         CALL section_vals_val_get(hf_sub_section, "NUMBER_OF_SHELLS", i_val=int_val, error=error)
         actual_x_data%periodic_parameter%number_of_shells = int_val
-        CALL get_cell(cell=cell,periodic=actual_x_data%periodic_parameter%perd)       
+        actual_x_data%periodic_parameter%mode = int_val
+        CALL get_cell(cell=cell,periodic=actual_x_data%periodic_parameter%perd)
         IF( SUM(actual_x_data%periodic_parameter%perd) == 0 ) THEN
           actual_x_data%periodic_parameter%do_periodic = .FALSE.
         ELSE
@@ -581,8 +587,11 @@ MODULE hfx_types
       END DO
     END DO
 
+    DO irep=1,n_rep_hf
+      actual_x_data => x_data(irep,1)
+      CALL hfx_print_info(actual_x_data, hfx_section, irep, error=error)
+    END DO
     CALL timestop(handle)
-
   END SUBROUTINE hfx_create 
 
 ! *****************************************************************************
@@ -825,7 +834,7 @@ MODULE hfx_types
 
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=64)                        :: char_nshells
-    INTEGER :: act_idx, i, ikind, ipgf, iset, iw, j, jkind, jpgf, jset, k, l, &
+    INTEGER :: act_idx, i, ikind, ipgf, iset, j, jkind, jpgf, jset, k, l, &
       m(3), max_cells_old, ncells_old, nseta, nsetb, nshells, nshells_old, &
       stat, total_number_of_cells
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, npgfa, npgfb
@@ -974,16 +983,18 @@ MODULE hfx_types
         pbc_shells = nshells - 1
       ELSE
         IF( x_data%periodic_parameter%number_of_shells < nshells - 1) THEN
-          WRITE(char_nshells,'(I3)') nshells-1
-          WRITE(error_msg,'(A,A,A)') "Periodic Hartree Fock calculation requested with use "//&
-                   "of a truncated potential. The number of shells to be considered "//&
-                   "might be too small. CP2K conservatively estimates to need "//TRIM(char_nshells)//" shells. "//&
-                    "Please carefully check if you get converged results."
+          IF( i_thread == 1) THEN
+            WRITE(char_nshells,'(I3)') nshells-1
+            WRITE(error_msg,'(A,A,A)') "Periodic Hartree Fock calculation requested with use "//&
+                     "of a truncated potential. The number of shells to be considered "//&
+                     "might be too small. CP2K conservatively estimates to need "//TRIM(char_nshells)//" shells. "//&
+                     "Please carefully check if you get converged results."
 
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                         error_msg,&
-                         error,&
-                         only_ionode=.TRUE.)
+            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                           error_msg,&
+                           error,&
+                           only_ionode=.TRUE.)
+          END IF
         END IF
         total_number_of_cells = 0
         DO i = 0,x_data%periodic_parameter%number_of_shells
@@ -1030,18 +1041,7 @@ MODULE hfx_types
       CALL scaled_to_real(x_data%neighbor_cells(i)%cell_r,s,cell)
     END DO
 
-    IF( i_thread == 1 ) THEN
-      iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
-           extension=".scfLog",error=error)
-      IF (iw>0) THEN
-        WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I5))")&
-              "HFX_INFO| Number of periodic shells considered:     ",pbc_shells
-        WRITE (UNIT=iw,FMT="((T3,A,T60,I5)),/")&
-              "HFX_INFO| Number of periodic cells considered:     ",SIZE(x_data%neighbor_cells)
-      END IF
-      CALL cp_print_key_finished_output(iw,logger,hfx_section,&
-                                        "HF_INFO", error=error)
-    END IF
+    x_data%periodic_parameter%number_of_shells = pbc_shells
   END SUBROUTINE hfx_create_neighbor_cells
 
 ! *****************************************************************************
@@ -1177,30 +1177,140 @@ MODULE hfx_types
 !>      02.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_reset_memory_usage_counter(memory_parameter, subtr_size_mb, error)
+  SUBROUTINE hfx_reset_memory_usage_counter(memory_parameter, subtr_size_mb, n_threads, error)
     TYPE(hfx_memory_type)                    :: memory_parameter
     INTEGER(int_8), INTENT(IN)               :: subtr_size_mb
+    INTEGER, INTENT(IN)                      :: n_threads
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'hfx_reset_memory_usage_counter', &
       routineP = moduleN//':'//routineN
 
-    INTEGER(int_8)                           :: margin, max_memory
-
-    margin = 100_int_8
+    INTEGER(int_8)                           :: max_memory
 
     max_memory = memory_parameter%max_memory
     max_memory = max_memory - subtr_size_mb
+    max_memory = max_memory / n_threads
     IF( max_memory <= 0 ) THEN
       memory_parameter%do_all_on_the_fly = .TRUE.
+      memory_parameter%max_compression_counter = 0
     ELSE
       memory_parameter%do_all_on_the_fly = .FALSE.
-      memory_parameter%max_compression_counter = max_memory*1024_int_8*128_int_8*margin/100_int_8
+      memory_parameter%max_compression_counter = max_memory*1024_int_8*128_int_8
     END IF
 
   END SUBROUTINE hfx_reset_memory_usage_counter
 
+! *****************************************************************************
+!> \brief - This routine prints some information on HFX 
+!> \param x_data contains all relevant data structures for hfx runs
+!> \param hfx_section HFX input section
+!> \param i_rep current replica ID
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2008 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+  SUBROUTINE hfx_print_info(x_data, hfx_section, i_rep, error)
+    TYPE(hfx_type), POINTER                  :: x_data
+    TYPE(section_vals_type), POINTER         :: hfx_section
+    INTEGER, INTENT(IN)                      :: i_rep
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_print_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iw
+    REAL(dp)                                 :: rc_ang
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+
+    iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
+         extension=".scfLog",error=error)
+    IF (iw>0) THEN
+      WRITE (UNIT=iw,FMT="(/,(T3,A,T61,I20))")&
+            "HFX_INFO| Replica ID:     ",i_rep
+      WRITE (UNIT=iw,FMT="((T3,A,T73,ES8.1))")&
+            "HFX_INFO| EPS_SCHWARZ:     ", x_data%screening_parameter%eps_schwarz
+      WRITE (UNIT=iw,FMT="((T3,A,T73,ES8.1))")&
+            "HFX_INFO| EPS_SCHWARZ_FORCES     ", x_data%screening_parameter%eps_schwarz_forces
+      WRITE (UNIT=iw,FMT="((T3,A,T73,ES8.1))")&
+            "HFX_INFO| EPS_STORAGE_SCALING:     ", x_data%memory_parameter%eps_storage_scaling
+      WRITE(iw,'(T3,A,T61,F20.10)') & 
+            "HFX_INFO| FRACTION:     ", x_data%general_parameter%fraction
+      SELECT CASE (x_data%potential_parameter%potential_type)
+        CASE(do_hfx_potential_coulomb)
+          WRITE (UNIT=iw,FMT="((T3,A,T74,A))")&
+            "HFX_INFO| Interaction Potential:     ", "COULOMB"
+        CASE(do_hfx_potential_short)
+          WRITE (UNIT=iw,FMT="((T3,A,T71,A))")&
+            "HFX_INFO| Interaction Potential:    ", "SHORTRANGE"
+          WRITE(iw,'(T3,A,T61,F20.10)') &
+            "HFX_INFO| Omega:     ", x_data%potential_parameter%omega
+        CASE(do_hfx_potential_long)
+          WRITE (UNIT=iw,FMT="((T3,A,T72,A))")&
+            "HFX_INFO| Interaction Potential:     ", "LONGRANGE"
+          WRITE(iw,'(T3,A,T61,F20.10)') &
+            "HFX_INFO| Omega:     ", x_data%potential_parameter%omega
+        CASE(do_hfx_potential_mix_cl)
+          WRITE (UNIT=iw,FMT="((T3,A,T75,A))")&
+            "HFX_INFO| Interaction Potential:     ", "MIX_CL"
+          WRITE(iw,'(T3,A,T61,F20.10)') &
+            "HFX_INFO| Omega:     ", x_data%potential_parameter%omega
+          WRITE(iw,'(T3,A,T61,F20.10)') &
+            "HFX_INFO| SCALE_COULOMB:     ", x_data%potential_parameter%scale_coulomb
+          WRITE(iw,'(T3,A,T61,F20.10)') &
+            "HFX_INFO| SCALE_LONGRANGE:     ", x_data%potential_parameter%scale_longrange
+        CASE(do_hfx_potential_gaussian)
+          WRITE (UNIT=iw,FMT="((T3,A,T73,A))")&
+            "HFX_INFO| Interaction Potential:     ", "GAUSSIAN"
+          WRITE(iw,'(T3,A,T61,F20.10)') &
+            "HFX_INFO| Omega:     ", x_data%potential_parameter%omega
+        CASE(do_hfx_potential_mix_lg)
+          WRITE (UNIT=iw,FMT="((T3,A,T75,A))")&
+            "HFX_INFO| Interaction Potential:    ", "MIX_LG"
+          WRITE(iw,'(T3,A,T61,F20.10)') &
+            "HFX_INFO| Omega:     ", x_data%potential_parameter%omega
+          WRITE(iw,'(T3,A,T61,F20.10)') &
+            "HFX_INFO| SCALE_LONGRANGE:     ", x_data%potential_parameter%scale_longrange
+          WRITE(iw,'(T3,A,T61,F20.10)') &
+            "HFX_INFO| SCALE_GAUSSIAN:    ", x_data%potential_parameter%scale_gaussian
+        CASE(do_hfx_potential_id)
+          WRITE (UNIT=iw,FMT="((T3,A,T73,A))")&
+            "HFX_INFO| Interaction Potential:    ", "IDENTITY"
+        CASE(do_hfx_potential_truncated)
+          WRITE (UNIT=iw,FMT="((T3,A,T72,A))")&
+            "HFX_INFO| Interaction Potential:    ", "TRUNCATED"
+          rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius,"angstrom",error=error)
+          WRITE(iw,'(T3,A,T61,F20.10)') &
+            "HFX_INFO| Cutoff Radius [angstrom]:     ", rc_ang
+      END SELECT
+      IF( x_data%periodic_parameter%do_periodic) THEN
+        IF( x_data%periodic_parameter%mode == -1 ) THEN
+          WRITE (UNIT=iw,FMT="((T3,A,T77,A))")&
+              "HFX_INFO| NUMBER_OF_SHELLS:     ", "AUTO"
+        ELSE
+          WRITE (UNIT=iw,FMT="((T3,A,T61,I20))")&
+            "HFX_INFO| NUMBER_OF_SHELLS:     ", x_data%periodic_parameter%mode
+        END IF
+        WRITE (UNIT=iw,FMT="((T3,A,T61,I20))")&
+            "HFX_INFO| Number of periodic shells considered:     ", x_data%periodic_parameter%number_of_shells
+        WRITE (UNIT=iw,FMT="((T3,A,T61,I20)),/")&
+              "HFX_INFO| Number of periodic cells considered:     ",SIZE(x_data%neighbor_cells)
+      ELSE
+        WRITE (UNIT=iw,FMT="((T3,A,T77,A))")&
+            "HFX_INFO| Number of periodic shells considered:     ", "NONE"
+        WRITE (UNIT=iw,FMT="((T3,A,T77,A)),/")&
+              "HFX_INFO| Number of periodic cells considered:     ", "NONE"
+      END IF
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,hfx_section,&
+                                     "HF_INFO", error=error)
+  END SUBROUTINE hfx_print_info
 
 END MODULE hfx_types
 

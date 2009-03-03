@@ -236,15 +236,16 @@ MODULE hfx_energy_potential
     CALL mp_max_i8(memsize_before, para_env%group)
 
     logger => cp_error_get_logger(error)
-    iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
-         extension=".scfLog",error=error)
-    IF (iw>0) THEN
-      WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I20))")&
-               "HFX_MEM_INFO| Est. max. program size before HFX [MB's]:", memsize_before/(1024*1024)
-
+    IF( geometry_did_change ) THEN
+      iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
+                                extension=".scfLog",error=error)
+      IF (iw>0) THEN
+        WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I20))")&
+              "HFX_MEM_INFO| Est. max. program size before HFX [MB's]:", memsize_before/(1024*1024)
+      END IF
+      CALL cp_print_key_finished_output(iw,logger,hfx_section,&
+                                       "HF_INFO", error=error)
     END IF
-    CALL cp_print_key_finished_output(iw,logger,hfx_section,&
-                                    "HF_INFO", error=error)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, error=error)
 
@@ -327,7 +328,8 @@ MODULE hfx_energy_potential
 !$OMP                                  screen_coeffs_set,&
 !$OMP                                  screen_coeffs_kind,&
 !$OMP                                  screen_coeffs_pgf,&
-!$OMP                                  radii_pgf)
+!$OMP                                  radii_pgf,&
+!$OMP                                  nkind)
 
 
     ln_10 = LOG(10.0_dp)
@@ -411,19 +413,67 @@ MODULE hfx_energy_potential
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     T1=0.0_dp
 
+    nspins = qs_env%dft_control%nspins
+
+    ALLOCATE(max_contraction(max_set,natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    max_contraction=0.0_dp
+    max_pgf = 0
+    DO jatom=1,natom
+      jkind = kind_of(jatom)
+      lb_max => basis_parameter(jkind)%lmax
+      nsetb = basis_parameter(jkind)%nset
+      npgfb => basis_parameter(jkind)%npgf
+      first_sgfb => basis_parameter(jkind)%first_sgf
+      sphi_b => basis_parameter(jkind)%sphi
+      nsgfb => basis_parameter(jkind)%nsgf
+      DO jset = 1,nsetb
+        ! takes the primitive to contracted transformation into account
+        ncob = npgfb(jset)*ncoset(lb_max(jset))
+        sgfb = first_sgfb(1,jset)
+        ! if the primitives are assumed to be all of max_val2, max_val2*p2s_b becomes
+        ! the maximum value after multiplication with sphi_b
+        max_contraction(jset,jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob,i))),i=sgfb,sgfb+nsgfb(jset)-1)/))
+        max_pgf = MAX(max_pgf,npgfb(jset))
+      ENDDO
+    ENDDO
+
     ! ** Reset storage counter given by MAX_MEMORY by subtracting all buffers
-    ! ** Fock and density Matrices
+    ! ** Fock and density Matrices (shared)
     subtr_size_mb = 2_int_8*rho%rho_ao(1)%matrix%nrow*rho%rho_ao(1)%matrix%ncol
-    ! ** Initial P
+    ! ** if non restricted ==> alpha/beta spin
+    IF( nspins == 2) subtr_size_mb = subtr_size_mb * 2_int_8
+    ! ** Initial P only MAX(alpha,beta) (shared)
     IF(do_p_screening) THEN 
       subtr_size_mb = subtr_size_mb+max_set**2*natom**2
     END IF
-    ! ** if openMP, thats just divided by the number of threads
-    subtr_size_mb = subtr_size_mb/n_threads
-    ! ** primitive buffers
-    subtr_size_mb = subtr_size_mb + 2_int_8*nco_max**4
+    ! ** primitive buffers (not shared by the threads)
+    subtr_size_mb = subtr_size_mb + 2_int_8*nco_max**4*n_threads
+    ! ** screening functions (shared)
+    ! ** coeffs_pgf
+    subtr_size_mb = subtr_size_mb + max_pgf**2*max_set**2*nkind**2
+    ! ** coeffs_set
+    subtr_size_mb = subtr_size_mb + max_set**2*nkind**2
+    ! ** coeffs_kind
+    subtr_size_mb = subtr_size_mb + nkind**2
+    ! ** radii_pgf
+    subtr_size_mb = subtr_size_mb + max_pgf**2*max_set**2*nkind**2
+
+    ! ** is_assoc (shared)
+    subtr_size_mb = subtr_size_mb + natom**2
+
+    ! ** Convert into MB's
     subtr_size_mb = subtr_size_mb * 8_int_8/1024_int_8/1024_int_8
-    CALL hfx_reset_memory_usage_counter(memory_parameter, subtr_size_mb, error)
+
+    ! ** Subtracting all these buffers from from MAX_MEMORY yields the amount
+    ! ** of RAM that is left for the compressed integrals. When using threads 
+    ! ** we have to divide the remaining RAM by the number of threads
+    ! ** This hack should be removed in the future, i.e. all threads should
+    ! ** communicate their memory usage to the MASTER and then we check if the
+    ! ** sum of all containers exceeds the given amount of memory
+
+    CALL hfx_reset_memory_usage_counter(memory_parameter, subtr_size_mb, n_threads, error)
 
     use_disk_storage = .FALSE.
     counter = 0_int_8
@@ -475,6 +525,7 @@ MODULE hfx_energy_potential
     END IF
 !$OMP END CRITICAL
 
+
     !! Get screening parameter
     eps_schwarz = screening_parameter%eps_schwarz
     IF( eps_schwarz < 0.0_dp) THEN
@@ -510,7 +561,6 @@ MODULE hfx_energy_potential
     !! Initialize memory used by libint
     CALL initialize_libint(private_lib, max_am, error)
 
-    nspins = qs_env%dft_control%nspins
     !! Helper array to map local basis function indeces to global ones 
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -579,34 +629,7 @@ MODULE hfx_energy_potential
                              last_sgf_global, error)
       END IF
     END IF
-!$OMP END MASTER
-!$OMP BARRIER
 
-    ALLOCATE(max_contraction(max_set,natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    max_contraction=0.0_dp
-    max_pgf = 0
-    DO jatom=1,natom
-      jkind = kind_of(jatom)
-      lb_max => basis_parameter(jkind)%lmax
-      nsetb = basis_parameter(jkind)%nset
-      npgfb => basis_parameter(jkind)%npgf
-      first_sgfb => basis_parameter(jkind)%first_sgf
-      sphi_b => basis_parameter(jkind)%sphi
-      nsgfb => basis_parameter(jkind)%nsgf
-      DO jset = 1,nsetb
-        ! takes the primitive to contracted transformation into account
-        ncob = npgfb(jset)*ncoset(lb_max(jset))
-        sgfb = first_sgfb(1,jset)
-        ! if the primitives are assumed to be all of max_val2, max_val2*p2s_b becomes
-        ! the maximum value after multiplication with sphi_b
-        max_contraction(jset,jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob,i))),i=sgfb,sgfb+nsgfb(jset)-1)/))
-        max_pgf = MAX(max_pgf,npgfb(jset))
-      ENDDO
-    ENDDO
-
-!$OMP MASTER    
     NULLIFY(full_ks, full_ks_beta)
     ALLOCATE(actual_x_data%full_ks_alpha(SIZE(full_density,1),SIZE(full_density,2)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -679,6 +702,8 @@ MODULE hfx_energy_potential
 
 
 
+ 
+
     !! Start caluclating integrals of the form (ab|cd) or (ij|kl)
     !! In order to do so, there is a main four-loop structre that takes into account the two symmetries
     !!
@@ -722,7 +747,7 @@ MODULE hfx_energy_potential
     CALL timeset(routineN//"_main",handle_main)
 !$OMP END MASTER
 !$OMP BARRIER
-    
+
     ncpu = para_env%num_pe 
     n_processes = ncpu * n_threads
 
@@ -1332,7 +1357,6 @@ MODULE hfx_energy_potential
         END DO !jatom
         first_j_loop = .FALSE.
       END DO !iatom
-
       bintime_stop = m_walltime()
       IF (geometry_did_change) THEN
          actual_x_data%distribution_energy(bin)%time_first_scf=bintime_stop-bintime_start 
@@ -1341,6 +1365,7 @@ MODULE hfx_energy_potential
                 actual_x_data%distribution_energy(bin)%time_other_scf+bintime_stop-bintime_start 
       ENDIF
     END DO !bin
+
 !$OMP BARRIER
 !$OMP MASTER
     memsize_after=m_memory()

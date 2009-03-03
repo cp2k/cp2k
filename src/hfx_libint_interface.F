@@ -975,7 +975,7 @@ MODULE hfx_libint_interface
       CASE(do_hfx_potential_gaussian)
         omega2 = potential_parameter%omega**2
         T = -omega2*T/(Rho+omega2)
-        tmp = 1
+        tmp = 1.0_dp
         DO i=1,m_max+1
           prim%F(i) = EXP(T) * tmp
           tmp = tmp * omega2/(Rho+omega2)

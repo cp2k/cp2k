@@ -501,8 +501,12 @@ CONTAINS
        CALL keyword_create(&
             keyword=keyword,&
             name="MAX_MEMORY",&
-            description="Defines the maximum amount of memory [MB] used to store precomputed "//&
-                         "compressed four-center integrals",&
+            description="Defines the maximum amount of memory [MB] to be consumed by the full HFX module. "//&
+                        "All temporary buffers and helper arrays are subtracted from this number. "//&
+                        "What remains will be used for storage of integrals. NOTE: This number "//&
+                        "is assumed to represent the memory available to one MPI process. "//&
+                        "When running a threaded version, cp2k automatically takes care of "//&
+                        "distributing the memory among all involved sub-processes.",&
             usage="MAX_MEMORY 256",&
             default_i_val=512,&
             error=error)
