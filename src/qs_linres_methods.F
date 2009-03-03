@@ -464,16 +464,6 @@ CONTAINS
     p_env%ls_grad = 0.0_dp
     p_env%gnorm_old = 1.0_dp
 
-    CPPrecondition(ASSOCIATED(p_env%g_psi1_old),cp_failure_level,routineP,error,failure)
-    DO ispin = 1,nspins
-       CALL cp_fm_get_info(p_env%g_psi1_old(ispin)%matrix,nrow_global=nrow,ncol_global=ncol,error=error)
-       CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,error,failure)
-       CALL cp_fm_set_all(p_env%g_psi1_old(ispin)%matrix,0.0_dp,error=error)
-       CALL cp_fm_set_all(p_env%g_psi1(ispin)%matrix,0.0_dp,error=error)
-       CALL cp_fm_set_all(p_env%d_psi1(ispin)%matrix,0.0_dp,error=error)
-    ENDDO
-
     IF(linres_control%preconditioner_type /= lr_precond_none) THEN
        CPPrecondition(ASSOCIATED(p_env%preconditioner),cp_failure_level,routineP,error,failure)
        DO ispin = 1,nspins

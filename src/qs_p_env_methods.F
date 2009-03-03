@@ -163,12 +163,6 @@ CONTAINS
             p_env%local_rho_set, &
             p_env%hartree_local,&
             p_env%PS_psi0,&
-            p_env%d_psi1,&
-            p_env%g_psi1,&
-            p_env%g_psi1_old,&
-            p_env%buf1,&
-            p_env%buf2,&
-            p_env%os_psi0,&
             p_env%preconditioner,&
             p_env%ev_h0)
 
@@ -277,30 +271,6 @@ CONTAINS
        ! LINRES initializations !
        !------------------------!
        IF(PRESENT(linres_control)) THEN
-
-         CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%d_psi1,&
-              name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%d_psi1",&
-              error=error)
-
-         CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%g_psi1,&
-              name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%g_psi1",&
-              error=error)
-
-         CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%g_psi1_old,&
-              name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%g_psi1_old",&
-              error=error)
-
-         CALL fm_pools_create_fm_vect(mo_mo_fm_pools,elements=p_env%buf1,&
-              name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%buf1",&
-              error=error)
-
-         CALL fm_pools_create_fm_vect(mo_mo_fm_pools,elements=p_env%buf2,&
-              name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%buf2",&
-              error=error)
-
-         CALL fm_pools_create_fm_vect(mo_mo_fm_pools,elements=p_env%os_psi0,&
-                name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%os_psi0",&
-                error=error)
 
          IF(linres_control%preconditioner_type/= lr_precond_none) THEN
          ! Initialize the preconditioner matrix

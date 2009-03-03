@@ -552,3 +552,47 @@ ch4-gapw-gpw-1.inp
 # numerics
 ch3p-gapw-1.inp
 h2-gapw-1.inp
+# reduced precision
+ch4-gapw-1.inp
+# reduced precision
+ch4-gapw-2.inp
+# reduced precision
+ch4-gapw-3.inp
+# reduced precision
+ch4-gapw-4.inp
+# reduced precision
+ch4-gapw-5.inp
+# reduced precision
+no-gapw-1.inp
+# reduced precision
+no-gapw-2.inp
+# reduced precision
+no-gapw-3.inp
+# reduced precision
+no-gapw-4.inp
+# reduced precision
+no-gapw-5.inp
+# reduced precision
+ch4-gapw-1-distributed.inp
+# reduced precision
+ch4-gapw-1-replicated.inp
+# reduced precision
+no-gapw-1-distributed.inp
+# reduced precision
+no-gapw-1-replicated.inp
+# reduced precision
+w2_qmmm-1.inp
+# reduced precision
+w2_qmmm-2.inp
+# reduced precision
+w2_qmmm-3.inp
+# reduced precision
+ch4-gapw-gpw-1.inp
+# reduced precision
+no-gapw-gpw-1.inp
+# reduced precision
+h2-gapw-1.inp
+# reduced precision
+ch3m-gapw-1.inp
+# reduced precision
+ch3p-gapw-1.inp

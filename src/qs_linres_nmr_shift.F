@@ -808,7 +808,7 @@ CONTAINS
     chi_aniso =  eig(3)-(eig(2)+eig(1))/2.0_dp
     !
     IF(output_unit > 0) THEN
-       WRITE(output_unit,'(T2,A,E24.16)') 'CheckSum Chi =',&
+       WRITE(output_unit,'(T2,A,E14.6)') 'CheckSum Chi =',&
             & SQRT(DDOT(9,chi_tensor_tmp(1,1),1,chi_tensor_tmp(1,1),1))
     ENDIF
     !
@@ -889,7 +889,7 @@ CONTAINS
        IF(gapw) cs_tot(:,:,ir) = cs_tot(:,:,ir) + cs_loc(:,:,iatom)
     ENDDO  ! ir
     IF(output_unit > 0) THEN
-       WRITE(output_unit,'(T2,A,E24.16)') 'CheckSum Shifts =',&
+       WRITE(output_unit,'(T2,A,E14.6)') 'CheckSum Shifts =',&
             & SQRT(DDOT(9*SIZE(cs_tot,3),cs_tot(1,1,1),1,cs_tot(1,1,1),1))
     ENDIF
     !
@@ -965,7 +965,7 @@ CONTAINS
              IF(gapw) cs_nics_tot(:,:,ir) = cs_nics_tot(:,:,ir) + cs_nics_loc(:,:,ir)
           ENDDO  ! ir
           IF(output_unit > 0) THEN
-             WRITE(output_unit,'(T2,A,E24.16)') 'CheckSum NICS =',&
+             WRITE(output_unit,'(T2,A,E14.6)') 'CheckSum NICS =',&
                   & SQRT(DDOT(9*SIZE(cs_nics_tot,3),cs_nics_tot(1,1,1),1,cs_nics_tot(1,1,1),1))
           ENDIF
           !

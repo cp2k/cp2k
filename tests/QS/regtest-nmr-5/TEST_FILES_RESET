@@ -270,3 +270,15 @@ o2-gapw-uks-1.inp
 o2-gapw-uks-3.inp
 # updated all electron integrals 
 o2-gapw-uks-4.inp
+# reduced precision
+h2o-gapw-1.inp
+# reduced precision
+h2o-gapw-3.inp
+# reduced precision
+h2o-gapw-4.inp
+# reduced precision
+o2-gapw-uks-1.inp
+# reduced precision
+o2-gapw-uks-3.inp
+# reduced precision
+o2-gapw-uks-4.inp
