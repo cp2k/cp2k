@@ -602,24 +602,58 @@ CPSourceFileRef,&
 
     ! Semi-empirical code
     IF (qs_control%semi_empirical) THEN
-       CALL section_vals_val_get(se_section,"ANALYTICAL_GRADIENTS",&
-            l_val=qs_control%se_control%analytical_gradients,error=error)
        CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",&
             l_val=qs_control%se_control%orthogonal_basis,error=error)
-       CALL section_vals_val_get(se_section,"DO_EWALD",&
-            l_val=qs_control%se_control%do_ewald,error=error)
-       CALL section_vals_val_get(se_section,"DO_EWALD_R3",&
-            l_val=qs_control%se_control%do_ewald_r3,error=error)
-       CALL section_vals_val_get(se_section,"SCP",&
-            l_val=qs_control%se_control%scp,error=error)
        CALL section_vals_val_get(se_section,"DELTA",&
             r_val=qs_control%se_control%delta,error=error)
+       CALL section_vals_val_get(se_section,"ANALYTICAL_GRADIENTS",&
+            l_val=qs_control%se_control%analytical_gradients,error=error)
        CALL section_vals_val_get(se_section,"RC_INTERACTION",&
             r_val=qs_control%se_control%rc_interaction,error=error)
        CALL section_vals_val_get(se_section,"RC_COULOMB",&
             r_val=qs_control%se_control%rc_coulomb,error=error)
        CALL section_vals_val_get(se_section,"RC_RANGE",&
             r_val=qs_control%se_control%rc_range,error=error)
+       CALL section_vals_val_get(se_section,"SCP",&
+            l_val=qs_control%se_control%scp,error=error)
+       ! Integral Screening
+       CALL section_vals_val_get(se_section,"INTEGRAL_SCREENING",&
+            i_val=qs_control%se_control%integral_screening,error=error)
+       ! Periodic Type Calculation
+       CALL section_vals_val_get(se_section,"PERIODIC",&
+            i_val=qs_control%se_control%periodic_type,error=error)
+       SELECT CASE(qs_control%se_control%periodic_type)
+       CASE(do_se_lr_none)
+          qs_control%se_control%do_ewald    = .FALSE.
+          qs_control%se_control%do_ewald_r3 = .FALSE.
+       CASE(do_se_lr_ewald)
+          qs_control%se_control%do_ewald    = .TRUE.
+          qs_control%se_control%do_ewald_r3 = .FALSE.
+       CASE(do_se_lr_ewald_r3)
+          qs_control%se_control%do_ewald    = .TRUE.
+          qs_control%se_control%do_ewald_r3 = .TRUE.
+          CALL cp_assert(qs_control%se_control%integral_screening==do_se_IS_kdso,&
+               cp_fatal_level,cp_assertion_failed,routineP,&
+               "A periodic semi-empirical calculation was requested with a long-range  "//&
+               "summation for the slowly convergent part 1/R^3, which is not congruent "//&
+               "with the integral screening chosen. The only integral screening supported "//&
+               "by this periodic type calculation is the standard Klopman-Dewar-Sabelli-Ohno.",&
+               error=error,failure=failure)
+       END SELECT
+
+       ! Stop the execution for non-implemented features
+       IF (qs_control%se_control%periodic_type==do_se_lr_ewald_r3) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="EWALD_R3 not implemented yet! ", &
+               error=error, error_level=cp_fatal_level)
+       END IF
+
+       IF (qs_control%se_control%integral_screening/=do_se_IS_kdso) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Only KDSO integral screening is implemented! ", &
+               error=error, error_level=cp_fatal_level)
+       END IF
+
        IF(  qs_control %method_id == do_method_mndo .OR. &
             qs_control %method_id == do_method_am1  .OR. &
             qs_control %method_id == do_method_mndod.OR. &

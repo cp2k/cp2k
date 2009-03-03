@@ -6,7 +6,7 @@
     &QS
       METHOD MNDO
       &SE
-        DO_EWALD 
+        PERIODIC EWALD
         RC_COULOMB [angstrom] 15.0
         RC_RANGE               0.001
         &PRINT

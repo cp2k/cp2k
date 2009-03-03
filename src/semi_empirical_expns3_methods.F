@@ -105,7 +105,7 @@ CONTAINS
     INTEGER                                  :: i, ij, j, kl, kr, li, lk
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: core_core, e1b(9), e2a(9), r, &
-                                                w(81), zi, zj
+                                                zi, zj
 
     failure = .FALSE.
     ! Set the distance to 0 (the coefficient is anyway independent of the atomic 
@@ -113,6 +113,8 @@ CONTAINS
     r   = 0.0_dp
     ! Nuclei-Nuclei     contribution
     ij  = indexa(1, 1)
+    zi  = -sepi%zeff
+    zj  = -sepj%zeff
     core_core = ijkl_low_3(sepi, sepj, ij, ij, 0, 0, 0, 0, -1, r, itype, coeff_int_3, error) * zi * zj 
 
     ! Electron(i)-Nuclei(j)   contribution
@@ -146,11 +148,11 @@ CONTAINS
           CPPostcondition(e1b(8)==e1b(9),cp_failure_level,routineP,error,failure)
        END IF
     END IF
-    
+
     ! Electron(j)-Nuclei(i)   contribution
     kl = indexa(1, 1)
     e2a(1) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 0, 0, 1, r, itype, coeff_int_3, error) * zi
-    IF (sepi%natorb > 1) THEN
+    IF (sepj%natorb > 1) THEN
        kl = indexa(2, 2)
        e2a(2) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, r, itype, coeff_int_3, error) * zi
        kl = indexa(3, 3)
@@ -160,7 +162,7 @@ CONTAINS
        ! Consistency check
        CPPostcondition(e2a(2)==e2a(3),cp_failure_level,routineP,error,failure)
        CPPostcondition(e2a(3)==e2a(4),cp_failure_level,routineP,error,failure)
-       IF (sepi%dorb) THEN
+       IF (sepj%dorb) THEN
           kl = indexa(5, 5)
           e2a(5) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, r, itype, coeff_int_3, error) * zi
           kl = indexa(6, 6)
@@ -178,8 +180,17 @@ CONTAINS
           CPPostcondition(e2a(8)==e2a(9),cp_failure_level,routineP,error,failure)
        END IF
     END IF
-    
-    ! Electron-Electron contribution
+
+    ! Copy info into the semi-empirical type (i)
+    sepi%expns3_int(jkind)%expns3%core_core           = core_core
+    sepi%expns3_int(jkind)%expns3%e1b(1:sepi%natorb)  = e1b(1:sepi%natorb)
+    sepi%expns3_int(jkind)%expns3%e2a(1:sepj%natorb)  = e2a(1:sepj%natorb)
+    ! Copy info into the semi-empirical type (j)
+    sepj%expns3_int(ikind)%expns3%core_core           = core_core
+    sepj%expns3_int(ikind)%expns3%e1b(1:sepj%natorb)  = e2a(1:sepj%natorb)
+    sepj%expns3_int(ikind)%expns3%e2a(1:sepi%natorb)  = e1b(1:sepi%natorb)
+
+    ! Electron-Electron contribution - sepi/sepj
     kr = 0
     DO i = 1, sepi%natorb
        li = l_index(i)
@@ -188,20 +199,25 @@ CONTAINS
           lk = l_index(j)
           kl = indexa(j,j)
           kr = kr + 1
-          w(kr) = ijkl_low_3 (sepi, sepj, ij, kl, li, li, lk, lk, 0, r, do_method_undef,&
-                              coeff_int_3, error)
+          sepi%expns3_int(jkind)%expns3%w(kr) = &
+               ijkl_low_3 (sepi, sepj, ij, kl, li, li, lk, lk, 0, r, do_method_undef, coeff_int_3, error)
        END DO
     END DO
-    ! Copy info into the semi-empirical type (i)
-    sepi%expns3_int(jkind)%expns3%core_core = core_core
-    sepi%expns3_int(jkind)%expns3%e1b       = e1b
-    sepi%expns3_int(jkind)%expns3%e2a       = e2a
-    sepi%expns3_int(jkind)%expns3%w         = w
-    ! Copy info into the semi-empirical type (j)
-    sepj%expns3_int(ikind)%expns3%core_core = core_core
-    sepj%expns3_int(ikind)%expns3%e1b       = e1b
-    sepj%expns3_int(ikind)%expns3%e2a       = e2a
-    sepj%expns3_int(ikind)%expns3%w         = w
+
+    ! Electron-Electron contribution - sepj/sepi
+    kr = 0
+    DO i = 1, sepj%natorb
+       li = l_index(i)
+       ij = indexa(i,i)
+       DO j = 1, sepi%natorb
+          lk = l_index(j)
+          kl = indexa(j,j)
+          kr = kr + 1
+          sepj%expns3_int(ikind)%expns3%w(kr) = &
+               ijkl_low_3 (sepj, sepi, ij, kl, li, li, lk, lk, 0, r, do_method_undef, coeff_int_3, error)
+       END DO
+    END DO
+
   END SUBROUTINE setup_c3_coeff
 
 END MODULE semi_empirical_expns3_methods

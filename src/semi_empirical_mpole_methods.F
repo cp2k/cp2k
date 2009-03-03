@@ -155,7 +155,7 @@ CONTAINS
     qcart(2,1) =    qsph(5)
     qcart(3,1) =    qsph(2)
     qcart(2,2) = - (qsph(4) + qsph(1) * 0.5_dp)
-    qcart(3,2) =    qsph(2)
+    qcart(3,2) =    qsph(3)
     qcart(3,3) =    qsph(1)
     ! Symmetrize tensor
     qcart(1,2) = qcart(2,1)

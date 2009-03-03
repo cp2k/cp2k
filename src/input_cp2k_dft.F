@@ -2220,7 +2220,7 @@ CONTAINS
             n_keywords=8, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       CALL keyword_create(keyword, name="orthogonal_basis",&
+       CALL keyword_create(keyword, name="ORTHOGONAL_BASIS",&
             description="Assume orthogonal basis set. This flag is overwritten by "//&
                         "methods with fixed orthogonal/non-orthogonal basis set.",&
             usage="ORTHOGONAL_BASIS",default_l_val=.FALSE., error=error)
@@ -2233,12 +2233,11 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="analytical_gradients",&
+       CALL keyword_create(keyword, name="ANALYTICAL_GRADIENTS",&
             description="Nuclear Gradients are computed analytically or numerically",&
             usage="ANALYTICAL_GRADIENTS",default_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
 
        CALL keyword_create(keyword, name="DELTA",&
             description="Step size in finite difference force calculation",&
@@ -2265,18 +2264,34 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="DO_EWALD",&
-            description="Use an Ewald type method for the calculation of the "//&
-            "Coulomb energy", usage="DO_EWALD",default_l_val=.FALSE.,&
-            lone_keyword_l_val=.TRUE., error=error)
+       CALL keyword_create(keyword, name="INTEGRAL_SCREENING",&
+            description="Specifies the functional form for the ",&
+            usage="INTEGRAL_SCREENING (KDSO|KDSO-D|SLATER)",&
+            enum_c_vals=s2a("KDSO","KDSO-D","SLATER"),&
+            enum_i_vals=(/ do_se_IS_kdso, do_se_IS_kdso_d, do_se_IS_slater/),&
+            enum_desc=s2a("Uses the standard NDDO Klopman-Dewar-Sabelli-Ohno equation "//&
+            "for the screening of the Coulomb interactions.",&
+            "Uses a modified Klopman-Dewar-Sabelli-Ohno equation, dumping the screening "//&
+            "parameter for the Coulomb interactions.",&
+            "Uses an exponential Slater-type function for modelling the Coulomb interactions."),&
+            default_i_val=do_se_IS_kdso, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="DO_EWALD_R3",&
-            description="Use an Ewald type method for the calculation of the "//&
-            "residual (1/R^3) slowly convergent part of the Coulomb interactions.", &
-            usage="DO_EWALD",default_l_val=.FALSE.,&
-            lone_keyword_l_val=.TRUE., error=error)
+       CALL keyword_create(keyword, name="PERIODIC",&
+            description="Specifies the type of treatment for the electrostatic long-range part "//&
+            "in semi-empirical calculations.",&
+            usage="PERIODIC (NONE|EWALD|EWALD_R3)",&
+            enum_c_vals=s2a("NONE","EWALD","EWALD_R3"),&
+            enum_i_vals=(/ do_se_lr_none, do_se_lr_ewald, do_se_lr_ewald_r3/),&
+            enum_desc=s2a("The long-range part is not explicitly treaten. The interaction "//&
+            "depends uniquely on the Cutoffs used for the calculation.",&
+            "Enables the usage of Multipoles Ewald summation schemes. The short-range part "//&
+            "is tapered according the value of RC_COULOMB.",&
+            "Enables the usage of Multipoles Ewald summation schemes together with a long-range "//&
+            "treatment for the 1/R^3 term, deriving from the short-range component. This option "//&
+            "is active only for K-DSO integral screening type."),&
+            default_i_val=do_se_lr_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2294,7 +2309,7 @@ CONTAINS
        CALL create_se_memory_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
-
+       
        CALL create_se_print_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)

@@ -68,6 +68,7 @@ MODULE cp_control_types
      LOGICAL               :: analytical_gradients
      LOGICAL               :: do_ewald, do_ewald_r3
      LOGICAL               :: scp
+     INTEGER               :: integral_screening, periodic_type
      REAL(KIND = dp)       :: delta
      REAL(KIND = dp)       :: rc_interaction
      REAL(KIND = dp)       :: rc_coulomb

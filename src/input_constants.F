@@ -208,6 +208,14 @@ MODULE input_constants
                                               do_method_pchg=15,&
                                               do_method_pnnl=16
 
+  INTEGER, PARAMETER, PUBLIC               :: do_se_IS_kdso=0,&
+                                              do_se_IS_kdso_d=1,&
+                                              do_se_IS_slater=2
+
+  INTEGER, PARAMETER, PUBLIC               :: do_se_lr_none=0,&
+                                              do_se_lr_ewald=1,&
+                                              do_se_lr_ewald_r3=2
+
   INTEGER, PARAMETER, PUBLIC               :: rsgrid_distributed=0,&
                                               rsgrid_replicated=1,&
                                               rsgrid_automatic=2
