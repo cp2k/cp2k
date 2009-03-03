@@ -10,8 +10,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_p_env_types
-  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                             cp_fm_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc,&
                                              cp_fm_vect_write
   USE cp_para_types,                   ONLY: cp_para_env_type

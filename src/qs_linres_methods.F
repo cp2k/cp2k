@@ -19,7 +19,6 @@ MODULE qs_linres_methods
                                              fm_pools_give_back_fm_vect
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
-                                             cp_fm_set_all,&
                                              cp_fm_to_fm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
