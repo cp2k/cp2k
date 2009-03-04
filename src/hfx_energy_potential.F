@@ -468,12 +468,10 @@ MODULE hfx_energy_potential
 
     ! ** Subtracting all these buffers from from MAX_MEMORY yields the amount
     ! ** of RAM that is left for the compressed integrals. When using threads 
-    ! ** we have to divide the remaining RAM by the number of threads
-    ! ** This hack should be removed in the future, i.e. all threads should
-    ! ** communicate their memory usage to the MASTER and then we check if the
-    ! ** sum of all containers exceeds the given amount of memory
+    ! ** all the available memory is shared among all n_threads. i.e. the faster
+    ! ** ones can steal from the slower ones
 
-    CALL hfx_reset_memory_usage_counter(memory_parameter, subtr_size_mb, n_threads, error)
+    CALL hfx_reset_memory_usage_counter(memory_parameter, subtr_size_mb, error)
 
     use_disk_storage = .FALSE.
     counter = 0_int_8
@@ -906,8 +904,18 @@ MODULE hfx_energy_potential
 
                   IF(geometry_did_change ) THEN
                     IF(.NOT.memory_parameter%do_all_on_the_fly) THEN
-                      mem_compression_counter = memory_parameter%actual_memory_usage *&
-                                                memory_parameter%cache_size
+                      ! ** We know the maximum amount of integrals that we can store per MPI-process
+                      ! ** Now we need to sum the current memory usage among all openMP threads
+                      ! ** We can just read what is currently stored on the corresponding x_data type
+                      ! ** If this is thread i and it tries to read the data from thread j, that is 
+                      ! ** currently writing that data, we just dont care, because the possible error
+                      ! ** is of the order of CACHE_SIZE
+                      mem_compression_counter = 0
+                      DO i=1,n_threads
+                        mem_compression_counter = mem_compression_counter + &
+                                                  qs_env%x_data(irep,i)%memory_parameter%actual_memory_usage *&
+                                                  memory_parameter%cache_size
+                      END DO
                       IF(mem_compression_counter > memory_parameter%max_compression_counter) THEN
                         buffer_overflow = .TRUE.
                         memory_parameter%ram_counter = counter
@@ -1413,8 +1421,15 @@ MODULE hfx_energy_potential
       mb_size_f = mb_size_f * 2
       mb_size_p = mb_size_p * 2
     END IF
-    !! size of primitive_integrals and T1 buffer
-    mb_size_buffers = 2*INT(nco_max,int_8)**4
+    !! size of primitive_integrals and T1 buffer (not shared)
+    mb_size_buffers = 2*INT(nco_max,int_8)**4 * n_threads
+    !! size of screening functions (shared)
+    mb_size_buffers = mb_size_buffers + max_pgf**2*max_set**2*nkind**2 &
+                                      + max_set**2*nkind**2 &
+                                      + nkind**2 &
+                                      + max_pgf**2*max_set**2*nkind**2
+    !! is_assoc (shared)
+    mb_size_buffers = mb_size_buffers+natom**2
     !! mb
     mb_size_buffers = mb_size_buffers /1024/128
 

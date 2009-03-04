@@ -1177,10 +1177,9 @@ MODULE hfx_types
 !>      02.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_reset_memory_usage_counter(memory_parameter, subtr_size_mb, n_threads, error)
+  SUBROUTINE hfx_reset_memory_usage_counter(memory_parameter, subtr_size_mb, error)
     TYPE(hfx_memory_type)                    :: memory_parameter
     INTEGER(int_8), INTENT(IN)               :: subtr_size_mb
-    INTEGER, INTENT(IN)                      :: n_threads
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -1191,7 +1190,6 @@ MODULE hfx_types
 
     max_memory = memory_parameter%max_memory
     max_memory = max_memory - subtr_size_mb
-    max_memory = max_memory / n_threads
     IF( max_memory <= 0 ) THEN
       memory_parameter%do_all_on_the_fly = .TRUE.
       memory_parameter%max_compression_counter = 0
@@ -1199,7 +1197,6 @@ MODULE hfx_types
       memory_parameter%do_all_on_the_fly = .FALSE.
       memory_parameter%max_compression_counter = max_memory*1024_int_8*128_int_8
     END IF
-
   END SUBROUTINE hfx_reset_memory_usage_counter
 
 ! *****************************************************************************
