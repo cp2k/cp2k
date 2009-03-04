@@ -306,9 +306,9 @@ CONTAINS
 
     INTEGER                                  :: length
 
-    message = ""
+    message = " "
     length  = LEN_TRIM(section%description)
-    IF (section%description(length:length)/=".") message = "."
+    IF (length>0 .AND. section%description(length:length)/=".") message = "."
     IF (section%repeats) THEN
        message=TRIM(message)//" This section can be repeated and "
     ELSE

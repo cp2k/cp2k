@@ -544,6 +544,9 @@ MODULE input_constants
                                               pz_dmc=213,&
                                               pz_vmc=214
                                            
+  INTEGER, PARAMETER, PUBLIC               :: xc_b97_orig=401,&
+                                              xc_b97_grimme=402
+                                              
   INTEGER, PARAMETER, PUBLIC               :: use_perd_x=0,&
                                               use_perd_y=1,&
                                               use_perd_z=2,&

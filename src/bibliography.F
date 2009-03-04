@@ -54,7 +54,7 @@ MODULE bibliography
              Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
              Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
-             VandenCic2006, Foiles1986
+             VandenCic2006,Becke1997, Foiles1986
 
 CONTAINS
 
@@ -1649,6 +1649,23 @@ CONTAINS
          "UT ISI:A1989U317500001",&
          "ER"),&
          DOI="10.1103/PhysRevA.39.3761")
+
+    CALL add_reference(key=Becke1997, ISI_record=s2a(&
+        "TY  JOUR", &
+        "AU  Becke, AD", &
+        "PY  1997/11/22", &
+        "JF  Journal Of Chemical Physics", &
+        "JO  Journal Of Chemical Physics", &
+        "SN  0021-9606", &
+        "TI  Density-functional thermochemistry .", &
+        "    5. Systematic optimization of exchange-correlation functionals", &
+        "VL  107", &
+        "IS  20", &
+        "SP  8554", &
+        "EP  8560", &
+        "UR  http://link.aip.org/link/?JCP/107/8554/1",&
+        "ER  http://dx.doi.org/10.1063/1.475007"),&
+        DOI="10.1063/1.475007")
 
    END SUBROUTINE add_all_references
 

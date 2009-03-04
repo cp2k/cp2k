@@ -13,6 +13,10 @@ MODULE xc_derivatives
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xc_b97,                          ONLY: b97_lda_eval,&
+                                             b97_lda_info,&
+                                             b97_lsd_eval,&
+                                             b97_lsd_info
   USE xc_cs1,                          ONLY: cs1_lda_eval,&
                                              cs1_lda_info,&
                                              cs1_lsd_eval,&
@@ -154,6 +158,14 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
   CPPrecondition(ASSOCIATED(functional),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      SELECT CASE(functional%section%name)
+     CASE("BECKE97")
+        IF (lsd) THEN
+           CALL b97_lsd_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, b97_params=functional, error=error)
+        ELSE
+           CALL b97_lda_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, b97_params=functional, error=error)
+        END IF
      CASE("BECKE88_LR_ADIABATIC")
         IF (lsd) THEN
            CALL xb88_lr_adiabatic_lsd_info(reference=reference,shortform=shortform,&
@@ -377,6 +389,12 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      END IF
 
      SELECT CASE(functional%section%name)
+     CASE("BECKE97")
+        IF (lsd) THEN
+           CALL b97_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        ELSE
+           CALL b97_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        END IF
      CASE("BECKE88_LR_ADIABATIC")
         IF (lsd) THEN
            CALL xb88_lr_adiabatic_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
@@ -563,7 +581,7 @@ END SUBROUTINE xc_functional_eval
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is requested (but to simplify 
 !>        the code all the derivatives might be calculated, you should ignore
-!> \param them when adding derivatives of various functionals they might contain
+!>        them when adding derivatives of various functionals they might contain
 !>        the derivative of just one functional)
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
