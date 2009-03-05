@@ -429,6 +429,10 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
     
+    CALL create_rtp_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_print_dft_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -6806,5 +6810,114 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_smear_section
+
+! *****************************************************************************
+  SUBROUTINE create_rtp_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_scp_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, print_section
+
+    failure=.FALSE.
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"REAL_TIME_PROPAGATION",&
+            description="Parameters needed to set up the real time propagation"//&
+            " for the electron dynamics",&
+            n_keywords=4, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="MAX_ITER",&
+            description="Maximal number of iterations for the self consistent propagator loop.",&
+            usage="MAX_ITER 10",&
+            default_i_val=10,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_ITER",&
+            description="Convergence criterium for the self consistent propagator loop.",&
+            usage="EPS_ITER 1.0E-5",&
+            default_r_val=1.0E-6_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAT_EXP",&
+            description="Which method should be used to calculate the exponential"//&
+            " in the propagator. For Ehrenfest MD only the Taylor method works, "//&
+            "for real time propagation diagonalization works as well.",&
+            usage="MAT_EXP TAYLOR",default_i_val=do_taylor, &
+            enum_c_vals=s2a("TAYLOR","DIAG"),&
+            enum_i_vals=(/do_taylor,do_diag/),&
+            enum_desc=s2a("exponential is evaluated using scaling and squaring in combination"//&
+            " with a taylor expansion of the exponential.",&
+            "uses the eignvalues an eigenvectors to calculate the exponential."),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EXP_ACCURACY",&
+            description="Accuracy for the taylor approximation. "//&
+            "This is only an upper bound bound since the norm used for the guess "//&
+            "is an upper bound for the needed one.",&          
+            usage="EXP_ACCURACY MEDIUM",default_i_val=eps_medium, &
+            enum_c_vals=s2a("LOOSE","MEDIUM","TIGHT"),&
+            enum_i_vals=(/eps_loose,eps_medium,eps_tight/),&
+            enum_desc=s2a("accuracy 1.0E-9",&
+            "accuracy 1.0E-12",&
+            "accuracy 1.0E-15"),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PROPAGATOR",&
+            description="Which propagator should be used for the orbitals",&
+            usage="PROPAGATOR ETRS",default_i_val=do_etrs, &
+            enum_c_vals=s2a("ETRS"),&
+            enum_i_vals=(/do_etrs/),&
+            enum_desc=s2a("enforced time reversible symmetry"),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="INITIAL_WFN",&
+            description="Controls the initial WFN used for propagation.",&
+            usage="INITIAL_WFN SCF_WFN",default_i_val=use_scf_wfn, &
+            enum_c_vals=s2a("SCF_WFN","RESTART_WFN"),&
+            enum_i_vals=(/use_scf_wfn,use_restart_wfn/),&
+            enum_desc=s2a("An SCF run is performed to get the initial state.",&
+            "A wavefunction from a previous scf is propageted. Especially useful,"//&
+            " if electronic constraints or restraints are used in the previous calculation, "//&
+            "since these do not work in the rtp scheme."),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(print_section)
+       CALL section_create(print_section,name="PRINT",&
+            description="Section of possible print options for an RTP runs",&
+            repeats=.FALSE., required=.TRUE.,error=error)
+
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+            description="Controls the printing within real time propagation and Eherenfest dynamics",&
+            print_level=low_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(print_section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL section_add_subsection(section,print_section,error=error)
+       CALL section_release(print_section,error=error)
+
+
+    END IF
+  END SUBROUTINE create_rtp_section
 
 END MODULE input_cp2k_dft

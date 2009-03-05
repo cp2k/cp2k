@@ -157,6 +157,7 @@ MODULE qs_ks_methods
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
   USE xc_adiabatic_methods,            ONLY: rescale_MCY3_pade
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -167,6 +168,7 @@ MODULE qs_ks_methods
     MODULE PROCEDURE calculate_w_matrix_1,&
                      calculate_w_matrix_2,&
                      calculate_w_matrix_roks
+                     
   END INTERFACE
 
   LOGICAL, PARAMETER :: debug_this_module=.TRUE.
@@ -1117,7 +1119,7 @@ CONTAINS
        ! **** Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
        ! **** from this routine, notice that this part of the calculation in not linear scaling
        ! **** right now this operation is only non-trivial because of occupation numbers and the restricted keyword
-       IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
+       IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy.AND..NOT.qs_env%run_rtp) THEN
           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
           DO ispin=1,SIZE(mo_derivs)
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
@@ -1184,6 +1186,7 @@ CONTAINS
             energy%qmmm_el + energy%mulliken + &
             energy%kg_gpw_ekin_mol + SUM(energy%ddapc_restraint) + energy%s2_restraint +&
             energy%becke + energy%dft_plus_u + energy%kTS
+
        IF( dft_control%do_wfn_fitting ) THEN
          energy%total = energy%total + energy%exc_aux_fit
        END IF 

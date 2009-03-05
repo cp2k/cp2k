@@ -111,7 +111,9 @@ MODULE input_constants
                                               pint_run=11,&
                                               vib_anal=12,&
                                               do_band=13,&
-                                              cell_opt_run=14
+                                              cell_opt_run=14,&
+                                              real_time_propagation=15,&
+                                              ehrenfest=16
                                                    
   ! Run Types of Atom Code                         
   INTEGER, PARAMETER, PUBLIC               :: atom_no_run=1,&
@@ -738,5 +740,17 @@ MODULE input_constants
   ! SCP-DFT
   INTEGER, PARAMETER, PUBLIC               :: copy_coeff=1,  &
                                               copy_fcoeff=2
+  !real time propagation
+  INTEGER, PARAMETER, PUBLIC               :: do_taylor=1,  &
+                                              do_diag=2
 
+  INTEGER, PARAMETER, PUBLIC               :: do_etrs=1
+
+  INTEGER, PARAMETER, PUBLIC               :: use_scf_wfn=1,  &
+                                              use_restart_wfn=2
+
+  INTEGER, PARAMETER, PUBLIC               :: eps_loose=1,  &
+                                              eps_medium=2,&
+                                              eps_tight=3
+  
 END MODULE input_constants

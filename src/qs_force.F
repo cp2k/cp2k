@@ -13,7 +13,9 @@ MODULE qs_force
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                             cp_fm_type
+                                             cp_fm_type,&
+                                             cp_fm_create,&
+                                             cp_fm_release
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -58,6 +60,8 @@ MODULE qs_force
                                              mo_set_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
+  USE rt_propagation_utils,            ONLY: calculate_dp_imag,&
+                                             calc_c_mat_force
   USE scf_control_types,               ONLY: scf_control_type
   USE scp_dispersion,                  ONLY: scp_qs_dispersion
   USE scp_energy_types,                ONLY: scp_energy_type
@@ -77,6 +81,10 @@ MODULE qs_force
   USE virial_types,                    ONLY: virial_type
   USE wfn_fitting_methods,             ONLY: calc_mixed_overlap_force
   USE wfn_fitting_types,               ONLY: wfn_fitting_type
+  USE sparse_matrix_output,            ONLY: write_sparse_matrix
+  USE qs_mo_types,                     ONLY: mo_set_p_type,&
+                                             mo_set_type
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -106,40 +114,40 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_forces', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dir, handle, i, iatom, ikind, &
-                                                ispin, istat, iw, natom, &
-                                                nkind, nspin, output_unit
+         ispin, istat, iw, natom, &
+         nkind, nspin, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
-                                                natom_of_kind
+         natom_of_kind
     LOGICAL                                  :: failure, gapw, harris_flag, &
-                                                obasis
+         obasis
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+         POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
+         POINTER                                :: mo_derivs
+    TYPE(cp_fm_type), POINTER                :: mo_coeff,dp_imag
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+         POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+         POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
+         POINTER                                :: force
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, &
-                                                matrix_s_aux_fit, &
-                                                matrix_s_aux_fit_vs_orb, &
-                                                matrix_w
+         POINTER                                :: matrix_ks, matrix_s, &
+         matrix_s_aux_fit, &
+         matrix_s_aux_fit_vs_orb, &
+         matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_energy_type), POINTER           :: scp_energy_loc
     TYPE(scp_environment_type), POINTER      :: scp_env
@@ -172,13 +180,13 @@ CONTAINS
 
     harris_flag = qs_env%use_harris
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    dft_control=dft_control,&
-                    force=force,harris_env=harris_env,&
-                    particle_set=particle_set,&
-                    scf_control=scf_control,&
-                    virial=virial,&
-                    energy=energy,error=error)
+         atomic_kind_set=atomic_kind_set,&
+         dft_control=dft_control,&
+         force=force,harris_env=harris_env,&
+         particle_set=particle_set,&
+         scf_control=scf_control,&
+         virial=virial,&
+         energy=energy,error=error)
 
     natom = SIZE(particle_set)
 
@@ -189,10 +197,10 @@ CONTAINS
 
     gapw = (dft_control%qs_control%method=="GAPW")
     IF(dft_control%qs_control%semi_empirical .AND. &
-       dft_control%qs_control%se_control%orthogonal_basis) THEN
+         dft_control%qs_control%se_control%orthogonal_basis) THEN
        obasis = .TRUE.
     ELSEIF(dft_control%qs_control%dftb .AND. &
-       dft_control%qs_control%dftb_control%orthogonal_basis) THEN
+         dft_control%qs_control%dftb_control%orthogonal_basis) THEN
        obasis = .TRUE.
     ELSE
        obasis = .FALSE.
@@ -205,270 +213,295 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineP,"kind_of",natom*int_size)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             atom_of_kind=atom_of_kind,&
-                             kind_of=kind_of)
+         atom_of_kind=atom_of_kind,&
+         kind_of=kind_of)
 
     IF (.NOT.ASSOCIATED(force)) THEN
-!   *** Allocate the force data structure ***
+       !   *** Allocate the force data structure ***
        nkind = SIZE(atomic_kind_set)
        ALLOCATE (natom_of_kind(nkind),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             natom_of_kind=natom_of_kind)
-      CALL allocate_qs_force(force,natom_of_kind)
-      DEALLOCATE (natom_of_kind,STAT=istat)
-      CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-      CALL set_qs_env(qs_env,force=force,error=error)
-      IF (harris_flag) THEN
-         NULLIFY(harris_force)
-        CALL harris_force_create(harris_force=harris_force,natom=natom,error=error)
-        CALL harris_env_set(harris_env=harris_env, harris_force=harris_force, error=error)
-      END IF
+       CALL allocate_qs_force(force,natom_of_kind)
+       DEALLOCATE (natom_of_kind,STAT=istat)
+       CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+       CALL set_qs_env(qs_env,force=force,error=error)
+       IF (harris_flag) THEN
+          NULLIFY(harris_force)
+          CALL harris_force_create(harris_force=harris_force,natom=natom,error=error)
+          CALL harris_env_set(harris_env=harris_env, harris_force=harris_force, error=error)
+       END IF
     END IF
     CALL zero_qs_force(force)
 
     CALL qs_energies(qs_env,globenv,calc_forces=.TRUE.,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
-                    ks_env=ks_env,&
-                    matrix_ks=matrix_ks,&
-                    matrix_s=matrix_s,&
-                    mo_derivs=mo_derivs,&
-                    mos=mos,&
-                    rho=rho,error=error)
+         ks_env=ks_env,&
+         matrix_ks=matrix_ks,&
+         matrix_s=matrix_s,&
+         mo_derivs=mo_derivs,&
+         mos=mos,&
+         rho=rho,error=error)
 
-    IF (.NOT.obasis) THEN
+    IF (.NOT.qs_env%run_rtp)THEN
+       IF (.NOT.obasis) THEN
 
-      ! Build W matrix (from the orthonormality constraint lambda C^T S C)
+          ! Build W matrix (from the orthonormality constraint lambda C^T S C)
 
-      nspin = SIZE(mos)
+          nspin = SIZE(mos)
 
-      CALL allocate_matrix_set(matrix_w,nspin,error=error)
+          CALL allocate_matrix_set(matrix_w,nspin,error=error)
 
-      DO ispin=1,nspin
+          DO ispin=1,nspin
 
-        CALL replicate_matrix_structure(matrix_s(1)%matrix,&
-                                        matrix_w(ispin)%matrix,&
-                                        "W MATRIX",error=error)
+             CALL replicate_matrix_structure(matrix_s(1)%matrix,&
+                  matrix_w(ispin)%matrix,&
+                  "W MATRIX",error=error)
 
-        mo_set => mos(ispin)%mo_set
+             mo_set => mos(ispin)%mo_set
 
-        IF (qs_env%dft_control%roks) THEN
-          IF (scf_control%use_ot) THEN
-            IF (ispin > 1) THEN
-              ! not very elegant, indeed ...
-              CALL set_matrix(matrix_w(ispin)%matrix,0.0_dp)
-            ELSE
-              CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
-                                      matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
-            END IF
-          ELSE
-            CALL calculate_w_matrix(mo_set=mo_set,&
-                                    matrix_ks=matrix_ks(ispin)%matrix,&
-                                    matrix_p=rho%rho_ao(ispin)%matrix,&
-                                    matrix_w=matrix_w(ispin)%matrix,&
-                                    error=error)
-          END IF
-        ELSE
-          IF (scf_control%use_ot) THEN
-            CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
-                                    matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
-          ELSE
-            CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,error=error)
-          END IF
-        END IF
+             IF (qs_env%dft_control%roks) THEN
+                IF (scf_control%use_ot) THEN
+                   IF (ispin > 1) THEN
+                      ! not very elegant, indeed ...
+                      CALL set_matrix(matrix_w(ispin)%matrix,0.0_dp)
+                   ELSE
+                      CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
+                           matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
+                   END IF
+                ELSE
+                   CALL calculate_w_matrix(mo_set=mo_set,&
+                        matrix_ks=matrix_ks(ispin)%matrix,&
+                        matrix_p=rho%rho_ao(ispin)%matrix,&
+                        matrix_w=matrix_w(ispin)%matrix,&
+                        error=error)
+                END IF
+             ELSE
+                IF (scf_control%use_ot) THEN
+                   CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
+                        matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
+                ELSE
+                   CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,error=error)
+                END IF
+             END IF
 
-        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-             qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
-           iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
-                extension=".Log",error=error)
-           CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-           CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-                "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
-        END IF
+             IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+                  qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
+                iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
+                     extension=".Log",error=error)
+                CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+                CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+                     "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
+             END IF
 
-      END DO
+          END DO
+
+       END IF
+    ELSE
+       nspin = SIZE(mos)
+       
+       CALL allocate_matrix_set(matrix_w,nspin,error=error)
+
+
+       DO ispin=1,nspin
+          CALL replicate_matrix_structure(matrix_s(1)%matrix,&
+               matrix_w(ispin)%matrix,&
+               "W MATRIX",error=error)
+          CALL set_matrix(matrix_w(ispin)%matrix,0.0_dp)
+       END DO
+       
+       CALL calc_c_mat_force(qs_env,dp_imag,error)
+
 
     END IF
 
     ! from an eventual Mulliken restraint
 
     IF (dft_control%qs_control%mulliken_restraint) THEN
-      CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
-                              para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w)
+       CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
+            para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w)
     END IF
 
     ! Add non-Pulay contribution of DFT+U to W matrix, since it has also to be
     ! digested with overlap matrix derivatives
 
     IF (dft_control%dft_plus_u) THEN
-      CALL plus_u(qs_env=qs_env,matrix_w=matrix_w,error=error)
+       CALL plus_u(qs_env=qs_env,matrix_w=matrix_w,error=error)
     END IF
 
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
     IF (.NOT. harris_flag) THEN ! harris computes the forces differenctly
-      ! Compute core forces (also overwrites matrix_w)
-      IF (dft_control%qs_control%semi_empirical) THEN
-        CALL build_se_core_matrix(qs_env=qs_env,para_env=para_env,&
-                                  calculate_forces=.TRUE.,error=error)
-        CALL se_core_core_interaction(qs_env, para_env, calculate_forces=.TRUE.,&
-             error=error)
-      ELSEIF (dft_control%qs_control%dftb) THEN
-        CALL build_dftb_matrices(qs_env=qs_env,para_env=para_env,&
-                                 calculate_forces=.TRUE.,error=error)
-        CALL calculate_dftb_dispersion(qs_env=qs_env,para_env=para_env,&
-                              calculate_forces=.TRUE.,error=error)
-      ELSE
-        CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-                                           globenv=globenv,&
-                                           calculate_forces=.TRUE.,error=error)
-        CALL calculate_ecore_self(qs_env,error=error)
-        CALL calculate_ecore_overlap(qs_env, para_env, &
-                                             calculate_forces=.TRUE.,&
-                                             error=error)
-      END IF
-      IF ( dft_control%scp ) CALL qs_ks_scp_update ( qs_env, error = error )
+       ! Compute core forces (also overwrites matrix_w)
+       IF (dft_control%qs_control%semi_empirical) THEN
+          CALL build_se_core_matrix(qs_env=qs_env,para_env=para_env,&
+               calculate_forces=.TRUE.,error=error)
+          CALL se_core_core_interaction(qs_env, para_env, calculate_forces=.TRUE.,&
+               error=error)
+       ELSEIF (dft_control%qs_control%dftb) THEN
+          CALL build_dftb_matrices(qs_env=qs_env,para_env=para_env,&
+               calculate_forces=.TRUE.,error=error)
+          CALL calculate_dftb_dispersion(qs_env=qs_env,para_env=para_env,&
+               calculate_forces=.TRUE.,error=error)
+       ELSE
+          CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
+               globenv=globenv,&
+               calculate_forces=.TRUE.,error=error)
+          CALL calculate_ecore_self(qs_env,error=error)
+          CALL calculate_ecore_overlap(qs_env, para_env, &
+               calculate_forces=.TRUE.,&
+               error=error)
+       END IF
 
-      ! Compute grid-based forces
-      CALL qs_ks_update_qs_env(ks_env=ks_env,&
-                               qs_env=qs_env,&
-                               calculate_forces=.TRUE.,error=error)
+       IF ( dft_control%scp ) CALL qs_ks_scp_update ( qs_env, error = error )
 
-      ! Add forces resulting from wavefunction fitting
+       ! Compute grid-based forces
+       CALL qs_ks_update_qs_env(ks_env=ks_env,&
+            qs_env=qs_env,&
+            calculate_forces=.TRUE.,error=error)
 
-      IF (dft_control%do_wfn_fitting ) THEN
-        CALL get_qs_env(qs_env=qs_env,&
-                        matrix_s_aux_fit=matrix_s_aux_fit,&
-                        matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
-                        mos=mos,&
-                        wfn_fitting_env=wfn_fitting_env,&
-                        error=error)
-        DO ispin=1,nspin
-          mo_set => mos(ispin)%mo_set
-          CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff) 
+       ! Add forces resulting from wavefunction fitting
 
-          CALL calc_mixed_overlap_force(qs_env, para_env, ispin, wfn_fitting_env, mo_coeff,  &
-                                        matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, error)
-        END DO
-      END IF 
+       IF (dft_control%do_wfn_fitting ) THEN
+          CALL get_qs_env(qs_env=qs_env,&
+               matrix_s_aux_fit=matrix_s_aux_fit,&
+               matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
+               mos=mos,&
+               wfn_fitting_env=wfn_fitting_env,&
+               error=error)
+          DO ispin=1,nspin
+             mo_set => mos(ispin)%mo_set
+             CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff) 
 
-      ! Compute forces from SCP.  First get the scp_env
-      IF ( dft_control%scp ) THEN
-         CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
-         IF ( dft_control%scp_control%dispersion ) THEN
-            CALL scp_qs_dispersion ( qs_env, .TRUE., error )
-            CALL get_qs_env ( qs_env = qs_env, energy = energy, error = error )
-            CALL get_scp_env ( scp_env = scp_env, energy = scp_energy_loc, error = error )
-            ! Adding the post-processed dispersion energy to the total energy
-            energy % total = energy %total + scp_energy_loc % e_scp_disp
-         END IF
-      END IF
-
-      !  *** replicate forces ***
-      DO ikind=1,SIZE(force)
-        CALL mp_sum(force(ikind)%overlap,para_env%group)
-        CALL mp_sum(force(ikind)%overlap_wfn_fit,para_env%group)
-        CALL mp_sum(force(ikind)%kinetic,para_env%group)
-        CALL mp_sum(force(ikind)%gth_ppl,para_env%group)
-        CALL mp_sum(force(ikind)%gth_ppnl,para_env%group)
-        CALL mp_sum(force(ikind)%all_potential,para_env%group)
-        CALL mp_sum(force(ikind)%core_overlap,para_env%group)
-        CALL mp_sum(force(ikind)%rho_core,para_env%group)
-        CALL mp_sum(force(ikind)%rho_elec,para_env%group)
-        CALL mp_sum(force(ikind)%vhxc_atom,para_env%group)
-        CALL mp_sum(force(ikind)%g0s_Vh_elec,para_env%group)
-        CALL mp_sum(force(ikind)%hartree_2c,para_env%group)
-        CALL mp_sum(force(ikind)%hartree_3c,para_env%group)
-        CALL mp_sum(force(ikind)%fock_4c,para_env%group)
-        CALL mp_sum(force(ikind)%repulsive,para_env%group)
-        CALL mp_sum(force(ikind)%dispersion,para_env%group)
-        force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
-                                  force(ikind)%core_overlap(:,:) +&
-                                  force(ikind)%gth_ppl(:,:) +&
-                                  force(ikind)%gth_ppnl(:,:) +&
-                                  force(ikind)%all_potential(:,:) +&
-                                  force(ikind)%kinetic(:,:) +&
-                                  force(ikind)%overlap(:,:) +&
-                                  force(ikind)%overlap_wfn_fit(:,:) +&
-                                  force(ikind)%rho_core(:,:) +&
-                                  force(ikind)%rho_elec(:,:) +&
-                                  force(ikind)%vhxc_atom(:,:) +&
-                                  force(ikind)%g0s_Vh_elec(:,:) +&
-                                  force(ikind)%hartree_2c(:,:) +&
-                                  force(ikind)%hartree_3c(:,:) +&
-                                  force(ikind)%fock_4c(:,:) +&
-                                  force(ikind)%repulsive(:,:)  +&
-                                  force(ikind)%dispersion(:,:) 
-! **** SCP
-        IF ( dft_control%scp ) THEN
-          CALL get_scp_env ( scp_env = scp_env, force = scp_force, error = error )
-! The minus is because in SCP the forces are really -dE/dR ( search for "XXXX" below )
-          CALL mp_sum ( scp_force ( ikind )%f_scp, para_env % group )
-          force(ikind)%total(:,:) = force(ikind)%total(:,:) - scp_force ( ikind ) % f_scp ( :, : )
-! Add dispersion if it is activated
-          IF (dft_control%scp_control%dispersion) THEN 
-            CALL mp_sum ( scp_force ( ikind )%f_scp_disp, para_env % group )
-            force(ikind)%total(:,:) = force(ikind)%total(:,:) - scp_force ( ikind ) % f_scp_disp ( :, : )
-          ENDIF
-        END IF
-! **** SCP
-      END DO
-
-      DO iatom=1,natom
-        ikind = kind_of(iatom)
-        i = atom_of_kind(iatom)
-        ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-        ! the force is - dE/dR, what is called force is actually the gradient
-        ! Things should have the right name
-        ! The minus sign below is a hack
-        ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-        force(ikind)%other(1:3,i)=-particle_set(iatom)%f(1:3)+force(ikind)%ch_pulay(1:3,i)
-        force(ikind)%total(1:3,i)=force(ikind)%total(1:3,i)+force(ikind)%other(1:3,i)
-        particle_set(iatom)%f = -force(ikind)%total(1:3,i)
-      END DO
-
-      !   *** distribute virial ***
-      IF (virial%pv_availability) THEN
-        CALL mp_sum(virial%pv_virial,para_env%group)
-      !  *** add the volume terms of the virial ***
-        IF ((.NOT.virial%pv_numer) .AND. (.NOT.dft_control%qs_control%dftb)) THEN
-          DO dir=1, 3
-            virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir) - energy%exc  &
-                                                                  - 2.0_dp*energy%hartree
-            ! The factor 2 is a hack. It compensates the plus sign in h_stress/pw_poisson_solve.
-            ! The sign in pw_poisson_solve is correct for FIST, but not for QS.
-            ! There should be a more elegant solution to that...
+             CALL calc_mixed_overlap_force(qs_env, para_env, ispin, wfn_fitting_env, mo_coeff,  &
+                  matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, error)
           END DO
-        END IF
-      END IF
+       END IF
 
-      output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%DERIVATIVES",&
-           extension=".Log",error=error)
-      print_section => section_vals_get_subs_vals(qs_env%input,"DFT%PRINT%DERIVATIVES",error=error)
-      IF (dft_control%qs_control%semi_empirical.AND.obasis) THEN
-        CALL write_forces(force,atomic_kind_set,2,output_unit=output_unit,&
-             print_section=print_section,error=error)
-      ELSE IF (dft_control%qs_control%dftb.AND.(.NOT.obasis)) THEN
-        CALL write_forces(force,atomic_kind_set,4,output_unit=output_unit,&
-             print_section=print_section,error=error)
-      ELSE IF (gapw) THEN
-        CALL write_forces(force,atomic_kind_set,1,output_unit=output_unit,&
-             print_section=print_section,error=error)
-      ELSE
-        CALL write_forces(force,atomic_kind_set,0,output_unit=output_unit,&
-             print_section=print_section,error=error)
-      END IF
-      CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
-           "DFT%PRINT%DERIVATIVES",error=error)
+       ! Compute forces from SCP.  First get the scp_env
+       IF ( dft_control%scp ) THEN
+          CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
+          IF ( dft_control%scp_control%dispersion ) THEN
+             CALL scp_qs_dispersion ( qs_env, .TRUE., error )
+             CALL get_qs_env ( qs_env = qs_env, energy = energy, error = error )
+             CALL get_scp_env ( scp_env = scp_env, energy = scp_energy_loc, error = error )
+             ! Adding the post-processed dispersion energy to the total energy
+             energy % total = energy %total + scp_energy_loc % e_scp_disp
+          END IF
+       END IF
+
+       !  *** replicate forces ***
+       DO ikind=1,SIZE(force)
+          CALL mp_sum(force(ikind)%overlap,para_env%group)
+          CALL mp_sum(force(ikind)%overlap_wfn_fit,para_env%group)
+          CALL mp_sum(force(ikind)%kinetic,para_env%group)
+          CALL mp_sum(force(ikind)%gth_ppl,para_env%group)
+          CALL mp_sum(force(ikind)%gth_ppnl,para_env%group)
+          CALL mp_sum(force(ikind)%all_potential,para_env%group)
+          CALL mp_sum(force(ikind)%core_overlap,para_env%group)
+          CALL mp_sum(force(ikind)%rho_core,para_env%group)
+          CALL mp_sum(force(ikind)%rho_elec,para_env%group)
+          CALL mp_sum(force(ikind)%vhxc_atom,para_env%group)
+          CALL mp_sum(force(ikind)%g0s_Vh_elec,para_env%group)
+          CALL mp_sum(force(ikind)%hartree_2c,para_env%group)
+          CALL mp_sum(force(ikind)%hartree_3c,para_env%group)
+          CALL mp_sum(force(ikind)%fock_4c,para_env%group)
+          CALL mp_sum(force(ikind)%repulsive,para_env%group)
+          CALL mp_sum(force(ikind)%dispersion,para_env%group)
+          CALL mp_sum(force(ikind)%ehrenfest,para_env%group)
+
+          force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
+               force(ikind)%core_overlap(:,:) +&
+               force(ikind)%gth_ppl(:,:) +&
+               force(ikind)%gth_ppnl(:,:) +&
+               force(ikind)%all_potential(:,:) +&
+               force(ikind)%kinetic(:,:) +&
+               force(ikind)%overlap(:,:) +&
+               force(ikind)%overlap_wfn_fit(:,:) +&
+               force(ikind)%rho_core(:,:) +&
+               force(ikind)%rho_elec(:,:) +&
+               force(ikind)%vhxc_atom(:,:) +&
+               force(ikind)%g0s_Vh_elec(:,:) +&
+               force(ikind)%hartree_2c(:,:) +&
+               force(ikind)%hartree_3c(:,:) +&
+               force(ikind)%fock_4c(:,:) +&
+               force(ikind)%repulsive(:,:)  +&
+               force(ikind)%dispersion(:,:) +& 
+               force(ikind)%ehrenfest(:,:) 
+
+          ! **** SCP
+
+
+          IF ( dft_control%scp ) THEN
+             CALL get_scp_env ( scp_env = scp_env, force = scp_force, error = error )
+             ! The minus is because in SCP the forces are really -dE/dR ( search for "XXXX" below )
+             CALL mp_sum ( scp_force ( ikind )%f_scp, para_env % group )
+             force(ikind)%total(:,:) = force(ikind)%total(:,:) - scp_force ( ikind ) % f_scp ( :, : )
+             ! Add dispersion if it is activated
+             IF (dft_control%scp_control%dispersion) THEN 
+                CALL mp_sum ( scp_force ( ikind )%f_scp_disp, para_env % group )
+                force(ikind)%total(:,:) = force(ikind)%total(:,:) - scp_force ( ikind ) % f_scp_disp ( :, : )
+             ENDIF
+          END IF
+          ! **** SCP
+       END DO
+
+       DO iatom=1,natom
+          ikind = kind_of(iatom)
+          i = atom_of_kind(iatom)
+          ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          ! the force is - dE/dR, what is called force is actually the gradient
+          ! Things should have the right name
+          ! The minus sign below is a hack
+          ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          force(ikind)%other(1:3,i)=-particle_set(iatom)%f(1:3)+force(ikind)%ch_pulay(1:3,i)
+          force(ikind)%total(1:3,i)=force(ikind)%total(1:3,i)+force(ikind)%other(1:3,i)
+          particle_set(iatom)%f = -force(ikind)%total(1:3,i)
+       END DO
+
+       !   *** distribute virial ***
+       IF (virial%pv_availability) THEN
+          CALL mp_sum(virial%pv_virial,para_env%group)
+          !  *** add the volume terms of the virial ***
+          IF ((.NOT.virial%pv_numer) .AND. (.NOT.dft_control%qs_control%dftb)) THEN
+             DO dir=1, 3
+                virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir) - energy%exc  &
+                     - 2.0_dp*energy%hartree
+                ! The factor 2 is a hack. It compensates the plus sign in h_stress/pw_poisson_solve.
+                ! The sign in pw_poisson_solve is correct for FIST, but not for QS.
+                ! There should be a more elegant solution to that...
+             END DO
+          END IF
+       END IF
+
+       output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%DERIVATIVES",&
+            extension=".Log",error=error)
+       print_section => section_vals_get_subs_vals(qs_env%input,"DFT%PRINT%DERIVATIVES",error=error)
+       IF (dft_control%qs_control%semi_empirical.AND.obasis) THEN
+          CALL write_forces(force,atomic_kind_set,2,output_unit=output_unit,&
+               print_section=print_section,error=error)
+       ELSE IF (dft_control%qs_control%dftb.AND.(.NOT.obasis)) THEN
+          CALL write_forces(force,atomic_kind_set,4,output_unit=output_unit,&
+               print_section=print_section,error=error)
+       ELSE IF (gapw) THEN
+          CALL write_forces(force,atomic_kind_set,1,output_unit=output_unit,&
+               print_section=print_section,error=error)
+       ELSE
+          CALL write_forces(force,atomic_kind_set,0,output_unit=output_unit,&
+               print_section=print_section,error=error)
+       END IF
+       CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
+            "DFT%PRINT%DERIVATIVES",error=error)
     ELSE
-      CALL get_qs_env(qs_env=qs_env, harris_env=harris_env,error=error)
-      CALL harris_force_correction(qs_env=qs_env, harris_env=harris_env, &
-                                   globenv=globenv,error=error)
-      DO iatom = 1,natom
-        i = atom_of_kind(iatom)
-        particle_set(iatom)%f = -harris_env%harris_force%f_harris(iatom, 1:3)
-      END DO
+       CALL get_qs_env(qs_env=qs_env, harris_env=harris_env,error=error)
+       CALL harris_force_correction(qs_env=qs_env, harris_env=harris_env, &
+            globenv=globenv,error=error)
+       DO iatom = 1,natom
+          i = atom_of_kind(iatom)
+          particle_set(iatom)%f = -harris_env%harris_force%f_harris(iatom, 1:3)
+       END DO
     END IF
 
     CALL deallocate_matrix_set(matrix_w,error=error)
@@ -585,6 +618,7 @@ CONTAINS
                   iatom,ikind,"    dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind,"         other",qs_force(ikind)%other(1:3,i),&
                   iatom,ikind,"       fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
+                  iatom,ikind,"     ehrenfest",qs_force(ikind)%ehrenfest(1:3,i),&
                   iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO

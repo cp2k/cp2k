@@ -44,6 +44,20 @@ MODULE cp_control_types
   END TYPE scp_control_type
 
 ! *****************************************************************************
+! \brief Control parameters for REAL_TIME_PROPAGATION calculations
+! *****************************************************************************
+  TYPE rtp_control_type
+     LOGICAL                              :: converged
+     REAL(KIND = dp)                      :: eps_ener
+     INTEGER                              :: max_iter
+     INTEGER                              :: mat_exp
+     INTEGER                              :: propagator
+     LOGICAL                              :: fixed_ions
+     INTEGER                              :: initial_wfn
+     INTEGER                              :: eps_exp
+     LOGICAL                              :: calc_restart
+  END TYPE rtp_control_type
+! *****************************************************************************
 ! \brief Control parameters for DFTB calculations
 ! *****************************************************************************
   TYPE dftb_control_type
@@ -277,6 +291,7 @@ MODULE cp_control_types
      TYPE(tddfpt_control_type),POINTER :: tddfpt_control
      TYPE(xas_control_type), POINTER   :: xas_control
      TYPE(scp_control_type),POINTER    :: scp_control
+     TYPE(rtp_control_type),POINTER    :: rtp_control
      TYPE(wfn_fitting_control_type), POINTER &
                                        :: wfn_fitting_control
      TYPE(finite_field_type),POINTER   :: finite_field_control
@@ -326,7 +341,8 @@ MODULE cp_control_types
             becke_restraint_type,&
             semi_empirical_control_type,&
             s2_restraint_type,&
-            wfn_fitting_control_type
+            wfn_fitting_control_type,&
+            rtp_control_type
 
 ! *** Public subroutines ***
 
@@ -696,6 +712,9 @@ CONTAINS
        NULLIFY(dft_control%tddfpt_control)
        NULLIFY(dft_control%finite_field_control)
        NULLIFY(dft_control%wfn_fitting_control)
+       NULLIFY(dft_control%rtp_control)
+       ALLOCATE(dft_control%rtp_control,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL qs_control_create(dft_control%qs_control, error=error)       
     END IF
   END SUBROUTINE dft_control_create
@@ -748,6 +767,8 @@ CONTAINS
           CALL scp_control_release(dft_control%scp_control, error=error)
           CALL wfn_fitting_control_release(dft_control%wfn_fitting_control, error=error)
           CALL finite_field_control_release(dft_control%finite_field_control, error=error)
+          DEALLOCATE(dft_control%rtp_control,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           DEALLOCATE(dft_control, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF

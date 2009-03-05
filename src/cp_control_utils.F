@@ -228,6 +228,23 @@ CPSourceFileRef,&
        CALL tddfpt_control_create(dft_control%tddfpt_control, error=error)
     END IF
 
+    tmp_section => section_vals_get_subs_vals(dft_section,"REAL_TIME_PROPAGATION",error=error)
+    CALL section_vals_get(tmp_section,explicit=is_present,error=error)
+    IF (is_present) THEN
+       CALL section_vals_val_get(tmp_section,"MAX_ITER",&
+         i_val=dft_control%rtp_control%max_iter,error=error)
+       CALL section_vals_val_get(tmp_section,"MAT_EXP",&
+         i_val=dft_control%rtp_control%mat_exp,error=error)
+       CALL section_vals_val_get(tmp_section,"EXP_ACCURACY",&
+         i_val=dft_control%rtp_control%eps_exp,error=error)
+       CALL section_vals_val_get(tmp_section,"PROPAGATOR",&
+         i_val=dft_control%rtp_control%propagator,error=error)
+       CALL section_vals_val_get(tmp_section,"EPS_ITER",&
+         r_val=dft_control%rtp_control%eps_ener,error=error)
+       CALL section_vals_val_get(tmp_section,"INITIAL_WFN",&
+         i_val=dft_control%rtp_control%initial_wfn,error=error)
+    END IF
+
 !   *** Read the input section ***
     tmp_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
     CALL section_vals_get(tmp_section,explicit=dft_control%do_xas_calculation,error=error)

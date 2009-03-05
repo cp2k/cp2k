@@ -59,7 +59,7 @@ MODULE md_environment_types
      ! be parent of every bead.
      PRIVATE
      INTEGER                                    :: id_nr, ref_count
-     LOGICAL                                    :: init, first_time
+     LOGICAL                                    :: init, first_time,ehrenfest_md
      INTEGER, POINTER                           :: itimes
      REAL(KIND=dp), POINTER                     :: used_time, t
      REAL(KIND=dp), POINTER                     :: constant
@@ -146,6 +146,7 @@ CONTAINS
     md_env%t              = 0.0_dp
     md_env%init           = .TRUE.
     md_env%first_time     = .TRUE.
+    md_env%ehrenfest_md   = .FALSE.
     averages_section => section_vals_get_subs_vals(md_section,"AVERAGES",error=error)
     CALL create_averages(md_env%averages, averages_section, force_env=force_env, error=error)
 
@@ -242,7 +243,7 @@ CONTAINS
   SUBROUTINE get_md_env(md_env, itimes, constant, used_time, cell, simpar, npt,&
        force_env, para_env, reftraj, t, init, first_time,fe_env, thermostats, barostat, &
        thermostat_coeff, thermostat_part, thermostat_shell, thermostat_baro,&
-       md_ener, averages, thermal_regions, error)
+       md_ener, averages, thermal_regions,ehrenfest_md, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
@@ -255,7 +256,7 @@ CONTAINS
       POINTER                                :: para_env
     TYPE(reftraj_type), OPTIONAL, POINTER    :: reftraj
     REAL(KIND=dp), OPTIONAL, POINTER         :: t
-    LOGICAL, OPTIONAL                        :: init, first_time
+    LOGICAL, OPTIONAL                        :: init, first_time, ehrenfest_md
     TYPE(free_energy_type), OPTIONAL, &
       POINTER                                :: fe_env
     TYPE(thermostats_type), OPTIONAL, &
@@ -318,6 +319,7 @@ CONTAINS
     IF (PRESENT(md_ener)) md_ener => md_env%md_ener
     IF (PRESENT(init)) init=md_env%init 
     IF (PRESENT(first_time)) first_time=md_env%first_time 
+    IF (PRESENT(ehrenfest_md)) ehrenfest_md=md_env%ehrenfest_md
     IF (PRESENT(thermal_regions)) thermal_regions => md_env%thermal_regions
 
   END SUBROUTINE get_md_env
@@ -330,7 +332,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_md_env(md_env, itimes, constant, cell, simpar, fe_env, force_env,&
        para_env, init, first_time,thermostats, barostat, reftraj, md_ener, averages,&
-       thermal_regions, error)
+       thermal_regions,ehrenfest_md, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
@@ -342,7 +344,7 @@ CONTAINS
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    LOGICAL, OPTIONAL                        :: init, first_time
+    LOGICAL, OPTIONAL                        :: init, first_time,ehrenfest_md
     TYPE(thermostats_type), OPTIONAL, &
       POINTER                                :: thermostats
     TYPE(barostat_type), OPTIONAL, POINTER   :: barostat
@@ -364,6 +366,7 @@ CONTAINS
     CPPrecondition(check,cp_failure_level,routineP,error,failure)
     IF(PRESENT (init)) md_env%init = init
     IF(PRESENT (first_time)) md_env%first_time = first_time
+    IF (PRESENT(ehrenfest_md)) md_env%ehrenfest_md=ehrenfest_md
     IF(PRESENT(cell)) md_env%cell => cell
     IF(PRESENT(barostat)) THEN 
        CALL release_barostat_type(md_env%barostat, error=error)

@@ -442,7 +442,7 @@ CONTAINS
              WRITE (ene,'("#",5X,A,10X,A,8X,A,10X,A,12X,A,2(8X,A))')"Step Nr.","Time[fs]","Kin.[a.u.]","Temp[K]",&
                   "Pot.[a.u.]","Cons Qty[a.u.]","UsedTime[s]"
           END IF
-          WRITE (ene,"(I10,F20.3,F20.9,F20.9,F20.9,F20.9,F20.9)")&
+          WRITE (ene,"(I10,F20.6,F20.9,F20.9,F20.9,F20.9,F20.9)")&
                itimes,time*femtoseconds,md_ener%ekin,md_ener%temp_part, md_ener%epot,md_ener%constant,used_time
           CALL m_flush(ene)
        END IF

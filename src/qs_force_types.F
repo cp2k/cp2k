@@ -44,6 +44,7 @@ MODULE qs_force_types
                                          other,&
                                          ch_pulay,&
                                          fock_4c,&
+                                         ehrenfest,&
                                          total
   END TYPE qs_force_type
 
@@ -159,6 +160,10 @@ CONTAINS
       ALLOCATE (qs_force(ikind)%ch_pulay(3,n),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routineP,"qs_force(ikind)%other",3*n*dp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%ehrenfest(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineP,"qs_force(ikind)%ehrenfest",3*n*dp_size)
       END IF
       ! Always initialize ch_pulay to zero..
       qs_force(ikind)%ch_pulay  = 0.0_dp
@@ -339,6 +344,12 @@ CONTAINS
         END IF
       END IF
 
+      IF (ASSOCIATED(qs_force(ikind)%ehrenfest)) THEN
+        DEALLOCATE (qs_force(ikind)%ehrenfest,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routineP,"qs_force%ehrenfest")
+        END IF
+      END IF
     END DO
 
     DEALLOCATE (qs_force,STAT=istat)
@@ -386,6 +397,7 @@ CONTAINS
       qs_force(ikind)%dispersion(:,:) = 0.0_dp
       qs_force(ikind)%other(:,:) = 0.0_dp
       qs_force(ikind)%fock_4c(:,:) = 0.0_dp
+      qs_force(ikind)%ehrenfest(:,:) = 0.0_dp
       qs_force(ikind)%total(:,:) = 0.0_dp
     END DO
 
@@ -458,6 +470,7 @@ CONTAINS
            qs_force_input(ikind)%dispersion(:,:)
         qs_force_output(ikind)%other(:,:) = qs_force_input(ikind)%other(:,:)
         qs_force_output(ikind)%fock_4c(:,:) = qs_force_input(ikind)%fock_4c(:,:)
+        qs_force_output(ikind)%ehrenfest(:,:) = qs_force_input(ikind)%ehrenfest(:,:)
         qs_force_output(ikind)%total(:,:) = qs_force_input(ikind)%total(:,:)
       END DO
     END IF

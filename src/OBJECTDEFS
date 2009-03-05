@@ -533,6 +533,12 @@ OBJECTS_GENERIC =\
  replica_types.o\
  restraint.o\
  rmsd.o\
+ rt_matrix_exp.o\
+ rt_propagation.o\
+ rt_propagation_types.o\
+ rt_propagation_methods.o\
+ rt_propagation_output.o\
+ rt_propagation_utils.o\
  s_square_methods.o\
  sap_kind_types.o\
  scf_control_types.o\

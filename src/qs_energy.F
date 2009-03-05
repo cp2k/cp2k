@@ -17,10 +17,13 @@ MODULE qs_energy
   USE et_coupling,                     ONLY: calc_et_coupling
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
-                                             use_orb_basis_set
+  USE input_constants,                 ONLY: do_diag,&
+                                             use_aux_fit_basis_set,&
+                                             use_orb_basis_set,&
+                                             ehrenfest
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
+  USE kinds,                           ONLY: dp
   USE nddo_methods,                    ONLY: se_core_core_interaction
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
@@ -31,20 +34,39 @@ MODULE qs_energy
   USE qs_dftb_dispersion,              ONLY: calculate_dftb_dispersion
   USE qs_dftb_matrices,                ONLY: build_dftb_matrices
   USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_scf,                          ONLY: scf
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
+  USE rt_propagation_types,            ONLY: rt_prop_type,&
+                                             get_rtp
+  USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_methods,                     ONLY: xas
+  USE rt_propagation_output,           ONLY: rt_prop_output
+  USE rt_propagation_methods,          ONLY: propagation_step,&
+                                             propagate_orb,&
+                                             calc_exp_iHt,&
+                                             s_matrices_create,&
+                                             update_core_and_matrices,&
+                                             calc_update_rho
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
+                                             cp_fm_p_type,&
+                                             cp_fm_to_fm
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -60,11 +82,13 @@ MODULE qs_energy
 CONTAINS
 
 ! *****************************************************************************
-!> \brief   QUICKSTEP single point wavefunction optimization.
+!> \brief   Driver routine for QUICKSTEP single point wavefunction optimization.
 !> \author  MK
 !> \date    29.10.2002
 !> \par History
 !>          - consistent_energies option added (25.08.2005, TdK)
+!>          - introduced driver for energy in order to properly decide between 
+!>            SCF or RTP (fschiff 02.09)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE qs_energies (qs_env, globenv, consistent_energies, calc_forces, &
@@ -76,6 +100,38 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: run_rtp
+
+    CALL get_qs_env(qs_env=qs_env,run_rtp=run_rtp,error=error)
+    IF(run_rtp)THEN
+       CALL qs_energies_rtp(qs_env,globenv,error=error)
+    ELSE
+       CALL qs_energies_scf(qs_env, globenv, consistent_energies, calc_forces, &
+                          error)
+    END IF
+
+  END SUBROUTINE qs_energies
+    
+
+! *****************************************************************************
+!> \brief   QUICKSTEP single point wavefunction optimization.
+!> \author  MK
+!> \date    29.10.2002
+!> \par History
+!>          - consistent_energies option added (25.08.2005, TdK)
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE qs_energies_scf (qs_env, globenv, consistent_energies, calc_forces, &
+                          error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies, &
+                                                calc_forces
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_scf', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nder
@@ -96,7 +152,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
                     error=error)
-
+    
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=input,error=error)
     qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.
 
@@ -223,6 +279,76 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE qs_energies
+  END SUBROUTINE qs_energies_scf
+
+! *****************************************************************************
+!> \brief   energy calculation for real time propagation (iteratet through integrator)
+!> \author  Florian Schiffmann
+!> \date    02.2009
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE qs_energies_rtp(qs_env,globenv,error)
+    
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_rtp', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: diagonalize
+    REAL(Kind=dp)                            :: eps_ener,delta_iter
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: s_mat
+    TYPE(rt_prop_type), POINTER              :: rtp
+    INTEGER                                  :: i,handle
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: exp_H_old,exp_H_new,mos_old,mos_new
+
+    CALL timeset(routineN,handle)
+
+    eps_ener=qs_env%dft_control%rtp_control%eps_ener
+   
+    IF(qs_env%dft_control%rtp_control%calc_restart)THEN
+       CALL calc_update_rho(qs_env,error)
+       CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,error=error)
+       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
+            error=error)
+    ELSE
+
+       CALL update_core_and_matrices(qs_env,globenv,error)
+       CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
+       diagonalize=(qs_env%dft_control%rtp_control%mat_exp==do_diag)
+
+       CALL s_matrices_create (s_mat,rtp,diagonalize,error)
+       CALL calc_S_derivs(qs_env,error)
+
+       CALL get_rtp(rtp=rtp,&
+                 exp_H_old=exp_H_old,&
+                 exp_H_new=exp_H_new,&
+                 mos_old=mos_old,&
+                 mos_new=mos_new,&
+                 error=error)
+       
+       eps_ener=qs_env%dft_control%rtp_control%eps_ener
+       CALL propagation_step(qs_env,delta_iter, error)
+       rtp%energy_new=qs_env%energy%total
+       rtp%converged=(delta_iter.LT.eps_ener)
+
+
+       IF(rtp%converged)THEN
+          DO i=1,SIZE(mos_new)
+             CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
+             CALL cp_fm_to_fm(exp_H_new(i)%matrix,exp_H_old(i)%matrix,error)
+          END DO
+       END IF
+       CALL rt_prop_output(qs_env,ehrenfest,delta_iter,error)
+       rtp%energy_old=rtp%energy_new       
+    END IF
+    CALL timestop(handle)
+  END SUBROUTINE qs_energies_rtp
+
 
 END MODULE qs_energy

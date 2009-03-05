@@ -44,7 +44,8 @@ MODULE md_run
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
                                              npt_i_ensemble,&
-                                             reftraj_ensemble
+                                             reftraj_ensemble,&
+                                             ehrenfest
   USE input_cp2k_check,                ONLY: remove_restart_info
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
@@ -77,6 +78,8 @@ MODULE md_run
                                              release_reftraj
   USE reftraj_util,                    ONLY: initialize_reftraj,&
                                              write_output_reftraj
+  USE rt_propagation,                  ONLY: rt_prop_setup,&
+                                             init_ehrenfest_md
   USE simpar_methods,                  ONLY: read_md_section
   USE simpar_types,                    ONLY: create_simpar_type,&
                                              release_simpar_type,&
@@ -167,10 +170,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, istep, md_stride
+    INTEGER                                  :: handle, i, istep, md_stride, run_type_id
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: check, failure, save_mem, &
-                                                should_stop
+                                                should_stop,ehrenfest_md
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
     REAL(KIND=dp), POINTER                   :: constant, time, used_time
@@ -210,6 +213,9 @@ CONTAINS
     free_energy_section =>section_vals_get_subs_vals(motion_section,"FREE_ENERGY",error=error)
     constraint_section =>section_vals_get_subs_vals(motion_section,"CONSTRAINT",error=error)
     CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
+
+    CALL section_vals_val_get(global_section,"RUN_TYPE", i_val=run_type_id,error=error)
+    IF(run_type_id==ehrenfest) CALL set_md_env(md_env, ehrenfest_md=.TRUE., error=error)
 
     CALL create_simpar_type(simpar, error)
     force_env_section => force_env%force_env_section
@@ -252,7 +258,14 @@ CONTAINS
             coeff_section=kg_coeff_section, error=error)
     END IF
 
+    CALL get_md_env(md_env, ehrenfest_md=ehrenfest_md, error=error)
+
     !If requested set up the REFTRAJ run
+    IF(simpar%ensemble == reftraj_ensemble .AND. ehrenfest_md)&
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                     "Ehrenfest MD does not support reftraj ensemble "//&
+                     CPSourceFileRef,&
+                     error,failure)
     IF(simpar%ensemble == reftraj_ensemble) THEN
         reftraj_section => section_vals_get_subs_vals(md_section,"REFTRAJ",error=error)
         CALL create_reftraj(reftraj, reftraj_section, para_env, error=error)
@@ -335,8 +348,17 @@ CONTAINS
           CALL section_vals_remove_values(work_section, error)
        END IF
        
+       IF(ehrenfest_md)THEN
+          CALL rt_prop_setup(force_env,error)
+       ELSE
+          CALL force_env_calc_energy_force (force_env, calc_force=.TRUE., error=error)
+       END IF
 
-       CALL force_env_calc_energy_force (force_env, calc_force=.TRUE.,error=error)
+       IF(ehrenfest_md)THEN
+          force_env%qs_env%rtp%dt=simpar%dt
+          CALL init_ehrenfest_md(force_env%qs_env,error)
+       END IF
+
        ! Warm-up engines for metadynamics
        IF (ASSOCIATED(force_env%meta_env)) THEN
           IF(force_env%meta_env%langevin) THEN
@@ -345,6 +367,7 @@ CONTAINS
           CALL metadyn_forces(force_env,error=error)
           CALL metadyn_write_colvar(force_env,error=error)
        ENDIF
+
 
        IF (simpar%do_respa)THEN
           CALL force_env_calc_energy_force (force_env%sub_force_env(1)%force_env,&

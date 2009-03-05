@@ -150,7 +150,8 @@ MODULE qs_scf_post_gpw
             qs_scf_post_unocc_cubes,&
             qs_scf_post_moments,&
             qs_scf_post_efg,&
-            stm_cubes
+            stm_cubes,&
+            write_available_results
 
 CONTAINS
 
@@ -1537,7 +1538,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
   SUBROUTINE write_available_results(qs_env,scf_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_scf_env_type), POINTER,OPTIONAL  :: scf_env 
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
@@ -1602,44 +1603,46 @@ CPSourceFileRef,&
 
        ! *** if the dft_section tells you to do so, write last wavefunction to screen
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
-       IF (dft_control%nspins == 2) THEN
-         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
-                           dft_section,spin="ALPHA",last=.TRUE.,error=error)
-         CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,4,&
-                           dft_section,spin="BETA",last=.TRUE.,error=error)
-       ELSE
-         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
-                           dft_section,last=.TRUE.,error=error)
+       IF(.NOT.qs_env%run_rtp)THEN
+          IF (dft_control%nspins == 2) THEN
+             CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
+                  dft_section,spin="ALPHA",last=.TRUE.,error=error)
+             CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,4,&
+                  dft_section,spin="BETA",last=.TRUE.,error=error)
+          ELSE
+             CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
+                  dft_section,last=.TRUE.,error=error)
+          END IF
+
+          ! *** at the end of scf print out the projected dos per kind
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%PDOS",&
+               error=error),cp_p_file) ) THEN
+             DO ispin = 1,dft_control%nspins
+                IF (scf_env%method == ot_method_nr) THEN
+                   CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
+                        eigenvalues=mo_eigenvalues)
+                   IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+                      mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
+                   ELSE
+                      mo_coeff_deriv=>NULL()
+                   ENDIF
+                   
+                   CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
+                        para_env=qs_env%para_env, do_rotation=.TRUE.,&
+                        co_rotate=mo_coeff_deriv,error=error)
+                   CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,error=error)
+                   
+                END IF
+                IF(dft_control%nspins==2) THEN
+                   CALL calculate_projected_dos(mos(ispin)%mo_set,atomic_kind_set,&
+                        particle_set,qs_env, scf_env, dft_section,ispin=ispin,error=error)
+                ELSE
+                   CALL calculate_projected_dos(mos(ispin)%mo_set,atomic_kind_set,&
+                        particle_set,qs_env,scf_env,dft_section,error=error)
+                END IF
+             END DO
+          ENDIF
        END IF
-
-       ! *** at the end of scf print out the projected dos per kind
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%PDOS",&
-           error=error),cp_p_file) ) THEN
-         DO ispin = 1,dft_control%nspins
-            IF (scf_env%method == ot_method_nr) THEN
-              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
-                              eigenvalues=mo_eigenvalues)
-              IF (ASSOCIATED(qs_env%mo_derivs)) THEN
-                     mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
-              ELSE
-                     mo_coeff_deriv=>NULL()
-              ENDIF
-  
-              CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
-                   para_env=qs_env%para_env, do_rotation=.TRUE.,&
-                   co_rotate=mo_coeff_deriv,error=error)
-              CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,error=error)
-
-            END IF
-            IF(dft_control%nspins==2) THEN
-              CALL calculate_projected_dos(mos(ispin)%mo_set,atomic_kind_set,&
-                   particle_set,qs_env, scf_env, dft_section,ispin=ispin,error=error)
-            ELSE
-              CALL calculate_projected_dos(mos(ispin)%mo_set,atomic_kind_set,&
-                   particle_set,qs_env,scf_env,dft_section,error=error)
-            END IF
-         END DO
-       ENDIF
 
        !   *** Integrated absolute spin density and spin contamination ***
        IF (dft_control%nspins.eq.2) THEN

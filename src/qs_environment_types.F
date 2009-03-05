@@ -144,6 +144,8 @@ MODULE qs_environment_types
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              wfi_release,&
                                              wfi_retain
+  USE rt_propagation_types,            ONLY: rt_prop_release,&
+                                             rt_prop_type
   USE rel_control_types,               ONLY: rel_c_release,&
                                              rel_c_retain,&
                                              rel_control_type
@@ -282,6 +284,7 @@ MODULE qs_environment_types
 !>                    and force type and the rho structure to pass the density of
 !>                    the harris energy functional to the force calculation
 !> \param ep_qs_env environment to perform an ep calculation
+!> \param rtp all data needed for real time propagation
 !> \param x contains data used in Hartree-Fock-Exchange calculations
 !> \param task_list the list of tasks used in collocate and integrate
 !> \param task_list_soft the list of tasks used in collocate and integrate in case of soft basis functions
@@ -297,6 +300,7 @@ MODULE qs_environment_types
     LOGICAL :: qmmm, qmmm_periodic
     LOGICAL :: requires_mo_derivs
     LOGICAL :: use_harris
+    LOGICAL :: run_rtp
     TYPE(cell_type), POINTER                              :: cell, super_cell
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(dft_control_type), POINTER                       :: dft_control
@@ -372,6 +376,7 @@ MODULE qs_environment_types
     TYPE(semi_empirical_si_type),POINTER                  :: se_store_int_env
     TYPE(nddo_mpole_type), POINTER                        :: se_nddo_mpole
     TYPE(fist_nonbond_env_type), POINTER                  :: se_nonbond_env
+    TYPE(rt_prop_type),POINTER                            :: rtp
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -396,7 +401,7 @@ CONTAINS
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
        sab_all,qmmm,qmmm_periodic,sac_ae,sac_ppl,sap_ppnl,sab_vdw,sab_scp,sap_oce,&
-       sab_2c,sac_3c,sbc_3c,particle_set,energy,force,harris_env,matrix_h,matrix_ks,& 
+       sab_2c,sac_3c,sbc_3c,particle_set,energy,force,harris_env,matrix_h,matrix_ks,run_rtp,rtp,& 
        matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,matrix_dv,& 
        gamma_matrix, rho, rho_aux_fit,rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
        mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,rel_control,kinetic,qs_charges,&
@@ -430,6 +435,8 @@ CONTAINS
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
+    LOGICAL, OPTIONAL                        :: run_rtp
+    TYPE(rt_prop_type),POINTER,OPTIONAL      :: rtp
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, &
       matrix_ks, matrix_ks_aux_fit, matrix_s, matrix_s_aux_fit, &
@@ -620,6 +627,8 @@ CONTAINS
     IF (PRESENT(se_nonbond_env)) se_nonbond_env => qs_env%se_nonbond_env
     IF (PRESENT(wfn_fitting_env)) wfn_fitting_env => qs_env%wfn_fitting_env
     IF (PRESENT(dispersion_env)) dispersion_env => qs_env%dispersion_env
+    IF (PRESENT(run_rtp)) run_rtp=qs_env%run_rtp
+    IF (PRESENT(rtp)) rtp=>qs_env%rtp
 
     IF (PRESENT(rho_atom_set)) &
        CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
@@ -657,6 +666,7 @@ CONTAINS
                       molecule_kinds_new=molecule_kinds_new,&
                       molecules_new=molecules_new,&
                       error=error)
+
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
@@ -768,9 +778,10 @@ CONTAINS
     NULLIFY (qs_env%se_nonbond_env)
     NULLIFY (qs_env%wfn_fitting_env)
     NULLIFY (qs_env%dispersion_env)
+    NULLIFY (qs_env%rtp)
     qs_env%outer_scf_ihistory=0
     qs_env%neighbor_list_id=-1
-
+    
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
     CALL hartree_local_create(qs_env%hartree_local, error=error)
     CALL cp_subsys_create(qs_env%subsys, para_env=para_env, error=error)
@@ -780,6 +791,7 @@ CONTAINS
     qs_env%ref_count=1
     last_qs_env_id_nr=last_qs_env_id_nr+1
     qs_env%id_nr=last_qs_env_id_nr
+    qs_env%run_rtp=.FALSE.
     qs_env%use_ref_cell=.FALSE.
     qs_env%qmmm=.FALSE.
     qs_env%qmmm_periodic=.FALSE.
@@ -806,7 +818,7 @@ CONTAINS
        matrix_dv,gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,& 
        rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,rho_core,ks_env,& 
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
-       distribution_2d,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
+       distribution_2d,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,requires_mo_derivs,mo_derivs,mo_derivs_aux_fit,&
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
@@ -850,6 +862,8 @@ CONTAINS
     TYPE(qs_ks_env_type), OPTIONAL, POINTER  :: ks_env
     TYPE(qs_ks_qmmm_env_type), OPTIONAL, &
       POINTER                                :: ks_qmmm_env
+    TYPE(rt_prop_type),POINTER,OPTIONAL      :: rtp
+    LOGICAL,OPTIONAL                         :: run_rtp
     TYPE(qs_wf_history_type), OPTIONAL, &
       POINTER                                :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
@@ -984,6 +998,8 @@ CONTAINS
     IF (PRESENT(task_list)) qs_env%task_list=>task_list
     IF (PRESENT(task_list_aux_fit)) qs_env%task_list_aux_fit=>task_list_aux_fit
     IF (PRESENT(task_list_soft)) qs_env%task_list_soft=>task_list_soft
+    IF (PRESENT(run_rtp)) qs_env%run_rtp=run_rtp
+    IF (PRESENT(rtp)) qs_env%rtp=rtp
     IF (PRESENT(rho)) THEN ! accepts also null pointers !
       IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
       CALL qs_rho_release(qs_env%rho,error=error)
@@ -1400,6 +1416,10 @@ CONTAINS
              DEALLOCATE(qs_env%sbc_3c,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
+          IF (ASSOCIATED(qs_env%rtp))THEN
+             CALL rt_prop_release(qs_env%rtp,error)
+             DEALLOCATE (qs_env%rtp)
+          END IF
           IF (ASSOCIATED(qs_env%outer_scf_history)) THEN
              DEALLOCATE(qs_env%outer_scf_history,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -1533,7 +1553,6 @@ CONTAINS
           ! no we are ready to deallocate the full structure
           DEALLOCATE(qs_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-
        END IF
     END IF
     NULLIFY(qs_env)

@@ -273,7 +273,8 @@ CONTAINS
 !> \author MI (February 2008)
 ! *****************************************************************************
   SUBROUTINE update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
-       core_particle_set, para_env, shell_adiabatic, pos, vel, error )
+       core_particle_set, para_env, shell_adiabatic, pos, vel,&
+       should_deall_vel,error )
 
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(particle_type), DIMENSION(:), &
@@ -282,22 +283,24 @@ CONTAINS
                                                 core_particle_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
-    LOGICAL, INTENT(IN), OPTIONAL            :: pos, vel
+    LOGICAL, INTENT(IN), OPTIONAL            :: pos, vel,should_deall_vel
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_dealloc_tmp', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: failure, my_pos, my_vel
+    LOGICAL                                  :: failure, my_pos, my_vel,my_deall
 
     failure = .FALSE.
 
     CPPostcondition(ASSOCIATED(tmp),cp_failure_level,routineP,error,failure)
     my_pos =.FALSE.
     my_vel =.FALSE.
+    my_deall=.TRUE.
     IF(PRESENT(pos)) my_pos=pos
     IF(PRESENT(vel)) my_vel=vel
+    IF(PRESENT(should_deall_vel))my_deall=should_deall_vel
 
     !      *** Broadcast the new particle positions ***
     IF(my_pos) THEN
@@ -322,20 +325,21 @@ CONTAINS
           CALL update_particle_set ( shell_particle_set, para_env%group, vel=tmp%shell_vel, error=error )
           CALL update_particle_set ( core_particle_set, para_env%group, vel=tmp%core_vel, error=error )
        END IF
-
-       DEALLOCATE (tmp%vel,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (shell_adiabatic) THEN
-          DEALLOCATE (tmp%shell_vel,STAT=stat)
+       IF(my_deall)THEN
+          DEALLOCATE (tmp%vel,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE (tmp%core_vel,STAT=stat)
+          IF (shell_adiabatic) THEN
+             DEALLOCATE (tmp%shell_vel,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE (tmp%core_vel,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          CPPostcondition(.NOT.ASSOCIATED(tmp%pos),cp_failure_level,routineP,error,failure)
+          CPPostcondition(.NOT.ASSOCIATED(tmp%shell_pos),cp_failure_level,routineP,error,failure)
+          CPPostcondition(.NOT.ASSOCIATED(tmp%core_pos),cp_failure_level,routineP,error,failure)
+          DEALLOCATE (tmp,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       CPPostcondition(.NOT.ASSOCIATED(tmp%pos),cp_failure_level,routineP,error,failure)
-       CPPostcondition(.NOT.ASSOCIATED(tmp%shell_pos),cp_failure_level,routineP,error,failure)
-       CPPostcondition(.NOT.ASSOCIATED(tmp%core_pos),cp_failure_level,routineP,error,failure)
-       DEALLOCATE (tmp,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
   END SUBROUTINE  update_dealloc_tmp

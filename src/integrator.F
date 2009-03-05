@@ -322,10 +322,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nparticle, nparticle_kind, &
-                                                nshell
+                                                nshell,n_iter,i_iter,i
     LOGICAL                                  :: failure, shell_adiabatic, &
                                                 shell_check_distance, &
-                                                shell_present
+                                                shell_present,&
+                                                deallocate_vel,&
+                                                ehrenfest_md
     REAL(KIND=dp)                            :: dt
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -355,6 +357,7 @@ CONTAINS
                                                 thermostat_shell
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
+    REAL,DIMENSION(:,:),ALLOCATABLE          :: v_old
 
     failure = .FALSE. 
 
@@ -365,7 +368,7 @@ CONTAINS
             core_particle_set, thermostat_shell)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
          thermostat_coeff=thermostat_coeff,thermostat_shell=thermostat_shell,&
-         para_env=para_env, error=error)
+         para_env=para_env, ehrenfest_md=ehrenfest_md, error=error)
     dt = simpar%dt
     CALL force_env_get(force_env=force_env, subsys=subsys,&
          dyn_coeff_set=dyn_coeff_set, virial=virial, cell=cell, error=error)
@@ -401,6 +404,7 @@ CONTAINS
     END IF
 
     CALL allocate_tmp(md_env, tmp, nparticle,nshell,shell_adiabatic,error=error)
+    IF(ehrenfest_md) ALLOCATE(v_old(3,SIZE(tmp%vel,2)))
 
     ! Apply thermostat over the full set of shells if required
     IF(shell_adiabatic) THEN
@@ -444,43 +448,74 @@ CONTAINS
     CALL dynamical_coeff_verlet1(dyn_coeff_set, thermostat_coeff, para_env, dt, error)
     
     ! Update forces
-    CALL force_env_calc_energy_force(force_env,error=error)
-
-    ! Metadynamics
-    CALL metadyn_integrator(force_env, tmp%vel, error=error)
-
-    ! Velocity Verlet (second part)
-    CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
-         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, error=error )
-
-    IF (simpar%constraint) CALL rattle_control(gci,local_molecules, molecule_set, &
-         molecule_kind_set, particle_set, tmp%vel, dt,simpar%shake_tol,&
-         simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
-         cell,para_env%group,local_particles, error )
-
-    ! Apply thermostat over the full set of shell if required
-    IF (shell_adiabatic) THEN
-       CALL apply_thermostat_shells(thermostat_shell,atomic_kind_set, particle_set,&
-            local_particles, para_env%group, vel=tmp%vel, &
-            shell_vel=tmp%shell_vel, core_vel=tmp%core_vel,&
-            error=error)
+    ! In case of ehrenfest dynamics, velocities need to be iterated
+    IF(ehrenfest_md)THEN
+       v_old=tmp%vel
+       CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
+            core_particle_set, para_env, shell_adiabatic, vel=.TRUE.,&
+            should_deall_vel=.FALSE.,error=error )
+       tmp%vel=v_old
+       n_iter=force_env%qs_env%dft_control%rtp_control%max_iter
+    ELSE
+       n_iter=1
     END IF
+    DO i_iter=1,n_iter
 
-    IF (simpar%annealing) THEN
-       tmp%vel(:,:)=tmp%vel(:,:)*simpar%f_annealing
-       IF (shell_adiabatic) THEN
-          CALL shell_scale_comv(atomic_kind_set,local_particles,particle_set,&
-               tmp%vel,tmp%shell_vel,tmp%core_vel)
+       deallocate_vel=.TRUE.
+       IF(ehrenfest_md)THEN
+          force_env%qs_env%rtp%iter=i_iter
+          tmp%vel=v_old
+          force_env%qs_env%rtp%converged=.FALSE.
+          deallocate_vel=.FALSE.
        END IF
-    END IF
-
-    ! Broadcast the new particle velocities and deallocate the full temporary
-    CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
-         core_particle_set, para_env, shell_adiabatic, vel=.TRUE.,  error=error )
-
+       
+       CALL force_env_calc_energy_force(force_env,error=error)
+       
+       ! Metadynamics
+       CALL metadyn_integrator(force_env, tmp%vel, error=error)
+       
+       ! Velocity Verlet (second part)
+       CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
+            core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, error=error )
+       
+       IF (simpar%constraint) CALL rattle_control(gci,local_molecules, molecule_set, &
+            molecule_kind_set, particle_set, tmp%vel, dt,simpar%shake_tol,&
+            simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
+            cell,para_env%group,local_particles, error )
+       
+       ! Apply thermostat over the full set of shell if required
+       IF (shell_adiabatic) THEN
+          CALL apply_thermostat_shells(thermostat_shell,atomic_kind_set, particle_set,&
+               local_particles, para_env%group, vel=tmp%vel, &
+               shell_vel=tmp%shell_vel, core_vel=tmp%core_vel,&
+               error=error)
+       END IF
+       
+       IF (simpar%annealing) THEN
+          tmp%vel(:,:)=tmp%vel(:,:)*simpar%f_annealing
+          IF (shell_adiabatic) THEN
+             CALL shell_scale_comv(atomic_kind_set,local_particles,particle_set,&
+                  tmp%vel,tmp%shell_vel,tmp%core_vel)
+          END IF
+       END IF
+       
+       IF(ehrenfest_md)deallocate_vel=force_env%qs_env%rtp%converged
+       IF(i_iter.EQ.n_iter) deallocate_vel=.TRUE.
+       ! Broadcast the new particle velocities and deallocate the full temporary
+       CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
+            core_particle_set, para_env, shell_adiabatic, vel=.TRUE.,&
+            should_deall_vel=deallocate_vel,error=error )
+       IF(ehrenfest_md)THEN
+          IF(force_env%qs_env%rtp%converged)EXIT
+          !  will be handled better in the next step of the implementation
+          IF(i_iter==n_iter)STOP "convergence not reached"
+       END IF
+       
+    END DO
+    
     ! Coefficients
     CALL dynamical_coeff_verlet2(dyn_coeff_set, thermostat_coeff, para_env, dt, error)
-
+    
     ! Update virial
     IF ( simpar%constraint ) CALL pv_constraint ( gci, local_molecules, &
          molecule_set,molecule_kind_set,particle_set, virial,para_env%group )

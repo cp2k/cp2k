@@ -22,6 +22,7 @@ MODULE cp2k_runs
                                              cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+
   USE cp_parser_methods,               ONLY: parser_search_string
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
@@ -68,7 +69,7 @@ MODULE cp2k_runs
        do_farming, do_fist, do_kg, do_mixed, do_qmmm, do_qs, do_test, &
        electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, &
        linear_response_run, mol_dyn_run, mon_car_run, none_run, pint_run, &
-       vib_anal
+       vib_anal,real_time_propagation,ehrenfest
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
                                              create_cp2k_root_section,&
                                              create_global_section
@@ -82,7 +83,7 @@ MODULE cp2k_runs
        section_vals_type, section_vals_val_get, section_vals_write, &
        write_section_xml
   USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
+                                             default_string_length,& 
                                              dp
   USE library_tests,                   ONLY: lib_test
   USE machine,                         ONLY: m_chdir,&
@@ -100,6 +101,7 @@ MODULE cp2k_runs
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE reference_manager,               ONLY: print_all_references,&
                                              print_format_html
+  USE rt_propagation,          ONLY: rt_prop_setup
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE vibrational_analysis,            ONLY: vb_anal
@@ -293,7 +295,6 @@ CONTAINS
              CPAssert(.FALSE.,cp_failure_level,routineP,suberror,failure)
           END SELECT
           CALL section_vals_release(input_file,error=suberror)
-
           SELECT CASE (globenv%run_type_id)
           CASE (pint_run)
              CALL do_pint_run(para_env,root_section,error=suberror)
@@ -342,6 +343,22 @@ CONTAINS
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                   error=suberror)
              CALL tddfpt_calculation(force_env%qs_env, error=error)
+          CASE (real_time_propagation)
+             IF(method_name_id /= do_qs) &
+                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                  "Real time propagation needs METHOD QS. "//&
+                  CPSourceFileRef,&
+                  suberror,failure)
+             force_env%qs_env%dft_control%rtp_control%fixed_ions=.TRUE.
+             CALL rt_prop_setup(force_env,error)
+          CASE (ehrenfest)
+             IF(method_name_id /= do_qs) &
+                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                  "Ehrenfest dynamics needs METHOD QS "//&
+                  CPSourceFileRef,&
+                  suberror,failure)
+             force_env%qs_env%dft_control%rtp_control%fixed_ions=.FALSE.
+             CALL qs_mol_dyn ( force_env, globenv, error=suberror )
           CASE (bsse_run)
              CALL do_bsse_calculation(force_env, globenv, error=suberror)
           CASE (linear_response_run)
@@ -349,7 +366,7 @@ CONTAINS
                 method_name_id /= do_qmmm) &
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Property calculations by Linear Response only within the QS or QMMM program "//&
-CPSourceFileRef,&
+                     CPSourceFileRef,&
                      suberror,failure)
              ! The Ground State is needed, it can be read from Restart
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
@@ -362,7 +379,7 @@ CPSourceFileRef,&
              CASE DEFAULT
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Debug run available only with QS, FIST, and QMMM program "//&
-CPSourceFileRef,&
+                     CPSourceFileRef,&
                      suberror,failure)
              END SELECT
           CASE (vib_anal)
