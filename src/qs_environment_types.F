@@ -144,11 +144,11 @@ MODULE qs_environment_types
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              wfi_release,&
                                              wfi_retain
-  USE rt_propagation_types,            ONLY: rt_prop_release,&
-                                             rt_prop_type
   USE rel_control_types,               ONLY: rel_c_release,&
                                              rel_c_retain,&
                                              rel_control_type
+  USE rt_propagation_types,            ONLY: rt_prop_release,&
+                                             rt_prop_type
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
@@ -435,12 +435,14 @@ CONTAINS
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
-    LOGICAL, OPTIONAL                        :: run_rtp
-    TYPE(rt_prop_type),POINTER,OPTIONAL      :: rtp
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
-    TYPE(real_matrix_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, &
-      matrix_ks, matrix_ks_aux_fit, matrix_s, matrix_s_aux_fit, &
-      matrix_s_aux_fit_vs_orb, matrix_w, matrix_dv, gamma_matrix
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_h, matrix_ks
+    LOGICAL, OPTIONAL                        :: run_rtp
+    TYPE(rt_prop_type), OPTIONAL, POINTER    :: rtp
+    TYPE(real_matrix_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
+      matrix_ks_aux_fit, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
+      matrix_w, matrix_dv, gamma_matrix
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_aux_fit, rho_buffer, &
                                                 rho_xc
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
@@ -862,8 +864,6 @@ CONTAINS
     TYPE(qs_ks_env_type), OPTIONAL, POINTER  :: ks_env
     TYPE(qs_ks_qmmm_env_type), OPTIONAL, &
       POINTER                                :: ks_qmmm_env
-    TYPE(rt_prop_type),POINTER,OPTIONAL      :: rtp
-    LOGICAL,OPTIONAL                         :: run_rtp
     TYPE(qs_wf_history_type), OPTIONAL, &
       POINTER                                :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
@@ -881,6 +881,8 @@ CONTAINS
     TYPE(rho0_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho0_atom_set
     TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole
+    LOGICAL, OPTIONAL                        :: run_rtp
+    TYPE(rt_prop_type), OPTIONAL, POINTER    :: rtp
     TYPE(rhoz_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rhoz_set
     REAL(dp), OPTIONAL                       :: rhoz_tot

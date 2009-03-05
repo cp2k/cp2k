@@ -1538,7 +1538,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
   SUBROUTINE write_available_results(qs_env,scf_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_scf_env_type), POINTER,OPTIONAL  :: scf_env 
+    TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &

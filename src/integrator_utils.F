@@ -283,14 +283,15 @@ CONTAINS
                                                 core_particle_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: shell_adiabatic
-    LOGICAL, INTENT(IN), OPTIONAL            :: pos, vel,should_deall_vel
+    LOGICAL, INTENT(IN), OPTIONAL            :: pos, vel, should_deall_vel
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_dealloc_tmp', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: failure, my_pos, my_vel,my_deall
+    LOGICAL                                  :: failure, my_deall, my_pos, &
+                                                my_vel
 
     failure = .FALSE.
 

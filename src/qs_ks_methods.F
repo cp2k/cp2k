@@ -157,7 +157,6 @@ MODULE qs_ks_methods
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
   USE xc_adiabatic_methods,            ONLY: rescale_MCY3_pade
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

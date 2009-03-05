@@ -321,14 +321,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nve', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nparticle, nparticle_kind, &
-                                                nshell,n_iter,i_iter,i
-    LOGICAL                                  :: failure, shell_adiabatic, &
-                                                shell_check_distance, &
-                                                shell_present,&
-                                                deallocate_vel,&
-                                                ehrenfest_md
+    INTEGER                                  :: i_iter, n_iter, nparticle, &
+                                                nparticle_kind, nshell
+    LOGICAL :: deallocate_vel, ehrenfest_md, failure, shell_adiabatic, &
+      shell_check_distance, shell_present
     REAL(KIND=dp)                            :: dt
+    REAL, ALLOCATABLE, DIMENSION(:, :)       :: v_old
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -357,7 +355,6 @@ CONTAINS
                                                 thermostat_shell
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
-    REAL,DIMENSION(:,:),ALLOCATABLE          :: v_old
 
     failure = .FALSE. 
 

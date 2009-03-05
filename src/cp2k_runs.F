@@ -22,7 +22,6 @@ MODULE cp2k_runs
                                              cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-
   USE cp_parser_methods,               ONLY: parser_search_string
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
@@ -67,9 +66,9 @@ MODULE cp2k_runs
   USE input_constants,                 ONLY: &
        bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_ep, &
        do_farming, do_fist, do_kg, do_mixed, do_qmmm, do_qs, do_test, &
-       electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, &
-       linear_response_run, mol_dyn_run, mon_car_run, none_run, pint_run, &
-       vib_anal,real_time_propagation,ehrenfest
+       ehrenfest, electronic_spectra_run, energy_force_run, energy_run, &
+       geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, none_run, &
+       pint_run, real_time_propagation, vib_anal
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
                                              create_cp2k_root_section,&
                                              create_global_section
@@ -83,7 +82,7 @@ MODULE cp2k_runs
        section_vals_type, section_vals_val_get, section_vals_write, &
        write_section_xml
   USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,& 
+                                             default_string_length,&
                                              dp
   USE library_tests,                   ONLY: lib_test
   USE machine,                         ONLY: m_chdir,&
@@ -101,7 +100,7 @@ MODULE cp2k_runs
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE reference_manager,               ONLY: print_all_references,&
                                              print_format_html
-  USE rt_propagation,          ONLY: rt_prop_setup
+  USE rt_propagation,                  ONLY: rt_prop_setup
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE vibrational_analysis,            ONLY: vb_anal

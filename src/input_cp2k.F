@@ -415,7 +415,7 @@ CONTAINS
          "Alias for ENERGY","Alias for ENERGY","Alias for MD","Alias for GEO_OPT",&
          "Alias for MC","Alias for SPECTRA","Alias for LR","Alias for VIBRATIONAL_ANALYSIS",&
          "Real Time propagation run (fixed ionic positions)",&
-	 "Ehrenfest dynamics (using real time propagation of the wavefunction)"),&
+         "Ehrenfest dynamics (using real time propagation of the wavefunction)"),&
          supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)

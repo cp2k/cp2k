@@ -256,7 +256,7 @@ CONTAINS
       POINTER                                :: para_env
     TYPE(reftraj_type), OPTIONAL, POINTER    :: reftraj
     REAL(KIND=dp), OPTIONAL, POINTER         :: t
-    LOGICAL, OPTIONAL                        :: init, first_time, ehrenfest_md
+    LOGICAL, OPTIONAL                        :: init, first_time
     TYPE(free_energy_type), OPTIONAL, &
       POINTER                                :: fe_env
     TYPE(thermostats_type), OPTIONAL, &
@@ -271,6 +271,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: averages
     TYPE(thermal_regions_type), OPTIONAL, &
       POINTER                                :: thermal_regions
+    LOGICAL, OPTIONAL                        :: ehrenfest_md
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_md_env', &
@@ -344,7 +345,7 @@ CONTAINS
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    LOGICAL, OPTIONAL                        :: init, first_time,ehrenfest_md
+    LOGICAL, OPTIONAL                        :: init, first_time
     TYPE(thermostats_type), OPTIONAL, &
       POINTER                                :: thermostats
     TYPE(barostat_type), OPTIONAL, POINTER   :: barostat
@@ -354,6 +355,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: averages
     TYPE(thermal_regions_type), OPTIONAL, &
       POINTER                                :: thermal_regions
+    LOGICAL, OPTIONAL                        :: ehrenfest_md
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_md_env', &

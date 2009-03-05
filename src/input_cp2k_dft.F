@@ -6816,7 +6816,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_scp_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_rtp_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure

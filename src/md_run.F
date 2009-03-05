@@ -37,15 +37,10 @@ MODULE md_run
   USE free_energy_types,               ONLY: fe_env_create,&
                                              free_energy_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: langevin_ensemble,&
-                                             npe_f_ensemble,&
-                                             npe_i_ensemble,&
-                                             nph_uniaxial_damped_ensemble,&
-                                             nph_uniaxial_ensemble,&
-                                             npt_f_ensemble,&
-                                             npt_i_ensemble,&
-                                             reftraj_ensemble,&
-                                             ehrenfest
+  USE input_constants,                 ONLY: &
+       ehrenfest, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
+       npt_i_ensemble, reftraj_ensemble
   USE input_cp2k_check,                ONLY: remove_restart_info
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
@@ -78,8 +73,8 @@ MODULE md_run
                                              release_reftraj
   USE reftraj_util,                    ONLY: initialize_reftraj,&
                                              write_output_reftraj
-  USE rt_propagation,                  ONLY: rt_prop_setup,&
-                                             init_ehrenfest_md
+  USE rt_propagation,                  ONLY: init_ehrenfest_md,&
+                                             rt_prop_setup
   USE simpar_methods,                  ONLY: read_md_section
   USE simpar_types,                    ONLY: create_simpar_type,&
                                              release_simpar_type,&
@@ -170,10 +165,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, istep, md_stride, run_type_id
+    INTEGER                                  :: handle, i, istep, md_stride, &
+                                                run_type_id
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: check, failure, save_mem, &
-                                                should_stop,ehrenfest_md
+    LOGICAL                                  :: check, ehrenfest_md, failure, &
+                                                save_mem, should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
     REAL(KIND=dp), POINTER                   :: constant, time, used_time

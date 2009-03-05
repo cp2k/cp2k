@@ -13,9 +13,7 @@ MODULE qs_force
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                             cp_fm_type,&
-                                             cp_fm_create,&
-                                             cp_fm_release
+                                             cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -60,8 +58,7 @@ MODULE qs_force
                                              mo_set_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
-  USE rt_propagation_utils,            ONLY: calculate_dp_imag,&
-                                             calc_c_mat_force
+  USE rt_propagation_utils,            ONLY: calc_c_mat_force
   USE scf_control_types,               ONLY: scf_control_type
   USE scp_dispersion,                  ONLY: scp_qs_dispersion
   USE scp_energy_types,                ONLY: scp_energy_type
@@ -81,10 +78,6 @@ MODULE qs_force
   USE virial_types,                    ONLY: virial_type
   USE wfn_fitting_methods,             ONLY: calc_mixed_overlap_force
   USE wfn_fitting_types,               ONLY: wfn_fitting_type
-  USE sparse_matrix_output,            ONLY: write_sparse_matrix
-  USE qs_mo_types,                     ONLY: mo_set_p_type,&
-                                             mo_set_type
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -114,40 +107,40 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_forces', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dir, handle, i, iatom, ikind, &
-         ispin, istat, iw, natom, &
-         nkind, nspin, output_unit
+                                                ispin, istat, iw, natom, &
+                                                nkind, nspin, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
-         natom_of_kind
+                                                natom_of_kind
     LOGICAL                                  :: failure, gapw, harris_flag, &
-         obasis
+                                                obasis
     TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                                :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         POINTER                                :: mo_derivs
-    TYPE(cp_fm_type), POINTER                :: mo_coeff,dp_imag
+      POINTER                                :: mo_derivs
+    TYPE(cp_fm_type), POINTER                :: dp_imag, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                                :: mos
+      POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
+      POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
-         POINTER                                :: force
+      POINTER                                :: force
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         POINTER                                :: matrix_ks, matrix_s, &
-         matrix_s_aux_fit, &
-         matrix_s_aux_fit_vs_orb, &
-         matrix_w
+      POINTER                                :: matrix_ks, matrix_s, &
+                                                matrix_s_aux_fit, &
+                                                matrix_s_aux_fit_vs_orb, &
+                                                matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_energy_type), POINTER           :: scp_energy_loc
     TYPE(scp_environment_type), POINTER      :: scp_env

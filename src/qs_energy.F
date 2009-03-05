@@ -13,14 +13,16 @@ MODULE qs_energy
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_control_utils,                ONLY: read_becke_section,&
                                              read_ddapc_section
+  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                             cp_fm_to_fm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE et_coupling,                     ONLY: calc_et_coupling
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_diag,&
+                                             ehrenfest,&
                                              use_aux_fit_basis_set,&
-                                             use_orb_basis_set,&
-                                             ehrenfest
+                                             use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -46,27 +48,18 @@ MODULE qs_energy
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_scf,                          ONLY: scf
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
-  USE rt_propagation_types,            ONLY: rt_prop_type,&
-                                             get_rtp
+  USE rt_propagation_methods,          ONLY: calc_update_rho,&
+                                             propagation_step,&
+                                             s_matrices_create,&
+                                             update_core_and_matrices
+  USE rt_propagation_output,           ONLY: rt_prop_output
+  USE rt_propagation_types,            ONLY: get_rtp,&
+                                             rt_prop_type
   USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_methods,                     ONLY: xas
-  USE rt_propagation_output,           ONLY: rt_prop_output
-  USE rt_propagation_methods,          ONLY: propagation_step,&
-                                             propagate_orb,&
-                                             calc_exp_iHt,&
-                                             s_matrices_create,&
-                                             update_core_and_matrices,&
-                                             calc_update_rho
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
-                                             cp_fm_p_type,&
-                                             cp_fm_to_fm
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -296,16 +289,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_rtp', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: diagonalize
-    REAL(Kind=dp)                            :: eps_ener,delta_iter
+    REAL(Kind=dp)                            :: delta_iter, eps_ener
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: exp_H_new, exp_H_old, &
+                                                mos_new, mos_old
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: s_mat
     TYPE(rt_prop_type), POINTER              :: rtp
-    INTEGER                                  :: i,handle
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: exp_H_old,exp_H_new,mos_old,mos_new
 
     CALL timeset(routineN,handle)
 
