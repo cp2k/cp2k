@@ -193,6 +193,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword=keyword,name="COLVAR_AVG_TEMPERATURE_RESTART",&
+             description="COLVAR average temperature. Only for restarting purposes.",&
+             usage="COLVAR_AVG_TEMPERATURE_RESTART 0.0",default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL create_metavar_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -206,9 +212,19 @@ CONTAINS
             n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
             error=error)
        NULLIFY(print_key)
+
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic and summary information during"//&
             " metadynamics.", &
+            print_level=low_print_level,each_iter_names=s2a("MD","METADYNAMICS"),&
+            each_iter_values=(/1,1/),add_last=add_last_numeric,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"temperature_colvar",&
+            description="Controls the printing of the temperature of COLVARS in an "//&
+            "extended lagrangian scheme.", &
             print_level=low_print_level,each_iter_names=s2a("MD","METADYNAMICS"),&
             each_iter_values=(/1,1/),add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)

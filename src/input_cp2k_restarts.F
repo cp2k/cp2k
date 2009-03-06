@@ -899,6 +899,8 @@ CONTAINS
           CALL meta_hills_val_set_ww(work_section, meta_env, error=error)
        END IF
        IF (meta_env%extended_lagrange) THEN
+          CALL section_vals_val_set(meta_env%metadyn_section,"COLVAR_AVG_TEMPERATURE_RESTART",&
+               r_val=meta_env%avg_temp,error=error)
           work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_SS0",error=error)
           DO irep = 1, meta_env%n_colvar
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_val=meta_env%metavar(irep)%ss0,&

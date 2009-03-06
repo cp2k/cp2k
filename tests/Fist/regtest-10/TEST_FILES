@@ -14,3 +14,5 @@ nh3-meta-4.inp              2
 #new colvar
 c60_pl_pl_angl1_restr.inp   2
 c60_pl_pl_angl2_restr.inp   2
+#METADYN LANGEVIN ON COLVARS
+c60_meta_lagr.inp           2

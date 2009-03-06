@@ -13,7 +13,7 @@
         TIMECON 20.
       &END
     &END
-    STEPS 1000
+    STEPS 100
     TIMESTEP 1.0
     TEMPERATURE 300.0
     &PRINT
@@ -47,7 +47,7 @@
     &METADYN
       DO_HILLS
       LANGEVIN
-      
+      TEMPERATURE 10000.
       LAGRANGE
       NT_HILLS 10
       WW 1.0e-2

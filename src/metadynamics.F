@@ -210,7 +210,7 @@ CONTAINS
     CALL meta_walls(meta_env, error)
 
     meta_env%restart = .FALSE.
-    IF((.NOT.meta_env%extended_lagrange).OR.meta_env%langevin)THEN
+    IF(.NOT.meta_env%extended_lagrange)THEN
        meta_env%ekin_s    = 0.0_dp
        meta_env%cv_energy = 0.0_dp
        DO i_c = 1, meta_env%n_colvar
@@ -247,14 +247,16 @@ CONTAINS
              i=colvar_p(icolvar)%colvar%i_atom(ii)
              particles%els(i)%f=particles%els(i)%f- cv%ff_s*colvar_p(icolvar)%colvar%dsdr(:,ii)
           ENDDO
-          !  velocity verlet on the s0
-          fft    = cv%ff_s+cv%ff_hills
-          cv%vvp = cv%vvp+dt*fft/cv%mass
-          meta_env%ekin_s    = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
-          meta_env%cv_energy = meta_env%cv_energy + cv%cv_energy
+          !  velocity verlet on the s0 if NOT langevin
+          IF (.NOT.meta_env%langevin) THEN
+             fft    = cv%ff_s+cv%ff_hills
+             cv%vvp = cv%vvp+dt*fft/cv%mass
+             meta_env%ekin_s    = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
+             meta_env%cv_energy = meta_env%cv_energy + cv%cv_energy
+          END IF
        ENDDO
        !  velocity rescaling on the s0
-       IF(meta_env%tempcontrol)THEN
+       IF(meta_env%tempcontrol.AND.(.NOT.meta_env%langevin))THEN
           ekin_w   = 0.5_dp*meta_env%temp_wanted*REAL(meta_env%n_colvar,KIND=dp)
           tol_ekin = 0.5_dp*meta_env%toll_temp*REAL(meta_env%n_colvar,KIND=dp)
           IF(ABS(ekin_w-meta_env%ekin_s)> tol_ekin)THEN
@@ -288,15 +290,17 @@ CONTAINS
              END DO
           ENDIF
        ENDDO
-       ! Update of ss0
-       DO i_c = 1, meta_env%n_colvar
-          cv => meta_env%metavar(i_c)
-          cv%ss0 = cv%ss0 + dt*cv%vvp
-          IF (cv%periodic) THEN
-             ! A periodic COLVAR is always within [-pi,pi]
-             cv%ss0 = SIGN(1.0_dp,ASIN(SIN(cv%ss0)))*ACOS(COS(cv%ss0))
-          END IF
-       ENDDO
+       ! Update of ss0 if NOT langevin
+       IF (.NOT.meta_env%langevin) THEN
+          DO i_c = 1, meta_env%n_colvar
+             cv => meta_env%metavar(i_c)
+             cv%ss0 = cv%ss0 + dt*cv%vvp
+             IF (cv%periodic) THEN
+                ! A periodic COLVAR is always within [-pi,pi]
+                cv%ss0 = SIGN(1.0_dp,ASIN(SIN(cv%ss0)))*ACOS(COS(cv%ss0))
+             END IF
+          ENDDO
+       END IF
     ENDIF
     ! Constraints ONLY of Fixed Atom type
     CALL fix_atom_control(force_env, error=error)
@@ -377,7 +381,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_velocities_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i_c, iw
+    INTEGER                                  :: handle, i_c
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: diff_ss, dt, fft, sigma
     TYPE(cp_logger_type), POINTER            :: logger
@@ -416,18 +420,6 @@ CONTAINS
                 0.5_dp*SQRT(dt)*sigma*rand(i_c)
        meta_env%ekin_s = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
     ENDDO
-
-    iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
-         "PRINT%PROGRAM_RUN_INFO",extension=".metadynLog",error=error)
-    IF (iw > 0) THEN
-       WRITE (iw, '(T2,79("-"))')
-       WRITE (iw,'( A,T71,f10.2)' )     ' METAVAR TEMP ',&
-            meta_env%ekin_s*2.0_dp/(REAL(meta_env%n_colvar,KIND=dp))*kelvin
-       WRITE (iw, '(T2,79("-"))')
-    ENDIF
-    CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
-         "PRINT%PROGRAM_RUN_INFO", error=error)
-
     CALL timestop(handle)
 
   END SUBROUTINE metadyn_velocities_colvar
@@ -492,7 +484,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, i_c, iw
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: diff_ss
+    REAL(KIND=dp)                            :: diff_ss, temp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(metavar_type), POINTER              :: cv
@@ -552,6 +544,23 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
          "PRINT%COLVAR", error=error)
+    
+    ! Temperature for COLVAR
+    IF (meta_env%extended_lagrange) THEN
+       temp = meta_env%ekin_s*2.0_dp/(REAL(meta_env%n_colvar,KIND=dp))*kelvin
+       meta_env%avg_temp = (meta_env%avg_temp*REAL(meta_env%n_steps,KIND=dp)+&
+            temp)/REAL(meta_env%n_steps+1,KIND=dp)
+       iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
+            "PRINT%TEMPERATURE_COLVAR",extension=".metadynLog",error=error)
+       IF (iw > 0) THEN
+          WRITE (iw, '(T2,79("-"))')
+          WRITE (iw,'( A,T51,f10.2,T71,f10.2)' )' COLVARS INSTANTANEOUS/AVERAGE TEMPERATURE ',&
+               temp, meta_env%avg_temp
+          WRITE (iw, '(T2,79("-"))')
+       ENDIF
+       CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
+            "PRINT%TEMPERATURE_COLVAR", error=error)
+    END IF
     CALL timestop(handle)
 
   END SUBROUTINE metadyn_write_colvar

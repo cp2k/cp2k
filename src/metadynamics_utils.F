@@ -125,6 +125,8 @@ CONTAINS
        CALL section_vals_val_get(metadyn_section,"TEMP_TOL",explicit=meta_env%tempcontrol,&
             r_val=meta_env%toll_temp,error=error)
 
+       CALL section_vals_val_get(metadyn_section,"COLVAR_AVG_TEMPERATURE_RESTART",&
+            r_val=meta_env%avg_temp,error=error)
        ! Parsing Metavar Section
        DO i= 1, n_colvar
           CALL metavar_read(meta_env%metavar(i), meta_env%extended_lagrange, &
@@ -241,6 +243,8 @@ CPSourceFileRef,&
                WRITE( iw, '(A,T71,F10.4)') ' METADYN| Langevin Thermostat. Target Temperature = ',&
                     meta_env%temp_wanted*kelvin
           ENDIF
+          WRITE( iw, '(A,T71,F10.4)') ' METADYN| COLVARS restarted average temperature ',&
+               meta_env%avg_temp
        END IF
 
        IF (meta_env%do_hills) THEN 
