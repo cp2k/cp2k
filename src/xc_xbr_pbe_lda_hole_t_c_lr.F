@@ -725,7 +725,6 @@ CONTAINS
         e_0_pbe = 0.0_dp
         e_rho_pbe = 0.0_dp
         e_ndrho_pbe = 0.0_dp
-        sscale = 1.0_dp
         IF(ss*sscale>gcutoff) THEN
           CALL xpbe_hole_t_c_lr_lda_calc_1(e_0_pbe, e_rho_pbe, e_ndrho_pbe,&
                                            my_rho,&

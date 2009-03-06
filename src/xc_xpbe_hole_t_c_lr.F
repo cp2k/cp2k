@@ -503,7 +503,6 @@ MODULE xc_xpbe_hole_t_c_lr
           ss2 = ss*ss
           sscale = (smax*ss2-sconst)/(ss2*ss)
         END IF
-        sscale = 1.0_dp
         e_tmp = 0.0_dp
         IF(ss*sscale>gcutoff) THEN
           CALL xpbe_hole_t_c_lr_lda_calc_1(e_tmp, e_rho(ip), e_ndrho(ip),&
