@@ -24,12 +24,8 @@ MODULE qs_linres_current
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_scale_and_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             fm_pools_create_fm_vect,&
-                                             fm_pools_give_back_fm_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -95,8 +91,7 @@ MODULE qs_linres_current
   USE qs_linres_types,                 ONLY: current_env_type,&
                                              get_current_env,&
                                              realspaces_grid_p_type
-  USE qs_matrix_pools,                 ONLY: mpools_get,&
-                                             qs_matrix_pools_type
+  USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_modify_pab_block,             ONLY: FUNC_AB,&
@@ -177,14 +172,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: ext, filename
-    INTEGER :: handle, homo, iao, idir, iiB, iiiB, ispin, istat, istate, j, &
-      jstate, nao, natom, nmo, nspins, output_unit, unit_nr
-    LOGICAL                                  :: failure, gapw, ionode, uni_occ
-    REAL(dp)                                 :: alpha, dk(3), &
-                                                jrho_tot_G(3,3), &
+    INTEGER :: handle, iao, idir, iiB, iiiB, ispin, istat, istate, j, jstate, &
+      nao, natom, nmo, nspins, nstates(2), output_unit, unit_nr
+    LOGICAL                                  :: failure, gapw, ionode
+    REAL(dp)                                 :: dk(3), jrho_tot_G(3,3), &
                                                 jrho_tot_R(3,3), maxocc, &
                                                 rmu(3), rmu_dk(3), scale_fac
-    REAL(dp), DIMENSION(:), POINTER          :: occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_psi1
     REAL(dp), EXTERNAL                       :: DDOT
     TYPE(cell_type), POINTER                 :: cell
@@ -192,13 +185,10 @@ CONTAINS
       POINTER                                :: center_list
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: p_psi1, psi1
+      POINTER                                :: p_psi1, psi0_order, psi1
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: psi1_D, psi1_p, psi1_rxp
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: ao_mo_fm_pools
-    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, psi0_fk, psi_a_iB
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, psi_a_iB
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
@@ -226,8 +216,8 @@ CONTAINS
     NULLIFY(jrho_rspace,jrho_gspace,logger,current_section,density_matrix0,density_matrix_a,&
          &  density_matrix_ii,density_matrix_iii,cell,dft_control,mos,&
          &  particle_set,pw_env,auxbas_rs_pool,auxbas_pw_pool,&
-         &  para_env,center_list,mo_coeff,psi0_fk,psi_a_iB,&
-         &  psi1,p_psi1,psi1_p,psi1_D,psi1_rxp)
+         &  para_env,center_list,mo_coeff,psi_a_iB,&
+         &  psi1,p_psi1,psi1_p,psi1_D,psi1_rxp,psi0_order)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -239,6 +229,9 @@ CONTAINS
          &               psi1_rxp=psi1_rxp,&
          &               psi1_D=psi1_D,&
          &               psi1_p=psi1_p,&
+         &               psi0_order=psi0_order,&
+         &               nstates=nstates,&
+         &               nao=nao,&
          &               error=error)
     !
     !
@@ -256,12 +249,13 @@ CONTAINS
     nspins = dft_control%nspins
     natom = SIZE(particle_set,1)
     !
-    !
-    CALL mpools_get(mpools, ao_mo_fm_pools=ao_mo_fm_pools,error=error)
-    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, psi1, name=routineP//":psi1",error=error)
-    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, p_psi1, name=routineP//":p_psi1",error=error)
+    ! allocate temporary arrays
+    ALLOCATE(psi1(nspins),p_psi1(nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ispin = 1,nspins
-       CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_fm_create(  psi1(ispin)%matrix,psi0_order(ispin)%matrix%matrix_struct,error=error)
+       CALL cp_fm_create(p_psi1(ispin)%matrix,psi0_order(ispin)%matrix%matrix_struct,error=error) 
+       CALL cp_fm_set_all(  psi1(ispin)%matrix,0.0_dp,error=error)
        CALL cp_fm_set_all(p_psi1(ispin)%matrix,0.0_dp,error=error)
     ENDDO
     !
@@ -303,8 +297,7 @@ CONTAINS
     ENDDO
     !
     !
-    current_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES%CURRENT",&
-         &                                        error=error)
+    current_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES%CURRENT",error=error)
     !
     IF(.NOT. failure) THEN
        !
@@ -315,59 +308,26 @@ CONTAINS
        ! Lets go!
        CALL set_vecp(iB,iiB,iiiB)
        DO ispin = 1,nspins
+          nmo = nstates(ispin)
+          mo_coeff => psi0_order(ispin)%matrix
+          !maxocc = max_occ(ispin)
           !
-          ! built density matrix and density
-          CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
-               &          occupation_numbers=occupation,homo=homo,nao=nao,nmo=nmo,&
-               &          uniform_occupation=uni_occ,maxocc=maxocc)
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=maxocc)
           !
-          ! Multiply by the occupation number for the density matrix
-          IF ( .NOT. uni_occ ) THEN
-             alpha = 1.0_dp
-             CALL cp_fm_to_fm(mo_coeff,psi0_fk,error=error)
-             CALL cp_fm_column_scale(psi0_fk,occupation(1:homo))
-          ELSE
-             alpha = maxocc
-             psi0_fk => mo_coeff
-          ENDIF
           !
           ! Build the first density matrix
           CALL set_matrix(density_matrix0(ispin)%matrix,0.0_dp)
           CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix0(ispin)%matrix ,&
-               &                  matrix_v=psi0_fk,matrix_g=psi0_fk,&
-               &                  ncol=homo,alpha=alpha,error=error)
-          !
-          ! create a new matrix
-          NULLIFY(tmp_fm_struct)
-          CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-               &                   ncol_global=nmo,para_env=para_env,&
-               &                   context=mo_coeff%matrix_struct%context,&
-               &                   error=error)
-          IF(.NOT.uni_occ) THEN
-             CALL cp_fm_create(psi0_fk,tmp_fm_struct,error=error)
-             CALL cp_fm_set_all(psi0_fk,0.0_dp,error=error)
-          ELSE
-             NULLIFY(psi0_fk)
-          END IF
-          CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+               &                  matrix_v=mo_coeff,matrix_g=mo_coeff,&
+               &                  ncol=nmo,alpha=maxocc,error=error)
           !
           ! Allocate buffer vectors
           DO idir = 1,3
              ALLOCATE(vecbuf(idir)%array(1,nao),STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          END DO
+          ENDDO
           ALLOCATE(vecbuf_psi1(1,nao),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          !
-          ! the MOs
-          IF(.NOT.uni_occ ) THEN
-             alpha = 1.0_dp
-             CALL cp_fm_to_fm(mo_coeff,psi0_fk,error=error)
-             CALL cp_fm_column_scale(psi0_fk,occupation(1:homo))
-          ELSE
-             alpha = maxocc
-             psi0_fk => mo_coeff
-          ENDIF
           !
           ! Construct the 3 density matrices for the field in direction iB
           !
@@ -381,6 +341,7 @@ CONTAINS
              dk(1:3) = current_env%centers_set(ispin)%array(1:3,istate)
              !
              ! Copy the vector in the full matrix psi1
+             !nstate_loc = center_list(ispin)%array(1,icenter+1)-center_list(ispin)%array(1,icenter)
              DO j = center_list(ispin)%array(1,istate),center_list(ispin)%array(1,istate+1)-1
                 jstate = center_list(ispin)%array(2,j)
                 CALL cp_fm_get_submatrix(psi1_p(ispin,iiB)%matrix,&
@@ -416,20 +377,20 @@ CONTAINS
           ! Build the first density matrix
           CALL set_matrix(density_matrix_a(ispin)%matrix ,0.0_dp)
           CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_a(ispin)%matrix ,&
-               &                  matrix_v=psi0_fk,matrix_g=psi_a_iB,&
-               &                  ncol=homo,alpha=alpha,error=error)
+               &                  matrix_v=mo_coeff,matrix_g=psi_a_iB,&
+               &                  ncol=nmo,alpha=maxocc,error=error)
           !
           ! Build the second density matrix
           CALL set_matrix(density_matrix_iii(ispin)%matrix,0.0_dp)
           CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix ,&
-               &                  matrix_v=psi0_fk,matrix_g=psi1_p(ispin,iiiB)%matrix,&
-               &                  ncol=homo,alpha=alpha,error=error)
+               &                  matrix_v=mo_coeff,matrix_g=psi1_p(ispin,iiiB)%matrix,&
+               &                  ncol=nmo,alpha=maxocc,error=error)
           !
           ! Build the third density matrix
-          CALL set_matrix(density_matrix_ii(ispin)%matrix ,0.0_dp)
+          CALL set_matrix(density_matrix_ii(ispin)%matrix,0.0_dp)
           CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix ,&
-               &                  matrix_v=psi0_fk,matrix_g=psi1_p(ispin,iiB)%matrix,&
-               &                  ncol=homo,alpha=alpha,error=error)
+               &                  matrix_v=mo_coeff,matrix_g=psi1_p(ispin,iiB)%matrix,&
+               &                  ncol=nmo,alpha=maxocc,error=error)
           DO idir = 1,3
              !
              ! Calculate the current density on the pw grid (only soft if GAPW)
@@ -469,13 +430,8 @@ CONTAINS
           ENDDO
           DEALLOCATE(vecbuf_psi1,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-          IF(.NOT.uni_occ) THEN
-             CALL cp_fm_release(psi0_fk,error=error)
-          ELSE
-             NULLIFY(psi0_fk)
-          ENDIF
-       ENDDO !  ispin
+          !
+       ENDDO ! ispin
        
        IF(gapw) THEN
           DO idir = 1,3
@@ -553,17 +509,16 @@ CONTAINS
        !
        !
        ! Dellocate grids for the calculation of jrho and the shift
-       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,psi1,error=error)
-       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,p_psi1,error=error)
-       !
-       !
        DO ispin = 1,nspins
+          CALL cp_fm_release(  psi1(ispin)%matrix,error)
+          CALL cp_fm_release(p_psi1(ispin)%matrix,error)
           CALL deallocate_matrix(density_matrix0(ispin)%matrix,error=error)
           CALL deallocate_matrix(density_matrix_a(ispin)%matrix,error=error)
           CALL deallocate_matrix(density_matrix_ii(ispin)%matrix,error=error)
           CALL deallocate_matrix(density_matrix_iii(ispin)%matrix,error=error)
        ENDDO
-       DEALLOCATE(density_matrix0,density_matrix_a,density_matrix_ii,density_matrix_iii,STAT=istat)
+       DEALLOCATE(density_matrix0,density_matrix_a,density_matrix_ii,density_matrix_iii, &
+                  psi1,p_psi1,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        !
     ENDIF ! failure
@@ -2140,6 +2095,7 @@ CONTAINS
 
   END SUBROUTINE current_set_gauge
 
+
   SUBROUTINE current_build_chi(current_env,qs_env,iB,error)
     !
     TYPE(current_env_type)                   :: current_env
@@ -2152,20 +2108,19 @@ CONTAINS
 
     INTEGER :: handle, icenter, idir, idir2, ii, iiB, iii, iiiB, ispin, &
       istat, istate, j, jstate, max_states, nao, nbr_center(2), nmo, nspins, &
-      nstate, output_unit
+      nstate_loc, nstates(2), output_unit
     LOGICAL                                  :: chi_pbc, failure, gapw, ionode
     REAL(dp)                                 :: chi(3), chi_tmp, contrib, &
                                                 contrib2, dk(3), &
                                                 int_current(3), &
-                                                int_current_tmp
-    REAL(dp), DIMENSION(:), POINTER          :: occ_ordered, occupation
+                                                int_current_tmp, maxocc
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_i_p_type), DIMENSION(:), &
       POINTER                                :: center_list
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: centers_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: p_rxp, r_p1, r_p2
+      POINTER                                :: p_rxp, psi0_order, r_p1, r_p2
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: psi1_D, psi1_p, psi1_rxp, &
                                                 rr_p1, rr_p2, rr_rxp
@@ -2178,7 +2133,7 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, op_mom_ao, op_p_ao
+      POINTER                                :: op_mom_ao, op_p_ao
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: op_mom_der_ao
 
@@ -2186,10 +2141,10 @@ CONTAINS
     !
     CALL timeset(routineN,handle)
     !
-    NULLIFY(dft_control,matrix_s,mos,para_env,mo_coeff,occupation,op_mom_ao,&
+    NULLIFY(dft_control,mos,para_env,mo_coeff,op_mom_ao,&
          &  op_mom_der_ao,center_list,centers_set,psi0,psi_rxp,psi_D,psi_p1,psi_p2,&
          &  op_p_ao,psi1_p,psi1_rxp,psi1_D,p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2,&
-         &  cell,occ_ordered)
+         &  cell,psi0_order)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -2200,7 +2155,6 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
          &          dft_control=dft_control,&
-         &          matrix_s=matrix_s,&
          &          mos=mos,&
          &          para_env=para_env,&
          &          cell=cell,&
@@ -2208,12 +2162,11 @@ CONTAINS
 
     nspins = dft_control%nspins
     gapw = dft_control%qs_control%gapw
-    IF (output_unit>0) THEN
-       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-       WRITE(output_unit,*) 'chi_analytic: gapw=',gapw!,' reset to .false.'
-       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-    END IF
-    !gapw=.FALSE.
+    !IF (output_unit>0) THEN
+    !   WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+    !   WRITE(output_unit,*) 'chi_analytic: gapw=',gapw!,' reset to .false.'
+    !   WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+    !END IF
 
     CALL get_current_env(current_env=current_env,&
          &               chi_pbc=chi_pbc,&
@@ -2225,6 +2178,8 @@ CONTAINS
          &               psi1_p=psi1_p,&
          &               psi1_rxp=psi1_rxp,&
          &               psi1_D=psi1_D,&
+         &               nstates=nstates,&
+         &               psi0_order=psi0_order,&
          &               error=error)
     !
     ! get max nbr of states per center
@@ -2272,7 +2227,7 @@ CONTAINS
     ENDDO
     !
     ! Allocate full matrices for only one vector
-    CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff=mo_coeff)
+    mo_coeff => psi0_order(1)%matrix
     NULLIFY(tmp_fm_struct)
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
          &                   ncol_global=max_states,para_env=para_env,&
@@ -2308,10 +2263,9 @@ CONTAINS
     DO ispin = 1,nspins
        !
        ! get ground state MOS
-       CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
-            &          occupation_numbers=occupation,nmo=nmo)
-       ALLOCATE(occ_ordered(nmo),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       nmo = nstates(ispin)
+       mo_coeff => psi0_order(ispin)%matrix
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=maxocc)
        !
        ! Initialize the temporary vector chi
        chi = 0.0_dp
@@ -2340,14 +2294,12 @@ CONTAINS
           CALL cp_fm_set_all(psi_D,0.0_dp,error=error)
           CALL cp_fm_set_all(psi_p1,0.0_dp,error=error)
           CALL cp_fm_set_all(psi_p2,0.0_dp,error=error)
-          nstate = center_list(ispin)%array(1,icenter+1)-center_list(ispin)%array(1,icenter)
-          occ_ordered(:) = 0.0_dp
+          nstate_loc = center_list(ispin)%array(1,icenter+1)-center_list(ispin)%array(1,icenter)
           jstate = 1
           DO j = center_list(ispin)%array(1,icenter),center_list(ispin)%array(1,icenter+1)-1
              istate = center_list(ispin)%array(2,j)
              !
-             ! EXTRACT from the ground state full MOS matrix the coefficients of istate
-             occ_ordered(jstate) = occupation(istate)
+             ! block the states that belong to this center
              CALL cp_fm_to_fm(mo_coeff,psi0,1,istate,jstate)
              !
              CALL cp_fm_to_fm(psi1_rxp(ispin,iB)%matrix,psi_rxp,1,istate,jstate)
@@ -2360,40 +2312,39 @@ CONTAINS
           ENDDO ! istate
           !
           ! scale the ordered mos
-          CALL cp_fm_column_scale(psi0,occ_ordered)
           IF(current_env%full) CALL cp_fm_scale_and_add(1.0_dp,psi_rxp,-1.0_dp,psi_D,error=error)
           !
           DO idir = 1,3
              CALL set_vecp(idir,ii,iii)
              CALL cp_sm_fm_multiply(op_p_ao(idir)%matrix,psi_rxp,&
-                  &                 p_rxp(idir)%matrix,ncol=nstate,alpha=1.e0_dp,&
+                  &                 p_rxp(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
                   &                 error=error)
              IF(iiiB.EQ.iii.OR.iiiB.EQ.ii) THEN
                 CALL cp_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p1,&
-                     &                 r_p1(idir)%matrix,ncol=nstate,alpha=1.e0_dp,&
+                     &                 r_p1(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
                      &                 error=error)
              ENDIF
              IF(iiB.EQ.iii.OR.iiB.EQ.ii) THEN
                 CALL cp_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p2,&
-                     &                 r_p2(idir)%matrix,ncol=nstate,alpha=1.e0_dp,&
+                     &                 r_p2(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
                      &                 error=error)
              ENDIF
              DO idir2 = 1,9
                 IF(idir2.EQ.ii.OR.idir2.EQ.iii) THEN
                    CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_rxp,&
-                        &                 rr_rxp(idir2,idir)%matrix,ncol=nstate,alpha=1.e0_dp,&
+                        &                 rr_rxp(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
                         &                 error=error)
                 ENDIF
                 !
                 IF(idir2.EQ.ind_m2(ii,iiiB).OR.idir2.EQ.ind_m2(iii,iiiB).OR.idir2.EQ.iiiB) THEN
                    CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p1,&
-                        &                 rr_p1(idir2,idir)%matrix,ncol=nstate,alpha=1.e0_dp,&
+                        &                 rr_p1(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
                         &                 error=error)
                 ENDIF
                 !
                 IF(idir2.EQ.ind_m2(ii,iiB).OR.idir2.EQ.ind_m2(iii,iiB).OR.idir2.EQ.iiB) THEN
                    CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p2,&
-                        &                 rr_p2(idir2,idir)%matrix,ncol=nstate,alpha=1.e0_dp,&
+                        &                 rr_p2(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
                         &                 error=error)
                 ENDIF
              ENDDO
@@ -2420,18 +2371,18 @@ CONTAINS
              !
              contrib = 0.0_dp
              CALL cp_fm_trace(psi0,rr_rxp(iii,ii)%matrix,contrib,error=error)
-             chi_tmp = chi_tmp - 2.0_dp *contrib
+             chi_tmp = chi_tmp - 2.0_dp * contrib
              !
              ! correction: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
              ! factor 2 not included in the matrix elements
              contrib = 0.0_dp
              CALL cp_fm_trace(psi0,p_rxp(iii)%matrix,contrib,error=error)
-             IF(.NOT.chi_pbc) chi_tmp = chi_tmp + 2.0_dp*dk(ii)*contrib
-             int_current_tmp = int_current_tmp + 2.0_dp*contrib
+             IF(.NOT.chi_pbc) chi_tmp = chi_tmp + 2.0_dp * dk(ii) * contrib
+             int_current_tmp = int_current_tmp + 2.0_dp * contrib
              !
              contrib2 = 0.0_dp
              CALL cp_fm_trace(psi0,p_rxp(ii)%matrix,contrib2,error=error)
-             IF(.NOT.chi_pbc) chi_tmp = chi_tmp - 2.0_dp*dk(iii)*contrib2
+             IF(.NOT.chi_pbc) chi_tmp = chi_tmp - 2.0_dp * dk(iii) * contrib2
              !
              ! term: -2[C0| (r-dk)_ii  (r-dk)_iiB | d_iii(C1(piiiB))] \
              !       +2[C0| (r-dk)_iii (r-dk)_iiB | d_ii(C1(piiiB))]
@@ -2462,12 +2413,12 @@ CONTAINS
              ! no additional correction terms because of the orthogonality between C0 and C1
              contrib = 0.0_dp
              CALL cp_fm_trace(psi0,rr_p2(iiB,iii)%matrix,contrib,error=error)
-             IF(.NOT.chi_pbc) chi_tmp = chi_tmp - 2.0_dp*dk(ii)*contrib
-             int_current_tmp = int_current_tmp - 2.0_dp*contrib
+             IF(.NOT.chi_pbc) chi_tmp = chi_tmp - 2.0_dp * dk(ii) * contrib
+             int_current_tmp = int_current_tmp - 2.0_dp * contrib
              !
              contrib2 = 0.0_dp
              CALL cp_fm_trace(psi0,rr_p2(iiB,ii)%matrix,contrib2,error=error)
-             IF(.NOT.chi_pbc) chi_tmp = chi_tmp + 2.0_dp*dk(iii)*contrib2
+             IF(.NOT.chi_pbc) chi_tmp = chi_tmp + 2.0_dp * dk(iii) * contrib2
              !
              ! term: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] \
              !       -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))]
@@ -2475,7 +2426,7 @@ CONTAINS
              contrib = 0.0_dp
              idir2 = ind_m2(ii,iiiB)
              CALL cp_fm_trace(psi0,rr_p1(idir2,iii)%matrix,contrib,error=error)
-             chi_tmp = chi_tmp + 2.0_dp*contrib
+             chi_tmp = chi_tmp + 2.0_dp * contrib
              contrib2 = 0.0_dp
              IF(iiiB==iii) THEN
                 CALL cp_fm_trace(psi0,r_p1(ii)%matrix,contrib2,error=error)
@@ -2497,15 +2448,15 @@ CONTAINS
              ! the factor 2 should be already included in the matrix elements
              contrib = 0.0_dp
              CALL cp_fm_trace(psi0,rr_p1(iiiB,iii)%matrix,contrib,error=error)
-             IF(.NOT.chi_pbc) chi_tmp = chi_tmp + 2.0_dp*dk(ii)*contrib
-             int_current_tmp = int_current_tmp + 2.0_dp*contrib
+             IF(.NOT.chi_pbc) chi_tmp = chi_tmp + 2.0_dp * dk(ii) * contrib
+             int_current_tmp = int_current_tmp + 2.0_dp * contrib
              !
              contrib2 = 0.0_dp
              CALL cp_fm_trace(psi0,rr_p1(iiiB,ii)%matrix,contrib2,error=error)
-             IF(.NOT.chi_pbc) chi_tmp = chi_tmp - 2.0_dp*dk(iii)*contrib2
+             IF(.NOT.chi_pbc) chi_tmp = chi_tmp - 2.0_dp * dk(iii) * contrib2
              !
              ! accumulate
-             chi(idir) = chi(idir) + chi_tmp
+             chi(idir) = chi(idir) + maxocc * chi_tmp
              int_current(iii) = int_current(iii) + int_current_tmp
           ENDDO  ! idir
 
@@ -2514,14 +2465,11 @@ CONTAINS
        DO idir = 1,3
           current_env%chi_tensor(idir,iB,ispin) = current_env%chi_tensor(idir,iB,ispin)+&
                &                                  chi(idir)
-          IF (output_unit>0) THEN
-             WRITE(output_unit,'(A,E12.6)') ' analytic \int j_'//ACHAR(119+idir)//ACHAR(119+iB)//&
-                  &                         '(r) d^3r = ',int_current(idir)
-          ENDIF
+          !IF (output_unit>0) THEN
+          !   WRITE(output_unit,'(A,E12.6)') ' analytic \int j_'//ACHAR(119+idir)//ACHAR(119+iB)//&
+          !        &                         '(r) d^3r = ',int_current(idir)
+          !ENDIF
        ENDDO
-       !
-       DEALLOCATE(occ_ordered,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        !
     ENDDO ! ispin
     !

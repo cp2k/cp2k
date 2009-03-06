@@ -15,7 +15,6 @@
 ! *****************************************************************************
 MODULE qs_linres_module
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
@@ -68,10 +67,8 @@ MODULE qs_linres_module
                                              nmr_env_type
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              read_loc_section
-  USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                             calculate_subspace_eigenvalues
-  USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix
+  USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_p_env_methods,                ONLY: p_env_create,&
                                              p_env_psi0_changed
   USE qs_p_env_types,                  ONLY: p_env_release,&
@@ -192,7 +189,7 @@ CONTAINS
           current_env%ref_count=0
           current_env%do_qmmm = do_qmmm
           !current_env%prop='nmr'
-          CALL current_env_init(current_env,qs_env,error=error)
+          CALL current_env_init(current_env,p_env,qs_env,error=error)
           CALL current_operators(current_env,qs_env,error=error)
           CALL current_response(current_env,p_env,qs_env,error)
           !
@@ -343,10 +340,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, istat, nspins, &
-                                                output_unit
+    INTEGER                                  :: ispin, nspins, output_unit
     LOGICAL                                  :: do_it, failure
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
@@ -354,7 +349,7 @@ CONTAINS
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks
     TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
 
     failure = .FALSE.
@@ -363,8 +358,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".linresLog",error=error)
-    NULLIFY(dft_control, linres_control, loc_section, rho, mos, matrix_ks, &
-         matrix_s)
+    NULLIFY(dft_control, linres_control, loc_section, rho, mos, matrix_ks)
 
     CPPrecondition(.NOT.ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -392,8 +386,7 @@ CONTAINS
                dft_control%nspins,error=error)
 
          DO ispin=1,dft_control%nspins
-            CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                     rho%rho_ao(ispin)%matrix,error=error)
+            CALL calculate_density_matrix(mos(ispin)%mo_set,rho%rho_ao(ispin)%matrix,error=error)
          ENDDO
 ! ** update qs_env%rho
          CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
@@ -457,21 +450,7 @@ CONTAINS
 
        ! calculate eigenvectros and eigenvalues of K
        p_env%os_valid = .FALSE.
-       IF(linres_control%preconditioner_type/= lr_precond_none) THEN
-          p_env%new_preconditioner = .TRUE.
-          CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,&
-               &          matrix_s=matrix_s,mos=mos,error=error)
-          nspins = SIZE(p_env%preconditioner,1)
-          DO ispin = 1,nspins
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-             p_env%ev_h0(ispin)%matrix => mo_coeff
-             ALLOCATE(p_env%preconditioner(ispin)%occ_evals(p_env%n_mo(ispin)),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             CALL calculate_subspace_eigenvalues(p_env%ev_h0(ispin)%matrix,&
-                  matrix_ks(ispin)%matrix,evals_arg=p_env%preconditioner(ispin)%occ_evals,&
-                  para_env=mo_coeff%matrix_struct%para_env,do_rotation = .FALSE.,error=error)
-          END DO
-       END IF
+       p_env%new_preconditioner = .TRUE.
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)

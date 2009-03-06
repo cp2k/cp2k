@@ -6046,6 +6046,24 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword,name="SELECTED_STATES_ON_ATOM_LIST",&
+            description="Indexes of the atoms for selecting"//&
+            " the states to be used for the response calculations.",&
+            usage="SELECTED_STATES_ON_ATOM_LIST 1 2 10",&
+            n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="SELECTED_STATES_ATOM_RADIUS",&
+            description="Select all the states included in the given radius arround each atoms "//&
+            "in SELECTED_STATES_ON_ATOM_LIST.",&
+            usage="SELECTED_STATES_ATOM_RADIUS 2.0",&
+            type_of_var=real_t,&
+            default_r_val=cp_unit_to_cp2k(value=4.0_dp,unit_str="angstrom",error=error),&
+            unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="RESTART_CURRENT",&
             description="Restart the induced current density calculation"//&
             " from a previous run (not working yet).",&

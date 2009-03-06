@@ -596,3 +596,5 @@ h2-gapw-1.inp
 ch3m-gapw-1.inp
 # reduced precision
 ch3p-gapw-1.inp
+# selected states
+no-gapw-4.inp

@@ -300,6 +300,16 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
     ENDIF
   END DO
 
+  DO ispin = 1,nspins
+     CALL cp_fm_get_info(ev_h0(ispin)%matrix,ncol_global=n,error=error)
+     ALLOCATE(preconditioner_env(ispin)%occ_evals(n),STAT=istat)
+     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+     CALL calculate_subspace_eigenvalues(ev_h0(ispin)%matrix,&
+          matrix_h(ispin)%matrix,evals_arg=preconditioner_env(ispin)%occ_evals,&
+          para_env=preconditioner_env(1)%para_env,&
+          do_rotation=.FALSE.,error=error)
+  ENDDO
+  
   SELECT CASE (precon_type)
   CASE (lr_precond_s_inverse)
        preconditioner_env(1)%in_use=lr_precond_s_inverse
@@ -313,7 +323,7 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
        CALL copy_sm_to_fm(matrix_s,preconditioner_env(1)%fm,error=error)
        CALL cp_fm_cholesky_decompose(preconditioner_env(1)%fm,error=error)
        CALL cp_fm_cholesky_invert(preconditioner_env(1)%fm,error=error)
-       CALL cp_fm_upper_to_full(preconditioner_env(1)%fm,fm_work,error=error) ! symmetrizing makes the apply_ up to 50 percent faster
+       CALL cp_fm_upper_to_full(preconditioner_env(1)%fm,fm_work,error=error)
        CALL cp_fm_release(fm_work,error=error)
        DO ispin = 2,nspins
           preconditioner_env(ispin)%in_use=lr_precond_s_inverse
@@ -324,10 +334,7 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
           CALL cp_fm_struct_release(fm_struct_tmp,error=error)
           CALL cp_fm_to_fm(preconditioner_env(1)%fm,preconditioner_env(ispin)%fm,error=error)
        ENDDO
-!    IF(nspins==2)THEN
-!      preconditioner_env(2)%fm => preconditioner_env(1)%fm
-!      preconditioner_env(2)%in_use=lr_precond_s_inverse
-!    END IF
+
   CASE (lr_precond_h0_inverse)
 
     DO ispin = 1,nspins
@@ -348,10 +355,7 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
       CALL cp_fm_cholesky_reduce(fm_h,fm_work,error=error)
       CALL cp_fm_syevd(fm_h,preconditioner_env(ispin)%fm,evals,error=error)
       CALL cp_fm_cholesky_restore(preconditioner_env(ispin)%fm,n,fm_work,fm_h,"SOLVE",error=error)
-! do i =1,n
-!    write(*,*) i, evals(i)
-! end do
-! stop 'ev'
+
       k = SIZE(preconditioner_env(ispin)%occ_evals)
       DO i=1,n
         evals(i)=1.0_dp/MAX(evals(i)-preconditioner_env(ispin)%occ_evals(k),energy_gap)
@@ -413,10 +417,7 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
       CALL calculate_subspace_eigenvalues(matrix_x,matrix_h(ispin)%matrix, unocc_evals , &
                  para_env=preconditioner_env(ispin)%para_env, do_rotation = .TRUE.,error=error)
       preconditioner_env(ispin)%full_evals(k+1:n)=unocc_evals
-! do i =1,n
-!    write(*,*) i, preconditioner_env(ispin)%full_evals(i)
-! end do
-! stop 'ev'
+
       DEALLOCATE(unocc_evals,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 

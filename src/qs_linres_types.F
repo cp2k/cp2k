@@ -15,7 +15,6 @@ MODULE qs_linres_types
                                              gto_basis_set_type
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -101,23 +100,25 @@ MODULE qs_linres_types
 
   TYPE current_env_type
      LOGICAL                                     :: full,simple_done(6),simple_converged(6),do_qmmm
-     LOGICAL                                     :: use_old_gauge_atom,chi_pbc
+     LOGICAL                                     :: use_old_gauge_atom,chi_pbc,do_selected_states
      LOGICAL, DIMENSION(:,:), POINTER            :: full_done
      INTEGER                                     :: ref_count,nao,nstates(2),gauge,orb_center,nbr_center(2)
-     INTEGER, DIMENSION(:    ), POINTER          :: list_cubes
+     INTEGER, DIMENSION(:    ), POINTER          :: list_cubes,selected_states_on_atom_list
      INTEGER, DIMENSION(:,:,:), POINTER          :: statetrueindex
      CHARACTER(LEN=30)                           :: gauge_name,orb_center_name
      REAL(dp)                                    :: chi_tensor(3,3,2),chi_tensor_loc(3,3,2),gauge_atom_radius
+     REAL(dp)                                    :: selected_states_atom_radius
      REAL(dp), DIMENSION(:,:), POINTER           :: basisfun_center
      TYPE(cp_2d_i_p_type),    DIMENSION(:  ), POINTER :: center_list
      TYPE(cp_2d_r_p_type),    DIMENSION(:  ), POINTER :: centers_set
-     TYPE(cp_fm_pool_p_type), DIMENSION(:  ), POINTER :: ao_mo_fm_pools, mo_mo_fm_pools
-     TYPE(cp_fm_p_type),      DIMENSION(:,:), POINTER :: psi1_p,psi1_rxp,psi1_D,p_psi0,rxp_psi0,dip
+     TYPE(cp_fm_p_type),      DIMENSION(:,:), POINTER :: psi1_p,psi1_rxp,psi1_D,p_psi0,rxp_psi0
      TYPE(jrho_atom_type),    DIMENSION(:  ), POINTER :: jrho1_atom_set
      TYPE(qs_rho_p_type),     DIMENSION(:  ), POINTER :: jrho1_set
      TYPE(real_matrix_p_type),DIMENSION(:  ), POINTER :: op_p_ao,op_rmd_ao
      TYPE(realspace_grid_p_type),DIMENSION(:),POINTER :: rs_buf
      TYPE(realspaces_grid_p_type), DIMENSION(:), POINTER :: rs_gauge
+     !
+     TYPE(cp_fm_p_type)  , DIMENSION(:), POINTER :: psi0_order
   END TYPE current_env_type
 
   TYPE issc_env_type
@@ -309,16 +310,14 @@ CONTAINS
        current_env%nbr_center(:) = HUGE(1)
        current_env%use_old_gauge_atom = .TRUE.
        current_env%chi_pbc = .FALSE.
+       current_env%do_selected_states = .FALSE.
        NULLIFY(current_env%full_done)
        NULLIFY(current_env%list_cubes)
        NULLIFY(current_env%statetrueindex)
        NULLIFY(current_env%basisfun_center)
        NULLIFY(current_env%center_list)
        NULLIFY(current_env%centers_set)
-       NULLIFY(current_env%ao_mo_fm_pools)
-       NULLIFY(current_env%mo_mo_fm_pools)
        NULLIFY(current_env%psi1_p)
-       NULLIFY(current_env%dip)
        NULLIFY(current_env%psi1_rxp)
        NULLIFY(current_env%psi1_D)
        NULLIFY(current_env%p_psi0)
@@ -329,6 +328,8 @@ CONTAINS
        NULLIFY(current_env%op_rmd_ao)
        NULLIFY(current_env%rs_gauge)
        NULLIFY(current_env%rs_buf)
+       NULLIFY(current_env%selected_states_on_atom_list)
+       NULLIFY(current_env%psi0_order)
     END IF
 
   END SUBROUTINE current_env_create
@@ -413,11 +414,11 @@ CONTAINS
   END SUBROUTINE epr_env_create
        
   SUBROUTINE get_current_env(current_env,simple_done,simple_converged,full_done,ref_count,nao,&
-       &                 nstates,gauge,list_cubes,statetrueindex,gauge_name,basisfun_center,&
-       &                 nbr_center,center_list,centers_set,ao_mo_fm_pools,mo_mo_fm_pools,&
-       &                 psi1_p,psi1_rxp,psi1_D,p_psi0,rxp_psi0,dip,jrho1_atom_set,jrho1_set,&
-       &                 op_p_ao,op_rmd_ao,chi_tensor,chi_tensor_loc,gauge_atom_radius,&
-       &                 rs_gauge,use_old_gauge_atom,chi_pbc,error)
+       &                     nstates,gauge,list_cubes,statetrueindex,gauge_name,basisfun_center,&
+       &                     nbr_center,center_list,centers_set,psi1_p,psi1_rxp,psi1_D,p_psi0,&
+       &                     rxp_psi0,jrho1_atom_set,jrho1_set,op_p_ao,op_rmd_ao,chi_tensor,&
+       &                     chi_tensor_loc,gauge_atom_radius,rs_gauge,use_old_gauge_atom,&
+       &                     chi_pbc,psi0_order,error)
     
     TYPE(current_env_type), OPTIONAL         :: current_env
     LOGICAL, OPTIONAL                        :: simple_done(6), &
@@ -437,11 +438,9 @@ CONTAINS
       OPTIONAL, POINTER                      :: center_list
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: centers_set
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: ao_mo_fm_pools, mo_mo_fm_pools
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: psi1_p, psi1_rxp, psi1_D, &
-                                                p_psi0, rxp_psi0, dip
+                                                p_psi0, rxp_psi0
     TYPE(jrho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: jrho1_atom_set
     TYPE(qs_rho_p_type), DIMENSION(:), &
@@ -454,6 +453,8 @@ CONTAINS
     TYPE(realspaces_grid_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: rs_gauge
     LOGICAL, OPTIONAL                        :: use_old_gauge_atom, chi_pbc
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: psi0_order
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_current_env', &
@@ -483,12 +484,9 @@ CONTAINS
        IF(PRESENT(nbr_center      )) nbr_center(1:2)       =  current_env%nbr_center(1:2)
        IF(PRESENT(center_list     )) center_list           => current_env%center_list
        IF(PRESENT(centers_set     )) centers_set           => current_env%centers_set
-       IF(PRESENT(ao_mo_fm_pools  )) ao_mo_fm_pools        => current_env%ao_mo_fm_pools
-       IF(PRESENT(mo_mo_fm_pools  )) mo_mo_fm_pools        => current_env%mo_mo_fm_pools
        IF(PRESENT(chi_tensor      )) chi_tensor(:,:,:)     =  current_env%chi_tensor(:,:,:)
        IF(PRESENT(chi_tensor_loc  )) chi_tensor_loc(:,:,:) =  current_env%chi_tensor_loc(:,:,:)
        IF(PRESENT(psi1_p          )) psi1_p                => current_env%psi1_p
-       IF(PRESENT(dip             )) dip                   => current_env%dip
        IF(PRESENT(psi1_rxp        )) psi1_rxp              => current_env%psi1_rxp
        IF(PRESENT(psi1_D          )) psi1_D                => current_env%psi1_D
        IF(PRESENT(p_psi0          )) p_psi0                => current_env%p_psi0
@@ -498,6 +496,7 @@ CONTAINS
        IF(PRESENT(op_rmd_ao       )) op_rmd_ao             => current_env%op_rmd_ao
        IF(PRESENT(op_p_ao         )) op_p_ao               => current_env%op_p_ao
        IF(PRESENT(rs_gauge        )) rs_gauge              => current_env%rs_gauge
+       IF(PRESENT(psi0_order      )) psi0_order            => current_env%psi0_order
        IF(PRESENT(chi_pbc         )) chi_pbc               =  current_env%chi_pbc
        IF(PRESENT(gauge_atom_radius )) gauge_atom_radius   =  current_env%gauge_atom_radius
        IF(PRESENT(use_old_gauge_atom)) use_old_gauge_atom  =  current_env%use_old_gauge_atom
