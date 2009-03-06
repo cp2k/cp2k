@@ -512,7 +512,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ! up to now, it is not yet very good
      maxradius=0.0_dp
      DO igrid_level=1,ngrid_level
-        IF (.NOT. dft_control%qs_control%map_paa) maxradius=0.0_dp
+
+        maxradius=0.0_dp
 
         ! Take into account the radius of the soft compensation charge rho0_soft1
         IF(qs_env%dft_control%qs_control%gapw) THEN
@@ -578,11 +579,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                  ! for calculate wavefunction
                  zetp = zeta(ipgf,iset)
                  la = lshella(ishell,iset)
-                 IF (dft_control%qs_control%map_paa) THEN
-                    lgrid_level = 1
-                 ELSE
-                    lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
-                 ENDIF
+
+                 lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
+
                  IF (lgrid_level .EQ. igrid_level) THEN
                     maxradius=MAX(maxradius,exp_radius( la, zetp, &
                                   dft_control%qs_control%eps_rho_rspace, 1.0_dp))

@@ -1814,13 +1814,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="MAP_PAA",&
-            description="Put diagonal density matrix elements on the highest cutoff multigrid",&
-            usage="MAP_PAA",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="MAP_CONSISTENT",&
             description="Compute the exact derivative (Hks) of the energy with respect to the density matrix. "//&
                         "This is slightly more expensive than using an approximate computation, "//&

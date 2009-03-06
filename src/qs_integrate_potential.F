@@ -759,11 +759,7 @@ CONTAINS
        rb(3) = ra(3) + rab(3)
        zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
        dab=SQRT(rab2)
-       IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
-          igrid_level = 1
-       ELSE
-          igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-       ENDIF
+       igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
        na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
        na2 = ipgf*ncoset(la_max(iset))

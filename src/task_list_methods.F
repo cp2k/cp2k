@@ -365,11 +365,7 @@ CONTAINS
                 IF (rpgfa(ipgf,iset) + rpgfb(jpgf,jset) < dab) CYCLE
 
                 zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
-                IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
-                   igrid_level = 1
-                ELSE
-                   igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-                ENDIF
+                igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
                 CALL compute_pgf_properties(cube_center,lb_cube,ub_cube,radius,&
                            cell,rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&

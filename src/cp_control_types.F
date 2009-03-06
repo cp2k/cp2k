@@ -220,7 +220,6 @@ MODULE cp_control_types
                                                      relative_cutoff
     LOGICAL                                       :: commensurate_mgrids
     LOGICAL                                       :: realspace_mgrids
-    LOGICAL                                       :: map_paa
     LOGICAL                                       :: map_consistent
     LOGICAL                                       :: gapw,gapw_xc,gpw,pao
     LOGICAL                                       :: dftb

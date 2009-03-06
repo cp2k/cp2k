@@ -358,11 +358,7 @@ CONTAINS
 
                   zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
 
-                  IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
-                     igrid_level = 1
-                  ELSE
-                     igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-                  ENDIF
+                  igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
                   ntasks(igrid_level) = ntasks(igrid_level) + 1
                   n = ntasks(igrid_level)
@@ -852,11 +848,7 @@ CONTAINS
 
                   zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
 
-                  IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
-                     igrid_level = 1
-                  ELSE
-                     igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-                  ENDIF
+                  igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
                   ntasks(igrid_level) = ntasks(igrid_level) + 1
                   n = ntasks(igrid_level)
