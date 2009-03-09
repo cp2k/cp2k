@@ -11,7 +11,8 @@
 MODULE input_cp2k_motion
   USE bibliography,                    ONLY: &
        Byrd1995, Elber1987, Evans1983, Henkelman1999, Jonsson1998, &
-       Jonsson2000_1, Jonsson2000_2, Minary2003, Wales2004
+       Jonsson2000_1, Jonsson2000_2, Kolafa2004, Kuhne2007, Minary2003, &
+       Ricci2003, Wales2004
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -1238,7 +1239,7 @@ CONTAINS
        CALL section_create(section,name="LBFGS",&
             description="Provides parameters to tune the limited memory BFGS (LBFGS) optimization",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            citations=(/byrd1995/),&
+            citations=(/Byrd1995/),&
             error=error)
 
        CALL keyword_create(keyword, name="MAX_H_RANK",&
@@ -1430,7 +1431,7 @@ CONTAINS
             "langevin dynamics (constant temperature)",&
             "constant pressure ensemble (no thermostat)",&
             "constant pressure ensemble using an isotropic cell (no thermostat)"),&
-            citations=(/Evans1983,Minary2003/),&
+            citations=(/Evans1983,Minary2003,Kolafa2004/),&
             enum_i_vals=(/nve_ensemble,nvt_ensemble,npt_i_ensemble,npt_f_ensemble,&
             nph_uniaxial_ensemble,nph_uniaxial_damped_ensemble,nph_ensemble,isokin_ensemble,&
             reftraj_ensemble,langevin_ensemble, npe_f_ensemble, npe_i_ensemble/),error=error)
@@ -1860,12 +1861,13 @@ CONTAINS
     IF (.NOT. failure) THEN  
        CALL section_create(section,name="Langevin",&
             description="Controls the set of parameters to run a Langevin MD",&
+            citations=(/Ricci2003/),&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="gamma",&
-            description="Gamma parameter for the Langevin dynamics",&
+            description="Gamma parameter for the Langevin dynamics (LD)",&
             usage="gamma 0.001",&
             default_r_val=0.0_dp, unit_str='fs^-1',error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -1873,15 +1875,17 @@ CONTAINS
 
        CALL keyword_create(keyword, name="Noisy_Gamma",&
             variants=(/"NoisyGamma"/), &
-            description="Imaginary Langevin Friction term for LD with noisy forces.", &
-            usage="Noisy_Gamma 0.01", default_r_val=0.0_dp, unit_str='fs^-1', error=error)
+            description="Imaginary Langevin Friction term for LD with noisy forces.",&
+            citations=(/Kuhne2007/),&
+            usage="Noisy_Gamma 4.0E-5", default_r_val=0.0_dp, unit_str='fs^-1', error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="Shadow_Gamma",&
             variants=(/"ShadowGamma"/), &
             description="Shadow Langevin Friction term for LD with noisy forces in order to adjust Noisy_Gamma.", &
-            usage="Shadow_Gamma 0.01", default_r_val=0.0_dp, unit_str='fs^-1', error=error)
+            citations=(/Kuhne2007/),&
+            usage="Shadow_Gamma 0.001", default_r_val=0.0_dp, unit_str='fs^-1', error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
     END IF

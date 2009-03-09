@@ -9,7 +9,7 @@
 !>      we add a citation, to give credit to the authors
 !>      (often ourselves, but this need not to be the case), and as a form
 !>      of documentation.
-!> 
+!>
 !>      reference_manager.F provides an easy way to cite these references from the code
 !>      (e.g. whenever the relevant part of the code is executed)
 !>      and to add citations to the input
@@ -54,7 +54,7 @@ MODULE bibliography
              Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004, &
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
              Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
-             VandenCic2006,Becke1997, Foiles1986
+             VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007
 
 CONTAINS
 
@@ -195,7 +195,7 @@ CONTAINS
          "UT ISI:000188498400003",&
          "ER"),&
          DOI="10.1063/1.1329672")
-    
+
     CALL add_reference(key=Jonsson2000_2, ISI_record=s2a(&
          "AU Henkelman, G",&
          "   Uberuaga, BP",&
@@ -316,7 +316,7 @@ CONTAINS
          "UT ISI:000179022700011",&
          "ER"),&
          DOI="10.1002/jcc.10162")
-    
+
     CALL add_reference(key=Thiel1992, ISI_record=s2a(&
          "AU THIEL, W",&
          "   VOITYUK, AA",&
@@ -1023,371 +1023,370 @@ CONTAINS
          "ER"),&
          DOI="10.1109/JPROC.2004.840301")
 
-     CALL add_reference(key=Genovese2006,ISI_record=s2a(&
-            "PT J",&
-            "AU Genovese, L",&
-            "   Deutsch, T",&
-            "   Neelov, A",&
-            "   Goedecker, S",&
-            "   Beylkin, G",&
-            "AF Genovese, Luigi",&
-            "   Deutsch, Thierry",&
-            "   Neelov, Alexey",&
-            "   Goedecker, Stefan",&
-            "   Beylkin, Gregory",&
-            "TI Efficient solution of Poisson's equation with free boundary conditions",&
-            "SO JOURNAL OF CHEMICAL PHYSICS",&
-            "SN 0021-9606",&
-            "PD AUG 21",&
-            "PY 2006",&
-            "VL 125",&
-            "IS 7",&
-            "AR 074105",&
-            "DI ARTN 074105",&
-            "UT ISI:000239914800005",&
-            "ER"),&
-            DOI="10.1063/1.2335442")
+    CALL add_reference(key=Genovese2006,ISI_record=s2a(&
+         "PT J",&
+         "AU Genovese, L",&
+         "   Deutsch, T",&
+         "   Neelov, A",&
+         "   Goedecker, S",&
+         "   Beylkin, G",&
+         "AF Genovese, Luigi",&
+         "   Deutsch, Thierry",&
+         "   Neelov, Alexey",&
+         "   Goedecker, Stefan",&
+         "   Beylkin, Gregory",&
+         "TI Efficient solution of Poisson's equation with free boundary conditions",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD AUG 21",&
+         "PY 2006",&
+         "VL 125",&
+         "IS 7",&
+         "AR 074105",&
+         "DI ARTN 074105",&
+         "UT ISI:000239914800005",&
+         "ER"),&
+         DOI="10.1063/1.2335442")
 
-     CALL add_reference(key=Genovese2007,ISI_record=s2a(&
-            "PT J",&
-            "AU Genovese, L",&
-            "   Deutsch, T",&
-            "   Goedecker, S",&
-            "AF Genovese, Luigi",&
-            "   Deutsch, Thierry",&
-            "   Goedecker, Stefan",&
-            "TI Efficient and accurate three-dimensional Poisson solver for surface",&
-            "   problems",&
-            "SO JOURNAL OF CHEMICAL PHYSICS",&
-            "SN 0021-9606",&
-            "PD AUG 7",&
-            "PY 2007",&
-            "VL 127",&
-            "IS 5",&
-            "AR 054704",&
-            "DI ARTN 054704",&
-            "UT ISI:000248594200029",&
-            "ER"),&
-            DOI="10.1063/1.2754685")
+    CALL add_reference(key=Genovese2007,ISI_record=s2a(&
+         "PT J",&
+         "AU Genovese, L",&
+         "   Deutsch, T",&
+         "   Goedecker, S",&
+         "AF Genovese, Luigi",&
+         "   Deutsch, Thierry",&
+         "   Goedecker, Stefan",&
+         "TI Efficient and accurate three-dimensional Poisson solver for surface",&
+         "   problems",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD AUG 7",&
+         "PY 2007",&
+         "VL 127",&
+         "IS 5",&
+         "AR 054704",&
+         "DI ARTN 054704",&
+         "UT ISI:000248594200029",&
+         "ER"),&
+          DOI="10.1063/1.2754685")
 
     CALL add_reference(key=Minary2003,ISI_record=s2a(&
-            "PT J",&
-            "AU Minary, P",&
-            "   Martyna, GJ",&
-            "   Tuckerman, ME",&
-            "TI Algorithms and novel applications based on the isokinetic ensemble. I.",&
-            "   Biophysical and path integral molecular dynamics",&
-            "SO JOURNAL OF CHEMICAL PHYSICS",&
-            "SN 0021-9606",&
-            "PD FEB 8",&
-            "PY 2003",&
-            "VL 118",&
-            "IS 6",&
-            "BP 2510",&
-            "EP 2526",&
-            "UT ISI:000180564800009",&
-            "ER"),&
-            DOI="10.1063/1.1534582")
+         "PT J",&
+         "AU Minary, P",&
+         "   Martyna, GJ",&
+         "   Tuckerman, ME",&
+         "TI Algorithms and novel applications based on the isokinetic ensemble. I.",&
+         "   Biophysical and path integral molecular dynamics",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD FEB 8",&
+         "PY 2003",&
+         "VL 118",&
+         "IS 6",&
+         "BP 2510",&
+         "EP 2526",&
+         "UT ISI:000180564800009",&
+         "ER"),&
+         DOI="10.1063/1.1534582")
 
     CALL add_reference(key=Evans1983,ISI_record=s2a(&
-            "PT J",&
-            "AU EVANS, DJ",&
-            "   HOOVER, WG",&
-            "   FAILOR, BH",&
-            "   MORAN, B",&
-            "   LADD, AJC",&
-            "TI NON-EQUILIBRIUM MOLECULAR-DYNAMICS VIA GAUSS PRINCIPLE OF LEAST",&
-            "   CONSTRAINT",&
-            "SO PHYSICAL REVIEW A",&
-            "SN 1050-2947",&
-            "PY 1983",&
-            "VL 28",&
-            "IS 2",&
-            "BP 1016",&
-            "EP 1021",&
-            "UT ISI:A1983RB52800057",&
-            "ER"),&
-            DOI="10.1103/PhysRevA.28.1016")
+         "PT J",&
+         "AU EVANS, DJ",&
+         "   HOOVER, WG",&
+         "   FAILOR, BH",&
+         "   MORAN, B",&
+         "   LADD, AJC",&
+         "TI NON-EQUILIBRIUM MOLECULAR-DYNAMICS VIA GAUSS PRINCIPLE OF LEAST",&
+         "   CONSTRAINT",&
+         "SO PHYSICAL REVIEW A",&
+         "SN 1050-2947",&
+         "PY 1983",&
+         "VL 28",&
+         "IS 2",&
+         "BP 1016",&
+         "EP 1021",&
+         "UT ISI:A1983RB52800057",&
+         "ER"),&
+         DOI="10.1103/PhysRevA.28.1016")
 
     CALL add_reference(key=Byrd1995,ISI_record=s2a(&
-            "PT J",&
-            "TI A LIMITED MEMORY ALGORITHM FOR BOUND CONSTRAINED OPTIMIZATION",&
-            "AU BYRD, RH",&
-            "   LU, PH",&
-            "   NOCEDAL, J",&
-            "   ZHU, CY",&
-            "SO SIAM JOURNAL ON SCIENTIFIC COMPUTING",&
-            "VL 16",&
-            "IS 5",&
-            "BP 1190",&
-            "EP 1208",&
-            "PY 1995",&
-            "TC 214",&
-            "UT WOS:A1995RR54100011",&
-            "ER"),&
-            DOI="10.1137/0916069")
+         "PT J",&
+         "TI A LIMITED MEMORY ALGORITHM FOR BOUND CONSTRAINED OPTIMIZATION",&
+         "AU BYRD, RH",&
+         "   LU, PH",&
+         "   NOCEDAL, J",&
+         "   ZHU, CY",&
+         "SO SIAM JOURNAL ON SCIENTIFIC COMPUTING",&
+         "VL 16",&
+         "IS 5",&
+         "BP 1190",&
+         "EP 1208",&
+         "PY 1995",&
+         "TC 214",&
+         "UT WOS:A1995RR54100011",&
+         "ER"),&
+         DOI="10.1137/0916069")
 
     CALL add_reference(key=VandeVondele2007,ISI_record=s2a(&
-            "PT J",&
-            "AU VandeVondele, J",&
-            "   Hutter, J",&
-            "AF VandeVondele, Joost",&
-            "   Hutter, Juerg",&
-            "TI Gaussian basis sets for accurate calculations on molecular systems in",&
-            "   gas and condensed phases",&
-            "SO JOURNAL OF CHEMICAL PHYSICS",&
-            "SN 0021-9606",&
-            "PD SEP 21",&
-            "PY 2007",&
-            "VL 127",&
-            "IS 11",&
-            "AR 114105",&
-            "DI ARTN 114105",&
-            "UT ISI:000249667400011",&
-            "ER"),&
-            DOI="10.1063/1.2770708")
+         "PT J",&
+         "AU VandeVondele, J",&
+         "   Hutter, J",&
+         "AF VandeVondele, Joost",&
+         "   Hutter, Juerg",&
+         "TI Gaussian basis sets for accurate calculations on molecular systems in",&
+         "   gas and condensed phases",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD SEP 21",&
+         "PY 2007",&
+         "VL 127",&
+         "IS 11",&
+         "AR 114105",&
+         "DI ARTN 114105",&
+         "UT ISI:000249667400011",&
+         "ER"),&
+         DOI="10.1063/1.2770708")
 
     CALL add_reference(key=Ortiz1994,ISI_record=s2a(&
-            "PT J",&
-            "AU ORTIZ, G",&
-            "   BALLONE, P",&
-            "TI CORRELATION-ENERGY, STRUCTURE FACTOR, RADIAL-DISTRIBUTION FUNCTION, AND",&
-            "   MOMENTUM DISTRIBUTION OF THE SPIN-POLARIZED UNIFORM ELECTRON-GAS",&
-            "SO PHYSICAL REVIEW B",&
-            "SN 0163-1829",&
-            "PD JUL 15",&
-            "PY 1994",&
-            "VL 50",&
-            "IS 3",&
-            "BP 1391",&
-            "EP 1405",&
-            "UT ISI:A1994NZ15300007",&
-            "ER"),&
-            DOI="10.1103/PhysRevB.50.1391")
+         "PT J",&
+         "AU ORTIZ, G",&
+         "   BALLONE, P",&
+         "TI CORRELATION-ENERGY, STRUCTURE FACTOR, RADIAL-DISTRIBUTION FUNCTION, AND",&
+         "   MOMENTUM DISTRIBUTION OF THE SPIN-POLARIZED UNIFORM ELECTRON-GAS",&
+         "SO PHYSICAL REVIEW B",&
+         "SN 0163-1829",&
+         "PD JUL 15",&
+         "PY 1994",&
+         "VL 50",&
+         "IS 3",&
+         "BP 1391",&
+         "EP 1405",&
+         "UT ISI:A1994NZ15300007",&
+         "ER"),&
+         DOI="10.1103/PhysRevB.50.1391")
 
     CALL add_reference(key=Becke1988,ISI_record=s2a(&
-            "PT J",&
-            "AU BECKE, AD",&
-            "TI DENSITY-FUNCTIONAL EXCHANGE-ENERGY APPROXIMATION WITH CORRECT",&
-            "   ASYMPTOTIC-BEHAVIOR",&
-            "SO PHYSICAL REVIEW A",&
-            "SN 1050-2947",&
-            "PD SEP 15",&
-            "PY 1988",&
-            "VL 38",&
-            "IS 6",&
-            "BP 3098",&
-            "EP 3100",&
-            "UT ISI:A1988Q146900044",&
-            "ER"),&
-            DOI="10.1103/PhysRevA.38.3098")
+         "PT J",&
+         "AU BECKE, AD",&
+         "TI DENSITY-FUNCTIONAL EXCHANGE-ENERGY APPROXIMATION WITH CORRECT",&
+         "   ASYMPTOTIC-BEHAVIOR",&
+         "SO PHYSICAL REVIEW A",&
+         "SN 1050-2947",&
+         "PD SEP 15",&
+         "PY 1988",&
+         "VL 38",&
+         "IS 6",&
+         "BP 3098",&
+         "EP 3100",&
+         "UT ISI:A1988Q146900044",&
+         "ER"),&
+         DOI="10.1103/PhysRevA.38.3098")
 
     CALL add_reference(key=Perdew1996,ISI_record=s2a(&
-            "PT J",&
-            "AU Perdew, JP",&
-            "   Burke, K",&
-            "   Ernzerhof, M",&
-            "TI Generalized gradient approximation made simple",&
-            "SO PHYSICAL REVIEW LETTERS",&
-            "SN 0031-9007",&
-            "PD OCT 28",&
-            "PY 1996",&
-            "VL 77",&
-            "IS 18",&
-            "BP 3865",&
-            "EP 3868",&
-            "UT ISI:A1996VP22500044",&
-            "ER"),&
-            DOI="10.1103/PhysRevLett.77.3865")
+         "PT J",&
+         "AU Perdew, JP",&
+         "   Burke, K",&
+         "   Ernzerhof, M",&
+         "TI Generalized gradient approximation made simple",&
+         "SO PHYSICAL REVIEW LETTERS",&
+         "SN 0031-9007",&
+         "PD OCT 28",&
+         "PY 1996",&
+         "VL 77",&
+         "IS 18",&
+         "BP 3865",&
+         "EP 3868",&
+         "UT ISI:A1996VP22500044",&
+         "ER"),&
+         DOI="10.1103/PhysRevLett.77.3865")
 
     CALL add_reference(key=Zhang1998,ISI_record=s2a(&
-            "PT J",&
-            "AU Zhang, YK",&
-            "   Yang, WT",&
-            "TI Comment on Generalized gradient approximation made simple",&
-            "SO PHYSICAL REVIEW LETTERS",&
-            "SN 0031-9007",&
-            "PD JAN 26",&
-            "PY 1998",&
-            "VL 80",&
-            "IS 4",&
-            "BP 890",&
-            "EP 890",&
-            "UT ISI:000071717100066",&
-            "ER"),&
-            DOI="10.1103/PhysRevLett.80.890")
+         "PT J",&
+         "AU Zhang, YK",&
+         "   Yang, WT",&
+         "TI Comment on Generalized gradient approximation made simple",&
+         "SO PHYSICAL REVIEW LETTERS",&
+         "SN 0031-9007",&
+         "PD JAN 26",&
+         "PY 1998",&
+         "VL 80",&
+         "IS 4",&
+         "BP 890",&
+         "EP 890",&
+         "UT ISI:000071717100066",&
+         "ER"),&
+         DOI="10.1103/PhysRevLett.80.890")
 
     CALL add_reference(key=Lee1988,ISI_record=s2a(&
-            "PT J",&
-            "AU LEE, CT",&
-            "   YANG, WT",&
-            "   PARR, RG",&
-            "TI DEVELOPMENT OF THE COLLE-SALVETTI CORRELATION-ENERGY FORMULA INTO A",&
-            "   FUNCTIONAL OF THE ELECTRON-DENSITY",&
-            "SO PHYSICAL REVIEW B",&
-            "SN 0163-1829",&
-            "PD JAN 15",&
-            "PY 1988",&
-            "VL 37",&
-            "IS 2",&
-            "BP 785",&
-            "EP 789",&
-            "UT ISI:A1988L976200011",&
-            "ER"),&
-            DOI="10.1103/PhysRevB.37.785")
+         "PT J",&
+         "AU LEE, CT",&
+         "   YANG, WT",&
+         "   PARR, RG",&
+         "TI DEVELOPMENT OF THE COLLE-SALVETTI CORRELATION-ENERGY FORMULA INTO A",&
+         "   FUNCTIONAL OF THE ELECTRON-DENSITY",&
+         "SO PHYSICAL REVIEW B",&
+         "SN 0163-1829",&
+         "PD JAN 15",&
+         "PY 1988",&
+         "VL 37",&
+         "IS 2",&
+         "BP 785",&
+         "EP 789",&
+         "UT ISI:A1988L976200011",&
+         "ER"),&
+         DOI="10.1103/PhysRevB.37.785")
 
     CALL add_reference(key=Heyd2004,ISI_record=s2a(&
-            "PT J",&
-            "AU Heyd, J",&
-            "   Scuseria, GE",&
-            "TI Assessment and validation of a screened Coulomb hybrid density",&
-            "   functional",&
-            "SO JOURNAL OF CHEMICAL PHYSICS",&
-            "SN 0021-9606",&
-            "PD APR 22",&
-            "PY 2004",&
-            "VL 120",&
-            "IS 16",&
-            "BP 7274",&
-            "EP 7280",&
-            "UT ISI:000220676000005",&
-            "ER"),&
-            DOI="10.1063/1.1668634")
+         "PT J",&
+         "AU Heyd, J",&
+         "   Scuseria, GE",&
+         "TI Assessment and validation of a screened Coulomb hybrid density",&
+         "   functional",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD APR 22",&
+         "PY 2004",&
+         "VL 120",&
+         "IS 16",&
+         "BP 7274",&
+         "EP 7280",&
+         "UT ISI:000220676000005",&
+         "ER"),&
+         DOI="10.1063/1.1668634")
 
     CALL add_reference(key=Heyd2003,ISI_record=s2a(&
-            "PT J",&
-            "AU Heyd, J",&
-            "   Scuseria, GE",&
-            "   Ernzerhof, M",&
-            "TI Hybrid functionals based on a screened Coulomb potential",&
-            "SO JOURNAL OF CHEMICAL PHYSICS",&
-            "SN 0021-9606",&
-            "PD MAY 8",&
-            "PY 2003",&
-            "VL 118",&
-            "IS 18",&
-            "BP 8207",&
-            "EP 8215",&
-            "UT ISI:000182454100010",&
-            "ER"),&
-            DOI="10.1063/1.1564060")
+         "PT J",&
+         "AU Heyd, J",&
+         "   Scuseria, GE",&
+         "   Ernzerhof, M",&
+         "TI Hybrid functionals based on a screened Coulomb potential",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD MAY 8",&
+         "PY 2003",&
+         "VL 118",&
+         "IS 18",&
+         "BP 8207",&
+         "EP 8215",&
+         "UT ISI:000182454100010",&
+         "ER"),&
+         DOI="10.1063/1.1564060")
 
     CALL add_reference(key=Heyd2006,ISI_record=s2a(&
-            "PT J",&
-            "AU Heyd, J",&
-            "   Scuseria, GE",&
-            "   Ernzerhof, M",&
-            "TI Hybrid functionals based on a screened Coulomb potential (vol 118, pg",&
-            "   8207, 2003)",&
-            "SO JOURNAL OF CHEMICAL PHYSICS",&
-            "SN 0021-9606",&
-            "PD JUN 7",&
-            "PY 2006",&
-            "VL 124",&
-            "IS 21",&
-            "AR 219906",&
-            "DI ARTN 219906",&
-            "UT ISI:000238758700058",&
-            "ER"),&
-            DOI="10.1063/1.2204597")
+         "PT J",&
+         "AU Heyd, J",&
+         "   Scuseria, GE",&
+         "   Ernzerhof, M",&
+         "TI Hybrid functionals based on a screened Coulomb potential (vol 118, pg",&
+         "   8207, 2003)",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD JUN 7",&
+         "PY 2006",&
+         "VL 124",&
+         "IS 21",&
+         "AR 219906",&
+         "DI ARTN 219906",&
+         "UT ISI:000238758700058",&
+         "ER"),&
+         DOI="10.1063/1.2204597")
 
     CALL add_reference(key=Vydrov2006,ISI_record=s2a(&
-            "PT J",&
-            "AU Vydrov, OA",&
-            "   Heyd, J",&
-            "   Krukau, AV",&
-            "   Scuseria, GE",&
-            "AF Vydrov, Oleg A.",&
-            "   Heyd, Jochen",&
-            "   Krukau, Aliaksandr V.",&
-            "   Scuseria, Gustavo E.",&
-            "TI Importance of short-range versus long-range Hartree-Fock exchange for",&
-            "   the performance of hybrid density functionals",&
-            "SO JOURNAL OF CHEMICAL PHYSICS",&
-            "SN 0021-9606",&
-            "PD AUG 21",&
-            "PY 2006",&
-            "VL 125",&
-            "IS 7",&
-            "AR 074106",&
-            "DI ARTN 074106",&
-            "UT ISI:000239914800006",&
-            "ER"),&
-            DOI="10.1063/1.2244560")
+         "PT J",&
+         "AU Vydrov, OA",&
+         "   Heyd, J",&
+         "   Krukau, AV",&
+         "   Scuseria, GE",&
+         "AF Vydrov, Oleg A.",&
+         "   Heyd, Jochen",&
+         "   Krukau, Aliaksandr V.",&
+         "   Scuseria, Gustavo E.",&
+         "TI Importance of short-range versus long-range Hartree-Fock exchange for",&
+         "   the performance of hybrid density functionals",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD AUG 21",&
+         "PY 2006",&
+         "VL 125",&
+         "IS 7",&
+         "AR 074106",&
+         "DI ARTN 074106",&
+         "UT ISI:000239914800006",&
+         "ER"),&
+         DOI="10.1063/1.2244560")
 
     CALL add_reference(key=Vosko1980,ISI_record=s2a(&
-            "PT J",&
-            "AU VOSKO, SH",&
-            "   WILK, L",&
-            "   NUSAIR, M",&
-            "TI ACCURATE SPIN-DEPENDENT ELECTRON LIQUID CORRELATION ENERGIES FOR LOCAL",&
-            "   SPIN-DENSITY CALCULATIONS - A CRITICAL ANALYSIS",&
-            "SO CANADIAN JOURNAL OF PHYSICS",&
-            "SN 0008-4204",&
-            "PY 1980",&
-            "VL 58",&
-            "IS 8",&
-            "BP 1200",&
-            "EP 1211",&
-            "UT ISI:A1980KE76300015",&
-            "ER"),&
-            DOI="10.1139/P80-159")       ! this doi should be correct later this week, but does not yet resolve
-           !DOI="10.1139/cjp-58-8-1200") ! this doi is on the publishers web site but does not resolve
+         "PT J",&
+         "AU VOSKO, SH",&
+         "   WILK, L",&
+         "   NUSAIR, M",&
+         "TI ACCURATE SPIN-DEPENDENT ELECTRON LIQUID CORRELATION ENERGIES FOR LOCAL",&
+         "   SPIN-DENSITY CALCULATIONS - A CRITICAL ANALYSIS",&
+         "SO CANADIAN JOURNAL OF PHYSICS",&
+         "SN 0008-4204",&
+         "PY 1980",&
+         "VL 58",&
+         "IS 8",&
+         "BP 1200",&
+         "EP 1211",&
+         "UT ISI:A1980KE76300015",&
+         "ER"),&
+         DOI="10.1139/p80-159") ! this doi should be correct later this week, but does not yet resolve
 
     CALL add_reference(key=Essmann1995,ISI_record=s2a(&
-            "PT J",&
-            "AU ESSMANN, U",&
-            "   PERERA, L",&
-            "   BERKOWITZ, ML",&
-            "   DARDEN, T",&
-            "   LEE, H",&
-            "   PEDERSEN, LG",&
-            "TI A SMOOTH PARTICLE MESH EWALD METHOD",&
-            "SO JOURNAL OF CHEMICAL PHYSICS",&
-            "SN 0021-9606",&
-            "PD NOV 15",&
-            "PY 1995",&
-            "VL 103",&
-            "IS 19",&
-            "BP 8577",&
-            "EP 8593",&
-            "UT ISI:A1995TE36400026",&
-            "ER"),&
-            DOI="10.1063/1.470117")
+         "PT J",&
+         "AU ESSMANN, U",&
+         "   PERERA, L",&
+         "   BERKOWITZ, ML",&
+         "   DARDEN, T",&
+         "   LEE, H",&
+         "   PEDERSEN, LG",&
+         "TI A SMOOTH PARTICLE MESH EWALD METHOD",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD NOV 15",&
+         "PY 1995",&
+         "VL 103",&
+         "IS 19",&
+         "BP 8577",&
+         "EP 8593",&
+         "UT ISI:A1995TE36400026",&
+         "ER"),&
+         DOI="10.1063/1.470117")
 
     CALL add_reference(key=Ewald1921,ISI_record=s2a(&
-            "PT J",&
-            "AU Ewald, PP",&
-            "TI Die Berechnung optischer und elektrostatischer Gitterpotentiale",&
-            "SO ANNALEN DER PHYSIK",&
-            "SN 0003-3804",&
-            "PD FEB",&
-            "PY 1921",&
-            "VL 369",&
-            "IS 3",&
-            "BP 253",&
-            "EP 287",&
-            "UT ISI:000201909400003",&
-            "ER"),&
-            DOI="10.1002/andp.19213690304")
+         "PT J",&
+         "AU Ewald, PP",&
+         "TI Die Berechnung optischer und elektrostatischer Gitterpotentiale",&
+         "SO ANNALEN DER PHYSIK",&
+         "SN 0003-3804",&
+         "PD FEB",&
+         "PY 1921",&
+         "VL 369",&
+         "IS 3",&
+         "BP 253",&
+         "EP 287",&
+         "UT ISI:000201909400003",&
+         "ER"),&
+         DOI="10.1002/andp.19213690304")
 
     CALL add_reference(key=Darden1993,ISI_record=s2a(&
-            "PT J",&
-            "AU DARDEN, T",&
-            "   YORK, D",&
-            "   PEDERSEN, L",&
-            "TI PARTICLE MESH EWALD - AN N.LOG(N) METHOD FOR EWALD SUMS IN LARGE SYSTEMS",&
-            "SO JOURNAL OF CHEMICAL PHYSICS",&
-            "SN 0021-9606",&
-            "PD JUN 15",&
-            "PY 1993",&
-            "VL 98",&
-            "IS 12",&
-            "BP 10089",&
-            "EP 10092",&
-            "UT ISI:A1993LG10100091",&
-            "ER"),&
-            DOI="10.1063/1.464397")
+         "PT J",&
+         "AU DARDEN, T",&
+         "   YORK, D",&
+         "   PEDERSEN, L",&
+         "TI PARTICLE MESH EWALD - AN N.LOG(N) METHOD FOR EWALD SUMS IN LARGE SYSTEMS",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD JUN 15",&
+         "PY 1993",&
+         "VL 98",&
+         "IS 12",&
+         "BP 10089",&
+         "EP 10092",&
+         "UT ISI:A1993LG10100091",&
+         "ER"),&
+         DOI="10.1063/1.464397")
 
     CALL add_reference(key=Dudarev1997,ISI_record=s2a(&
          "PT J",&
@@ -1542,7 +1541,7 @@ CONTAINS
          "SC Physics, Multidisciplinary",&
          "GA BFQ13",&
          "UT ISI:000243725000009",&
-         "ER"),& 
+         "ER"),&
          DOI="10.1007/3-540-35273-2_8")
 
     CALL add_reference(key=Grimme2006,ISI_record=s2a(&
@@ -1565,7 +1564,7 @@ CONTAINS
          DOI="10.1002/jcc.20495")
 
     CALL add_reference(key=Branduardi2007,ISI_record=s2a(&
-         "PT J",& 
+         "PT J",&
          "AU Branduardi, D",&
          "   Gervasio, FL",&
          "   Parrinello, M",&
@@ -1584,8 +1583,9 @@ CONTAINS
          "UT ISI:000244044600009",&
          "ER"),&
          DOI="10.1063/1.2432340")
+
     CALL add_reference(key=Schenter2008,ISI_record=s2a(&
-         "PT J",& 
+         "PT J",&
          "AU Chang, DT",&
          "   Schenter, GK",&
          "   Garrett, BC ",&
@@ -1651,22 +1651,77 @@ CONTAINS
          DOI="10.1103/PhysRevA.39.3761")
 
     CALL add_reference(key=Becke1997, ISI_record=s2a(&
-        "TY  JOUR", &
-        "AU  Becke, AD", &
-        "PY  1997/11/22", &
-        "JF  Journal Of Chemical Physics", &
-        "JO  Journal Of Chemical Physics", &
-        "SN  0021-9606", &
-        "TI  Density-functional thermochemistry .", &
-        "    5. Systematic optimization of exchange-correlation functionals", &
-        "VL  107", &
-        "IS  20", &
-        "SP  8554", &
-        "EP  8560", &
-        "UR  http://link.aip.org/link/?JCP/107/8554/1",&
-        "ER  http://dx.doi.org/10.1063/1.475007"),&
-        DOI="10.1063/1.475007")
+         "TY  JOUR", &
+         "AU  Becke, AD", &
+         "PY  1997/11/22", &
+         "JF  Journal Of Chemical Physics", &
+         "JO  Journal Of Chemical Physics", &
+         "SN  0021-9606", &
+         "TI  Density-functional thermochemistry .", &
+         "    5. Systematic optimization of exchange-correlation functionals", &
+         "VL  107", &
+         "IS  20", &
+         "SP  8554", &
+         "EP  8560", &
+         "UR  http://link.aip.org/link/?JCP/107/8554/1",&
+         "ER  http://dx.doi.org/10.1063/1.475007"),&
+         DOI="10.1063/1.475007")
 
-   END SUBROUTINE add_all_references
+    CALL add_reference(key=Ricci2003, ISI_record=s2a(&
+         "AU Ricci, A",&
+         "   Ciccotti, G",&
+         "TI Algorithms for Brownian dynamics",&
+         "SO MOLECULAR PHYSICS",&
+         "SN 0026-8976",&
+         "J9 MOL PHYS",&
+         "JI Mol. Phys.",&
+         "PD JUN 20",&
+         "PY 2003",&
+         "VL 101",&
+         "IS 12",&
+         "BP 1927",&
+         "EP 1931",&
+         "UT ISI:000184158800014",&
+         "ER"),&
+         DOI="10.1080/0026897031000108113")
+
+    CALL add_reference(key=Kolafa2004, ISI_record=s2a(&
+         "AU Kolafa, J",&
+         "TI Time-reversible always stable predictor-corrector method for molecular dynamics of polarizable molecules",&
+         "SO JOURNAL OF COMPUTATIONAL CHEMISTRY",&
+         "SN 0192-8651",&
+         "J9 J COMPUT CHEM",&
+         "JI J. Comput. Chem.",&
+         "PD FEB",&
+         "PY 2004",&
+         "VL 25",&
+         "IS 3",&
+         "BP 335",&
+         "EP 342",&
+         "UT ISI:000188245900004",&
+         "ER"),&
+         DOI="10.1002/jcc.10385")
+
+    CALL add_reference(key=Kuhne2007, ISI_record=s2a(&
+         "AU Kuhne, TD",&
+         "   Krack, M",&
+         "   Mohamed, FR",&
+         "   Parrinello, M",&
+         "TI Efficient and accurate Car-Parrinello-like approach to Born-Oppenheimer molecular dynamics",&
+         "SO PHYSICAL REVIEW LETTERS",&
+         "SN 0031-9007",&
+         "J9 PHYS REV LETT",&
+         "JI Phys. Rev. Lett.",&
+         "PD FEB 9",&
+         "PY 2007",&
+         "VL 98",&
+         "IS 6",&
+         "AR 066401",&
+         "PG 4",&
+         "UT ISI:000244117400046",&
+         "ER"),&
+         DOI="10.1103/PhysRevLett.98.066401")
+
+  END SUBROUTINE add_all_references
 
 END MODULE bibliography

@@ -17,6 +17,10 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE qs_wf_history_methods
+
+  USE bibliography,                    ONLY: Kolafa2004,&
+                                             VandeVondele2005a,&
+                                             cite_reference
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale,&
@@ -651,6 +655,7 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
         wf_history%store_wf=.TRUE.
         wf_history%store_overlap=.TRUE.
      CASE(wfi_ps_method_nr)
+        CALL cite_reference(VandeVondele2005a)
         wf_history%memory_depth=my_extrapolation_order+1
         wf_history%store_wf=.TRUE.
         wf_history%store_overlap=.TRUE.
@@ -658,6 +663,7 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
         wf_history%memory_depth=1
         wf_history%store_frozen_density=.TRUE.
      CASE (wfi_aspc_nr)
+       CALL cite_reference(Kolafa2004)
        wf_history%memory_depth = my_extrapolation_order + 2
        wf_history%store_wf = .TRUE.
        wf_history%store_overlap = .TRUE.

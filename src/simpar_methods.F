@@ -11,7 +11,9 @@
 ! *****************************************************************************
 MODULE simpar_methods
   USE bibliography,                    ONLY: Evans1983,&
+                                             Kuhne2007,&
                                              Minary2003,&
+                                             Ricci2003,&
                                              cite_reference
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -79,8 +81,10 @@ CONTAINS
 
     ! Begin setup Langevin dynamics
     IF (simpar%ensemble == langevin_ensemble) THEN
+       CALL cite_reference(Ricci2003)
+       IF (simpar%noisy_gamma > 0.0_dp) CALL cite_reference(Kuhne2007)
        ! Normalization factor using a normal Gaussian random number distribution
-       simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*(simpar%gamma+simpar%noisy_gamma)
+       simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*(simpar%gamma + simpar%noisy_gamma)
        IF ( iw > 0 ) THEN
           tmp_r1 = cp_unit_from_cp2k(simpar%gamma,"fs^-1",error=error)
           tmp_r2 = cp_unit_from_cp2k(simpar%noisy_gamma, "fs^-1", error=error)
