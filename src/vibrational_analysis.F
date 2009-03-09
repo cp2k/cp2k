@@ -39,9 +39,9 @@ MODULE vibrational_analysis
                                              dp
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: diamat_all
-  USE mode_selective,                  ONLY: molden_out,&
-                                             ms_vb_anal
+  USE mode_selective,                  ONLY: ms_vb_anal
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE molden_utils,                    ONLY: molden_out
   USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type
@@ -408,7 +408,8 @@ CONTAINS
                    iw = cp_logger_get_default_unit_nr(logger)
                    CALL vib_out(iw,nvib,D,konst,rmass,H_eigval2,particles,Mlist, intensities)
                 END IF
-                IF(.NOT.something_frozen) CALL molden_out(input,particles,H_eigval2,D,intensities,calc_intens,error)
+                IF(.NOT.something_frozen) CALL molden_out(input,particles,H_eigval2,D,intensities,calc_intens,&
+                                               dump_only_positive=.FALSE.,error=error)
              ELSE
                 IF (output_unit>0) THEN
                    WRITE(output_unit,'(T2,"VIB| No further vibrational info. Detected a single atom")')

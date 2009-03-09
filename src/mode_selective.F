@@ -16,7 +16,6 @@
 !> \author Florian Schiffmann 08.2006
 ! *****************************************************************************
 MODULE mode_selective
-  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -34,6 +33,7 @@ MODULE mode_selective
                                              dp
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_bcast
+  USE molden_utils,                    ONLY: molden_out
   USE parallel_rng_types,              ONLY: next_random_number
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: massunit,&
@@ -73,7 +73,6 @@ MODULE mode_selective
   END TYPE ms_vib_type
 
   PUBLIC :: ms_vb_anal,&
-            molden_out,&
             ms_vib_type
 
 CONTAINS
@@ -999,7 +998,8 @@ CONTAINS
           CALL ms_out(output_unit_ms,converged,freq,criteria ,ms_vib,&
                       nrep,approx_H,eigenval,calc_intens,error=error)
        ENDIF
-       CALL molden_out(input,particles,eigenval,tmp_b,intensities,calc_intens,error)
+       CALL molden_out(input,particles,eigenval,tmp_b,intensities,calc_intens,&
+                       dump_only_positive=.TRUE.,error=error)
        IF (calc_intens) THEN
           DEALLOCATE(intensities,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
@@ -1262,72 +1262,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE ms_out
-
-! *****************************************************************************
-!> \brief writes the output for a mode tracking calculation
-!> \author Florian Schiffmann 11.2007
-! *****************************************************************************
-  SUBROUTINE molden_out(input,particles,freq,eigen_vec,intensities,calc_intens,error)
-
-    TYPE(section_vals_type), POINTER         :: input
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particles
-    REAL(KIND=dp), DIMENSION(:)              :: freq
-    REAL(KIND=dp), DIMENSION(:, :)           :: eigen_vec
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: intensities
-    LOGICAL                                  :: calc_intens
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'molden_out', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=2)                         :: element_symbol
-    INTEGER                                  :: i, iw, j, k, l
-    LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    iw=cp_print_key_unit_nr(logger,input,"VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB",&
-            extension=".mol",file_status='REPLACE',error=error)
-
-    IF(iw.GT.0)THEN
-       CPPostcondition(MOD(SIZE(eigen_vec,1),3)==0,cp_failure_level,routineP,error,failure)    
-       CPPostcondition(SIZE(particles)==SIZE(eigen_vec,1)/3,cp_failure_level,routineP,error,failure)
-       CPPostcondition(SIZE(freq,1)==SIZE(eigen_vec,2),cp_failure_level,routineP,error,failure)       
-       WRITE(iw,'(T2,A)')"[Molden Format]"   
-       WRITE(iw,'(T2,A)')"[FREQ]"
-       DO i=1,SIZE(freq,1)
-          IF(freq(i).ge.0._dp)WRITE(iw,'(T5,F12.6)') freq(i)
-       END DO
-       WRITE(iw,'(T2,A)')"[FR-COORD]"       
-       DO i=1,SIZE(particles)
-          CALL get_atomic_kind(atomic_kind=particles(i)%atomic_kind,&
-               element_symbol=element_symbol) 
-               WRITE(iw,'(T2,A2,3X,3(F12.6,3X))')&
-                    element_symbol, particles((i))%r(:)
-       END DO
-       WRITE(iw,'(T2,A)')"[FR-NORM-COORD]"
-       l=0
-       DO i=1,SIZE(eigen_vec,2)
-          IF(freq(i).GE.0._dp)THEN
-             l=l+1
-             WRITE(iw,'(T2,A,1X,I6)')"vibration",l
-             DO j=1,SIZE(eigen_vec,1)/3
-                k=(j-1)*3
-                IF(freq(i).GE.0._dp) WRITE(iw,'(T2,3(F12.6,3X))')eigen_vec(k+1,i),eigen_vec(k+2,i),eigen_vec(k+3,i)
-             END DO
-          END IF
-       END DO
-       IF(calc_intens)THEN
-          WRITE(iw,'(T2,A)')"[INT]"
-          DO i=1,SIZE(intensities)
-             IF(freq(i).GE.0._dp)WRITE(iw,'(3X,F18.6)')intensities(i)
-          END DO
-       END IF
-    END IF
-    CALL cp_print_key_finished_output(iw,logger,input,"VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB",error=error)
-  END SUBROUTINE molden_out
 
 ! *****************************************************************************
 !> \author Florian Schiffmann 11.2007
