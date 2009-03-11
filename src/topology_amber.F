@@ -1665,7 +1665,7 @@ CPSourceFileRef,&
       ALLOCATABLE, DIMENSION(:)              :: work_label
     INTEGER                                  :: handle, i, natom, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: check, failure
     REAL(KIND=dp)                            :: F12, F6, my_eps, my_sigma, &
                                                 sigma6
 
@@ -1707,9 +1707,15 @@ CPSourceFileRef,&
           END IF
           F12 = cn1( ico(ntypes*(iac(iwork(i))-1) + iac(iwork(i))))
           F6  = cn2( ico(ntypes*(iac(iwork(i))-1) + iac(iwork(i))))
-          sigma6   = (2.0_dp*F12/F6)
-          my_sigma = sigma6**(1.0_dp/6.0_dp)
-          my_eps   = F6/(2.0_dp*sigma6) 
+          check = (F6==0.0_dp).EQV.(F12==0.0_dp)
+          CPPostcondition(check,cp_failure_level,routineP,error,failure)
+          my_sigma = 0.0_dp
+          my_eps   = 0.0_dp
+          IF (F6/=0.0_dp) THEN
+             sigma6   = (2.0_dp*F12/F6)
+             my_sigma = sigma6**(1.0_dp/6.0_dp)
+             my_eps   = F6/(2.0_dp*sigma6) 
+          END IF
           atom_label(nsize) = work_label(i)
           sigma(nsize)      = my_sigma/2.0_dp
           eps(nsize)        = my_eps
