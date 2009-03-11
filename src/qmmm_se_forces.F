@@ -34,12 +34,12 @@ MODULE qmmm_se_forces
   USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
   USE semi_empirical_integrals,        ONLY: dcorecore,&
                                              drotnuc
-  USE semi_empirical_types,            ONLY: ewald_control_type,&
-                                             get_se_param,&
+  USE semi_empirical_types,            ONLY: get_se_param,&
+                                             se_int_control_type,&
                                              semi_empirical_create,&
                                              semi_empirical_release,&
                                              semi_empirical_type,&
-                                             setup_ewald_control_type
+                                             setup_se_int_control_type
   USE semi_empirical_utils,            ONLY: get_se_type,&
                                              se_param_set_default
   USE sparse_matrix_types,             ONLY: get_block_node,&
@@ -97,6 +97,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p
+    TYPE(se_int_control_type)                :: se_int_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
     TYPE(taper_type), POINTER                :: taper
 
@@ -122,6 +123,10 @@ CONTAINS
        END SELECT
        anag = dft_control%qs_control%se_control%analytical_gradients
        delta= dft_control%qs_control%se_control%delta
+       ! Setup SE integral control type
+       CALL setup_se_int_control_type(se_int_control, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
+            integral_screening=dft_control%qs_control%se_control%integral_screening)
+
        ! Create a fake semi-empirical type to handle the classical atom
        ALLOCATE(Forces_QM(3,number_qm_atoms),stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -172,6 +177,7 @@ CONTAINS
                                                  Forces,&
                                                  Forces_QM(:,iqm),&
                                                  taper,&
+                                                 se_int_control,&
                                                  anag,&
                                                  delta,&
                                                  qmmm_env%spherical_cutoff,&
@@ -194,6 +200,7 @@ CONTAINS
                                                     Forces_added_charges,&
                                                     Forces_QM(:,iqm),&
                                                     taper,&
+                                                    se_int_control,&
                                                     anag,&
                                                     delta,&
                                                     qmmm_env%spherical_cutoff,&
@@ -239,7 +246,7 @@ CONTAINS
   SUBROUTINE deriv_se_qmmm_matrix_low(p_block_a, se_kind_a, se_kind_mm,&
        potentials, mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
        num_mm_atoms, mm_cell, IndQM, itype, para_env, forces, forces_qm, taper,&
-       anag, delta, qmmm_spherical_cutoff, error)
+       se_int_control, anag, delta, qmmm_spherical_cutoff, error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block_a
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
@@ -257,6 +264,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: forces_qm
     TYPE(taper_type), POINTER                :: taper
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     LOGICAL, INTENT(IN)                      :: anag
     REAL(KIND=dp), INTENT(IN)                :: delta, &
                                                 qmmm_spherical_cutoff(2)
@@ -271,11 +279,9 @@ CONTAINS
                                                 sph_chrg_factor
     REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab, r_pbc, rij
     REAL(KIND=dp), DIMENSION(3, 45)          :: de1b
-    TYPE(ewald_control_type)                 :: ewald_control
     TYPE(qmmm_pot_type), POINTER             :: Pot
 
     CALL timeset(routineN,handle)
-    CALL setup_ewald_control_type(ewald_control, shortrange=.FALSE., do_ewald_r3=.FALSE.)
     ! Loop Over MM atoms - parallelization over MM atoms...
     ! Loop over Pot stores atoms with the same charge
     MainLoopPot: DO Ipot = 1, SIZE(Potentials)
@@ -298,9 +304,9 @@ CONTAINS
           IF (ABS(se_kind_mm%zeff)<=EPSILON(0.0_dp)) CYCLE
           ! Integrals derivatives involving QM - MM atoms
           CALL drotnuc(se_kind_a, se_kind_mm, rij, itype=itype, de1b=de1b,&
-               ewald_control=ewald_control, anag=anag, delta=delta, taper=taper, error=error)
+               se_int_control=se_int_control, anag=anag, delta=delta, taper=taper, error=error)
           CALL dcorecore(se_kind_a, se_kind_mm, rij, itype=itype, denuc=denuc,&
-               ewald_control=ewald_control, anag=anag, delta=delta, taper=taper, error=error)
+               se_int_control=se_int_control, anag=anag, delta=delta, taper=taper, error=error)
           ! Nucler - Nuclear term
           force_ab(1:3)=-denuc(1:3)
           ! Force contribution from the QMMM Hamiltonian

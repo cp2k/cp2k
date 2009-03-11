@@ -10,7 +10,8 @@
 MODULE semi_empirical_int_utils
 
   USE f77_blas
-  USE input_constants,                 ONLY: do_method_pchg
+  USE input_constants,                 ONLY: do_method_pchg,&
+                                             do_se_IS_kdso_d
   USE kinds,                           ONLY: dp
   USE semi_empirical_int3_utils,       ONLY: charg_int_3,&
                                              dcharg_int_3,&
@@ -18,8 +19,9 @@ MODULE semi_empirical_int_utils
   USE semi_empirical_int_arrays,       ONLY: &
        CLMp, CLMxx, CLMxy, CLMyy, CLMz, CLMzp, CLMzz, clm_d, clm_sp, &
        ijkl_ind, indexa, indexb, int2c_type
-  USE semi_empirical_types,            ONLY: ewald_control_type,&
-                                             rotmat_type,&
+  USE semi_empirical_types,            ONLY: rotmat_type,&
+                                             se_int_control_type,&
+                                             se_int_screen_type,&
                                              semi_empirical_type
   USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
@@ -47,11 +49,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control, itype, error) RESULT(res)
+  FUNCTION ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_control,&
+       se_int_screen, itype, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     INTEGER, INTENT(IN)                      :: itype
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -59,12 +63,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_sp', &
       routineP = moduleN//':'//routineN
 
-    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control%shortrange,&
-         itype, charg_int_nri, error)
+    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+                      se_int_control%integral_screening, se_int_control%shortrange,&
+                      itype, charg_int_nri, error)
 
     ! Handle the 1/r^3 term
-    IF (ewald_control%shortrange.AND.ewald_control%do_ewald_r3) THEN
-       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, itype, charg_int_3, error)
+    IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
+       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
+                              itype, charg_int_3, error)
     END IF
   END FUNCTION ijkl_sp
 
@@ -78,11 +84,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 05.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION d_ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control, itype, error) RESULT(res)
+  FUNCTION d_ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_control,&
+       se_int_screen, itype, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     INTEGER, INTENT(IN)                      :: itype
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -90,12 +98,24 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_sp', &
       routineP = moduleN//':'//routineN
 
-    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control%shortrange,&
-         itype, dcharg_int_nri, error)
+    REAL(KIND=dp)                            :: dfs
 
-    ! Handle the 1/r^3 term
-    IF (ewald_control%shortrange.AND.ewald_control%do_ewald_r3) THEN
-       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, itype, dcharg_int_3, error)
+    res = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+                      se_int_control%integral_screening, se_int_control%shortrange,&
+                      itype, dcharg_int_nri, error)
+
+    ! Handle the derivative of the Tapering term
+    IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
+       dfs = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+            se_int_control%integral_screening, .FALSE., itype, dcharg_int_nri_fs,&
+            error)
+       res = res + dfs*se_int_screen%dft
+    END IF
+
+    ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-S integrals
+    IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
+       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
+                              itype, dcharg_int_3, error)
     END IF
   END FUNCTION d_ijkl_sp
 
@@ -110,10 +130,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 05.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, eval, error) RESULT(res)
+  FUNCTION ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+       iscreen, shortrange, itype, eval, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
+    TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
+    INTEGER, INTENT(IN)                      :: iscreen
     LOGICAL, INTENT(IN)                      :: shortrange
     INTEGER, INTENT(IN)                      :: itype
     REAL(KIND=dp)                            :: eval
@@ -127,7 +150,8 @@ CONTAINS
                                                 l2max, l2min, lij, lkl, lmin, &
                                                 m, mm
     REAL(KIND=dp)                            :: add, chrg, dij, dkl, fact_ij, &
-                                                fact_kl, pij, pkl, s1, sum
+                                                fact_kl, fact_screen, pij, &
+                                                pkl, s1, sum
 
     l1min = ABS (li-lj)
     l1max = li + lj
@@ -145,8 +169,10 @@ CONTAINS
     dkl = 0.0_dp
     fact_ij = 1.0_dp
     fact_kl = 1.0_dp
+    fact_screen = 1.0_dp
     IF (lij==3) fact_ij = SQRT(2.0_dp)
     IF (lkl==3) fact_kl = SQRT(2.0_dp)
+    IF (iscreen==do_se_IS_kdso_d) fact_screen = se_int_screen%ft
     ! Standard value of the integral
     DO l1 = l1min, l1max
        IF (l1 == 0) THEN
@@ -188,7 +214,7 @@ CONTAINS
              ccc = clm_sp(ij, l1, m) * clm_sp(kl, l2, m)
              IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
                 mm   = ABS (m)
-                chrg = eval(r, l1, l2, clm_sp(ij, l1, m), clm_sp(kl, l2, m), dij, dkl, add, error)
+                chrg = eval(r, l1, l2, clm_sp(ij, l1, m), clm_sp(kl, l2, m), dij, dkl, add, fact_screen, error)
                 s1   = s1 + chrg
              END IF
           END DO
@@ -241,10 +267,10 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION charg_int_nri(r, l1_i, l2_i, m1_i, m2_i, da_i, db_i, add, error) RESULT(charg)
+  FUNCTION charg_int_nri(r, l1_i, l2_i, m1_i, m2_i, da_i, db_i, add0, fact_screen, error) RESULT(charg)
     REAL(KIND=dp), INTENT(in)                :: r
     INTEGER, INTENT(in)                      :: l1_i, l2_i, m1_i, m2_i
-    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add
+    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add0, fact_screen
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: charg
 
@@ -253,10 +279,10 @@ CONTAINS
 
     INTEGER                                  :: l1, l2, m1, m2
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: da, db, dxdx, dxqxz, dzdz, &
-                                                dzqxx, dzqzz, fact, qqxx, &
-                                                qqzz, qxxqxx, qxxqyy, qxzqxz, &
-                                                xyxy, zzzz
+    REAL(KIND=dp)                            :: add, da, db, dxdx, dxqxz, &
+                                                dzdz, dzqxx, dzqzz, fact, &
+                                                qqxx, qqzz, qxxqxx, qxxqyy, &
+                                                qxzqxz, xyxy, zzzz
 
     failure = .FALSE.
     ! Computing only Integral Values
@@ -292,6 +318,7 @@ CONTAINS
        END IF
        fact = 1.0_dp
     END IF
+    add   = add0*fact_screen
     charg = 0.0_dp
     ! Q - Q.
     IF (l1 == 0 .AND. l2 == 0) THEN
@@ -423,7 +450,6 @@ CONTAINS
     CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
   END FUNCTION charg_int_nri
 
-
 ! *****************************************************************************
 !> \brief Derivatives of interaction function between two point-charge 
 !>        configurations NDDO sp-code. 
@@ -439,10 +465,10 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION dcharg_int_nri(r, l1_i, l2_i, m1_i, m2_i, da_i, db_i, add, error) RESULT(charg)
+  FUNCTION dcharg_int_nri(r, l1_i, l2_i, m1_i, m2_i, da_i, db_i, add0, fact_screen, error) RESULT(charg)
     REAL(KIND=dp), INTENT(in)                :: r
     INTEGER, INTENT(in)                      :: l1_i, l2_i, m1_i, m2_i
-    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add
+    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add0, fact_screen
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: charg
 
@@ -451,10 +477,10 @@ CONTAINS
 
     INTEGER                                  :: l1, l2, m1, m2
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: da, db, dxdx, dxqxz, dzdz, &
-                                                dzqxx, dzqzz, fact, qqxx, &
-                                                qqzz, qxxqxx, qxxqyy, qxzqxz, &
-                                                xyxy, zzzz
+    REAL(KIND=dp)                            :: add, da, db, dxdx, dxqxz, &
+                                                dzdz, dzqxx, dzqzz, fact, &
+                                                qqxx, qqzz, qxxqxx, qxxqyy, &
+                                                qxzqxz, xyxy, zzzz
 
     failure = .FALSE.
     ! Computing only Integral Derivatives
@@ -491,6 +517,7 @@ CONTAINS
        fact = 1.0_dp
     END IF
     charg = 0.0_dp
+    add   = add0 * fact_screen
     ! Q - Q.
     IF (l1 == 0 .AND. l2 == 0) THEN
        charg = r/SQRT(r**2+add)**3
@@ -622,6 +649,207 @@ CONTAINS
   END FUNCTION dcharg_int_nri
 
 ! *****************************************************************************
+!> \brief Derivatives of interaction function between two point-charge 
+!>        configurations NDDO sp-code. The derivative takes care of the screening
+!>        term only.
+!>        Non-Rotational Invariant definition of quadrupoles
+!>
+!>        r    -  Distance r12
+!>        l1,m -  Quantum numbers for multipole of configuration 1
+!>        l2,m -  Quantum numbers for multipole of configuration 2
+!>        da   -  charge separation of configuration 1
+!>        db   -  charge separation of configuration 2
+!>        add  -  additive term
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 04.2008 [tlaino]
+! *****************************************************************************
+  FUNCTION dcharg_int_nri_fs(r, l1_i, l2_i, m1_i, m2_i, da_i, db_i, add0, fact_screen, error) RESULT(charg)
+    REAL(KIND=dp), INTENT(in)                :: r
+    INTEGER, INTENT(in)                      :: l1_i, l2_i, m1_i, m2_i
+    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add0, fact_screen
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: charg
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_nri_fs', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: l1, l2, m1, m2
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: add, da, db, dxdx, dxqxz, &
+                                                dzdz, dzqxx, dzqzz, fact, &
+                                                qqxx, qqzz, qxxqxx, qxxqyy, &
+                                                qxzqxz, xyxy, zzzz
+
+    failure = .FALSE.
+    ! Computing only Integral Derivatives
+    IF      ( l1_i  < l2_i) THEN
+       l1 = l1_i
+       l2 = l2_i
+       m1 = m1_i
+       m2 = m2_i
+       da = da_i
+       db = db_i
+       fact  = 1.0_dp
+    ELSE IF ( l1_i  > l2_i ) THEN
+       l1 = l2_i
+       l2 = l1_i
+       m1 = m2_i
+       m2 = m1_i
+       da = db_i
+       db = da_i
+       fact  = (-1.0_dp)**(l1+l2)
+    ELSE IF ( l1_i == l2_i ) THEN
+       l1 = l1_i
+       l2 = l2_i
+       IF   ( m1_i <= m2_i ) THEN
+          m1 = m1_i
+          m2 = m2_i
+          da = da_i
+          db = db_i
+       ELSE
+          m1 = m2_i
+          m2 = m1_i
+          da = db_i
+          db = da_i
+       END IF
+       fact = 1.0_dp
+    END IF
+    charg = 0.0_dp
+    add   = add0 * fact_screen
+    ! The 0.5 factor handles the derivative of the SQRT
+    fact  = fact * 0.5_dp
+    ! Q - Q.
+    IF (l1 == 0 .AND. l2 == 0) THEN
+       charg = add0/SQRT(r**2+add)**3
+       charg = -charg*fact
+       RETURN
+    END IF
+    ! Q - Z.
+    IF (l1 == 0 .AND. l2 == 1 .AND. m2 == CLMz) THEN
+       charg = add0/SQRT((r+db)**2+add)**3 - add0/SQRT((r-db)**2+add)**3
+       charg = -charg*0.5_dp*fact
+       RETURN
+    END IF
+    ! Z - Z.
+    IF (l1 == 1 .AND. l2 == 1 .AND. m1 == CLMz .AND. m2 == CLMz ) THEN
+       dzdz  = &
+            +add0/SQRT((r+da-db)**2+add)**3 + add0/SQRT((r-da+db)**2+add)**3 &
+            -add0/SQRT((r-da-db)**2+add)**3 - add0/SQRT((r+da+db)**2+add)**3
+       charg = -dzdz*0.25_dp*fact
+       RETURN
+    END IF
+    ! X - X
+    IF (l1 == 1 .AND. l2 == 1 .AND. m1 == CLMp .AND. m2 == CLMp ) THEN
+       dxdx  = 2.0_dp*add0/SQRT(r**2+(da-db)**2+add)**3 - 2.0_dp*add0/SQRT(r**2+(da+db)**2+add)**3
+       charg = -dxdx*0.25_dp*fact
+       RETURN
+    END IF
+    ! Q - ZZ
+    IF (l1 == 0 .AND. l2 == 2 .AND. m2 == CLMzz) THEN
+       qqzz  = add0/SQRT((r-db)**2+add)**3 - 2.0_dp*add0/SQRT(r**2+add)**3 + add0/SQRT((r+db)**2+add)**3
+       charg = -qqzz*0.25_dp*fact
+       RETURN
+    END IF
+    ! Q - XX
+    IF (l1 == 0 .AND. l2 == 2 .AND. (m2 == CLMyy .OR. m2 == CLMxx)) THEN
+       qqxx  = -add0/SQRT(r**2+add)**3 + add0/SQRT(r**2+add+db**2)**3
+       charg = -qqxx*0.5_dp*fact
+       RETURN
+    END IF
+    ! Z - ZZ
+    IF (l1 == 1 .AND. l2 == 2 .AND. m1 == CLMz .AND. m2 == CLMzz ) THEN
+       dzqzz = &
+            +add0/SQRT((r-da-db)**2+add)**3      - 2.0_dp*add0/SQRT((r-da)**2+add)**3 &
+            +add0/SQRT((r-da+db)**2+add)**3      - add0/SQRT((r+da-db)**2+add)**3 &
+            +2.0_dp*add0/SQRT((r+da)**2+add)**3  - add0/SQRT((r+da+db)**2+add)**3
+       charg = -dzqzz*0.125_dp*fact
+       RETURN
+    END IF
+    ! Z - XX
+    IF (l1 == 1 .AND. l2 == 2 .AND. m1 == CLMz .AND. ( m2 == CLMyy .OR. m2 == CLMxx )) THEN
+       dzqxx = &
+            +add0/SQRT((r+da)**2+add)**3    - add0/SQRT((r+da)**2+add+db**2)**3 &
+            -add0/SQRT((r-da)**2+add)**3    + add0/SQRT((r-da)**2+add+db**2)**3
+       charg = -dzqxx*0.25_dp*fact
+       RETURN
+    END IF
+    ! ZZ - ZZ
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMzz .AND. m2 == CLMzz ) THEN
+       zzzz = &
+            +add0/SQRT((r-da-db)**2+add)**3    + add0/SQRT((r+da+db)**2+add)**3 &
+            +add0/SQRT((r-da+db)**2+add)**3    + add0/SQRT((r+da-db)**2+add)**3
+       xyxy = &
+            +add0/SQRT((r-da)**2+add)**3       + add0/SQRT((r+da)**2+add)**3 &
+            +add0/SQRT((r-db)**2+add)**3       + add0/SQRT((r+db)**2+add)**3 &
+            -2.0_dp*add0/SQRT(r**2+add)**3
+       charg = -(zzzz*0.0625_dp - xyxy*0.125_dp)*fact
+       RETURN
+    END IF
+    ! ZZ - XX
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMzz .AND. ( m2 == CLMxx .OR. m2 == CLMyy )) THEN
+       zzzz = &
+            -add0/SQRT((r+da)**2+add)**3    + add0/SQRT((r+da)**2+db**2+add)**3 &
+            -add0/SQRT((r-da)**2+add)**3    + add0/SQRT((r-da)**2+db**2+add)**3
+       xyxy =add0/SQRT(r**2+db**2+add)**3   - add0/SQRT(r**2+add)**3
+       charg = -(zzzz*0.125_dp - xyxy*0.25_dp)*fact
+       RETURN
+    END IF
+    ! X - ZX
+    IF (l1 == 1 .AND. l2 == 2 .AND. m1 == CLMp .AND. m2 == CLMzp ) THEN
+       db = db/2.0_dp
+       dxqxz = &
+            -add0/SQRT((r-db)**2+(da-db)**2+add)**3 + add0/SQRT((r+db)**2+(da-db)**2+add)**3 &
+            +add0/SQRT((r-db)**2+(da+db)**2+add)**3 - add0/SQRT((r+db)**2+(da+db)**2+add)**3
+       charg = -dxqxz*0.25_dp*fact
+       RETURN
+    END IF
+    ! ZX - ZX
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMzp .AND. m2 == CLMzp ) THEN
+       da = da / 2.0_dp
+       db = db / 2.0_dp
+       qxzqxz = &
+            +add0/SQRT((r+da-db)**2+(da-db)**2+add)**3 - add0/SQRT((r+da+db)**2+(da-db)**2+add)**3 &
+            -add0/SQRT((r-da-db)**2+(da-db)**2+add)**3 + add0/SQRT((r-da+db)**2+(da-db)**2+add)**3 &
+            -add0/SQRT((r+da-db)**2+(da+db)**2+add)**3 + add0/SQRT((r+da+db)**2+(da+db)**2+add)**3 &
+            +add0/SQRT((r-da-db)**2+(da+db)**2+add)**3 - add0/SQRT((r-da+db)**2+(da+db)**2+add)**3
+       charg = -qxzqxz*0.125_dp*fact
+       RETURN
+    END IF
+    ! XX - XX
+    IF (l1 == 2 .AND. l2 == 2 .AND. (((m1 == CLMyy) .AND. (m2 == CLMyy)).OR.((m1 == CLMxx) .AND. (m2 == CLMxx)))) THEN
+       qxxqxx = &
+            + 2.0_dp*add0/SQRT(r**2+add)**3                   +        add0/SQRT(r**2+(da-db)**2+add)**3 &
+            +        add0/SQRT(r**2+(da+db)**2+add)**3        - 2.0_dp*add0/SQRT(r**2+da**2+add)**3      &
+            - 2.0_dp*add0/SQRT(r**2+db**2+add)**3
+       charg = -qxxqxx*0.125_dp*fact
+       RETURN
+    END IF
+    ! XX - YY
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMyy .AND. m2 == CLMxx) THEN
+       qxxqyy = &
+            + add0/SQRT(r**2+add)**3                   - add0/SQRT(r**2+da**2+add)**3 &
+            - add0/SQRT(r**2+db**2+add)**3             + add0/SQRT(r**2+da**2+db**2+add)**3 
+       charg = -qxxqyy*0.25_dp*fact
+       RETURN
+    END IF
+    ! XY - XY
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMxy .AND. m2 == CLMxy) THEN
+       qxxqxx = &
+            + 2.0_dp*add0/SQRT(r**2+add)**3                    +        add0/SQRT(r**2+(da-db)**2+add)**3  &
+            +        add0/SQRT(r**2+(da+db)**2+add)**3         - 2.0_dp*add0/SQRT(r**2+da**2+add)**3       &
+            - 2.0_dp*add0/SQRT(r**2+db**2+add)**3 
+       qxxqyy = &
+            + add0/SQRT(r**2+add)**3                   - add0/SQRT(r**2+da**2+add)**3 &
+            - add0/SQRT(r**2+db**2+add)**3             + add0/SQRT(r**2+da**2+db**2+add)**3
+       charg = -0.5_dp * (qxxqxx*0.125_dp - qxxqyy*0.25_dp) * fact
+       RETURN
+    END IF
+    ! We should NEVER reach this point
+    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+  END FUNCTION dcharg_int_nri_fs
+
+! *****************************************************************************
 !> \brief General driver for computing semi-empirical integrals <ij|kl> 
 !>        involving d-orbitals.
 !>        The choice of the linear quadrupole was REALLY unhappy 
@@ -637,11 +865,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control, itype, error) RESULT(res)
+  FUNCTION ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_control, &
+       se_int_screen, itype, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     INTEGER, INTENT(IN)                      :: itype
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -649,12 +879,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_d', &
       routineP = moduleN//':'//routineN
 
-    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control%shortrange,&
-         itype, charg_int_ri, error)
+    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+                     se_int_control%integral_screening, se_int_control%shortrange,&
+                     itype, charg_int_ri, error)
 
     ! Handle the 1/r^3 term
-    IF (ewald_control%shortrange.AND.ewald_control%do_ewald_r3) THEN
-       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, itype, charg_int_3, error)
+    IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
+       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
+                              itype, charg_int_3, error)
     END IF
   END FUNCTION ijkl_d
 
@@ -674,11 +906,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION d_ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control, itype, error) RESULT(res)
+  FUNCTION d_ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_control,&
+       se_int_screen, itype, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     INTEGER, INTENT(IN)                      :: itype
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
@@ -686,12 +920,24 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'd_ijkl_d', &
       routineP = moduleN//':'//routineN
 
-    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, ewald_control%shortrange,&
-         itype, dcharg_int_ri, error)
+    REAL(KIND=dp)                            :: dfs
 
-    ! Handle the 1/r^3 term
-    IF (ewald_control%shortrange.AND.ewald_control%do_ewald_r3) THEN
-       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, itype, dcharg_int_3, error)
+    res = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+                     se_int_control%integral_screening, se_int_control%shortrange,&
+                     itype, dcharg_int_ri, error)
+
+    ! Handle the derivative of the Tapering term
+    IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
+       dfs = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+            se_int_control%integral_screening, .FALSE., itype, dcharg_int_ri_fs,&
+            error)
+       res = res + dfs*se_int_screen%dft
+    END IF
+
+    ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-S integrals
+    IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
+       res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
+                              itype, dcharg_int_3, error)
     END IF
   END FUNCTION d_ijkl_d
 
@@ -711,10 +957,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, shortrange, itype, eval, error) RESULT(res)
+  FUNCTION ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
+       iscreen, shortrange, itype, eval, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
+    TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
+    INTEGER, INTENT(IN)                      :: iscreen
     LOGICAL, INTENT(IN)                      :: shortrange
     INTEGER, INTENT(IN)                      :: itype
     REAL(KIND=dp)                            :: eval
@@ -727,7 +976,7 @@ CONTAINS
     INTEGER                                  :: l1, l1max, l1min, l2, l2max, &
                                                 l2min, lij, lkl, lmin, m, mm
     REAL(KIND=dp)                            :: add, ccc, chrg, dij, dkl, &
-                                                pij, pkl, s1, sum
+                                                fact_screen, pij, pkl, s1, sum
 
     l1min = ABS (li-lj)
     l1max = li + lj
@@ -743,6 +992,8 @@ CONTAINS
     sum = 0.0_dp
     dij = 0.0_dp
     dkl = 0.0_dp
+    fact_screen = 1.0_dp
+    IF (iscreen==do_se_IS_kdso_d) fact_screen = se_int_screen%ft
     ! Standard value of the integral
     DO l1 = l1min, l1max
        IF (l1 == 0) THEN
@@ -788,7 +1039,7 @@ CONTAINS
              ccc = clm_d(ij, l1, m) * clm_d(kl, l2, m)
              IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
                 mm   = ABS (m)
-                chrg = eval(r, l1, l2, mm, dij, dkl, add, error)
+                chrg = eval(r, l1, l2, mm, dij, dkl, add, fact_screen, error)
                 s1   = s1 + chrg * ccc
              END IF
           END DO
@@ -841,10 +1092,10 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION charg_int_ri(r, l1_i, l2_i, m, da_i, db_i, add, error) RESULT(charg)
+  FUNCTION charg_int_ri(r, l1_i, l2_i, m, da_i, db_i, add0, fact_screen, error) RESULT(charg)
     REAL(KIND=dp), INTENT(in)                :: r
     INTEGER, INTENT(in)                      :: l1_i, l2_i, m
-    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add
+    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add0, fact_screen
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: charg
 
@@ -853,9 +1104,9 @@ CONTAINS
 
     INTEGER                                  :: l1, l2
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: aa, ab, da, db, dxdx, dxqxz, &
-                                                dzdz, dzqzz, fact, qqzz, &
-                                                qxzqxz, xyxy, zzzz
+    REAL(KIND=dp)                            :: aa, ab, add, da, db, dxdx, &
+                                                dxqxz, dzdz, dzqzz, fact, &
+                                                qqzz, qxzqxz, xyxy, zzzz
 
     failure = .FALSE.
     IF      ( l1_i  <= l2_i) THEN
@@ -872,6 +1123,7 @@ CONTAINS
        fact  = (-1.0_dp)**(l1+l2)
     END IF
     charg = 0.0_dp
+    add   = add0*fact_screen
     ! Q - Q.
     IF (l1 == 0 .AND. l2 == 0) THEN
        charg = fact/SQRT(r**2+add)
@@ -971,10 +1223,10 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION dcharg_int_ri(r, l1_i, l2_i, m, da_i, db_i, add, error) RESULT(charg)
+  FUNCTION dcharg_int_ri(r, l1_i, l2_i, m, da_i, db_i, add0, fact_screen, error) RESULT(charg)
     REAL(KIND=dp), INTENT(in)                :: r
     INTEGER, INTENT(in)                      :: l1_i, l2_i, m
-    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add
+    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add0, fact_screen
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: charg
 
@@ -983,9 +1235,9 @@ CONTAINS
 
     INTEGER                                  :: l1, l2
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: aa, ab, da, db, dxdx, dxqxz, &
-                                                dzdz, dzqzz, fact, qqzz, &
-                                                qxzqxz, xyxy, zzzz
+    REAL(KIND=dp)                            :: aa, ab, add, da, db, dxdx, &
+                                                dxqxz, dzdz, dzqzz, fact, &
+                                                qqzz, qxzqxz, xyxy, zzzz
 
     failure = .FALSE.
     IF      ( l1_i  <= l2_i) THEN
@@ -1002,6 +1254,7 @@ CONTAINS
        fact  = (-1.0_dp)**(l1+l2)
     END IF
     charg = 0.0_dp
+    add   = add0*fact_screen
     ! Q - Q.
     IF (l1 == 0 .AND. l2 == 0) THEN
        charg = r/SQRT(r**2+add)**3
@@ -1089,13 +1342,150 @@ CONTAINS
   END FUNCTION dcharg_int_ri
 
 ! *****************************************************************************
+!> \brief Derivatives of the interaction function between two point-charge 
+!>        configurations (MNDO/d). This derivative takes into account only the
+!>        tapering term
+!>        Rotational invariant property built-in in the quadrupole definition
+!>        r    -  Distance r12
+!>        l1,m -  Quantum numbers for multipole of configuration 1
+!>        l2,m -  Quantum numbers for multipole of configuration 2
+!>        da   -  charge separation of configuration 1
+!>        db   -  charge separation of configuration 2
+!>        add  -  additive term
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 03.2008 [tlaino]
+! *****************************************************************************
+  FUNCTION dcharg_int_ri_fs(r, l1_i, l2_i, m, da_i, db_i, add0, fact_screen, error) RESULT(charg)
+    REAL(KIND=dp), INTENT(in)                :: r
+    INTEGER, INTENT(in)                      :: l1_i, l2_i, m
+    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add0, fact_screen
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: charg
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_ri_fs', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: l1, l2
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: aa, ab, add, da, db, dxdx, &
+                                                dxqxz, dzdz, dzqzz, fact, &
+                                                qqzz, qxzqxz, xyxy, zzzz
+
+    failure = .FALSE.
+    IF      ( l1_i  <= l2_i) THEN
+       l1 = l1_i
+       l2 = l2_i
+       da = da_i
+       db = db_i
+       fact  = 1.0_dp
+    ELSE IF ( l1_i  > l2_i ) THEN
+       l1 = l2_i
+       l2 = l1_i
+       da = db_i
+       db = da_i
+       fact  = (-1.0_dp)**(l1+l2)
+    END IF
+    charg = 0.0_dp
+    add   = add0*fact_screen
+    ! The 0.5 factor handles the derivative of the SQRT
+    fact  = fact * 0.5_dp
+    ! Q - Q.
+    IF (l1 == 0 .AND. l2 == 0) THEN
+       charg = add0/SQRT(r**2+add)**3
+       charg = -fact*charg
+       RETURN
+    END IF
+    ! Q - Z.
+    IF (l1 == 0 .AND. l2 == 1) THEN
+       charg =  add0/SQRT((r+db)**2+add)**3 - add0/SQRT((r-db)**2+add)**3
+       charg = -charg*0.5_dp*fact
+       RETURN
+    END IF
+    ! Z - Z.
+    IF (l1 == 1 .AND. l2 == 1 .AND. m == 0) THEN
+       dzdz  = &
+            +add0/SQRT((r+da-db)**2+add)**3 + add0/SQRT((r-da+db)**2+add)**3 &
+            -add0/SQRT((r-da-db)**2+add)**3 - add0/SQRT((r+da+db)**2+add)**3
+       charg = -dzdz*0.25_dp*fact
+       RETURN
+    END IF
+    ! X - X
+    IF (l1 == 1 .AND. l2 == 1 .AND. m == 1) THEN
+       dxdx  = 2.0_dp*add0/SQRT(r**2+(da-db)**2+add)**3 - 2.0_dp*add0/SQRT(r**2+(da+db)**2+add)**3
+       charg = -dxdx*0.25_dp*fact
+       RETURN
+    END IF
+    ! Q - ZZ
+    IF (l1 == 0 .AND. l2 == 2) THEN
+       qqzz  = add0/SQRT((r-db)**2+add)**3 - 2.0_dp*add0/SQRT(r**2+db**2+add)**3 + add0/SQRT((r+db)**2+add)**3
+       charg = -qqzz*0.25_dp*fact
+       RETURN
+    END IF
+    ! Z - ZZ
+    IF (l1 == 1 .AND. l2 == 2 .AND. m == 0) THEN
+       dzqzz = &
+            +add0/SQRT((r-da-db)**2+add)**3        - 2.0_dp*add0/SQRT((r-da)**2+db**2+add)**3 &
+            +add0/SQRT((r+db-da)**2+add)**3        -        add0/SQRT((r-db+da)**2+add)**3    &
+            +2.0_dp*add0/SQRT((r+da)**2+db**2+add)**3 -     add0/SQRT((r+da+db)**2+add)**3
+       charg = -dzqzz*0.125_dp*fact
+       RETURN
+    END IF
+    ! ZZ - ZZ
+    IF (l1 == 2 .AND. l2 == 2 .AND. m == 0) THEN
+       zzzz = &
+            +add0/SQRT((r-da-db)**2+add)**3        + add0/SQRT((r+da+db)**2+add)**3    &
+            +add0/SQRT((r-da+db)**2+add)**3        + add0/SQRT((r+da-db)**2+add)**3    &
+            -2.0_dp*add0/SQRT((r-da)**2+db**2+add)**3 - 2.0_dp*add0/SQRT((r-db)**2+da**2+add)**3 &
+            -2.0_dp*add0/SQRT((r+da)**2+db**2+add)**3 - 2.0_dp*add0/SQRT((r+db)**2+da**2+add)**3 &
+            +2.0_dp*add0/SQRT(r**2+(da-db)**2+add)**3 + 2.0_dp*add0/SQRT(r**2+(da+db)**2+add)**3
+       xyxy = &
+            +4.0_dp*add0/SQRT(r**2+(da-db)**2+add)**3 + 4.0_dp*add0/SQRT(r**2+(da+db)**2+add)**3 &
+            -8.0_dp*add0/SQRT(r**2+da**2+db**2+add)**3
+       charg = -(zzzz*0.0625_dp - xyxy*0.015625_dp)*fact
+       RETURN
+    END IF
+    ! X - ZX
+    IF (l1 == 1 .AND. l2 == 2 .AND. m == 1) THEN
+       ab = db/SQRT(2.0_dp)
+       dxqxz = &
+            -2.0_dp*add0/SQRT((r-ab)**2+(da-ab)**2+add)**3 + 2.0_dp*add0/SQRT((r+ab)**2+(da-ab)**2+add)**3 &
+            +2.0_dp*add0/SQRT((r-ab)**2+(da+ab)**2+add)**3 - 2.0_dp*add0/SQRT((r+ab)**2+(da+ab)**2+add)**3
+       charg = -dxqxz*0.125_dp*fact
+       RETURN
+    END IF
+    ! ZX - ZX
+    IF (l1 == 2 .AND. l2 == 2 .AND. m == 1) THEN
+       aa = da/SQRT (2.0_dp)
+       ab = db/SQRT (2.0_dp)
+       qxzqxz = &
+            +2.0_dp*add0/SQRT((r+aa-ab)**2+(aa-ab)**2+add)**3 - 2.0_dp*add0/SQRT((r+aa+ab)**2+(aa-ab)**2+add)**3 &
+            -2.0_dp*add0/SQRT((r-aa-ab)**2+(aa-ab)**2+add)**3 + 2.0_dp*add0/SQRT((r-aa+ab)**2+(aa-ab)**2+add)**3 &
+            -2.0_dp*add0/SQRT((r+aa-ab)**2+(aa+ab)**2+add)**3 + 2.0_dp*add0/SQRT((r+aa+ab)**2+(aa+ab)**2+add)**3 &
+            +2.0_dp*add0/SQRT((r-aa-ab)**2+(aa+ab)**2+add)**3 - 2.0_dp*add0/SQRT((r-aa+ab)**2+(aa+ab)**2+add)**3
+       charg = -qxzqxz*0.0625_dp*fact
+       RETURN
+    END IF
+    ! XX - XX
+    IF (l1 == 2 .AND. l2 == 2 .AND. m == 2) THEN
+       xyxy = 4.0_dp*add0/SQRT(r**2+(da-db)**2+add)**3   + 4.0_dp*add0/SQRT(r**2+(da+db)**2+add)**3 -&
+              8.0_dp*add0/SQRT(r**2+da**2+db**2+add)**3
+       charg = -xyxy*0.0625_dp*fact
+       RETURN
+    END IF
+    ! We should NEVER reach this point
+    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+  END FUNCTION dcharg_int_ri_fs
+
+! *****************************************************************************
 !> \brief Computes the general rotation matrices for the integrals
 !>        between I and J (J>=I)
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE rotmat (sepi, sepj, rjiv, r, ij_matrix, do_derivatives, do_invert, debug_invert, error)
+  RECURSIVE SUBROUTINE rotmat (sepi, sepj, rjiv, r, ij_matrix, do_derivatives,&
+       do_invert, debug_invert, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rjiv
     REAL(KIND=dp), INTENT(IN)                :: r
@@ -1494,12 +1884,12 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE rot_2el_2c_first (sepi, sepj, rijv, ewald_control, taper,&
+  RECURSIVE SUBROUTINE rot_2el_2c_first (sepi, sepj, rijv, se_int_control, taper,&
        invert, ii, kk, rep, logv, ij_matrix, v, lgrad, rep_d, v_d, logv_d, drij,&
        error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rijv
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(taper_type), POINTER                :: taper
     LOGICAL, INTENT(IN)                      :: invert
     INTEGER, INTENT(IN)                      :: ii, kk
@@ -1821,7 +2211,7 @@ CONTAINS
           END DO
        END DO
        IF (debug_this_module) THEN
-          CALL rot_2el_2c_first_debug(sepi, sepj, rijv, ewald_control, taper, invert, ii, kk, v_d, error)
+          CALL rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, taper, invert, ii, kk, v_d, error)
        END IF
     END IF
   END SUBROUTINE rot_2el_2c_first

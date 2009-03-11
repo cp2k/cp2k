@@ -1,0 +1,53 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD MNDO
+      &SE
+        INTEGRAL_SCREENING KDSO-D
+        RC_COULOMB [angstrom]     6.0
+        RC_INTERACTION [angstrom] 6.0
+        RC_RANGE   [angstrom]     0.1
+        &PRINT
+          &EWALD_INFO
+          &END
+        &END
+      &END
+    &END QS
+    &SCF
+      MAX_SCF 40
+      EPS_SCF 1.0E-6
+      SCF_GUESS MOPAC
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END
+      &OUTER_SCF
+        MAX_SCF 5
+        EPS_SCF 1.0E-6
+      &END
+      &PRINT
+         &RESTART OFF
+         &END
+      &END
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 10.0 10.0 10.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+    O   0.000000    0.000000    0.0
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O
+  RUN_TYPE DEBUG
+&END GLOBAL
+&DEBUG
+&END

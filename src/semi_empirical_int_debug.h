@@ -34,11 +34,11 @@ END INTERFACE check_rotmat_der
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
 INTERFACE check_dssss_nucint_ana
-  SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,ewald_control,taper,error)
+  SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,se_int_control,taper,error)
     USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               ewald_control_type
+                                               se_int_control_type
     USE taper_types,                     ONLY: taper_type  
 #include "cp_common_uses.h"
     IMPLICIT NONE
@@ -46,7 +46,7 @@ INTERFACE check_dssss_nucint_ana
     REAL(dp), INTENT(IN)                     :: r
     REAL(dp), INTENT(IN)                     :: dssss
     INTEGER, INTENT(IN)                      :: itype
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
   END SUBROUTINE check_dssss_nucint_ana
@@ -61,11 +61,11 @@ END INTERFACE check_dssss_nucint_ana
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
 INTERFACE check_dcore_nucint_ana
-  SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,ewald_control,taper,error)
+  SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,se_int_control,taper,error)
     USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               ewald_control_type
+                                               se_int_control_type
     USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
     IMPLICIT NONE
@@ -73,7 +73,7 @@ INTERFACE check_dcore_nucint_ana
     REAL(dp), INTENT(IN)                     :: r
     REAL(dp), DIMENSION(10, 2), INTENT(IN)   :: dcore
     INTEGER, INTENT(IN)                      :: itype
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
   END SUBROUTINE check_dcore_nucint_ana
@@ -88,23 +88,23 @@ END INTERFACE check_dcore_nucint_ana
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
 INTERFACE check_drotnuc_ana
-   SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, ewald_control, taper, e1b, e2a, de1b, de2a, error)
+   SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, taper, e1b, e2a, de1b, de2a, error)
     USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               ewald_control_type
+                                               se_int_control_type
     USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     INTEGER, INTENT(IN)                      :: itype
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(taper_type), POINTER                :: taper
     REAL(dp), DIMENSION(45), INTENT(IN), &
       OPTIONAL                               :: e1b, e2a
     REAL(dp), DIMENSION(45, 3), &
-      INTENT(IN), OPTIONAL                  :: de1b, de2a
+      INTENT(IN), OPTIONAL                   :: de1b, de2a
     TYPE(cp_error_type), INTENT(inout)       :: error
    END SUBROUTINE check_drotnuc_ana
 END INTERFACE check_drotnuc_ana
@@ -118,11 +118,11 @@ END INTERFACE check_drotnuc_ana
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
 INTERFACE check_dcorecore_ana
-  SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,ewald_control, taper, enuc, denuc, error)
+  SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control, taper, enuc, denuc, error)
     USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               ewald_control_type
+                                               se_int_control_type
     USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
     IMPLICIT NONE
@@ -132,7 +132,7 @@ INTERFACE check_dcorecore_ana
     REAL(dp), INTENT(IN), OPTIONAL           :: enuc
     REAL(dp), DIMENSION(3), INTENT(IN), &
          OPTIONAL                            :: denuc
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
   END SUBROUTINE check_dcorecore_ana
@@ -148,18 +148,18 @@ END INTERFACE check_dcorecore_ana
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
 INTERFACE rot_2el_2c_first_debug
-  SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, ewald_control, taper, invert, ii, kk, v_d, error)
+  SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, taper, invert, ii, kk, v_d, error)
     USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               ewald_control_type
+                                               se_int_control_type
     USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rijv
     LOGICAL, INTENT(IN)                      :: invert
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(taper_type), POINTER                :: taper
     INTEGER, INTENT(IN)                      :: ii, kk
     REAL(KIND=dp), DIMENSION(45, 45, 3), &
@@ -177,18 +177,18 @@ END INTERFACE rot_2el_2c_first_debug
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
 INTERFACE check_dterep_ana
-  SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,ewald_control,taper,lgrad,error)
+  SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,se_int_control,taper,lgrad,error)
     USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               ewald_control_type
+                                               se_int_control_type
     USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: r
     REAL(dp), DIMENSION(491), INTENT(IN)     :: ri, dri
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     LOGICAL, INTENT(IN)                      :: lgrad
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -204,11 +204,11 @@ END INTERFACE check_dterep_ana
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
 INTERFACE check_rotint_ana
-  SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,ewald_control,taper,error)
+  SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,taper,error)
     USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
-                                               ewald_control_type
+                                               se_int_control_type
     USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
     IMPLICIT NONE
@@ -218,7 +218,7 @@ INTERFACE check_rotint_ana
       OPTIONAL                               :: w
     REAL(dp), DIMENSION(2025, 3), &
       INTENT(IN), OPTIONAL                   :: dw
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
   END SUBROUTINE check_rotint_ana

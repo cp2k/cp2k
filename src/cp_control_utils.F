@@ -664,9 +664,9 @@ CPSourceFileRef,&
                error=error, error_level=cp_fatal_level)
        END IF
 
-       IF (qs_control%se_control%integral_screening/=do_se_IS_kdso) THEN
+       IF (qs_control%se_control%integral_screening==do_se_IS_slater) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Only KDSO integral screening is implemented! ", &
+               message="SLATER integral screening is not implemented! ", &
                error=error, error_level=cp_fatal_level)
        END IF
 

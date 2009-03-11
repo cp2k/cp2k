@@ -37,12 +37,13 @@ MODULE semi_empirical_int_ana
                                              rot_2el_2c_first,&
                                              rotmat,&
                                              store_2el_2c_diag
-  USE semi_empirical_types,            ONLY: ewald_control_type,&
-                                             rotmat_create,&
+  USE semi_empirical_types,            ONLY: rotmat_create,&
                                              rotmat_release,&
                                              rotmat_type,&
+                                             se_int_control_type,&
+                                             se_int_screen_type,&
                                              semi_empirical_type,&
-                                             setup_ewald_control_type
+                                             setup_se_int_control_type
   USE taper_types,                     ONLY: dtaper_eval,&
                                              taper_eval,&
                                              taper_type
@@ -51,6 +52,7 @@ MODULE semi_empirical_int_ana
   IMPLICIT NONE
   PRIVATE
 #include "semi_empirical_int_debug.h"
+#include "semi_empirical_int_args.h"
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_ana'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
@@ -63,8 +65,8 @@ CONTAINS
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j 
-!>         ewald_control   = input parameters that control the calculation of
-!>                           the short range part of the integrals
+!>        se_int_control   = input parameters that control the calculation of SE 
+!>                           integrals (shortrange, R3 residual, screening type)
 !> 
 !>    on output e1b,e2a= Array of electron-nuclear attraction integrals,
 !>                       e1b = Electron on atom ni attracting nucleus of nj.
@@ -83,7 +85,8 @@ CONTAINS
 !>      Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the core-core part
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE rotnuc_ana (sepi,sepj,rijv,itype,e1b,e2a,de1b,de2a,ewald_control,taper,error)
+  RECURSIVE SUBROUTINE rotnuc_ana (sepi,sepj,rijv,itype,e1b,e2a,de1b,de2a,&
+       se_int_control,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     INTEGER, INTENT(IN)                      :: itype
@@ -91,7 +94,7 @@ CONTAINS
       OPTIONAL                               :: e1b, e2a
     REAL(dp), DIMENSION(3, 45), &
       INTENT(OUT), OPTIONAL                  :: de1b, de2a
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -139,7 +142,7 @@ CONTAINS
        END IF
        
        CALL dcore_nucint_ana(sepi,sepj,rij,core=core,dcore=dcore,itype=itype,taper=taper,&
-            ewald_control=ewald_control,lgrad=lgrad,error=error)
+            se_int_control=se_int_control,lgrad=lgrad,error=error)
 
        ! Copy parameters over to arrays for do loop.
        last_orbital(1)  = sepi%natorb
@@ -321,7 +324,7 @@ CONTAINS
 
        ! Possibly debug the analytical values versus the numerical ones
        IF (debug_this_module) THEN
-          CALL check_drotnuc_ana(sepi, sepj, rijv, itype, ewald_control, taper, e1b, e2a, de1b, de2a, error)
+          CALL check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, taper, e1b, e2a, de1b, de2a, error)
        END IF
     END IF
   END SUBROUTINE rotnuc_ana
@@ -331,8 +334,8 @@ CONTAINS
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j 
-!>         ewald_control   = input parameters that control the calculation of
-!>                           the short range part of the integrals
+!>        se_int_control   = input parameters that control the calculation of SE 
+!>                           integrals (shortrange, R3 residual, screening type)
 !> 
 !>    on output e1b,e2a= Array of electron-nuclear attraction integrals,
 !>                       e1b = Electron on atom ni attracting nucleus of nj.
@@ -351,14 +354,14 @@ CONTAINS
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the core-core part
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE corecore_ana (sepi,sepj,rijv,itype,enuc,denuc,ewald_control,taper,error)
+  RECURSIVE SUBROUTINE corecore_ana (sepi,sepj,rijv,itype,enuc,denuc,se_int_control,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(OUT), OPTIONAL          :: enuc
     REAL(dp), DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: denuc
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -374,7 +377,7 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: drij, z
     REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
                                                 fnj3
-    TYPE(ewald_control_type)                 :: ewald_control_off
+    TYPE(se_int_control_type)                :: se_int_control_off
 
     failure = .FALSE.
     rij=DOT_PRODUCT(rijv,rijv)
@@ -384,13 +387,14 @@ CONTAINS
     IF ((rij > rij_threshold).AND.(l_enuc.OR.l_denuc)) THEN
        ! Compute Integrals in diatomic frame
        rij  = SQRT(rij)
-       CALL setup_ewald_control_type(ewald_control_off, shortrange=.FALSE., do_ewald_r3=.FALSE.)
+       CALL setup_se_int_control_type(se_int_control_off, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
+            integral_screening=se_int_control%integral_screening)
        CALL dssss_nucint_ana(sepi,sepj,rij,ssss=ssss,dssss=dssss,itype=itype,taper=taper,&
-            ewald_control=ewald_control_off,lgrad=l_denuc,error=error)
+            se_int_control=se_int_control_off,lgrad=l_denuc,error=error)
        ! In case let's compute the short-range part of the (ss|ss) integral
-       IF (ewald_control%shortrange) THEN
+       IF (se_int_control%shortrange) THEN
           CALL dssss_nucint_ana(sepi,sepj,rij,ssss=ssss_sr,dssss=dssss_sr,itype=itype,&
-               taper=taper, ewald_control=ewald_control, lgrad=l_denuc, error=error)
+               taper=taper, se_int_control=se_int_control, lgrad=l_denuc, error=error)
        ELSE
           ssss_sr  = ssss
           dssss_sr = dssss
@@ -635,7 +639,7 @@ CONTAINS
        END IF
        ! Debug statement
        IF (debug_this_module) THEN
-          CALL check_dcorecore_ana(sepi, sepj, rijv, itype, ewald_control, taper, enuc, denuc, error)
+          CALL check_dcorecore_ana(sepi, sepj, rijv, itype, se_int_control, taper, enuc, denuc, error)
        END IF
     ENDIF
   END SUBROUTINE corecore_ana
@@ -807,8 +811,8 @@ CONTAINS
 !>                sepj    = paramters of atom j
 !>                itype   = type of semi_empirical model
 !>                          extension to the original routine to compute qm/mm integrals
-!>        ewald_control   = input parameters that control the calculation of
-!>                          the short range part of the integrals
+!>        se_int_control   = input parameters that control the calculation of SE
+!>                          integrals (shortrange, R3 residual, screening type)
 !>
 !>      on output ssss    = derivative of (ssss) integral
 !>                          derivatives are intended w.r.t. rij
@@ -822,14 +826,14 @@ CONTAINS
 !>                 for computing integrals
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE dssss_nucint_ana(sepi, sepj, rij, ssss, dssss, itype, taper, ewald_control,&
+  SUBROUTINE dssss_nucint_ana(sepi, sepj, rij, ssss, dssss, itype, taper, se_int_control,&
        lgrad, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(OUT)                    :: ssss, dssss
     INTEGER, INTENT(IN)                      :: itype
     TYPE(taper_type), POINTER                :: taper
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     LOGICAL, INTENT(IN)                      :: lgrad
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -838,26 +842,31 @@ CONTAINS
 
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dft, ft
+    TYPE(se_int_screen_type)                 :: se_int_screen
 
     failure   = .FALSE.
-    
-    ! Value of the integrals for sp shell
-    CALL  nucint_sp_num(sepi, sepj, rij, ssss=ssss, itype=itype, ewald_control=ewald_control,&
-         error=error)
 
-    IF (lgrad) THEN
-       ! Integrals derivatives for sp shell
-       CALL dnucint_sp_ana(sepi, sepj, rij, dssss=dssss, itype=itype, ewald_control=ewald_control,&
-            error=error)
-    END IF
-
-    ! Tapering function
+    ! Compute the Tapering function
     ft = 1.0_dp
     dft= 0.0_dp
     IF (itype/=do_method_pchg) THEN
        ft =  taper_eval(taper, rij, error)
        dft= dtaper_eval(taper, rij, error)
     END IF
+    se_int_screen%ft  =  ft
+    se_int_screen%dft = dft
+    
+    ! Value of the integrals for sp shell
+    CALL  nucint_sp_num(sepi, sepj, rij, ssss=ssss, itype=itype, se_int_control=se_int_control,&
+         se_int_screen=se_int_screen, error=error)
+
+    IF (lgrad) THEN
+       ! Integrals derivatives for sp shell
+       CALL dnucint_sp_ana(sepi, sepj, rij, dssss=dssss, itype=itype, se_int_control=se_int_control,&
+            se_int_screen=se_int_screen, error=error)
+    END IF
+
+    ! Tapering the value of the integrals
     IF (lgrad) THEN
        dssss = ft*dssss+dft*ssss
     END IF
@@ -865,7 +874,7 @@ CONTAINS
 
     ! Debug Procedure.. Check valifity of analytical gradients of nucint
     IF (debug_this_module.AND.lgrad) THEN
-       CALL check_dssss_nucint_ana(sepi,sepj,rij,dssss,itype,ewald_control,taper=taper,error=error)
+       CALL check_dssss_nucint_ana(sepi,sepj,rij,dssss,itype,se_int_control,taper=taper,error=error)
     END IF
   END SUBROUTINE dssss_nucint_ana
 
@@ -876,8 +885,8 @@ CONTAINS
 !>                sepj    = paramters of atom j
 !>                itype   = type of semi_empirical model
 !>                          extension to the original routine to compute qm/mm integrals
-!>        ewald_control   = input parameters that control the calculation of
-!>                          the short range part of the integrals
+!>       se_int_control   = input parameters that control the calculation of SE
+!>                          integrals (shortrange, R3 residual, screening type)
 !>
 !>      on output core    = derivative of 4 X 2 array of electron-core attraction integrals
 !>                          derivatives are intended w.r.t. rij
@@ -895,13 +904,13 @@ CONTAINS
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
   SUBROUTINE dcore_nucint_ana ( sepi, sepj, rij, core, dcore, itype, taper, &
-       ewald_control, lgrad, error)
+       se_int_control, lgrad, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(10, 2), INTENT(OUT)  :: core, dcore
     INTEGER, INTENT(IN)                      :: itype
     TYPE(taper_type), POINTER                :: taper
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     LOGICAL, INTENT(IN)                      :: lgrad
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -911,36 +920,44 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dft, ft
+    TYPE(se_int_screen_type)                 :: se_int_screen
 
     failure   = .FALSE.
-    ! Value of the integrals for sp shell
-    CALL  nucint_sp_num(sepi, sepj, rij, core=core, itype=itype, ewald_control=ewald_control,&
-         error=error)
-    
-    IF (sepi%dorb.OR.sepj%dorb) THEN
-       ! Compute the contribution from d-orbitals
-       CALL  nucint_d_num(sepi, sepj, rij, core, itype, ewald_control=ewald_control, error=error)
-    END IF
-    
-    IF (lgrad) THEN
-       ! Integrals derivatives for sp shell
-       CALL dnucint_sp_ana(sepi, sepj, rij, dcore=dcore, itype=itype, ewald_control=ewald_control,&
-            error=error)
-
-       IF (sepi%dorb.OR.sepj%dorb) THEN
-          ! Integral derivatives involving d-orbitals
-          CALL dnucint_d_ana(sepi, sepj, rij, dcore=dcore, itype=itype, ewald_control=ewald_control,&
-               error=error)
-       END IF
-    END IF
-
-    ! Tapering function
+    ! Compute the Tapering function
     ft = 1.0_dp
     dft= 0.0_dp
     IF (itype/=do_method_pchg) THEN
        ft =  taper_eval(taper, rij, error)
        dft= dtaper_eval(taper, rij, error)
     END IF
+    se_int_screen%ft  =  ft
+    se_int_screen%dft = dft
+
+    ! Value of the integrals for sp shell
+    CALL  nucint_sp_num(sepi, sepj, rij, core=core, itype=itype,&
+         se_int_control=se_int_control, se_int_screen=se_int_screen, error=error)
+    
+    IF (sepi%dorb.OR.sepj%dorb) THEN
+       ! Compute the contribution from d-orbitals
+       CALL  nucint_d_num(sepi, sepj, rij, core, itype,&
+            se_int_control=se_int_control, se_int_screen=se_int_screen, error=error)
+    END IF
+    
+    IF (lgrad) THEN
+       ! Integrals derivatives for sp shell
+       CALL dnucint_sp_ana(sepi, sepj, rij, dcore=dcore, itype=itype,&
+            se_int_control=se_int_control, se_int_screen=se_int_screen,&
+            error=error)
+
+       IF (sepi%dorb.OR.sepj%dorb) THEN
+          ! Integral derivatives involving d-orbitals
+          CALL dnucint_d_ana(sepi, sepj, rij, dcore=dcore, itype=itype,&
+               se_int_control=se_int_control, se_int_screen=se_int_screen,&
+               error=error)
+       END IF
+    END IF
+
+    ! Tapering the value of the integrals
     IF (lgrad) THEN
        DO i = 1, sepi%core_size
           dcore(i,1) = ft*dcore(i,1)+dft*core(i,1)
@@ -958,7 +975,7 @@ CONTAINS
 
     ! Debug Procedure.. Check valifity of analytical gradients of nucint
     IF (debug_this_module.AND.lgrad) THEN
-       CALL check_dcore_nucint_ana(sepi,sepj,rij,dcore,itype,ewald_control,taper=taper,error=error)
+       CALL check_dcore_nucint_ana(sepi,sepj,rij,dcore,itype,se_int_control,taper=taper,error=error)
     END IF
   END SUBROUTINE dcore_nucint_ana
 
@@ -969,8 +986,8 @@ CONTAINS
 !>                sepj    = paramters of atom j
 !>                itype   = type of semi_empirical model
 !>                          extension to the original routine to compute qm/mm integrals
-!>        ewald_control   = input parameters that control the calculation of
-!>                          the short range part of the integrals
+!>       se_int_control   = input parameters that control the calculation of SE
+!>                          integrals (shortrange, R3 residual, screening type)
 !>
 !>      on output core    = derivative of 4 X 2 array of electron-core attraction integrals
 !>                ssss    = derivative of (ssss) integral
@@ -992,14 +1009,16 @@ CONTAINS
 !>      05.2008 Teodoro Laino [tlaino] - University of Zurich: major rewriting
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE dnucint_sp_ana ( sepi, sepj, rij, dssss, dcore, itype, ewald_control, error)
+  SUBROUTINE dnucint_sp_ana ( sepi, sepj, rij, dssss, dcore, itype, se_int_control,&
+       se_int_screen, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(INOUT), OPTIONAL        :: dssss
     REAL(dp), DIMENSION(10, 2), &
       INTENT(INOUT), OPTIONAL                :: dcore
     INTEGER, INTENT(IN)                      :: itype
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_sp_ana', &
@@ -1020,38 +1039,38 @@ CONTAINS
     ij = indexa(1, 1)
     IF (l_ssss) THEN
        ! Store the value for the derivative of <S  S  | S  S  > (Used for computing the core-core interactions)
-       dssss = d_ijkl_sp (sepi, sepj, ij, ij, 0, 0, 0, 0, -1, rij, ewald_control, itype, error)
+       dssss = d_ijkl_sp (sepi, sepj, ij, ij, 0, 0, 0, 0, -1, rij, CPPint_args)
     END IF
 
     IF (l_core) THEN
        !     <S  S  | S  S  >
        kl = indexa(1, 1)
-       dcore(1,1)    = d_ijkl_sp (sepi, sepj, kl, ij, 0, 0, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
+       dcore(1,1)    = d_ijkl_sp (sepi, sepj, kl, ij, 0, 0, 0, 0, 2, rij, CPPint_args) * sepj%zeff
        IF (si) THEN
           !  <S  P  | S  S  >
           kl = indexa(2, 1)
-          dcore(2,1) = d_ijkl_sp (sepi, sepj, kl, ij, 0, 1, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
+          dcore(2,1) = d_ijkl_sp (sepi, sepj, kl, ij, 0, 1, 0, 0, 2, rij, CPPint_args) * sepj%zeff
           !  <P  P  | S  S  >
           kl = indexa(2, 2)
-          dcore(3,1) = d_ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
+          dcore(3,1) = d_ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, CPPint_args) * sepj%zeff
           !  <P+ P+ | S  S  >
           kl = indexa(3, 3)
-          dcore(4,1) = d_ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
+          dcore(4,1) = d_ijkl_sp (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, CPPint_args) * sepj%zeff
        END IF
 
        !     <S  S  | S  S  >
        kl = indexa(1, 1)
-       dcore(1,2)    = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 0, 1, rij, ewald_control, itype, error) * sepi%zeff
+       dcore(1,2)    = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 0, 1, rij, CPPint_args) * sepi%zeff
        IF (sj) THEN
           !  <S  S  | S  P  >
           kl = indexa(2, 1)
-          dcore(2,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 1, 1, rij, ewald_control, itype, error) * sepi%zeff
+          dcore(2,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 0, 1, 1, rij, CPPint_args) * sepi%zeff
           !  <S  S  | P  P  >
           kl = indexa(2, 2)
-          dcore(3,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, ewald_control, itype, error) * sepi%zeff
+          dcore(3,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, CPPint_args) * sepi%zeff
           !  <S  S  | P+ P+ >
           kl = indexa(3, 3)
-          dcore(4,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, ewald_control, itype, error) * sepi%zeff
+          dcore(4,2) = d_ijkl_sp (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, CPPint_args) * sepi%zeff
        END IF
     END IF
   END SUBROUTINE dnucint_sp_ana
@@ -1064,8 +1083,8 @@ CONTAINS
 !>                sepj   = paramters of atom j
 !>                itype  = type of semi_empirical model
 !>                         extension to the original routine to compute qm/mm integrals
-!>       ewald_control   = input parameters that control the calculation of
-!>                         the short range part of the integrals
+!>      se_int_control   = input parameters that control the calculation of SE 
+!>                         integrals (shortrange, R3 residual, screening type)
 !>
 !>      on output core   = 4 X 2 array of electron-core attraction integrals
 !>         The storage of the nuclear attraction integrals  core(kl/ij) iS
@@ -1076,13 +1095,15 @@ CONTAINS
 !> \author
 !>      Teodoro Laino (05.2008) [tlaino] - University of Zurich: created
 ! *****************************************************************************
-  SUBROUTINE dnucint_d_ana( sepi, sepj, rij, dcore, itype, ewald_control, error)
+  SUBROUTINE dnucint_d_ana( sepi, sepj, rij, dcore, itype, se_int_control,&
+       se_int_screen, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(10, 2), &
       INTENT(INOUT)                          :: dcore
     INTEGER, INTENT(IN)                      :: itype
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_d_ana', &
@@ -1098,42 +1119,42 @@ CONTAINS
        IF (sepj%dorb) THEN
           !  <S S | D S>
           kl = indexa(5, 1)
-          dcore(5, 2) = d_ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, ewald_control, itype, error) * sepi%zeff
+          dcore(5, 2) = d_ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, CPPint_args) * sepi%zeff
           !  <S S | D P >
           kl = indexa(5, 2)
-          dcore(6, 2) = d_ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, ewald_control, itype, error) * sepi%zeff
+          dcore(6, 2) = d_ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, CPPint_args) * sepi%zeff
           !  <S S | D D >
           kl = indexa(5, 5)
-          dcore(7, 2) = d_ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, ewald_control, itype, error) * sepi%zeff
+          dcore(7, 2) = d_ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, CPPint_args) * sepi%zeff
           !  <S S | D+P+>
           kl = indexa(6, 3)
-          dcore(8, 2) = d_ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, ewald_control, itype, error) * sepi%zeff
+          dcore(8, 2) = d_ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, CPPint_args) * sepi%zeff
           !  <S S | D+D+>
           kl = indexa(6, 6)
-          dcore(9, 2) = d_ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, ewald_control, itype, error) * sepi%zeff
+          dcore(9, 2) = d_ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, CPPint_args) * sepi%zeff
           !  <S S | D#D#>
           kl = indexa(8, 8)
-          dcore(10, 2)= d_ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, ewald_control, itype, error) * sepi%zeff
+          dcore(10, 2)= d_ijkl_d (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, CPPint_args) * sepi%zeff
        END IF
        IF (sepi%dorb) THEN
           !  <D S | S S>
           kl = indexa(5, 1)
-          dcore(5, 1) = d_ijkl_d (sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
+          dcore(5, 1) = d_ijkl_d (sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, CPPint_args) * sepj%zeff
           !  <D P | S S >
           kl = indexa(5, 2)
-          dcore(6, 1) = d_ijkl_d (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
+          dcore(6, 1) = d_ijkl_d (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, CPPint_args) * sepj%zeff
           !  <D D | S S >
           kl = indexa(5, 5)
-          dcore(7, 1) = d_ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
+          dcore(7, 1) = d_ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, CPPint_args) * sepj%zeff
           !  <D+P+| S S >
           kl = indexa(6, 3)
-          dcore(8, 1) = d_ijkl_d (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
+          dcore(8, 1) = d_ijkl_d (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, CPPint_args) * sepj%zeff
           !  <D+D+| S S >
           kl = indexa(6, 6)
-          dcore(9, 1) = d_ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
+          dcore(9, 1) = d_ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, CPPint_args) * sepj%zeff
           !  <D#D#| S S >
           kl = indexa(8, 8)
-          dcore(10, 1)= d_ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, ewald_control, itype, error) * sepj%zeff
+          dcore(10, 1)= d_ijkl_d (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, CPPint_args) * sepj%zeff
        END IF
     END IF
   END SUBROUTINE dnucint_d_ana
@@ -1156,14 +1177,14 @@ CONTAINS
 !>                 for computing integrals
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE rotint_ana (sepi,sepj,rijv,w,dw,ewald_control,taper,error)
+  RECURSIVE SUBROUTINE rotint_ana (sepi,sepj,rijv,w,dw,se_int_control,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     REAL(dp), DIMENSION(2025), INTENT(OUT), &
       OPTIONAL                               :: w
     REAL(dp), DIMENSION(3, 2025), &
       INTENT(OUT), OPTIONAL                  :: dw
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1203,7 +1224,7 @@ CONTAINS
        CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=lgrad, do_invert=invert, error=error)          
 
        ! Compute integrals in diatomic frame as well their derivatives (if requested)
-       CALL dterep_ana(sepi,sepj,rij,rep,rep_d,taper,ewald_control,lgrad=lgrad,error=error)
+       CALL dterep_ana(sepi,sepj,rij,rep,rep_d,taper,se_int_control,lgrad=lgrad,error=error)
 
        IF (lgrad) THEN
           drij(1) = rijv(1)/rij
@@ -1220,7 +1241,7 @@ CONTAINS
        ii = sepi%natorb
        kk = sepj%natorb
        ! First step in rotation of integrals
-       CALL rot_2el_2c_first(sepi, sepj, rijv, ewald_control, taper, invert, ii, kk, rep, logv, ij_matrix,&
+       CALL rot_2el_2c_first(sepi, sepj, rijv, se_int_control, taper, invert, ii, kk, rep, logv, ij_matrix,&
             v, lgrad, rep_d, v_d, logv_d, drij, error)
 
        ! Integrals if requested
@@ -1318,7 +1339,7 @@ CONTAINS
 
           IF (debug_this_module) THEN
              ! Check value of integrals
-             CALL check_rotint_ana(sepi,sepj,rijv,w,ewald_control=ewald_control,taper=taper,error=error)
+             CALL check_rotint_ana(sepi,sepj,rijv,w,se_int_control=se_int_control,taper=taper,error=error)
           END IF
        END IF
 
@@ -1465,7 +1486,7 @@ CONTAINS
 
           IF (debug_this_module) THEN
              ! Check derivatives
-             CALL check_rotint_ana(sepi,sepj,rijv,dw=dw,ewald_control=ewald_control,taper=taper,error=error)
+             CALL check_rotint_ana(sepi,sepj,rijv,dw=dw,se_int_control=se_int_control,taper=taper,error=error)
           END IF
        END IF
        CALL rotmat_release(ij_matrix, error)
@@ -1478,8 +1499,8 @@ CONTAINS
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>       ewald_control   = input parameters that control the calculation of
-!>                         the short range part of the integrals
+!>      se_int_control   = input parameters that control the calculation of SE
+!>                         integrals (shortrange, R3 residual, screening type)
 !>
 !>     on output  ri     = array of two-electron repulsion integrals
 !>     on output dri     = array of two-electron repulsion integrals derivatives
@@ -1488,14 +1509,14 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE dterep_ana (sepi, sepj, rij, rep, rep_d, taper, ewald_control,&
+  RECURSIVE SUBROUTINE dterep_ana (sepi, sepj, rij, rep, rep_d, taper, se_int_control,&
        lgrad, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), INTENT(IN)                :: rij
     REAL(KIND=dp), DIMENSION(491), &
       INTENT(OUT)                            :: rep, rep_d
     TYPE(taper_type), POINTER                :: taper
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     LOGICAL, INTENT(IN)                      :: lgrad
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1505,34 +1526,41 @@ CONTAINS
     INTEGER                                  :: i, ij, j, k, kl, l, lasti, &
                                                 lastj, li, lj, lk, ll, numb
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dft, ft
+    REAL(KIND=dp)                            :: dft, ft, ft1
+    TYPE(se_int_screen_type)                 :: se_int_screen
 
     failure = .FALSE.
-    IF (lgrad) THEN 
-       ft   = 1.0_dp
-    ELSE
-       ft   =  taper_eval(taper,rij,error)
+    ! Compute the tapering function and its derivatives
+    ft  = taper_eval(taper,rij,error)
+    dft = 0.0_dp
+    ft1 = ft
+    IF (lgrad) THEN
+       ft1 = 1.0_dp
+       dft = dtaper_eval(taper,rij,error)
     END IF
+    se_int_screen%ft  = ft
+    se_int_screen%dft = dft
+
 
     ! Integral Values for sp shells only
-    CALL  terep_sp_num(sepi, sepj, rij, rep, ewald_control=ewald_control, ft=ft, error=error)
+    CALL  terep_sp_num(sepi, sepj, rij, rep, se_int_control=se_int_control, &
+         se_int_screen=se_int_screen, ft=ft1, error=error)
     
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d-orbitals
-       CALL  terep_d_num (sepi, sepj, rij, rep, ewald_control=ewald_control, ft=ft, error=error)
+       CALL  terep_d_num (sepi, sepj, rij, rep, se_int_control=se_int_control,&
+            se_int_screen=se_int_screen, ft=ft1, error=error)
     END IF
 
     IF (lgrad) THEN
-       ! If we compute gradients the situ
-       ft   =  taper_eval(taper,rij,error)
-       dft  = dtaper_eval(taper,rij,error)
-
        ! Integral Derivatives
-       CALL dterep_sp_ana(sepi, sepj, rij, rep_d, rep, ewald_control, ft, dft, error=error)
+       CALL dterep_sp_ana(sepi, sepj, rij, rep_d, rep, se_int_control,&
+            se_int_screen, ft, dft, error=error)
 
        IF (sepi%dorb.OR.sepj%dorb) THEN
           ! Compute the derivatives from d-orbitals
-          CALL dterep_d_ana (sepi, sepj, rij, rep_d, rep, ewald_control, ft, dft, error=error)
+          CALL dterep_d_ana (sepi, sepj, rij, rep_d, rep, se_int_control,&
+               se_int_screen, ft, dft, error=error)
        END IF
        
        ! Tapering Integral values
@@ -1558,7 +1586,7 @@ CONTAINS
 
     ! Possibly debug 2el 2cent integrals and derivatives
     IF (debug_this_module) THEN
-       CALL check_dterep_ana(sepi, sepj, rij, rep, rep_d, ewald_control, taper=taper,&
+       CALL check_dterep_ana(sepi, sepj, rij, rep, rep_d, se_int_control, taper=taper,&
             lgrad=lgrad, error=error)
     END IF
   END SUBROUTINE dterep_ana
@@ -1569,8 +1597,8 @@ CONTAINS
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>       ewald_control   = input parameters that control the calculation of
-!>                         the short range part of the integrals
+!>      se_int_control   = input parameters that control the calculation of SE 
+!>                         integrals (shortrange, R3 residual, screening type)
 !>
 !>     on output ri      = array of two-electron repulsion integrals
 !>              dri      = array of derivatives of two-electron repulsion integrals
@@ -1586,12 +1614,14 @@ CONTAINS
 !>      05.2008 Teodoro Laino [tlaino] - University of Zurich: major rewriting
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE dterep_sp_ana ( sepi, sepj, rij, drep, rep, ewald_control, ft, dft, error)
+  SUBROUTINE dterep_sp_ana ( sepi, sepj, rij, drep, rep, se_int_control, &
+       se_int_screen, ft, dft, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(OUT)    :: drep
     REAL(dp), DIMENSION(491), INTENT(IN)     :: rep
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     REAL(dp), INTENT(IN)                     :: ft, dft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1627,7 +1657,7 @@ CONTAINS
                       drep(numb) = -drep(-nold)
                    ELSE IF (nold == 0) THEN
                       tmp = d_ijkl_sp (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
-                                       ewald_control, do_method_undef, error)
+                                       se_int_control, se_int_screen, do_method_undef, error)
                       drep(numb) = dft*rep(numb)+ft*tmp
                    END IF
                 END IF
@@ -1642,8 +1672,8 @@ CONTAINS
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>       ewald_control   = input parameters that control the calculation of
-!>                         the short range part of the integrals
+!>      se_int_control   = input parameters that control the calculation of
+!>                         integrals (shortrange, R3 residual, screening type)
 !>
 !>     on output rep     = array of two-electron repulsion integrals
 !>
@@ -1651,12 +1681,14 @@ CONTAINS
 !>      Teodoro Laino (05.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integral derivatives for d-orbitals
 ! *****************************************************************************
-  SUBROUTINE dterep_d_ana (sepi, sepj, rij, drep, rep, ewald_control, ft, dft, error )
+  SUBROUTINE dterep_d_ana (sepi, sepj, rij, drep, rep, se_int_control, &
+       se_int_screen, ft, dft, error )
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(INOUT)  :: drep
     REAL(dp), DIMENSION(491), INTENT(IN)     :: rep
-    TYPE(ewald_control_type), INTENT(IN)     :: ewald_control
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
+    TYPE(se_int_screen_type), INTENT(IN)     :: se_int_screen
     REAL(dp), INTENT(IN)                     :: ft, dft
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1693,7 +1725,7 @@ CONTAINS
                       drep(numb) = -drep(-nold)
                    ELSE IF (nold == 0) THEN
                       tmp = d_ijkl_d (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij,&
-                                      ewald_control, do_method_undef, error)
+                                      se_int_control, se_int_screen, do_method_undef, error)
                       drep(numb) = dft*rep(numb)+ft*tmp
                    END IF
                 END IF

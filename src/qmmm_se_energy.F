@@ -41,12 +41,12 @@ MODULE qmmm_se_energy
   USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
   USE semi_empirical_integrals,        ONLY: corecore,&
                                              rotnuc
-  USE semi_empirical_types,            ONLY: ewald_control_type,&
-                                             get_se_param,&
+  USE semi_empirical_types,            ONLY: get_se_param,&
+                                             se_int_control_type,&
                                              semi_empirical_create,&
                                              semi_empirical_release,&
                                              semi_empirical_type,&
-                                             setup_ewald_control_type
+                                             setup_se_int_control_type
   USE semi_empirical_utils,            ONLY: get_se_type,&
                                              se_param_set_default
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
@@ -103,6 +103,7 @@ CONTAINS
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
+    TYPE(se_int_control_type)                :: se_int_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
     TYPE(taper_type), POINTER                :: taper
 
@@ -137,6 +138,10 @@ CONTAINS
             "Method not available",para_env)
     END SELECT
     anag = dft_control%qs_control%se_control%analytical_gradients
+    ! Setup type for SE integral control 
+    CALL setup_se_int_control_type(se_int_control, shortrange=.FALSE.,do_ewald_r3=.FALSE.,&
+         integral_screening=dft_control%qs_control%se_control%integral_screening)
+
     ! Allocate the core Hamiltonian matrix
     CALL allocate_matrix_set(ks_qmmm_env_loc%matrix_h,1,error=error)
     CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
@@ -186,6 +191,7 @@ CONTAINS
                                               enuclear,&
                                               itype,&
                                               taper,&
+                                              se_int_control,&
                                               anag,&
                                               qmmm_env%spherical_cutoff,&
                                               error)
@@ -205,6 +211,7 @@ CONTAINS
                                                  enuclear,&
                                                  itype,&
                                                  taper,&
+                                                 se_int_control,&
                                                  anag,&
                                                  qmmm_env%spherical_cutoff,&
                                                  error)       
@@ -238,7 +245,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_se_qmmm_matrix_low(h_block_a, se_kind_a, se_kind_mm, potentials,&
        mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-       mm_cell, IndQM, enuclear, itype, taper, anag, qmmm_spherical_cutoff, error)
+       mm_cell, IndQM, enuclear, itype, taper, se_int_control, anag, &
+       qmmm_spherical_cutoff, error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block_a
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
@@ -254,6 +262,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: enuclear
     INTEGER, INTENT(IN)                      :: itype
     TYPE(taper_type), POINTER                :: taper
+    TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     LOGICAL, INTENT(IN)                      :: anag
     REAL(KIND=dp), INTENT(IN)                :: qmmm_spherical_cutoff(2)
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -267,11 +276,9 @@ CONTAINS
                                                 sph_chrg_factor
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc, rij
     REAL(KIND=dp), DIMENSION(45)             :: e1b
-    TYPE(ewald_control_type)                 :: ewald_control
     TYPE(qmmm_pot_type), POINTER             :: Pot
 
     CALL timeset(routineN,handle)
-    CALL setup_ewald_control_type(ewald_control, shortrange=.FALSE., do_ewald_r3=.FALSE.)
     ! Loop Over MM atoms
     ! Loop over Pot stores atoms with the same charge
     MainLoopPot: DO Ipot = 1, SIZE(Potentials)
@@ -293,9 +300,9 @@ CONTAINS
           END IF
           IF (ABS(se_kind_mm%zeff)<=EPSILON(0.0_dp)) CYCLE
           CALL rotnuc (se_kind_a, se_kind_mm, rij, itype=itype, e1b=e1b, anag=anag,&
-               ewald_control=ewald_control, taper=taper, error=error)
+               se_int_control=se_int_control, taper=taper, error=error)
           CALL corecore(se_kind_a, se_kind_mm, rij, itype=itype, enuc=enuc, anag=anag,&
-               ewald_control=ewald_control, taper=taper, error=error)
+               se_int_control=se_int_control, taper=taper, error=error)
           enuclear = enuclear + enuc
           ! Contribution to the iatom block
           ! Computation of the QMMM core matrix

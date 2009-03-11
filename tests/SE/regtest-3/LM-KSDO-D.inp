@@ -1,0 +1,59 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD MNDO
+      &SE
+        INTEGRAL_SCREENING KDSO-D
+        RC_COULOMB [angstrom]      6.0
+        RC_INTERACTION [angstrom] 50.0
+        RC_RANGE   [angstrom]      0.1
+        &PRINT
+          &EWALD_INFO
+          &END
+        &END
+      &END
+    &END QS
+    &SCF
+      MAX_SCF 40
+      EPS_SCF 1.0E-6
+      SCF_GUESS MOPAC
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END
+      &OUTER_SCF
+        MAX_SCF 5
+        EPS_SCF 1.0E-6
+      &END
+      &PRINT
+         &RESTART OFF
+         &END
+      &END
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 50.0 50.0 50.0
+      PERIODIC NONE
+    &END CELL
+    &TOPOLOGY
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/long_mol.xyz
+      CONNECTIVITY OFF
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT LM-KSDO-D
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+    MINIMIZER BFGS
+    MAX_ITER 3
+    &BFGS
+    &END
+  &END
+&END

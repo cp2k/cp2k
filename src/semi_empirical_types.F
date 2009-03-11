@@ -115,10 +115,16 @@ MODULE semi_empirical_types
 !> \brief  Ewald control type (for periodic SE)
 !> \author Teodoro Laino [tlaino]  - 12.2008
 ! *****************************************************************************
-  TYPE ewald_control_type
+  TYPE se_int_control_type
      LOGICAL                                  :: shortrange
      LOGICAL                                  :: do_ewald_r3
-  END TYPE ewald_control_type
+     INTEGER                                  :: integral_screening
+  END TYPE se_int_control_type
+
+  TYPE se_int_screen_type
+     ! Store the value of the tapering function and possibly its derivative
+     REAL(KIND=dp)                            :: ft, dft
+  END TYPE se_int_screen_type
 
   PUBLIC :: semi_empirical_type,&
             semi_empirical_create,&
@@ -129,8 +135,9 @@ MODULE semi_empirical_types
             get_se_param,&
             set_se_param,&
             write_se_param,&
-            ewald_control_type,&
-            setup_ewald_control_type
+            se_int_control_type,&
+            setup_se_int_control_type,&
+            se_int_screen_type
 
 CONTAINS
 
@@ -484,16 +491,19 @@ CONTAINS
   END SUBROUTINE rotmat_release
 
 ! *****************************************************************************
-!> \brief Setup the Ewald control type
+!> \brief Setup the Semiempirical integral control type
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! ***************************************************************************** 
-  SUBROUTINE setup_ewald_control_type(ewald_control, shortrange, do_ewald_r3)
-    TYPE(ewald_control_type)                 :: ewald_control
+  SUBROUTINE setup_se_int_control_type(se_int_control, shortrange, do_ewald_r3,&
+       integral_screening)
+    TYPE(se_int_control_type)                :: se_int_control
     LOGICAL, INTENT(IN)                      :: shortrange, do_ewald_r3
+    INTEGER, INTENT(IN)                      :: integral_screening
 
-    ewald_control%shortrange  = shortrange
-    ewald_control%do_ewald_r3 = do_ewald_r3
-  END SUBROUTINE setup_ewald_control_type
+    se_int_control%shortrange         = shortrange
+    se_int_control%do_ewald_r3        = do_ewald_r3
+    se_int_control%integral_screening = integral_screening
+  END SUBROUTINE setup_se_int_control_type
 
 ! *****************************************************************************
 !> \brief Writes the semi-empirical type
