@@ -4,3 +4,4 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 ch4-gapw-issc-1.inp 0
+nh3-issc-op-1.inp 34

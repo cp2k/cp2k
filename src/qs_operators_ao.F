@@ -24,8 +24,7 @@ MODULE qs_operators_ao
                                              pbc
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
-  USE orbital_pointers,                ONLY: nco,&
-                                             ncoset
+  USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -103,9 +102,9 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(:), &
-      POINTER                                :: op_dip, op_dip2
+      POINTER                                :: op_dip
     TYPE(block_p_type), DIMENSION(:, :), &
-      POINTER                                :: op_dipt, op_dipt2
+      POINTER                                :: op_dipt
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
@@ -223,13 +222,13 @@ CONTAINS
 !$OMP private(ithread,difab,work,ilist,iatom,jatom)&
 !$OMP private(last_jatom,new_atom_b,istat,sgfa,sgfb,ra,rb)&
 !$OMP private(iset,jset,ncoa,ncob,nnode,inode,irow,icol)&
-!$OMP private(op_dip,op_dip2,rab,rab2,dab,i)&
+!$OMP private(op_dip,rab,rab2,dab,i)&
 !$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local,alpha)&
 !$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,difabt,qs_env)&
-!$OMP shared(op_dipt,op_dipt2)&
+!$OMP shared(op_dipt)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm)&
 !$OMP shared(atomic_kind_set,particle_set,cell)&
 !$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2)
@@ -443,8 +442,8 @@ CONTAINS
 
     INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
       istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, &
-      ldwork, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, nseta, nsetb, &
-      nthread, sgfa, sgfb
+      ldwork, maxl, ncoa, ncob, nkind, nlist, nnode, nseta, nsetb, nthread, &
+      sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -583,7 +582,7 @@ CONTAINS
 !$OMP default(none) &
 !$OMP private(ithread,angab,work,ilist,iatom,jatom)&
 !$OMP private(last_jatom,new_atom_b,istat,sgfa,sgfb,ra,rb)&
-!$OMP private(nrow,iset,jset,ncoa,ncob,nnode,inode,irow,icol)&
+!$OMP private(iset,jset,ncoa,ncob,nnode,inode,irow,icol)&
 !$OMP private(op_angij,rab,rab2,dab,i)&
 !$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local)&
 !$OMP private(rc,rac,rbc)&

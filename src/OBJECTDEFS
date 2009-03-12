@@ -2,6 +2,7 @@ OBJECTS_GENERIC =\
  ai_angmom.o\
  ai_coulomb.o\
  ai_derivatives.o\
+ ai_fermi_contact.o\
  ai_kinetic.o\
  ai_moments.o\
  ai_onecenter.o\
@@ -440,6 +441,7 @@ OBJECTS_GENERIC =\
  qs_environment_methods.o\
  qs_environment_types.o\
  qs_epr_hyp.o\
+ qs_fermi_contact.o\
  qs_force.o\
  qs_force_types.o\
  qs_gapw_densities.o\

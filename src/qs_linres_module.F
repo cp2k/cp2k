@@ -57,7 +57,8 @@ MODULE qs_linres_module
                                              nmr_shift_print
   USE qs_linres_nmr_utils,             ONLY: nmr_env_cleanup,&
                                              nmr_env_init
-  USE qs_linres_op,                    ONLY: current_operators
+  USE qs_linres_op,                    ONLY: current_operators,&
+                                             issc_operators
   USE qs_linres_types,                 ONLY: current_env_type,&
                                              epr_env_type,&
                                              issc_env_type,&
@@ -266,7 +267,7 @@ CONTAINS
           current_env%do_qmmm = do_qmmm
           !current_env%prop='issc'
           !CALL current_env_init(current_env,qs_env,error=error)
-          !CALL current_operators(current_env,qs_env,error=error)
+          CALL issc_operators(current_env,qs_env,error=error)
           !CALL current_response(current_env,p_env,qs_env,error)
           !
           !Initialize the issc environment

@@ -1032,6 +1032,11 @@ CONTAINS
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="fermi_contact",&
+            description="If the printkey is activated controls the printing of the Fermi contact matrix",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="potential_energy",&
             description="If the printkey is activated controls the printing of the potential energy matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
