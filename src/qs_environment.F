@@ -682,9 +682,9 @@ CONTAINS
        se_control => dft_control%qs_control%se_control
        ! Make interaction radius compatible with unit cell
        rc = se_control%rc_interaction
-       IF(cell%perd(1)==1) rc = MIN(rc,0.5_dp*plane_distance(1,0,0,cell))
-       IF(cell%perd(2)==1) rc = MIN(rc,0.5_dp*plane_distance(0,1,0,cell))
-       IF(cell%perd(3)==1) rc = MIN(rc,0.5_dp*plane_distance(0,0,1,cell))
+       IF(cell%perd(1)==1) rc = MIN(rc,0.25_dp*plane_distance(1,0,0,cell))
+       IF(cell%perd(2)==1) rc = MIN(rc,0.25_dp*plane_distance(0,1,0,cell))
+       IF(cell%perd(3)==1) rc = MIN(rc,0.25_dp*plane_distance(0,0,1,cell))
        IF (rc /= se_control%rc_interaction) THEN
           IF (output_unit>0) THEN
              WRITE(output_unit,*)

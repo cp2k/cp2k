@@ -80,6 +80,7 @@ MODULE cp_control_types
   TYPE semi_empirical_control_type
      LOGICAL               :: orthogonal_basis
      LOGICAL               :: analytical_gradients
+     LOGICAL               :: force_kdsod_EX
      LOGICAL               :: do_ewald, do_ewald_r3
      LOGICAL               :: scp
      INTEGER               :: integral_screening, periodic_type

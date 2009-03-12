@@ -624,6 +624,8 @@ CPSourceFileRef,&
             r_val=qs_control%se_control%delta,error=error)
        CALL section_vals_val_get(se_section,"ANALYTICAL_GRADIENTS",&
             l_val=qs_control%se_control%analytical_gradients,error=error)
+       CALL section_vals_val_get(se_section,"FORCE_KDSO-D_EXCHANGE",&
+            l_val=qs_control%se_control%force_kdsod_EX,error=error)
        CALL section_vals_val_get(se_section,"RC_INTERACTION",&
             r_val=qs_control%se_control%rc_interaction,error=error)
        CALL section_vals_val_get(se_section,"RC_COULOMB",&

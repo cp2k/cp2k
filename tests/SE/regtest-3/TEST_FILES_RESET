@@ -24,3 +24,5 @@ H2O-3.inp
 # numerics
 H2O-MNDO.inp
 O2.inp
+# bug fix
+LM-KSDO-D.inp

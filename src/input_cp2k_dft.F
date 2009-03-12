@@ -2227,7 +2227,8 @@ CONTAINS
        CALL keyword_create(keyword, name="ORTHOGONAL_BASIS",&
             description="Assume orthogonal basis set. This flag is overwritten by "//&
                         "methods with fixed orthogonal/non-orthogonal basis set.",&
-            usage="ORTHOGONAL_BASIS",default_l_val=.FALSE., error=error)
+            usage="ORTHOGONAL_BASIS",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2239,7 +2240,8 @@ CONTAINS
 
        CALL keyword_create(keyword, name="ANALYTICAL_GRADIENTS",&
             description="Nuclear Gradients are computed analytically or numerically",&
-            usage="ANALYTICAL_GRADIENTS",default_l_val=.TRUE., error=error)
+            usage="ANALYTICAL_GRADIENTS",default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2304,6 +2306,14 @@ CONTAINS
             usage="SCP",default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FORCE_KDSO-D_EXCHANGE",&
+            description="This keywords forces the usage of the KDSO-D integral screening "//&
+            "for the Exchange integrals.",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+            
 
        NULLIFY(subsection)
        CALL create_neighbor_lists_section(subsection,error)

@@ -36,7 +36,7 @@ MODULE nddo_methods
   USE input_constants,                 ONLY: &
        do_ewald_ewald, do_method_am1, do_method_mndo, do_method_mndod, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
-       do_method_rm1
+       do_method_rm1, do_se_IS_kdso, do_se_IS_kdso_d
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -1566,8 +1566,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, iab, iatom, icol, ikind, ilist, inode, &
-      irow, jatom, jkind, natom, natorb_a, natorb_b, nkind, nlist, nnode, &
-      nspins, stat
+      integral_screening, irow, jatom, jkind, natom, natorb_a, natorb_b, &
+      nkind, nlist, nnode, nspins, stat
     INTEGER, DIMENSION(2)                    :: size_p_block_a
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
@@ -1613,8 +1613,14 @@ CONTAINS
     CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
 
     IF ( .NOT. failure ) THEN
+       ! Identify proper integral screening (according user requests)
+       integral_screening = se_control%integral_screening
+       IF ((integral_screening==do_se_IS_kdso_d).AND.(.NOT.se_control%force_kdsod_EX)) THEN
+          integral_screening = do_se_IS_kdso
+       END IF
        CALL setup_se_int_control_type(se_int_control, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
-            integral_screening=se_control%integral_screening)
+            integral_screening=integral_screening)
+
        CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,atomic_kind_set=atomic_kind_set,error=error)
 
        nkind = SIZE(atomic_kind_set)
