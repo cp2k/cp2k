@@ -101,7 +101,7 @@ CONTAINS
 
           ! *** Calculate some prefactors ***
 
-          f0 = 2.0_dp*4.0_dp/3.0_dp*pi*EXP(-zeta(ipgf)*dac2-zetb(jpgf)*dbc2)
+          f0 = 4.0_dp/3.0_dp*pi*EXP(-zeta(ipgf)*dac2-zetb(jpgf)*dbc2)
 
           ! *** Calculate the primitive Fermi contact integrals ***
 

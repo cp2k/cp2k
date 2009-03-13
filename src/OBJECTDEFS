@@ -6,8 +6,10 @@ OBJECTS_GENERIC =\
  ai_kinetic.o\
  ai_moments.o\
  ai_onecenter.o\
+ ai_os_rr.o\
  ai_overlap_new.o\
  ai_overlap_ppl.o\
+ ai_spin_orbit.o\
  ai_verfc.o\
  atom.o\
  atomic_charges.o\
@@ -518,6 +520,7 @@ OBJECTS_GENERIC =\
  qs_scf_post_se.o\
  qs_scf_types.o\
  qs_semi_empirical_hamiltonian.o\
+ qs_spin_orbit.o\
  qs_tddfpt_eigensolver.o\
  qs_tddfpt_module.o\
  qs_tddfpt_types.o\

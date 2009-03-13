@@ -53,10 +53,12 @@ MODULE qs_linres_op
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                              rmc_x_p_xyz_ao,&
                                              set_up_op_sm
+  USE qs_spin_orbit,                   ONLY: build_pso_matrix
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              checksum_matrix,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
+                                             replicate_matrix_structure,&
                                              set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -373,7 +375,7 @@ CONTAINS
 
     INTEGER                                  :: handle, nspins, output_unit
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: chk(3)
+    REAL(dp)                                 :: chk(10)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -384,14 +386,14 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_fc
+      POINTER                                :: matrix_fc, matrix_pso
     TYPE(section_vals_type), POINTER         :: lr_section
 
     failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(matrix_fc)
+    NULLIFY(matrix_fc,matrix_pso)
 
     logger => cp_error_get_logger(error)
     lr_section => section_vals_get_subs_vals(qs_env%input,&
@@ -417,6 +419,8 @@ CONTAINS
     !CALL get_issc_env(issc_env=issc_env, &
     !                  matrix_fc,error=error)
 
+    !
+    ! Fermi contact integral
     CALL allocate_matrix_set(matrix_fc,1,error=error)
     CALL set_up_op_sm(matrix_fc(1)%matrix,qs_env,symmetry="symmetric",&
          &            name="Fermi contact integral",error=error)
@@ -431,6 +435,52 @@ CONTAINS
     ENDIF
 
     CALL deallocate_matrix_set(matrix_fc,error=error)
+
+    !
+    ! spin-orbit integral
+    CALL allocate_matrix_set(matrix_pso,4,error=error)
+    CALL set_up_op_sm(matrix_pso(1)%matrix,qs_env,symmetry="symmetric",&
+         &            name="Coulomb integral",error=error)
+    CALL replicate_matrix_structure(matrix_pso(1)%matrix,matrix_pso(2)%matrix,&
+         &                          "Paramagnetic spin-orbit integral X",&
+         &                          target_symmetry="antisymmetric",&
+         &                          error=error)
+    CALL replicate_matrix_structure(matrix_pso(1)%matrix,matrix_pso(3)%matrix,&
+         &                          "Paramagnetic spin-orbit integral Y",&
+         &                          target_symmetry="antisymmetric",&
+         &                          error=error)
+    CALL replicate_matrix_structure(matrix_pso(1)%matrix,matrix_pso(4)%matrix,&
+         &                          "Paramagnetic spin-orbit integral Z",&
+         &                          target_symmetry="antisymmetric",&
+         &                          error=error)
+    CALL set_matrix(matrix_pso(1)%matrix,0.0_dp)
+    CALL set_matrix(matrix_pso(2)%matrix,0.0_dp)
+    CALL set_matrix(matrix_pso(3)%matrix,0.0_dp)
+    CALL set_matrix(matrix_pso(4)%matrix,0.0_dp)
+
+    CALL build_pso_matrix(qs_env,matrix_pso,(/0.0_dp,0.0_dp,0.0_dp/),error)
+
+    chk(2) = checksum_matrix(matrix_pso(1)%matrix,para_env)
+
+    IF(output_unit>0) THEN
+       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| coulomb: CheckSum =',chk(2)
+    ENDIF
+
+    chk(3) = checksum_matrix(matrix_pso(2)%matrix,para_env)
+    chk(4) = checksum_matrix(matrix_pso(3)%matrix,para_env)
+    chk(5) = checksum_matrix(matrix_pso(4)%matrix,para_env)
+
+    IF(output_unit>0) THEN
+       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| pso_x: CheckSum =',chk(3)
+       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| pso_y: CheckSum =',chk(4)
+       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| pso_z: CheckSum =',chk(5)
+    ENDIF
+
+    CALL deallocate_matrix_set(matrix_pso,error=error)
+
+    IF(output_unit>0) THEN
+       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| all operator: CheckSum =',SUM(chk(1:5))
+    ENDIF
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)
