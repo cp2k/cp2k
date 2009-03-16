@@ -17,7 +17,10 @@
       ADDED_MOS 4 0
       EPS_SCF 1.0E-5
       MAX_SCF 1
-      MIXING 0.4
+      &MIXING
+        METHOD DIRECT_P_MIXING
+        ALPHA 0.4
+      &END
       SCF_GUESS ATOMIC
       &SMEAR
         METHOD energy_window
