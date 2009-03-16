@@ -673,8 +673,8 @@ CONTAINS
                   do_backup=.TRUE., file_form="UNFORMATTED", error=error)
 
              CALL write_mo_set_low(mo_array, particle_set, ires, error)
-             IF (scp) CALL write_scp_coeff_set(ires, scp_env, atomic_kind_set, particle_set, error)
 
+             IF (scp) CALL write_scp_coeff_set(ires, scp_env, atomic_kind_set, particle_set, error)
              CALL cp_print_key_finished_output(ires,logger,dft_section,TRIM(keys(ikey)), error=error)
           END IF
        END DO
@@ -815,6 +815,7 @@ CPSourceFileRef,&
                mo_array(ispin)%mo_set%homo,&
                mo_array(ispin)%mo_set%lfomo,&
                mo_array(ispin)%mo_set%nelectron
+          WRITE (ires) mo_array(ispin)%mo_set%mu
           WRITE (ires) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
                mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
        END IF
@@ -899,16 +900,20 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name
-    INTEGER                                  :: handle, ispin, natom, nspin, &
-                                                restart_unit
-    LOGICAL                                  :: exist
+    INTEGER                                  :: group, handle, ispin, natom, &
+                                                nspin, restart_unit, source
+    LOGICAL                                  :: exist, failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
+    failure = .FALSE.
 
     nspin = SIZE(mo_array)
     restart_unit = -1
+
+    group = para_env%group
+    source = para_env%source
 
     IF (para_env%ionode) THEN
 
@@ -929,6 +934,7 @@ CPSourceFileRef,&
 
     CALL read_mos_restart_low (mo_array, para_env, particle_set, natom,&
          restart_unit, multiplicity=multiplicity, error=error)
+
     IF (scp) CALL read_aux_coeff_set(restart_unit, scp_env%aux_coeff_set, para_env, error)
 
     ! Close restart file
@@ -974,6 +980,7 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
     LOGICAL                                  :: failure, minbas, my_xas, &
                                                 use_this
+    REAL(KIND=dp)                            :: mu_read
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1070,6 +1077,7 @@ CPSourceFileRef,&
 
       IF (para_env%ionode.AND.(nmo > 0)) THEN
         READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
+        READ (rst_unit) mu_read
         ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         eig_read = 0.0_dp
@@ -1103,6 +1111,7 @@ CPSourceFileRef,&
 
         mos(ispin)%mo_set%homo = homo_read
         mos(ispin)%mo_set%lfomo = lfomo_read
+        mos(ispin)%mo_set%mu = mu_read
         IF (homo_read > nmo) THEN
           IF(nelectron_read==mos(ispin)%mo_set%nelectron) THEN
              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&

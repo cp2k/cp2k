@@ -39,8 +39,7 @@ MODULE qs_scf_post_gpw
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              get_results,&
                                              put_results
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
-                                             cp_sm_plus_fm_fm_t
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE et_coupling_types,               ONLY: set_et_coupling_type
@@ -90,8 +89,7 @@ MODULE qs_scf_post_gpw
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type
-  USE qs_collocate_density,            ONLY: calculate_rho_elec,&
-                                             calculate_wavefunction
+  USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
@@ -128,11 +126,8 @@ MODULE qs_scf_post_gpw
   USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix_structure,&
-                                             set_matrix
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE stm_images,                      ONLY: th_stm_image
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -150,7 +145,6 @@ MODULE qs_scf_post_gpw
             qs_scf_post_unocc_cubes,&
             qs_scf_post_moments,&
             qs_scf_post_efg,&
-            stm_cubes,&
             write_available_results
 
 CONTAINS
@@ -183,20 +177,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, ispin, n, n_mo(2), nao, nelectron, nhomo, nlumo, &
-      nlumos, nmo, nmoloc(2), nmos, output_unit, unit_nr
+    INTEGER :: handle, homo, ispin, istat, n, n_mo(2), nao, nelectron, nhomo, &
+      nlumo, nlumos, nmo, nmoloc(2), nmos, output_unit, unit_nr
     LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, failure, has_homo, &
       has_lumo, ionode, my_localized_wfn, p_loc, uniform_occ
     REAL(dp)                                 :: e_kin, e_kinAtt
     REAL(KIND=dp)                            :: gap, homo_lumo(2,2), maxocc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, stm_biases
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
-    TYPE(cp_1d_r_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: evals
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_evals
-    TYPE(cp_fm_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: mo_arrays
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
@@ -220,7 +210,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: kinetic_m, ks_rmpv, matrix_s
-    TYPE(real_matrix_type), POINTER          :: stm_density_ao
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: input, localization_section, &
                                                 localize_section, print_key
@@ -304,8 +293,7 @@ CONTAINS
        p_loc=p_loc.OR.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)
 
        ! Control for STM_BIAS
-       CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%STM_BIAS",r_vals=stm_biases,error=error)
-       do_stm=ASSOCIATED(stm_biases)
+       do_stm = section_get_lval(dft_section,"PRINT%MO_CUBES%STM",error=error)
 
        ! check for CUBES (MOs and WANNIERS)
        do_mo_cubes=BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
@@ -316,7 +304,7 @@ CONTAINS
        nhomo=section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)
 
        ! Setup the grids needed to compute a wavefunction given a vector..
-       IF ( ( ( do_mo_cubes .OR. do_wannier_cubes ).AND. (nlumo /= 0 .OR. nhomo /= 0 .OR. do_stm )) .OR. p_loc ) THEN
+       IF ( ( ( do_mo_cubes .OR. do_wannier_cubes ).AND. (nlumo /= 0 .OR. nhomo /= 0  )) .OR. p_loc ) THEN
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                           pw_pools=pw_pools,error=error)
           CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
@@ -325,12 +313,6 @@ CONTAINS
           CALL pw_pool_create_pw(auxbas_pw_pool,wf_g%pw,&
                                   use_data = COMPLEXDATA1D,&
                                   in_space = RECIPROCALSPACE, error=error)
-          IF (do_stm) THEN
-             NULLIFY(stm_density_ao)
-             CALL replicate_matrix_structure(source=rho%rho_ao(1)%matrix,&
-                                       TARGET=stm_density_ao,&
-                                       target_name="stm_density_ao",error=error)
-          ENDIF
        END IF
 
        ! Makes the MOs eigenstates, computes eigenvalues, write cubes
@@ -374,22 +356,6 @@ CONTAINS
                      mo_coeff, wf_g, wf_r, particles, homo, ispin, ionode, error=error)
              ENDDO
           ENDIF
-       ENDIF
-
-       ! do_stm for the occupied states (requires eigenstates at this point)
-       IF (do_mo_cubes .AND. ANY(stm_biases<0.0_dp)) THEN
-          ALLOCATE(mo_arrays(dft_control%nspins))
-          ALLOCATE(evals(dft_control%nspins))
-          DO ispin=1,dft_control%nspins
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
-                  eigenvalues=mo_eigenvalues)
-             mo_arrays(ispin)%matrix=>mo_coeff
-             evals(ispin)%array=>mo_eigenvalues
-          ENDDO
-          CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
-                       stm_biases, .TRUE. , particles, ionode, output_unit,  error)
-          DEALLOCATE(mo_arrays)
-          DEALLOCATE(evals)
        ENDIF
 
        ! Initialize the localization environment, needed e.g. for wannier functions and molecular states
@@ -499,8 +465,10 @@ CPSourceFileRef,&
 
        ! Gets the lumos, and eigenvalues for the lumos
        IF ((do_mo_cubes .OR.dft_control%do_tddfpt_calculation ) .AND. nlumo .NE. 0 ) THEN 
-          ALLOCATE(unoccupied_orbs(dft_control%nspins))
-          ALLOCATE(unoccupied_evals(dft_control%nspins))
+          ALLOCATE(unoccupied_orbs(dft_control%nspins),STAT=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(unoccupied_evals(dft_control%nspins),STAT=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
           DO ispin=1,dft_control%nspins
              NULLIFY(unoccupied_orbs(ispin)%matrix)
              NULLIFY(unoccupied_evals(ispin)%array)
@@ -512,7 +480,8 @@ CPSourceFileRef,&
              CALL cp_fm_get_info(mo_coeff, nrow_global=n,error=error)
              nlumos=MAX(1,MIN(nlumo,nao-homo))
              IF (nlumo==-1) nlumos=nao-homo
-             ALLOCATE(unoccupied_evals(ispin)%array(nlumos))
+             ALLOCATE(unoccupied_evals(ispin)%array(nlumos),stat=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
              CALL cp_fm_struct_create(fm_struct_tmp,para_env=qs_env%para_env,context=qs_env%blacs_env, &
                                                     nrow_global=n,ncol_global=nlumos,error=error)
              CALL cp_fm_create(unoccupied_orbs(ispin)%matrix, fm_struct_tmp,name="lumos",error=error)
@@ -551,7 +520,7 @@ CPSourceFileRef,&
 
           ! Save the info for tddfpt calculation
           IF (dft_control%do_tddfpt_calculation) THEN
-             ALLOCATE(tddfpt_control%lumos_eigenvalues(nlumos,dft_control%nspins))
+             ALLOCATE(tddfpt_control%lumos_eigenvalues(nlumos,dft_control%nspins),stat=istat)
              DO ispin=1, dft_control%nspins
                 tddfpt_control%lumos_eigenvalues(1:nlumos,ispin) = &
                      unoccupied_evals(ispin)%array(1:nlumos)
@@ -569,26 +538,22 @@ CPSourceFileRef,&
          ENDDO
        ENDIF
 
-       ! do_stm for the unoccupied states (requires eigenstates at this point)
-       IF (do_mo_cubes .AND. ANY(stm_biases>0.0_dp)) THEN
-          CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, unoccupied_orbs, unoccupied_evals, &
-                       stm_biases, .FALSE. , particles, ionode, output_unit,  error)
-       ENDIF
-
-
        ! Deallocate grids needed to compute wavefunctions
-       IF ( ( ( do_mo_cubes .OR. do_wannier_cubes ).AND. (nlumo /= 0 .OR. nhomo /= 0 .OR. do_stm )) .OR. p_loc ) THEN
+       IF ( ( ( do_mo_cubes .OR. do_wannier_cubes ).AND. (nlumo /= 0 .OR. nhomo /= 0 )) .OR. p_loc ) THEN
           CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
           CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw, error=error)
-          IF (do_stm) THEN
-             CALL deallocate_matrix(stm_density_ao,error=error)
-          ENDIF
        END IF
 
        ! Destroy the localization environment
        IF (p_loc) THEN
           CALL qs_loc_env_destroy(qs_loc_env, error=error)
        ENDIF
+
+       !stm images
+       IF(do_stm)THEN
+         CALL th_stm_image(qs_env, dft_section, particles, unoccupied_orbs, &
+                         unoccupied_evals, error)
+       END IF
 
        ! Compute the optical conductivity (needs homos and lumos)
        CALL qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
@@ -597,12 +562,17 @@ CPSourceFileRef,&
        ! This is just a deallocation for printing MO_CUBES or TDDFPT
        IF (( do_mo_cubes .OR. dft_control%do_tddfpt_calculation ) .AND. nlumo /= 0 ) THEN
           DO ispin=1,dft_control%nspins
-             DEALLOCATE(unoccupied_evals(ispin)%array)
+             DEALLOCATE(unoccupied_evals(ispin)%array,stat=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
              IF (.NOT.dft_control%do_tddfpt_calculation) &
                   CALL cp_fm_release(unoccupied_orbs(ispin)%matrix,error=error)
           ENDDO
-          DEALLOCATE(unoccupied_evals)
-          IF (.NOT.dft_control%do_tddfpt_calculation) DEALLOCATE(unoccupied_orbs)
+          DEALLOCATE(unoccupied_evals,stat=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          IF (.NOT.dft_control%do_tddfpt_calculation) THEN
+            DEALLOCATE(unoccupied_orbs,stat=istat)
+            CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          END IF
        ENDIF
        
        ! Print coherent X-ray diffraction spectrum
@@ -625,140 +595,6 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE scf_post_calculation_gpw
-
-! *****************************************************************************
-!> \brief computes a simple approximation to the tunneling current for STM
-!> \param 
-!> \note
-!>      requires the MOs that are passed to be eigenstates, and energy ordered
-!> \par History
-!>      7.2008 Created [Joost VandeVondele]
-!> \author Joost VandeVondele
-! *****************************************************************************
-  SUBROUTINE stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
-                       stm_biases, do_negative, particles, ionode, output_unit,  error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(real_matrix_type), POINTER          :: stm_density_ao
-    TYPE(pw_p_type)                          :: wf_r, wf_g
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      INTENT(IN)                             :: mo_arrays
-    TYPE(cp_1d_r_p_type), DIMENSION(:), &
-      INTENT(IN)                             :: evals
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: stm_biases
-    LOGICAL                                  :: do_negative
-    TYPE(particle_list_type), POINTER        :: particles
-    LOGICAL                                  :: ionode
-    INTEGER                                  :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'stm_cubes', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=80)                        :: filename, title
-    INTEGER                                  :: handle, ibias, ispin, &
-                                                istates, nstates, &
-                                                state_start, unit_nr
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha, e_end, e_start, &
-                                                total_rho
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: matrix_v
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    CALL timeset(routineN,handle)
-
-    failure=.FALSE.
-    logger => cp_error_get_logger(error)
-    NULLIFY(fm_struct_tmp)
-
-    DO ibias=1,SIZE(stm_biases)
-       IF (do_negative) THEN
-          IF (stm_biases(ibias)>0.0_dp) CYCLE
-       ELSE
-          IF (stm_biases(ibias)<0.0_dp) CYCLE
-       ENDIF
-
-       IF (ionode) WRITE(output_unit,'(T2,A)')       ""
-       IF (ionode) WRITE(output_unit,'(T2,A,F16.6)') "Preparing for STM image at bias [a.u.] ",stm_biases(ibias)
-
-       ! a shared starting energy for alpha and beta
-       IF (do_negative) THEN
-          e_start=-HUGE(0.0_dp)
-       ELSE
-          e_start=+HUGE(0.0_dp)
-       ENDIF
-       DO ispin=1,SIZE(mo_arrays)
-          IF (do_negative) THEN
-             e_start=MAX(e_start,MAXVAL(evals(ispin)%array)) ! HOMO
-          ELSE
-             e_start=MIN(e_start,MINVAL(evals(ispin)%array)) ! LUMO
-          ENDIF
-       ENDDO
-
-       istates=0
-       DO ispin=1,SIZE(mo_arrays)
-          IF (do_negative) THEN
-             e_end =MINVAL(evals(ispin)%array)
-             nstates=COUNT(evals(ispin)%array>e_start+stm_biases(ibias))
-             IF (ionode .AND. e_start+stm_biases(ibias) < e_end) &
-                 WRITE(output_unit,'(T4,A)') "Warning: HOMO+bias below lowest computed occupied MO"
-          ELSE
-             e_end =MAXVAL(evals(ispin)%array)
-             nstates=COUNT(evals(ispin)%array<e_start+stm_biases(ibias))
-             IF (ionode .AND. e_start+stm_biases(ibias) > e_end) &
-                 WRITE(output_unit,'(T4,A)') "Warning: LUMO+bias above highest computed unoccupied MO"
-          ENDIF
-          istates=istates+nstates
-       ENDDO
-       IF (ionode) WRITE(output_unit,'(T4,A,I0,A)') "Using a total of ",istates," states"
-
-       CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=istates, &
-                       template_fmstruct=mo_arrays(1)%matrix%matrix_struct, error=error)
-       CALL cp_fm_create(matrix_v,fm_struct_tmp, name="matrix_v",error=error)
-       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-
-       ! we sum both alpha and beta electrons together for this density of states
-       istates=0
-       DO ispin=1,SIZE(mo_arrays)
-          IF (do_negative) THEN
-             nstates=COUNT(evals(ispin)%array>e_start+stm_biases(ibias))
-             state_start=SIZE(evals(ispin)%array)-nstates+1
-          ELSE
-             nstates=COUNT(evals(ispin)%array<e_start+stm_biases(ibias))
-             state_start=1
-          ENDIF
-          CALL cp_fm_to_fm(mo_arrays(ispin)%matrix,matrix_v,nstates,state_start,istates+1)
-          istates=istates+nstates
-       ENDDO
-
-       ! assume integer occupation, and construct the density matrix
-       alpha=1.0_dp
-       IF (SIZE(mo_arrays)==1) alpha=2.0_dp
-       CALL set_matrix(stm_density_ao,0.0_dp)
-       CALL cp_sm_plus_fm_fm_t(stm_density_ao,matrix_v=matrix_v,ncol=istates,&
-                               alpha=alpha,error=error)
-       CALL calculate_rho_elec(matrix_p=stm_density_ao,&
-               rho=wf_r,rho_gspace=wf_g, total_rho=total_rho,&
-               qs_env=qs_env, error=error)
-
-       CALL cp_fm_release(matrix_v, error=error)
-
-       WRITE(filename,'(a4,I5.5)')"STM_",ibias
-       unit_nr=cp_print_key_unit_nr(logger,dft_section,"PRINT%MO_CUBES",extension=".cube",&
-            middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-       WRITE(title,*) "STM cube ",ibias," at bias ",stm_biases(ibias)
-       CALL pw_to_cube(wf_r%pw,unit_nr,ionode,title,particles=particles,&
-            stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
-            error=error)
-       CALL cp_print_key_finished_output(unit_nr,logger,dft_section,"PRINT%MO_CUBES",error=error)
-
-    ENDDO
-
-    CALL timestop(handle)
-
-  END SUBROUTINE stm_cubes
 
 ! *****************************************************************************
 !> \brief Computes and Prints Atomic Charges with several methods

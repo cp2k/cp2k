@@ -83,15 +83,12 @@ MODULE qs_scf_post_se
   USE qs_resp,                         ONLY: resp_fit
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_post_gpw,                 ONLY: qs_scf_post_occ_cubes,&
-                                             qs_scf_post_unocc_cubes,&
-                                             stm_cubes
+                                             qs_scf_post_unocc_cubes
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix_structure
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE stm_images,                      ONLY: th_stm_image
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -139,12 +136,8 @@ CONTAINS
     REAL(KIND=dp)                            :: maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, stm_biases
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
-    TYPE(cp_1d_r_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: evals
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_evals
-    TYPE(cp_fm_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: mo_arrays
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
@@ -168,7 +161,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
-    TYPE(real_matrix_type), POINTER          :: stm_density_ao
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: input, localization_section, &
                                                 localize_section, print_key
@@ -240,17 +232,12 @@ CONTAINS
        nhomo=section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)
 
        ! Setup the grids needed to compute a wavefunction given a vector..
-       IF (((do_mo_cubes.OR.do_wannier_cubes).AND.(nlumo/=0.OR.nhomo/=0.OR.do_stm)).OR.p_loc) THEN
+       IF (((do_mo_cubes.OR.do_wannier_cubes).AND.(nlumo/=0.OR.nhomo/=0.)).OR.p_loc) THEN
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools,error=error)
           CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw, use_data = REALDATA3D,&
                in_space = REALSPACE, error=error)
           CALL pw_pool_create_pw(auxbas_pw_pool,wf_g%pw, use_data = COMPLEXDATA1D,&
                in_space = RECIPROCALSPACE, error=error)
-          IF (do_stm) THEN
-             NULLIFY(stm_density_ao)
-             CALL replicate_matrix_structure(source=rho%rho_ao(1)%matrix,&
-                  TARGET=stm_density_ao,target_name="stm_density_ao",error=error)
-          ENDIF
        END IF
 
 
@@ -292,22 +279,6 @@ CONTAINS
                      mo_coeff, wf_g, wf_r, particles, homo, ispin, ionode, error=error)
              ENDDO
           ENDIF
-       ENDIF
-
-       ! do_stm for the occupied states (requires eigenstates at this point)
-       IF (do_mo_cubes .AND. ANY(stm_biases<0.0_dp)) THEN
-          ALLOCATE(mo_arrays(dft_control%nspins))
-          ALLOCATE(evals(dft_control%nspins))
-          DO ispin=1,dft_control%nspins
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
-                  eigenvalues=mo_eigenvalues)
-             mo_arrays(ispin)%matrix=>mo_coeff
-             evals(ispin)%array=>mo_eigenvalues
-          ENDDO
-          CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
-                       stm_biases, .TRUE. , particles, ionode, output_unit,  error)
-          DEALLOCATE(mo_arrays)
-          DEALLOCATE(evals)
        ENDIF
 
        ! Initialize the localization environment, needed e.g. for wannier functions and molecular states
@@ -463,26 +434,23 @@ CPSourceFileRef,&
 
        ENDIF
 
-       ! do_stm for the unoccupied states (requires eigenstates at this point)
-       IF (do_mo_cubes .AND. ANY(stm_biases>0.0_dp)) THEN
-          CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, unoccupied_orbs, unoccupied_evals, &
-                       stm_biases, .FALSE. , particles, ionode, output_unit,  error)
-       ENDIF
-
 
        ! Deallocate grids needed to compute wavefunctions
-       IF ( ( ( do_mo_cubes .OR. do_wannier_cubes ).AND. (nlumo /= 0 .OR. nhomo /= 0 .OR. do_stm )) .OR. p_loc ) THEN
+       IF ( ( ( do_mo_cubes .OR. do_wannier_cubes ).AND. (nlumo /= 0 .OR. nhomo /= 0 )) .OR. p_loc ) THEN
           CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
           CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw, error=error)
-          IF (do_stm) THEN
-             CALL deallocate_matrix(stm_density_ao,error=error)
-          ENDIF
        END IF
 
        ! Destroy the localization environment
        IF (p_loc) THEN
           CALL qs_loc_env_destroy(qs_loc_env, error=error)
        ENDIF
+
+       !stm images
+       IF(do_stm)THEN
+         CALL th_stm_image(qs_env, dft_section, particles, unoccupied_orbs, &
+                         unoccupied_evals, error)
+       END IF
 
        ! Compute the optical conductivity (needs homos and lumos)
        CALL qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&

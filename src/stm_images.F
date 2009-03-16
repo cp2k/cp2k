@@ -1,0 +1,344 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2009  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
+!> \brief Calculation of STM image as post processing of an electronic
+!>     structure calculation, 
+!> \par History
+!>      Started as a copy from the code in qs_scf_post
+!> \author Joost VandeVondele 7.2008, MI 02.2009
+! *****************************************************************************
+MODULE stm_images
+
+  USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_p_type,&
+                                             cp_fm_release,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
+  USE input_section_types,             ONLY: section_get_ivals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
+  USE particle_list_types,             ONLY: particle_list_type
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_p_type
+  USE qs_collocate_density,            ONLY: calculate_rho_elec
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
+  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE realspace_grid_cube,             ONLY: pw_to_cube
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             real_matrix_type,&
+                                             replicate_matrix_structure,&
+                                             set_matrix
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+  PRIVATE
+
+  ! Global parameters
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'stm_images'
+  PUBLIC :: th_stm_image 
+
+
+CONTAINS
+! *****************************************************************************
+!> \brief Driver for the calculation of STM image, as post processing of a 
+!>        ground-state electronic structure calculation. 
+!> \param
+!> \note
+!>   The Tersoff-Hamman
+!>        approximation is applied, occupied and a sufficient number of 
+!>        unoccupied eigenstates are needed (depending on the given Bias potential)
+!>        and should be computed in advance. Unoccupied states are calculated
+!>        before enetering this module when NLUMO =/ 0
+!> \par History
+!>      02.2009 Created [MI]
+!> \author MI
+! *****************************************************************************
+
+  SUBROUTINE th_stm_image(qs_env, dft_section, particles, unoccupied_orbs, &
+             unoccupied_evals, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: unoccupied_orbs
+    TYPE(cp_1d_r_p_type), DIMENSION(:), &
+      POINTER                                :: unoccupied_evals
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'th_stm_image', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, irep, ispin, istat, &
+                                                n_rep, nspin, output_unit
+    INTEGER, DIMENSION(:), POINTER           :: stm_th_torb
+    LOGICAL                                  :: failure, ionode
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, stm_biases
+    TYPE(cp_1d_r_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: evals
+    TYPE(cp_fm_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: mo_arrays
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: wf_g, wf_r
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_type), POINTER          :: stm_density_ao
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit = -1
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+
+     NULLIFY (mos, rho, pw_env, stm_th_torb)
+     NULLIFY (auxbas_pw_pool, pw_pools, stm_density_ao)
+
+     CALL get_qs_env(qs_env, mos=mos,rho=rho, pw_env=pw_env,&
+            error=error)
+     CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%STM_BIAS",&
+          r_vals=stm_biases,error=error)
+     CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%TH_TORB", &
+          n_rep_val=n_rep, error=error)
+     IF(n_rep==0) THEN
+        ALLOCATE (stm_th_torb(1), STAT=istat)
+        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+        stm_th_torb(1) = 0
+     ELSE
+        ALLOCATE (stm_th_torb(n_rep), STAT=istat)
+        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO irep = 1,n_rep
+          CALL section_vals_val_get(dft_section,"PRINT%MO_CUBES%TH_TORB",&
+               i_rep_val=irep,i_val=stm_th_torb(irep), error=error)
+       END DO
+     END IF
+
+     NULLIFY(stm_density_ao)
+     CALL replicate_matrix_structure(source=rho%rho_ao(1)%matrix,&
+                           TARGET=stm_density_ao,&
+                           target_name="stm_density_ao",error=error)
+
+     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+                     pw_pools=pw_pools,error=error)
+     CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
+                            use_data = REALDATA3D,&
+                            in_space = REALSPACE, error=error)
+     CALL pw_pool_create_pw(auxbas_pw_pool,wf_g%pw,&
+                            use_data = COMPLEXDATA1D,&
+                            in_space = RECIPROCALSPACE, error=error)
+
+     IF(ANY(stm_biases<0.0_dp)) THEN
+       nspin = SIZE(mos,1)
+       ALLOCATE(mo_arrays(nspin), STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(evals(nspin),STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO ispin=1,nspin
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
+               eigenvalues=mo_eigenvalues)
+          mo_arrays(ispin)%matrix=>mo_coeff
+          evals(ispin)%array=>mo_eigenvalues
+       ENDDO
+       CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
+                    stm_biases, .TRUE. ,stm_th_torb,  particles, ionode, output_unit,  error)
+       DEALLOCATE(mo_arrays,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(evals,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ANY(stm_biases<0.0_dp)) THEN
+
+       CPPrecondition(ASSOCIATED(unoccupied_orbs),cp_failure_level,routineP,error,failure)
+       CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g,&
+                     unoccupied_orbs, unoccupied_evals, stm_biases, .FALSE. ,&
+                     stm_th_torb,  particles, ionode, output_unit,  error)
+     END IF
+
+     CALL deallocate_matrix(stm_density_ao,error=error)
+     CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
+     CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw, error=error)
+
+     DEALLOCATE (stm_th_torb, STAT=istat)
+     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE th_stm_image
+
+! *****************************************************************************
+!> \brief computes a simple approximation to the tunneling current for STM
+!> \param 
+!> \note
+!>      requires the MOs that are passed to be eigenstates, and energy ordered
+!> \par History
+!>      7.2008 Created [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
+                       stm_biases, do_negative, stm_th_torb, particles, ionode, output_unit,  error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(real_matrix_type), POINTER          :: stm_density_ao
+    TYPE(pw_p_type)                          :: wf_r, wf_g
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      INTENT(IN)                             :: mo_arrays
+    TYPE(cp_1d_r_p_type), DIMENSION(:), &
+      INTENT(IN)                             :: evals
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: stm_biases
+    LOGICAL                                  :: do_negative
+    INTEGER, DIMENSION(:), POINTER           :: stm_th_torb
+    TYPE(particle_list_type), POINTER        :: particles
+    LOGICAL                                  :: ionode
+    INTEGER                                  :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), DIMENSION(0:9), PARAMETER :: torb_string = (/"  s"," px"&
+      ," py", " pz", "dxy", "dyz", "dzx", "dx2", "dy2", "dz2"/)
+    CHARACTER(len=*), PARAMETER :: routineN = 'stm_cubes', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=80)                        :: filename, oname, title
+    INTEGER                                  :: handle, i, ibias, iorb, &
+                                                ispin, istates, nstates, &
+                                                state_start, unit_nr
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha, e_end, e_start, &
+                                                total_rho
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: matrix_v
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    logger => cp_error_get_logger(error)
+    NULLIFY(fm_struct_tmp)
+
+    DO ibias=1,SIZE(stm_biases)
+       IF (do_negative) THEN
+          IF (stm_biases(ibias)>0.0_dp) CYCLE
+       ELSE
+          IF (stm_biases(ibias)<0.0_dp) CYCLE
+       ENDIF
+
+       IF (ionode) WRITE(output_unit,'(T2,A)')       ""
+       IF (ionode) WRITE(output_unit,'(T2,A,F16.6)') "Preparing for STM image at bias [a.u.] ",stm_biases(ibias)
+
+       ! a shared starting energy for alpha and beta
+       IF (do_negative) THEN
+          e_start=-HUGE(0.0_dp)
+       ELSE
+          e_start=+HUGE(0.0_dp)
+       ENDIF
+       DO ispin=1,SIZE(mo_arrays)
+          IF (do_negative) THEN
+             e_start=MAX(e_start,MAXVAL(evals(ispin)%array)) ! HOMO
+          ELSE
+             e_start=MIN(e_start,MINVAL(evals(ispin)%array)) ! LUMO
+          ENDIF
+       ENDDO
+
+       istates=0
+       DO ispin=1,SIZE(mo_arrays)
+          IF (do_negative) THEN
+             e_end =MINVAL(evals(ispin)%array)
+             nstates=COUNT(evals(ispin)%array>e_start+stm_biases(ibias))
+             IF (ionode .AND. e_start+stm_biases(ibias) < e_end) &
+                 WRITE(output_unit,'(T4,A)') "Warning: HOMO+bias below lowest computed occupied MO"
+          ELSE
+             e_end =MAXVAL(evals(ispin)%array)
+             nstates=COUNT(evals(ispin)%array<e_start+stm_biases(ibias))
+             IF (ionode .AND. e_start+stm_biases(ibias) > e_end) &
+                 WRITE(output_unit,'(T4,A)') "Warning: LUMO+bias above highest computed unoccupied MO"
+          ENDIF
+          istates=istates+nstates
+       ENDDO
+       IF (ionode) WRITE(output_unit,'(T4,A,I0,A)') "Using a total of ",istates," states"
+
+       CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=istates, &
+                       template_fmstruct=mo_arrays(1)%matrix%matrix_struct, error=error)
+       CALL cp_fm_create(matrix_v,fm_struct_tmp, name="matrix_v",error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+       ! we sum both alpha and beta electrons together for this density of states
+       istates=0
+       DO ispin=1,SIZE(mo_arrays)
+          IF (do_negative) THEN
+             nstates=COUNT(evals(ispin)%array>e_start+stm_biases(ibias))
+             state_start=SIZE(evals(ispin)%array)-nstates+1
+          ELSE
+             nstates=COUNT(evals(ispin)%array<e_start+stm_biases(ibias))
+             state_start=1
+          ENDIF
+          CALL cp_fm_to_fm(mo_arrays(ispin)%matrix,matrix_v,nstates,state_start,istates+1)
+          istates=istates+nstates
+       ENDDO
+
+       ! assume integer occupation, and construct the density matrix
+       alpha=1.0_dp
+       IF (SIZE(mo_arrays)==1) alpha=2.0_dp
+       CALL set_matrix(stm_density_ao,0.0_dp)
+       CALL cp_sm_plus_fm_fm_t(stm_density_ao,matrix_v=matrix_v,ncol=istates,&
+                               alpha=alpha,error=error)
+
+!       DO iorb = 0,9
+       DO i = 1,SIZE(stm_th_torb)
+         iorb=stm_th_torb(i)
+         CALL calculate_rho_elec(matrix_p=stm_density_ao,&
+                 rho=wf_r,rho_gspace=wf_g, total_rho=total_rho,&
+                 qs_env=qs_env,  der_type=iorb, error=error)
+
+         oname = torb_string(iorb)
+!         fname = "STM_"//TRIM(torb_string(iorb)) 
+         WRITE(filename,'(a4,I2.2,a1,I5.5)')"STM_d",iorb,"_",ibias
+         unit_nr=cp_print_key_unit_nr(logger,dft_section,"PRINT%MO_CUBES",extension=".cube",&
+              middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+         WRITE(title,*) "STM cube ",ibias,"wfn deriv. ",iorb," at bias ",stm_biases(ibias)
+         CALL pw_to_cube(wf_r%pw,unit_nr,ionode,title,particles=particles,&
+             stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
+             error=error)
+
+         CALL cp_print_key_finished_output(unit_nr,logger,dft_section,"PRINT%MO_CUBES",error=error)
+       END DO
+
+       CALL cp_fm_release(matrix_v, error=error)
+
+    ENDDO
+
+    CALL timestop(handle)
+
+  END SUBROUTINE stm_cubes
+  
+END MODULE stm_images

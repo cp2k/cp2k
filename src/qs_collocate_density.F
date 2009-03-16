@@ -102,8 +102,10 @@ MODULE qs_collocate_density
   USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE qs_modify_pab_block,             ONLY: &
        FUNC_AB, FUNC_ADBmDAB, FUNC_ARB, FUNC_ARDBmDARB, FUNC_DABpADB, &
-       FUNC_DADB, prepare_adb_m_dab, prepare_arb, prepare_ardb_m_darb, &
-       prepare_dadb
+       FUNC_DADB, FUNC_DER, FUNC_DX, FUNC_DXDX, FUNC_DXDY, FUNC_DY, &
+       FUNC_DYDY, FUNC_DYDZ, FUNC_DZ, FUNC_DZDX, FUNC_DZDZ, &
+       prepare_adb_m_dab, prepare_arb, prepare_ardb_m_darb, prepare_dadb, &
+       prepare_diadib, prepare_diiadiib, prepare_dijadijb
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
@@ -495,14 +497,14 @@ CONTAINS
 !>      (in real and g-space respectively)
 ! *****************************************************************************
   SUBROUTINE calculate_rho_elec(matrix_p, rho,rho_gspace, total_rho,&
-       qs_env, soft_valid, compute_tau, basis_set_id, error)
+       qs_env, soft_valid, compute_tau, basis_set_id, der_type, error)
 
     TYPE(real_matrix_type), POINTER          :: matrix_p
     TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, compute_tau
-    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id, der_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_elec', &
@@ -514,9 +516,9 @@ CONTAINS
     INTEGER :: bcol, brow, ga_gb_function, handle, iatom, iatom_old, &
       igrid_level, ikind, ikind_old, ipgf, iset, iset_old, istat, itask, &
       ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, &
-      maxco, maxpgf, maxset, maxsgf, maxsgf_set, my_basis_set_id, n, na1, &
-      na2, natoms, nb1, nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, &
-      nthread, sgfa, sgfb, stat
+      maxco, maxpgf, maxset, maxsgf, maxsgf_set, my_basis_set_id, &
+      my_der_type, n, na1, na2, natoms, nb1, nb2, ncoa, ncob, nkind, nseta, &
+      nsetb, ntasks, nthread, sgfa, sgfb, stat
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -582,11 +584,14 @@ CONTAINS
        my_compute_tau = .FALSE.
     ENDIF
 
-    IF (my_compute_tau) THEN
-       CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
+    my_der_type = 0
+    IF(PRESENT(der_type)) THEN
+      my_der_type = der_type
+      ga_gb_function = FUNC_DER(my_der_type)
+    ELSE IF (my_compute_tau) THEN
        ga_gb_function = FUNC_DADB
     ELSE
-       CALL timeset(routineN,handle)
        ga_gb_function = FUNC_AB
     ENDIF
 
@@ -595,7 +600,8 @@ CONTAINS
     ELSE
       my_basis_set_id = use_orb_basis_set
     END IF
-   
+
+
     SELECT CASE (my_basis_set_id)
     CASE (use_orb_basis_set) 
       CALL get_qs_env(qs_env=qs_env,&
@@ -873,7 +879,8 @@ CONTAINS
                rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                eps_rho_rspace,&
                ga_gb_function=ga_gb_function, &
-               map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
+               map_consistent=map_consistent,use_subpatch=use_subpatch,&
+               subpatch_pattern=tasks(6,itask),error=error)
        ELSE
           rab_inv=-rab
           CALL collocate_pgf_product_rspace(&
@@ -883,7 +890,8 @@ CONTAINS
                rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                eps_rho_rspace,&
                ga_gb_function=ga_gb_function, &
-               map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),error=error)
+               map_consistent=map_consistent,use_subpatch=use_subpatch,&
+               subpatch_pattern=tasks(6,itask),error=error)
        END IF
 
     END DO loop_tasks
@@ -1595,7 +1603,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
         routineP = moduleN//':'//routineN
 
-      INTEGER :: cmax, gridbounds(2,3), i, ico, icoef, ig, ithread_l, &
+      INTEGER :: cmax, gridbounds(2,3), i, ico, icoef, ider1, ider2, ig, ithread_l, &
         jco, k, l, la_max_local, la_min_local, lb_max_local, lb_min_local, &
         length, lx, lx_max, lxa, lxb, lxy, lxy_max, lxyz, lxyz_max, lya, lyb, &
         lza, lzb, o1_local, o2_local, offset, start
@@ -1773,6 +1781,97 @@ CONTAINS
               DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
                  ! this element of pab results in 4 elements of pab_local
                  CALL prepare_adb_m_dab(pab_local,pab,idir,&
+                      lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
+              END DO
+              END DO
+           END DO
+           END DO
+        END DO
+        END DO
+        o1_local=0
+        o2_local=0
+    CASE(FUNC_DX,FUNC_DY,FUNC_DZ)
+        ider1 = ga_gb_function - 500 
+        la_max_local=la_max+1
+        la_min_local=MAX(la_min-1,0)
+        lb_max_local=lb_max+1
+        lb_min_local=MAX(lb_min-1,0)
+        ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
+        ! is equivalent to mapping pab with
+        !   d_{ider1} pgf_a d_{ider1} pgf_b
+        ! dx pgf_a dx pgf_b =
+        !        (lax pgf_{a-1x})*(lbx pgf_{b-1x}) - 2*zetb*lax*pgf_{a-1x}*pgf_{b+1x} -
+        !         lbx pgf_{b-1x}*2*zeta*pgf_{a+1x}+ 4*zeta*zetab*pgf_{a+1x}pgf_{b+1x}
+
+        ALLOCATE(pab_local(ncoset(la_max_local),ncoset(lb_max_local)))
+        pab_local = 0.0_dp
+        DO lxa=0,la_max
+        DO lxb=0,lb_max
+           DO lya=0,la_max-lxa
+           DO lyb=0,lb_max-lxb
+              DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+              DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+                 ! this element of pab results in 4 elements of pab_local
+                 CALL prepare_dIadIb(pab_local,pab,ider1,&
+                      lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
+              END DO
+              END DO
+           END DO
+           END DO
+        END DO
+        END DO
+        o1_local=0
+        o2_local=0
+    CASE(FUNC_DXDY,FUNC_DYDZ,FUNC_DZDX)
+        ider1 = ga_gb_function - 600 
+        ider2 = ga_gb_function - 600 + 1 
+        IF(ider2>3) ider2 = ider1-2
+        la_max_local=la_max+2
+        la_min_local=MAX(la_min-2,0)
+        lb_max_local=lb_max+2
+        lb_min_local=MAX(lb_min-2,0)
+        ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
+        ! is equivalent to mapping pab with
+        !   d_{ider1} pgf_a d_{ider1} pgf_b
+        ALLOCATE(pab_local(ncoset(la_max_local),ncoset(lb_max_local)))
+        pab_local = 0.0_dp
+        DO lxa=0,la_max
+        DO lxb=0,lb_max
+           DO lya=0,la_max-lxa
+           DO lyb=0,lb_max-lxb
+              DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+              DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+                 ! this element of pab results in 16 elements of pab_local
+                  CALL prepare_dijadijb (pab_local,pab,ider1,ider2,&
+                      lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
+              END DO
+              END DO
+           END DO
+           END DO
+        END DO
+        END DO
+        o1_local=0
+        o2_local=0
+    CASE(FUNC_DXDX,FUNC_DYDY,FUNC_DZDZ)
+        ider1 = ga_gb_function - 603 
+        la_max_local=la_max+2
+        la_min_local=MAX(la_min-2,0)
+        lb_max_local=lb_max+2
+        lb_min_local=MAX(lb_min-2,0)
+        ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
+        ! is equivalent to mapping pab with
+        !   dd_{ider1} pgf_a dd_{ider1} pgf_b
+
+        ALLOCATE(pab_local(ncoset(la_max_local),ncoset(lb_max_local)))
+        pab_local = 0.0_dp
+        DO lxa=0,la_max
+        DO lxb=0,lb_max
+           DO lya=0,la_max-lxa
+           DO lyb=0,lb_max-lxb
+              DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+              DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+                 ! this element of pab results in 9 elements of pab_local
+                  CALL prepare_diiadiib (pab_local,pab,ider1,&
                       lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
               END DO
               END DO
