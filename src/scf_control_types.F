@@ -19,9 +19,10 @@ MODULE scf_control_types
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
-       atomic_guess, core_guess, diag_ot, general_roks, high_spin_roks, &
-       outer_scf_becke_constraint, outer_scf_ddapc_constraint, &
-       outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
+       atomic_guess, core_guess, diag_ot, direct_p_mix, general_roks, &
+       high_spin_roks, outer_scf_becke_constraint, &
+       outer_scf_ddapc_constraint, outer_scf_none, &
+       outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
        outer_scf_s2_constraint, outer_scf_scp, smear_energy_window, &
        smear_fermi_dirac, smear_list
@@ -128,12 +129,11 @@ MODULE scf_control_types
     TYPE(outer_scf_control_type)          :: outer_scf
     TYPE(smear_type)                      :: smear
     TYPE(diagonalization_type)            :: diagonalization
-    INTEGER                               :: density_guess
+    INTEGER                               :: density_guess, mixing_method
     REAL(KIND=dp)                         :: eps_eigval,eps_scf,eps_scf_hist,&
-                                             level_shift,p_mix,work_syevx,&
-                                             eps_lumos,eps_diis,&
-                                             gspace_mixing_a, gspace_mixing_b
-    INTEGER                               :: nmixing, max_iter_lumos, max_diis
+                                             level_shift,work_syevx,&
+                                             eps_lumos,eps_diis
+    INTEGER                               :: max_iter_lumos, max_diis, nmixing
     INTEGER                               :: max_scf,nrow_block,max_scf_hist,&
                                              ncol_block,maxl,nkind
     LOGICAL                               :: gradient_functional,gth_potential_present,&
@@ -189,7 +189,6 @@ CONTAINS
       scf_control%max_scf = 50
       scf_control%nrow_block = 32
       scf_control%ncol_block = 32
-      scf_control%p_mix = 0.4_dp
       scf_control%nmixing = 2
       scf_control%work_syevx = 1.0_dp
       scf_control%use_cholesky = .TRUE.
@@ -201,8 +200,9 @@ CONTAINS
       scf_control%id_nr=last_scf_c_id_nr
       scf_control%added_mos(:) = 0
       scf_control%max_scf_hist = 0
-      scf_control%gspace_mixing_a = 1.0_dp
-      scf_control%gspace_mixing_b = 0.0_dp
+
+      !Mixing
+      scf_control%mixing_method = direct_p_mix
 
       ! Diagonalization
       scf_control%diagonalization%method = 0
@@ -362,9 +362,10 @@ CONTAINS
 
     INTEGER                                  :: stat
     INTEGER, DIMENSION(:), POINTER           :: added_mos
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals, roks_parameter
-    TYPE(section_vals_type), POINTER         :: outer_scf_section, &
+    TYPE(section_vals_type), POINTER         :: mixing_section, &
+                                                outer_scf_section, &
                                                 scf_section, smear_section
 
     failure = .FALSE.
@@ -387,12 +388,6 @@ CONTAINS
           scf_control%use_diag = .TRUE.
        END IF
        CALL section_vals_val_get(scf_section,"SCF_GUESS",i_val=scf_control%density_guess,error=error)
-       CALL section_vals_val_get(scf_section,"MIXING",r_val=scf_control%p_mix,explicit=explicit,&
-            error=error)
-       CALL section_vals_val_get(scf_section,"NMIXING",i_val=scf_control%nmixing,error=error)
-       CALL section_vals_val_get(scf_section,"GSPACE_MIXING",r_vals=r_vals,error=error)
-       scf_control%gspace_mixing_a = r_vals(1)
-       scf_control%gspace_mixing_b = r_vals(2)
        CALL section_vals_val_get(scf_section,"EPS_DIIS",r_val=scf_control%eps_diis,error=error)
        CALL section_vals_val_get(scf_section,"eps_eigval",r_val=scf_control%eps_eigval,error=error)
        CALL section_vals_val_get(scf_section,"cholesky",l_val=scf_control%use_cholesky,error=error)
@@ -524,6 +519,20 @@ CONTAINS
              scf_control%smear%list=r_vals
           ENDIF
        END IF ! do smear
+
+       mixing_section => section_vals_get_subs_vals(scf_section,"MIXING",error=error)
+!       CALL section_vals_val_get(mixing_section,"_SECTION_PARAMETERS_",&
+!                                 l_val=scf_control%do_mixing,&
+!                                 error=error)
+!       IF (scf_control%do_mixing) THEN
+          CALL section_vals_val_get(mixing_section,"METHOD",&
+                                    i_val=scf_control%mixing_method,&
+                                    error=error)
+          CALL section_vals_val_get(mixing_section,"NMIXING",i_val=scf_control%nmixing,&
+                                    error=error)
+!       END IF ! do mixing
+       
+
     END IF ! failure
 
   END SUBROUTINE scf_c_read_parameters
@@ -584,7 +593,7 @@ CONTAINS
              WRITE (UNIT=output_unit,&
                   FMT="(/,/,T2,A,T25,A,T51,A30,/,T25,56('-'),3(/,T25,A,T76,I5),/,"//&
                   "T25,56('-'),4(/,T25,A,T72,ES9.2),/,T25,56('-'),"//&
-                  "5(/,T25,A,T76,F5.2))")&
+                  "3(/,T25,A,T76,F5.2))")&
                   "SCF PARAMETERS",&
                   "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess,error=error))),&
                   "max_scf:           ",scf_control%max_scf,&
@@ -594,9 +603,6 @@ CONTAINS
                   "eps_scf_history:   ",scf_control%eps_scf_hist,&
                   "eps_diis:          ",scf_control%eps_diis,&
                   "eps_eigval:        ",scf_control%eps_eigval,&
-                  "p_mix:             ",scf_control%p_mix,&
-                  "G-space mixing a:  ",scf_control%gspace_mixing_a,&
-                  "G-space mixing b:  ",scf_control%gspace_mixing_b,&
                   "work_syevx:        ",scf_control%work_syevx,&
                   "level_shift [a.u.]:",scf_control%level_shift
              IF ( SUM(scf_control%added_mos) > 0 ) THEN
@@ -604,6 +610,13 @@ CONTAINS
                   "added MOs          ",scf_control%added_mos
              END IF
 
+             IF (scf_control%mixing_method>0 .AND. .NOT. scf_control%use_ot) THEN
+                keyword => section_get_keyword(section,"MIXING%METHOD",error=error)
+                CALL keyword_get(keyword,enum=enum,error=error)
+                WRITE (UNIT=output_unit,FMT="(T25,A,/,T25,A,T51,A30)")&
+                     REPEAT("-",56),&
+                     "Mixing method:      ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%mixing_method,error=error)))
+             END IF
              IF (scf_control%smear%do_smear) THEN
                 keyword => section_get_keyword(section,"SMEAR%METHOD",error=error)
                 CALL keyword_get(keyword,enum=enum,error=error)

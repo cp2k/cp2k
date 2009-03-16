@@ -86,7 +86,7 @@ MODULE xas_methods
   USE qs_scf,                          ONLY: init_scf_loop,&
                                              init_scf_run,&
                                              scf_env_cleanup
-  USE qs_scf_types,                    ONLY: ao_mixing_nr,&
+  USE qs_scf_types,                    ONLY: direct_mixing_nr,&
                                              general_diag_method_nr,&
                                              ot_method_nr,&
                                              qs_scf_env_type
@@ -464,7 +464,7 @@ CONTAINS
             method0 = scf_env%method
             scf_env%method = general_diag_method_nr
             mixing0 = scf_env%mixing_method
-            scf_env%mixing_method = ao_mixing_nr
+            scf_env%mixing_method = direct_mixing_nr
             ch_method_flags = .TRUE.
           END IF
 
@@ -607,6 +607,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -623,21 +624,22 @@ CONTAINS
     IF(.NOT. failure) THEN
 
       NULLIFY( atomic_kind_set, dft_control, scf_control, matrix_s, mos, mpools )
-      NULLIFY( para_env, particle_set)
+      NULLIFY( para_env, particle_set, scf_env)
       CALL get_qs_env(qs_env=qs_env, &
               atomic_kind_set=atomic_kind_set, &
               dft_control = dft_control, &
               scf_control = scf_control, &
               mpools=mpools,&
               matrix_s=matrix_s, mos=mos, &
-              para_env=para_env, particle_set=particle_set,error=error)
+              para_env=para_env, particle_set=particle_set,&
+              scf_env=scf_env, error=error)
       nexc_search = xas_control%nexc_search
       nexc_atoms = xas_control%nexc_atoms
 
       xas_env%eps_diis = xas_control%eps_diis
       IF(xas_env%eps_diis .LT. 0.0_dp) xas_env%eps_diis = scf_control%eps_diis
       xas_env%p_mix = xas_control%p_mix
-      IF(xas_env%p_mix .LT. 0.0_dp) xas_env%p_mix = scf_control%p_mix
+      IF(xas_env%p_mix .LT. 0.0_dp) xas_env%p_mix = scf_env%p_mix_alpha
       xas_env%scf_method = xas_control%scf_method
 
       CALL mpools_get(mpools, ao_mo_fm_pools= xas_env%ao_mo_fm_pools,error=error)

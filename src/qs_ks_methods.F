@@ -282,7 +282,7 @@ CONTAINS
                                           rho,energy,calculate_forces,&
                                           just_energy,rho_xc,kg_gpw,&
                                           kg_fm_set,kg_sub_pw_env,&
-                                          diis_step,error)
+                                          error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -296,27 +296,24 @@ CONTAINS
     TYPE(kg_fm_p_type), OPTIONAL, POINTER    :: kg_fm_set
     TYPE(kg_sub_pw_env_type), OPTIONAL, &
       POINTER                                :: kg_sub_pw_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: diis_step
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: cc_new, cc_old
-    INTEGER :: adiabatic_functional, adiabatic_model, handle, ig, ikind, &
-      irep, ispin, k, k2, n, n_rep_hf, nspins, output_unit, stat
+    INTEGER :: adiabatic_functional, adiabatic_model, handle, ikind, irep, &
+      ispin, k, k2, n, n_rep_hf, nspins, output_unit, stat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
       do_ep, do_hfx, explicit_potential, failure, gapw, gapw_xc, ionode, &
-      my_diis_step, my_kg_gpw, scp_dft, uniform_occupation, use_virial
+      my_kg_gpw, scp_dft, uniform_occupation, use_virial
     REAL(dp) :: a, adiabatic_lambda, adiabatic_omega, &
       adiabatic_rescale_factor, scale_dDFA, scale_ddW0, scale_dEx1, &
       scale_dEx2, total_energy_xc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
-    REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
-                                                f_mix, mulliken_order_p, &
-                                                s2_order_p
+    REAL(KIND=dp)                            :: ddapc_order_p, &
+                                                mulliken_order_p, s2_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: g2, occupation_numbers
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -344,7 +341,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_ks_scp_env_type), POINTER        :: ks_scp_env
-    TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho_buffer
+    TYPE(qs_rho_type), POINTER               :: my_rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv, matrix_h, &
                                                 matrix_p_aux_fit, matrix_s, &
@@ -373,17 +370,7 @@ CONTAINS
     my_kg_gpw = .FALSE.
     IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
 
-    NULLIFY (cc_new)
-    NULLIFY (cc_old)
-    NULLIFY (g2)
-    NULLIFY (rho_buffer)
     NULLIFY (matrix_dv)
-
-    IF (PRESENT(diis_step)) THEN
-      my_diis_step = diis_step
-    ELSE
-      my_diis_step = .FALSE.
-    END IF
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
@@ -394,7 +381,6 @@ CONTAINS
          para_env=para_env,&
          input=input,&
          virial=virial,&
-         rho_buffer=rho_buffer,&
          matrix_dv=matrix_dv,&
          ep_qs_env=ep_qs_env,&
          error=error)
@@ -469,45 +455,6 @@ CONTAINS
                                  use_data=COMPLEXDATA1D,&
                                  in_space=RECIPROCALSPACE,&
                                  error=error)
-       END IF
-
-       IF (.NOT.my_diis_step) THEN
-
-         ! G space mixing (combined with Kerker)
-
-         a_mix = qs_env%scf_control%gspace_mixing_a
-         b_mix = qs_env%scf_control%gspace_mixing_b
-
-         IF ((a_mix /= 1.0_dp).OR.(b_mix /= 0.0_dp)) THEN
-           CPPrecondition(ASSOCIATED(rho_buffer),cp_failure_level,routineP,error,failure)
-           CPPrecondition(rho_buffer%rho_r_valid,cp_failure_level,routineP,error,failure)
-           CPPrecondition(rho_buffer%rho_g_valid,cp_failure_level,routineP,error,failure)
-           IF (b_mix == 0.0_dp) THEN
-             DO ispin=1,nspins
-               cc_new => rho%rho_g(ispin)%pw%cc
-               cc_old => rho_buffer%rho_g(ispin)%pw%cc
-               cc_new = (1.0_dp - a_mix)*cc_old + a_mix*cc_new
-               cc_old = cc_new
-             END DO
-           ELSE
-             DO ispin=1,nspins
-               g2 => rho%rho_g(ispin)%pw%pw_grid%gsq
-               cc_new => rho%rho_g(ispin)%pw%cc
-               cc_old => rho_buffer%rho_g(ispin)%pw%cc
-               DO ig=1,SIZE(g2)
-                 f_mix = a_mix*g2(ig)/(g2(ig) + b_mix*b_mix)
-                 cc_new(ig) = (1.0_dp - f_mix)*cc_old(ig) +&
-                              f_mix*cc_new(ig)
-               END DO
-               cc_old = cc_new
-             END DO
-           END IF
-           DO ispin=1,nspins
-             CALL pw_transfer(rho%rho_g(ispin)%pw,rho%rho_r(ispin)%pw)
-             rho%tot_rho_r(ispin) = pw_integrate_function(rho%rho_r(ispin)%pw,isign=-1)
-           END DO
-         END IF
-
        END IF
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,scf_section,&
@@ -2218,13 +2165,12 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
-                               just_energy,diis_step,error)
+                               just_energy,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, &
-                                                just_energy, diis_step
+    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_update_qs_env', &
@@ -2303,17 +2249,17 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
                ks_matrix=matrix_ks, rho=rho, energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
                kg_gpw = .TRUE.,kg_sub_pw_env=kg_sub_pw_env, kg_fm_set=kg_fm_set, &
-               diis_step=diis_step,error=error)
+               error=error)
         ELSEIF (dft_control%qs_control%gapw_xc) THEN
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                ks_matrix=matrix_ks, rho=rho, energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
-               rho_xc=rho_xc,diis_step=diis_step,error=error)
+               rho_xc=rho_xc,error=error)
         ELSE
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                ks_matrix=matrix_ks, rho=rho, energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
-               diis_step=diis_step,error=error)
+               error=error)
         END IF
         IF(.NOT.energy_only) THEN
            ks_env%rho_changed=.FALSE.

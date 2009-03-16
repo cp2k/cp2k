@@ -40,12 +40,15 @@ MODULE qs_scf_types
                                 special_diag_method_nr=2,&
                                 ot_diag_method_nr=3,&
                                 ot_method_nr=10
-  INTEGER, PARAMETER, PUBLIC :: no_mixing_nr=0, ao_mixing_nr=1
+  INTEGER, PARAMETER, PUBLIC :: no_mixing_nr=0, direct_mixing_nr=1,&
+                                 gspace_mixing_nr=2, pulay_mixing_nr=3,&
+                                 broyden_mixing_nr=4
 
   INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
 
   PUBLIC :: qs_scf_env_type,qs_outer_scf_type
   PUBLIC :: scf_env_retain, scf_env_release, scf_env_create, scf_env_did_change
+  PUBLIC :: cp_1d_z_p_type
 
 ! *****************************************************************************
 !> \brief wrapper for temporary and cached objects used in the scf iteration
@@ -68,18 +71,28 @@ TYPE qs_outer_scf_type
 
 END TYPE qs_outer_scf_type
 
+  TYPE cp_1d_z_p_type
+     COMPLEX(dp), DIMENSION(:), POINTER :: cc
+  END TYPE cp_1d_z_p_type
+
 ! *****************************************************************************
 TYPE qs_scf_env_type
    TYPE(qs_outer_scf_type) :: outer_scf
    INTEGER :: ref_count, id_nr, print_count, iter_count
-   INTEGER :: nelectron, method, mixing_method
-   REAL(KIND = dp) :: iter_param, iter_delta, p_mix
+   INTEGER :: nelectron, method, mixing_method, npulay, nbroy, mixing_ncall
+   REAL(KIND = dp) :: broy_w0, iter_param, iter_delta, p_mix_alpha, &
+                      p_mix_beta, pulay_alpha
+   REAL(KIND = dp) , DIMENSION(:,:), POINTER :: pulay_matrix
    CHARACTER (len=15) :: iter_method
-   LOGICAL :: print_iter_line
+   COMPLEX(KIND=dp), DIMENSION(:,:,:), POINTER :: cc_buffer
+   LOGICAL :: print_iter_line, skip_mixing
+   REAL(KIND=dp), DIMENSION(:), POINTER :: kerker_factor
+   TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER :: broy_last_res
+   TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER :: drho_buffer, rhoin_buffer, res_buffer
    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
-   TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, s_half
-   ! p_mix_new should only be needed for mixing methods (ao_mixing_nr)
-   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_mix_new
+   TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, s_half, s_minus_one
+   ! p_mix_new should only be needed for mixing methods 
+   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_delta, p_mix_new
    TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
    TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
    TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
@@ -125,10 +138,13 @@ CONTAINS
        scf_env%iter_delta=0.0_dp
        scf_env%iter_method=""
        scf_env%print_iter_line=.TRUE.
+       scf_env%skip_mixing=.FALSE.
 
        scf_env%method= -1
        scf_env%mixing_method = -1
-       scf_env%p_mix=0.0_dp
+       scf_env%p_mix_alpha=1.0_dp
+       scf_env%p_mix_beta=1.0_dp
+       scf_env%pulay_alpha=0.0_dp
 
        scf_env%outer_scf%iter_count=0
        NULLIFY(scf_env%outer_scf%variables, &
@@ -137,7 +153,14 @@ CONTAINS
        NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
             scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
             scf_env%scf_diis_buffer)
-       NULLIFY (scf_env%s_half)
+       NULLIFY (scf_env%s_half, scf_env%p_delta,  scf_env%s_minus_one)
+       NULLIFY(scf_env%cc_buffer)
+       NULLIFY(scf_env%kerker_factor)
+       NULLIFY(scf_env%pulay_matrix)
+       NULLIFY(scf_env%rhoin_buffer)
+       NULLIFY(scf_env%res_buffer)
+       NULLIFY(scf_env%drho_buffer)
+       NULLIFY(scf_env%broy_last_res)
 
     END IF
 
@@ -201,6 +224,9 @@ SUBROUTINE scf_env_did_change(scf_env,error)
      IF (ASSOCIATED(scf_env%p_mix_new)) THEN
         CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
      END IF
+     IF (ASSOCIATED(scf_env%p_delta)) THEN
+        CALL deallocate_matrix_set(scf_env%p_delta,error=error)
+     END IF
   END IF
 
   CALL timestop(handle)
@@ -223,7 +249,7 @@ SUBROUTINE scf_env_release(scf_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i, j, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -236,9 +262,14 @@ SUBROUTINE scf_env_release(scf_env,error)
         CALL cp_fm_release(scf_env%scf_work2,error=error)
         CALL cp_fm_release(scf_env%ortho,error=error)
         CALL cp_fm_release(scf_env%s_half,error=error)
+        CALL cp_fm_release(scf_env%s_minus_one,error=error)
         IF (ASSOCIATED(scf_env%p_mix_new)) THEN
            CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
            CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
+        ENDIF
+        IF (ASSOCIATED(scf_env%p_delta)) THEN
+           CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
+           CALL deallocate_matrix_set(scf_env%p_delta,error=error)
         ENDIF
         IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
            DO i=1,SIZE(scf_env%ot_preconditioner)
@@ -273,6 +304,63 @@ SUBROUTINE scf_env_release(scf_env,error)
            DEALLOCATE(scf_env%outer_scf%energy,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         ENDIF
+
+        IF (ASSOCIATED(scf_env%cc_buffer)) THEN
+           DEALLOCATE(scf_env%cc_buffer,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
+
+        IF (ASSOCIATED(scf_env%kerker_factor)) THEN
+           DEALLOCATE(scf_env%kerker_factor,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
+
+        IF (ASSOCIATED(scf_env%pulay_matrix)) THEN
+           DEALLOCATE(scf_env%pulay_matrix,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
+
+        IF (ASSOCIATED(scf_env%rhoin_buffer)) THEN
+           DO i = 1,SIZE(scf_env%rhoin_buffer,2)
+             DO j = 1,SIZE(scf_env%rhoin_buffer,1)
+                DEALLOCATE(scf_env%rhoin_buffer(j,i)%cc,STAT=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END DO
+           END DO
+           DEALLOCATE(scf_env%rhoin_buffer,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
+
+        IF (ASSOCIATED(scf_env%res_buffer)) THEN
+           DO i = 1,SIZE(scf_env%res_buffer,2)
+             DO j = 1,SIZE(scf_env%res_buffer,1)
+                DEALLOCATE(scf_env%res_buffer(j,i)%cc,STAT=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END DO
+           END DO
+           DEALLOCATE(scf_env%res_buffer,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
+
+        IF (ASSOCIATED(scf_env%drho_buffer)) THEN
+           DO i = 1,SIZE(scf_env%drho_buffer,2)
+             DO j = 1,SIZE(scf_env%drho_buffer,1)
+                DEALLOCATE(scf_env%drho_buffer(j,i)%cc,STAT=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END DO
+           END DO
+           DEALLOCATE(scf_env%drho_buffer,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
+
+        IF (ASSOCIATED(scf_env%broy_last_res)) THEN
+           DO i = 1,SIZE(scf_env%broy_last_res)
+             DEALLOCATE(scf_env%broy_last_res(i)%cc,STAT=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END DO
+           DEALLOCATE(scf_env%broy_last_res,STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
 
         DEALLOCATE(scf_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

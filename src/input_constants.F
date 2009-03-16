@@ -331,6 +331,17 @@ MODULE input_constants
                                               state_loc_range=1,&
                                               state_loc_list=2,&
                                               state_loc_none=3
+
+  INTEGER, PARAMETER, PUBLIC               :: orb_s=0,&
+                                              orb_px=1,&
+                                              orb_py=2,&
+                                              orb_pz=3,&
+                                              orb_dxy=4,&
+                                              orb_dyz=5,&
+                                              orb_dzx=6,&
+                                              orb_dx2=7,&
+                                              orb_dy2=8,&
+                                              orb_dz2=9
                                            
   INTEGER, PARAMETER, PUBLIC               :: use_mom_ref_com=0,&
                                               use_mom_ref_coac=1,&
@@ -714,6 +725,12 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: smear_energy_window=1,&
                                               smear_fermi_dirac=2,&
                                               smear_list=3
+
+  ! Define identifier codes for mixing method
+
+  INTEGER, PARAMETER, PUBLIC               :: no_mix =0, direct_p_mix=1,&
+                                              kerker_mix =2,&
+                                              pulay_mix=3, broy_mix=4
 
   ! FFT library
   ! these might need sync with fft_lib.F

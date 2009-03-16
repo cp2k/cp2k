@@ -12,10 +12,6 @@ MODULE kg_scf_types
   USE kg_diis_types,                   ONLY: kg_diis_b_release,&
                                              kg_diis_buffer_type
   USE kinds,                           ONLY: dp
-  USE preconditioner_types,            ONLY: destroy_preconditioner,&
-                                             preconditioner_p_type
-  USE qs_ot_types,                     ONLY: qs_ot_destroy,&
-                                             qs_ot_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
 #include "cp_common_uses.h"
@@ -40,16 +36,14 @@ TYPE kg_scf_env_type
    INTEGER :: ref_count
    INTEGER :: iter_count
    INTEGER :: print_count
-   LOGICAL :: print_iter_line
+   LOGICAL :: print_iter_line, skip_mixing
    INTEGER :: method
    INTEGER :: mixing_method
    REAL(KIND = dp) :: iter_param
    REAL(KIND = dp) :: iter_delta
-   REAL(KIND = dp) :: p_mix
+   REAL(KIND = dp) :: p_mix_alpha
    CHARACTER (len=15) :: iter_method
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_mix_new
-   TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
-   TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
    TYPE(kg_diis_buffer_type), POINTER :: scf_diis_buffer
 END TYPE kg_scf_env_type
 
@@ -96,7 +90,7 @@ SUBROUTINE kg_scf_env_release(scf_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -109,21 +103,6 @@ SUBROUTINE kg_scf_env_release(scf_env,error)
            CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
            CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
         ENDIF
-        IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
-           DO i=1,SIZE(scf_env%ot_preconditioner)
-                CALL destroy_preconditioner(scf_env%ot_preconditioner(i)%preconditioner,error=error)
-                DEALLOCATE(scf_env%ot_preconditioner(i)%preconditioner)
-           ENDDO
-           DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
-           DO i=1,SIZE(scf_env%qs_ot_env)
-              CALL qs_ot_destroy(scf_env%qs_ot_env(i),error=error)
-           END DO
-           DEALLOCATE(scf_env%qs_ot_env, stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
         CALL kg_diis_b_release(scf_env%scf_diis_buffer,error=error)
         DEALLOCATE(scf_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

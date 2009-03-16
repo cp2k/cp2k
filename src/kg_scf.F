@@ -28,13 +28,12 @@ MODULE kg_scf
                                              get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: atomic_guess,&
-                                             core_guess,&
-                                             random_guess,&
-                                             restart_guess,&
-                                             wfi_use_guess_method_nr
+  USE input_constants,                 ONLY: &
+       atomic_guess, core_guess, direct_p_mix, kerker_mix, no_mix, pulay_mix, &
+       random_guess, restart_guess, wfi_use_guess_method_nr
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
   USE kg_diis_methods,                 ONLY: kg_diis_b_clear,&
                                              kg_diis_b_create,&
@@ -75,7 +74,6 @@ MODULE kg_scf
                                              mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
-  USE preconditioner_types,            ONLY: destroy_preconditioner
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
@@ -89,12 +87,12 @@ MODULE kg_scf
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE qs_matrix_pools,                 ONLY: mpools_get
-  USE qs_ot_scf,                       ONLY: ot_scf_destroy
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_scf_methods,                  ONLY: scf_env_density_mixing
-  USE qs_scf_types,                    ONLY: ao_mixing_nr,&
+  USE qs_scf_methods,                  ONLY: cp_sm_mix
+  USE qs_scf_types,                    ONLY: direct_mixing_nr,&
                                              general_diag_method_nr,&
+                                             gspace_mixing_nr,&
                                              no_mixing_nr,&
                                              ot_method_nr,&
                                              special_diag_method_nr
@@ -103,7 +101,8 @@ MODULE kg_scf
                                              wfi_update
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
+                                             deallocate_matrix_set,&
                                              get_block_node,&
                                              get_matrix_diagonal,&
                                              real_matrix_p_type,&
@@ -154,6 +153,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: dft_section, scf_section
 
     CALL timeset(routineN,handle)
 
@@ -186,22 +186,40 @@ CONTAINS
        END IF
        IF (scf_control%use_ot) scf_env%method=ot_method_nr
 
-!      I still don t know whether KG_GPW and OT can run together
-       SELECT CASE(scf_env%method)
-       CASE(ot_method_nr)
-          scf_env%mixing_method=no_mixing_nr
-       CASE DEFAULT
-          scf_env%mixing_method=ao_mixing_nr
+       dft_section => section_vals_get_subs_vals(kg_env%input,"DFT",error=error)
+       scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
+       SELECT CASE(scf_control%mixing_method)
+       CASE(no_mix)
+             scf_env%mixing_method=no_mixing_nr
+             scf_env%p_mix_alpha = 1.0_dp
+       CASE(direct_p_mix) 
+             scf_env%mixing_method=direct_mixing_nr
+
+             CALL section_vals_val_get(scf_section,"MIXING%ALPHA",&
+                   r_val=scf_env%p_mix_alpha,error=error)
+       CASE(kerker_mix)
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                  routineP,"KG Gspace mixing NYI",error,failure)
+             scf_env%mixing_method=gspace_mixing_nr
+       CASE(pulay_mix)
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                  routineP,"Pulay mixing NYI",error,failure)
+       CASE DEFAULT        
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                  routineP," unknown mixing method",error,failure)
        END SELECT
+       IF( scf_env%method==ot_method_nr ) THEN
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                  routineP,"OT for KG not implemented",error,failure)
+       END IF
 
        scf_env%iter_param=0.0_dp
        scf_env%iter_delta=0.0_dp
-       scf_env%p_mix=scf_control%p_mix
        scf_env%iter_method=""
        scf_env%print_iter_line=.TRUE.
+       scf_env%skip_mixing=.FALSE.
 
-       NULLIFY( scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
-            scf_env%scf_diis_buffer)
+       NULLIFY( scf_env%p_mix_new, scf_env%scf_diis_buffer)
 
     END IF
 
@@ -279,7 +297,8 @@ CONTAINS
       nelectron_global, nmolecule_global, nmolecule_kind, output_unit
     LOGICAL :: diis_step, do_level_shift, energy_only, failure, id_equal, &
       ionode, should_stop, use_cholesky, use_jacobi
-    REAL(dp)                                 :: diis_error, t1, t2
+    REAL(dp)                                 :: diis_error, my_p_mix, t1, t2, &
+                                                tmp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orthonormality
     REAL(dp), DIMENSION(:), POINTER          :: diis_ev_global
     REAL(dp), DIMENSION(:, :), POINTER       :: diis_m1_global, diis_m2_global
@@ -449,9 +468,10 @@ CONTAINS
          IF (istat /= 0) CALL stop_memory(routineP,"deall. orthonormality")
        ENDIF
 
-       scf_env%p_mix = scf_control%p_mix
        scf_env%iter_param = 0.0_dp
-       IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
+       IF (scf_env%mixing_method==direct_mixing_nr)THEN
+          scf_env%iter_param = scf_env%p_mix_alpha
+       END IF
 
        SELECT CASE (scf_env%method)
          CASE DEFAULT
@@ -535,7 +555,7 @@ CONTAINS
                ((scf_control%density_guess == core_guess).OR.(scf_env%iter_count > 1)))
 
            IF (diis_step) THEN
-               scf_env%p_mix = 1.0_dp
+!               scf_env%p_mix = 1.0_dp
                scf_env%iter_param = diis_error
                IF (use_jacobi) THEN
                   scf_env%iter_method = "DIIS/Jacobi"
@@ -575,19 +595,32 @@ CONTAINS
            END IF
 
          CASE(special_diag_method_nr)
-            ! booooooooooooo
             CALL stop_program(routineN,moduleN,__LINE__,&
                      "Special_diag_method_nr not implemented with KG_GPW yet")
          CASE(ot_method_nr) ! orbital transforms
-            ! booooooooooooo
             CALL stop_program(routineN,moduleN,__LINE__,&
                      "Ot_method_nr not implemented with KG_GPW yet")
        END SELECT
 
-       IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
-          CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
-                                    scf_env%p_mix,scf_env%iter_delta,&
-                                    qs_env=qs_env,error=error)
+       IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
+
+          my_p_mix = scf_env%p_mix_alpha
+          IF (diis_step .OR. scf_env%skip_mixing) THEN
+             scf_env%skip_mixing = .FALSE.
+             my_p_mix = 1.0_dp
+          END IF
+          DO ispin=1,SIZE(scf_env%p_mix_new)
+             CALL cp_sm_mix(m1=scf_env%p_mix_new(ispin)%matrix,&
+                  m2=qs_env%rho%rho_ao(ispin)%matrix,&
+                  p_mix=my_p_mix,&
+                  delta=tmp,&
+                  para_env=qs_env%para_env,&
+                  error=error)
+             scf_env%iter_delta=MAX(scf_env%iter_delta,tmp)
+          END DO
+!          CALL scf_env_density_mixing(scf_env%p_mix_new,&
+!                                    qs_env%scf_env,scf_env%iter_delta,&
+!                                    qs_env=qs_env, diis=diis_step,error=error)
        ENDIF
 
        t2 = m_walltime()
@@ -626,7 +659,7 @@ CONTAINS
          scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 !
 !   *** mixing methods have the new density matrix in p_mix_new
-       IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+       IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
            DO ispin=1,dft_control%nspins
               CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
                                        rho%rho_ao(ispin)%matrix,error=error)
@@ -684,17 +717,29 @@ CONTAINS
 
 !   *** mixing methods need to undo mixing of the density matrix
 !       (restore original density) ***
-    IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
-       CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
-                                   scf_env%p_mix,scf_env%iter_delta,&
-                                   qs_env=qs_env,invert=.TRUE.,error=error)
+    IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
+          my_p_mix = scf_env%p_mix_alpha
+          IF (diis_step .OR. scf_env%skip_mixing) THEN
+             scf_env%skip_mixing = .FALSE.
+             my_p_mix = 1.0_dp
+          END IF
+          DO ispin=1,SIZE(scf_env%p_mix_new)
+             IF (my_p_mix/=1.0_dp) THEN
+                CALL cp_sm_scale_and_add(matrix_a=scf_env%p_mix_new(ispin)%matrix,&
+                     alpha=1.0_dp/my_p_mix,&
+                     matrix_b=qs_env%rho%rho_ao(ispin)%matrix,&
+                     beta=(my_p_mix-1.0_dp)/my_p_mix,&
+                     error=error)
+             END IF
+          END DO
+
+!       CALL scf_env_density_mixing(scf_env%p_mix_new,&
+!                                   qs_scf%scf_env,scf_env%iter_delta,&
+!                                   qs_env=qs_env,diis=diis_step,invert=.TRUE.,&
+!                                   error=error)
        DO ispin=1,dft_control%nspins
           CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
                                      rho%rho_ao(ispin)%matrix,error=error)
-       END DO
-       DO ispin=1,dft_control%nspins
-          CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                               rho%rho_ao(ispin)%matrix,error=error)
        END DO
     ENDIF
 !
@@ -726,7 +771,7 @@ CONTAINS
 !> \brief Initialize the kg_env%scf_env
 !>      - allocate the ks_matrix and the ks environment
 !>                 which are contained in kg_env%sub_qs_env
-!>               - allocate p_mix_new  if the ao_mixing is used (in kg_env%scf_env)
+!>               - allocate p_mix_new  if the direct_mixing is used (in kg_env%scf_env)
 !>               - calculate the self and overlap energies (in kg_env%sub_qs_env)
 !>               - from the overlap matrix extract the molecular blocks and
 !>                 construct the corresponding ortho matrix
@@ -810,7 +855,7 @@ CONTAINS
       END IF
 
 !   *** allocate p_mix_new ***
-      IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+      IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
          IF (.not.ASSOCIATED(scf_env%p_mix_new)) THEN
             CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_mix_new,&
                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
@@ -844,7 +889,7 @@ CONTAINS
 
 !! calc ortho matrix
       ndep = 0
-      do_ortho = (scf_env%method /= ot_method_nr)
+      do_ortho = .TRUE.
       CALL calculate_ortho_per_molecule(kg_fm%kg_fm_mol_set,matrix_s(1)%matrix,&
                                         ndep,scf_control,do_ortho,error=error)
 
@@ -1493,7 +1538,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
@@ -1517,30 +1562,6 @@ CONTAINS
                error=error)
           CALL sm_pools_flush_cache(S_sm_pools,error=error)
        END IF
-
-! *** method dependent cleanup
-       SELECT CASE(scf_env%method)
-       CASE(ot_method_nr)
-          DO ispin=1,SIZE(scf_env%ot_preconditioner)
-             CALL destroy_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
-             DEALLOCATE(scf_env%ot_preconditioner(ispin)%preconditioner)
-          ENDDO
-          DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          DO ispin=1,SIZE(scf_env%qs_ot_env)
-             CALL ot_scf_destroy(scf_env%qs_ot_env(ispin),error=error)
-          ENDDO
-          DEALLOCATE(scf_env%qs_ot_env,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       CASE(general_diag_method_nr)
-          !
-       CASE(special_diag_method_nr)
-          !
-       CASE default
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"unknown scf method method:"//&
-               cp_to_string(scf_env%method),error,failure)
-       END SELECT
 
     END IF
     CALL timestop(handle)

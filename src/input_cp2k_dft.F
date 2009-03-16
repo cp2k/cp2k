@@ -1136,6 +1136,7 @@ CONTAINS
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="nlumo",&
             description="If the printkey is activated controls the number of lumos"//&
                         "that are printed and dumped as a cube (-1=all)",&
@@ -1149,6 +1150,12 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="STM",&
+            description="do stm",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="STM_BIAS",&
             description="Bias energy for scanning tunneling microscopy (STM) image generation."//&
                         "Orbital densities are summed according to the bias energy."//&
@@ -1159,6 +1166,22 @@ CONTAINS
             n_var=-1,type_of_var=real_t, default_r_vals=(/0.0_dp/), unit_str='eV', error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TH_TORB",&
+            description="Tip orbital symmetry in Tersoff-Hamann approximation to compute STM images",&
+            required=.FALSE.,&
+            repeats=.TRUE.,&
+!            n_var=-1,&
+!            type_of_var=integer_t,&
+            default_i_val=orb_s,&
+            usage="TH_TORB s dz2",&
+            enum_c_vals=s2a("S","PX","PY","PZ","DXY","DYZ","DZX","DX2","DY2","DZ2"),&
+            enum_i_vals=(/orb_s,orb_px,orb_py,orb_pz,orb_dxy,orb_dyz,orb_dzx,orb_dx2,orb_dy2,orb_dz2/),&
+            enum_desc=s2a("s orbital","px orbital","py orbital","pz orbital",&
+            "dxy orbital","dyz orbital","dzx orbital","x^2 orbital","y^2 orbital","z^2 orbital"),&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error) 
 
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -3951,6 +3974,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_mixing_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        NULLIFY (keyword)
 
        CALL keyword_create(keyword, name="MAX_ITER_LUMO",&
@@ -4029,37 +4056,6 @@ CONTAINS
        CALL keyword_create(keyword, name="EPS_DIIS",&
             description="Threshold on the convergence to start using DIAG/DIIS",&
             usage="EPS_DIIS 5.0e-2", default_r_val=0.1_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="MIXING",&
-            variants=(/"DENSITY_MIXING"/),&
-            description="Fraction of new density to be mixed in",&
-            usage="MIXING 0.1", default_r_val=0.4_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="NMIXING",&
-            description="Minimal number of density mixing (should be greater than 0)",&
-            usage="NMIXING 1", default_i_val=2,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(&
-            keyword=keyword,&
-            name="GSPACE_MIXING",&
-            variants=(/"GSPACE_DENSITY_MIXING"/),&
-            description="Controls the mixing of the old and the new density "//&
-            "in the reciprocal space combined with the Kerker "//&
-            "damping in order to suppress charge sloshing:"//&
-            "rho_mix(g) = rho_old(g) + A*g^2/(g^2 + B^2)*(rho_new(g) - rho_old(g))",&
-            usage="GSPACE_MIXING {real A} {real B}",&
-            repeats=.FALSE.,&
-            required=.FALSE.,&
-            n_var=2,&
-            type_of_var=real_t,&
-            default_r_vals=(/1.0_dp,0.0_dp/),&
-            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -6842,6 +6838,151 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_smear_section
+
+! *****************************************************************************
+!> \brief      Create CP2K input section for the mixing of the density matrix to
+!>             be used only with diagonalization methods, i.e. not with OT
+!> \author     MI
+!> \date       20.02.2009
+!> \version    1.0
+! *****************************************************************************
+  SUBROUTINE create_mixing_section(section,error)
+
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_mixing_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure = .FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+
+    IF (.NOT.failure) THEN
+
+      CALL section_create(section,&
+                          name="MIXING",&
+                          description="Define the type and parameters for mixing"//&
+                          "procedures to be applied to the density matrix. Normally, "//&
+                          "only one type of mixing method should be accepted. The mixing "//&
+                          "procedures activated by this section are only active for diagonalization"//&
+                         " methods, i.e. not with minimization methods based on OT.",&
+                          n_keywords=6,&
+                          n_subsections=0,&
+                          repeats=.FALSE.,&
+                          required=.FALSE.,&
+                          error=error)
+
+      NULLIFY (keyword)
+
+!      CALL keyword_create(keyword,&
+!                          name="_SECTION_PARAMETERS_",&
+!                          description="Controls the activation of mixing",&
+!                          usage="&MIXING ON",&
+!                          default_l_val=.TRUE.,&
+!                          lone_keyword_l_val=.TRUE.,&
+!                          error=error)
+!      CALL section_add_keyword(section,keyword,error=error)
+!      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="METHOD",&
+                          description="Mixing method to be applied",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          usage="METHOD KERKER_MIXING",&
+                          default_i_val=direct_p_mix,&
+                          enum_c_vals=s2a("NONE","DIRECT_P_MIXING","KERKER_MIXING","PULAY_MIXING","BROYDEN_MIXING"),&
+                          enum_i_vals=(/no_mix,direct_p_mix,kerker_mix,pulay_mix,broy_mix/),&
+                          enum_desc=s2a("No mixing is applied",&
+                             "Direct mixing of new and old density matrices",&
+                             "Mixing of the potential in reciprocal space using the Kerker damping",&
+                             "Pulay mixing","Broyden mixing"),&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="ALPHA",&
+                          description="Fraction of new density to be included",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=0.4_dp,&
+                          usage="ALPHA 0.2",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="BETA",&
+                          description="Denominator parameter in Kerker damping"//&
+                             " introduced to suppress charge sloshing: rho_mix(g) ="//&
+                             "rho_in(g) + alpha*g^2/(g^2 + beta^2)*(rho_out(g)-"//&
+                             "rho_in(g))",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=0.5_dp,&
+                          unit_str="bohr^-1",&
+                          usage="BETA 1.5",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="PULAY_ALPHA",&
+                          description="Fraction of new density to be added to the Pulay expansiond",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=0.0_dp,&
+                          usage="PULAY_ALPHA 0.2",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="NMIXING",&
+            description="Minimal number of density mixing (should be greater than 0)",&
+            usage="NMIXING 1", default_i_val=2,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="NPULAY",&
+            description="Size of the residual vector used for Pulay Mixing",&
+            usage="NPULAY 1", default_i_val=4,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="NBROYDEN",&
+            description="Maximum size of the residual vector used for Broyden Mixing",&
+            usage="NPULAY 10", default_i_val=8,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+                          name="BROY_W0",&
+                          description=" w0 parameter used in Broyden mixing",&
+                          required=.FALSE.,&
+                          repeats=.FALSE.,&
+                          n_var=1,&
+                          type_of_var=real_t,&
+                          default_r_val=0.01_dp,&
+                          usage="BROY_W0 0.03",&
+                          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+
+    END IF
+
+  END SUBROUTINE create_mixing_section
 
 ! *****************************************************************************
   SUBROUTINE create_rtp_section(section,error)

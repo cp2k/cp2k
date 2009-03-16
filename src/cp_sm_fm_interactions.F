@@ -60,7 +60,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Copy a BLACS matrix to a sparse matrix.
 !>          real_matrix=beta*real_matrix+alpha*fm
-!>          beta defaults to 0, beta to 1
+!>          beta defaults to 0, alpha to 1
 !> \author  Matthias Krack
 !> \date    06.06.2001
 !> \par History

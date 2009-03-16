@@ -447,6 +447,7 @@ OBJECTS_GENERIC =\
  qs_force.o\
  qs_force_types.o\
  qs_gapw_densities.o\
+ qs_gspace_mixing.o\
  qs_grid_atom.o\
  qs_harmonics_atom.o\
  qs_initial_guess.o\
@@ -593,6 +594,7 @@ OBJECTS_GENERIC =\
  splines_types.o\
  spme.o\
  statistical_methods.o\
+ stm_images.o\
  sto_ng.o\
  string_table.o\
  string_utilities.o\

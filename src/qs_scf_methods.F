@@ -36,8 +36,7 @@ MODULE qs_scf_methods
   USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
                                              get_mo_set,&
                                              mo_set_type
-  USE qs_scf_types,                    ONLY: ao_mixing_nr,&
-                                             no_mixing_nr
+  USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              first_block_node,&
                                              get_block_node,&
@@ -60,6 +59,7 @@ MODULE qs_scf_methods
   REAL(KIND=dp), PARAMETER    :: ratio = 0.25_dp
 
   PUBLIC :: combine_ks_matrices,&
+            cp_sm_mix,&
             eigensolver,&
             scf_env_density_mixing,&
             simple_eigensolver
@@ -79,15 +79,15 @@ CONTAINS
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE scf_env_density_mixing(p_mix_new,mixing_method,p_mix,iter_delta,&
-                                    qs_env,invert,error)
+  SUBROUTINE scf_env_density_mixing(p_mix_new,scf_env,iter_delta,&
+                                    qs_env,diis,invert,error)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: p_mix_new
-    INTEGER, INTENT(IN)                      :: mixing_method
-    REAL(KIND=dp), INTENT(IN)                :: p_mix
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
     REAL(KIND=dp), INTENT(INOUT)             :: iter_delta
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(in)                      :: diis
     LOGICAL, INTENT(in), OPTIONAL            :: invert
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -96,49 +96,43 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure, my_invert
-    REAL(KIND=dp)                            :: tmp
+    REAL(KIND=dp)                            :: my_p_mix, tmp
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
     my_invert=.FALSE.
     IF (PRESENT(invert)) my_invert=invert
+    my_p_mix = scf_env%p_mix_alpha
+    IF (diis .OR. scf_env%skip_mixing) THEN
+        scf_env%skip_mixing = .FALSE.
+        my_p_mix = 1.0_dp
+    END IF
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       SELECT CASE (mixing_method)
-       CASE(no_mixing_nr)
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"don't call mixing in no_mixing_nr:",error,failure)
-       CASE(ao_mixing_nr)
-          CPPrecondition(ASSOCIATED(p_mix_new),cp_failure_level,routineP,error,failure)
-!FM       iter_delta=0.0_dp
-          DO ispin=1,SIZE(p_mix_new)
-             IF (my_invert) THEN
-                CPPrecondition(p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
-                IF (p_mix/=1.0_dp) THEN
-                   CALL cp_sm_scale_and_add(matrix_a=p_mix_new(ispin)%matrix,&
-                        alpha=1.0_dp/p_mix,&
-                        matrix_b=qs_env%rho%rho_ao(ispin)%matrix,&
-                        beta=(p_mix-1.0_dp)/p_mix,&
-                        error=error)
-                END IF
-             ELSE
-                CALL cp_sm_mix(m1=p_mix_new(ispin)%matrix,&
-                     m2=qs_env%rho%rho_ao(ispin)%matrix,&
-                     p_mix=p_mix,&
-                     delta=tmp,&
-                     para_env=qs_env%para_env,&
+       CPPrecondition(ASSOCIATED(p_mix_new),cp_failure_level,routineP,error,failure)
+       DO ispin=1,SIZE(p_mix_new)
+          IF (my_invert) THEN
+             CPPrecondition(my_p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
+             IF (my_p_mix/=1.0_dp) THEN
+                CALL cp_sm_scale_and_add(matrix_a=p_mix_new(ispin)%matrix,&
+                     alpha=1.0_dp/my_p_mix,&
+                     matrix_b=qs_env%rho%rho_ao(ispin)%matrix,&
+                     beta=(my_p_mix-1.0_dp)/my_p_mix,&
                      error=error)
-                iter_delta=MAX(iter_delta,tmp)
              END IF
-          END DO
-       CASE default
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"unknown density mixing method:"//&
-               cp_to_string(mixing_method),error,failure)
-       END SELECT
+          ELSE
+             CALL cp_sm_mix(m1=p_mix_new(ispin)%matrix,&
+                  m2=qs_env%rho%rho_ao(ispin)%matrix,&
+                  p_mix=my_p_mix,&
+                  delta=tmp,&
+                  para_env=qs_env%para_env,&
+                  error=error)
+             iter_delta=MAX(iter_delta,tmp)
+          END IF
+       END DO
     END IF
 
     CALL timestop(handle)
@@ -338,30 +332,31 @@ CONTAINS
 !>      02.2003 rewamped [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE cp_sm_mix(m1,m2,p_mix,delta,para_env,error)
+  SUBROUTINE cp_sm_mix(m1,m2,p_mix,delta,para_env,m3,error)
 
     TYPE(real_matrix_type), POINTER          :: m1, m2
     REAL(KIND=dp), INTENT(IN)                :: p_mix
     REAL(KIND=dp), INTENT(OUT)               :: delta
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: m3
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_mix', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iblock_col_m1, &
-                                                iblock_col_m2, iblock_row, j, &
-                                                nblock_row
+                                                iblock_col_m2, iblock_col_m3, &
+                                                iblock_row, j, nblock_row
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: r_mix
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_new_block, p_old_block
-    TYPE(real_block_node_type), POINTER      :: block_node_m1, block_node_m2
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_delta_block, p_new_block, &
+                                                p_old_block
+    TYPE(real_block_node_type), POINTER      :: block_node_m1, block_node_m2, &
+                                                block_node_m3
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
     delta = 0.0_dp
-
-    r_mix = 1.0_dp - p_mix
 
     CALL get_matrix_info(matrix=m2,nblock_row=nblock_row)
 
@@ -371,31 +366,63 @@ CONTAINS
             block_row=iblock_row)
        block_node_m2 => first_block_node(matrix=m2,&
             block_row=iblock_row)
+       IF(PRESENT(m3)) THEN
+         ! compute only the difference and store it in m3 
+         block_node_m3 => first_block_node(matrix=m3,&
+              block_row=iblock_row)
 
-       DO WHILE (ASSOCIATED(block_node_m1))
+         DO WHILE (ASSOCIATED(block_node_m1))
 
-          CALL get_block_node(block_node=block_node_m1,&
-               block_col=iblock_col_m1,&
-               BLOCK=p_new_block)
+            CALL get_block_node(block_node=block_node_m1,&
+                 block_col=iblock_col_m1,&
+                 BLOCK=p_new_block)
 
-          CALL get_block_node(block_node=block_node_m2,&
-               block_col=iblock_col_m2,&
-               BLOCK=p_old_block)
-          CPPostcondition(iblock_col_m1==iblock_col_m2,cp_failure_level,routineP,error,failure)
+            CALL get_block_node(block_node=block_node_m2,&
+                 block_col=iblock_col_m2,&
+                 BLOCK=p_old_block)
+            CPPostcondition(iblock_col_m1==iblock_col_m2,cp_failure_level,routineP,error,failure)
 
-          DO j=1,SIZE(p_new_block,2)
-             DO i=1,SIZE(p_new_block,1)
-                p_new_block(i,j) = p_new_block(i,j) - p_old_block(i,j)
-                delta = MAX(delta,ABS(p_new_block(i,j)))
-                p_new_block(i,j) = p_old_block(i,j) + p_mix*p_new_block(i,j)
-             END DO
-          END DO
+            CALL get_block_node(block_node=block_node_m3,&
+                 block_col=iblock_col_m3,&
+                 BLOCK=p_delta_block)
+            CPPostcondition(iblock_col_m1==iblock_col_m3,cp_failure_level,routineP,error,failure)
 
-          block_node_m1 => next_block_node(block_node_m1)
-          block_node_m2 => next_block_node(block_node_m2)
+            DO j=1,SIZE(p_new_block,2)
+               DO i=1,SIZE(p_new_block,1)
+                  p_delta_block(i,j) = p_new_block(i,j) - p_old_block(i,j)
+                  delta = MAX(delta,ABS(p_delta_block(i,j)))
+               END DO
+            END DO
 
-       END DO
+            block_node_m1 => next_block_node(block_node_m1)
+            block_node_m2 => next_block_node(block_node_m2)
+            block_node_m3 => next_block_node(block_node_m3)
 
+         END DO
+       ELSE
+         DO WHILE (ASSOCIATED(block_node_m1))
+
+            CALL get_block_node(block_node=block_node_m1,&
+                 block_col=iblock_col_m1,&
+                 BLOCK=p_new_block)
+
+            CALL get_block_node(block_node=block_node_m2,&
+                 block_col=iblock_col_m2,&
+                 BLOCK=p_old_block)
+            CPPostcondition(iblock_col_m1==iblock_col_m2,cp_failure_level,routineP,error,failure)
+
+            DO j=1,SIZE(p_new_block,2)
+               DO i=1,SIZE(p_new_block,1)
+                  p_new_block(i,j) = p_new_block(i,j) - p_old_block(i,j)
+                  delta = MAX(delta,ABS(p_new_block(i,j)))
+                  p_new_block(i,j) = p_old_block(i,j) + p_mix*p_new_block(i,j)
+               END DO
+            END DO
+
+            block_node_m1 => next_block_node(block_node_m1)
+            block_node_m2 => next_block_node(block_node_m2)
+         END DO
+       END IF
     END DO
 
     CALL mp_max(delta,para_env%group)
