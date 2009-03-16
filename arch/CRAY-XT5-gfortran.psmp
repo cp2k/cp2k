@@ -6,13 +6,21 @@ LD       = ftn
 AR       = ar -r
 CPPFLAGS =
 DFLAGS   = -D__GFORTRAN -D__FFTSG -D__LIBINT -D__parallel -D__SCALAPACK -D__BLACS
-FCFLAGS  = -g -O0 -fopenmp -fbounds-check -march=native -ffree-form $(DFLAGS) -I$(GFORTRAN_INC)
-FCFLAGS  = -g -O2 -fopenmp -ffast-math -funroll-loops -ftree-vectorize -march=native -ffree-form $(DFLAGS) -I$(GFORTRAN_INC)
+FCFLAGS  = -O2 -fopenmp -ffast-math -funroll-loops -ftree-vectorize -march=native -ffree-form $(DFLAGS) -I$(GFORTRAN_INC)
 LDFLAGS  = $(FCFLAGS)
 #
 # since the CRAY ftn wrapper adds -static behind the back, the pthread library has to be linked in the following interesting way
 #
-LIBS     = /home/u1/vondele/cp2k/libint_tools/libint_cpp_wrapper.o /home/u1/vondele/cp2k/libint_tools/lib/libderiv.a /home/u1/vondele/cp2k/libint_tools/lib/libint.a /home/u1/vondele/scalapack/lib/libscalapack.a /home/u1/vondele/scalapack/lib/blacsF77.a /home/u1/vondele/scalapack/lib/blacs.a  /opt/acml/4.2.0/gfortran64/lib/libacml.a -lstdc++ -Wl,--whole-archive -lpthread -Wl,--no-whole-archive
+# -Wl,--whole-archive -lpthread -Wl,--no-whole-archive
+#
+# it is crucial that a serial version of blas gets linked in. Strangely /opt/acml/4.2.0/gfortran64/lib/libacml.a causes trouble in a threaded setup.
+# be sure the check performance relative to netlib blas
+#
+LIBS     = /home/u1/vondele/cp2k/libint_tools/libint_cpp_wrapper.o /home/u1/vondele/cp2k/libint_tools/lib/libderiv.a /home/u1/vondele/cp2k/libint_tools/lib/libint.a /home/u1/vondele/scalapack/lib/libscalapack.a /home/u1/vondele/scalapack/lib/blacsF77.a /home/u1/vondele/scalapack/lib/blacs.a /home/u1/vondele/scalapack/lib/libreflapack.a /home/u1/vondele/scalapack/lib/librefblas.a  -lstdc++ -Wl,--whole-archive -lpthread -Wl,--no-whole-archive
+#
+# altas configured non-threaded seems to work. Not much gain over netlib.
+#
+LIBS     = /home/u1/vondele/cp2k/libint_tools/libint_cpp_wrapper.o /home/u1/vondele/cp2k/libint_tools/lib/libderiv.a /home/u1/vondele/cp2k/libint_tools/lib/libint.a /home/u1/vondele/scalapack/lib/libscalapack.a /home/u1/vondele/scalapack/lib/blacsF77.a /home/u1/vondele/scalapack/lib/blacs.a /home/u1/vondele/scalapack/lib/libreflapack.a /home/u1/vondele/scalapack/lib/libf77blas.a /home/u1/vondele/scalapack/lib/libatlas.a  -lstdc++ -Wl,--whole-archive -lpthread -Wl,--no-whole-archive
 
 OBJECTS_ARCHITECTURE = machine_gfortran.o
 
