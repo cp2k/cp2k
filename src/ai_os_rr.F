@@ -26,7 +26,7 @@ CONTAINS
 !> \date    02.03.2009
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE os_rr_coul(rap,la_max,rbp,lb_max,rcp,zet,rr,ldrr1,ldrr2)
+  SUBROUTINE os_rr_coul(rap,la_max,rbp,lb_max,rcp,zet,ldrr1,ldrr2,rr,error)
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rap
     INTEGER, INTENT(IN)                      :: la_max
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rbp
@@ -34,17 +34,18 @@ CONTAINS
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rcp
     REAL(dp), INTENT(IN)                     :: zet
     INTEGER, INTENT(IN)                      :: ldrr1, ldrr2
-    REAL(dp), DIMENSION(0:ldrr1-1, ldrr2, *), &
+    REAL(dp), &
+      DIMENSION(0:ldrr1-1, ldrr2, *), &
       INTENT(INOUT)                          :: rr
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'os_rr_coul', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: ax, ay, az, bx, by, bz, coa, coa1x, coa1y, coa1z, coa2x, &
       coa2y, coa2z, cob, cob1x, cob1y, cob1z, cob2x, cob2y, cob2z, la, lb, m, &
       mmax
     REAL(dp)                                 :: g, rcp2, t
-
-!
-! initialize
-!     
 
     mmax = la_max+lb_max
     g = 0.5_dp/zet

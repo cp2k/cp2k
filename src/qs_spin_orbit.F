@@ -289,7 +289,7 @@ CONTAINS
                                rpgfa(:,iset),zeta(:,iset),&
                                lb_max(jset),lb_min(jset),npgfb(jset),&
                                rpgfb(:,jset),zetb(:,jset),&
-                               rac,rbc,rab,soab,rr_work,SIZE(rr_work,1),SIZE(rr_work,2))
+                               rac,rbc,rab,soab,SIZE(rr_work,1),SIZE(rr_work,2),rr_work,error)
 
                       ! *** Contraction step ***
 
