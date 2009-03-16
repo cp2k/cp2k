@@ -13,7 +13,10 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-7
-      MIXING 0.6
+      &MIXING
+        METHOD DIRECT_P_MIXING
+        ALPHA 0.6
+      &END
       SCF_GUESS RESTART
     &END SCF
     &XC

@@ -10,7 +10,10 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-6
-      MIXING 0.4
+      &MIXING
+        METHOD DIRECT_P_MIXING
+        ALPHA 0.4
+      &END
       SCF_GUESS atomic
     &END SCF
     &XC

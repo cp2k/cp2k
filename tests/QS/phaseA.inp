@@ -12,7 +12,10 @@
     &SCF
       EPS_SCF 1.0E-6
       MAX_SCF 2
-      MIXING 0.05
+      &MIXING
+        METHOD DIRECT_P_MIXING
+        ALPHA 0.05
+      &END
       SCF_GUESS ATOMIC
       &OT OFF
         MINIMIZER DIIS 
