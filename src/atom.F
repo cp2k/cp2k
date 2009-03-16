@@ -149,9 +149,9 @@ CONTAINS
       method, mo, n_meth, n_rep, num_gto, reltyp, zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
-    REAL(KIND=dp),DIMENSION(0:3,10)          :: pocc
     LOGICAL                                  :: eri_c, eri_e, failure, &
                                                 had_ae, had_pp, pp_calc
+    REAL(KIND=dp), DIMENSION(0:3, 10)        :: pocc
     TYPE(atom_basis_type), POINTER           :: ae_basis, pp_basis
     TYPE(atom_integrals), POINTER            :: ae_int, pp_int
     TYPE(atom_optimization_type)             :: optimization
