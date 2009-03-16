@@ -403,7 +403,7 @@ CONTAINS
                              REAL(scf_env%res_buffer(jb,ispin)%cc(1),dp)*REAL(scf_env%res_buffer(ib,ispin)%cc(1),dp) +&
                              AIMAG(scf_env%res_buffer(jb,ispin)%cc(1))*AIMAG(scf_env%res_buffer(ib,ispin)%cc(1)))
          ELSE
-           f_mix = 1.0_dp*scf_env%kerker_factor(ig)
+           f_mix = 1.0_dp*scf_env%kerker_factor(1)
            scf_env%pulay_matrix(jb,ib) = scf_env%pulay_matrix(jb,ib) + f_mix* (&
                              REAL(scf_env%res_buffer(jb,ispin)%cc(1),dp)*REAL(scf_env%res_buffer(ib,ispin)%cc(1),dp) +&
                              AIMAG(scf_env%res_buffer(jb,ispin)%cc(1))*AIMAG(scf_env%res_buffer(ib,ispin)%cc(1)))
