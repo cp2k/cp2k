@@ -17,7 +17,6 @@
       EPS_SCF 1.0E-6
       MAX_DIIS 4
       MAX_SCF 20
-      MIXING 0.4
       SCF_GUESS atomic
     &END SCF
     &XC

@@ -33,7 +33,10 @@
          WRITE_CUBE .FALSE.
          ! list of stm biases
          NLUMO 32
+         STM
          STM_BIAS  -6 -1 1 6
+         TH_TORB S
+         TH_TORB PZ
       &END
     &END
   &END DFT

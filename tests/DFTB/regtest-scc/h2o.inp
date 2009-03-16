@@ -15,7 +15,10 @@
     &END QS
     &SCF
       SCF_GUESS CORE
-      MIXING 0.2
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   0.2
+      &END
       MAX_SCF  20
     &END SCF
     &POISSON

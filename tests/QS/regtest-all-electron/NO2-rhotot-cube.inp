@@ -38,7 +38,7 @@
       QUADRATURE GC_LOG
     &END QS
     &SCF
-      MIXING 0.4
+       
       SCF_GUESS atomic
     &END SCF
     &XC

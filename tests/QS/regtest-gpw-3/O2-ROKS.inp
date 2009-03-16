@@ -32,7 +32,7 @@
       EXTRAPOLATION USE_PREV_P
     &END QS
     &SCF
-      MIXING 0.4
+       
       SCF_GUESS atomic
     &END SCF
     &XC

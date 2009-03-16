@@ -15,7 +15,10 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      MIXING 0.2
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   0.2
+      &END
       MAX_SCF  5
       &OT ON
         PRECONDITIONER NONE

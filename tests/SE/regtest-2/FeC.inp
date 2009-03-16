@@ -16,7 +16,10 @@
       MAX_SCF 50
       EPS_SCF 1.0E-6
       SCF_GUESS mopac
-      MIXING 0.1
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   0.1
+      &END
       &OUTER_SCF
         EPS_SCF 1.0E-6
         MAX_SCF 5

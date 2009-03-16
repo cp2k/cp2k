@@ -15,7 +15,10 @@
     &END QS
     &SCF
       SCF_GUESS RESTART
-      MIXING 1.
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   1.
+      &END
       MAX_SCF  2
       &PRINT
         &RESTART

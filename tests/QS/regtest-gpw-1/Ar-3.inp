@@ -15,7 +15,7 @@
       EPS_SCF 1.0E-4
       MAX_DIIS 4
       MAX_SCF 20
-      MIXING 0.4
+       
       SCF_GUESS RESTART
     &END SCF
     &XC

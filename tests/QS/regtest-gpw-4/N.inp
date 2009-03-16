@@ -14,7 +14,10 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      MIXING 0.2
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   0.2
+      &END
       EPS_DIIS 1.0E-12
       EPS_SCF 1.0E-6
       MAX_SCF 3

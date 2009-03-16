@@ -14,7 +14,10 @@
     &END QS
     &SCF
       SCF_GUESS NONE
-      MIXING 1.0
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   1.
+      &END
     &END SCF
   &END DFT
   &SUBSYS

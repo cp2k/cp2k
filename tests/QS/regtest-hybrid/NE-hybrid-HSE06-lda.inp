@@ -21,7 +21,7 @@
       EPS_SCF 1.0E-6
       SCF_GUESS ATOMIC 
       MAX_SCF 15 
-      MIXING 0.4
+       
     &END SCF
     &XC
      &XC_FUNCTIONAL 

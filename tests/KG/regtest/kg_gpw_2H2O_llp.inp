@@ -7,7 +7,6 @@
     &SCF
       EPS_DIIS 0.4
       MAX_SCF 2
-      MIXING 0.4
       SCF_GUESS ATOMIC
     &END SCF
     &MGRID

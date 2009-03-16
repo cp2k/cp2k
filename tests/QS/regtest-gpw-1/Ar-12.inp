@@ -8,9 +8,12 @@
     &END QS
     &SCF
       MAX_SCF 2
-      NMIXING 1
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   0.4
+          NMIXING 1
+      &END
       EPS_DIIS 1.0
-      MIXING 0.4
       SCF_GUESS atomic
     &END SCF
     &XC

@@ -9,7 +9,10 @@
     &END QS
     &SCF
       MAX_SCF 1
-      MIXING 0.2
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   0.2
+      &END
       SCF_GUESS atomic
     &END SCF
     &XC
