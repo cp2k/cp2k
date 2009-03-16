@@ -384,6 +384,7 @@ CONTAINS
          IF ( num_gto(1) < 1 ) THEN
            ! use the Clementi extra large basis
            CALL Clementi_geobas(zval,cval,aval,basis%nbas,starti,error)
+           basis%nprim = basis%nbas
          ELSE
            basis%nbas = 0
            DO i=1,SIZE(num_gto)
@@ -1535,7 +1536,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_basis_set', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: maxpri = 40, maxset = 10
+    INTEGER, PARAMETER                       :: maxpri = 40, maxset = 20
 
     CHARACTER(len=20*default_string_length)  :: line_att
     CHARACTER(LEN=240)                       :: line

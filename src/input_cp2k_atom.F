@@ -94,7 +94,7 @@ CONTAINS
        CALL keyword_create(keyword, name="COULOMB_INTEGRALS",&
             description="Method to calculate Coulomb integrals",&
             usage="COULOMB_INTEGRALS analytic",&
-            default_i_val=do_analytic,&
+            default_i_val=do_numeric,&
             enum_c_vals=(/"ANALYTIC                 ",&
                           "SEMI_ANALYTIC            ",&
                           "NUMERIC                  "/),&
@@ -106,7 +106,7 @@ CONTAINS
        CALL keyword_create(keyword, name="EXCHANGE_INTEGRALS",&
             description="Method to calculate Exchange integrals",&
             usage="COULOMB_INTEGRALS analytic",&
-            default_i_val=do_analytic,&
+            default_i_val=do_numeric,&
             enum_c_vals=(/"ANALYTIC                 ",&
                           "SEMI_ANALYTIC            ",&
                           "NUMERIC                  "/),&
@@ -131,14 +131,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="MAX_ANGULAR_MOMENTUM",&
             description="Specifies the largest angular momentum calculated [0-3]",&
-            usage="MAX_ANGULAR_MOMENTUM 3", required=.TRUE., repeats=.FALSE.,&
-            default_i_val=-1, supported_feature=.FALSE.,error=error)
+            usage="MAX_ANGULAR_MOMENTUM 3", required=.FALSE., repeats=.FALSE.,&
+            default_i_val=3, supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CALCULATE_STATES",&
             description="Specifies the number of states calculated per l value",&
-            usage="CALCULATE_STATES  5 5 5 3 ", required=.TRUE., repeats=.FALSE.,&
+            usage="CALCULATE_STATES  5 5 5 3 ", required=.FALSE., repeats=.FALSE.,&
             default_i_val=0, n_var=-1,type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -553,7 +553,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="EPS_SCF",&
             description="Convergence criterion for SCF",&
-            usage="EPS_SCF 1.e-8", default_r_val=1.e-8_dp,&
+            usage="EPS_SCF 1.e-6", default_r_val=1.e-6_dp,&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

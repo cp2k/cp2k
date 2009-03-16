@@ -1,0 +1,20 @@
+&GLOBAL
+  PROGRAM_NAME ATOM
+&END GLOBAL
+&ATOM
+  ELEMENT Hg
+  ELECTRON_CONFIGURATION [Xe] 4f14 5d10 6s2
+
+  &METHOD
+     METHOD_TYPE  KOHN-SHAM
+     &XC
+       &XC_FUNCTIONAL 
+           &OPTX
+           &END OPTX
+           &CS1
+           &END CS1
+       &END XC_FUNCTIONAL
+     &END XC
+  &END METHOD
+
+&END ATOM

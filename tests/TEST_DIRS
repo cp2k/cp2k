@@ -2,6 +2,7 @@
 # Directories have been reordered according the execution time needed for a g95 sopt
 # in case a new directory is added just drop it at the end of the list..
 # the order will be regularly checked and modified...
+ATOM/regtest-1
 QS/regtest-dkh
 QS/regtest-sym
 QS/regtest-gapw-4

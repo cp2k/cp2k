@@ -1,0 +1,42 @@
+&GLOBAL
+  PROGRAM_NAME ATOM
+&END GLOBAL
+&ATOM
+  ELEMENT Ga
+  ELECTRON_CONFIGURATION CORE 3d10 4s2 4p1
+  CORE [Ar]
+
+  COULOMB_INTEGRALS ANALYTIC
+
+  &METHOD
+     METHOD_TYPE  KOHN-SHAM
+     &XC
+       &XC_FUNCTIONAL B3LYP
+       &END XC_FUNCTIONAL
+     &END XC
+  &END METHOD
+
+  &POTENTIAL
+    &GTH_POTENTIAL
+        3    0   10
+         0.49000000    0
+        3
+         0.38471302    3     4.83177912    -1.64143552     0.69123928
+                                            4.23816829    -1.78477215
+                                                           2.83323796
+         0.58613014    2     1.94052725     0.12666261
+                                           -0.29973843
+         0.24080302    1   -15.79567538
+    &END GTH_POTENTIAL
+  &END POTENTIAL
+
+  &PP_BASIS
+     BASIS_TYPE GAUSSIAN
+     NUM_GTO 6 6 6 6
+     S_EXPONENTS 8.317 4.442 1.953 0.775 0.266 0.073
+     P_EXPONENTS 8.317 4.442 1.953 0.775 0.266 0.073
+     D_EXPONENTS 8.317 4.442 1.953 0.775 0.266 0.073
+     F_EXPONENTS 8.317 4.442 1.953 0.775 0.266 0.073
+  &END PP_BASIS
+
+&END ATOM

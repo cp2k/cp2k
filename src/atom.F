@@ -149,6 +149,7 @@ CONTAINS
       method, mo, n_meth, n_rep, num_gto, reltyp, zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
+    REAL(KIND=dp),DIMENSION(0:3,10)          :: pocc
     LOGICAL                                  :: eri_c, eri_e, failure, &
                                                 had_ae, had_pp, pp_calc
     TYPE(atom_basis_type), POINTER           :: ae_basis, pp_basis
@@ -225,6 +226,10 @@ CONTAINS
     DO in = 1, MIN(SIZE(cn),4)
       maxn(in-1) = cn(in)
     END DO
+    DO in = 0, 3
+      maxn(in) = MIN(maxn(in),ae_basis%nbas(in))
+      maxn(in) = MIN(maxn(in),pp_basis%nbas(in))
+    END DO
 
     ! read optimization section
     opt_section => section_vals_get_subs_vals(atom_section,"OPTIMIZATION",error=error)
@@ -283,7 +288,7 @@ CONTAINS
         IF ( pp_calc ) THEN
           ! get and set the core occupations 
           CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)
-          CALL atom_set_occupation(tmpstringlist,state%core,state%occupation,error)
+          CALL atom_set_occupation(tmpstringlist,state%core,pocc,error)
           zcore = zval - SUM(state%core)
           CALL set_atom(atom_info(in,im)%atom,zcore=zcore,pp_calc=.TRUE.,error=error)
         ELSE
