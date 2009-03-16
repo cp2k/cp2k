@@ -1,0 +1,10 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# mixing procedures
+si8_pmix.inp          1
+si8_kerker.inp          1
+si8_pulay.inp          1
+si8_broy.inp          1
