@@ -2,6 +2,7 @@ OBJECTS_GENERIC =\
  ai_angmom.o\
  ai_coulomb.o\
  ai_derivatives.o\
+ ai_elec_field.o\
  ai_fermi_contact.o\
  ai_kinetic.o\
  ai_moments.o\
@@ -436,6 +437,7 @@ OBJECTS_GENERIC =\
  qs_diis_types.o\
  qs_dispersion_pairpot.o\
  qs_dispersion_types.o\
+ qs_elec_field.o\
  qs_electric_field_gradient.o\
  qs_energy.o\
  qs_energy_types.o\

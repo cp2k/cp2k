@@ -44,6 +44,7 @@ MODULE qs_linres_op
   USE orbital_pointers,                ONLY: coset
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
+  USE qs_elec_field,                   ONLY: build_efg_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_fermi_contact,                ONLY: build_fermi_contact_matrix
@@ -375,7 +376,7 @@ CONTAINS
 
     INTEGER                                  :: handle, nspins, output_unit
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: chk(10)
+    REAL(dp)                                 :: chk(20)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -386,14 +387,15 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_fc, matrix_pso
+      POINTER                                :: matrix_efg, matrix_fc, &
+                                                matrix_pso
     TYPE(section_vals_type), POINTER         :: lr_section
 
     failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(matrix_fc,matrix_pso)
+    NULLIFY(matrix_fc,matrix_pso,matrix_efg)
 
     logger => cp_error_get_logger(error)
     lr_section => section_vals_get_subs_vals(qs_env%input,&
@@ -478,8 +480,62 @@ CONTAINS
 
     CALL deallocate_matrix_set(matrix_pso,error=error)
 
+    !
+    ! electric field integral
+    CALL allocate_matrix_set(matrix_efg,7,error=error)
+    CALL set_up_op_sm(matrix_efg(1)%matrix,qs_env,symmetry="symmetric",&
+         &            name="Coulomb integral",error=error)
+    CALL replicate_matrix_structure(matrix_efg(1)%matrix,matrix_efg(2)%matrix,&
+         "Electric field integral (3X**2-R**2)/3",target_symmetry="symmetric",error=error)
+    CALL replicate_matrix_structure(matrix_efg(1)%matrix,matrix_efg(3)%matrix,&
+         "Electric field integral (3Y**2-R**2)/3",target_symmetry="symmetric",error=error)
+    CALL replicate_matrix_structure(matrix_efg(1)%matrix,matrix_efg(4)%matrix,&
+         "Electric field integral (3Z**2-R**2)/3",target_symmetry="symmetric",error=error)
+    CALL replicate_matrix_structure(matrix_efg(1)%matrix,matrix_efg(5)%matrix,&
+         "Electric field integral XY",target_symmetry="symmetric",error=error)
+    CALL replicate_matrix_structure(matrix_efg(1)%matrix,matrix_efg(6)%matrix,&
+         "Electric field integral XZ",target_symmetry="symmetric",error=error)
+    CALL replicate_matrix_structure(matrix_efg(1)%matrix,matrix_efg(7)%matrix,&
+         "Electric field integral YZ",target_symmetry="symmetric",error=error)
+
+    CALL set_matrix(matrix_efg(1)%matrix,0.0_dp)
+    CALL set_matrix(matrix_efg(2)%matrix,0.0_dp)
+    CALL set_matrix(matrix_efg(3)%matrix,0.0_dp)
+    CALL set_matrix(matrix_efg(4)%matrix,0.0_dp)
+    CALL set_matrix(matrix_efg(5)%matrix,0.0_dp)
+    CALL set_matrix(matrix_efg(6)%matrix,0.0_dp)
+    CALL set_matrix(matrix_efg(7)%matrix,0.0_dp)
+
+    CALL build_efg_matrix(qs_env,matrix_efg,(/0.0_dp,0.0_dp,0.0_dp/),error)
+
+    chk(6) = checksum_matrix(matrix_efg(1)%matrix,para_env)
+
     IF(output_unit>0) THEN
-       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| all operator: CheckSum =',SUM(chk(1:5))
+       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| coulomb: CheckSum =',chk(6)
+    ENDIF
+
+    chk(7) = checksum_matrix(matrix_efg(2)%matrix,para_env)
+    chk(8) = checksum_matrix(matrix_efg(3)%matrix,para_env)
+    chk(9) = checksum_matrix(matrix_efg(4)%matrix,para_env)
+    chk(10)= checksum_matrix(matrix_efg(5)%matrix,para_env)
+    chk(11)= checksum_matrix(matrix_efg(6)%matrix,para_env)
+    chk(12)= checksum_matrix(matrix_efg(7)%matrix,para_env)
+
+    IF(output_unit>0) THEN
+       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg (3xx-rr)/3: CheckSum =',chk(7)
+       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg (3yy-rr)/3: CheckSum =',chk(8)
+       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg (3zz-rr)/3: CheckSum =',chk(9)
+       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg xy: CheckSum =',chk(10)
+       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg xz: CheckSum =',chk(11)
+       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg yz: CheckSum =',chk(12)
+    ENDIF
+
+    CALL deallocate_matrix_set(matrix_efg,error=error)
+
+    !
+    !
+    IF(output_unit>0) THEN
+       WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| all operator: CheckSum =',SUM(chk(1:12))
     ENDIF
 
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&

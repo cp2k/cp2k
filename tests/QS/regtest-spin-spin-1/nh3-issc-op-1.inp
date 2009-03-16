@@ -26,6 +26,7 @@
       &AO_MATRICES
         FERMI_CONTACT T
         PSO T
+        EFG T
       &END
     &END
   &END DFT

@@ -4,13 +4,13 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Distribution of the spin orbit integral matrix. 
+!> \brief Distribution of the electric field gradient integral matrix. 
 !> \par History
 !> \author VW (27.02.2009)
 ! *****************************************************************************
-MODULE qs_spin_orbit
+MODULE qs_elec_field
 
-  USE ai_spin_orbit,                   ONLY: pso
+  USE ai_elec_field,                   ONLY: efg
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -50,31 +50,31 @@ MODULE qs_spin_orbit
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_spin_orbit'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_elec_field'
 
 ! *** Public subroutines ***
 
-  PUBLIC :: build_pso_matrix
+  PUBLIC :: build_efg_matrix
 
 CONTAINS
 
 ! *****************************************************************************
-!> \brief   Calculation of the paramagnetic spin orbit matrix over
+!> \brief   Calculation of the electric field gradient matrix over
 !>          Cartesian Gaussian functions.
 !> \author  VW
 !> \date    27.02.2009
 !> \version 1.0
 ! *****************************************************************************
 
-  SUBROUTINE build_pso_matrix(qs_env,matrix_so,rc,error)
+  SUBROUTINE build_efg_matrix(qs_env,matrix_efg,rc,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_so
+      POINTER                                :: matrix_efg
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_pso_matrix', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_efg_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
@@ -90,7 +90,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: rr_work, soab
+      DIMENSION(:, :, :)                     :: efgab, rr_work
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac, rb, rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
@@ -99,7 +99,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: soint
+      DIMENSION(:)                           :: efgint
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -132,35 +132,34 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
-!   *** Allocate work storage ***
-
+    ! *** Allocate work storage ***
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=maxco,&
                              maxlgto=maxlgto,&
                              maxsgf=maxsgf)
 
-    ldai = ncoset(maxlgto+1)
+    ldai = ncoset(maxlgto+2)
     CALL init_orbital_pointers(ldai)
 
-    ALLOCATE(rr_work(0:2*maxlgto+2,ldai,ldai),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ff", (2*maxlgto+2)*dp_size)
+    ALLOCATE(rr_work(0:2*maxlgto+4,ldai,ldai),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "rr_work",ldai*ldai*(2*maxlgto+4)*dp_size)
+    END IF
 
-    ALLOCATE (soab(maxco,maxco,4),STAT=istat)
+    ALLOCATE(efgab(maxco,maxco,7),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "soab",maxco*maxco*4*dp_size)
+                                     "efgab",maxco*maxco*7*dp_size)
+    efgab(:,:,:) = 0.0_dp
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "work",maxco*maxsgf*dp_size)
+    work(:,:) = 0.0_dp
 
-    ALLOCATE (soint(4),STAT=istat)
+    ALLOCATE (efgint(7),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "soint",4*int_size)
-    NULLIFY(soint(1)%block)
-    NULLIFY(soint(2)%block)
-    NULLIFY(soint(3)%block)
-    NULLIFY(soint(4)%block)
+                                     "efgint",7*int_size)
 
     DO ikind=1,nkind
 
@@ -248,14 +247,14 @@ CONTAINS
                       icol = iatom
                    END IF
 
-                   DO i=1,4
-                      NULLIFY(soint(i)%block)
-                      CALL get_block_node(matrix=matrix_so(i)%matrix,&
+                   DO i=1,7
+                      NULLIFY(efgint(i)%block)
+                      CALL get_block_node(matrix=matrix_efg(i)%matrix,&
                                           block_row=irow,&
                                           block_col=icol,&
-                                          BLOCK=soint(i)%block)
+                                          BLOCK=efgint(i)%block)
                    ENDDO
-                END IF
+                ENDIF
 
                 rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                 dab = SQRT(rab2)
@@ -274,36 +273,35 @@ CONTAINS
 
                       ! *** Calculate the primitive fermi contact integrals ***
 
-                      CALL pso(la_max(iset),la_min(iset),npgfa(iset),&
+                      CALL efg(la_max(iset),la_min(iset),npgfa(iset),&
                                rpgfa(:,iset),zeta(:,iset),&
                                lb_max(jset),lb_min(jset),npgfb(jset),&
                                rpgfb(:,jset),zetb(:,jset),&
-                               rac,rbc,rab,soab,SIZE(rr_work,1),SIZE(rr_work,2),rr_work,error)
+                               rac,rbc,rab,efgab,SIZE(rr_work,1),SIZE(rr_work,2),rr_work,error)
 
                       ! *** Contraction step ***
 
-                      DO i=1,4
+                      DO i=1,7
 
                          CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                                    1.0_dp,soab(1,1,i),SIZE(soab,1),&
+                                    1.0_dp,efgab(1,1,i),SIZE(efgab,1),&
                                     sphi_b(1,sgfb),SIZE(sphi_b,1),&
                                     0.0_dp,work(1,1),SIZE(work,1))
 
                          IF (iatom <= jatom) THEN
-
                             CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
                                        1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                        work(1,1),SIZE(work,1),&
-                                       1.0_dp,soint(i)%block(sgfa,sgfb),&
-                                       SIZE(soint(i)%block,1))
+                                       1.0_dp,efgint(i)%block(sgfa,sgfb),&
+                                       SIZE(efgint(i)%block,1))
 
                          ELSE
 
                             CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
                                        1.0_dp,work(1,1),SIZE(work,1),&
                                        sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                       1.0_dp,soint(i)%block(sgfb,sgfa),&
-                                       SIZE(soint(i)%block,1))
+                                       1.0_dp,efgint(i)%block(sgfb,sgfa),&
+                                       SIZE(efgint(i)%block,1))
                          ENDIF
 
                       ENDDO
@@ -326,38 +324,40 @@ CONTAINS
 
     ! *** Release work storage ***
 
-    DEALLOCATE (soab,STAT=istat)
+    DEALLOCATE (efgab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "soab")
+                                     "efgab")
 
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "work")
 
-    NULLIFY (soint(1)%block)
-    DEALLOCATE (soint,STAT=istat)
+    DEALLOCATE (efgint,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "soint")
+                                     "efgint")
 
-!   *** Print the spin orbit matrix, if requested ***
+    ! *** Print the electric field gradient matrix, if requested ***
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/PSO",error=error),cp_p_file)) THEN
-       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/PSO",&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/EFG",error=error),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/EFG",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_so(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL write_sparse_matrix(matrix_so(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL write_sparse_matrix(matrix_so(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL write_sparse_matrix(matrix_so(4)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL write_sparse_matrix(matrix_efg(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL write_sparse_matrix(matrix_efg(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL write_sparse_matrix(matrix_efg(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL write_sparse_matrix(matrix_efg(4)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL write_sparse_matrix(matrix_efg(5)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL write_sparse_matrix(matrix_efg(6)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL write_sparse_matrix(matrix_efg(7)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/PSO", error=error)
+            "DFT%PRINT%AO_MATRICES/EFG", error=error)
     END IF
 
     CALL timestop(handle)
 
-  END SUBROUTINE build_pso_matrix
+  END SUBROUTINE build_efg_matrix
 
 ! *****************************************************************************
 
-END MODULE qs_spin_orbit
+END MODULE qs_elec_field
 
