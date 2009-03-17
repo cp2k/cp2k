@@ -146,21 +146,17 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "ff", (2*maxlgto+2)*dp_size)
 
-    ALLOCATE (soab(maxco,maxco,4),STAT=istat)
+    ALLOCATE (soab(maxco,maxco,3),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "soab",maxco*maxco*4*dp_size)
+                                     "soab",maxco*maxco*3*dp_size)
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "work",maxco*maxsgf*dp_size)
 
-    ALLOCATE (soint(4),STAT=istat)
+    ALLOCATE (soint(3),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "soint",4*int_size)
-    NULLIFY(soint(1)%block)
-    NULLIFY(soint(2)%block)
-    NULLIFY(soint(3)%block)
-    NULLIFY(soint(4)%block)
+                                     "soint",3*int_size)
 
     DO ikind=1,nkind
 
@@ -248,7 +244,7 @@ CONTAINS
                       icol = iatom
                    END IF
 
-                   DO i=1,4
+                   DO i=1,3
                       NULLIFY(soint(i)%block)
                       CALL get_block_node(matrix=matrix_so(i)%matrix,&
                                           block_row=irow,&
@@ -282,7 +278,7 @@ CONTAINS
 
                       ! *** Contraction step ***
 
-                      DO i=1,4
+                      DO i=1,3
 
                          CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                                     1.0_dp,soab(1,1,i),SIZE(soab,1),&
@@ -348,7 +344,6 @@ CONTAINS
        CALL write_sparse_matrix(matrix_so(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL write_sparse_matrix(matrix_so(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL write_sparse_matrix(matrix_so(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL write_sparse_matrix(matrix_so(4)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/PSO", error=error)
     END IF

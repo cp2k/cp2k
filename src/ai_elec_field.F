@@ -116,7 +116,6 @@ CONTAINS
                    vab(i,j,4) = 0.0_dp
                    vab(i,j,5) = 0.0_dp
                    vab(i,j,6) = 0.0_dp
-                   vab(i,j,7) = 0.0_dp
                 ENDDO
              ENDDO
              nb = nb + ncoset(lb_max)
@@ -200,9 +199,6 @@ CONTAINS
                 coamzpx= coset(ax+1,ay,MAX(az-1,0))
                 coamzpy= coset(ax,ay+1,MAX(az-1,0))
                 ma = na + coa
-                !
-                ! (a|1/r_C|b)
-                vab(ma,mb,1) = f0 * rr(0,coa,cob)
                 !
                 ! (a|xx|b)
                 dum = 4.0_dp * ( za**2 * rr(0,coap2x,cob) + zb**2 * rr(0,coa,cobp2x) &
@@ -289,12 +285,12 @@ CONTAINS
                 dumyz = f0 * dum
                 !
                 !
-                vab(ma,mb,2) = ( 2.0_dp * dumxx - dumyy - dumzz ) / 3.0_dp
-                vab(ma,mb,3) = ( 2.0_dp * dumyy - dumzz - dumxx ) / 3.0_dp
-                vab(ma,mb,4) = ( 2.0_dp * dumzz - dumxx - dumyy ) / 3.0_dp
-                vab(ma,mb,5) = dumxy
-                vab(ma,mb,6) = dumxz
-                vab(ma,mb,7) = dumyz
+                vab(ma,mb,1) = ( 2.0_dp * dumxx - dumyy - dumzz ) / 3.0_dp !xx
+                vab(ma,mb,2) = dumxy !xy
+                vab(ma,mb,3) = dumxz !xz
+                vab(ma,mb,4) = ( 2.0_dp * dumyy - dumzz - dumxx ) / 3.0_dp !yy
+                vab(ma,mb,5) = dumyz !yz
+                vab(ma,mb,6) = ( 2.0_dp * dumzz - dumxx - dumyy ) / 3.0_dp !zz
              ENDDO
              ENDDO
              ENDDO !la

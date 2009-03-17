@@ -147,9 +147,9 @@ CONTAINS
                        "rr_work",ldai*ldai*(2*maxlgto+4)*dp_size)
     END IF
 
-    ALLOCATE(efgab(maxco,maxco,7),STAT=istat)
+    ALLOCATE(efgab(maxco,maxco,6),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "efgab",maxco*maxco*7*dp_size)
+                                     "efgab",maxco*maxco*6*dp_size)
     efgab(:,:,:) = 0.0_dp
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
@@ -157,9 +157,9 @@ CONTAINS
                                      "work",maxco*maxsgf*dp_size)
     work(:,:) = 0.0_dp
 
-    ALLOCATE (efgint(7),STAT=istat)
+    ALLOCATE (efgint(6),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "efgint",7*int_size)
+                                     "efgint",6*int_size)
 
     DO ikind=1,nkind
 
@@ -247,7 +247,7 @@ CONTAINS
                       icol = iatom
                    END IF
 
-                   DO i=1,7
+                   DO i=1,6
                       NULLIFY(efgint(i)%block)
                       CALL get_block_node(matrix=matrix_efg(i)%matrix,&
                                           block_row=irow,&
@@ -281,7 +281,7 @@ CONTAINS
 
                       ! *** Contraction step ***
 
-                      DO i=1,7
+                      DO i=1,6
 
                          CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                                     1.0_dp,efgab(1,1,i),SIZE(efgab,1),&
@@ -348,7 +348,6 @@ CONTAINS
        CALL write_sparse_matrix(matrix_efg(4)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL write_sparse_matrix(matrix_efg(5)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL write_sparse_matrix(matrix_efg(6)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       CALL write_sparse_matrix(matrix_efg(7)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/EFG", error=error)
     END IF

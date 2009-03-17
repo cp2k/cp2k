@@ -6334,6 +6334,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword,name="ISSC_ON_ATOM_LIST",&
+            description="Atoms for which the issc is computed.",&
+            usage="ISSC_ON_ATOM_LIST 1 2 10",&
+            n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        NULLIFY(subsection)
        CALL section_create(subsection,name="PRINT",&
             description="print results of the indirect spin-spin calculation",&

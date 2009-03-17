@@ -123,11 +123,15 @@ MODULE qs_linres_types
 
   TYPE issc_env_type
      INTEGER                             :: ref_count
-     INTEGER, DIMENSION(:), POINTER      :: issc_atom_list
-     INTEGER, DIMENSION(:), POINTER      :: do_calc_issc_atom
+     INTEGER                             :: issc_natms
+     INTEGER, DIMENSION(:), POINTER      :: issc_on_atom_list
      LOGICAL                             :: interpolate_issc
      REAL(dp)                            :: issc_gapw_radius,issc_factor,issc_factor_gapw
-     REAL(dp), DIMENSION(:,:,:), POINTER :: issc,issc_loc
+     REAL(dp), DIMENSION(:,:,:,:), POINTER :: issc,issc_loc
+     TYPE(cp_fm_p_type),      DIMENSION(:,:), POINTER :: psi1_efg,psi1_pso,efg_psi0,pso_psi0
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi1_fc
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: fc_psi0
+     TYPE(real_matrix_p_type),DIMENSION(:  ), POINTER :: matrix_efg,matrix_pso,matrix_fc
   END TYPE issc_env_type
 
   TYPE nmr_env_type
@@ -376,10 +380,17 @@ CONTAINS
      CPPrecondition(issc_env%ref_count==0, cp_failure_level,routineP,error,failure)
      IF(.NOT. failure) THEN
         issc_env%ref_count = 1
-        NULLIFY(issc_env%issc_atom_list)
-        NULLIFY(issc_env%do_calc_issc_atom)
         NULLIFY(issc_env%issc)
         NULLIFY(issc_env%issc_loc)
+        NULLIFY(issc_env%psi1_efg)
+        NULLIFY(issc_env%psi1_pso)
+        NULLIFY(issc_env%psi1_fc)
+        NULLIFY(issc_env%efg_psi0)
+        NULLIFY(issc_env%pso_psi0)
+        NULLIFY(issc_env%fc_psi0)
+        NULLIFY(issc_env%matrix_efg)
+        NULLIFY(issc_env%matrix_pso)
+        NULLIFY(issc_env%matrix_fc)
      ENDIF
 
    END SUBROUTINE issc_env_create
@@ -548,17 +559,27 @@ CONTAINS
   END SUBROUTINE get_nmr_env
 
 ! *****************************************************************************
-  SUBROUTINE get_issc_env(issc_env,issc_atom_list,do_calc_issc_atom,&
-                          issc_gapw_radius,issc_loc,issc,interpolate_issc,&
-                          error)
+  SUBROUTINE get_issc_env(issc_env,issc_on_atom_list,issc_gapw_radius,issc_loc,&
+       issc,interpolate_issc,psi1_efg,psi1_pso,psi1_fc,efg_psi0,pso_psi0,fc_psi0,&
+       matrix_efg,matrix_pso,matrix_fc,error)
 
     TYPE(issc_env_type)                      :: issc_env
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: issc_atom_list, &
-                                                do_calc_issc_atom
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: issc_on_atom_list
     REAL(dp), OPTIONAL                       :: issc_gapw_radius
-    REAL(dp), DIMENSION(:, :, :), OPTIONAL, &
-      POINTER                                :: issc_loc, issc
+    REAL(dp), DIMENSION(:, :, :, :), &
+      OPTIONAL, POINTER                      :: issc_loc, issc
     LOGICAL, OPTIONAL                        :: interpolate_issc
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: psi1_efg, psi1_pso
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: psi1_fc
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: efg_psi0, pso_psi0
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: fc_psi0
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_efg, matrix_pso, &
+                                                matrix_fc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_issc_env', &
@@ -570,12 +591,20 @@ CONTAINS
 
     CPPrecondition(issc_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF(PRESENT(issc_atom_list   )) issc_atom_list    => issc_env%issc_atom_list
-    IF(PRESENT(do_calc_issc_atom)) do_calc_issc_atom => issc_env%do_calc_issc_atom
+    IF(PRESENT(issc_on_atom_list)) issc_on_atom_list => issc_env%issc_on_atom_list
     IF(PRESENT(issc_gapw_radius )) issc_gapw_radius  =  issc_env%issc_gapw_radius
     IF(PRESENT(issc_loc         )) issc_loc          => issc_env%issc_loc
     IF(PRESENT(issc             )) issc              => issc_env%issc
     IF(PRESENT(interpolate_issc )) interpolate_issc  =  issc_env%interpolate_issc
+    IF(PRESENT(psi1_efg         )) psi1_efg          => issc_env%psi1_efg
+    IF(PRESENT(psi1_pso         )) psi1_pso          => issc_env%psi1_pso
+    IF(PRESENT(psi1_fc          )) psi1_fc           => issc_env%psi1_fc    
+    IF(PRESENT(efg_psi0         )) efg_psi0          => issc_env%efg_psi0   
+    IF(PRESENT(pso_psi0         )) pso_psi0          => issc_env%pso_psi0   
+    IF(PRESENT(fc_psi0          )) fc_psi0           => issc_env%fc_psi0    
+    IF(PRESENT(matrix_efg       )) matrix_efg        => issc_env%matrix_efg 
+    IF(PRESENT(matrix_pso       )) matrix_pso        => issc_env%matrix_pso 
+    IF(PRESENT(matrix_fc        )) matrix_fc         => issc_env%matrix_fc  
 
   END SUBROUTINE get_issc_env
 

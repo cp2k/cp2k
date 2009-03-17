@@ -51,7 +51,8 @@ MODULE qs_linres_module
   USE qs_linres_epr_utils,             ONLY: epr_env_cleanup,&
                                              epr_env_init
   USE qs_linres_issc_utils,            ONLY: issc_env_cleanup,&
-                                             issc_env_init
+                                             issc_env_init,&
+                                             issc_response
   USE qs_linres_methods,               ONLY: linres_localize
   USE qs_linres_nmr_shift,             ONLY: nmr_shift,&
                                              nmr_shift_print
@@ -108,7 +109,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iB, output_unit
+    INTEGER                                  :: handle, iatom, iB, output_unit
     LOGICAL                                  :: do_qmmm, epr_present, &
                                                 failure, ionode, &
                                                 issc_present, lr_calculation, &
@@ -267,7 +268,6 @@ CONTAINS
           current_env%do_qmmm = do_qmmm
           !current_env%prop='issc'
           !CALL current_env_init(current_env,qs_env,error=error)
-          CALL issc_operators(current_env,qs_env,error=error)
           !CALL current_response(current_env,p_env,qs_env,error)
           !
           !Initialize the issc environment
@@ -275,23 +275,22 @@ CONTAINS
           CALL issc_env_init(issc_env,qs_env,error=error)
           !
           ! Loop over atoms and field direction
-          !DO iA = 1,natoms
-          !DO iB = 1,3
-             !
-             ! Build current response
-             !CALL current_build_current(current_env,qs_env,iB,error=error)
-             !
-             ! Compute indirect spin-spin coupling
-             !CALL issc_tensor(issc_env,current_env,qs_env,iB,error=error)
-          !ENDDO
-          !ENDDO
+          DO iatom = 1,issc_env%issc_natms
+             CALL issc_operators(issc_env,qs_env,iatom,error)
+             CALL issc_response(issc_env,p_env,qs_env,iatom,error)
+             DO iB = 1,3
+                !
+                ! Build current response
+                !CALL current_build_current(issc_env,qs_env,iatom,iB,error=error)
+                !
+                ! Compute indirect spin-spin coupling
+                !CALL issc_tensor(issc_env,qs_env,iatom,iB,error=error)
+             ENDDO
+          ENDDO
           !
           ! Finalized the issc environment
-          !CALL issc_print(issc_env,current_env,qs_env,error=error)
-          CALL issc_env_cleanup(issc_env,error=error)
-          !
-          ! Finalized the current environment
-          !CALL current_env_cleanup(current_env,qs_env,error=error)       
+          !CALL issc_print(issc_env,qs_env,error)
+          CALL issc_env_cleanup(issc_env,error)
        ENDIF
 
        ! Other possible LR calculations can be introduced here
@@ -341,7 +340,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, nspins, output_unit
+    INTEGER                                  :: ispin, output_unit
     LOGICAL                                  :: do_it, failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control

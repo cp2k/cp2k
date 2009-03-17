@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT nh3-issc-op-1
+  PROJECT ch4-gapw-issc-2
   PRINT_LEVEL LOW
   RUN_TYPE LINEAR_RESPONSE
 &END GLOBAL
@@ -22,23 +22,17 @@
       &XC_FUNCTIONAL BLYP
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &AO_MATRICES
-        FERMI_CONTACT T
-        PSO T
-        EFG T
-      &END
-    &END
   &END DFT
   &PROPERTIES
     &LINRES
-       MAX_ITER 1
        &LOCALIZE
-         MAX_ITER 1
+         MAX_ITER 5
        &END
-       &CURRENT
-       &END CURRENT
+       MAX_ITER 10
+       PRECONDITIONER FULL_H0
        &SPINSPIN
+         ISSC_ON_ATOM_LIST 1 2 3
+         ISSC_ON_ATOM_LIST 4 5
        &END
     &END
   &END
@@ -47,16 +41,17 @@
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
- N     0.000000     0.000000     0.000000
- H     0.000000     0.000000     1.008000
- H     1.026719     0.000000    -0.363000
- H    -0.513360    -0.889165    -0.363000
+C  -0.000367    0.000000    0.000481
+H   0.638760   -0.000080    0.888272
+H   0.207743    0.893069   -0.597225
+H   0.207729   -0.892972   -0.597375
+H  -1.052031   -0.000017    0.303441
     &END COORD
-    &KIND N
+    &KIND H
       BASIS_SET 3-21G*
       POTENTIAL ALL
     &END KIND
-    &KIND H
+    &KIND C
       BASIS_SET 3-21G*
       POTENTIAL ALL
     &END KIND

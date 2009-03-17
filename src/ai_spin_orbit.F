@@ -106,7 +106,6 @@ CONTAINS
                    vab(i,j,1) = 0.0_dp
                    vab(i,j,2) = 0.0_dp
                    vab(i,j,3) = 0.0_dp
-                   vab(i,j,4) = 0.0_dp
                 ENDDO
              ENDDO
              nb = nb + ncoset(lb_max)
@@ -156,8 +155,6 @@ CONTAINS
                 coap1z = coset(ax,ay,az+1)
                 ma = na + coa
                 !
-                vab(ma,mb,1) = f0 * rr(0,coa,cob)
-                !
                 !
                 ! (a|pso_x|b) = (4*zeta*zetb*(a+y||b+z)
                 !               -2*zeta*Nz(b)*(a+y||b-z)-2*zetb*Ny(a)*(a-y||b+z)
@@ -174,7 +171,7 @@ CONTAINS
                 IF(by.GT.0) dum2 = dum2 - 2.0_dp * zeta(ipgf) * REAL(by,dp) * rr(0,coap1z,cobm1y)
                 IF(az.GT.0) dum2 = dum2 - 2.0_dp * zetb(jpgf) * REAL(az,dp) * rr(0,coam1z,cobp1y)
                 IF(az.GT.0.AND.by.GT.0) dum2 = dum2 + REAL(az,dp) * REAL(by,dp) * rr(0,coam1z,cobm1y)
-                vab(ma,mb,2) = f0 * (dum1 - dum2)
+                vab(ma,mb,1) = f0 * (dum1 - dum2)
                 !
                 !
                 ! (a|pso_y|b) = (4*zeta*zetb*(a+z||b+x)
@@ -192,7 +189,7 @@ CONTAINS
                 IF(bz.GT.0) dum2 = dum2 - 2.0_dp * zeta(ipgf) * REAL(bz,dp) * rr(0,coap1x,cobm1z)
                 IF(ax.GT.0) dum2 = dum2 - 2.0_dp * zetb(jpgf) * REAL(ax,dp) * rr(0,coam1x,cobp1z)
                 IF(ax.GT.0.AND.bz.GT.0) dum2 = dum2 + REAL(ax,dp) * REAL(bz,dp) * rr(0,coam1x,cobm1z)
-                vab(ma,mb,3) = f0 * (dum1 - dum2)
+                vab(ma,mb,2) = f0 * (dum1 - dum2)
                 !
                 !
                 ! (a|pso_z|b) = (4*zeta*zetb*(a+x||b+y)
@@ -210,7 +207,7 @@ CONTAINS
                 IF(bx.GT.0) dum2 = dum2 - 2.0_dp * zeta(ipgf) * REAL(bx,dp) * rr(0,coap1y,cobm1x)
                 IF(ay.GT.0) dum2 = dum2 - 2.0_dp * zetb(jpgf) * REAL(ay,dp) * rr(0,coam1y,cobp1x)
                 IF(ay.GT.0.AND.bx.GT.0) dum2 = dum2 + REAL(ay,dp) * REAL(bx,dp) * rr(0,coam1y,cobm1x)
-                vab(ma,mb,4) = f0 * (dum1 - dum2)
+                vab(ma,mb,3) = f0 * (dum1 - dum2)
                 !
              ENDDO
              ENDDO
