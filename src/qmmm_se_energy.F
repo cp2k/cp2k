@@ -43,6 +43,7 @@ MODULE qmmm_se_energy
                                              rotnuc
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              se_int_control_type,&
+                                             se_taper_type,&
                                              semi_empirical_create,&
                                              semi_empirical_release,&
                                              semi_empirical_type,&
@@ -55,7 +56,6 @@ MODULE qmmm_se_energy
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
-  USE taper_types,                     ONLY: taper_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -104,15 +104,15 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(se_int_control_type)                :: se_int_control
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
-    TYPE(taper_type), POINTER                :: taper
 
     CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
     NULLIFY (matrix_s, atomic_kind_set)
-    NULLIFY (se_kind_a, se_kind_mm, taper)
+    NULLIFY (se_kind_a, se_kind_mm, se_taper)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
     CALL build_overlap_matrix(qs_env,para_env,matrix_s=matrix_s,&
@@ -123,7 +123,7 @@ CONTAINS
                               error=error)
     CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
     CALL get_qs_env(qs_env=qs_env,&
-                    taper=taper,&
+                    se_taper=se_taper,&
                     atomic_kind_set=atomic_kind_set,&
                     ks_qmmm_env=ks_qmmm_env_loc,&
                     dft_control=dft_control,error=error)
@@ -190,7 +190,7 @@ CONTAINS
                                               qmmm_env%qm_atom_index(iatom),&
                                               enuclear,&
                                               itype,&
-                                              taper,&
+                                              se_taper,&
                                               se_int_control,&
                                               anag,&
                                               qmmm_env%spherical_cutoff,&
@@ -210,7 +210,7 @@ CONTAINS
                                                  qmmm_env%qm_atom_index(iatom),&
                                                  enuclear,&
                                                  itype,&
-                                                 taper,&
+                                                 se_taper,&
                                                  se_int_control,&
                                                  anag,&
                                                  qmmm_env%spherical_cutoff,&
@@ -245,7 +245,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_se_qmmm_matrix_low(h_block_a, se_kind_a, se_kind_mm, potentials,&
        mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-       mm_cell, IndQM, enuclear, itype, taper, se_int_control, anag, &
+       mm_cell, IndQM, enuclear, itype, se_taper, se_int_control, anag, &
        qmmm_spherical_cutoff, error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block_a
@@ -261,7 +261,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: IndQM
     REAL(KIND=dp), INTENT(INOUT)             :: enuclear
     INTEGER, INTENT(IN)                      :: itype
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     LOGICAL, INTENT(IN)                      :: anag
     REAL(KIND=dp), INTENT(IN)                :: qmmm_spherical_cutoff(2)
@@ -300,9 +300,9 @@ CONTAINS
           END IF
           IF (ABS(se_kind_mm%zeff)<=EPSILON(0.0_dp)) CYCLE
           CALL rotnuc (se_kind_a, se_kind_mm, rij, itype=itype, e1b=e1b, anag=anag,&
-               se_int_control=se_int_control, taper=taper, error=error)
+               se_int_control=se_int_control, se_taper=se_taper, error=error)
           CALL corecore(se_kind_a, se_kind_mm, rij, itype=itype, enuc=enuc, anag=anag,&
-               se_int_control=se_int_control, taper=taper, error=error)
+               se_int_control=se_int_control, se_taper=se_taper, error=error)
           enuclear = enuclear + enuc
           ! Contribution to the iatom block
           ! Computation of the QMMM core matrix

@@ -15,14 +15,10 @@ MODULE semi_empirical_types
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
-  USE input_constants,                 ONLY: do_method_am1,&
-                                             do_method_mndo,&
-                                             do_method_mndod,&
-                                             do_method_pdg,&
-                                             do_method_pm3,&
-                                             do_method_pm6,&
-                                             do_method_pnnl,&
-                                             do_method_rm1
+  USE input_constants,                 ONLY: &
+       do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
+       do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
+       do_se_IS_kdso_d
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -33,6 +29,9 @@ MODULE semi_empirical_types
                                              semi_empirical_expns3_release
   USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_p_release,&
                                              semi_empirical_mpole_p_type
+  USE taper_types,                     ONLY: taper_create,&
+                                             taper_release,&
+                                             taper_type
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
@@ -121,10 +120,24 @@ MODULE semi_empirical_types
      INTEGER                                  :: integral_screening
   END TYPE se_int_control_type
 
+! *****************************************************************************
+!> \brief Store the value of the tapering function and possibly its derivative
+!>        for screened integrals
+! *****************************************************************************
   TYPE se_int_screen_type
-     ! Store the value of the tapering function and possibly its derivative
      REAL(KIND=dp)                            :: ft, dft
   END TYPE se_int_screen_type
+
+! *****************************************************************************
+!> \brief Taper type use in semi-empirical calculations
+! *****************************************************************************
+  TYPE se_taper_type
+     TYPE(taper_type), POINTER             :: taper
+     TYPE(taper_type), POINTER             :: taper_cou
+     TYPE(taper_type), POINTER             :: taper_exc
+     ! This taper is for KDSO-D integrals
+     TYPE(taper_type), POINTER             :: taper_add
+  END TYPE se_taper_type
 
   PUBLIC :: semi_empirical_type,&
             semi_empirical_create,&
@@ -137,7 +150,10 @@ MODULE semi_empirical_types
             write_se_param,&
             se_int_control_type,&
             setup_se_int_control_type,&
-            se_int_screen_type
+            se_int_screen_type,&
+            se_taper_type,&
+            se_taper_release,&
+            se_taper_create
 
 CONTAINS
 
@@ -504,6 +520,66 @@ CONTAINS
     se_int_control%do_ewald_r3        = do_ewald_r3
     se_int_control%integral_screening = integral_screening
   END SUBROUTINE setup_se_int_control_type
+
+! *****************************************************************************
+!> \brief Creates the taper type used in SE calculations
+!> \author Teodoro Laino [tlaino] - 03.2009
+! ***************************************************************************** 
+  SUBROUTINE se_taper_create(se_taper, integral_screening, taper_cou,&
+       range_cou, taper_exc, range_exc, taper_scr, range_scr, error)
+    TYPE(se_taper_type), POINTER             :: se_taper
+    INTEGER, INTENT(IN)                      :: integral_screening
+    REAL(KIND=dp), INTENT(IN)                :: taper_cou, range_cou, &
+                                                taper_exc, range_exc, &
+                                                taper_scr, range_scr
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'se_taper_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(se_taper),cp_failure_level,routineP,error,failure)
+    ALLOCATE(se_taper, stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(se_taper%taper)
+    NULLIFY(se_taper%taper_cou)
+    NULLIFY(se_taper%taper_exc)
+    NULLIFY(se_taper%taper_add)
+    ! Create the sub-typo taper
+    CALL taper_create(se_taper%taper_cou, taper_cou, range_cou, error)
+    CALL taper_create(se_taper%taper_exc, taper_exc, range_exc, error)
+    IF (integral_screening==do_se_IS_kdso_d) THEN
+       CALL taper_create(se_taper%taper_add, taper_scr, range_scr, error)
+    END IF
+  END SUBROUTINE se_taper_create
+
+! *****************************************************************************
+!> \brief Releases the taper type used in SE calculations
+!> \author Teodoro Laino [tlaino] - 03.2009
+! ***************************************************************************** 
+  SUBROUTINE se_taper_release(se_taper, error)
+    TYPE(se_taper_type), POINTER             :: se_taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'se_taper_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (ASSOCIATED(se_taper)) THEN
+       CALL taper_release(se_taper%taper_cou, error=error)
+       CALL taper_release(se_taper%taper_exc, error=error)
+       CALL taper_release(se_taper%taper_add, error=error)
+       
+       DEALLOCATE(se_taper, stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+  END SUBROUTINE se_taper_release
 
 ! *****************************************************************************
 !> \brief Writes the semi-empirical type

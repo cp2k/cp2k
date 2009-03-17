@@ -531,7 +531,7 @@ CONTAINS
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                kind_radius=kind_radius)
 
-        kind_radius = MAX (kind_radius,se_control%rc_interaction)
+        kind_radius = MAX (kind_radius,se_control%cutoff_exc)
 
         CALL set_gto_basis_set(gto_basis_set=orb_basis_set,&
                                kind_radius=kind_radius)

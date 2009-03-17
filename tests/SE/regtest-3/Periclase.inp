@@ -14,7 +14,9 @@
     &QS
       METHOD PM6
       &SE
-        RC_COULOMB [angstrom] 4.175
+        &COULOMB
+          CUTOFF [angstrom] 4.175
+        &END
       &END
     &END QS
     &SCF

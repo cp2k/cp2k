@@ -26,3 +26,5 @@ H2O-MNDO.inp
 O2.inp
 # bug fix
 LM-KSDO-D.inp
+# numerics
+LM-KSDO-D.inp

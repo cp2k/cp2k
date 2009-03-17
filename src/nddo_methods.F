@@ -75,15 +75,17 @@ MODULE nddo_methods
                                              semi_empirical_si_type
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              se_int_control_type,&
+                                             se_taper_type,&
                                              semi_empirical_type,&
                                              setup_se_int_control_type
-  USE semi_empirical_utils,            ONLY: get_se_type
+  USE semi_empirical_utils,            ONLY: finalize_se_taper,&
+                                             get_se_type,&
+                                             initialize_se_taper
   USE sparse_matrix_types,             ONLY: &
        allocate_matrix_set, cp_sm_scale_and_add, cp_sm_sm_trace, &
        create_dbm_from_sm, deallocate_dbm_from_sm, deallocate_matrix, &
        get_block_node, mpsum_dbm, real_matrix_p_type, real_matrix_type, &
        set_matrix, transfer_matrix
-  USE taper_types,                     ONLY: taper_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -346,20 +348,21 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(se_int_control_type)                :: se_int_control
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
-    TYPE(taper_type), POINTER                :: taper
 
     failure  = .FALSE.
     enuclear = 0.0_dp
-    NULLIFY(dft_control,cell,force,particle_set,se_control,taper,atomic_kind_set)
+    NULLIFY(dft_control,cell,force,particle_set,se_control,se_taper,atomic_kind_set)
 
     CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, taper=taper,&
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
          energy=energy, error=error)
 
+    CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
     ! Parameters
     se_control => dft_control%qs_control%se_control
     anag       =  se_control%analytical_gradients
@@ -421,7 +424,7 @@ CONTAINS
 
                          ! Core-Core energy term
                          CALL corecore (se_kind_a,se_kind_b,rij,enuc=enuc,itype=itype,anag=anag,&
-                              se_int_control=se_int_control, taper=taper, error=error)
+                              se_int_control=se_int_control, se_taper=se_taper, error=error)
                          enuclear = enuclear + enuc
 
                          ! Residual integral (1/R^3) correction
@@ -440,7 +443,7 @@ CONTAINS
                             atom_b = atom_of_kind(jatom)
                             
                             CALL dcorecore (se_kind_a,se_kind_b,rij,denuc=force_ab,itype=itype,delta=delta,&
-                                 anag=anag,se_int_control=se_int_control,taper=taper,error=error)
+                                 anag=anag,se_int_control=se_int_control,se_taper=se_taper,error=error)
 
                             ! Residual integral (1/R^3) correction
                             IF (se_int_control%do_ewald_r3) THEN
@@ -478,6 +481,7 @@ CONTAINS
        energy%core_overlap = enuclear
     END IF
 
+    CALL finalize_se_taper(se_taper,error=error)
     CALL timestop(handle)
   END SUBROUTINE se_core_core_interaction
   
@@ -532,23 +536,24 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: ks_scp, pscp
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(se_int_control_type)                :: se_int_control
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
-    TYPE(taper_type), POINTER                :: taper
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control,cell,force,particle_set,diagmat_ks,diagmat_p,&
-               se_control,taper,pscp,ks_scp,scp_env)
+               se_control,se_taper,pscp,ks_scp,scp_env)
        
-       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, taper=taper,&
+       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, sab_2c=sab_2c, atomic_kind_set=atomic_kind_set, &
             particle_set=particle_set, error=error)
       
 
        ! Parameters
+       CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
        se_control  => dft_control%qs_control%se_control
        anag        =  se_control%analytical_gradients
        scp_nddo    =  se_control%scp
@@ -733,28 +738,28 @@ CONTAINS
                          IF      ( nspins == 1 ) THEN
                             CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
                                  pa_a, pb_a, ecore=ecore2, itype=itype, anag=anag, se_int_control=se_int_control,&
-                                 taper=taper, store_int_env=store_int_env, error=error)
+                                 se_taper=se_taper, store_int_env=store_int_env, error=error)
                          ELSE IF ( nspins == 2 ) THEN
                             CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
                                  pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&
-                                 se_int_control=se_int_control, taper=taper, store_int_env=store_int_env,&
+                                 se_int_control=se_int_control, se_taper=se_taper, store_int_env=store_int_env,&
                                  error=error)
                             CALL fock2_1el (se_kind_a,se_kind_b,rij, ksa_block_b, ksb_block_b,&
                                  pa_b, pb_b, ecore=ecore2, itype=itype, anag=anag, se_int_control=se_int_control,&
-                                 taper=taper, store_int_env=store_int_env, error=error)
+                                 se_taper=se_taper, store_int_env=store_int_env, error=error)
                          END IF
                          ! Coulomb Terms
                          IF      ( nspins == 1 ) THEN
                             CALL fock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, ksa_block_a, p_block_tot_b,&
-                                 ksb_block_a, factor=0.5_dp, anag=anag, se_int_control=se_int_control, taper=taper,&
+                                 ksb_block_a, factor=0.5_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper,&
                                  store_int_env=store_int_env, error=error)
                          ELSE IF ( nspins == 2 ) THEN
                             CALL fock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, ksa_block_a, p_block_tot_b,&
-                                 ksb_block_a, factor=1.0_dp, anag=anag, se_int_control=se_int_control, taper=taper,&
+                                 ksb_block_a, factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper,&
                                  store_int_env=store_int_env, error=error)
  
                             CALL fock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, ksa_block_b, p_block_tot_b,&
-                                 ksb_block_b, factor=1.0_dp, anag=anag, se_int_control=se_int_control, taper=taper,&
+                                 ksb_block_b, factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper,&
                                  store_int_env=store_int_env, error=error)
                          END IF
  
@@ -766,14 +771,14 @@ CONTAINS
                             force_ab = 0.0_dp
                             IF      ( nspins == 1 ) THEN
                                CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_a, pb_a, itype=itype, anag=anag,&
-                                    se_int_control=se_int_control, taper=taper, force=force_ab,&
+                                    se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
                                     delta=delta, error=error)
                             ELSE IF ( nspins == 2 ) THEN
                                CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_block_a, pb_block_a, itype=itype, anag=anag,&
-                                    se_int_control=se_int_control, taper=taper, force=force_ab, delta=delta,&
+                                    se_int_control=se_int_control, se_taper=se_taper, force=force_ab, delta=delta,&
                                     error=error)
                                CALL dfock2_1el (se_kind_a,se_kind_b,rij, pa_b, pb_b, itype=itype, anag=anag,&
-                                    se_int_control=se_int_control, taper=taper, force=force_ab, delta=delta,&
+                                    se_int_control=se_int_control, se_taper=se_taper, force=force_ab, delta=delta,&
                                     error=error)
                             END IF
 
@@ -791,15 +796,15 @@ CONTAINS
                             force_ab = 0._dp
                             IF      ( nspins == 1 ) THEN
                                CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.25_dp,&
-                                    anag=anag, se_int_control=se_int_control, taper=taper, force=force_ab, delta=delta,&
+                                    anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab, delta=delta,&
                                     error=error)
                             ELSE IF ( nspins == 2 ) THEN
                                CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp,&
-                                    anag=anag, se_int_control=se_int_control, taper=taper, force=force_ab, delta=delta,&
+                                    anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab, delta=delta,&
                                     error=error)
                                
                                CALL dfock2C(se_kind_a, se_kind_b, rij, switch, p_block_tot_a, p_block_tot_b, factor=0.50_dp,&
-                                    anag=anag, se_int_control=se_int_control, taper=taper, force=force_ab, delta=delta,&
+                                    anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab, delta=delta,&
                                     error=error)
                             END IF
                             IF ( switch ) THEN 
@@ -853,7 +858,7 @@ CONTAINS
        CALL mp_sum(ecore2,para_env%group)       
        energy%hartree = ecore2 - energy%core
     END IF
-    
+    CALL finalize_se_taper(se_taper,error=error)    
     CALL timestop(handle)
   END SUBROUTINE build_fock_matrix_coulomb
 
@@ -1592,22 +1597,22 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(se_int_control_type)                :: se_int_control
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
-    TYPE(taper_type), POINTER                :: taper
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(dft_control,cell,force,particle_set,se_control,taper)
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,cell=cell,taper=taper,&
+    NULLIFY(dft_control,cell,force,particle_set,se_control,se_taper)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,cell=cell,se_taper=se_taper,&
          para_env=para_env,error=error)
 
-    ! set values for tapering function
+    CALL initialize_se_taper(se_taper,exchange=.TRUE.,error=error)
     se_control => dft_control%qs_control%se_control
     anag       =  se_control%analytical_gradients
-
     nspins=dft_control%nspins
+
     CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
@@ -1717,16 +1722,16 @@ CONTAINS
                       ! Exchange Terms
                       IF      ( nspins == 1 ) THEN
                          CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a, ks_block_a,&
-                              factor=0.5_dp, anag=anag, se_int_control=se_int_control, taper=taper, store_int_env=store_int_env,&
-                              error=error)
+                              factor=0.5_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, &
+                              store_int_env=store_int_env, error=error)
                       ELSE IF ( nspins == 2 ) THEN
                          CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a, ks_block_a,&
-                              factor=1.0_dp, anag=anag, se_int_control=se_int_control, taper=taper, store_int_env=store_int_env,&
-                              error=error)
+                              factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, &
+                              store_int_env=store_int_env, error=error)
                          
                          CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_b, ks_block_b,&
-                              factor=1.0_dp, anag=anag, se_int_control=se_int_control, taper=taper, store_int_env=store_int_env,&
-                              error=error)
+                              factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, &
+                              store_int_env=store_int_env, error=error)
                       END IF
                       IF(calculate_forces) THEN
                          atom_a = atom_of_kind(iatom)
@@ -1734,15 +1739,15 @@ CONTAINS
                          force_ab = 0.0_dp
                          IF      ( nspins == 1 ) THEN
                             CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a,&
-                                 factor=0.5_dp, anag=anag, se_int_control=se_int_control, taper=taper, force=force_ab,&
+                                 factor=0.5_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
                                  delta=delta, error=error)
                          ELSE IF ( nspins == 2 ) THEN
                             CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a,&
-                                 factor=1.0_dp, anag=anag, se_int_control=se_int_control, taper=taper, force=force_ab,&
+                                 factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
                                  delta=delta, error=error)
                             
                             CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_b,&
-                                 factor=1.0_dp, anag=anag, se_int_control=se_int_control, taper=taper, force=force_ab,&
+                                 factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
                                  delta=delta, error=error)
                          END IF
                          IF (switch) THEN
@@ -1771,6 +1776,7 @@ CONTAINS
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
+    CALL finalize_se_taper(se_taper,error=error)
     CALL timestop(handle)
     
   END SUBROUTINE build_fock_matrix_exchange
@@ -1781,7 +1787,7 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2_1el (sepi, sepj, rij, ksi_block, ksj_block, pi_block, pj_block,&
-       ecore, itype, anag, se_int_control, taper, store_int_env, error)
+       ecore, itype, anag, se_int_control, se_taper, store_int_env, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     REAL(KIND=dp), &
@@ -1800,7 +1806,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1814,7 +1820,7 @@ CONTAINS
     failure = .FALSE.
     ! Compute integrals
     CALL rotnuc (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype, anag=anag,&
-         se_int_control=se_int_control, taper=taper, store_int_env=store_int_env,&
+         se_int_control=se_int_control, se_taper=se_taper, store_int_env=store_int_env,&
          error=error)
     !
     ! Add the electron-nuclear attraction term for atom sepi
@@ -1861,7 +1867,7 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE dfock2_1el (sepi, sepj, rij, pi_block, pj_block, itype, anag,&
-       se_int_control, taper, force, delta, error)
+       se_int_control, se_taper, force, delta, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     REAL(KIND=dp), &
@@ -1873,7 +1879,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force
     REAL(KIND=dp), INTENT(IN)                :: delta
@@ -1890,7 +1896,7 @@ CONTAINS
     failure = .FALSE.
     ! Compute integrals
     CALL drotnuc (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype, anag=anag,&
-         se_int_control=se_int_control, taper=taper, delta=delta, error=error)
+         se_int_control=se_int_control, se_taper=se_taper, delta=delta, error=error)
     !
     ! Add the electron-nuclear attraction term for atom sepi
     !
@@ -2009,7 +2015,7 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2C(sepi, sepj, rij, switch, pi_tot, fi_mat, pj_tot, fj_mat, &
-       factor, anag, se_int_control, taper, store_int_env, error)
+       factor, anag, se_int_control, se_taper, store_int_env, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
@@ -2026,7 +2032,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: factor
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2042,12 +2048,12 @@ CONTAINS
     failure = .FALSE.
     ! Evaluate integrals
     IF (.NOT.switch) THEN
-       CALL rotint (sepi,sepj, rij,w,anag=anag,se_int_control=se_int_control,taper=taper,&
-            store_int_env=store_int_env, error=error)
+       CALL rotint (sepi,sepj, rij,w,anag=anag,se_int_control=se_int_control,&
+            se_taper=se_taper,store_int_env=store_int_env, error=error)
     ELSE
        irij = -rij
-       CALL rotint (sepj,sepi,irij,w,anag=anag,se_int_control=se_int_control,taper=taper,&
-            store_int_env=store_int_env, error=error)
+       CALL rotint (sepj,sepi,irij,w,anag=anag,se_int_control=se_int_control,&
+            se_taper=se_taper,store_int_env=store_int_env, error=error)
     END IF
     kr = 0
     natorb(1) = sepi%natorb
@@ -2099,7 +2105,7 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE dfock2C(sepi, sepj, rij, switch, pi_tot, pj_tot, factor, anag,&
-       se_int_control, taper, force, delta, error)
+       se_int_control, se_taper, force, delta, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
@@ -2108,7 +2114,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: factor
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force
     REAL(KIND=dp), INTENT(IN)                :: delta
@@ -2128,11 +2134,11 @@ CONTAINS
     ! Evaluate integrals' derivatives
     IF (.NOT.switch) THEN
        CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,se_int_control=se_int_control,&
-            taper=taper,error=error)
+            se_taper=se_taper,error=error)
     ELSE
        irij = -rij
        CALL drotint (sepj,sepi,irij,dw,delta,anag=anag,se_int_control=se_int_control,&
-            taper=taper,error=error)
+            se_taper=se_taper,error=error)
     END IF
 
     kr = 0
@@ -2183,7 +2189,7 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2E(sepi, sepj, rij, switch, isize, pi_tot, pi_mat, fi_mat, factor,&
-       anag, se_int_control, taper, store_int_env, error)
+       anag, se_int_control, se_taper, store_int_env, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
@@ -2199,7 +2205,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: factor
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2215,12 +2221,12 @@ CONTAINS
     failure = .FALSE.
     ! Evaluate integrals
     IF (.NOT.switch) THEN
-       CALL rotint (sepi,sepj, rij,w,anag=anag,se_int_control=se_int_control,taper=taper,&
-            store_int_env=store_int_env, error=error)
+       CALL rotint (sepi,sepj, rij,w,anag=anag,se_int_control=se_int_control,&
+            se_taper=se_taper,store_int_env=store_int_env, error=error)
     ELSE
        irij = -rij
-       CALL rotint (sepj,sepi,irij,w,anag=anag,se_int_control=se_int_control,taper=taper,&
-            store_int_env=store_int_env, error=error)
+       CALL rotint (sepj,sepi,irij,w,anag=anag,se_int_control=se_int_control,&
+            se_taper=se_taper,store_int_env=store_int_env, error=error)
     END IF
     kr = 0
     natorb(1) = sepi%natorb
@@ -2266,7 +2272,7 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE dfock2E(sepi, sepj, rij, switch, isize, pi_tot, pi_mat, factor, anag,&
-       se_int_control, taper, force, delta, error)
+       se_int_control, se_taper, force, delta, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
@@ -2279,7 +2285,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: factor
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force
     REAL(KIND=dp), INTENT(IN)                :: delta
@@ -2300,11 +2306,11 @@ CONTAINS
     ! Evaluate integrals' derivatives
     IF (.NOT.switch) THEN
        CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,se_int_control=se_int_control,&
-            taper=taper,error=error)
+            se_taper=se_taper,error=error)
     ELSE
        irij = -rij
        CALL drotint (sepj,sepi,irij,dw,delta,anag=anag,se_int_control=se_int_control,&
-            taper=taper,error=error)
+            se_taper=se_taper,error=error)
     END IF
 
     kr = 0

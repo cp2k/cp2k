@@ -22,8 +22,8 @@ MODULE semi_empirical_int_utils
   USE semi_empirical_types,            ONLY: rotmat_type,&
                                              se_int_control_type,&
                                              se_int_screen_type,&
+                                             se_taper_type,&
                                              semi_empirical_type
-  USE taper_types,                     ONLY: taper_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -105,7 +105,7 @@ CONTAINS
                       itype, dcharg_int_nri, error)
 
     ! Handle the derivative of the Tapering term
-    IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
+    IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype==do_method_pchg)) THEN
        dfs = ijkl_sp_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
             se_int_control%integral_screening, .FALSE., itype, dcharg_int_nri_fs,&
             error)
@@ -228,6 +228,7 @@ CONTAINS
        dij = 0.0_dp
        dkl = 0.0_dp
        add = 0.0_dp
+       fact_screen = 0.0_dp
        DO l1 = l1min, l1max
           IF (l1 /= 0) THEN
              dij = sepi%cs(lij)*fact_ij
@@ -243,7 +244,7 @@ CONTAINS
                 ccc = clm_sp(ij, l1, m) * clm_sp(kl, l2, m)
                 IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
                    mm   = ABS (m)
-                   chrg = eval(r, l1, l2, clm_sp(ij, l1, m), clm_sp(kl, l2, m), dij, dkl, add, error)
+                   chrg = eval(r, l1, l2, clm_sp(ij, l1, m), clm_sp(kl, l2, m), dij, dkl, add, fact_screen, error)
                    s1   = s1 + chrg
                 END IF
              END DO
@@ -927,7 +928,7 @@ CONTAINS
                      itype, dcharg_int_ri, error)
 
     ! Handle the derivative of the Tapering term
-    IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
+    IF ((se_int_control%integral_screening==do_se_IS_kdso_d).AND.(itype==do_method_pchg)) THEN
        dfs = ijkl_d_low(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, se_int_screen,&
             se_int_control%integral_screening, .FALSE., itype, dcharg_int_ri_fs,&
             error)
@@ -1053,6 +1054,7 @@ CONTAINS
        dij = 0.0_dp
        dkl = 0.0_dp
        add = 0.0_dp
+       fact_screen = 0.0_dp
        DO l1 = l1min, l1max
           IF (l1 /= 0) THEN
              dij = sepi%cs(lij)
@@ -1068,7 +1070,7 @@ CONTAINS
                 ccc = clm_d(ij, l1, m) * clm_d(kl, l2, m)
                 IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
                    mm   = ABS (m)
-                   chrg = eval(r, l1, l2, mm, dij, dkl, add, error)
+                   chrg = eval(r, l1, l2, mm, dij, dkl, add, fact_screen, error)
                    s1   = s1 + chrg * ccc
                 END IF
              END DO
@@ -1884,13 +1886,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE rot_2el_2c_first (sepi, sepj, rijv, se_int_control, taper,&
+  RECURSIVE SUBROUTINE rot_2el_2c_first (sepi, sepj, rijv, se_int_control, se_taper,&
        invert, ii, kk, rep, logv, ij_matrix, v, lgrad, rep_d, v_d, logv_d, drij,&
        error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rijv
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     LOGICAL, INTENT(IN)                      :: invert
     INTEGER, INTENT(IN)                      :: ii, kk
     REAL(KIND=dp), DIMENSION(491), &
@@ -2211,7 +2213,7 @@ CONTAINS
           END DO
        END DO
        IF (debug_this_module) THEN
-          CALL rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, taper, invert, ii, kk, v_d, error)
+          CALL rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, invert, ii, kk, v_d, error)
        END IF
     END IF
   END SUBROUTINE rot_2el_2c_first

@@ -84,7 +84,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Taper functions
 ! *****************************************************************************
-  FUNCTION taper_eval (taper,rij, error) RESULT(ft)
+  FUNCTION taper_eval (taper, rij, error) RESULT(ft)
     TYPE(taper_type), POINTER                :: taper
     REAL(KIND=dp), INTENT(IN)                :: rij
     TYPE(cp_error_type), INTENT(inout)       :: error

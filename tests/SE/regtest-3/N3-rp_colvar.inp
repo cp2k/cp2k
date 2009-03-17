@@ -7,9 +7,15 @@
       EPS_DEFAULT 1.0E-10
       &SE
         ANALYTICAL_GRADIENTS T
-        RC_INTERACTION [angstrom]  4.9325
-        RC_COULOMB [angstrom]      12.0
-        RC_RANGE                  1.0
+        &COULOMB
+          CUTOFF   [angstrom]     12.0
+          RC_RANGE     1.0
+        &END
+        &EXCHANGE
+          CUTOFF   [angstrom]     4.9325
+          RC_TAPER [angstrom]     12.0
+          RC_RANGE      1.0
+        &END
       &END
     &END QS
     &SCF

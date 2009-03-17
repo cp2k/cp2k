@@ -774,7 +774,7 @@ CONTAINS
        ALLOCATE (c_radius(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        semi_present = .TRUE.
-       c_radius = qs_env%dft_control%qs_control%se_control%rc_coulomb
+       c_radius = qs_env%dft_control%qs_control%se_control%cutoff_cou
 
        ! Build the neighbor lists for the Hartree terms
        CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&

@@ -2284,25 +2284,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RC_INTERACTION",&
-            description="Atomic Cutoff Radius for Exchange and Core Hamiltonian terms.",&
-            usage="RC_INTERACTION {real} ",unit_str="bohr",default_r_val=24._dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RC_COULOMB",&
-            description="Atomic Cutoff Radius for Coulomb interactions.",&
-            usage="RC_COULOMB {real} ",unit_str="bohr",default_r_val=24._dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RC_RANGE",&
-            description="Range of cutoff switch function (tapering): 0.5*(1-TANH((r-r0)/RC_RANGE)), "//&
-            "where r0=2*RC_COULOMB-20*RC_RANGE. ",&
-            usage="RC_RANGE {real} ",unit_str="bohr",default_r_val=0.0_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="INTEGRAL_SCREENING",&
             description="Specifies the functional form for the ",&
             usage="INTEGRAL_SCREENING (KDSO|KDSO-D|SLATER)",&
@@ -2342,13 +2323,25 @@ CONTAINS
 
        CALL keyword_create(keyword, name="FORCE_KDSO-D_EXCHANGE",&
             description="This keywords forces the usage of the KDSO-D integral screening "//&
-            "for the Exchange integrals.",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+            "for the Exchange integrals (default is to apply the screening only to the "//&
+            "Coulomb integrals.",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-            
 
        NULLIFY(subsection)
+       CALL create_coulomb_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_exchange_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_screening_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_neighbor_lists_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -2363,6 +2356,149 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_se_control_section
+
+! *****************************************************************************
+!> \brief Create the COULOMB se section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino]
+!> \date  03.2009
+! *****************************************************************************
+  SUBROUTINE create_coulomb_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_coulomb_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="COULOMB",&
+            description="Setup parameters for the evaluation of the COULOMB term in SE "//&
+            "calculations.", n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="CUTOFF",&
+            description="Atomic Cutoff Radius Cutoff for the evaluation of the  Coulomb integrals. ",&
+            usage="CUTOFF {real} ",unit_str="bohr",default_r_val=24.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RC_TAPER",&
+            description="Atomic Cutoff Radius Cutoff for Tapering Coulomb integrals. "//&
+            "If not specified it assumes the same value specified for the CUTOFF.",&
+            usage="RC_TAPER {real} ",unit_str="bohr",type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RC_RANGE",&
+            description="Range of cutoff switch function (tapering): 0.5*(1-TANH((r-r0)/RC_RANGE)), "//&
+            "where r0=2*RC_TAPER-20*RC_RANGE.",&
+            usage="RC_RANGE {real} ",unit_str="bohr",default_r_val=0.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+    END IF
+  END SUBROUTINE create_coulomb_section
+
+! *****************************************************************************
+!> \brief Create the EXCHANGE se section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino]
+!> \date  03.2009
+! *****************************************************************************
+  SUBROUTINE create_exchange_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_exchange_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="EXCHANGE",&
+            description="Setup parameters for the evaluation of the EXCHANGE and "//&
+            " core Hamiltonian terms in SE calculations.", n_keywords=0, n_subsections=1,&
+            repeats=.FALSE., required=.FALSE.,error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="CUTOFF",&
+            description="Atomic Cutoff Radius Cutoff for the evaluation of the Exchange integrals. ",&
+            usage="CUTOFF {real} ",unit_str="bohr",default_r_val=24.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RC_TAPER",&
+            description="Atomic Cutoff Radius Cutoff for Tapering Exchange integrals. "//&
+            "If not specified it assumes the same value specified for the CUTOFF.",&
+            usage="RC_TAPER {real} ",unit_str="bohr",type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RC_RANGE",&
+            description="Range of cutoff switch function (tapering): 0.5*(1-TANH((r-r0)/RC_RANGE)), "//&
+            "where r0=2*RC_TAPER-20*RC_RANGE.",&
+            usage="RC_RANGE {real} ",unit_str="bohr",default_r_val=0.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+    END IF
+  END SUBROUTINE create_exchange_section
+
+! *****************************************************************************
+!> \brief Create the SCREENING se section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino]
+!> \date  03.2009
+! *****************************************************************************
+  SUBROUTINE create_screening_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_screening_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="SCREENING",&
+            description="Setup parameters for the tapering of the Coulomb/Exchange Screening in "//&
+            "KDSO-D integral scheme,", n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="RC_TAPER",&
+            description="Atomic Cutoff Radius Cutoff for Tapering the screening term. ",&
+            usage="RC_TAPER {real} ",unit_str="bohr",default_r_val=12.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RC_RANGE",&
+            description="Range of cutoff switch function (tapering): 0.5*(1-TANH((r-r0)/RC_RANGE)), "//&
+            "where r0=2*RC_TAPER-20*RC_RANGE.",&
+            usage="RC_RANGE {real} ",unit_str="bohr",default_r_val=0.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+    END IF
+  END SUBROUTINE create_screening_section
 
 ! *****************************************************************************
 !> \brief Create the print se section

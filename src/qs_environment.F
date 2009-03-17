@@ -164,8 +164,8 @@ MODULE qs_environment
   USE semi_empirical_mpole_types,      ONLY: nddo_mpole_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_create,&
                                              semi_empirical_si_type
-  USE taper_types,                     ONLY: taper_create,&
-                                             taper_type
+  USE semi_empirical_types,            ONLY: se_taper_create,&
+                                             se_taper_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -403,13 +403,13 @@ CONTAINS
     TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(section_vals_type), POINTER :: dft_section, et_becke_section, &
       et_coupling_section, et_ddapc_section, ewald_section, poisson_section, &
       print_section, qs_section, se_section, vdw_section, xc_fun_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_si_type), POINTER    :: se_store_int_env
-    TYPE(taper_type), POINTER                :: taper
 
     CALL timeset(routineN,handle)
     NULLIFY(logger)
@@ -428,7 +428,7 @@ CONTAINS
     END IF
 
     ! Initialise the Quickstep environment
-    NULLIFY (mos, taper, mos_aux_fit)
+    NULLIFY (mos, se_taper, mos_aux_fit)
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (force)
@@ -681,22 +681,22 @@ CONTAINS
        se_section => section_vals_get_subs_vals(qs_section,"SE",error=error)
        se_control => dft_control%qs_control%se_control
        ! Make interaction radius compatible with unit cell
-       rc = se_control%rc_interaction
+       rc = se_control%cutoff_exc
        IF(cell%perd(1)==1) rc = MIN(rc,0.25_dp*plane_distance(1,0,0,cell))
        IF(cell%perd(2)==1) rc = MIN(rc,0.25_dp*plane_distance(0,1,0,cell))
        IF(cell%perd(3)==1) rc = MIN(rc,0.25_dp*plane_distance(0,0,1,cell))
-       IF (rc /= se_control%rc_interaction) THEN
+       IF (rc /= se_control%cutoff_exc) THEN
           IF (output_unit>0) THEN
              WRITE(output_unit,*)
              WRITE(output_unit,'(A,T34,A)')     " WARNING|",&
                   " Integral interaction cutoff has been redefined"
              WRITE(output_unit,'(A,T71,F10.3)') " WARNING| Old value [a.u.]",&
-                  se_control%rc_interaction
+                  se_control%cutoff_exc
              WRITE(output_unit,'(A,T71,F10.3)') " WARNING| New value [a.u.]",rc
              WRITE(output_unit,*)
           END IF
        END IF
-       se_control%rc_interaction = rc
+       se_control%cutoff_exc = rc
        SELECT CASE ( dft_control%qs_control%method_id)
        CASE DEFAULT
        CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pm3,&
@@ -737,8 +737,11 @@ CONTAINS
                dft_control%qs_control%method_id,error)
        END IF
        ! Taper function
-       CALL taper_create(taper, se_control%rc_coulomb, se_control%rc_range, error)
-       CALL set_qs_env(qs_env, taper=taper, error=error)
+       CALL se_taper_create(se_taper, se_control%integral_screening, &
+            se_control%taper_cou, se_control%range_cou, &
+            se_control%taper_exc, se_control%range_exc, &
+            se_control%taper_scr, se_control%range_scr, error)
+       CALL set_qs_env(qs_env, se_taper=se_taper, error=error)
        ! Store integral environment
        CALL semi_empirical_si_create(se_store_int_env, se_section, error)
        CALL set_qs_env(qs_env, se_store_int_env=se_store_int_env, error=error)

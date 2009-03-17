@@ -376,7 +376,7 @@ CPSourceFileRef,&
     INTEGER                                  :: itmp, j, jj, k, n_rep, n_var, &
                                                 nrep, stat
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: failure, was_present
+    LOGICAL                                  :: explicit, failure, was_present
     REAL(dp)                                 :: tmpsqrt, value
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
@@ -626,17 +626,43 @@ CPSourceFileRef,&
             l_val=qs_control%se_control%analytical_gradients,error=error)
        CALL section_vals_val_get(se_section,"FORCE_KDSO-D_EXCHANGE",&
             l_val=qs_control%se_control%force_kdsod_EX,error=error)
-       CALL section_vals_val_get(se_section,"RC_INTERACTION",&
-            r_val=qs_control%se_control%rc_interaction,error=error)
-       CALL section_vals_val_get(se_section,"RC_COULOMB",&
-            r_val=qs_control%se_control%rc_coulomb,error=error)
-       CALL section_vals_val_get(se_section,"RC_RANGE",&
-            r_val=qs_control%se_control%rc_range,error=error)
-       CALL section_vals_val_get(se_section,"SCP",&
-            l_val=qs_control%se_control%scp,error=error)
        ! Integral Screening
        CALL section_vals_val_get(se_section,"INTEGRAL_SCREENING",&
             i_val=qs_control%se_control%integral_screening,error=error)
+       ! Coulomb
+       CALL section_vals_val_get(se_section,"COULOMB%CUTOFF",&
+            r_val=qs_control%se_control%cutoff_cou,error=error)
+       qs_control%se_control%taper_cou = qs_control%se_control%cutoff_cou
+       CALL section_vals_val_get(se_section,"COULOMB%RC_TAPER",&
+            explicit=explicit, error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(se_section,"COULOMB%RC_TAPER",&
+               r_val=qs_control%se_control%taper_cou, error=error)
+       END IF
+       CALL section_vals_val_get(se_section,"COULOMB%RC_RANGE",&
+            r_val=qs_control%se_control%range_cou,error=error)
+       ! Exchange
+       CALL section_vals_val_get(se_section,"EXCHANGE%CUTOFF",&
+            r_val=qs_control%se_control%cutoff_exc,error=error)
+       qs_control%se_control%taper_exc = qs_control%se_control%cutoff_exc
+       CALL section_vals_val_get(se_section,"EXCHANGE%RC_TAPER",&
+            explicit=explicit, error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(se_section,"EXCHANGE%RC_TAPER",&
+               r_val=qs_control%se_control%taper_exc, error=error)
+       END IF
+       CALL section_vals_val_get(se_section,"EXCHANGE%RC_RANGE",&
+            r_val=qs_control%se_control%range_exc,error=error)
+       ! Screening (only if the integral scheme is of dumped type)
+       IF (qs_control%se_control%integral_screening==do_se_IS_kdso_d) THEN
+          CALL section_vals_val_get(se_section,"SCREENING%RC_TAPER",&
+               r_val=qs_control%se_control%taper_scr, error=error)
+          CALL section_vals_val_get(se_section,"SCREENING%RC_RANGE",&
+               r_val=qs_control%se_control%range_scr,error=error)
+       END IF
+       ! SCP
+       CALL section_vals_val_get(se_section,"SCP",&
+            l_val=qs_control%se_control%scp,error=error)
        ! Periodic Type Calculation
        CALL section_vals_val_get(se_section,"PERIODIC",&
             i_val=qs_control%se_control%periodic_type,error=error)

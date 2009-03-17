@@ -15,9 +15,14 @@
     &QS
       METHOD PM6
       &SE
-       RC_INTERACTION [angstrom] 50.0
-       RC_COULOMB     [angstrom] 50.0
-       RC_RANGE       [angstrom]  0.0
+       &COULOMB
+         CUTOFF   [angstrom] 50.0
+         RC_RANGE [angstrom]  0.0
+       &END
+       &EXCHANGE
+         CUTOFF   [angstrom] 50.0
+         RC_RANGE [angstrom]  0.0
+       &END
       &END
     &END QS
     &SCF

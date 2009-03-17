@@ -6,7 +6,12 @@
     MULTIPLICITY 1
     &QS
       &SE
-        RC_RANGE 0.1
+        &COULOMB
+          RC_RANGE [bohr] 0.1
+        &END
+        &EXCHANGE
+          RC_RANGE [bohr]  0.1
+        &END
       &END
       METHOD PM6
       EXTRAPOLATION ASPC

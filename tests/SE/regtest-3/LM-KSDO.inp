@@ -6,9 +6,14 @@
       METHOD MNDO
       &SE
         INTEGRAL_SCREENING KDSO
-        RC_COULOMB [angstrom]     50.0
-        RC_INTERACTION [angstrom] 50.0
-        RC_RANGE   [angstrom]      0.1
+        &COULOMB
+          CUTOFF   [angstrom]    50.0
+          RC_RANGE [angstrom]     0.1
+        &END
+        &EXCHANGE
+          CUTOFF   [angstrom]    50.0
+          RC_RANGE [angstrom]     0.1
+        &END
         &PRINT
           &EWALD_INFO
           &END

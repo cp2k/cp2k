@@ -29,7 +29,8 @@ MODULE semi_empirical_utils
                                              pm6_default_parameter,&
                                              pnnl_default_parameter,&
                                              rm1_default_parameter
-  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_types,            ONLY: se_taper_type,&
+                                             semi_empirical_type
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
@@ -39,9 +40,56 @@ MODULE semi_empirical_utils
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_utils'
 
-  PUBLIC :: init_se_param, se_param_set_default, get_se_type
+  PUBLIC :: init_se_param, se_param_set_default, get_se_type,&
+            initialize_se_taper, finalize_se_taper
 
 CONTAINS
+! *****************************************************************************
+!> \brief  Initializes the semi-empirical taper for a chunk calculation
+!> \author Teodoro Laino [tlaino] - 03.2009 
+! *****************************************************************************
+  SUBROUTINE initialize_se_taper(se_taper, coulomb, exchange, error)
+    TYPE(se_taper_type), POINTER             :: se_taper
+    LOGICAL, INTENT(IN), OPTIONAL            :: coulomb, exchange
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_se_taper', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: check, failure, l_coulomb, &
+                                                l_exchange
+
+    failure = .FALSE.
+    check = PRESENT(coulomb).NEQV.PRESENT(exchange)
+    CPPrecondition(check,cp_failure_level,routineP,error,failure)
+    check = .NOT.ASSOCIATED(se_taper%taper)
+    CPPrecondition(check,cp_failure_level,routineP,error,failure)
+    l_coulomb  = .FALSE.
+    l_exchange = .FALSE.
+    IF (PRESENT(coulomb))  l_coulomb  = coulomb
+    IF (PRESENT(exchange)) l_exchange = exchange
+    IF (l_coulomb)  se_taper%taper => se_taper%taper_cou
+    IF (l_exchange) se_taper%taper => se_taper%taper_exc
+  END SUBROUTINE initialize_se_taper
+
+! *****************************************************************************
+!> \brief  Finalizes the semi-empirical taper for a chunk calculation
+!> \author Teodoro Laino [tlaino] - 03.2009 
+! *****************************************************************************
+  SUBROUTINE finalize_se_taper(se_taper, error)
+    TYPE(se_taper_type), POINTER             :: se_taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'finalize_se_taper', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: check, failure
+
+    failure = .FALSE.
+    check = ASSOCIATED(se_taper%taper)
+    CPPrecondition(check,cp_failure_level,routineP,error,failure)
+    NULLIFY(se_taper%taper)
+  END SUBROUTINE finalize_se_taper
 
 ! *****************************************************************************
 !> \brief Initialize semi_empirical type

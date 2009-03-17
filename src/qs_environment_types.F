@@ -159,10 +159,10 @@ MODULE qs_environment_types
                                              nddo_mpole_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_release,&
                                              semi_empirical_si_type
+  USE semi_empirical_types,            ONLY: se_taper_release,&
+                                             se_taper_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
-  USE taper_types,                     ONLY: taper_release,&
-                                             taper_type
   USE task_list_types,                 ONLY: deallocate_task_list,&
                                              task_list_type
   USE timings,                         ONLY: timeset,&
@@ -372,7 +372,7 @@ MODULE qs_environment_types
     TYPE(ewald_environment_type),POINTER                  :: ewald_env
     TYPE(ewald_pw_type),POINTER                           :: ewald_pw
     ! Semi-empirical types
-    TYPE(taper_type), POINTER                             :: taper
+    TYPE(se_taper_type), POINTER                          :: se_taper
     TYPE(semi_empirical_si_type),POINTER                  :: se_store_int_env
     TYPE(nddo_mpole_type), POINTER                        :: se_nddo_mpole
     TYPE(fist_nonbond_env_type), POINTER                  :: se_nonbond_env
@@ -411,7 +411,8 @@ CONTAINS
        VH_3c_list,rho0_s_rs,rho0_s_gs,requires_mo_derivs,mo_derivs,mo_derivs_aux_fit,tddfpt_control,&
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
-       scp_env,taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, wfn_fitting_env, dispersion_env, error)
+       scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, wfn_fitting_env, &
+       dispersion_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -527,7 +528,7 @@ CONTAINS
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
     TYPE(scp_environment_type), OPTIONAL, &
       POINTER                                :: scp_env
-    TYPE(taper_type), OPTIONAL, POINTER      :: taper
+    TYPE(se_taper_type), OPTIONAL, POINTER   :: se_taper
     TYPE(semi_empirical_si_type), OPTIONAL, &
       POINTER                                :: se_store_int_env
     TYPE(nddo_mpole_type), OPTIONAL, POINTER :: se_nddo_mpole
@@ -623,7 +624,7 @@ CONTAINS
     IF (PRESENT(tddfpt_control)) tddfpt_control => qs_env%dft_control%tddfpt_control
     IF (PRESENT(linres_control)) linres_control => qs_env%linres_control
     IF (PRESENT(virial)) virial => qs_env%virial
-    IF (PRESENT(taper)) taper => qs_env%taper
+    IF (PRESENT(se_taper)) se_taper => qs_env%se_taper
     IF (PRESENT(se_store_int_env)) se_store_int_env => qs_env%se_store_int_env
     IF (PRESENT(se_nddo_mpole)) se_nddo_mpole => qs_env%se_nddo_mpole
     IF (PRESENT(se_nonbond_env)) se_nonbond_env => qs_env%se_nonbond_env
@@ -774,7 +775,7 @@ CONTAINS
     NULLIFY (qs_env%task_list_aux_fit)
     NULLIFY (qs_env%task_list_soft)
     NULLIFY (qs_env%scp_env)
-    NULLIFY (qs_env%taper)
+    NULLIFY (qs_env%se_taper)
     NULLIFY (qs_env%se_store_int_env)
     NULLIFY (qs_env%se_nddo_mpole)
     NULLIFY (qs_env%se_nonbond_env)
@@ -824,7 +825,8 @@ CONTAINS
        rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,requires_mo_derivs,mo_derivs,mo_derivs_aux_fit,&
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
-       scp_env,taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,wfn_fitting_env,dispersion_env,error)
+       scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,wfn_fitting_env,&
+       dispersion_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
@@ -916,7 +918,7 @@ CONTAINS
       DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
     TYPE(scp_environment_type), OPTIONAL, &
       POINTER                                :: scp_env
-    TYPE(taper_type), OPTIONAL, POINTER      :: taper
+    TYPE(se_taper_type), OPTIONAL, POINTER   :: se_taper
     TYPE(semi_empirical_si_type), OPTIONAL, &
       POINTER                                :: se_store_int_env
     TYPE(nddo_mpole_type), OPTIONAL, POINTER :: se_nddo_mpole
@@ -1163,9 +1165,9 @@ CONTAINS
       CALL scp_env_release(qs_env%scp_env,error=error)
       qs_env%scp_env => scp_env
     END IF
-    IF (PRESENT(taper)) THEN
-       CALL taper_release(qs_env%taper,error=error)
-       qs_env%taper => taper
+    IF (PRESENT(se_taper)) THEN
+       CALL se_taper_release(qs_env%se_taper,error=error)
+       qs_env%se_taper => se_taper
     END IF
     IF (PRESENT(se_store_int_env)) THEN
        CALL semi_empirical_si_release(qs_env%se_store_int_env,error=error)
@@ -1533,8 +1535,8 @@ CONTAINS
           IF (ASSOCIATED(qs_env%scp_env)) THEN
              CALL scp_env_release ( qs_env % scp_env, error )
           END IF
-          IF (ASSOCIATED(qs_env%taper)) THEN
-             CALL taper_release(qs_env%taper, error)
+          IF (ASSOCIATED(qs_env%se_taper)) THEN
+             CALL se_taper_release(qs_env%se_taper, error)
           END IF
           IF (ASSOCIATED(qs_env%se_store_int_env)) THEN
              CALL semi_empirical_si_release(qs_env%se_store_int_env, error)

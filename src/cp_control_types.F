@@ -85,9 +85,10 @@ MODULE cp_control_types
      LOGICAL               :: scp
      INTEGER               :: integral_screening, periodic_type
      REAL(KIND = dp)       :: delta
-     REAL(KIND = dp)       :: rc_interaction
-     REAL(KIND = dp)       :: rc_coulomb
-     REAL(KIND = dp)       :: rc_range
+     ! Parameters controlling the evaluation of the integrals
+     REAL(KIND = dp)       :: cutoff_cou, taper_cou, range_cou
+     REAL(KIND = dp)       :: cutoff_exc, taper_exc, range_exc
+     REAL(KIND = dp)       :: taper_scr , range_scr
   END TYPE semi_empirical_control_type
 
 ! *****************************************************************************

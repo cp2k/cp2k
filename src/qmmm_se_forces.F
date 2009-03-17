@@ -36,6 +36,7 @@ MODULE qmmm_se_forces
                                              drotnuc
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              se_int_control_type,&
+                                             se_taper_type,&
                                              semi_empirical_create,&
                                              semi_empirical_release,&
                                              semi_empirical_type,&
@@ -44,7 +45,6 @@ MODULE qmmm_se_forces
                                              se_param_set_default
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type
-  USE taper_types,                     ONLY: taper_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -98,17 +98,17 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p
     TYPE(se_int_control_type)                :: se_int_control
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
-    TYPE(taper_type), POINTER                :: taper
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
     IF (calc_force) THEN
-       NULLIFY (rho, atomic_kind_set, taper)
+       NULLIFY (rho, atomic_kind_set, se_taper)
        NULLIFY (se_kind_a, se_kind_mm)
        CALL get_qs_env(qs_env=qs_env,&
                        rho=rho,&
-                       taper=taper,&
+                       se_taper=se_taper,&
                        atomic_kind_set=atomic_kind_set,&
                        ks_qmmm_env=ks_qmmm_env_loc,&
                        dft_control=dft_control,error=error)
@@ -176,7 +176,7 @@ CONTAINS
                                                  para_env,&
                                                  Forces,&
                                                  Forces_QM(:,iqm),&
-                                                 taper,&
+                                                 se_taper,&
                                                  se_int_control,&
                                                  anag,&
                                                  delta,&
@@ -199,7 +199,7 @@ CONTAINS
                                                     para_env,&
                                                     Forces_added_charges,&
                                                     Forces_QM(:,iqm),&
-                                                    taper,&
+                                                    se_taper,&
                                                     se_int_control,&
                                                     anag,&
                                                     delta,&
@@ -245,7 +245,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE deriv_se_qmmm_matrix_low(p_block_a, se_kind_a, se_kind_mm,&
        potentials, mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
-       num_mm_atoms, mm_cell, IndQM, itype, para_env, forces, forces_qm, taper,&
+       num_mm_atoms, mm_cell, IndQM, itype, para_env, forces, forces_qm, se_taper,&
        se_int_control, anag, delta, qmmm_spherical_cutoff, error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block_a
@@ -263,7 +263,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: forces_qm
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     LOGICAL, INTENT(IN)                      :: anag
     REAL(KIND=dp), INTENT(IN)                :: delta, &
@@ -304,9 +304,11 @@ CONTAINS
           IF (ABS(se_kind_mm%zeff)<=EPSILON(0.0_dp)) CYCLE
           ! Integrals derivatives involving QM - MM atoms
           CALL drotnuc(se_kind_a, se_kind_mm, rij, itype=itype, de1b=de1b,&
-               se_int_control=se_int_control, anag=anag, delta=delta, taper=taper, error=error)
+               se_int_control=se_int_control, anag=anag, delta=delta, &
+               se_taper=se_taper, error=error)
           CALL dcorecore(se_kind_a, se_kind_mm, rij, itype=itype, denuc=denuc,&
-               se_int_control=se_int_control, anag=anag, delta=delta, taper=taper, error=error)
+               se_int_control=se_int_control, anag=anag, delta=delta, &
+               se_taper=se_taper, error=error)
           ! Nucler - Nuclear term
           force_ab(1:3)=-denuc(1:3)
           ! Force contribution from the QMMM Hamiltonian

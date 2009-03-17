@@ -7,8 +7,14 @@
       METHOD MNDO
       &SE
         PERIODIC EWALD
-        RC_COULOMB [angstrom] 11.1
-        RC_RANGE               0.01
+        &COULOMB
+          CUTOFF   [angstrom] 11.1
+          RC_RANGE             0.01
+        &END
+        &EXCHANGE
+          RC_TAPER [angstrom] 11.1
+          RC_RANGE             0.01
+        &END
         &PRINT
           &EWALD_INFO
           &END

@@ -221,3 +221,5 @@ stp6.inp
 zn_1w_debug.inp
 # more resets after change on GUESS
 scan_zn_1w_cp2k.inp
+# numerics
+md.inp

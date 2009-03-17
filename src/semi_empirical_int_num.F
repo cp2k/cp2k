@@ -20,7 +20,7 @@ MODULE semi_empirical_int_num
                                              do_method_pdg,&
                                              do_method_pm3,&
                                              do_method_pm6,&
-                                             do_method_undef
+                                             do_method_undef,do_se_IS_kdso_d
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: angstrom,&
                                              evolt
@@ -38,9 +38,9 @@ MODULE semi_empirical_int_num
                                              se_int_control_type,&
                                              se_int_screen_type,&
                                              semi_empirical_type,&
-                                             setup_se_int_control_type
-  USE taper_types,                     ONLY: taper_eval,&
-                                             taper_type
+                                             setup_se_int_control_type,&
+                                             se_taper_type
+  USE taper_types,                     ONLY: taper_eval
 #include "cp_common_uses.h"
 #include "semi_empirical_int_args.h"
   IMPLICIT NONE
@@ -70,12 +70,12 @@ CONTAINS
 !>       written by Ernest R. Davidson, Indiana University.
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : major rewriting
 ! *****************************************************************************
-  SUBROUTINE rotint_num (sepi,sepj,rijv,w,se_int_control,taper,error)
+  SUBROUTINE rotint_num (sepi,sepj,rijv,w,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     REAL(dp), DIMENSION(2025), INTENT(OUT)   :: w
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotint_num', &
@@ -106,7 +106,7 @@ CONTAINS
        CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
        
        ! Compute Integrals in Diatomic Frame
-       CALL terep_num(sepi,sepj,rij,rep,taper=taper,se_int_control=se_int_control,error=error)
+       CALL terep_num(sepi,sepj,rij,rep,se_taper=se_taper,se_int_control=se_int_control,error=error)
 
        ! Rotate Integrals
        ii = sepi%natorb
@@ -120,7 +120,7 @@ CONTAINS
           END DO
 
           ! First step in rotation of integrals
-          CALL rot_2el_2c_first(sepi, sepj, rijv, se_int_control, taper, .FALSE., ii, kk, rep, &
+          CALL rot_2el_2c_first(sepi, sepj, rijv, se_int_control, se_taper, .FALSE., ii, kk, rep, &
                logv, ij_matrix, v, lgrad=.FALSE.,error=error)
 
           ! Second step in rotation of integrals
@@ -224,11 +224,11 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
-  SUBROUTINE terep_num(sepi, sepj, rij, rep, taper, se_int_control, error)
+  SUBROUTINE terep_num(sepi, sepj, rij, rep, se_taper, se_int_control, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(OUT)    :: rep
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -240,8 +240,11 @@ CONTAINS
     TYPE(se_int_screen_type)                 :: se_int_screen
 
     failure           = .FALSE.
-    ft                = taper_eval(taper, rij, error)
-    se_int_screen%ft  = ft
+    ft                = taper_eval(se_taper%taper, rij, error)
+    ! In case of dumped integrals compute an additional taper term
+    IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
+       se_int_screen%ft  = taper_eval(se_taper%taper_add, rij, error)
+    END IF
 
     ! Contribution from sp shells
     CALL terep_sp_num(sepi, sepj, rij, rep, se_int_control, se_int_screen, ft,&
@@ -412,14 +415,14 @@ CONTAINS
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : major rewriting
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the core-core part
 ! *****************************************************************************
-  SUBROUTINE rotnuc_num(sepi,sepj,rijv,e1b,e2a,itype,se_int_control,taper,error)
+  SUBROUTINE rotnuc_num(sepi,sepj,rijv,e1b,e2a,itype,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     REAL(dp), DIMENSION(45), INTENT(OUT), &
       OPTIONAL                               :: e1b, e2a
     INTEGER, INTENT(IN)                      :: itype
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc_num', &
@@ -445,7 +448,7 @@ CONTAINS
        CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
 
        ! Compute Integrals in Diatomic Frame
-       CALL core_nucint_num(sepi,sepj,rij,core=core,itype=itype,taper=taper,&
+       CALL core_nucint_num(sepi,sepj,rij,core=core,itype=itype,se_taper=se_taper,&
             se_int_control=se_int_control,error=error)
        
        ! Copy parameters over to arrays for do loop.
@@ -523,13 +526,13 @@ CONTAINS
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : major rewriting
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : splitted from rotnuc
 ! *****************************************************************************
-  SUBROUTINE corecore_num(sepi,sepj,rijv,enuc,itype,se_int_control,taper,error)
+  SUBROUTINE corecore_num(sepi,sepj,rijv,enuc,itype,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     REAL(dp), INTENT(OUT)                    :: enuc
     INTEGER, INTENT(IN)                      :: itype
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore_num', &
@@ -549,11 +552,11 @@ CONTAINS
        rij = SQRT(rij)
        CALL setup_se_int_control_type(se_int_control_off, shortrange=.FALSE., do_ewald_r3=.FALSE.,&
             integral_screening=se_int_control%integral_screening)
-       CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,taper=taper,&
+       CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,se_taper=se_taper,&
             se_int_control=se_int_control_off,error=error)
        ! In case let's compute the short-range part of the (ss|ss) integral
        IF (se_int_control%shortrange) THEN
-          CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss_sr,itype=itype,taper=taper,&
+          CALL ssss_nucint_num(sepi,sepj,rij,ssss=ssss_sr,itype=itype,se_taper=se_taper,&
                se_int_control=se_int_control,error=error)
        ELSE
           ssss_sr = ssss
@@ -704,12 +707,12 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE ssss_nucint_num(sepi, sepj, rij, ssss, itype, taper, se_int_control, error)
+  SUBROUTINE ssss_nucint_num(sepi, sepj, rij, ssss, itype, se_taper, se_int_control, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(OUT)                    :: ssss
     INTEGER, INTENT(IN)                      :: itype
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -723,9 +726,18 @@ CONTAINS
     failure   = .FALSE.
 
     ! Computing Tapering function
-    ft = 1.0_dp
-    IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
-    se_int_screen%ft = ft
+    ft               = 1.0_dp
+    IF (itype /=do_method_pchg) THEN 
+       ft = taper_eval(se_taper%taper, rij, error)
+    END IF
+
+    ! In case of dumped integrals compute an additional taper term
+    IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
+       se_int_screen%ft = 1.0_dp
+       IF (itype /=do_method_pchg) THEN 
+          se_int_screen%ft  = taper_eval(se_taper%taper_add, rij, error)
+       END IF
+    END IF
 
     ! Contribution from the sp shells
     CALL nucint_sp_num(sepi, sepj, rij, ssss=ssss, itype=itype,&
@@ -753,12 +765,12 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE core_nucint_num(sepi, sepj, rij, core, itype, taper, se_int_control, error)
+  SUBROUTINE core_nucint_num(sepi, sepj, rij, core, itype, se_taper, se_int_control, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(10, 2), INTENT(OUT)  :: core
     INTEGER, INTENT(IN)                      :: itype
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -772,9 +784,18 @@ CONTAINS
 
     failure   = .FALSE.
     ! Computing the Tapering function
-    ft = 1.0_dp
-    IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
-    se_int_screen%ft = ft
+    ft               = 1.0_dp
+    IF (itype /=do_method_pchg) THEN 
+       ft = taper_eval(se_taper%taper, rij, error)
+    END IF
+
+    ! In case of dumped integrals compute an additional taper term
+    IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
+       se_int_screen%ft = 1.0_dp
+       IF (itype /=do_method_pchg) THEN 
+          se_int_screen%ft  = taper_eval(se_taper%taper_add, rij, error)
+       END IF
+    END IF
 
     ! Contribution from the sp shells
     CALL nucint_sp_num(sepi, sepj, rij, core=core, itype=itype,&
@@ -978,14 +999,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Numerical Derivatives for rotint
 ! *****************************************************************************
-  SUBROUTINE drotint_num(sepi,sepj,r,dw,delta,se_int_control,taper, error)
+  SUBROUTINE drotint_num(sepi,sepj,r,dw,delta,se_int_control,se_taper, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
     REAL(dp), DIMENSION(3, 2025), &
       INTENT(OUT)                            :: dw
     REAL(dp), INTENT(IN)                     :: delta
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'drotint_num', &
@@ -1001,9 +1022,9 @@ CONTAINS
     DO i=1,3
        rr=r
        rr(i)=rr(i)+delta
-       CALL rotint_num(sepi,sepj,rr,wp,se_int_control,taper=taper,error=error)
+       CALL rotint_num(sepi,sepj,rr,wp,se_int_control,se_taper=se_taper,error=error)
        rr(i)=rr(i)-2._dp*delta
-       CALL rotint_num(sepi,sepj,rr,wm,se_int_control,taper=taper,error=error)
+       CALL rotint_num(sepi,sepj,rr,wm,se_int_control,se_taper=se_taper,error=error)
        DO j = 1, nsize
           dw(i,j) = od * (wp(j) - wm(j))
        END DO
@@ -1014,7 +1035,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Numerical Derivatives for rotnuc
 ! *****************************************************************************
-  SUBROUTINE drotnuc_num(sepi,sepj,r,de1b,de2a,itype,delta,se_int_control,taper,error)
+  SUBROUTINE drotnuc_num(sepi,sepj,r,de1b,de2a,itype,delta,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
     REAL(dp), DIMENSION(3, 45), &
@@ -1022,7 +1043,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(IN)                     :: delta
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'drotnuc_num', &
@@ -1041,9 +1062,9 @@ CONTAINS
     DO i=1,3
        rr=r
        rr(i)=rr(i)+delta
-       CALL rotnuc_num(sepi,sepj,rr,e1p,e2p,itype,se_int_control,taper=taper,error=error)
+       CALL rotnuc_num(sepi,sepj,rr,e1p,e2p,itype,se_int_control,se_taper=se_taper,error=error)
        rr(i)=rr(i)-2._dp*delta
-       CALL rotnuc_num(sepi,sepj,rr,e1m,e2m,itype,se_int_control,taper=taper,error=error)
+       CALL rotnuc_num(sepi,sepj,rr,e1m,e2m,itype,se_int_control,se_taper=se_taper,error=error)
        IF (l_de1b) THEN
           DO j = 1, sepi%atm_int_size
              de1b(i,j) = od * (e1p(j) - e1m(j))
@@ -1060,14 +1081,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Numerical Derivatives for corecore
 ! *****************************************************************************
-  SUBROUTINE dcorecore_num(sepi,sepj,r,denuc,itype,delta,se_int_control,taper,error)
+  SUBROUTINE dcorecore_num(sepi,sepj,r,denuc,itype,delta,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
     REAL(dp), DIMENSION(3), INTENT(OUT)      :: denuc
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(IN)                     :: delta
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(taper_type), POINTER                :: taper
+    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dcorecore_num', &
@@ -1081,9 +1102,9 @@ CONTAINS
     DO i=1,3
        rr=r
        rr(i)=rr(i)+delta
-       CALL corecore_num(sepi,sepj,rr,enucp,itype,se_int_control,taper=taper,error=error)
+       CALL corecore_num(sepi,sepj,rr,enucp,itype,se_int_control,se_taper=se_taper,error=error)
        rr(i)=rr(i)-2._dp*delta
-       CALL corecore_num(sepi,sepj,rr,enucm,itype,se_int_control,taper=taper,error=error)
+       CALL corecore_num(sepi,sepj,rr,enucm,itype,se_int_control,se_taper=se_taper,error=error)
        denuc(i)  = od * ( enucp - enucm )
     END DO
   END SUBROUTINE dcorecore_num
